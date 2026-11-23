@@ -572,6 +572,18 @@ namespace GoF2Remake.Data
 
         // ---- mounting ------------------------------------------------------------------------------------------
 
+        /// <summary>Whether this is a repeated secondary on another player-mounted hardpoint.</summary>
+        public static bool IsDuplicateSecondaryMount(Database db, int item, IList<ItemStack> equipment)
+        {
+            if (db?.Item(item)?.TypeId != 1 || equipment == null) return false;
+            foreach (var e in equipment) if (e != null && !e.builtIn && e.item == item) return true;
+            return false;
+        }
+
+        /// <summary>The duplicate mount exception is only available when an active mod explicitly opts in.</summary>
+        public static bool DuplicateSecondaryMountAllowed(Database db, int item, IList<ItemStack> equipment, bool enabled) =>
+            enabled && IsDuplicateSecondaryMount(db, item, equipment);
+
         /// <summary>Can a cargo item be mounted? Swap: a one-per-ship item of the same category is mounted at 'swapWith'.</summary>
         public Result CanMount(int item, out int swapWith)
         {
@@ -593,7 +605,9 @@ namespace GoF2Remake.Data
                 swapWith = Session.Equipment.FindIndex(e => !e.builtIn && Shop.KindOf(db.Item(e.item)) == Shop.KindOf(it));
                 return swapWith >= 0 ? Result.Swap : Result.Ok;
             }
-            if (!Shop.CanInstallMultiple(Shop.KindOf(it)))
+            bool duplicateSecondary = DuplicateSecondaryMountAllowed(db, item, Session.Equipment,
+                Modding.ModContent.MultipleSecondaryMountsEnabled);
+            if (!Shop.CanInstallMultiple(Shop.KindOf(it)) && !duplicateSecondary)
             {
                 // Remake: turrets (8) and plasma collectors (35) are one per turret slot, not one per ship, so a ship with
                 // two turret slots (a custom ship) takes a second one; the swap only once every turret slot is taken.

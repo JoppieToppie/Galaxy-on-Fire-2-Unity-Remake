@@ -7,8 +7,10 @@
 // 2 / 1 / 0 / 9, Betty (0) 1 / 1 / 0 / 3, Specter (44) 4 / 2 / 0 / 16. The new game's equipment (shop.md 8): 2, 2 primary,
 // 36 x 6 secondary, 54 shield, 59 armor, 82 scanner, 73 booster.
 
+using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Data;
+using GoF2Remake.Flight;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
@@ -52,6 +54,36 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(h.Mount(64), "a second one: compression stacks");
             Assert.AreEqual(2, Mounted(64));
             Assert.IsEmpty(Session.Cargo);
+        }
+
+        [Test]
+        public void DuplicateSecondaryMountsAreDetectedWithoutRelaxingOtherTypes()
+        {
+            var mounted = new List<ItemStack> { new ItemStack(36, 4) };   // Edo is a secondary
+            Assert.IsTrue(Hangar.IsDuplicateSecondaryMount(Db, 36, mounted));
+            Assert.IsFalse(Hangar.DuplicateSecondaryMountAllowed(Db, 36, mounted, false), "vanilla default is unchanged");
+            Assert.IsTrue(Hangar.DuplicateSecondaryMountAllowed(Db, 36, mounted, true), "an active mod enables the exception");
+            Assert.IsFalse(Hangar.IsDuplicateSecondaryMount(Db, 2, mounted), "primary weapons are unaffected");
+            Assert.IsFalse(Hangar.IsDuplicateSecondaryMount(Db, 36,
+                new List<ItemStack> { new ItemStack(36, 1) { builtIn = true } }), "built-in gear is not a player duplicate");
+        }
+
+        [Test]
+        public void MultipleSecondaryMountsShareOneAmmoPool()
+        {
+            var first = new ItemStack(36, 1);
+            var second = new ItemStack(36, 2);
+            var pool = new SecondaryAmmoPool();
+            pool.AddStack(first);
+            pool.AddStack(second);
+            Assert.AreEqual(3, pool.Amount);
+            Assert.IsTrue(pool.HasAmmo);
+            Assert.AreEqual(1, pool.ConsumeOne());
+            Assert.AreEqual(2, pool.Amount);
+            Assert.AreEqual(0, first.amount, "the pool exhausts the first saved stack");
+            Assert.AreEqual(2, second.amount, "then consumes from the next stack");
+            Assert.AreEqual(4, pool.Add(4));
+            Assert.AreEqual(6, pool.Amount);
         }
 
         [Test]
