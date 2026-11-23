@@ -631,6 +631,8 @@ namespace GoF2Remake.World
             }
             chargeMs = 0f;
             state = State.Charging;
+            if (voiceDrive != null && voiceDrive.showFailureChance && !storyTarget.HasValue && !toInterstellar)
+                Message?.Invoke($"Jump drive failure risk: {Mathf.RoundToInt(FailureChance(voiceDrive) * 100f)}%");
             requestedAt = -1f;
             ChargeStarted?.Invoke();
         }
@@ -672,7 +674,7 @@ namespace GoF2Remake.World
             // Modified: a mounted drive's own jump effect (Modding.ModJumpFx), set so the ship, flying on at BaseSpeed, reaches
             // its meeting point at meetMs; the camera stays the Khador Drive's (around fxPos). Not into interstellar space,
             // which has its own hole.
-            var modSpec = toInterstellar ? null : GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            var modSpec = toInterstellar ? null : jumpFailed && failDrive != null ? failDrive : GoF2Remake.Modding.ModJumpFx.ActiveDrive();
             khadorHideMs = 1700f;
             khadorModFx = false;
             if (rift == null && modSpec != null)
@@ -822,6 +824,20 @@ namespace GoF2Remake.World
 
         /// <summary>Whether this jump fails: the mounted mod drive's failChance per gate jump of the route (x2 on Extreme, at
         /// most failMax), failNoRoute from or to a system without jumpgate routes. Never a story jump or interstellar space.</summary>
+        /// <summary>One calculator for both the HUD prediction and the actual failure roll.</summary>
+        float FailureChance(GoF2Remake.Modding.ModJumpFx.Spec d)
+        {
+            if (d == null || db == null) return 0f;
+            int from = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
+            int to = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
+            var a = db.Systems.Find(s => s.index == from);
+            var b = db.Systems.Find(s => s.index == to);
+            var path = a != null && b != null && a.jumpRoutesTo.Count > 0 && b.jumpRoutesTo.Count > 0
+                ? GalaxyMap.SystemPath(db, from, to) : null;
+            return GoF2Remake.Modding.ModJumpFx.FailureProbability(d, path != null ? path.Count - 1 : 0,
+                path != null, Session.IsExtreme);
+        }
+
         bool RollFailure()
         {
             jumpFailed = false;
@@ -829,13 +845,9 @@ namespace GoF2Remake.World
             if (toInterstellar || storyTarget.HasValue) return false;
             var d = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
             if (d == null || (d.failChance <= 0f && d.failNoRoute <= 0f)) return false;
-            int from = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
-            int to = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
-            var a = db.Systems.Find(s => s.index == from);
-            var b = db.Systems.Find(s => s.index == to);
-            var path = a != null && b != null && a.jumpRoutesTo.Count > 0 && b.jumpRoutesTo.Count > 0 ? GalaxyMap.SystemPath(db, from, to) : null;
-            float chance = path == null ? d.failNoRoute : Mathf.Min(d.failMax, d.failChance * (path.Count - 1) * (Session.IsExtreme ? 2 : 1));
-            bool failed = UnityEngine.Random.value < chance;
+            // No potentially irreversible failure when no safe emergency destination exists.
+            if (d.requireConnectedFailureDestination && FailCandidates(true).Count == 0) return false;
+            bool failed = UnityEngine.Random.value < FailureChance(d);
             if (failed) failDrive = d;
             return failed;
         }
@@ -896,9 +908,13 @@ namespace GoF2Remake.World
             if (d != null && failElapsed < d.failMs) return;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }   // IntroCutscenes: StopLoop(1) at the jump
             ship.impairment = 1f;
-            int target = FailTarget();
+            // A gate may have become unavailable during the failure sequence.
+            // If no safe escape destination remains, complete the intended jump without penalties.
+            bool hasEscape = d == null || !d.requireConnectedFailureDestination || FailCandidates(true).Count > 0;
+            int target = hasEscape ? FailTarget() : Session.ProgrammedStation;
+            if (hasEscape) ApplyFailureConsequences(d);   // once, before unloading the scene
             Session.ProgrammedStation = target;
-            jumpFailed = true;
+            jumpFailed = hasEscape;
             StartKhadorScene();
         }
 
@@ -909,13 +925,83 @@ namespace GoF2Remake.World
             if (failRumble != null) { failRumble.Stop(); Destroy(failRumble); failRumble = null; }
         }
 
-        /// <summary>A random station of a system on the map (not this one, nor an orbit without a station).</summary>
-        int FailTarget()
+        /// <summary>Eligible emergency destinations, with optional reciprocal-gate connectivity.</summary>
+        System.Collections.Generic.List<int> FailCandidates(bool requireConnected)
         {
             var visible = GalaxyMap.Visibility(db);
-            var list = db.Stations.FindAll(s => s.index != Session.StationIndex && s.system >= 0 && s.system < visible.Length
-                                               && visible[s.system] && !OrbitLayout.IsEmptyOrbit(s.index, Session.WorldIndex));
-            return list.Count > 0 ? list[UnityEngine.Random.Range(0, list.Count)].index : Session.ProgrammedStation;
+            int origin = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
+            int intended = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
+            var candidates = new System.Collections.Generic.List<int>();
+            foreach (var station in db.Stations)
+            {
+                if (station.index == Session.StationIndex || station.system < 0 || station.system >= visible.Length ||
+                    !visible[station.system] || OrbitLayout.IsEmptyOrbit(station.index, Session.WorldIndex)) continue;
+                if (requireConnected)
+                {
+                    if (station.system == origin || station.system == intended) continue;
+                    var system = db.Systems.Find(s => s.index == station.system);
+                    if (system == null || system.jumpRoutesTo == null) continue;
+                    bool connected = false;
+                    foreach (int neighbourId in system.jumpRoutesTo)
+                    {
+                        var neighbour = db.Systems.Find(s => s.index == neighbourId);
+                        if (neighbour != null && neighbour.jumpRoutesTo != null && neighbour.jumpRoutesTo.Contains(system.index)
+                            && (GameHooks.JumpgateLinkOperational?.Invoke(system.index, neighbourId) ?? true)
+                            && (GameHooks.JumpgateLinkOperational?.Invoke(neighbourId, system.index) ?? true))
+                        { connected = true; break; }
+                    }
+                    if (!connected) continue;
+                }
+                candidates.Add(station.index);
+            }
+            return candidates;
+        }
+
+        int FailTarget()
+        {
+            var candidates = FailCandidates(failDrive != null && failDrive.requireConnectedFailureDestination);
+            return candidates.Count > 0 ? candidates[UnityEngine.Random.Range(0, candidates.Count)] : Session.ProgrammedStation;
+        }
+
+        /// <summary>Optional nonlethal misjump consequences; cargo and ship ownership are unchanged.</summary>
+        void ApplyFailureConsequences(GoF2Remake.Modding.ModJumpFx.Spec d)
+        {
+            if (d == null || !d.hasJumpRules) return;
+            if (health == null && ship != null) health = ship.GetComponent<PlayerHealth>();
+            if (health == null || health.Target == null) return;
+            if (d.failEquipmentLossChance > 0f && UnityEngine.Random.value < d.failEquipmentLossChance)
+            {
+                var eligible = new System.Collections.Generic.List<int>();
+                for (int i = 0; i < Session.Equipment.Count; i++)
+                {
+                    int installed = Session.Equipment[i].item;
+                    // Never select a mounted weapon, ammunition, cargo or ship component.
+                    var itemData = db.Item(installed);
+                    if (itemData != null && itemData.TypeId == 3 && !Session.Equipment[i].builtIn &&
+                        (d.failEquipmentIncludesDrive || installed != d.item))
+                        eligible.Add(i);
+                }
+                if (eligible.Count > 0)
+                {
+                    int slot = eligible[UnityEngine.Random.Range(0, eligible.Count)];
+                    var item = Session.Equipment[slot];
+                    string name = GameNames.Item(item.item);
+                    if (item.amount > 1) item.amount--;
+                    else Session.Equipment.RemoveAt(slot);
+                    health.RefreshLoadout(db, true);
+                    Message?.Invoke($"Misjump equipment lost: {name}");
+                }
+            }
+            var hp = health.Hp;
+            int minimum = Mathf.CeilToInt(hp.maxHull * d.failMinimumHull);
+            if (hp.maxHull > 0 && hp.hull > minimum && d.failHullDamage > 0f)
+            {
+                hp.hull = GoF2Remake.Modding.ModJumpFx.HullAfterFailure(
+                    hp.hull, hp.maxHull, d.failHullDamage, d.failMinimumHull);
+                health.Target.hp = hp.hull;
+                Session.PlayerHull = hp.hull;
+                Message?.Invoke($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
+            }
         }
 
         /// <summary>Status::departStation(programmedStation), Level::setInitStreamOut, reload in the target orbit.</summary>
