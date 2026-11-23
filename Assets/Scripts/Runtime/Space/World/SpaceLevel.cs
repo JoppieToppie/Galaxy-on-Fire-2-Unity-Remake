@@ -470,6 +470,8 @@ namespace GoF2Remake.World
             Mining.navigation = Navigation;
             SystemJump = Player.gameObject.AddComponent<SystemJump>();
             SystemJump.Setup(db, Navigation, Player, Weapons, chase, Jumpgate);
+            if (GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(Layout.stationIndex))
+                SetPlayerJumpgateWreck(false);
 
             // Ship combat: the player's Player object, the orbit's NPC traffic, the ship / salvage locks.
             Health = Player.gameObject.AddComponent<PlayerHealth>();
