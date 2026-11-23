@@ -213,6 +213,18 @@ namespace GoF2Remake.World
         /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
         /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
         bool playerJumpgateWreck, playerJumpgateExplosionPlayed;
+        long playerJumpgateEmpUntilUtc;
+
+        public bool PlayerJumpgateEmpDisabled =>
+            playerJumpgateEmpUntilUtc > System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        public void OnPlayerJumpgateEmpShutdown(long untilUtc)
+        {
+            if (Layout == null || Jumpgate == null) return;
+            playerJumpgateEmpUntilUtc = System.Math.Max(playerJumpgateEmpUntilUtc, untilUtc);
+            // Keep the visual model, physical obstacle, and targeting marker intact.
+            // SystemJump.GateBlocked refuses interactions until the server's deadline.
+        }
 
         public void OnPlayerJumpgateDestroyed(bool permanent = false)
         {
