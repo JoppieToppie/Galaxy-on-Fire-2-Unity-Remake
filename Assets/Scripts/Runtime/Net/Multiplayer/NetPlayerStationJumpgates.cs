@@ -646,7 +646,7 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        internal static string ClaimScrappedJumpgate(NetPlayer by, int orbitStationIndex, string claimType)
+        internal static string ClaimScrappedJumpgate(NetPlayer by, int orbitStationIndex, string claimType, int destinationSystem = -1)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Jumpgate reclamation needs a persistent host or dedicated server.";
@@ -670,6 +670,17 @@ namespace GoF2Remake.Multiplayer
                 return "Only a faction member may reclaim a gate on behalf of their faction.";
             if (!factionClaim && !ownsStation)
                 return "An individual reclaim requires you to own an operational player station. Faction members may claim on behalf of their faction.";
+            int newDestination = destinationSystem >= 0 ? destinationSystem : gate.destinationSystem;
+            var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == newDestination);
+            if (destination?.stations == null || destination.stations.Count == 0 || newDestination == gate.system)
+                return "Choose a valid destination system different from the gate's origin.";
+            bool destinationKnown = factionClaim
+                ? NetProfiles.HasFactionDiscoveredSystem(faction.id, newDestination)
+                : NetProfiles.HasDiscoveredSystem(account, newDestination);
+            if (!destinationKnown)
+                return factionClaim
+                    ? "At least one member of the claiming faction must discover the selected destination."
+                    : "You must personally discover the selected destination before reclaiming this gate.";
             int index = registry.jumpgates.IndexOf(gate);
             var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
             gate.ownershipType = factionClaim ? PlayerStationOwnershipType.Faction : PlayerStationOwnershipType.Individual;
@@ -677,6 +688,7 @@ namespace GoF2Remake.Multiplayer
             gate.ownerFactionId = factionClaim ? faction.id : null;
             gate.ownerName = factionClaim ? faction.name : by.DisplayName;
             gate.accessFactionId = faction?.id;
+            gate.destinationSystem = newDestination;
             gate.constructionStationId = -1;
             gate.sponsorStationId = -1;
             gate.constructionIssuerProfile = account;
@@ -694,7 +706,7 @@ namespace GoF2Remake.Multiplayer
                 return "The reclaimed gate could not be saved; its scrapped state is unchanged.";
             }
             return "Jumpgate claimed " + (factionClaim ? "on behalf of " + faction.name : "by " + by.DisplayName) +
-                ". Deliver a fresh set of construction materials in this orbit to rebuild it.";
+                ", connecting to " + destination.name + ". Deliver a fresh set of construction materials in this orbit to rebuild it.";
         }
 
         internal static string JumpgateStatus(NetPlayer by, int orbitStationIndex)
