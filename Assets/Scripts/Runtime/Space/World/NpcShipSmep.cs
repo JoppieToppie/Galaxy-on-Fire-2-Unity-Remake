@@ -89,10 +89,6 @@ namespace GoF2Remake.World
 
         bool SmepMobileOptIn => Spec != null && (db?.Ship(Spec.ship) as CustomShipData)?.traffic?.mobileAi == true;
 
-        // Eligibility is fixed at spawn. Runtime checks below handle temporary scripted restrictions.
-        static bool SmepExcludedShipClass(ShipClassRules.Class shipClass)
-            => shipClass == ShipClassRules.Cruiser || shipClass == ShipClassRules.Carrier
-               || shipClass == ShipClassRules.Frigate || shipClass == ShipClassRules.Freighter;
         bool SmepHullEligible => smepFighterAi && Spec != null && !IsFreighter && !IsFixed && !IsTurret && !IsWingman
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
