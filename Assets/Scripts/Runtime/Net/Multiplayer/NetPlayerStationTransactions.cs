@@ -51,6 +51,27 @@ namespace GoF2Remake.Multiplayer
 
         static string TransactionPath => path == null ? null : path + ".transaction";
 
+        /// <summary>Apply a committed profile-credit delta to its online controller's live game.</summary>
+        internal static void NotifyProfileCreditChange(string account, long delta, string reason)
+        {
+            if (string.IsNullOrEmpty(account) || delta == 0) return;
+            foreach (ulong client in NetProfiles.ClientsOf(account))
+            {
+                if (!NetProfiles.Controls(client)) continue;
+                // The host profile was updated directly by NetProfiles.SetCreditsAmount.
+                if (NetGame.PersistentHost && client == NetGame.LocalId) break;
+                long remaining = delta;
+                while (remaining != 0)
+                {
+                    int part = remaining > int.MaxValue ? int.MaxValue :
+                        remaining < int.MinValue ? int.MinValue : (int)remaining;
+                    NetState.Instance?.SendAdmin(client, NetAdmin.Order.Credits, part, 0, 0, "", reason ?? "Station transaction");
+                    remaining -= part;
+                }
+                break;
+            }
+        }
+
         internal static bool CommitCargoTransaction(string account, params (int item, int delta)[] changes)
         {
             var cargo = new List<(string account, int item, int delta)>();
