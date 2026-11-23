@@ -230,6 +230,7 @@ namespace GoF2Remake.Multiplayer
             registry = null;
             path = null;
             nextDryDockRetryUtc = 0;
+            nextTransactionRetryUtc = 0;
             persistenceFaulted = false;
             consumedBlueprintsReconciled = false;
             sessionActive = NetGame.PersistentHost || NetGame.Dedicated;
@@ -721,6 +722,7 @@ namespace GoF2Remake.Multiplayer
             registry = null;
             path = null;
             sessionActive = false;
+            nextTransactionRetryUtc = 0;
         }
 
         /// <summary>Add saved player stations to a freshly loaded game database, after mods have added their stations.</summary>
