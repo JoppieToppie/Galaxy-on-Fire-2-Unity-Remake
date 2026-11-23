@@ -170,7 +170,7 @@ namespace GoF2Remake.Flight
             get
             {
                 if (SelectedSecondary < 0) return -1;
-                return SelectedSecondary < 0 ? -1 : AmmoOf(SelectedSecondary);
+                return AmmoOf(SelectedSecondary);
             }
         }
         public string SecondaryName => SelectedSecondary >= 0 ? UI.ItemInfo.ItemName(SelectedSecondary) : "";

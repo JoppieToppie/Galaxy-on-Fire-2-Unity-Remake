@@ -64,8 +64,8 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Hangar.DuplicateSecondaryMountAllowed(Db, 36, mounted, false), "vanilla default is unchanged");
             Assert.IsTrue(Hangar.DuplicateSecondaryMountAllowed(Db, 36, mounted, true), "an active mod enables the exception");
             Assert.IsFalse(Hangar.IsDuplicateSecondaryMount(Db, 2, mounted), "primary weapons are unaffected");
-            Assert.IsFalse(Hangar.IsDuplicateSecondaryMount(Db, 36,
-                new List<ItemStack> { new ItemStack(36, 1) { builtIn = true } }), "built-in gear is not a player duplicate");
+            Assert.IsTrue(Hangar.IsDuplicateSecondaryMount(Db, 36,
+                new List<ItemStack> { new ItemStack(36, 1) { builtIn = true } }), "an integrated secondary is still a hardpoint");
         }
 
         [Test]

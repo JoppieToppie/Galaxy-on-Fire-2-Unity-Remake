@@ -572,11 +572,11 @@ namespace GoF2Remake.Data
 
         // ---- mounting ------------------------------------------------------------------------------------------
 
-        /// <summary>Whether this is a repeated secondary on another player-mounted hardpoint.</summary>
+        /// <summary>Whether this is a repeated secondary on another hardpoint.</summary>
         public static bool IsDuplicateSecondaryMount(Database db, int item, IList<ItemStack> equipment)
         {
             if (db?.Item(item)?.TypeId != 1 || equipment == null) return false;
-            foreach (var e in equipment) if (e != null && !e.builtIn && e.item == item) return true;
+            foreach (var e in equipment) if (e != null && e.item == item) return true;
             return false;
         }
 
