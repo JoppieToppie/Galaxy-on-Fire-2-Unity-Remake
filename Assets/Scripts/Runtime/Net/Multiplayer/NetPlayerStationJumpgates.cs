@@ -74,7 +74,15 @@ namespace GoF2Remake.Multiplayer
                 gate.structuralIntegrityUpdatedUtc = now;
             }
             if (gate.structuralIntegrity <= 0f) TransitionDestroyedGate(gate);
-            if (Save()) return true;
+            if (Save())
+            {
+                // The durable shutdown applies immediately to active pilots; do not rely on
+                // the next periodic registry snapshot to stop a local gate cinematic.
+                if (empEligible && !destroyed)
+                    NetPlayer.OrbitRunner(orbitStationIndex)?.BroadcastJumpgateEmp(
+                        orbitStationIndex, gate.empShutdownUntilUtc);
+                return true;
+            }
             registry.jumpgates[index] = previous;
             return false;
         }
