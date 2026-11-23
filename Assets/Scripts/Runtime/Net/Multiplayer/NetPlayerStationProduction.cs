@@ -276,13 +276,30 @@ namespace GoF2Remake.Multiplayer
 
         // Basic industrial commodities assembled from the game's existing trade goods.
         // Recipe identifiers are stable command-facing IDs; item IDs are resolved against the active database.
-        static readonly FactoryRecipe[] FactoryRecipes =
+        static readonly List<FactoryRecipe> FactoryRecipes = new List<FactoryRecipe>
         {
             new FactoryRecipe { id = 1, output = 120, outputAmount = 1, inputs = new[] { (119, 2) } }, // Plastics
             new FactoryRecipe { id = 2, output = 125, outputAmount = 1, inputs = new[] { (156, 2), (155, 1) } }, // Mechanical Supplies
             new FactoryRecipe { id = 3, output = 129, outputAmount = 1, inputs = new[] { (118, 1), (126, 1) } }, // Optics
             new FactoryRecipe { id = 4, output = 128, outputAmount = 1, inputs = new[] { (118, 1), (127, 1) } }, // Com. Devices
         };
+
+        /// <summary>Register a recipe from a mod or server extension. IDs are stable command-facing identifiers.</summary>
+        public static bool RegisterFactoryRecipe(int id, int output, int outputAmount,
+            params (int item, int amount)[] inputs)
+        {
+            if (id <= 0 || outputAmount <= 0 || !NetGuard.Item(output) || NetGame.Db?.Item(output) == null ||
+                inputs == null || inputs.Length == 0 || FactoryRecipes.Exists(x => x != null && x.id == id)) return false;
+            var validated = new List<(int item, int amount)>();
+            foreach (var input in inputs)
+            {
+                if (!NetGuard.Item(input.item) || NetGame.Db?.Item(input.item) == null ||
+                    input.amount <= 0 || validated.Exists(x => x.item == input.item)) return false;
+                validated.Add(input);
+            }
+            FactoryRecipes.Add(new FactoryRecipe { id = id, output = output, outputAmount = outputAmount, inputs = validated.ToArray() });
+            return true;
+        }
 
         internal static string InstallFactory(NetPlayer by, int id)
         {
@@ -354,7 +371,7 @@ namespace GoF2Remake.Multiplayer
             if (batches < 1 || batches > 100) return "Manufacture between 1 and 100 batches at a time.";
             record.factoryJobs ??= new List<PlayerFactoryProductionJob>();
             if (record.factoryJobs.Count > 0) return "The factory is already processing a production job.";
-            if (!NetGuard.Item(recipe.output) || NetGame.Db?.Item(recipe.output)?.type != "commodity")
+            if (!NetGuard.Item(recipe.output) || NetGame.Db?.Item(recipe.output) == null)
                 return "The recipe output is unavailable in this game's item database.";
             EnsureStorageLots(record);
 
@@ -559,7 +576,7 @@ namespace GoF2Remake.Multiplayer
                     if (paused == null || !paused.paused) continue;
                     var pausedRecipe = FindFactoryRecipe(paused.recipeId);
                     if (pausedRecipe == null || !NetGuard.Item(pausedRecipe.output) ||
-                        NetGame.Db?.Item(pausedRecipe.output)?.type != "commodity") continue;
+                        NetGame.Db?.Item(pausedRecipe.output) == null) continue;
                     int resumeBatches = Math.Min(100, Math.Max(1, paused.batchesPerCycle));
                     if (!paused.continuous) resumeBatches = Math.Min(resumeBatches, Math.Max(0, paused.remainingBatches));
                     bool hasInputs = resumeBatches > 0;
