@@ -336,7 +336,9 @@ namespace GoF2Remake.World
         // Level::createSpace: landmark 1 only in the gate orbit, landmark 2 (hidden) always.
         void BuildGates(SystemData sys)
         {
-            hasJumpgate = sys != null && (sys.jumpgateStation == stationIndex || GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(stationIndex));
+            hasJumpgate = sys != null && (sys.jumpgateStation == stationIndex ||
+                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(stationIndex) ||
+                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(stationIndex));
             var rnd = new JavaRandom(2L * stationIndex);
             int a = 0;
             for (int i = hasJumpgate ? 1 : 2; i <= 2; i++)
