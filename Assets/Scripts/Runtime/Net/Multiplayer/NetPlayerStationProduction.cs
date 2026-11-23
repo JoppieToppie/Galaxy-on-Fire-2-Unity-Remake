@@ -191,7 +191,10 @@ namespace GoF2Remake.Multiplayer
             {
                 if (part == null || part.item < 0 || part.amount <= 0 || db.Item(part.item) == null)
                     return "The ship blueprint contains an invalid ingredient; nothing was consumed.";
-                required[part.item] = required.TryGetValue(part.item, out int old) ? old + part.amount : part.amount;
+                int previous = required.TryGetValue(part.item, out int old) ? old : 0;
+                if (previous > int.MaxValue - part.amount)
+                    return "The ship blueprint requires more than the supported quantity of one material; nothing was consumed.";
+                required[part.item] = previous + part.amount;
             }
             foreach (var pair in required)
             {
