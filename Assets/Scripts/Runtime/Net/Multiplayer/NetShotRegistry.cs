@@ -42,15 +42,31 @@ namespace GoF2Remake.Multiplayer
         /// and rough trajectory; the firing client's exact HullCollision hit supplies mesh contact.
         /// A consumed shot cannot deal repeated structural or EMP hits.</summary>
         public static bool TryConsumeGateHit(ulong source, uint id, int item, Vector3 impact,
-            Vector3 gateCentre, float gateRadius)
+            Vector3 gateCentre, float gateRadius) =>
+            TryConsumeGateContact(source, id, item, impact, impact, gateCentre, gateRadius, 0f);
+
+        /// <summary>The detonation position must be within the blast radius of the claimed
+        /// gate mesh contact; the shot registry independently verifies its flight to the detonation.</summary>
+        public static bool TryConsumeGateBlast(ulong source, uint id, int item, Vector3 detonation,
+            Vector3 gateSurface, Vector3 gateCentre, float gateRadius, float blastRadius)
         {
-            if (id == 0 || !NetGuard.Position(impact) || !NetGuard.Position(gateCentre) ||
-                !NetGuard.Finite(gateRadius) || gateRadius <= 0f) return false;
+            if (!NetGuard.Finite(blastRadius) || blastRadius <= 0f || blastRadius > 20000f ||
+                Vector3.Distance(detonation, gateSurface) > blastRadius + 3f) return false;
+            return TryConsumeGateContact(source, id, item, detonation, gateSurface, gateCentre,
+                gateRadius, blastRadius);
+        }
+
+        static bool TryConsumeGateContact(ulong source, uint id, int item, Vector3 shotPoint,
+            Vector3 gateSurface, Vector3 gateCentre, float gateRadius, float blastRadius)
+        {
+            if (id == 0 || !NetGuard.Position(shotPoint) || !NetGuard.Position(gateSurface) ||
+                !NetGuard.Position(gateCentre) || !NetGuard.Finite(gateRadius) ||
+                gateRadius <= 0f) return false;
             Prune();
             if (!shots.TryGetValue((source, id), out var shot) || shot.item != item ||
                 shot.canceled || shot.gateHitConsumed) return false;
-            if ((impact - gateCentre).magnitude > gateRadius + 5f) return false;
-            Vector3 travel = impact - shot.origin;
+            if ((gateSurface - gateCentre).magnitude > gateRadius + 5f) return false;
+            Vector3 travel = shotPoint - shot.origin;
             float along = Vector3.Dot(travel, shot.velocity.normalized);
             float elapsed = Mathf.Max(0f, Time.time - shot.startedAt);
             // Allow network/physics delay and collision radii, but not a hit behind its muzzle or
@@ -59,7 +75,7 @@ namespace GoF2Remake.Multiplayer
                 ? shot.velocity.magnitude * (elapsed + 0.75f) + 30f
                 : 3000f;
             if (along < -10f || along > reach ||
-                Vector3.Distance(impact, shot.origin + shot.velocity.normalized * along) > 35f) return false;
+                Vector3.Distance(shotPoint, shot.origin + shot.velocity.normalized * along) > 35f) return false;
             shot.gateHitConsumed = true;
             shots[(source, id)] = shot;
             return true;
