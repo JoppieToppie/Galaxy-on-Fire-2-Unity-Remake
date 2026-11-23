@@ -296,6 +296,74 @@ namespace GoF2Remake.World
             return result > 0f && result <= 6f ? result : 0f;
         }
 
+        /// <summary>Predicts candidate 6DOF trajectories from actual velocity, not nose heading.</summary>
+        void SmepPathTest(Vector3 currentVelocity, Vector3 wanted, float topSpeed)
+        {
+            smepPathStraight = true;
+            smepPathSpeed = 1f;
+            if (topSpeed <= 0f || M <= 0f) return;
+            float r = Mathf.Max(1f, Target != null ? Target.radius : 10f);
+            float reach = (Mathf.Max(topSpeed, currentVelocity.magnitude) * 1000f
+                           * Es2NpcFlight.PredictionS * M) + r;
+            Es2GatherAsteroids(transform.position, reach);
+            if (es2Near.Count == 0 && !Es2ObstacleNear(transform.position, reach)) return;
+            if (SmepPathClear(currentVelocity, wanted, topSpeed, r)) return;
+
+            var side = Vector3.Cross(wanted, Mathf.Abs(Vector3.Dot(wanted, Vector3.up)) > 0.95f
+                                             ? Vector3.right : Vector3.up).normalized;
+            foreach (var (cone, speedFactor) in Es2NpcFlight.Candidates)
+            {
+                if (cone < 0.01f && speedFactor >= 1f) continue; // already tested the direct route
+                const int directions = 8;
+                for (int i = 0; i < directions; i++)
+                {
+                    var axis = Quaternion.AngleAxis(i * 360f / directions, wanted) * side;
+                    var candidate = Quaternion.AngleAxis(cone, axis) * wanted;
+                    if (!SmepPathClear(currentVelocity, candidate * speedFactor, topSpeed, r)) continue;
+                    smepPathStraight = false;
+                    smepPathDirection = candidate;
+                    smepPathSpeed = speedFactor;
+                    return;
+                }
+            }
+            // All candidate routes obstructed: command less thrust, keeping the same
+            // physical speed cap and giving the next probe more time to find a detour.
+            smepPathStraight = false;
+            smepPathDirection = wanted;
+            smepPathSpeed = 0.25f;
+        }
+
+        bool SmepPathClear(Vector3 currentVelocity, Vector3 candidate, float topSpeed, float radius)
+        {
+            var pos = transform.position;
+            var velocity = currentVelocity;
+            var targetVelocity = Vector3.ClampMagnitude(candidate * topSpeed, topSpeed);
+            float dtMs = 1000f / Es2NpcFlight.SamplesPerS;
+            int frames = Mathf.CeilToInt(Es2NpcFlight.PredictionS * Es2NpcFlight.SamplesPerS);
+            int frame = Time.frameCount;
+            var all = Obstacle.All;
+            for (int i = 0; i < frames; i++)
+            {
+                velocity = SmepAiRules.StepVelocity(velocity, targetVelocity, transform.rotation, topSpeed,
+                                                    dtMs, smepAccelerationForward, smepAccelerationReverse,
+                                                    smepAccelerationStrafe, smepAccelerationHover);
+                pos += velocity * dtMs * M;
+                foreach (var asteroid in es2Near)
+                {
+                    float combined = radius + asteroid.radius;
+                    if ((asteroid.transform.position - pos).sqrMagnitude < combined * combined) return false;
+                }
+                for (int k = 0; k < all.Count; k++)
+                {
+                    var obstacle = all[k];
+                    if ((object)obstacle == null || (target != null && obstacle.transform == target.transform)
+                        || !obstacle.MayTouch(pos, frame)) continue;
+                    if (obstacle.Touches(pos, out _)) return false;
+                }
+            }
+            return true;
+        }
+
         /// <summary>SMEP's authoritative acceleration-limited translation, with ES2 reserved for fallback.</summary>
         void ApplySmepDogfightTranslation(float dtMs, Vector3 beforePosition, float effectiveTopSpeed)
         {
