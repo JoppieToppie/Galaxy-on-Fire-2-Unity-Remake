@@ -402,17 +402,20 @@ namespace GoF2Remake.Multiplayer
         static void NormalizeStorageLots(PlayerStationRecord station)
         {
             station.storageLots ??= new List<PlayerStationStorageLot>();
+            // Discard empty/corrupt lots before any ownership arithmetic. Negative lots must never
+            // participate in RemoveStorageLots, where subtracting a negative amount could increase it.
+            station.storageLots.RemoveAll(lot => lot == null || lot.amount <= 0);
             // Legacy inventory has no depositor identity. Attribute it to the station's individual owner,
             // preserving the goods as that profile's property instead of gifting them to a later owner.
             foreach (var stack in station.storage ?? new List<PlayerStationStorage>())
             {
                 if (stack == null || stack.amount <= 0) continue;
-                int attributed = 0;
+                long attributed = 0;
                 foreach (var lot in station.storageLots)
-                    if (lot != null && lot.item == stack.item) attributed += Math.Max(0, lot.amount);
+                    if (lot.item == stack.item) attributed += lot.amount;
                 if (attributed < stack.amount)
                     station.storageLots.Add(new PlayerStationStorageLot
-                    { ownerProfile = station.ownerProfile ?? "", item = stack.item, amount = stack.amount - attributed });
+                    { ownerProfile = station.ownerProfile ?? "", item = stack.item, amount = (int)(stack.amount - attributed) });
             }
         }
 
