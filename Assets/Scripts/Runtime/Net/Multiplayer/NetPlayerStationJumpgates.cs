@@ -372,7 +372,7 @@ namespace GoF2Remake.Multiplayer
                     nextJumpgateRetryUtc = now + 5;
                     return;
                 }
-                runner.BroadcastJumpgateExplosion(gate.orbitStationIndex);
+                runner.BroadcastJumpgateExplosion(gate.orbitStationIndex, gate.permanentlyDestroyed);
             }
             foreach (var gate in registry.jumpgates)
             {
