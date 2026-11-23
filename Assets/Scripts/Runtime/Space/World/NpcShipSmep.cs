@@ -38,6 +38,10 @@ namespace GoF2Remake.World
         public static bool UseCustomFlight(bool eligibleNpc, bool mobileTarget, bool empDisabled, bool canTurn, bool drifting)
             => eligibleNpc && !mobileTarget && !empDisabled && canTurn && !drifting;
 
+        /// <summary>Refresh stale or sharply redirected path predictions without per-frame acos.</summary>
+        public static bool RefreshPath(bool initialized, float remainingMs, Vector3 wanted, Vector3 previousWanted)
+            => !initialized || remainingMs <= 0f || Vector3.Dot(wanted, previousWanted) < 0.8660254f;
+
         /// <summary>Velocity after an entire frame, including collision correction. No additive impulses.</summary>
         public static Vector3 VelocityFromDisplacement(Vector3 start, Vector3 end, float dtMs, float scale, float maxSpeed)
         {
@@ -67,7 +71,6 @@ namespace GoF2Remake.World
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
         bool smepPathInitialized;
-        const float SmepRetestCos = 0.8660254f; // cos(30 degrees)
         Vector3 smepPendingAvoidanceDirection;
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
@@ -384,7 +387,7 @@ namespace GoF2Remake.World
                 es2PathMs -= dtMs;
                 // Dot product avoids an acos for every moving NPC each frame.
                 // Clear paths can use a longer cache; obstructed paths recheck at native frequency.
-                if (!smepPathInitialized || es2PathMs <= 0f || Vector3.Dot(wanted, es2PathWanted) < SmepRetestCos)
+                if (SmepAiRules.RefreshPath(smepPathInitialized, es2PathMs, wanted, es2PathWanted))
                 {
                     es2PathWanted = wanted;
                     Es2PathTest(wanted, Mathf.Max(0f, effectiveTopSpeed));
