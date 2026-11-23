@@ -66,6 +66,7 @@ namespace GoF2Remake.World
             if (spec.freighter || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.capitalPart || spec.modCapital) return;
             if (smepEligible)
             {
+                SetupSmepHullFlight(db.Ship(spec.ship));
                 smepFighterAi = true;
                 SetupEs2Fight();
                 return;
