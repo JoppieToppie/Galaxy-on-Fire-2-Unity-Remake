@@ -57,6 +57,8 @@ namespace GoF2Remake.World
             // can resume without inventing full-speed forward momentum.
             if (smepPreviousSteerFrame == Time.frameCount - 1 && dtMs > 0f && M > 0f)
                 smepObservedVelocity = (smepBeforePosition - smepPreviousSteerPosition) / (dtMs * M);
+            else if (es2FlownFrame >= Time.frameCount - 1)
+                smepObservedVelocity = es2Vel / 1000f;
             else
                 smepObservedVelocity = Vector3.zero;
             smepPreviousSteerPosition = smepBeforePosition;
@@ -136,6 +138,13 @@ namespace GoF2Remake.World
             bool useEs2Flight = es2Flight && !useSmepFlight;
             if (!useSmepFlight)
             {
+                // Preserve the outgoing 6DOF momentum on the exact frame that
+                // ES2 resumes, including a mobile player joining mid-combat.
+                if (smepDogfightState != null)
+                {
+                    es2Vel = smepDogfightState.velocity * 1000f;
+                    es2FlownFrame = Time.frameCount;
+                }
                 smepPendingAvoidanceDirection = Vector3.zero;
                 smepMovementFrame = -1;
                 if (smepFighterAi) smepDogfightState = null;
