@@ -265,16 +265,23 @@ namespace GoF2Remake.Multiplayer
             var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
             if (destination?.stations == null || destination.stations.Count == 0)
                 return "Choose a valid destination system with at least one orbital location.";
-            if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
-                return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
-            if (FindJumpgate(orbitStationIndex) != null)
-                return "That orbit already has a player-built jumpgate or an active gate project. Only one gate can occupy an orbit.";
-
             var issuerFaction = NetFactions.Of(issuer);
             bool factionIssued = sponsor.ownershipType == PlayerStationOwnershipType.Faction &&
                 issuerFaction != null && string.Equals(issuerFaction.id, sponsor.ownerFactionId, StringComparison.Ordinal) &&
                 (string.Equals(issuerFaction.leader, issuer, StringComparison.Ordinal) ||
                  HasRole(sponsor, issuer, PlayerStationRole.StationAdministrator));
+            bool discovered = factionIssued
+                ? NetProfiles.HasFactionDiscoveredSystem(sponsor.ownerFactionId, destinationSystem)
+                : NetProfiles.HasDiscoveredSystem(issuer, destinationSystem);
+            if (!discovered)
+                return factionIssued
+                    ? "The destination must have been discovered by at least one member of the owning faction."
+                    : "You must personally discover the destination system before connecting a gate to it.";
+            if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
+                return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
+            if (FindJumpgate(orbitStationIndex) != null)
+                return "That orbit already has a player-built jumpgate or an active gate project. Only one gate can occupy an orbit.";
+
             var gate = new PlayerJumpgateRecord
             {
                 orbitStationIndex = orbitStationIndex,
@@ -414,6 +421,13 @@ namespace GoF2Remake.Multiplayer
             var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == destinationSystem);
             if (destination?.stations == null || destination.stations.Count == 0)
                 return "Choose a valid destination system with at least one orbital location.";
+            bool discovered = gate.ownershipType == PlayerStationOwnershipType.Faction
+                ? NetProfiles.HasFactionDiscoveredSystem(gate.ownerFactionId, destinationSystem)
+                : NetProfiles.HasDiscoveredSystem(gate.ownerProfile, destinationSystem);
+            if (!discovered)
+                return gate.ownershipType == PlayerStationOwnershipType.Faction
+                    ? "At least one member of the owning faction must discover the destination before the gate can be redirected there."
+                    : "The individual gate owner must discover the destination before redirecting this gate.";
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             long readyAt = gate.destinationChangedUtc + JumpgateDestinationCooldownSeconds;
             if (gate.destinationChangedUtc > 0 && now < readyAt)
