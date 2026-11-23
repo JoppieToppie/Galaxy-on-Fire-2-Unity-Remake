@@ -13,7 +13,7 @@ namespace GoF2Remake.Multiplayer
 {
     public enum PlayerStationOwnershipType { Individual = 0, Faction = 1 }
 
-    public enum PlayerJumpgateAccessMode { Everyone = 0, OwningFaction = 1, Blacklist = 2 }
+    public enum PlayerJumpgateAccessMode { Everyone = 0, OwningFaction = 1, Blacklist = 2, OwnerOnly = 3 }
     public enum PlayerJumpgateBlockType { Profile = 0, Faction = 1 }
 
     [Serializable]

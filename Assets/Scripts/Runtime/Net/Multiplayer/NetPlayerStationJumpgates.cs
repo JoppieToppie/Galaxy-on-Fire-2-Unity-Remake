@@ -163,6 +163,7 @@ namespace GoF2Remake.Multiplayer
             bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual &&
                 string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
             if (owner) return true;
+            if (gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly) return false;
             if (gate.blacklist != null)
                 foreach (var blocked in gate.blacklist)
                 {
@@ -360,7 +361,7 @@ namespace GoF2Remake.Multiplayer
             bool oldBuilding = gate.building;
             long oldChanged = gate.destinationChangedUtc;
             gate.building = false;
-            if (gate.destinationChangedUtc <= 0) gate.destinationChangedUtc = now;
+            if (gate.destructionCount == 0 && gate.destinationChangedUtc <= 0) gate.destinationChangedUtc = now;
             if (!Save())
             {
                 gate.building = oldBuilding;
@@ -597,7 +598,7 @@ namespace GoF2Remake.Multiplayer
                 gate.startedUtc = now;
                 gate.completesUtc = now + Math.Max(0, gate.buildSeconds);
                 gate.building = gate.buildSeconds > 0;
-                if (!gate.building) gate.destinationChangedUtc = now;
+                if (!gate.building && gate.destructionCount == 0) gate.destinationChangedUtc = now;
             }
 
             bool committed = factionOwned
@@ -684,7 +685,13 @@ namespace GoF2Remake.Multiplayer
             if (mode == "everyone") next = PlayerJumpgateAccessMode.Everyone;
             else if (mode == "faction" || mode == "owningfaction") next = PlayerJumpgateAccessMode.OwningFaction;
             else if (mode == "blacklist") next = PlayerJumpgateAccessMode.Blacklist;
-            else return "Choose everyone, faction or blacklist.";
+            else if (mode == "owner")
+            {
+                if (gate.ownershipType != PlayerStationOwnershipType.Individual)
+                    return "Owner-only access is for individually owned gates. Use faction access for a faction gate.";
+                next = PlayerJumpgateAccessMode.OwnerOnly;
+            }
+            else return "Choose everyone, faction, blacklist or owner.";
             var previous = gate.accessMode;
             gate.accessMode = next;
             if (!Save())
@@ -694,6 +701,7 @@ namespace GoF2Remake.Multiplayer
             }
             return "Jumpgate access is now " + (next == PlayerJumpgateAccessMode.Everyone ? "open to everyone" :
                 next == PlayerJumpgateAccessMode.OwningFaction ? "restricted to the owning faction" :
+                next == PlayerJumpgateAccessMode.OwnerOnly ? "restricted to the individual owner" :
                 "open except to blacklisted profiles and factions") + ".";
         }
 
@@ -907,7 +915,8 @@ namespace GoF2Remake.Multiplayer
                 return "The reclaimed gate could not be saved; its scrapped state is unchanged.";
             }
             return "Jumpgate claimed " + (factionClaim ? "on behalf of " + faction.name : "by " + by.DisplayName) +
-                ", connecting to " + destination.name + ". Deliver a fresh set of construction materials in this orbit to rebuild it.";
+                ", connecting to " + destination.name + ". Deliver a fresh set of construction materials in this orbit to rebuild it. " +
+                "The new owner can set access while docked in this system with /station jumpgate-access " + orbitStationIndex + ".";
         }
 
         internal static string JumpgateStatus(NetPlayer by, int orbitStationIndex)
@@ -939,7 +948,8 @@ namespace GoF2Remake.Multiplayer
             var lines = new List<string> { "Jumpgate in orbit " + orbitStationIndex + " (" + origin + ")",
                 "Destination: " + destination,
                 "Access: " + (gate.accessMode == PlayerJumpgateAccessMode.Everyone ? "Everyone" :
-                    gate.accessMode == PlayerJumpgateAccessMode.OwningFaction ? "Owning faction only" : "Blacklist mode"),
+                    gate.accessMode == PlayerJumpgateAccessMode.OwningFaction ? "Owning faction only" :
+                    gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly ? "Individual owner only" : "Blacklist mode"),
                 "Blacklisted profiles/factions: " + (gate.blacklist?.Count ?? 0),
                 "Owner: " + (gate.ownershipType == PlayerStationOwnershipType.Faction
                     ? (NetFactions.FindById(gate.ownerFactionId)?.tag ?? gate.ownerName ?? "Owning faction")
