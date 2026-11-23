@@ -136,6 +136,7 @@ namespace GoF2Remake.World
             bool useEs2Flight = es2Flight && !useSmepFlight;
             if (!useSmepFlight)
             {
+                smepPendingAvoidanceDirection = Vector3.zero;
                 smepMovementFrame = -1;
                 if (smepFighterAi) smepDogfightState = null;
             }
@@ -178,6 +179,7 @@ namespace GoF2Remake.World
             {
                 if (useSmepFlight)
                 {
+                    smepPendingAvoidanceDirection = Vector3.zero;
                     smepFrameStartPosition = smepBeforePosition;
                     smepFrameTopSpeed = Mathf.Max(0f, topSpeed);
                     smepFrameDtMs = dtMs;
@@ -433,9 +435,17 @@ namespace GoF2Remake.World
             }
             if (smepMoving)
             {
-                SyncSmepAfterAvoidance();
                 if (smepAvoidanceDirection.sqrMagnitude > 0f)
-                    TurnSmepVelocityAwayFromObstacle(smepAvoidanceDirection, dtMs);
+                    smepPendingAvoidanceDirection = smepAvoidanceDirection;
+                // Rebuild velocity only after both avoidance passes: the second pass
+                // otherwise erases the first pass's steering response.
+                if (!landmarks)
+                {
+                    SyncSmepAfterAvoidance();
+                    if (smepPendingAvoidanceDirection.sqrMagnitude > 0f)
+                        TurnSmepVelocityAwayFromObstacle(smepPendingAvoidanceDirection, dtMs);
+                    smepPendingAvoidanceDirection = Vector3.zero;
+                }
             }
             if (resetSmepReciprocal)
             {
