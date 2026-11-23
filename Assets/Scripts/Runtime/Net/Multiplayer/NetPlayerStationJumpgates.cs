@@ -16,7 +16,15 @@ namespace GoF2Remake.Multiplayer
         internal static long JumpgateEmpDisableSeconds = 120;
         // Fail closed until an explicit weapon-level structural damage policy is registered.
         // EMP effects are independent of this policy.
-        internal static Func<int, bool> StructuralWeaponEligible = weaponId => false;
+        internal const int StructuralWeaponAttr = 183;
+        internal static Func<int, bool> StructuralWeaponEligible = weaponId =>
+        {
+            var item = NetGame.Db?.Item(weaponId);
+            // Nuke-class ordnance is structural by default. Mods can explicitly opt in other
+            // weapons with item attribute 183, independently of the firing ship's class.
+            return item != null && (item.Attr(StructuralWeaponAttr) > 0 ||
+                (GoF2Remake.Flight.Gun.Kind)item.categoryId == GoF2Remake.Flight.Gun.Kind.Nuke);
+        };
         const long JumpgateDestinationCooldownSeconds = 86400;
         static long nextJumpgateRetryUtc;
 
