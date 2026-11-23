@@ -55,6 +55,7 @@ namespace GoF2Remake.World
         Vector3 smepFrameStartPosition;
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
+        Vector3 smepPendingAvoidanceDirection;
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
         SmepDogfightState smepDogfightState;
