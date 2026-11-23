@@ -27,10 +27,16 @@ namespace GoF2Remake.Multiplayer
 
         static bool CanViewJumpgate(NetPlayer by, PlayerJumpgateRecord gate)
         {
-            var sponsor = gate == null ? null : Find(gate.sponsorStationId);
-            return sponsor != null
-                ? CanViewStationRecord(by, sponsor)
-                : CanViewStationRecord(by, JumpgateAccessRecord(gate));
+            if (by == null || gate == null || !NetProfiles.Enabled ||
+                !NetProfiles.Controls(by.OwnerClientId)) return false;
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return false;
+            if (gate.ownershipType == PlayerStationOwnershipType.Individual)
+                return string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
+            var faction = NetFactions.Of(account);
+            if (faction != null && string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal)) return true;
+            var sponsor = Find(gate.constructionStationId > 0 ? gate.constructionStationId : gate.sponsorStationId);
+            return sponsor != null && HasRole(sponsor, account, PlayerStationRole.StationAdministrator);
         }
 
         internal static bool CanViewJumpgateManagement(NetPlayer by, PlayerJumpgateRecord gate) =>
