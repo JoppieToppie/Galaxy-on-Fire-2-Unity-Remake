@@ -362,6 +362,31 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static bool HasDiscoveredSystem(string id, int system)
+        {
+            if (string.IsNullOrEmpty(id) || system < 0 || NetGame.Db?.Systems?.Find(x => x != null && x.index == system) == null)
+                return false;
+            foreach (var login in logins.Values)
+                if (login.account != null && string.Equals(login.account.id, id, StringComparison.Ordinal) && IsHostClient(login.client))
+                {
+                    GalaxyMap.Visibility(NetGame.Db);
+                    return Session.SystemVisible != null && system < Session.SystemVisible.Length && Session.SystemVisible[system];
+                }
+            var save = ReadSave(id);
+            if (save?.systemVisible != null && system < save.systemVisible.Length && save.systemVisible[system]) return true;
+            return index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal))
+                ?.gateDiscoveredSystems?.Contains(system) == true;
+        }
+
+        internal static bool HasFactionDiscoveredSystem(string factionId, int system)
+        {
+            var faction = NetFactions.FindById(factionId);
+            if (faction?.members == null) return false;
+            foreach (string member in faction.members)
+                if (HasDiscoveredSystem(member, system)) return true;
+            return false;
+        }
+
         internal static bool DiscoverSystem(string id, int system)
         {
             if (string.IsNullOrEmpty(id) || NetGame.Db?.Systems == null ||
