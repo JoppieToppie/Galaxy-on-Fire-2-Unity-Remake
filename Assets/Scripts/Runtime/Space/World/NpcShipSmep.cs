@@ -67,6 +67,12 @@ namespace GoF2Remake.World
         public static bool IsMobileTarget(bool isPlayer, bool netPilot, bool remoteMobilePlatform, bool localMobilePlatform)
             => (isPlayer || netPilot) && (netPilot ? remoteMobilePlatform : localMobilePlatform);
 
+        /// <summary>For a new target, desktop players outrank mobile players; distance breaks ties within a tier.</summary>
+        public static bool PreferPlayerTarget(bool candidateMobile, float candidateDistanceSq,
+                                              bool bestExists, bool bestMobile, float bestDistanceSq)
+            => !bestExists || (bestMobile && !candidateMobile)
+               || (bestMobile == candidateMobile && candidateDistanceSq < bestDistanceSq);
+
         /// <summary>The wide-fire fallback must honour the same hard stops as the native NPC fire path.</summary>
         public static bool CanFireFallback(bool shootingEnabled, bool radarHidden, bool holdFire, bool targetable, bool cloaked,
                                            bool followingWaypoint, bool attacking, bool roleFires, bool smepHoldFire,
@@ -172,33 +178,61 @@ namespace GoF2Remake.World
                               : Application.isMobilePlatform && InputMode.Current == InputKind.Touch;
         }
 
-        /// <summary>Choose a hostile remote player only when the current opponent is no longer valid.</summary>
-        void UpdateSmepTargetPriority()
+        /// <summary>Find an eligible hostile remote player, optionally restricted to desktop.</summary>
+        Target FindSmepRemotePlayer(bool desktopOnly)
         {
-            if (!SmepHullEligible || !NetSession.Active || RemotePlayers == null || HostileToRemote == null) return;
-            // Keep mobile opponents too: they switch the flight controller, not the NPC's hostility.
-            if (target != null && Pursuable(target) && InBox(target)
-                && (!target.netPilot || HostileToRemote(this, target))) return;
-            Target best = null;
-            float bestDistance = float.MaxValue;
+            if (!SmepHullEligible || !NetSession.Active || RemotePlayers == null || HostileToRemote == null)
+                return null;
             var origin = transform.position;
             float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
             float detectSq = detect * detect;
+            Target best = null;
+            float bestDistance = float.MaxValue;
+            bool bestMobile = false;
             foreach (var candidate in RemotePlayers)
             {
                 if (!Pursuable(candidate) || !HostileToRemote(this, candidate)) continue;
-                if ((candidate.transform.position - origin).sqrMagnitude > detectSq) continue;
+                bool mobile = MobilePlatformTarget(candidate);
+                if (desktopOnly && mobile) continue;
                 float distance = (candidate.transform.position - origin).sqrMagnitude;
-                if (distance >= bestDistance) continue;
+                if (distance > detectSq || !SmepAiRules.PreferPlayerTarget(mobile, distance, best != null, bestMobile, bestDistance))
+                    continue;
                 best = candidate;
+                bestMobile = mobile;
                 bestDistance = distance;
             }
-            if (best == null) return;
-            remoteTarget = best;
-            target = best;
-            targetPos = best.transform.position;
+            return best;
+        }
+
+        void SetSmepRemoteTarget(Target picked)
+        {
+            remoteTarget = picked;
+            target = picked;
+            targetPos = picked.transform.position;
             attacking = true;
             followingWaypoint = false;
+        }
+
+        /// <summary>Called before normal target acquisition; never displaces a valid active opponent.</summary>
+        bool TrySmepDesktopRemoteTarget()
+        {
+            if (!SmepHullEligible || (attacking && target != null && Pursuable(target) && InBox(target)
+                                       && (!target.netPilot || HostileToRemote != null && HostileToRemote(this, target))))
+                return false;
+            var desktop = FindSmepRemotePlayer(true);
+            if (desktop == null) return false;
+            SetSmepRemoteTarget(desktop);
+            return true;
+        }
+
+        /// <summary>Keep valid combat targets; otherwise prefer desktop remotes, then mobile remotes.</summary>
+        void UpdateSmepTargetPriority()
+        {
+            if (!SmepHullEligible) return;
+            if (target != null && Pursuable(target) && InBox(target)
+                && (!target.netPilot || HostileToRemote != null && HostileToRemote(this, target))) return;
+            var picked = FindSmepRemotePlayer(false);
+            if (picked != null) SetSmepRemoteTarget(picked);
         }
 
         /// <summary>SMEP's acceleration-aware ballistic lead. Target samples are rate-limited and smoothed per fighter.</summary>
