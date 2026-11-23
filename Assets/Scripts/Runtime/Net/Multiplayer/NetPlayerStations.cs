@@ -662,9 +662,9 @@ namespace GoF2Remake.Multiplayer
                     continue;
                 }
                 var system = db.Systems.Find(s => s != null && s.index == record.system);
-                if (system == null || system.stations == null)
+                if (system == null || system.stations == null || system.stations.Count == 0)
                 {
-                    Debug.LogError($"NetPlayerStations: station {record.id} has an invalid system; it was not loaded.");
+                    Debug.LogError($"NetPlayerStations: station {record.id} has an invalid system or the system has no orbital locations; it was not loaded.");
                     continue;
                 }
                 var look = db.Stations.Find(s => s != null && s.index == record.looksLike);
