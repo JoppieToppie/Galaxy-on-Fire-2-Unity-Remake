@@ -28,9 +28,9 @@ namespace GoF2Remake.World
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetEs2Flight() { es2Asteroids.Clear(); es2Near.Clear(); es2AsteroidFrame = -1000; }
 
-        void SetupEs2Flight(SpawnSpec spec)
+        void SetupEs2Flight(SpawnSpec spec, bool force = false)
         {
-            es2Flight = Settings.Es2NpcFlight && !spec.freighter && spec.fixedObject == null && spec.turretAssembly == null
+            es2Flight = (Settings.Es2NpcFlight || force) && !spec.freighter && spec.fixedObject == null && spec.turretAssembly == null
                         && spec.capital == 0 && !spec.capitalPart && !spec.modCapital;
             es2FlownFrame = -2;
             es2PathMs = Random.Range(0f, Es2NpcFlight.ForceUpdateS * 1000f);   // (staggered)
