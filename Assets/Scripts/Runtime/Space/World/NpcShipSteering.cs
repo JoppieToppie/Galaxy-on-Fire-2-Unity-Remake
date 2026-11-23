@@ -76,7 +76,11 @@ namespace GoF2Remake.World
             if (dog) aimPos = DogfightAim(aimPos, out dogHold, es2Aimed);
             else if (es2)
             {
-                aimPos = Es2FightGoal(aimPos, dtMs, out dogHold);
+                var es2RunGoal = Es2FightGoal(aimPos, dtMs, out dogHold);
+                // Keep ES2's combat scheduling but not its run-path steering:
+                // SMEP translation owns the approach and orbit, while the nose
+                // tracks the weapon reticule rather than an ES2 run waypoint.
+                aimPos = smepFighterAi && SmepEnabledForTarget ? shotAt : es2RunGoal;
                 if (smepFighterAi) smepHoldFire = dogHold;
             }
             else if (chorusF) aimPos = ChorusFightGoal(aimPos, out dogHold);   // (remake mods: Chorus's way, NpcShipChorus)
