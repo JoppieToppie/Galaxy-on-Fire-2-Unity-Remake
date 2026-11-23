@@ -13,6 +13,38 @@ namespace GoF2Remake.Multiplayer
 {
     public enum PlayerStationOwnershipType { Individual = 0, Faction = 1 }
 
+    public enum PlayerJumpgateAccessMode { Everyone = 0, OwningFaction = 1, Blacklist = 2 }
+    public enum PlayerJumpgateBlockType { Profile = 0, Faction = 1 }
+
+    [Serializable]
+    public sealed class PlayerJumpgateBlockEntry
+    {
+        public PlayerJumpgateBlockType type;
+        public string id;
+    }
+
+    [Serializable]
+    public sealed class PlayerFactoryProductionJob
+    {
+        public int recipeId, batches;
+        public string operatorProfile;
+        public long startedUtc, completesUtc;
+        public List<PlayerStationMaterial> reservedInputs = new List<PlayerStationMaterial>();
+        public int outputItem, outputAmount;
+    }
+
+    [Serializable]
+    public sealed class PlayerFactoryRepeatOrder
+    {
+        public int recipeId;
+        public bool continuous;
+        public int remainingBatches;
+        public int batchesPerCycle = 1;
+        public string createdByProfile;
+        public long createdUtc;
+        public bool paused;
+    }
+
     [Serializable]
     public sealed class PlayerJumpgateRecord
     {
@@ -25,7 +57,16 @@ namespace GoF2Remake.Multiplayer
         public int destinationSystem = -1;
         public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
         public string ownerProfile, ownerFactionId, ownerName;
+        // Sponsor is retained for legacy construction provenance only. Ownership and recovery are gate-local.
+        public int constructionStationId = -1;
+        public string constructionIssuerProfile;
+        public PlayerJumpgateAccessMode accessMode = PlayerJumpgateAccessMode.Everyone;
+        public List<PlayerJumpgateBlockEntry> blacklist = new List<PlayerJumpgateBlockEntry>();
         public bool building;
+        // First destruction moves the gate into recoverable scrap. The second destroys it permanently
+        // and drops 25% of the original build materials; subsequent rebuilding requires a station order.
+        public bool scrapped, permanentlyDestroyed;
+        public int destructionCount;
         public long startedUtc, completesUtc, destinationChangedUtc;
         public int buildSeconds;
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
@@ -72,6 +113,9 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
         public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
+        // Persistent factory jobs and owner-controlled repeat orders. A factory remains one general-purpose module.
+        public List<PlayerFactoryProductionJob> factoryJobs = new List<PlayerFactoryProductionJob>();
+        public List<PlayerFactoryRepeatOrder> factoryRepeatOrders = new List<PlayerFactoryRepeatOrder>();
         public List<StoredShip> storedShips = new List<StoredShip>();
         // Parallel owner lists preserve the existing StoredShip save format while ensuring shared access never
         // grants ownership of another pilot's hull. Legacy entries are assigned to the station's individual owner.
