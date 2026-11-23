@@ -151,6 +151,7 @@ namespace GoF2Remake.World
                 }
                 smepPendingAvoidanceDirection = Vector3.zero;
                 smepMovementFrame = -1;
+                smepPathInitialized = false;
                 if (smepFighterAi) smepDogfightState = null;
             }
             if (!noSteer && !Hp.empDisabled)
