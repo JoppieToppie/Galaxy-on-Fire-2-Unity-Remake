@@ -120,6 +120,56 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(NetGuard.Shot(0, Vector3.zero, v, up, float.NaN, 0f));
         }
 
+        // ---- Player-built jumpgate shot validation ----
+
+        [Test]
+        public void RegisteredGateShotCanHitOnlyOnce()
+        {
+            const ulong source = 100001;
+            const uint shot = 101;
+            var impact = new Vector3(0f, 0f, 100f);
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f,
+                Vector3.zero, Vector3.forward * 200f);
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                impact, impact, 20f));
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                impact, impact, 20f), "one shot cannot destroy a gate through repeated RPCs");
+        }
+
+        [Test]
+        public void GateHitRejectsWrongWeaponAndImpossibleTrajectory()
+        {
+            const ulong source = 100002;
+            const uint shot = 102;
+            var impact = new Vector3(0f, 0f, 100f);
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f,
+                Vector3.zero, Vector3.forward * 200f);
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 56,
+                impact, impact, 20f), "shot cannot be retagged as another equipped weapon");
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                new Vector3(100f, 0f, 100f), new Vector3(100f, 0f, 100f), 20f),
+                "a shot cannot abruptly move sideways to another mesh");
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                impact, impact, 20f), "a rejected report must not consume a valid shot");
+        }
+
+        [Test]
+        public void GateBlastMustReachItsReportedHullSurface()
+        {
+            const ulong source = 100003;
+            const uint shot = 103;
+            var detonation = new Vector3(0f, 0f, 100f);
+            var surface = new Vector3(0f, 0f, 120f);
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f,
+                Vector3.zero, Vector3.forward * 200f);
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateBlast(source, shot, 55,
+                detonation, surface, surface, 20f, 10f));
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateBlast(source, shot, 55,
+                detonation, surface, surface, 20f, 40f));
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateBlast(source, shot, 55,
+                detonation, surface, surface, 20f, 40f), "the detonation applies only once");
+        }
+
         // ---- NetRateLimit ----
 
         [SetUp]
