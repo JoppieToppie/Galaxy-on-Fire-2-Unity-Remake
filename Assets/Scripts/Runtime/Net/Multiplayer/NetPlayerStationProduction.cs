@@ -113,16 +113,19 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Called by the authoritative server update loop; due jobs survive restarts via UTC timestamps.</summary>
         internal static void Tick()
         {
-            if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
+            if (!NetGame.IsServer || !sessionActive) return;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             // A durable write-ahead journal is the transaction's commit point. If a profile or
             // registry write temporarily fails after the journal is created, retry it during the
             // live session instead of waiting for another station command or a server restart.
             if (now >= nextTransactionRetryUtc && File.Exists(TransactionPath))
             {
-                RecoverPendingTransaction();
-                nextTransactionRetryUtc = File.Exists(TransactionPath) ? now + 5 : 0;
+                bool recovered = RecoverPendingTransaction();
+                bool pending = File.Exists(TransactionPath);
+                if (recovered && !pending) persistenceFaulted = false;
+                nextTransactionRetryUtc = pending ? now + 5 : 0;
             }
+            if (registry?.stations == null) return;
             TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)
