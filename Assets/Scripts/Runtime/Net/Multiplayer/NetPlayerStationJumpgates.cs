@@ -271,6 +271,15 @@ namespace GoF2Remake.Multiplayer
             return changed;
         }
 
+        /// <summary>Local travel refusal for a player gate that is offline, scrapped or being rebuilt.
+        /// Server access and destination requests enforce the same restrictions authoritatively.</summary>
+        public static bool JumpgateOffline(int stationIndex)
+        {
+            var gate = FindJumpgate(stationIndex);
+            return gate != null && (gate.building || gate.scrapped || gate.permanentlyDestroyed ||
+                gate.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        }
+
         /// <summary>Whether an orbital anchor contains an operational player-built jumpgate.</summary>
         internal static bool HasJumpgateAtStation(int stationIndex)
         {
