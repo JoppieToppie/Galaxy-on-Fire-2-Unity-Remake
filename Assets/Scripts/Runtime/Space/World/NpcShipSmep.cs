@@ -62,6 +62,7 @@ namespace GoF2Remake.World
         Vector3 smepFrameStartPosition;
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
+        bool smepPathInitialized;
         Vector3 smepPendingAvoidanceDirection;
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
@@ -363,11 +364,13 @@ namespace GoF2Remake.World
             if (desired.sqrMagnitude > 0.0001f && M > 0f)
             {
                 var wanted = desired.normalized;
-                if ((es2PathMs -= dtMs) <= 0f || Vector3.Angle(wanted, es2PathWanted) > Es2RetestDeg)
+                es2PathMs -= dtMs;
+                if (!smepPathInitialized || es2PathMs <= 0f || Vector3.Angle(wanted, es2PathWanted) > Es2RetestDeg)
                 {
                     es2PathMs = Es2NpcFlight.ForceUpdateS * 1000f;
                     es2PathWanted = wanted;
                     Es2PathTest(wanted, Mathf.Max(0f, effectiveTopSpeed));
+                    smepPathInitialized = true;
                 }
                 if (!es2PathStraight)
                     desired = es2PathDir * (desired.magnitude * es2PathSpeed);
