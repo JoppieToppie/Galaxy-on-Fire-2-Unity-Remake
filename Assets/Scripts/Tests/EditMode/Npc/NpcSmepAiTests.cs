@@ -8,6 +8,16 @@ namespace GoF2Remake.Tests
 {
     public class NpcSmepAiTests : NpcTestBase
     {
+        [TestCase("smep", true)]
+        [TestCase("SMEP", true)]
+        [TestCase("gof3", false)]
+        [TestCase("es2", false)]
+        [TestCase(null, false)]
+        public void ModRequestTakesPrecedenceIndependentOfGlobalPreset(string requestedAi, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.RequestedByMod(requestedAi));
+        }
+
         [TestCase(false, false, true)]
         [TestCase(false, true, true)]
         [TestCase(true, false, false)]
