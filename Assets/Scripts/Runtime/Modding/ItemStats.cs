@@ -53,6 +53,9 @@ namespace GoF2Remake.Modding
             ["damageType"] = 182,
             // Optional shield resistances, percentages (0..100).
             ["energyResistance"] = 183, ["ballisticResistance"] = 184,
+            // Player-built structures: weapons with structuralDamage 1 can damage hull integrity.
+            // EMP effects always apply independently of structural weapon eligibility.
+            ["structuralDamage"] = 189,
             // A weapon's echo (Flight.GunEcho): a second, weaker blast at each hit, echoDelayMs after it (0 = none), at
             // echoPercent of the damage, EMP and size; echoRadius is that blast's reach in game units (0 = blastRadius, 14);
             // echoExplosion is the explosion type it shows (0 ship, 8-10 scatter, 11 shock blast, 13 fireworks; -1 none).
