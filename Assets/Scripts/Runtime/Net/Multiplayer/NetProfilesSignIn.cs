@@ -264,9 +264,9 @@ namespace GoF2Remake.Multiplayer
             if (++inc.got < count) return;
             incoming.Remove(client);
             string json = Unpack(inc.parts);
-            if (json != null) Receive(client, json);
+            if (json != null) Receive(client, json, seq);
         }
-        static void Receive(ulong client, string json)
+        static void Receive(ulong client, string json, int acceptedSequence = 0)
         {
             if (!logins.TryGetValue(client, out var login) || login.account == null) return;
             var account = login.account;
@@ -297,6 +297,7 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             if (!Write(ProfilePath(account.id), json)) return;
+            login.acceptedUploadSequence = acceptedSequence;
             account.worth = worth;
             account.playSeconds = save.playSeconds;
             account.lastSeen = Now();

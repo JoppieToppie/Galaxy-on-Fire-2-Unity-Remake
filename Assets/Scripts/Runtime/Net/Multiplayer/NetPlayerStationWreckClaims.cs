@@ -35,7 +35,8 @@ namespace GoF2Remake.Multiplayer
             bool uninterrupted = sample - lastWreckSample <= 2;
             lastWreckSample = sample;
             long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            List<(PlayerStationRecord Station, PlayerStationWreckClaim Previous)> changes = null;
+            List<(PlayerStationRecord Station, PlayerStationWreckClaim Previous, bool ClaimChanged)> changes = null;
+            bool publish = false;
 
             foreach (var station in registry.stations)
             {
@@ -46,22 +47,27 @@ namespace GoF2Remake.Multiplayer
                     continue;
                 }
                 if (!wreckControl.TryGetValue(station.id, out var control))
-                    wreckControl.Add(station.id, control = new WreckClaimControl());
+                    wreckControl.Add(station.id, control = new WreckClaimControl(claim));
 
-                var side = ObserveWreckControl(station.stationIndex, out bool contested);
+                var side = ObserveWreckControl(station.stationIndex, control.Challenger,
+                    out bool contested, out bool challengerPresent);
                 if (!uninterrupted) control.Pause();
-                var next = control.Observe(claim, side, contested, sample, now, FirstWreckClaimImmediate);
+                var next = control.Observe(claim, side, contested, sample, now, FirstWreckClaimImmediate, challengerPresent);
+                bool claimChanged = next != null;
+                next ??= control.Checkpoint(claim);
                 if (next == null) continue;
 
-                changes ??= new List<(PlayerStationRecord, PlayerStationWreckClaim)>();
-                changes.Add((station, claim));
+                changes ??= new List<(PlayerStationRecord, PlayerStationWreckClaim, bool)>();
+                changes.Add((station, claim, claimChanged));
+                publish |= claimChanged;
                 station.wreckClaim = next;
             }
 
             if (changes == null) return;
-            if (Save())
+            if (Save(publish))
             {
-                foreach (var change in changes) wreckControl.Remove(change.Station.id);
+                foreach (var change in changes)
+                    if (change.ClaimChanged) wreckControl.Remove(change.Station.id);
                 return;
             }
 
@@ -70,9 +76,11 @@ namespace GoF2Remake.Multiplayer
             foreach (var change in changes) change.Station.wreckClaim = change.Previous;
         }
 
-        static WreckClaimant? ObserveWreckControl(int orbit, out bool contested)
+        static WreckClaimant? ObserveWreckControl(int orbit, WreckClaimant challenger,
+            out bool contested, out bool challengerPresent)
         {
             contested = false;
+            challengerPresent = false;
             WreckClaimant? first = null;
             bool eligibleToClaim = false;
             if (orbit < 0) return first;
@@ -88,14 +96,11 @@ namespace GoF2Remake.Multiplayer
                 var faction = NetFactions.Of(account);
                 var side = new WreckClaimant(string.IsNullOrEmpty(account) ? $"guest:{pilot.OwnerClientId}" : account,
                     faction?.id, faction?.name ?? pilot.DisplayName);
+                if (controls && challenger.SameSide(side)) challengerPresent = true;
                 if (!first.HasValue) first = side;
-                else if (!first.Value.SameSide(side))
-                {
-                    contested = true;
-                    return null;
-                }
+                else if (!first.Value.SameSide(side)) contested = true;
             }
-            return eligibleToClaim ? first : null;
+            return eligibleToClaim && !contested ? first : null;
         }
 
         static string WreckClaimStatus(PlayerStationRecord station)

@@ -165,6 +165,13 @@ namespace GoF2Remake.Multiplayer
             visible.originalBuilderProfile = null;
             visible.ownerProfile = null;
             visible.wreckBlueprintSalvage = null;
+            if (wreckClaim != null)
+                visible.wreckClaim = new PlayerStationWreckClaim
+                {
+                    claimantName = wreckClaim.claimantName,
+                    claimedUtcMilliseconds = wreckClaim.claimedUtcMilliseconds,
+                    exclusive = wreckClaim.exclusive
+                };
             visible.shipListings = null;
             visible.listings = null; // public listing readout uses the server's marketplace command
             visible.buyOrders = buyOrders?.ConvertAll(order => order == null ? null : new PlayerStationBuyOrder
@@ -1022,7 +1029,9 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Persist a server-side change atomically, retaining the prior registry as a backup.</summary>
-        public static bool Save()
+        public static bool Save() => Save(publish: true);
+
+        static bool Save(bool publish)
         {
             if (persistenceFaulted || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
@@ -1035,10 +1044,10 @@ namespace GoF2Remake.Multiplayer
                 }
                 return false; // Do not save a caller's potentially stale in-memory mutation over the recovered snapshot.
             }
-            string snapshot = Snapshot;
-            if (!CanPublishStationSnapshot(snapshot)) return false;
+            string snapshot = publish ? Snapshot : null;
+            if (publish && !CanPublishStationSnapshot(snapshot)) return false;
             if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
-            NetState.Instance?.PublishPlayerStations(snapshot);
+            if (publish) NetState.Instance?.PublishPlayerStations(snapshot);
             return true;
         }
     }

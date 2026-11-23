@@ -72,16 +72,14 @@ namespace GoF2Remake.Multiplayer
 
         public void RequestWreckSalvage(int orbit, int room, bool jumpgate)
         {
-            if (IsOwner && IsSpawned && InSpace && Station == orbit && room > 0)
-                WreckSalvageCollectRpc(orbit, room, jumpgate);
-        }
-
-        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        void WreckSalvageCollectRpc(int orbit, int room, bool jumpgate, RpcParams rpc = default)
-        {
-            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
-                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim)) return;
-            NetPlayerStations.CollectWreckSalvage(this, orbit, room, jumpgate);
+            if (!IsOwner || !IsSpawned || !InSpace || Station != orbit || room <= 0) return;
+            if (!IsServer)
+            {
+                NetProfileClient.RequestWreckSalvage(orbit, room, jumpgate);
+                return;
+            }
+            if (NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim))
+                NetPlayerStations.CollectWreckSalvage(this, orbit, room, jumpgate);
         }
     }
 }

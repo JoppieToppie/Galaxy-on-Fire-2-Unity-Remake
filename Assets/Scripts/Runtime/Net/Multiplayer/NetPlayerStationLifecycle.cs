@@ -336,7 +336,8 @@ namespace GoF2Remake.Multiplayer
             if (string.IsNullOrEmpty(account)) return false;
             var cargo = new List<(string account, int item, int delta)>();
             var remaining = new List<PlayerStationMaterial>();
-            room = Math.Min(room, 500);
+            room = Math.Min(Math.Min(room, 500), NetProfiles.WreckSalvageCargoRoom(pilot, account));
+            if (room <= 0) return false;
             foreach (var material in manifest)
             {
                 if (material == null || material.required <= 0 || !NetGuard.Item(material.item)) continue;

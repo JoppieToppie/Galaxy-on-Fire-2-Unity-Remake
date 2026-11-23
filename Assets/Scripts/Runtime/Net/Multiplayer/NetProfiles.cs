@@ -88,6 +88,7 @@ namespace GoF2Remake.Multiplayer
             public string device;
             public bool controller;
             public float acceptedAt;   // real time of the login or the last accepted upload (the earning allowance)
+            public int acceptedUploadSequence;
         }
 
         class Incoming { public int seq, count, got; public byte[][] parts; }
@@ -277,6 +278,49 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static bool ConsumeWreckSalvageUpload(ulong client, int sequence)
+        {
+            if (sequence == 0 || !logins.TryGetValue(client, out var login) ||
+                !login.controller || login.account == null || login.acceptedUploadSequence != sequence) return false;
+            login.acceptedUploadSequence = 0;
+            return true;
+        }
+
+        internal static int WreckSalvageCargoRoom(NetPlayer pilot, string account)
+        {
+            var db = NetGame.Db;
+            var ship = db?.Ship(pilot.ShipIndex);
+            if (ship == null) return 0;
+            if (IsHostClient(pilot.OwnerClientId))
+                return Session.ShipIndex == ship.index ? Math.Max(0, Shop.FreeCargo(db)) : 0;
+
+            // Only the profile snapshot accepted immediately before the pickup is used here.
+            var save = ReadSave(account);
+            if (save == null || save.ship != ship.index) return 0;
+            int baseCargo = ship.cargo;
+            var kit = Modding.ModShipKits.CustomizationOf(ship.index);
+            if (kit != null)
+            {
+                string prefix = Modding.ModShipKits.BuildKey(ship.index) + "|";
+                string buildText = null;
+                if (save.shipBuilds != null)
+                    foreach (string entry in save.shipBuilds)
+                        if (entry != null && entry.StartsWith(prefix, StringComparison.Ordinal))
+                            buildText = entry.Substring(prefix.Length);
+                var build = Modding.ModShipKits.RemoteBuild(ship.index, buildText);
+                if (build == null) return 0;
+                float bonus = Modding.ModShipKits.EffectOf(kit, build).cargo;
+                baseCargo = Mathf.Max(0, Mathf.RoundToInt(ship.cargo * (1f + bonus / 100f)));
+            }
+
+            int capacity = Shop.CargoCapacity(db, baseCargo, Session.ModLevel(save.shipMods, 1), save.equipment);
+            long load = 0;
+            if (save.cargo != null)
+                foreach (var stack in save.cargo)
+                    if (stack != null) load += Math.Max(0, stack.amount);
+            return (int)Math.Max(0L, capacity - load);
+        }
+
         /// <summary>Absolute cargo count used by the station transaction journal. Reapplying a target is safe after a crash.</summary>
         internal static int CargoAmount(string id, int item)
         {
@@ -316,7 +360,7 @@ namespace GoF2Remake.Multiplayer
                     if (amount == 0) save.cargo.Remove(stack);
                 }
                 if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false)))
-                    Debug.LogWarning("NetProfiles: jumpgate discovery was saved in the account index but the profile snapshot could not be refreshed.");
+                    return false;
             }
 
             if (host)
