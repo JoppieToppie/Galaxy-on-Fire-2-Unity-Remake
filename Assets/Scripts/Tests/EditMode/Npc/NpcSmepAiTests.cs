@@ -38,6 +38,26 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(expected, SmepAiRules.IsMobileTarget(isPlayer, netPilot, remoteMobilePlatform, localMobilePlatform));
         }
 
+        [TestCase(true, false, false, true, false, true)]
+        [TestCase(true, true, false, true, false, false)]
+        [TestCase(false, false, false, true, false, false)]
+        [TestCase(true, false, true, true, false, false)]
+        [TestCase(true, false, false, false, false, false)]
+        [TestCase(true, false, false, true, true, false)]
+        public void CustomControllerPrecedenceHonoursNpcAndMobileFallback(bool eligibleNpc, bool mobileTarget,
+            bool empDisabled, bool canTurn, bool drifting, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.UseCustomFlight(eligibleNpc, mobileTarget, empDisabled, canTurn, drifting));
+        }
+
+        [Test]
+        public void MobilePilotJoiningMidFightForcesConventionalFlight()
+        {
+            Assert.IsTrue(SmepAiRules.UseCustomFlight(true, false, false, true, false));
+            Assert.IsFalse(SmepAiRules.UseCustomFlight(true, true, false, true, false));
+            Assert.IsTrue(SmepAiRules.UseCustomFlight(true, false, false, true, false));
+        }
+
         [Test]
         public void ExistingModsDoNotOptIntoMobileSmepByDefault()
         {
