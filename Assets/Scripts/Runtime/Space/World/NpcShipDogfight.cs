@@ -39,6 +39,10 @@ namespace GoF2Remake.World
             smepMotionTarget = null;
             smepMotionInitialized = false;
             smepReciprocalHasPosition = false;
+            smepMovementFrame = -1;
+            smepPreviousSteerFrame = -1;
+            smepObservedVelocity = UnityEngine.Vector3.zero;
+            smepPendingAvoidanceDirection = UnityEngine.Vector3.zero;
 
             int mode = Settings.NpcDogfight;
             var customTraffic = (db?.Ship(spec.ship) as CustomShipData)?.traffic;
