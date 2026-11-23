@@ -2,6 +2,7 @@ using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Visuals;
 using GoF2Remake.World;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -11,7 +12,23 @@ namespace GoF2Remake.Multiplayer
     {
         readonly NetworkVariable<int> managedStationOrbit = new NetworkVariable<int>(-1,
             NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        readonly NetworkVariable<FixedString4096Bytes> managedJumpgates = new NetworkVariable<FixedString4096Bytes>(
+            default, NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
         internal int ManagedStationOrbit => managedStationOrbit.Value;
+
+        internal bool CanViewManagedJumpgate(int orbit)
+        {
+            if (!IsOwner) return false;
+            foreach (var entry in managedJumpgates.Value.ToString().Split(','))
+                if (int.TryParse(entry, out int allowed) && allowed == orbit) return true;
+            return false;
+        }
+
+        internal void SetManagedJumpgates(string orbits)
+        {
+            if (IsServer && managedJumpgates.Value.ToString() != orbits)
+                managedJumpgates.Value = new FixedString4096Bytes(orbits);
+        }
         internal void SetManagedStationOrbit(int orbit)
         {
             if (IsServer && managedStationOrbit.Value != orbit) managedStationOrbit.Value = orbit;

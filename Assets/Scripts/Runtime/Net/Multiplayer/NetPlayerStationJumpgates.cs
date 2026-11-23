@@ -117,7 +117,8 @@ namespace GoF2Remake.Multiplayer
         }
 
         internal static bool CanViewJumpgateManagement(NetPlayer by, PlayerJumpgateRecord gate) =>
-            CanViewJumpgate(by, gate);
+            NetGame.IsServer ? CanViewJumpgate(by, gate) :
+                gate != null && by != null && by.CanViewManagedJumpgate(gate.orbitStationIndex);
 
         static bool CanIssueJumpgateOrder(NetPlayer by, PlayerStationRecord sponsor, out string account)
         {
@@ -783,7 +784,7 @@ namespace GoF2Remake.Multiplayer
         {
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || by == null || !by.IsSpawned) return false;
-            return JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
+            return NetGame.IsServer && JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
         }
 
         /// <summary>Server validation for the owner-only interaction RPC. Returns -1 unless the player is at an accessible, operational gate.</summary>

@@ -918,7 +918,8 @@ namespace GoF2Remake.Multiplayer
                 string successorFactionId = record.factionSuccessorFactionId;
                 var nextFaction = NetFactions.FindById(successorFactionId);
                 bool successorFactionValid = record.factionSuccessorType == PlayerStationOwnershipType.Faction &&
-                    !string.IsNullOrEmpty(successorFactionId) && nextFaction != null;
+                    !string.IsNullOrEmpty(successorFactionId) && nextFaction != null &&
+                    !string.Equals(nextFaction.id, factionId, StringComparison.Ordinal);
 
                 if (successorFactionValid)
                 {
@@ -977,9 +978,56 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
+        static void ApplyDissolvedFactionAssets(string factionId, string fallbackOwner, List<int> changedWrecks)
+        {
+            foreach (var station in registry.stations)
+            {
+                var claim = station?.wreckClaimOpen == true ? station.wreckClaim : null;
+                if (claim == null) continue;
+                if (string.Equals(claim.factionId, factionId, StringComparison.Ordinal))
+                {
+                    station.wreckClaim = new PlayerStationWreckClaim();
+                    changedWrecks.Add(station.id);
+                }
+                else if (string.Equals(claim.challengerFactionId, factionId, StringComparison.Ordinal))
+                {
+                    claim.challengerFactionId = null;
+                    claim.challengerProfile = null;
+                    claim.challengerSeconds = 0;
+                    changedWrecks.Add(station.id);
+                }
+            }
+
+            var formerFaction = NetFactions.FindById(factionId);
+            if (registry.jumpgates == null) return;
+            foreach (var gate in registry.jumpgates)
+            {
+                if (gate == null) continue;
+                if (gate.ownershipType == PlayerStationOwnershipType.Faction &&
+                    string.Equals(gate.ownerFactionId, factionId, StringComparison.Ordinal))
+                {
+                    var sponsor = Find(gate.sponsorStationId);
+                    if (sponsor != null && !sponsor.wreckClaimOpen && !sponsor.reconstructing && !sponsor.destroyed &&
+                        (!string.IsNullOrEmpty(sponsor.ownerProfile) || !string.IsNullOrEmpty(sponsor.ownerFactionId)))
+                        CopyStationOwnershipToGate(sponsor, gate);
+                    else
+                    {
+                        gate.ownershipType = PlayerStationOwnershipType.Individual;
+                        gate.ownerFactionId = null;
+                        gate.ownerProfile = NetProfiles.FindAccount(formerFaction?.leader) != null ? formerFaction.leader : fallbackOwner;
+                        gate.ownerName = gate.ownerProfile ?? "Unclaimed";
+                    }
+                }
+                if (string.Equals(gate.accessFactionId, factionId, StringComparison.Ordinal)) gate.accessFactionId = null;
+                gate.blacklist?.RemoveAll(entry => entry != null && entry.type == PlayerJumpgateBlockType.Faction &&
+                    string.Equals(entry.id, factionId, StringComparison.Ordinal));
+            }
+        }
+
         internal static bool PrepareFactionDeparture(string account, string factionId, bool dissolving)
         {
             if (string.IsNullOrEmpty(factionId) || registry?.stations == null) return true;
+            if (dissolving && HasFactionConstructionStock(factionId)) return false;
             var individualStations = string.IsNullOrEmpty(account) ? new List<PlayerStationRecord>() :
                 registry.stations.FindAll(x => x != null &&
                     x.ownershipType == PlayerStationOwnershipType.Individual &&
@@ -989,8 +1037,15 @@ namespace GoF2Remake.Multiplayer
                 x.ownershipType == PlayerStationOwnershipType.Faction &&
                 string.Equals(x.ownerFactionId, factionId, StringComparison.Ordinal)) :
                 new List<PlayerStationRecord>();
-            if (individualStations.Count == 0 && factionStations.Count == 0) return true;
+            if (!dissolving && individualStations.Count == 0 && factionStations.Count == 0) return true;
 
+            // A pending transaction may replace the registry during Save.
+            if (System.IO.File.Exists(TransactionPath))
+            {
+                RecoverPendingTransaction();
+                return false;
+            }
+            var before = registry;
             string previousRegistry = JsonUtility.ToJson(registry, true);
             foreach (var record in individualStations)
             {
@@ -999,15 +1054,23 @@ namespace GoF2Remake.Multiplayer
                 RecordHistory(record, account, "owner-left-faction", null,
                     "Former faction defaults were revoked; individually assigned permissions remain.");
             }
-            if (dissolving) ApplyFactionDissolution(factionId);
+            var changedWrecks = new List<int>();
+            if (dissolving)
+            {
+                ApplyFactionDissolution(factionId);
+                ApplyDissolvedFactionAssets(factionId, account, changedWrecks);
+                registry.factionConstructionStock?.RemoveAll(entry => entry != null &&
+                    string.Equals(entry.factionId, factionId, StringComparison.Ordinal));
+            }
 
             if (Save())
             {
+                foreach (int stationId in changedWrecks) wreckControl.Remove(stationId);
                 foreach (var record in individualStations) EjectDeniedVisitors(record);
                 foreach (var record in factionStations) EjectDeniedVisitors(record);
                 return true;
             }
-            registry = JsonUtility.FromJson<Registry>(previousRegistry);
+            if (ReferenceEquals(registry, before)) registry = JsonUtility.FromJson<Registry>(previousRegistry);
             if (registry == null)
             {
                 persistenceFaulted = true;

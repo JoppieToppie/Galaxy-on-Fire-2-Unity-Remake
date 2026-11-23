@@ -286,6 +286,27 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static float WreckSalvageTractorReach(NetPlayer pilot)
+        {
+            var db = NetGame.Db;
+            if (db?.Ship(pilot.ShipIndex) == null) return 0;
+            if (IsHostClient(pilot.OwnerClientId))
+                return pilot.ShipIndex == Session.ShipIndex
+                    ? Flight.CombatRadar.TractorReachUnits(Shop.FirstMounted(db, 13)) * World.OrbitLayout.MetersPerUnit
+                    : 0;
+
+            var save = ReadSave(AccountOf(pilot.OwnerClientId));
+            if (save == null || save.ship != pilot.ShipIndex || save.equipment == null) return 0;
+            foreach (var mount in save.equipment)
+            {
+                if (mount == null) continue;
+                var item = db.Item(mount.item);
+                if (item != null && Shop.KindOf(item) == 13)
+                    return Flight.CombatRadar.TractorReachUnits(item) * World.OrbitLayout.MetersPerUnit;
+            }
+            return 0;
+        }
+
         internal static int WreckSalvageCargoRoom(NetPlayer pilot, string account)
         {
             var db = NetGame.Db;

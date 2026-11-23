@@ -135,6 +135,8 @@ namespace GoF2Remake.Multiplayer
             if (faction == null) return Localization.Extra("mpFactionNone", "You aren't in a faction.");
             if (faction.leader == me && faction.members.Count > 1)
                 return Localization.Extra("mpFactionLeaderLeave", "Hand the faction over first (/faction leader <pilot>), or /faction disband.");
+            if (faction.leader == me && faction.members.Count == 1 && NetPlayerStations.HasFactionConstructionStock(faction.id))
+                return "Use or withdraw the faction's donated construction stock before leaving (/station faction-withdraw).";
             if (faction.leader == me && faction.members.Count == 1 && NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
                 return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before leaving.";
             return Remove(faction, me)
@@ -185,6 +187,8 @@ namespace GoF2Remake.Multiplayer
         {
             var faction = Of(me);
             if (faction == null || faction.leader != me) return Localization.Extra("mpFactionNotLeader", "Only the faction's leader can do that.");
+            if (NetPlayerStations.HasFactionConstructionStock(faction.id))
+                return "Use or withdraw the faction's donated construction stock before disbanding (/station faction-withdraw).";
             if (NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
                 return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before disbanding.";
             if (!NetPlayerStations.PrepareFactionDeparture(me, faction.id, true))

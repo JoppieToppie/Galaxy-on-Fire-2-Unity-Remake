@@ -80,6 +80,19 @@ namespace GoF2Remake.Multiplayer
         public long lastStructuralDamageUtc, structuralIntegrityUpdatedUtc, empShutdownUntilUtc;
         public bool combatStateInitialized;
         public bool explosionPending;
+
+        internal PlayerJumpgateRecord ToPublicRecord()
+        {
+            var visible = (PlayerJumpgateRecord)MemberwiseClone();
+            visible.ownerProfile = null;
+            visible.ownerFactionId = null;
+            visible.accessFactionId = null;
+            visible.ownerName = null;
+            visible.constructionIssuerProfile = null;
+            visible.blacklist = null;
+            visible.contributions = null;
+            return visible;
+        }
     }
 
     [Serializable]
@@ -193,7 +206,7 @@ namespace GoF2Remake.Multiplayer
         public PlayerStationTransferProposal pendingTransfer;
         // JsonUtility can deserialize a null inline record as an empty object. Check the flag.
         public bool wreckClaimOpen;
-        public bool reconstructing, destroyed, stationIntegrityInitialized;
+        public bool reconstructing, destroyed, retired, stationIntegrityInitialized;
         public float stationIntegrity, stationIntegrityCapacity;
         public int marketplaceTaxPercent;
         public float stationOffsetX;
@@ -343,7 +356,7 @@ namespace GoF2Remake.Multiplayer
                 var visible = new Registry
                 {
                     stations = registry.stations.ConvertAll(station => station?.ToPublicRecord()),
-                    jumpgates = registry.jumpgates,
+                    jumpgates = registry.jumpgates?.ConvertAll(gate => gate?.ToPublicRecord()) ?? new List<PlayerJumpgateRecord>(),
                     consumedBlueprints = registry.consumedBlueprints
                 };
                 return JsonUtility.ToJson(visible);
@@ -420,7 +433,7 @@ namespace GoF2Remake.Multiplayer
             registry.stations ??= new List<PlayerStationRecord>();
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             registry.consumedBlueprints ??= new List<int>();
-            if (registry.stations.Count > MaxStations)
+            if (registry.stations.FindAll(station => station != null && !station.retired).Count > MaxStations)
                 Debug.LogWarning($"NetPlayerStations: saved registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records and refusing new construction.");
             int highest = 0;
             foreach (var station in registry.stations)
@@ -487,7 +500,7 @@ namespace GoF2Remake.Multiplayer
                 registry.stations ??= new List<PlayerStationRecord>();
                 registry.jumpgates ??= new List<PlayerJumpgateRecord>();
                 registry.consumedBlueprints ??= new List<int>();
-                if (registry.stations.Count > MaxStations)
+                if (registry.stations.FindAll(station => station != null && !station.retired).Count > MaxStations)
                     Debug.LogWarning($"NetPlayerStations: received registry contains {registry.stations.Count} stations (limit {MaxStations}); preserving all records.");
                 foreach (var gate in registry.jumpgates)
                 {
@@ -851,7 +864,7 @@ namespace GoF2Remake.Multiplayer
             var system = db?.Systems?.Find(s => s != null && s.index == systemIndex);
             if (system == null || system.stations == null || system.stations.Count == 0)
                 return "Choose an existing system with at least one orbital location.";
-            if (registry.stations.Count >= MaxStations)
+            if (registry.stations.FindAll(station => station != null && !station.retired).Count >= MaxStations)
                 return "This world has reached its player station limit.";
             int inSystem = 0;
             foreach (var station in registry.stations) if (station != null && !station.destroyed && station.system == system.index) inSystem++;
@@ -953,6 +966,13 @@ namespace GoF2Remake.Multiplayer
                 bool validOrbit = system != null && system.stations != null && system.stations.Count > 0;
                 bool validPreset = look != null;
                 bool available = count <= MaxStationsPerSystem && validOrbit && validPreset;
+                if (record.retired)
+                {
+                    system?.stations?.Remove(record.stationIndex);
+                    if (record.stationIndex == db.Stations.Count)
+                        AddRuntimeStation(db, record, new StationData { index = record.stationIndex, system = record.system, name = record.name });
+                    continue;
+                }
                 string stationName = string.IsNullOrWhiteSpace(record.name)
                     ? $"{record.ownerName}'s Station" : record.name;
 

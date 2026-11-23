@@ -316,17 +316,20 @@ namespace GoF2Remake.Multiplayer
                 !NetProfiles.Controls(pilot.OwnerClientId) || room <= 0)
                 return false;
 
+            float reach = NetProfiles.WreckSalvageTractorReach(pilot);
+            if (reach <= 0f) return false;
+            float reachSquared = reach * reach;
             if (jumpgate)
             {
                 var gate = FindJumpgate(orbit);
                 return NetGame.Db != null && gate?.salvageDropPending == true && gate.salvageMaterials != null &&
-                    (pilot.Position - JumpgateSalvagePosition(orbit)).sqrMagnitude <= 5000f * 5000f &&
+                    (pilot.Position - JumpgateSalvagePosition(orbit)).sqrMagnitude <= reachSquared &&
                     TransferWreckSalvage(pilot, room, ref gate.salvageMaterials, ref gate.salvageDropPending);
             }
 
             var site = StationAt(orbit);
             return site?.stationSalvagePending == true && site.stationSalvage != null &&
-                (pilot.Position - StationSalvagePosition(orbit)).sqrMagnitude <= 5000f * 5000f &&
+                (pilot.Position - StationSalvagePosition(orbit)).sqrMagnitude <= reachSquared &&
                 TransferWreckSalvage(pilot, room, ref site.stationSalvage, ref site.stationSalvagePending);
         }
 
@@ -366,6 +369,28 @@ namespace GoF2Remake.Multiplayer
         }
 
         public static Vector3 StationSalvagePosition(int orbit) => StationPosition(orbit) + Vector3.forward * 30f;
+
+        internal static string RetireStation(NetPlayer pilot, int id)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry?.stations == null || !NetCommands.IsAdmin(pilot))
+                return "Retiring a destroyed player station requires a server administrator.";
+            var record = Find(id);
+            if (record == null || !record.destroyed || record.retired)
+                return "Choose a destroyed player station that has not already been retired.";
+            if (record.stationExplosionPending || record.stationSalvagePending)
+                return "Wait for the station explosion and collect the remaining salvage before retiring the orbit.";
+            var gate = FindJumpgate(record.stationIndex);
+            if (gate != null && (!gate.permanentlyDestroyed || gate.explosionPending || gate.salvageDropPending))
+                return "This orbit still supports a jumpgate, a gate wreck, or outstanding gate salvage.";
+            record.retired = true;
+            if (!Save())
+            {
+                record.retired = false;
+                return "Retirement could not be saved.";
+            }
+            Apply(NetGame.Db);
+            return $"Retired {record.name}. The station slot is available and existing orbit indices are preserved.";
+        }
 
         static void TickStationDestruction()
         {

@@ -18,6 +18,34 @@ namespace GoF2Remake.Multiplayer
             registry?.factionConstructionStock?.Find(entry => entry != null &&
                 string.Equals(entry.factionId, factionId, StringComparison.Ordinal))?.materials;
 
+        internal static bool HasFactionConstructionStock(string factionId) =>
+            FactionConstructionMaterials(factionId)?.Exists(stack => stack != null && stack.amount > 0) == true;
+
+        internal static string WithdrawFactionConstructionMaterials(NetPlayer pilot, int item, int amount)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry == null || pilot == null || !pilot.IsSpawned ||
+                !pilot.InHangar || StationClosedByCombat(pilot.Station) || !NetProfiles.Controls(pilot.OwnerClientId))
+                return "Dock at an operational station using a controlled profile to withdraw faction stock.";
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            var faction = NetFactions.Of(account);
+            if (faction == null || !string.Equals(account, faction.leader, StringComparison.Ordinal))
+                return "Only the faction leader can withdraw donated stock.";
+            if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Choose a valid item and 1–500 units.";
+            var stack = FactionConstructionMaterials(faction.id)?.Find(entry => entry != null && entry.item == item);
+            if (stack == null || stack.amount < amount) return "The faction does not have that quantity in stock.";
+            if (NetProfiles.WreckSalvageCargoRoom(pilot, account) < amount)
+                return "Your ship does not have enough free cargo space.";
+            stack.amount -= amount;
+            if (!CommitCargoTransaction(account, (item, amount)))
+            {
+                stack.amount += amount;
+                return "The withdrawal could not be saved.";
+            }
+            if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
+                NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Give, item, amount, 0, "", "Faction construction stock");
+            return $"Withdrew {amount:N0} units from faction construction stock.";
+        }
+
         internal static string FactionConstructionStockStatus(NetPlayer pilot)
         {
             if (!NetGame.IsServer || pilot == null || !NetProfiles.Controls(pilot.OwnerClientId))

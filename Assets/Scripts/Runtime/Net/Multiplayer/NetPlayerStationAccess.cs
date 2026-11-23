@@ -1,4 +1,6 @@
 using System;
+using System.Text;
+using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
@@ -39,8 +41,13 @@ namespace GoF2Remake.Multiplayer
             return HasStationPermission(record, account, PlayerStationPermission.StationOperations);
         }
 
+        static double nextGateManagementUpdate;
+
         static void PublishStationManagementAccess()
         {
+            double now = Time.realtimeSinceStartupAsDouble;
+            bool refreshGates = now >= nextGateManagementUpdate;
+            if (refreshGates) nextGateManagementUpdate = now + 1;
             foreach (var pilot in NetPlayer.All)
             {
                 if (pilot == null || !pilot.IsSpawned) continue;
@@ -49,7 +56,27 @@ namespace GoF2Remake.Multiplayer
                 bool manages = station != null && !StationClosedByCombat(station.stationIndex) &&
                     HasStationPermission(station, account, PlayerStationPermission.StationOperations);
                 pilot.SetManagedStationOrbit(manages ? station.stationIndex : -1);
+                if (refreshGates) PublishJumpgateManagementAccess(pilot);
             }
+        }
+
+        static void PublishJumpgateManagementAccess(NetPlayer pilot)
+        {
+            var dock = pilot.InHangar ? NetGame.Db?.Stations?.Find(station => station != null && station.index == pilot.Station) : null;
+            if (dock == null || registry?.jumpgates == null)
+            {
+                pilot.SetManagedJumpgates("");
+                return;
+            }
+            var orbits = new StringBuilder();
+            foreach (var gate in registry.jumpgates)
+            {
+                if (gate == null || gate.system != dock.system || !CanViewJumpgate(pilot, gate)) continue;
+                if (orbits.Length >= 3900) break;
+                if (orbits.Length > 0) orbits.Append(',');
+                orbits.Append(gate.orbitStationIndex);
+            }
+            pilot.SetManagedJumpgates(orbits.ToString());
         }
 
         static bool CanManageStorage(NetPlayer by, PlayerStationRecord record, out string account)

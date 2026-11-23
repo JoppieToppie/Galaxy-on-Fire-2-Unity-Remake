@@ -188,7 +188,7 @@ namespace GoF2Remake.Flight
                 tractorLockMs = tractor.Attr(24);
                 tractorMode = tractor.Attr(23);
                 tractorTargets = TractorTargets(tractor);
-                tractorRangeUnits = tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits);
+                tractorRangeUnits = TractorReachUnits(tractor);
                 tractorNoLock = tractor.Attr(TractorNoLockAttr) == 1;
                 beamColor = BeamColor(tractor);
             }
@@ -208,6 +208,10 @@ namespace GoF2Remake.Flight
                 if (beamLength <= 0f) beamLength = M;
             }
         }
+
+        /// <summary>The tractor beam's configured reach in game units, or zero without a beam.</summary>
+        public static float TractorReachUnits(ItemData tractor) =>
+            tractor == null ? 0 : Mathf.Max(0, tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits));
 
         /// <summary>The tractor beam's crate count (attr 122, 1..MaxTractorTargets; 1 = the original's one beam).</summary>
         public static int TractorTargets(ItemData tractor) =>
