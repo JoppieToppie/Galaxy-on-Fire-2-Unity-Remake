@@ -29,7 +29,7 @@ namespace GoF2Remake.World
         Target owner;
         Obstacle obstacle;
         float reach;
-        int refreshFrame;
+        int refreshFrame = -30;
 
         public static void Attach(GameObject host, Database database, int shipIndex, Target target, Obstacle volumes)
         {
