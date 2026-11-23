@@ -399,38 +399,6 @@ namespace GoF2Remake.Multiplayer
                 Local.level.OnPlayerJumpgateDestroyed(permanentlyDestroyed);
         }
 
-        /// <summary>Server: ask the orbit authority to materialise persistent jumpgate salvage as a tractor-beam cargo crate.</summary>
-        internal void SpawnJumpgateSalvageRpc(int orbitStationIndex, int[] items, int[] amounts)
-        {
-            if (!IsServer || !IsSpawned || items == null || amounts == null || items.Length == 0 ||
-                items.Length != amounts.Length || items.Length > 32) return;
-            SpawnJumpgateSalvageClientRpc(orbitStationIndex, items, amounts);
-        }
-
-        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void SpawnJumpgateSalvageClientRpc(int orbitStationIndex, int[] items, int[] amounts)
-        {
-            if (!IsOwner || !IsSpawned || !OrbitAuthority || NetOrbit.Current == null ||
-                NetOrbit.Current.Station != orbitStationIndex || items == null || amounts == null ||
-                items.Length == 0 || items.Length != amounts.Length || items.Length > 32) return;
-            var cargo = new List<ItemStack>();
-            for (int i = 0; i < items.Length; i++)
-                if (NetGuard.Item(items[i]) && amounts[i] > 0 && amounts[i] <= 1000)
-                    cargo.Add(new ItemStack(items[i], amounts[i]));
-            if (cargo.Count == 0) return;
-            int race = NetGame.Db?.Systems?.Find(x => x != null && x.stations != null &&
-                x.stations.Contains(orbitStationIndex))?.raceId ?? 0;
-            // Salvage belongs at the destroyed gate, not wherever the orbit runner happens
-            // to be flying when the persistent queue is delivered.
-            Vector3 position = level != null && level.Layout != null &&
-                level.Layout.stationIndex == orbitStationIndex
-                ? (level.Jumpgate != null ? level.Jumpgate.transform.position
-                    : OrbitLayout.ToUnity(level.Layout.Place(level.Layout.jumpgate)))
-                : (LocalTarget != null ? LocalTarget.transform.position : transform.position);
-            var crate = Crate.Spawn(position + Random.insideUnitSphere * 12f, cargo, race, Crate.LookContainer);
-            crate.keep = true;
-        }
-
         /// <summary>Called locally when a pilot interacts with a player-built jumpgate. The server rechecks the gate and persists discovery.</summary>
         public void RequestJumpgateDiscovery(int orbitStationIndex)
         {

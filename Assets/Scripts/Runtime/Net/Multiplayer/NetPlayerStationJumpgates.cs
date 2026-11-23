@@ -450,27 +450,6 @@ namespace GoF2Remake.Multiplayer
             }
             foreach (var gate in registry.jumpgates)
             {
-                if (gate == null || !gate.salvageDropPending) continue;
-                var runner = NetPlayer.OrbitRunner(gate.orbitStationIndex);
-                if (runner == null) continue; // keep the salvage manifest until an orbit authority is present
-                var items = new List<int>();
-                var amounts = new List<int>();
-                if (gate.salvageMaterials != null)
-                    foreach (var material in gate.salvageMaterials)
-                        if (material != null && material.required > 0 && NetGuard.Item(material.item))
-                        { items.Add(material.item); amounts.Add(material.required); }
-                gate.salvageDropPending = false;
-                if (!Save())
-                {
-                    gate.salvageDropPending = true;
-                    nextJumpgateRetryUtc = now + 5;
-                    return;
-                }
-                if (items.Count > 0)
-                    runner.SpawnJumpgateSalvageRpc(gate.orbitStationIndex, items.ToArray(), amounts.ToArray());
-            }
-            foreach (var gate in registry.jumpgates)
-            {
                 if (gate == null || !gate.building || gate.startedUtc <= 0 ||
                     gate.completesUtc <= 0 || gate.completesUtc > now) continue;
                 CompleteJumpgateIfDue(gate);
@@ -523,8 +502,8 @@ namespace GoF2Remake.Multiplayer
             if (existingGate != null && !stationRebuild)
                 return "That orbit already has a player-built jumpgate, a scrapped gate awaiting reclamation, or an active gate project. Only one gate can occupy an orbit.";
 
-            if (stationRebuild && (existingGate.explosionPending || existingGate.salvageDropPending))
-                return "Visit the destroyed gate's orbit to dispatch its pending destruction and salvage before starting a new build.";
+            if (stationRebuild && existingGate.explosionPending)
+                return "Visit the destroyed gate's orbit to dispatch its explosion before starting a new build.";
 
             var gate = new PlayerJumpgateRecord
             {
@@ -545,6 +524,11 @@ namespace GoF2Remake.Multiplayer
                 contributions = new List<PlayerStationContribution>()
             };
             CopyStationOwnershipToGate(sponsor, gate);
+            if (stationRebuild && existingGate.salvageDropPending)
+            {
+                gate.salvageMaterials = existingGate.salvageMaterials;
+                gate.salvageDropPending = true;
+            }
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             int existingIndex = stationRebuild ? registry.jumpgates.IndexOf(existingGate) : -1;
             if (stationRebuild && existingIndex >= 0) registry.jumpgates[existingIndex] = gate;
@@ -848,17 +832,26 @@ namespace GoF2Remake.Multiplayer
             {
                 gate.scrapped = true;
                 gate.permanentlyDestroyed = false;
-                gate.salvageMaterials = new List<PlayerStationMaterial>();
-                gate.salvageDropPending = false;
             }
             else
             {
                 gate.scrapped = false;
                 gate.permanentlyDestroyed = true;
                 gate.destinationSystem = -1;
-                gate.salvageMaterials = RequiredJumpgateMaterials().ConvertAll(x =>
-                    new PlayerStationMaterial { item = x.item, required = Mathf.CeilToInt(x.required * 0.25f), delivered = 0 });
-                gate.salvageDropPending = true;
+                // A prior replacement can leave uncollected salvage in this orbit.
+                if (!gate.salvageDropPending || gate.salvageMaterials == null)
+                    gate.salvageMaterials = new List<PlayerStationMaterial>();
+                foreach (var material in gate.materials ?? new List<PlayerStationMaterial>())
+                {
+                    if (material == null || material.required <= 0 || !NetGuard.Item(material.item)) continue;
+                    int delivered = Math.Clamp(material.delivered, 0, material.required);
+                    int amount = (int)(((long)delivered + 3) / 4);
+                    if (amount <= 0) continue;
+                    var existing = gate.salvageMaterials.Find(stack => stack != null && stack.item == material.item);
+                    if (existing == null) gate.salvageMaterials.Add(new PlayerStationMaterial { item = material.item, required = amount });
+                    else existing.required = (int)Math.Min(int.MaxValue, (long)existing.required + amount);
+                }
+                gate.salvageDropPending = gate.salvageMaterials.Count > 0;
             }
         }
 
@@ -943,8 +936,6 @@ namespace GoF2Remake.Multiplayer
             gate.startedUtc = gate.completesUtc = 0;
             gate.materials = RequiredJumpgateMaterials();
             gate.contributions = new List<PlayerStationContribution>();
-            gate.salvageMaterials = new List<PlayerStationMaterial>();
-            gate.salvageDropPending = false;
             gate.combatStateInitialized = false;
             gate.structuralIntegrity = 0f;
             gate.lastStructuralDamageUtc = gate.structuralIntegrityUpdatedUtc = gate.empShutdownUntilUtc = 0;
@@ -976,7 +967,7 @@ namespace GoF2Remake.Multiplayer
                         ? "Claim with /station jumpgate-claim " + orbitStationIndex + " faction|individual [destination system id]. Faction members may claim for their faction; individual claims require station ownership."
                         : "A new construction order from an operational player station is required."
                 };
-                if (gate.salvageDropPending) recovery.Add("25% construction-material salvage is awaiting its physical cargo drop.");
+                if (gate.salvageDropPending) recovery.Add("Construction-material salvage remains available for tractor pickup near the destroyed gate.");
                 return string.Join("\n", recovery);
             }
             CompleteJumpgateIfDue(gate);

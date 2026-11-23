@@ -12,6 +12,8 @@ namespace GoF2Remake.World
         int visiblePlayerStationState = -1;
         Crate stationSalvageCrate;
         IReadOnlyList<PlayerStationMaterial> renderedStationSalvage;
+        Crate jumpgateSalvageCrate;
+        IReadOnlyList<PlayerStationMaterial> renderedJumpgateSalvage;
 
         void AttachStationHull()
         {
@@ -28,56 +30,67 @@ namespace GoF2Remake.World
             playerStationDockPointsSpawned = true;
         }
 
-        void UpdatePlayerStationSalvage(int orbit)
+        void UpdateWreckSalvage(int orbit)
         {
-            var manifest = NetPlayerStations.StationSalvageAt(orbit);
-            if (ReferenceEquals(manifest, renderedStationSalvage) &&
-                (stationSalvageCrate != null || manifest == null)) return;
+            UpdateSalvageCrate(orbit, false, NetPlayerStations.StationSalvageAt(orbit),
+                ref stationSalvageCrate, ref renderedStationSalvage);
+            UpdateSalvageCrate(orbit, true, NetPlayerStations.JumpgateSalvageAt(orbit),
+                ref jumpgateSalvageCrate, ref renderedJumpgateSalvage);
+        }
+
+        void UpdateSalvageCrate(int orbit, bool jumpgate, IReadOnlyList<PlayerStationMaterial> manifest,
+            ref Crate crate, ref IReadOnlyList<PlayerStationMaterial> rendered)
+        {
+            if (ReferenceEquals(manifest, rendered) &&
+                (crate != null || manifest == null)) return;
             if (manifest == null || manifest.Count == 0)
             {
-                if (stationSalvageCrate != null) Destroy(stationSalvageCrate.gameObject);
-                renderedStationSalvage = manifest;
+                if (crate != null) Destroy(crate.gameObject);
+                crate = null;
+                rendered = manifest;
                 return;
             }
 
-            bool same = stationSalvageCrate != null && stationSalvageCrate.loot.Count == manifest.Count;
+            bool same = crate != null && crate.loot.Count == manifest.Count;
             if (same)
             {
                 for (int i = 0; i < manifest.Count; i++)
                 {
                     var part = manifest[i];
-                    var item = stationSalvageCrate.loot[i];
+                    var item = crate.loot[i];
                     if (part != null && item.item == part.item && item.amount == part.required) continue;
                     same = false;
                     break;
                 }
             }
-            renderedStationSalvage = manifest;
+            rendered = manifest;
             if (same) return;
 
             var loot = new List<ItemStack>();
             foreach (var material in manifest)
                 if (material != null && material.required > 0) loot.Add(new ItemStack(material.item, material.required));
             if (loot.Count == 0) return;
-            if (stationSalvageCrate == null)
+            if (crate == null)
             {
-                stationSalvageCrate = Crate.Spawn(NetPlayerStations.StationSalvagePosition(orbit), loot, Layout.raceId, Crate.LookContainer);
-                stationSalvageCrate.keep = true;
-                stationSalvageCrate.remote = true;
-                stationSalvageCrate.CollectStationSalvage = room => NetPlayer.Local?.RequestStationSalvage(orbit, room);
+                var anchor = jumpgate ? NetPlayerStations.JumpgateSalvagePosition(orbit) : NetPlayerStations.StationSalvagePosition(orbit);
+                crate = Crate.Spawn(anchor, loot, Layout.raceId, Crate.LookContainer);
+                crate.keep = true;
+                crate.remote = true;
+                crate.CollectStationSalvage = room => NetPlayer.Local?.RequestWreckSalvage(orbit, room, jumpgate);
             }
             else
             {
-                stationSalvageCrate.loot.Clear();
-                stationSalvageCrate.loot.AddRange(loot);
+                crate.loot.Clear();
+                crate.loot.AddRange(loot);
             }
         }
 
         void UpdatePlayerStationLifecycle()
         {
-            if (Layout == null || Navigation == null || !NetPlayerStations.IsPlayerStation(Layout.stationIndex)) return;
+            if (Layout == null || Navigation == null) return;
             int orbit = Layout.stationIndex;
-            UpdatePlayerStationSalvage(orbit);
+            UpdateWreckSalvage(orbit);
+            if (!NetPlayerStations.IsPlayerStation(orbit)) return;
             bool modelPresent = NetPlayerStations.StationSceneryPresent(orbit);
             bool operational = modelPresent && !NetPlayerStations.StationClosedByCombat(orbit);
             int state = operational ? 2 : modelPresent ? 1 : 0;

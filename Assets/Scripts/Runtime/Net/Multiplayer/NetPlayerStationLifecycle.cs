@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GoF2Remake.Data;
+using GoF2Remake.World;
 using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
@@ -294,22 +295,49 @@ namespace GoF2Remake.Multiplayer
             return site?.stationSalvagePending == true ? site.stationSalvage : null;
         }
 
-        internal static bool CollectStationSalvage(NetPlayer pilot, int orbit, int room)
+        public static IReadOnlyList<PlayerStationMaterial> JumpgateSalvageAt(int orbit)
+        {
+            var gate = FindJumpgate(orbit);
+            return gate?.salvageDropPending == true ? gate.salvageMaterials : null;
+        }
+
+        public static Vector3 JumpgateSalvagePosition(int orbit)
+        {
+            var db = NetGame.Db;
+            if (db == null) return Vector3.zero;
+            var layout = OrbitLayout.Build(db, orbit, includePlayerGateLandmark: true);
+            return OrbitLayout.ToUnity(layout.Place(layout.jumpgate)) + Vector3.forward * 30f;
+        }
+
+        internal static bool CollectWreckSalvage(NetPlayer pilot, int orbit, int room, bool jumpgate)
         {
             if (!NetGame.IsServer || !sessionActive || pilot == null || !pilot.IsSpawned ||
                 !pilot.InSpace || pilot.Station != orbit || pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose ||
-                !NetProfiles.Controls(pilot.OwnerClientId) ||
-                (pilot.Position - StationSalvagePosition(orbit)).sqrMagnitude > 5000f * 5000f)
+                !NetProfiles.Controls(pilot.OwnerClientId) || room <= 0)
                 return false;
 
+            if (jumpgate)
+            {
+                var gate = FindJumpgate(orbit);
+                return NetGame.Db != null && gate?.salvageDropPending == true && gate.salvageMaterials != null &&
+                    (pilot.Position - JumpgateSalvagePosition(orbit)).sqrMagnitude <= 5000f * 5000f &&
+                    TransferWreckSalvage(pilot, room, ref gate.salvageMaterials, ref gate.salvageDropPending);
+            }
+
             var site = StationAt(orbit);
-            if (site?.stationSalvagePending != true || site.stationSalvage == null || room <= 0) return false;
+            return site?.stationSalvagePending == true && site.stationSalvage != null &&
+                (pilot.Position - StationSalvagePosition(orbit)).sqrMagnitude <= 5000f * 5000f &&
+                TransferWreckSalvage(pilot, room, ref site.stationSalvage, ref site.stationSalvagePending);
+        }
+
+        static bool TransferWreckSalvage(NetPlayer pilot, int room, ref List<PlayerStationMaterial> manifest, ref bool pending)
+        {
             var account = NetProfiles.AccountOf(pilot.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return false;
             var cargo = new List<(string account, int item, int delta)>();
             var remaining = new List<PlayerStationMaterial>();
             room = Math.Min(room, 500);
-            foreach (var material in site.stationSalvage)
+            foreach (var material in manifest)
             {
                 if (material == null || material.required <= 0 || !NetGuard.Item(material.item)) continue;
                 int current = NetProfiles.CargoAmount(account, material.item);
@@ -320,19 +348,19 @@ namespace GoF2Remake.Multiplayer
                     remaining.Add(new PlayerStationMaterial { item = material.item, required = material.required - take });
             }
             if (cargo.Count == 0) return false;
-            var previous = site.stationSalvage;
-            site.stationSalvage = remaining;
-            site.stationSalvagePending = remaining.Count > 0;
+            var previous = manifest;
+            manifest = remaining;
+            pending = remaining.Count > 0;
             if (!CommitProfileTransaction(cargo, null, null))
             {
-                site.stationSalvage = previous;
-                site.stationSalvagePending = true;
+                manifest = previous;
+                pending = true;
                 return false;
             }
             if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
                 foreach (var transfer in cargo)
                     NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Give, transfer.item, transfer.delta,
-                        0, "", "Station wreck salvage");
+                        0, "", "Wreck salvage");
             return true;
         }
 

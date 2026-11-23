@@ -70,18 +70,18 @@ namespace GoF2Remake.Multiplayer
                 Explosion.Spawn(NetPlayerStations.StationPosition(orbit), 15f);
         }
 
-        public void RequestStationSalvage(int orbit, int room)
+        public void RequestWreckSalvage(int orbit, int room, bool jumpgate)
         {
             if (IsOwner && IsSpawned && InSpace && Station == orbit && room > 0)
-                StationSalvageCollectRpc(orbit, room);
+                WreckSalvageCollectRpc(orbit, room, jumpgate);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        void StationSalvageCollectRpc(int orbit, int room, RpcParams rpc = default)
+        void WreckSalvageCollectRpc(int orbit, int room, bool jumpgate, RpcParams rpc = default)
         {
             if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
                 !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim)) return;
-            NetPlayerStations.CollectStationSalvage(this, orbit, room);
+            NetPlayerStations.CollectWreckSalvage(this, orbit, room, jumpgate);
         }
     }
 }

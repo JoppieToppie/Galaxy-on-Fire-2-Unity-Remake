@@ -194,7 +194,9 @@ namespace GoF2Remake.World
         public static Vector3 Direction(float pitch, float yaw) =>
             new Vector3(Mathf.Sin(yaw), -Mathf.Sin(pitch) * Mathf.Cos(yaw), Mathf.Cos(pitch) * Mathf.Cos(yaw));
 
-        public static OrbitLayout Build(Database db, int stationIndex)
+        public static OrbitLayout Build(Database db, int stationIndex) => Build(db, stationIndex, includePlayerGateLandmark: false);
+
+        public static OrbitLayout Build(Database db, int stationIndex, bool includePlayerGateLandmark)
         {
             var st = db.Stations.Find(s => s.index == stationIndex);
             var sys = st != null ? db.Systems.Find(s => s.index == st.system) : null;
@@ -214,7 +216,7 @@ namespace GoF2Remake.World
             o.stationObject = o.hasStation || (st != null && System.Array.IndexOf(StationObjectInEmptyOrbit, stationIndex) >= 0);
             // Status::inEmptyOrbit: the alien orbit has its Void station until the mother ship is destroyed (index 43..83).
             if (alien) o.hasStation = o.stationObject = Story.Index < 43 || Story.Index > 83 && Story.Index < 154;
-            o.BuildGates(sys);
+            o.BuildGates(sys, includePlayerGateLandmark);
             o.BuildSky();
             o.BuildStarSystem(db, sys);
             o.BuildLights();
@@ -334,9 +336,9 @@ namespace GoF2Remake.World
         }
 
         // Level::createSpace: landmark 1 only in the gate orbit, landmark 2 (hidden) always.
-        void BuildGates(SystemData sys)
+        void BuildGates(SystemData sys, bool includePlayerGateLandmark)
         {
-            hasJumpgate = sys != null && (sys.jumpgateStation == stationIndex ||
+            hasJumpgate = sys != null && (includePlayerGateLandmark || sys.jumpgateStation == stationIndex ||
                 GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(stationIndex) ||
                 GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(stationIndex));
             var rnd = new JavaRandom(2L * stationIndex);
