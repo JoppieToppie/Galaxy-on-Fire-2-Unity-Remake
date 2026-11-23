@@ -501,6 +501,7 @@ namespace GoF2Remake.Multiplayer
                     if (job.completesUtc > now) continue;
                     EnsureStorageLots(record);
                     var output = record.storage.Find(x => x != null && x.item == job.outputItem);
+                    var previousLots = CloneStorageLots(record);
                     long stored = 0;
                     foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
                     if (stored + job.outputAmount > StorageCapacity(record) ||
@@ -529,7 +530,7 @@ namespace GoF2Remake.Multiplayer
                     {
                         if (addedStack) record.storage.Remove(output);
                         else output.amount = oldAmount;
-                        RemoveStorageLots(record, job.operatorProfile, job.outputItem, job.outputAmount);
+                        record.storageLots = previousLots;
                         record.factoryJobs.Insert(0, job);
                         if (order != null)
                         {
@@ -541,6 +542,23 @@ namespace GoF2Remake.Multiplayer
                 }
 
                 if (record.factoryJobs.Count != 0) continue;
+                bool resumed = false;
+                foreach (var paused in record.factoryRepeatOrders)
+                {
+                    if (paused == null || !paused.paused) continue;
+                    var pausedRecipe = FindFactoryRecipe(paused.recipeId);
+                    if (pausedRecipe == null) continue;
+                    int resumeBatches = Math.Min(100, Math.Max(1, paused.batchesPerCycle));
+                    if (!paused.continuous) resumeBatches = Math.Min(resumeBatches, Math.Max(0, paused.remainingBatches));
+                    bool hasInputs = resumeBatches > 0;
+                    if (hasInputs)
+                        foreach (var input in pausedRecipe.inputs)
+                            if (input.amount > int.MaxValue / resumeBatches ||
+                                OwnedStorageAmount(record, paused.createdByProfile, input.item) < input.amount * resumeBatches)
+                            { hasInputs = false; break; }
+                    if (hasInputs) { paused.paused = false; resumed = true; }
+                }
+                if (resumed) Save();
                 var next = record.factoryRepeatOrders.Find(x => x != null && !x.paused);
                 if (next == null) continue;
                 var recipe = FindFactoryRecipe(next.recipeId);
