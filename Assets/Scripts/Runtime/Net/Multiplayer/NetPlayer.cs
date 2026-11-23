@@ -338,6 +338,37 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's ship as a Target here: the local player's own where it is theirs, else the proxy Target.</summary>
         public Target LocalTarget => IsOwner ? (level != null && level.Health != null ? level.Health.Target : null) : target;
 
+        /// <summary>Server: the selected authority for an orbit, or null when nobody is currently running it.</summary>
+        internal static NetPlayer OrbitRunner(int orbitStationIndex) =>
+            NetGame.IsServer ? All.Find(p => p != null && p.IsSpawned && p.OrbitAuthority &&
+                p.RunsOrbitActive && p.RunsOrbit == orbitStationIndex) : null;
+
+        /// <summary>Server: ask the orbit authority to materialise persistent jumpgate salvage as a tractor-beam cargo crate.</summary>
+        internal void SpawnJumpgateSalvageRpc(int orbitStationIndex, int[] items, int[] amounts)
+        {
+            if (!IsServer || !IsSpawned || items == null || amounts == null || items.Length == 0 ||
+                items.Length != amounts.Length || items.Length > 32) return;
+            SpawnJumpgateSalvageClientRpc(orbitStationIndex, items, amounts);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void SpawnJumpgateSalvageClientRpc(int orbitStationIndex, int[] items, int[] amounts)
+        {
+            if (!IsOwner || !IsSpawned || !OrbitAuthority || NetOrbit.Current == null ||
+                NetOrbit.Current.Station != orbitStationIndex || items == null || amounts == null ||
+                items.Length == 0 || items.Length != amounts.Length || items.Length > 32) return;
+            var cargo = new List<ItemStack>();
+            for (int i = 0; i < items.Length; i++)
+                if (NetGuard.Item(items[i]) && amounts[i] > 0 && amounts[i] <= 1000)
+                    cargo.Add(new ItemStack(items[i], amounts[i]));
+            if (cargo.Count == 0) return;
+            int race = NetGame.Db?.Systems?.Find(x => x != null && x.stations != null &&
+                x.stations.Contains(orbitStationIndex))?.raceId ?? 0;
+            Vector3 position = LocalTarget != null ? LocalTarget.transform.position : transform.position;
+            var crate = Crate.Spawn(position + Random.insideUnitSphere * 12f, cargo, race, Crate.LookContainer);
+            crate.keep = true;
+        }
+
         /// <summary>Called locally when a pilot interacts with a player-built jumpgate. The server rechecks the gate and persists discovery.</summary>
         public void RequestJumpgateDiscovery(int orbitStationIndex)
         {
