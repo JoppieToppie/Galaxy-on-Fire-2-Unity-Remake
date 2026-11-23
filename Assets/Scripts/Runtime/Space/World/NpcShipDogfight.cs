@@ -47,9 +47,11 @@ namespace GoF2Remake.World
 
             int mode = Settings.NpcDogfight;
             var customTraffic = (db?.Ship(spec.ship) as CustomShipData)?.traffic;
+            // An explicit SMEP mod opt-in outranks global dogfight presets. Global
+            // settings still govern NPCs that did not opt into SMEP.
+            bool smep = string.Equals(customTraffic?.ai, "smep", System.StringComparison.OrdinalIgnoreCase);
             string ai = mode == SessionRules.DogfightAll ? "gof3" : mode == SessionRules.DogfightEs2All ? "es2"
                       : mode == SessionRules.DogfightOriginalMode ? null : customTraffic?.ai;
-            bool smep = string.Equals(ai, "smep", System.StringComparison.OrdinalIgnoreCase);
             bool smepMobileAllowed = SmepAiRules.EnabledOnPlatform(Application.isMobilePlatform, customTraffic?.mobileAi == true);
             var npcClass = ShipClassRules.ClassOf(db?.Ship(spec.ship));
             bool capitalOrFreighterClass = npcClass == ShipClassRules.Cruiser || npcClass == ShipClassRules.Carrier
@@ -62,13 +64,13 @@ namespace GoF2Remake.World
             SetupEs2Aim(spec, smepEligible);   // SMEP opts this hull into native ES2 aiming without changing the global option
             SetupEs2Flight(spec, smepEligible);   // likewise for ES2's physics flight
             if (spec.freighter || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.capitalPart || spec.modCapital) return;
-            if (mode == SessionRules.DogfightOriginalMode) return;
             if (smepEligible)
             {
                 smepFighterAi = true;
                 SetupEs2Fight();
                 return;
             }
+            if (mode == SessionRules.DogfightOriginalMode) return;
             if (string.Equals(ai, "es2", System.StringComparison.OrdinalIgnoreCase)) { SetupEs2Fight(); return; }   // (NpcShipEs2)
             if (ChorusDogfight.KindOf(ai) is ChorusDogfight.Kind ck) { chorusFight = new ChorusDogfight(() => Random.value, ck); return; }   // (NpcShipChorus)
             if (!string.Equals(ai, "gof3", System.StringComparison.OrdinalIgnoreCase)) return;
