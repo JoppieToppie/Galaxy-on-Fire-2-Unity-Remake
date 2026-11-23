@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | appearance-presets | appearance <id> <built-in model station index> | recover <id> <verification note> (server admin) | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban <id> <account> <reason> | unban <id> <account> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "start <system id> <name> | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | repeat <id> <recipe id> continuous|<total batches> [batches per cycle] | repeat-cancel <id> <order id> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | appearance-presets | appearance <id> <built-in model station index> | recover <id> <verification note> (server admin) | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban <id> <account> <reason> | unban <id> <account> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations and independent-orbit jumpgates, changes gate destinations daily, installs modules, manages storage, ship hangars, dry docks and station listings; persistent worlds only") },
         };
@@ -563,6 +563,32 @@ namespace GoF2Remake.Multiplayer
             }
             if (args.Equals("recipes", StringComparison.OrdinalIgnoreCase))
                 return NetPlayerStations.FactoryRecipeList();
+            const string repeatCancel = "repeat-cancel ";
+            if (args.StartsWith(repeatCancel, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(repeatCancel.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int cancelStationId) ||
+                    !int.TryParse(words[1], out int cancelOrderId))
+                    return "/station repeat-cancel <station id> <order id>";
+                return NetPlayerStations.CancelFactoryRepeatOrder(by as NetPlayer, cancelStationId, cancelOrderId);
+            }
+            const string repeat = "repeat ";
+            if (args.StartsWith(repeat, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(repeat.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if ((words.Length != 3 && words.Length != 4) ||
+                    !int.TryParse(words[0], out int repeatStationId) ||
+                    !int.TryParse(words[1], out int repeatRecipeId) ||
+                    (words.Length == 4 && (!int.TryParse(words[3], out int ignoredCycle) || ignoredCycle < 1 || ignoredCycle > 100)))
+                    return "/station repeat <station id> <recipe id> continuous|<total batches> [batches per cycle]";
+                bool continuous = words[2].Equals("continuous", StringComparison.OrdinalIgnoreCase);
+                int totalBatches = 0;
+                if (!continuous && (!int.TryParse(words[2], out totalBatches) || totalBatches < 1 || totalBatches > 100000))
+                    return "Choose continuous or a fixed total between 1 and 100,000 batches.";
+                int cycle = words.Length == 4 ? int.Parse(words[3]) : 1;
+                return NetPlayerStations.SetFactoryRepeatOrder(by as NetPlayer, repeatStationId,
+                    repeatRecipeId, continuous, totalBatches, cycle);
+            }
             const string manufacture = "manufacture ";
             if (args.StartsWith(manufacture, StringComparison.OrdinalIgnoreCase))
             {
