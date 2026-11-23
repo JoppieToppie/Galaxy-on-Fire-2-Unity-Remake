@@ -86,7 +86,8 @@ namespace GoF2Remake.World
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec) && !MissionShip && !StoryShip && ScriptEnemy == null && !turnedEnemy
                                  && order == null && mindControlMs <= 0f;
-        bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn);
+        // A mobile player target always forces conventional flight, even with mobileAi opt-in.
+        bool SmepEnabledForTarget => SmepHullEligible && !MobilePlatformTarget(target);
         bool SmepEligible => SmepEnabledForTarget;
 
         static bool MobilePlatformTarget(Target t)
@@ -107,14 +108,14 @@ namespace GoF2Remake.World
             // Mobile pilots without explicit opt-in remain ineligible for SMEP priority selection.
             if (target != null && Pursuable(target) && InBox(target)
                 && (target.netPilot ? HostileToRemote(this, target) : remoteTarget == null)
-                && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn)) return;
+                && !MobilePlatformTarget(target)) return;
             Target best = null;
             int bestPriority = int.MaxValue;
             float bestDistance = float.MaxValue;
             var origin = transform.position;
             foreach (var candidate in RemotePlayers)
             {
-                if (MobilePlatformTarget(candidate) && !SmepMobileOptIn) continue;
+                if (MobilePlatformTarget(candidate)) continue;
                 if (!Pursuable(candidate) || !HostileToRemote(this, candidate)) continue;
                 float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
                 if ((candidate.transform.position - origin).sqrMagnitude > detect * detect) continue;
@@ -234,7 +235,7 @@ namespace GoF2Remake.World
         /// <summary>SMEP's smooth range/strafe movement, applied after native ES2 steering and before obstacle avoidance.</summary>
         void ApplySmepDogfightTranslation(float dtMs, Vector3 beforePosition, float effectiveTopSpeed)
         {
-            if (!SmepEligible || target == null || !target.Alive || followingWaypoint || MobileTouchTarget(target))
+            if (!SmepEligible || target == null || !target.Alive || followingWaypoint)
             {
                 smepDogfightState = null;
                 return;
@@ -250,7 +251,7 @@ namespace GoF2Remake.World
                 smepDogfightState = new SmepDogfightState
                 {
                     target = target,
-                    velocity = dtMs > 0f ? (transform.position - beforePosition) / (dtMs * M) : Vector3.zero,
+                    velocity = es2Vel / 1000f,
                     phase = Random.Range(0f, Mathf.PI * 2f),
                     hoverRate = Random.Range(0.85f, 1.25f),
                     orbitSign = Random.value < 0.5f ? -1 : 1,
@@ -335,7 +336,7 @@ namespace GoF2Remake.World
             float topSpeed = Mathf.Max(0f, effectiveTopSpeed);
             desired *= topSpeed;
 
-            float dt = Mathf.Clamp(dtMs, 0f, 50f);
+            float dt = Mathf.Max(0f, dtMs);
             float responseMs = bursting ? 90f : 240f;
             float blend = 1f - Mathf.Exp(-dt / responseMs);
             // Axis-specific acceleration in ship space; top speed remains shared across directions.
@@ -347,28 +348,17 @@ namespace GoF2Remake.World
             localCurrent.z = Mathf.MoveTowards(localCurrent.z, localDesired.z, axisStep * (localDesired.z < localCurrent.z ? 0.75f : 1f));
             state.velocity = Vector3.ClampMagnitude(transform.TransformDirection(localCurrent), topSpeed);
             float maxStep = topSpeed * dt * M;
-            var nativeStep = transform.position - beforePosition;
-            var customStep = state.velocity * dt * M;
+            var step = state.velocity * dt * M;
             bool hardRetreat = state.retreating;
-            var step = Vector3.Lerp(nativeStep, customStep, hardRetreat ? 1f : 0.92f);
-            if (hardRetreat)
-            {
-                float actualOutward = Vector3.Dot(step, away);
-                float minimumOutward = maxStep * 0.72f;
-                if (actualOutward < minimumOutward) step += away * (minimumOutward - actualOutward);
-            }
+            // Retreat uses the same acceleration-limited velocity as all other movement.
 
-            var beforeAway = beforePosition - targetPoint;
-            if (beforeAway.sqrMagnitude > 0.001f)
-            {
-                var outward = beforeAway.normalized;
-                float projectedRange = beforeAway.magnitude + Vector3.Dot(step, outward);
-                if (projectedRange < SmepCloseLimit) step += outward * (SmepCloseLimit - projectedRange);
-            }
             if (maxStep <= 0f) step = Vector3.zero;
             else if (step.magnitude > maxStep)
                 step = hardRetreat ? away * maxStep : step.normalized * maxStep;
             transform.position = beforePosition + step;
+            // Keep ES2's fallback velocity in sync with the authoritative SMEP displacement.
+            es2Vel = dt > 0f && M > 0f ? step / (dt * M) * 1000f : Vector3.zero;
+            es2FlownFrame = Time.frameCount;
         }
 
         /// <summary>Fallback for a ready primary gun when the native ES2 scheduler did not fire this frame.</summary>
