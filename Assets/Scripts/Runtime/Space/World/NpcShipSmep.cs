@@ -143,11 +143,12 @@ namespace GoF2Remake.World
             Target best = null;
             float bestDistance = float.MaxValue;
             var origin = transform.position;
+            float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
+            float detectSq = detect * detect;
             foreach (var candidate in RemotePlayers)
             {
                 if (!Pursuable(candidate) || !HostileToRemote(this, candidate)) continue;
-                float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
-                if ((candidate.transform.position - origin).sqrMagnitude > detect * detect) continue;
+                if ((candidate.transform.position - origin).sqrMagnitude > detectSq) continue;
                 float distance = (candidate.transform.position - origin).sqrMagnitude;
                 if (distance >= bestDistance) continue;
                 best = candidate;
@@ -307,70 +308,70 @@ namespace GoF2Remake.World
             }
             else
             {
-            away = distance > 0.01f ? offset / distance : transform.rotation * Vector3.back;
-            if (distance < 520f && nowTime - state.lastCloseSample > 1.25f)
-            {
-                state.closeApproachCount = Mathf.Min(8, state.closeApproachCount + 1);
-                state.lastCloseSample = nowTime;
-                state.wideOrbit = Mathf.Min(700f, state.closeApproachCount * 100f);
-            }
-            else if (distance > 1800f && nowTime - state.lastCloseSample > 4f)
-            {
-                state.closeApproachCount = Mathf.Max(0, state.closeApproachCount - 1);
-                state.wideOrbit = Mathf.Max(0f, state.closeApproachCount * 100f);
-                state.lastCloseSample = nowTime;
-            }
-
-            float desiredRange = SmepDogfightRange + state.wideOrbit;
-            if (distance <= SmepCloseLimit) state.retreating = true;
-            else if (state.retreating && distance >= desiredRange + 350f)
-            {
-                state.retreating = false;
-                state.nextRetreatCheck = nowTime + Random.Range(3f, 7f);
-            }
-            else if (!state.retreating && distance < desiredRange - 200f && nowTime >= state.nextRetreatCheck)
-            {
-                if (Random.value < 0.22f) state.retreating = true;
-                state.nextRetreatCheck = nowTime + Random.Range(3f, 7f);
-            }
-
-            float radialShare;
-            if (state.retreating) radialShare = -1f;
-            else if (distance > desiredRange + 200f) radialShare = 1f;
-            else if (distance > desiredRange) radialShare = Mathf.Clamp((distance - desiredRange) / 200f, 0.15f, 0.75f);
-            else radialShare = state.wideOrbit > 0f ? 0f : 0.04f;
-
-            var tangent = Vector3.Cross(Vector3.up, away);
-            if (tangent.sqrMagnitude < 0.001f) tangent = transform.right;
-            else tangent.Normalize();
-            if (nowTime >= state.nextOrbitChange)
-            {
-                if (Random.value < 0.35f) state.orbitSign = -state.orbitSign;
-                state.nextOrbitChange = nowTime + Random.Range(12f, 20f);
-            }
-
-            float verticalWave = Mathf.Sin(nowTime * state.hoverRate + state.phase * 1.7f) * (state.wideOrbit > 0f ? 0.48f : 0.34f)
-                               + Mathf.Sin(nowTime * state.hoverRate * 0.53f + state.phase) * (state.wideOrbit > 0f ? 0.18f : 0.13f);
-            var vertical = Vector3.up * verticalWave;
-            float orbitSpeed = state.wideOrbit > 0f ? 1f : (distance < 700f ? 0.92f : 0.82f);
-            float sideWobble = Mathf.Sin(nowTime * 0.63f + state.phase) * (state.wideOrbit > 0f ? 0.015f : 0.04f);
-            desired = state.retreating
-                ? (away + tangent * (state.orbitSign * 0.12f) + vertical * 0.08f).normalized
-                : away * -radialShare + tangent * (state.orbitSign * orbitSpeed + sideWobble) + vertical;
-
-            if (nowTime >= state.nextBurstCheck)
-            {
-                if (Random.value < (state.wideOrbit > 0f ? 0.05f : 0.12f))
+                away = distance > 0.01f ? offset / distance : transform.rotation * Vector3.back;
+                if (distance < 520f && nowTime - state.lastCloseSample > 1.25f)
                 {
-                    int burstSide = Random.value < 0.5f ? -1 : 1;
-                    state.burstDirection = (tangent * burstSide + away * Random.Range(-0.65f, 0.65f)
-                                            + Vector3.up * Random.Range(-0.7f, 0.7f)).normalized;
-                    state.burstUntil = nowTime + Random.Range(0.18f, 0.32f);
+                    state.closeApproachCount = Mathf.Min(8, state.closeApproachCount + 1);
+                    state.lastCloseSample = nowTime;
+                    state.wideOrbit = Mathf.Min(700f, state.closeApproachCount * 100f);
                 }
-                state.nextBurstCheck = nowTime + Random.Range(2.5f, 5f);
-            }
-            bursting = nowTime < state.burstUntil;
-            if (bursting) desired = state.burstDirection;
+                else if (distance > 1800f && nowTime - state.lastCloseSample > 4f)
+                {
+                    state.closeApproachCount = Mathf.Max(0, state.closeApproachCount - 1);
+                    state.wideOrbit = Mathf.Max(0f, state.closeApproachCount * 100f);
+                    state.lastCloseSample = nowTime;
+                }
+
+                float desiredRange = SmepDogfightRange + state.wideOrbit;
+                if (distance <= SmepCloseLimit) state.retreating = true;
+                else if (state.retreating && distance >= desiredRange + 350f)
+                {
+                    state.retreating = false;
+                    state.nextRetreatCheck = nowTime + Random.Range(3f, 7f);
+                }
+                else if (!state.retreating && distance < desiredRange - 200f && nowTime >= state.nextRetreatCheck)
+                {
+                    if (Random.value < 0.22f) state.retreating = true;
+                    state.nextRetreatCheck = nowTime + Random.Range(3f, 7f);
+                }
+
+                float radialShare;
+                if (state.retreating) radialShare = -1f;
+                else if (distance > desiredRange + 200f) radialShare = 1f;
+                else if (distance > desiredRange) radialShare = Mathf.Clamp((distance - desiredRange) / 200f, 0.15f, 0.75f);
+                else radialShare = state.wideOrbit > 0f ? 0f : 0.04f;
+
+                var tangent = Vector3.Cross(Vector3.up, away);
+                if (tangent.sqrMagnitude < 0.001f) tangent = transform.right;
+                else tangent.Normalize();
+                if (nowTime >= state.nextOrbitChange)
+                {
+                    if (Random.value < 0.35f) state.orbitSign = -state.orbitSign;
+                    state.nextOrbitChange = nowTime + Random.Range(12f, 20f);
+                }
+
+                float verticalWave = Mathf.Sin(nowTime * state.hoverRate + state.phase * 1.7f) * (state.wideOrbit > 0f ? 0.48f : 0.34f)
+                                   + Mathf.Sin(nowTime * state.hoverRate * 0.53f + state.phase) * (state.wideOrbit > 0f ? 0.18f : 0.13f);
+                var vertical = Vector3.up * verticalWave;
+                float orbitSpeed = state.wideOrbit > 0f ? 1f : (distance < 700f ? 0.92f : 0.82f);
+                float sideWobble = Mathf.Sin(nowTime * 0.63f + state.phase) * (state.wideOrbit > 0f ? 0.015f : 0.04f);
+                desired = state.retreating
+                    ? (away + tangent * (state.orbitSign * 0.12f) + vertical * 0.08f).normalized
+                    : away * -radialShare + tangent * (state.orbitSign * orbitSpeed + sideWobble) + vertical;
+
+                if (nowTime >= state.nextBurstCheck)
+                {
+                    if (Random.value < (state.wideOrbit > 0f ? 0.05f : 0.12f))
+                    {
+                        int burstSide = Random.value < 0.5f ? -1 : 1;
+                        state.burstDirection = (tangent * burstSide + away * Random.Range(-0.65f, 0.65f)
+                                                + Vector3.up * Random.Range(-0.7f, 0.7f)).normalized;
+                        state.burstUntil = nowTime + Random.Range(0.18f, 0.32f);
+                    }
+                    state.nextBurstCheck = nowTime + Random.Range(2.5f, 5f);
+                }
+                bursting = nowTime < state.burstUntil;
+                if (bursting) desired = state.burstDirection;
             }
             if (desired.sqrMagnitude > 1f) desired.Normalize();
 
