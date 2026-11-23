@@ -718,6 +718,15 @@ namespace GoF2Remake.Flight
             if (crate == Salvaging) Salvaging = null;
             UpdateBeamLoop();
             if (assets != null && assets.tractorClose != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.tractorClose), Settings.SfxVolume);
+            if (crate.CollectStationSalvage != null)
+            {
+                int room = Shop.FreeCargo(db);
+                crate.pulled = false;
+                if (room > 0) crate.CollectStationSalvage(room);
+                else Message?.Invoke(Localization.Get(322), 1, HudMessageKind.Normal);
+                refusedCrate = crate;
+                return;
+            }
             var entry = crate.loot.Find(s => s.amount > 0);
             if (entry == null) { Destroy(crate.gameObject); return; }
             if (GoF2Remake.Modding.ModBlueprints.Of(entry.item) != null)

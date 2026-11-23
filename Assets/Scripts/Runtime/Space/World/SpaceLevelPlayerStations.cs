@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Multiplayer;
 using UnityEngine;
@@ -8,6 +10,8 @@ namespace GoF2Remake.World
     {
         bool playerStationDockPointsSpawned;
         int visiblePlayerStationState = -1;
+        Crate stationSalvageCrate;
+        IReadOnlyList<PlayerStationMaterial> renderedStationSalvage;
 
         void AttachStationHull()
         {
@@ -24,10 +28,56 @@ namespace GoF2Remake.World
             playerStationDockPointsSpawned = true;
         }
 
+        void UpdatePlayerStationSalvage(int orbit)
+        {
+            var manifest = NetPlayerStations.StationSalvageAt(orbit);
+            if (ReferenceEquals(manifest, renderedStationSalvage) &&
+                (stationSalvageCrate != null || manifest == null)) return;
+            if (manifest == null || manifest.Count == 0)
+            {
+                if (stationSalvageCrate != null) Destroy(stationSalvageCrate.gameObject);
+                renderedStationSalvage = manifest;
+                return;
+            }
+
+            bool same = stationSalvageCrate != null && stationSalvageCrate.loot.Count == manifest.Count;
+            if (same)
+            {
+                for (int i = 0; i < manifest.Count; i++)
+                {
+                    var part = manifest[i];
+                    var item = stationSalvageCrate.loot[i];
+                    if (part != null && item.item == part.item && item.amount == part.required) continue;
+                    same = false;
+                    break;
+                }
+            }
+            renderedStationSalvage = manifest;
+            if (same) return;
+
+            var loot = new List<ItemStack>();
+            foreach (var material in manifest)
+                if (material != null && material.required > 0) loot.Add(new ItemStack(material.item, material.required));
+            if (loot.Count == 0) return;
+            if (stationSalvageCrate == null)
+            {
+                stationSalvageCrate = Crate.Spawn(NetPlayerStations.StationSalvagePosition(orbit), loot, Layout.raceId, Crate.LookContainer);
+                stationSalvageCrate.keep = true;
+                stationSalvageCrate.remote = true;
+                stationSalvageCrate.CollectStationSalvage = room => NetPlayer.Local?.RequestStationSalvage(orbit, room);
+            }
+            else
+            {
+                stationSalvageCrate.loot.Clear();
+                stationSalvageCrate.loot.AddRange(loot);
+            }
+        }
+
         void UpdatePlayerStationLifecycle()
         {
             if (Layout == null || Navigation == null || !NetPlayerStations.IsPlayerStation(Layout.stationIndex)) return;
             int orbit = Layout.stationIndex;
+            UpdatePlayerStationSalvage(orbit);
             bool modelPresent = NetPlayerStations.StationSceneryPresent(orbit);
             bool operational = modelPresent && !NetPlayerStations.StationClosedByCombat(orbit);
             int state = operational ? 2 : modelPresent ? 1 : 0;

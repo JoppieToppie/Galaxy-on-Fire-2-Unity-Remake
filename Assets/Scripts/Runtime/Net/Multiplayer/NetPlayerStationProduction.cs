@@ -42,7 +42,7 @@ namespace GoF2Remake.Multiplayer
                 installed = installed,
                 operational = installed && !record.underConstruction,
                 building = building,
-                storedHulls = record.dryDockShips?.Count ?? 0,
+                storedHulls = NetGame.IsServer ? (record.dryDockShips?.Count ?? 0) : record.visibleDryDockHullCount,
                 hullCapacity = MaxDryDockShipsPerStation,
                 blueprintItem = building ? record.dryDockBlueprintItem : -1,
                 shipIndex = building ? record.dryDockShip : -1,
@@ -128,6 +128,7 @@ namespace GoF2Remake.Multiplayer
                 nextTransactionRetryUtc = pending ? now + 5 : 0;
             }
             if (registry?.stations == null) return;
+            PublishStationManagementAccess();
             TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             if (registry?.stations == null) return;
             TickStationDestruction();

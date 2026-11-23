@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Visuals;
@@ -10,6 +9,14 @@ namespace GoF2Remake.Multiplayer
 {
     public sealed partial class NetPlayer
     {
+        readonly NetworkVariable<int> managedStationOrbit = new NetworkVariable<int>(-1,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal int ManagedStationOrbit => managedStationOrbit.Value;
+        internal void SetManagedStationOrbit(int orbit)
+        {
+            if (IsServer && managedStationOrbit.Value != orbit) managedStationOrbit.Value = orbit;
+        }
+
         public void ReportPlayerStationContact(int orbit, int item, uint shotId, Vector3 point, Vector3 surface, bool blast)
         {
             if (IsOwner && IsSpawned && InSpace && Station == orbit && shotId != 0 &&
@@ -63,26 +70,18 @@ namespace GoF2Remake.Multiplayer
                 Explosion.Spawn(NetPlayerStations.StationPosition(orbit), 15f);
         }
 
-        internal void SpawnPlayerStationSalvage(int orbit, int[] items, int[] amounts)
+        public void RequestStationSalvage(int orbit, int room)
         {
-            if (IsServer && IsSpawned && RunsOrbitActive && RunsOrbit == orbit)
-                PlayerStationSalvageRpc(orbit, items, amounts);
+            if (IsOwner && IsSpawned && InSpace && Station == orbit && room > 0)
+                StationSalvageCollectRpc(orbit, room);
         }
 
-        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void PlayerStationSalvageRpc(int orbit, int[] items, int[] amounts)
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationSalvageCollectRpc(int orbit, int room, RpcParams rpc = default)
         {
-            if (!IsOwner || !IsSpawned || !OrbitAuthority || NetOrbit.Current?.Station != orbit ||
-                items == null || amounts == null || items.Length != amounts.Length || items.Length > 32)
-                return;
-            var loot = new List<ItemStack>();
-            for (int i = 0; i < items.Length; i++)
-                if (amounts[i] > 0 && NetGuard.Item(items[i])) loot.Add(new ItemStack(items[i], amounts[i]));
-            if (loot.Count == 0) return;
-
-            var station = NetGame.Db?.Stations?.Find(value => value != null && value.index == orbit);
-            int race = NetGame.Db?.Systems?.Find(value => value != null && station != null && value.index == station.system)?.raceId ?? 0;
-            Crate.Spawn(NetPlayerStations.StationPosition(orbit) + Vector3.forward * 30f, loot, race, Crate.LookContainer).keep = true;
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim)) return;
+            NetPlayerStations.CollectStationSalvage(this, orbit, room);
         }
     }
 }

@@ -34,8 +34,22 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanViewManagement(PlayerStationRecord record)
         {
             if (record == null) return false;
+            if (!NetGame.IsServer) return NetPlayer.Local?.ManagedStationOrbit == record.stationIndex;
             string account = NetProfiles.AccountOf(NetGame.LocalId);
             return HasStationPermission(record, account, PlayerStationPermission.StationOperations);
+        }
+
+        static void PublishStationManagementAccess()
+        {
+            foreach (var pilot in NetPlayer.All)
+            {
+                if (pilot == null || !pilot.IsSpawned) continue;
+                var station = pilot.InHangar ? StationAt(pilot.Station) : null;
+                string account = NetProfiles.Controls(pilot.OwnerClientId) ? NetProfiles.AccountOf(pilot.OwnerClientId) : null;
+                bool manages = station != null && !StationClosedByCombat(station.stationIndex) &&
+                    HasStationPermission(station, account, PlayerStationPermission.StationOperations);
+                pilot.SetManagedStationOrbit(manages ? station.stationIndex : -1);
+            }
         }
 
         static bool CanManageStorage(NetPlayer by, PlayerStationRecord record, out string account)

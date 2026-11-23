@@ -133,6 +133,44 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Large hulls held in the station's dedicated dry dock.</summary>
         public List<StoredShip> dryDockShips = new List<StoredShip>();
         public List<string> dryDockShipOwners = new List<string>();
+        // Set only in the transmitted public projection.
+        public int visibleDryDockHullCount;
+
+        internal PlayerStationRecord ToPublicRecord()
+        {
+            var visible = (PlayerStationRecord)MemberwiseClone();
+            visible.visibleDryDockHullCount = dryDockShips?.Count ?? 0;
+            visible.storage = null;
+            visible.storageLots = null;
+            visible.storedShips = null;
+            visible.storedShipOwners = null;
+            visible.dryDockShips = null;
+            visible.dryDockShipOwners = null;
+            visible.dryDockBuilderProfile = null;
+            visible.factoryJobs = null;
+            visible.factoryRepeatOrders = null;
+            visible.constructionContributions = null;
+            visible.jumpgateContributions = null;
+            visible.pendingTransfer = null;
+            visible.history = null;
+            visible.permissionOverrides = null;
+            visible.roleAssignments = null;
+            visible.bans = null;
+            visible.individualSuccessorProfile = null;
+            visible.factionSuccessorProfile = null;
+            visible.factionSuccessorFactionId = null;
+            visible.factionSuccessorDelegateProfile = null;
+            visible.originalBuilderProfile = null;
+            visible.ownerProfile = null;
+            visible.wreckBlueprintSalvage = null;
+            visible.listings = null; // public listing readout uses the server's marketplace command
+            visible.buyOrders = buyOrders?.ConvertAll(order => order == null ? null : new PlayerStationBuyOrder
+            {
+                item = order.item, remaining = order.remaining, unitPrice = order.unitPrice,
+                reservedCredits = order.reservedCredits
+            });
+            return visible;
+        }
         /// <summary>One persistent in-progress dry-dock ship build. Completion is evaluated by the server clock.</summary>
         public bool dryDockBuilding;
         public int dryDockBlueprintItem = -1, dryDockShip = -1;
@@ -286,7 +324,20 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>The current registry for NetState's initial session snapshot.</summary>
-        internal static string Snapshot => registry != null ? JsonUtility.ToJson(registry) : "";
+        internal static string Snapshot
+        {
+            get
+            {
+                if (registry == null) return "";
+                var visible = new Registry
+                {
+                    stations = registry.stations.ConvertAll(station => station?.ToPublicRecord()),
+                    jumpgates = registry.jumpgates,
+                    consumedBlueprints = registry.consumedBlueprints
+                };
+                return JsonUtility.ToJson(visible);
+            }
+        }
 
         /// <summary>Load station state before the world starts accepting player actions.</summary>
         public static void Start()

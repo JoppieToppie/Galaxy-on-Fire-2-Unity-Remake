@@ -287,30 +287,70 @@ namespace GoF2Remake.Multiplayer
             return originalSystem != null && targetSystem != null && originalSystem.raceId == targetSystem.raceId;
         }
 
+        public static IReadOnlyList<PlayerStationMaterial> StationSalvageAt(int orbit)
+        {
+            var site = StationAt(orbit);
+            return site?.stationSalvagePending == true ? site.stationSalvage : null;
+        }
+
+        internal static bool CollectStationSalvage(NetPlayer pilot, int orbit, int room)
+        {
+            if (!NetGame.IsServer || !sessionActive || pilot == null || !pilot.IsSpawned ||
+                !pilot.InSpace || pilot.Station != orbit || pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose ||
+                !NetProfiles.Controls(pilot.OwnerClientId) ||
+                (pilot.Position - StationSalvagePosition(orbit)).sqrMagnitude > 5000f * 5000f)
+                return false;
+
+            var site = StationAt(orbit);
+            if (site?.stationSalvagePending != true || site.stationSalvage == null || room <= 0) return false;
+            var account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return false;
+            var cargo = new List<(string account, int item, int delta)>();
+            var remaining = new List<PlayerStationMaterial>();
+            room = Math.Min(room, 500);
+            foreach (var material in site.stationSalvage)
+            {
+                if (material == null || material.required <= 0 || !NetGuard.Item(material.item)) continue;
+                int current = NetProfiles.CargoAmount(account, material.item);
+                int take = current >= 0 ? Math.Min(Math.Min(material.required, room), int.MaxValue - current) : 0;
+                if (take > 0) cargo.Add((account, material.item, take));
+                room -= take;
+                if (take < material.required)
+                    remaining.Add(new PlayerStationMaterial { item = material.item, required = material.required - take });
+            }
+            if (cargo.Count == 0) return false;
+            var previous = site.stationSalvage;
+            site.stationSalvage = remaining;
+            site.stationSalvagePending = remaining.Count > 0;
+            if (!CommitProfileTransaction(cargo, null, null))
+            {
+                site.stationSalvage = previous;
+                site.stationSalvagePending = true;
+                return false;
+            }
+            if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
+                foreach (var transfer in cargo)
+                    NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Give, transfer.item, transfer.delta,
+                        0, "", "Station wreck salvage");
+            return true;
+        }
+
+        public static Vector3 StationSalvagePosition(int orbit) => StationPosition(orbit) + Vector3.forward * 30f;
+
         static void TickStationDestruction()
         {
             foreach (var station in registry.stations)
             {
-                if (station == null || (!station.stationExplosionPending && !station.stationSalvagePending)) continue;
+                if (station?.stationExplosionPending != true) continue;
                 var runner = NetPlayer.OrbitRunner(station.stationIndex);
                 if (runner == null) continue;
-                bool explosion = station.stationExplosionPending;
-                bool salvage = station.stationSalvagePending;
                 station.stationExplosionPending = false;
-                station.stationSalvagePending = false;
                 if (!Save())
                 {
-                    station.stationExplosionPending = explosion;
-                    station.stationSalvagePending = salvage;
+                    station.stationExplosionPending = true;
                     return;
                 }
-                if (explosion) runner.BroadcastPlayerStationExplosion(station.stationIndex);
-                if (salvage)
-                {
-                    var items = station.stationSalvage.ConvertAll(material => material.item);
-                    var amounts = station.stationSalvage.ConvertAll(material => material.required);
-                    runner.SpawnPlayerStationSalvage(station.stationIndex, items.ToArray(), amounts.ToArray());
-                }
+                runner.BroadcastPlayerStationExplosion(station.stationIndex);
             }
         }
     }
