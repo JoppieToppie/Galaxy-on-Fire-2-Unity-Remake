@@ -2,7 +2,7 @@
 // The damage pools (CLAUDE.md "NPCs and combat", Damage: shield -> armor -> hull, no reduction; Reference/research/
 // ship_combat.md 2.1 Player::damage, 2.2 shield regen / repair bots, 2.4 EMP). Expected numbers by hand from those
 // listings: the shield's fraction truncated on every hit, the overflow off the armor then the hull, hull < 1 = dead;
-// regen + maxShield / (attr19 / 100) per tick of >= 101 ms (Targe 50 / 20000 -> 0.25), repair bot hull +1 per 600 /
+// regen + maxShield / (attr19 / 100) per 100 ms remake tick (Targe 50 / 20000 -> 0.25), repair bot hull +1 per 600 /
 // armor +2 per 1000 once the hull is full; EMP recovery int(timer / recovery * maxEmp), back when > maxEmp.
 
 using GoF2Remake.Flight;
@@ -133,18 +133,15 @@ namespace GoF2Remake.Tests
         // ---- shield regen, repair bots ------------------------------------------------------------------------------
 
         [Test]
-        public void ShieldRegenTicksAfter101Ms()
+        public void ShieldRegenKeepsRemainderAndCatchesUp()
         {
-            // Targe: 50 / 20000 ms -> 0.25 per tick; the accumulator is reset, not decremented
-            var h = new Hitpoints(100, 50);
-            h.shield = 10f;
-            h.RegenerateShield(50f, 20000);
-            h.RegenerateShield(50f, 20000);
-            Assert.AreEqual(10f, h.shield, "100 ms < 101");
-            h.RegenerateShield(50f, 20000);
-            Assert.AreEqual(10.25f, h.shield, 1e-5f);
-            h.RegenerateShield(300f, 20000);   // a long frame is still one tick
-            Assert.AreEqual(10.5f, h.shield, 1e-5f);
+            var h = new Hitpoints(100, 50) { shield = 0f };
+            h.RegenerateShield(99f, 20000);
+            Assert.AreEqual(0f, h.shield);
+            h.RegenerateShield(326f, 20000);
+            Assert.AreEqual(1f, h.shield);
+            h.RegenerateShield(75f, 20000);
+            Assert.AreEqual(1.25f, h.shield);
         }
 
         [Test]
@@ -152,7 +149,7 @@ namespace GoF2Remake.Tests
         {
             var h = new Hitpoints(100, 150);   // Beamshield II: 150 / 45000 -> 0.333 per tick
             h.shield = 149.9f;
-            h.RegenerateShield(101f, 45000);
+            h.RegenerateShield(100f, 45000);
             Assert.AreEqual(150f, h.shield);
         }
 
@@ -161,9 +158,9 @@ namespace GoF2Remake.Tests
         {
             var h = new Hitpoints(100, 50);
             h.shield = 0f;
-            for (int i = 0; i < 199; i++) h.RegenerateShield(101f, 20000);
+            for (int i = 0; i < 199; i++) h.RegenerateShield(100f, 20000);
             Assert.Less(h.shield, 50f);
-            h.RegenerateShield(101f, 20000);
+            h.RegenerateShield(100f, 20000);
             Assert.AreEqual(50f, h.shield, 1e-3f);
         }
 
@@ -196,6 +193,34 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(100, h.hull);
             h.Repair(1000f, 600f, 1000f);
             Assert.AreEqual(12, h.armor);
+        }
+
+        [TestCase(600, 1000)]
+        [TestCase(420, 700)]
+        public void RegenerationIsIndependentOfFramePartition(int hullMs, int armorMs)
+        {
+            // The fifth hull tick coincides with the third armor tick for both bots.
+            int elapsedMs = 5 * hullMs + 1;
+            foreach (int fps in new[] { 1, 30, 60, 100, 144 })
+            {
+                var h = new Hitpoints(100, 50, 20) { hull = 95, armor = 0, shield = 0f };
+                int previous = 0;
+                for (int frame = 1; previous < elapsedMs; frame++)
+                {
+                    int now = System.Math.Min(frame * 1000 / fps, elapsedMs);
+                    h.RegenerateShield(now - previous, 20000);
+                    h.Repair(now - previous, hullMs, armorMs);
+                    previous = now;
+                }
+                Assert.AreEqual(elapsedMs / 100 * 0.25f, h.shield);
+                Assert.AreEqual(100, h.hull);
+                Assert.AreEqual(2, h.armor);
+            }
+
+            var hitch = new Hitpoints(100, 0, 20) { hull = 95, armor = 0 };
+            hitch.Repair(elapsedMs, hullMs, armorMs);
+            Assert.AreEqual(100, hitch.hull);
+            Assert.AreEqual(2, hitch.armor);
         }
 
         [Test]
