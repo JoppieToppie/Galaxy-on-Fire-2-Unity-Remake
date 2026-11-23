@@ -229,7 +229,7 @@ namespace GoF2Remake.World
         void UpdateSmepTargetPriority()
         {
             if (!SmepHullEligible) return;
-            if (target != null && Pursuable(target) && InBox(target)
+            if (attacking && target != null && Pursuable(target) && InBox(target)
                 && (!target.netPilot || HostileToRemote != null && HostileToRemote(this, target))) return;
             var picked = FindSmepRemotePlayer(false);
             if (picked != null) SetSmepRemoteTarget(picked);
