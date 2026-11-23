@@ -691,6 +691,7 @@ namespace GoF2Remake.World
             // MGame::dockEvent refuses the gate on the same mission check as docking: the story's level missions too.
             SystemJump.GateBlocked = () => builderTest || challenge || Story.BlocksJumps(Layout.stationIndex, StoryLocked) || FreelanceBlocks
                                            || (Siege != null && Siege.Active) || GoF2Remake.World.SpaceHooks.NoJumps
+                                           || PlayerJumpgateEmpDisabled
                                            || GoF2Remake.Multiplayer.NetPlayerStations.JumpgateOffline(Layout.stationIndex);
             Radar = Player.gameObject.AddComponent<CombatRadar>();
             Radar.Setup(db, Player, Navigation, Mining, Weapons, Health, Traffic);
