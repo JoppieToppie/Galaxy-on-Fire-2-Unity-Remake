@@ -391,6 +391,7 @@ namespace GoF2Remake.Flight
             }
             gun.owner = owner;
             gun.Hit += (i, target, point) => OnHit(rig, i, target, point);
+            gun.BlastDetonation += (i, centre) => OnGateBlast(gun, i, centre);
             // Scenery collision supplies the actual mesh body, not just a position near a gate.
             gun.SceneryImpact += (i, body, point) =>
             {
@@ -702,6 +703,38 @@ namespace GoF2Remake.Flight
             ApplyEmp(target, (int)r.gun.emp);
             r.visuals.ShowImpact(point);
             Hit?.Invoke();
+        }
+
+        /// <summary>Only a blast that actually reaches a shown, precise gate mesh reports its
+        /// closest contact point. The server rechecks the recorded projectile and damage formula.</summary>
+        static void OnGateBlast(Gun gun, int bullet, Vector3 centre)
+        {
+            if (gun == null || gun.magnitude <= 0f || bullet < 0 || bullet >= gun.bullets.Length) return;
+            uint shotId = gun.bullets[bullet].networkShotId;
+            var pilot = GoF2Remake.Multiplayer.NetPlayer.Local;
+            if (pilot == null || shotId == 0) return;
+            float radius = gun.magnitude * M;
+            Physics.SyncTransforms();  // bombs can detonate on expiry without a preceding hull cast
+            foreach (var body in UnityEngine.Object.FindObjectsByType<HullBody>(FindObjectsSortMode.None))
+            {
+                if (body == null || body.playerJumpgateOrbit < 0 ||
+                    !HullCollision.IsForcedExact(body) || !body.Collides) continue;
+                float nearest = radius;
+                Vector3 surface = default;
+                bool found = false;
+                foreach (var collider in body.colliders)
+                {
+                    if (collider == null || !collider.enabled || !HullCollision.Shown(collider)) continue;
+                    Vector3 candidate = collider.ClosestPoint(centre);
+                    float distance = Vector3.Distance(centre, candidate);
+                    if (distance > nearest) continue;
+                    nearest = distance;
+                    surface = candidate;
+                    found = true;
+                }
+                if (found) pilot.ReportJumpgateBlast(body.playerJumpgateOrbit,
+                    gun.itemIndex, shotId, centre, surface);
+            }
         }
 
         /// <summary>Gun::calcCharacterCollision on an asteroid: a rocket / missile / cluster missile / ionizing missile
