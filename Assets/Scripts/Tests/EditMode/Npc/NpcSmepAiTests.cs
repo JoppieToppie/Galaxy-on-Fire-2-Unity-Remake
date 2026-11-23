@@ -73,6 +73,32 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void DesktopPlayerWinsNewSelectionEvenWhenMobilePlayerIsCloser()
+        {
+            // First candidate is the nearby mobile player.
+            Assert.IsTrue(SmepAiRules.PreferPlayerTarget(true, 10f, false, false, float.MaxValue));
+            // A distant desktop target outranks it.
+            Assert.IsTrue(SmepAiRules.PreferPlayerTarget(false, 1000f, true, true, 10f));
+            // Once desktop leads, a closer mobile candidate cannot displace it.
+            Assert.IsFalse(SmepAiRules.PreferPlayerTarget(true, 1f, true, false, 1000f));
+        }
+
+        [Test]
+        public void MobilePlayerRemainsSelectableWhenNoDesktopPlayerIsAvailable()
+        {
+            Assert.IsTrue(SmepAiRules.PreferPlayerTarget(true, 15f, false, false, float.MaxValue));
+            Assert.IsTrue(SmepAiRules.PreferPlayerTarget(true, 10f, true, true, 15f));
+            Assert.IsFalse(SmepAiRules.PreferPlayerTarget(true, 20f, true, true, 15f));
+        }
+
+        [Test]
+        public void DesktopPlayersUseDistanceToResolveEqualPriority()
+        {
+            Assert.IsTrue(SmepAiRules.PreferPlayerTarget(false, 250f, true, false, 500f));
+            Assert.IsFalse(SmepAiRules.PreferPlayerTarget(false, 750f, true, false, 500f));
+        }
+
+        [Test]
         public void MobileOptInDoesNotOverrideMobileTargetFallback()
         {
             // Mobile AI opt-in controls the build, not the target's controller.
