@@ -244,7 +244,10 @@ namespace GoF2Remake.World
                 smepDogfightState = null;
                 return;
             }
-            var targetPoint = target != null && target.Alive && !followingWaypoint ? target.transform.position : beforePosition + transform.forward * 1200f;
+            bool combatMotion = target != null && target.Alive && attacking && !followingWaypoint;
+            var targetPoint = combatMotion ? target.transform.position : targetPos;
+            if (!combatMotion && (targetPoint - beforePosition).sqrMagnitude < 1f)
+                targetPoint = beforePosition + transform.forward * 1200f;
             var offset = beforePosition - targetPoint;
             float distance = offset.magnitude;
             // Keep the controller and its velocity state alive through pursuit, not just close combat.
@@ -286,7 +289,8 @@ namespace GoF2Remake.World
             }
 
             float desiredRange = SmepDogfightRange + state.wideOrbit;
-            if (distance <= SmepCloseLimit) state.retreating = true;
+            if (!combatMotion) state.retreating = false;
+            else if (distance <= SmepCloseLimit) state.retreating = true;
             else if (state.retreating && distance >= desiredRange + 350f)
             {
                 state.retreating = false;
@@ -318,7 +322,8 @@ namespace GoF2Remake.World
             var vertical = Vector3.up * verticalWave;
             float orbitSpeed = state.wideOrbit > 0f ? 1f : (distance < 700f ? 0.92f : 0.82f);
             float sideWobble = Mathf.Sin(nowTime * 0.63f + state.phase) * (state.wideOrbit > 0f ? 0.015f : 0.04f);
-            Vector3 desired = state.retreating
+            Vector3 desired = !combatMotion ? (targetPoint - beforePosition).normalized
+                : state.retreating
                 ? (away + tangent * (state.orbitSign * 0.12f) + vertical * 0.08f).normalized
                 : away * -radialShare + tangent * (state.orbitSign * orbitSpeed + sideWobble) + vertical;
 
