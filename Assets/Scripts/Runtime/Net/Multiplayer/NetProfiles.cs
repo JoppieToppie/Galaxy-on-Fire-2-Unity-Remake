@@ -374,8 +374,10 @@ namespace GoF2Remake.Multiplayer
                 }
             var save = ReadSave(id);
             if (save?.systemVisible != null && system < save.systemVisible.Length && save.systemVisible[system]) return true;
-            return index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal))
-                ?.gateDiscoveredSystems?.Contains(system) == true;
+            if (index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal))
+                ?.gateDiscoveredSystems?.Contains(system) == true) return true;
+            var definition = NetGame.Db.Systems.Find(x => x != null && x.index == system);
+            return definition?.initiallyVisible == true || system == GalaxyMap.LomaSystem;
         }
 
         internal static bool HasFactionDiscoveredSystem(string factionId, int system)
