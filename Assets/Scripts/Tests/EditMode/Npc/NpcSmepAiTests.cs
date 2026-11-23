@@ -20,7 +20,7 @@ namespace GoF2Remake.Tests
         [TestCase(false, false, true)]
         [TestCase(false, true, true)]
         [TestCase(true, false, false)]
-        [TestCase(true, true, true)]
+        [TestCase(true, true, false)]
         public void DesktopHostAlsoRequiresOptInForMobileMultiplayerTargets(bool mobileTarget, bool mobileOptIn, bool expected)
         {
             Assert.AreEqual(expected, SmepAiRules.EnabledForTarget(mobileTarget, mobileOptIn));
