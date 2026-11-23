@@ -84,6 +84,43 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2, second.amount, "then consumes from the next stack");
             Assert.AreEqual(4, pool.Add(4));
             Assert.AreEqual(6, pool.Amount);
+            Assert.AreEqual(2, first.amount, "restock is shared rather than being assigned wholly to the first mount");
+            Assert.AreEqual(4, second.amount, "both saved mount stacks retain rounds if either launcher is demounted");
+            Assert.Greater(Hangar.UnitsOf(Db, first), 0, "the first launcher can be demounted with its own ammunition");
+            Assert.Greater(Hangar.UnitsOf(Db, second), 0, "the second launcher can be demounted with its own ammunition");
+        }
+
+        [Test]
+        public void BuiltInAndFittedDuplicateSecondariesCanShareAndRestock()
+        {
+            var builtIn = new ItemStack(36, 1) { builtIn = true };
+            var fitted = new ItemStack(36, 2);
+            var pool = new SecondaryAmmoPool();
+            pool.AddStack(builtIn);
+            pool.AddStack(fitted);
+
+            Assert.AreEqual(3, pool.Amount);
+            Assert.AreEqual(6, pool.Add(6));
+            Assert.AreEqual(4, builtIn.amount);
+            Assert.AreEqual(5, fitted.amount);
+            Assert.AreEqual(9, pool.Amount);
+        }
+
+        [Test]
+        public void SeparatePoolsPreserveVanillaPerMountAmmunition()
+        {
+            var first = new ItemStack(36, 2);
+            var second = new ItemStack(36, 3);
+            var firstMount = new SecondaryAmmoPool();
+            var secondMount = new SecondaryAmmoPool();
+            firstMount.AddStack(first);
+            secondMount.AddStack(second);
+
+            Assert.AreEqual(2, firstMount.Amount);
+            Assert.AreEqual(3, secondMount.Amount);
+            Assert.AreEqual(4, firstMount.Add(2));
+            Assert.AreEqual(4, first.amount);
+            Assert.AreEqual(3, second.amount, "a vanilla independent mount is not changed by the other pool");
         }
 
         [Test]
