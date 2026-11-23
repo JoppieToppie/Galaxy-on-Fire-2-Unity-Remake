@@ -62,7 +62,11 @@ namespace GoF2Remake.Multiplayer
             if (faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal)) return false;
             if (string.Equals(faction.leader, account, StringComparison.Ordinal)) return true;
             var sponsor = Find(gate.constructionStationId > 0 ? gate.constructionStationId : gate.sponsorStationId);
-            return sponsor != null && HasRole(sponsor, account, PlayerStationRole.StationAdministrator);
+            if (sponsor != null && HasRole(sponsor, account, PlayerStationRole.StationAdministrator)) return true;
+            return registry?.stations?.Exists(station => station != null &&
+                station.ownershipType == PlayerStationOwnershipType.Faction &&
+                string.Equals(station.ownerFactionId, gate.ownerFactionId, StringComparison.Ordinal) &&
+                HasRole(station, account, PlayerStationRole.StationAdministrator)) == true;
         }
 
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
