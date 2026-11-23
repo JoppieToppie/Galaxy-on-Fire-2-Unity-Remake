@@ -78,6 +78,11 @@ namespace GoF2Remake.Modding
             public float cellsFactor = 1f;
             public float failChance, failMax = 1f, failNoRoute, failMs = 16500f, failRumbleFromMs = 5500f, failRumble = 1f;
             public float failHandling = 1f, failRadiusKm = 20f;
+            // Optional jumpRules live separately from the legacy jumpFx failure settings.
+            // Defaults preserve the original drive and existing mods.
+            public bool hasJumpRules, fixedUnconnectedFailure, requireConnectedFailureDestination, showFailureChance;
+            public float failHullDamage, failMinimumHull = 0.1f, failEquipmentLossChance;
+            public bool failEquipmentIncludesDrive = true;
             public string failTexture;
             public string failVoice;                               // Modified: a story voice line as a failure starts
             public float failVoiceChance = 1f, failVoiceMs;
@@ -85,6 +90,24 @@ namespace GoF2Remake.Modding
             public float scale = 0.5f, glow = 2.5f, meetMs = 2300f, meetDepth = 8200f;
             public float lengthMs;
             public List<Part> parts;
+        }
+
+        /// <summary>Pure, nonlethal damage calculation. A hull already at/below its floor is unchanged.</summary>
+        public static int HullAfterFailure(int current, int maximum, float damageFraction, float minimumFraction)
+        {
+            if (maximum <= 0) return current;
+            int floor = Mathf.CeilToInt(maximum * Mathf.Clamp01(minimumFraction));
+            if (current <= floor) return current;
+            int damage = Mathf.RoundToInt(maximum * Mathf.Clamp01(damageFraction));
+            return Mathf.Max(floor, current - damage);
+        }
+
+        /// <summary>Route-aware risk for the opt-in framework and legacy jumpFx drives.</summary>
+        public static float FailureProbability(Spec drive, int gateSegments, bool connected, bool extreme)
+        {
+            if (drive == null) return 0f;
+            if (!connected) return drive.failNoRoute;
+            return Mathf.Min(drive.failMax, drive.failChance * Mathf.Max(0, gateSegments) * (extreme ? 2 : 1));
         }
 
         static readonly Dictionary<int, Spec> cache = new Dictionary<int, Spec>();
@@ -108,7 +131,7 @@ namespace GoF2Remake.Modding
         /// with the drive built in is aboard (then null: the Khador Drive's rules and effect).</summary>
         public static Spec ActiveDrive()
         {
-            if (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => e.item == GalaxyMap.KhadorDriveItem)) return null;
+            if (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => e.item == GalaxyMap.KhadorDriveItem && ModContent.ItemAvailableFor(e.item, "equipment"))) return null;
             return Mounted();
         }
 
@@ -130,7 +153,7 @@ namespace GoF2Remake.Modding
             s = null;
             if (ModContent.ItemEntry(item, out var mod, out var json, out string where) && json["jumpFx"] is JObject o)
             {
-                try { s = Read(mod, o, where); s.item = item; }
+                try { s = Read(mod, o, json["jumpRules"] as JObject, where); s.item = item; }
                 catch (ModJsonException e) { Warn(mod, e.Message); }
                 catch (Exception e) when (ModFileException.IsFileError(e)) { Warn(mod, e.Message); }
             }
@@ -138,7 +161,7 @@ namespace GoF2Remake.Modding
             return s;
         }
 
-        static Spec Read(ModInfo mod, JObject o, string where)
+        static Spec Read(ModInfo mod, JObject o, JObject rules, string where)
         {
             var s = new Spec { mod = mod, where = where };
             s.data = (string)o["data"];
@@ -151,6 +174,21 @@ namespace GoF2Remake.Modding
             s.failChance = Mathf.Clamp01((float?)o["failChance"] ?? 0f);
             s.failMax = Mathf.Clamp01((float?)o["failMax"] ?? 1f);
             s.failNoRoute = Mathf.Clamp01((float?)o["failNoRoute"] ?? s.failChance);
+            if (rules != null)
+            {
+                s.hasJumpRules = true;
+                s.cellsFactor = Mathf.Max(0f, (float?)rules["energyCellsMultiplier"] ?? s.cellsFactor);
+                s.failChance = Mathf.Clamp01((float?)rules["connectedFailurePerSegment"] ?? s.failChance);
+                s.failMax = Mathf.Clamp01((float?)rules["connectedFailureMaximum"] ?? s.failMax);
+                s.failNoRoute = Mathf.Clamp01((float?)rules["unconnectedFailureChance"] ?? s.failNoRoute);
+                s.fixedUnconnectedFailure = (bool?)rules["fixedUnconnectedFailure"] ?? false;
+                s.requireConnectedFailureDestination = (bool?)rules["requireConnectedFailureDestination"] ?? false;
+                s.showFailureChance = (bool?)rules["showFailureChance"] ?? false;
+                s.failHullDamage = Mathf.Clamp01((float?)rules["catastrophicHullDamage"] ?? 0f);
+                s.failMinimumHull = Mathf.Clamp01((float?)rules["minimumHullRemaining"] ?? 0.1f);
+                s.failEquipmentLossChance = Mathf.Clamp01((float?)rules["equipmentLossChance"] ?? 0f);
+                s.failEquipmentIncludesDrive = (bool?)rules["equipmentLossIncludesDrive"] ?? true;
+            }
             s.failMs = Mathf.Max(0f, (float?)o["failMs"] ?? s.failMs);
             s.failRumbleFromMs = Mathf.Max(0f, (float?)o["failRumbleFromMs"] ?? s.failRumbleFromMs);
             s.failTexture = (string)o["failTexture"];

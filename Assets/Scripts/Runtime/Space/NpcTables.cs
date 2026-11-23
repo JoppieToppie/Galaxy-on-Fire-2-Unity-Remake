@@ -165,7 +165,8 @@ namespace GoF2Remake.Flight
                     if (Random.Range(0, 100) >= (type >= 0 && type < LootTypeChance.Length ? LootTypeChance[type] : 10)) continue;
                     if (Random.Range(0, 100) >= it.occurrence) continue;
                     if (!Modding.ModUnlocks.ItemAvailable(it.index)) continue;   // remake mods: its "available" condition
-                    if (Shop.NotInSession(db, it.index)) continue;   // remake: no time extender in multiplayer
+                    if (Shop.NotInSession(db, it.index) || !Modding.ModContent.ItemAvailableFor(it.index, "loot")
+                        || !Modding.ModContent.ItemAvailableFor(it.index, "npcCargo")) continue;   // remake: no time extender in multiplayer
                     if (type == 4) entry = new ItemStack(it.index, Random.Range(0, 9) + 1);
                     else if (it.techLevel < 8) entry = new ItemStack(it.index, Random.Range(0, 3) + 1);
                 }
