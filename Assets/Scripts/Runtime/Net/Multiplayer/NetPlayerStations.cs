@@ -561,6 +561,11 @@ namespace GoF2Remake.Multiplayer
                     : "The project transaction could not be journalled; no materials were taken.";
             }
 
+            // Construction projects are not inserted into the system's orbital list until fully funded.
+            // Apply the committed snapshot now so the newly operational station becomes visible and dockable
+            // on the authoritative host; clients do the same when they receive the replicated snapshot.
+            if (complete) Apply(NetGame.Db);
+
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Station construction");
             string result = $"Deposited {amount} x {NetGame.Db.Item(item).name} into {record.name}.";
@@ -653,14 +658,6 @@ namespace GoF2Remake.Multiplayer
             foreach (var record in registry.stations)
             {
                 if (record == null || record.stationIndex < 0) continue;
-                // Station indices also index several legacy tables. Append contiguously so the original index/count
-                // invariant remains true, and refuse a stale or colliding record rather than corrupting another station.
-                if (record.stationIndex != db.Stations.Count)
-                {
-                    if (db.Stations.Find(s => s.index == record.stationIndex) is StationData existing && existing.name == record.name) continue;
-                    Debug.LogError($"NetPlayerStations: station {record.id} expected index {record.stationIndex}, but the database ends at {db.Stations.Count}; check that the server and client use the same mods.");
-                    continue;
-                }
                 var system = db.Systems.Find(s => s != null && s.index == record.system);
                 var look = db.Stations.Find(s => s != null && s.index == record.looksLike);
                 if (look == null && system?.stations != null && system.stations.Count > 0)
@@ -673,19 +670,50 @@ namespace GoF2Remake.Multiplayer
                 foreach (var station in registry.stations) if (station != null && station.system == record.system) count++;
                 bool validOrbit = system != null && system.stations != null && system.stations.Count > 0;
                 bool validPreset = look != null;
-                if (count > MaxStationsPerSystem || !validOrbit || !validPreset)
+                bool available = count <= MaxStationsPerSystem && validOrbit && validPreset;
+                string stationName = string.IsNullOrWhiteSpace(record.name)
+                    ? $"{record.ownerName}'s Station" : record.name;
+
+                // A station's database index is also used by legacy tables. Reserve it even if its
+                // system or appearance has become unavailable, otherwise every later player station
+                // would shift into the wrong index. Existing entries are also revisited because a live
+                // snapshot can change a project from construction to operational.
+                if (record.stationIndex != db.Stations.Count)
                 {
-                    // Station indices also index legacy tables. Even when a saved station can no longer be
-                    // placed (for example, its system lost every orbit after a mod change), reserve its
-                    // database index with an inert entry. Skipping it would shift every later player station
-                    // and make otherwise valid records appear to collide with the base database.
+                    if (db.Stations.Find(s => s != null && s.index == record.stationIndex) is StationData existing &&
+                        (existing.name == stationName || existing.name == record.name))
+                    {
+                        if (available)
+                        {
+                            existing.system = record.system;
+                            existing.systemName = system.name;
+                            existing.techLevel = look.techLevel;
+                            existing.textureIndex = look.textureIndex;
+                            if (record.underConstruction) system.stations.Remove(record.stationIndex);
+                            else if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
+                        }
+                        else
+                        {
+                            system?.stations?.Remove(record.stationIndex);
+                            string reason = count > MaxStationsPerSystem ? "the system exceeds the player station limit" :
+                                !validOrbit ? "the system is missing or has no orbital locations" : "no valid model preset exists";
+                            Debug.LogError($"NetPlayerStations: station {record.id} is unavailable because {reason}; its database index remains reserved.");
+                        }
+                        continue;
+                    }
+                    Debug.LogError($"NetPlayerStations: station {record.id} expected index {record.stationIndex}, but the database ends at {db.Stations.Count}; check that the server and client use the same mods.");
+                    continue;
+                }
+
+                if (!available)
+                {
                     string reason = count > MaxStationsPerSystem ? "the system exceeds the player station limit" :
                         !validOrbit ? "the system is missing or has no orbital locations" : "no valid model preset exists";
                     Debug.LogError($"NetPlayerStations: station {record.id} is unavailable because {reason}; its index is reserved but it will not be added to the system.");
                     db.Stations.Add(new StationData
                     {
                         index = record.stationIndex,
-                        name = string.IsNullOrWhiteSpace(record.name) ? $"Unavailable player station {record.id}" : record.name,
+                        name = stationName,
                         system = record.system,
                         systemName = system?.name ?? "",
                         techLevel = look?.techLevel ?? 0,
@@ -693,17 +721,19 @@ namespace GoF2Remake.Multiplayer
                     });
                     continue;
                 }
+
                 if (record.looksLike < 0) record.looksLike = look.index;
                 db.Stations.Add(new StationData
                 {
                     index = record.stationIndex,
-                    name = string.IsNullOrWhiteSpace(record.name) ? $"{record.ownerName}'s Station" : record.name,
+                    name = stationName,
                     system = record.system,
                     systemName = system.name,
                     techLevel = look.techLevel,
                     textureIndex = look.textureIndex,
                 });
-                if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
+                if (record.underConstruction) system.stations.Remove(record.stationIndex);
+                else if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
             }
             NetGuard.RefreshStations();
         }
