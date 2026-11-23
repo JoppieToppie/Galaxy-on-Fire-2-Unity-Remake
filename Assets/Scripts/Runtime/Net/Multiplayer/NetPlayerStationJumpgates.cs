@@ -519,6 +519,17 @@ namespace GoF2Remake.Multiplayer
             return JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
         }
 
+        /// <summary>Server validation for the owner-only interaction RPC. Returns -1 unless the player is at an accessible, operational gate.</summary>
+        internal static int JumpgateDestinationForInteraction(NetPlayer by, int orbitStationIndex)
+        {
+            if (!NetGame.IsServer || !sessionActive || by == null || !by.IsSpawned ||
+                !by.InSpace || by.Station != orbitStationIndex || !CanUseJumpgate(by, orbitStationIndex)) return -1;
+            var gate = FindJumpgate(orbitStationIndex);
+            CompleteJumpgateIfDue(gate);
+            return gate != null && !gate.building && !gate.scrapped && !gate.permanentlyDestroyed
+                ? gate.destinationSystem : -1;
+        }
+
         internal static string JumpgateOrbits(int systemIndex)
         {
             var system = NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex);
