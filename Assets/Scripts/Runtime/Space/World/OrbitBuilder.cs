@@ -536,7 +536,8 @@ namespace GoF2Remake.World
             // Only independently constructed player gates opt into exact mesh geometry in Original mode.
             // This does not attach a combat Target yet: the server must validate weapon hits before
             // the gate is allowed to receive structural damage.
-            if (go != null && GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex))
+            if (go != null && (GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex) ||
+                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(layout.stationIndex)))
             {
                 var hull = GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);
                 if (hull != null) hull.playerJumpgateOrbit = layout.stationIndex;
