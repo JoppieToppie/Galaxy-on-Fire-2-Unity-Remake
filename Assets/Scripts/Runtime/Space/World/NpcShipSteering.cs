@@ -123,7 +123,10 @@ namespace GoF2Remake.World
                            || !slow.CanTurn;   // remake: an EMP device's slow
             float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : chorusF ? chorusFight.SpeedFactor : formationSpeed;   // (GoF3's Easy: slower in your sights)
             float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
-            bool useEs2Flight = es2Flight && (!smepFighterAi || SmepEnabledForTarget || Settings.Es2NpcFlight);
+            bool useSmepFlight = smepFighterAi && SmepEnabledForTarget && target != null && target.Alive
+                                 && !followingWaypoint && !Hp.empDisabled && slow.CanTurn;
+            // SMEP owns movement and steering when active. ES2 is only the fallback controller.
+            bool useEs2Flight = es2Flight && !useSmepFlight;
             if (!noSteer && !Hp.empDisabled)
             {
                 Vector3 h;
@@ -160,13 +163,13 @@ namespace GoF2Remake.World
             if (levelling) Roll(dtMs);
 
             if (!Hp.empDisabled)
-                transform.position += (useEs2Flight ? Es2FlightMove(topSpeed, dtMs) : transform.forward * topSpeed * dtMs * M) + sideStep;
-            if (smepFighterAi)
             {
-                if (!Hp.empDisabled && slow.CanTurn)
+                if (useSmepFlight)
                     ApplySmepDogfightTranslation(dtMs, smepBeforePosition, topSpeed);
-                FireSmepReadyPrimaryGuns();
+                else
+                    transform.position += (useEs2Flight ? Es2FlightMove(topSpeed, dtMs) : transform.forward * topSpeed * dtMs * M) + sideStep;
             }
+            if (smepFighterAi) FireSmepReadyPrimaryGuns();
         }
 
         /// <summary>Gives the ship an order (null: back to its own AI). Wakes a sleeper, lets a parked ship fly; "hold" is
