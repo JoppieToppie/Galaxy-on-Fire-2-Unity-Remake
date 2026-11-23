@@ -7,8 +7,10 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
-        const float StationMaxIntegrity = 30000f;
-        const float WreckMaxIntegrity = 12000f;
+        const float StationMaxIntegrity = 300000f;
+        const float WreckMaxIntegrity = 120000f;
+        const float LegacyStationMaxIntegrity = 30000f;
+        const float LegacyWreckMaxIntegrity = 12000f;
         const int ReconstructionPercent = 50;
 
         static PlayerStationRecord StationAt(int orbit) =>
@@ -35,17 +37,26 @@ namespace GoF2Remake.Multiplayer
                 !NetGuard.Finite(damage) || damage <= 0f) return false;
 
             var station = StationAt(orbit);
-            float integrity = station.stationIntegrityInitialized ? station.stationIntegrity :
-                station.wreckClaimOpen || station.reconstructing ? WreckMaxIntegrity : StationMaxIntegrity;
+            bool vulnerable = station.wreckClaimOpen || station.reconstructing;
+            float capacity = vulnerable ? WreckMaxIntegrity : StationMaxIntegrity;
+            float savedCapacity = station.stationIntegrityCapacity > 0f ? station.stationIntegrityCapacity :
+                vulnerable ? LegacyWreckMaxIntegrity : LegacyStationMaxIntegrity;
+            // Preserve the remaining fraction when a saved station's capacity changes.
+            float integrity = station.stationIntegrityInitialized
+                ? Mathf.Clamp01(station.stationIntegrity / savedCapacity) * capacity
+                : capacity;
             if (damage >= integrity) return DestroyStation(station);
 
             bool initialized = station.stationIntegrityInitialized;
             float previous = station.stationIntegrity;
+            float previousCapacity = station.stationIntegrityCapacity;
             station.stationIntegrityInitialized = true;
             station.stationIntegrity = integrity - damage;
+            station.stationIntegrityCapacity = capacity;
             if (Save()) return true;
             station.stationIntegrityInitialized = initialized;
             station.stationIntegrity = previous;
+            station.stationIntegrityCapacity = previousCapacity;
             return false;
         }
 

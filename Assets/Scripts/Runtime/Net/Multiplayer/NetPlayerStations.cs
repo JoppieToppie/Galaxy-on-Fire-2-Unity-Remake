@@ -146,7 +146,7 @@ namespace GoF2Remake.Multiplayer
         // JsonUtility can deserialize a null inline record as an empty object. Check the flag.
         public bool wreckClaimOpen;
         public bool reconstructing, destroyed, stationIntegrityInitialized;
-        public float stationIntegrity;
+        public float stationIntegrity, stationIntegrityCapacity;
         public bool stationExplosionPending, stationSalvagePending;
         public List<PlayerStationMaterial> stationSalvage = new List<PlayerStationMaterial>();
         public PlayerStationWreckClaim wreckClaim;
@@ -669,6 +669,7 @@ namespace GoF2Remake.Multiplayer
             bool wasReconstructing = record.reconstructing;
             bool integrityInitialized = record.stationIntegrityInitialized;
             float previousIntegrity = record.stationIntegrity;
+            float previousIntegrityCapacity = record.stationIntegrityCapacity;
             if (newContribution) record.constructionContributions.Add(contribution);
             contribution.amount += amount;
             if (factionOwned)
@@ -684,6 +685,7 @@ namespace GoF2Remake.Multiplayer
                 record.reconstructing = false;
                 record.stationIntegrityInitialized = false;
                 record.stationIntegrity = 0f;
+                record.stationIntegrityCapacity = 0f;
                 record.buyOrders?.Clear();
             }
 
@@ -698,6 +700,7 @@ namespace GoF2Remake.Multiplayer
                 record.reconstructing = wasReconstructing;
                 record.stationIntegrityInitialized = integrityInitialized;
                 record.stationIntegrity = previousIntegrity;
+                record.stationIntegrityCapacity = previousIntegrityCapacity;
                 contribution.amount = previousAmount;
                 contribution.unitValue = previousUnitValue;
                 contribution.paidCredits = previousPaid;
