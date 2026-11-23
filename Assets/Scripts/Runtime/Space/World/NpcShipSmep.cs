@@ -1,8 +1,8 @@
 // NpcShipSmep.cs
 // NpcShip, part: the optional SMEP fighter flight mode (a mod hull's traffic.ai = "smep").
-// It uses the remake's native ES2 aim, dogfight and physics flight, then adds the Lua mode's range/strafe,
-// acceleration-aware ballistic lead, remote-player priority, firing fallback and reciprocal player/hull contact.
-// Mobile builds and mobile multiplayer targets require traffic.mobileAi: true; opted-in touch pilots retain reduced behaviour.
+// Eligible NPCs use authoritative 6DOF translation, with native ES2 flight reserved for controller fallback.
+// ES2 aim and combat assist, acceleration-aware lead and native collision avoidance remain integrated.
+// Mobile targets always force conventional flight regardless of mobileAi; the mod remains opt-in.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
