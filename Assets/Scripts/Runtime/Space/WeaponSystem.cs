@@ -41,9 +41,9 @@ namespace GoF2Remake.Flight
         {
             get
             {
-                int n = 0;
-                foreach (var stack in stacks) if (stack != null) n += Mathf.Max(0, stack.amount);
-                return n;
+                long n = 0;
+                foreach (var stack in stacks) if (stack != null) n += System.Math.Max(0, stack.amount);
+                return n >= int.MaxValue ? int.MaxValue : (int)n;
             }
         }
 
@@ -62,12 +62,41 @@ namespace GoF2Remake.Flight
             return 0;
         }
 
-        /// <summary>Restocks the shared pool through its first mounted stack; zero if there is no mounted stack.</summary>
+        /// <summary>
+        /// Adds rounds across all mounted stacks, keeping the per-hardpoint amounts balanced. This matters when either
+        /// launcher is later demounted: its own saved stack leaves with it, while the remaining launcher keeps ammunition.
+        /// Amounts remain in the existing ItemStacks, so no additional save data is needed.
+        /// </summary>
         public int Add(int rounds)
         {
             if (rounds <= 0 || stacks.Count == 0) return 0;
-            stacks[0].amount = Mathf.Max(0, stacks[0].amount) + rounds;
-            return rounds;
+            long remaining = rounds;
+            int added = 0;
+            while (remaining > 0)
+            {
+                int available = 0;
+                foreach (var stack in stacks)
+                    if (stack != null && stack.amount < int.MaxValue) available++;
+                if (available == 0) break;
+
+                long share = (remaining + available - 1) / available;
+                bool changed = false;
+                foreach (var stack in stacks)
+                {
+                    if (stack == null) continue;
+                    long current = System.Math.Max(0, stack.amount);
+                    long capacity = int.MaxValue - current;
+                    if (capacity <= 0) continue;
+                    int amount = (int)System.Math.Min(capacity, share);
+                    if (amount <= 0) continue;
+                    stack.amount = (int)(current + amount);
+                    remaining -= amount;
+                    added += amount;
+                    changed = true;
+                }
+                if (!changed) break;
+            }
+            return added;
         }
     }
 
@@ -143,6 +172,9 @@ namespace GoF2Remake.Flight
         }
 
         Database db;
+        // The mod setting is sampled when rigs are built. Ammo reporting must use the same mode as pool construction,
+        // even if the active-mod list changes before this WeaponSystem is rebuilt.
+        bool multipleSecondaryMountsEnabled;
         const float LiberatorTurnRadPerMs = 0.0015f;
         Rig liberator;
         Transform liberatorAnchor;
@@ -190,7 +222,7 @@ namespace GoF2Remake.Flight
             foreach (var r in rigs)
             {
                 if (!r.gun.isSecondary || r.gun.itemIndex != item || r.ammo == null) continue;
-                if (GoF2Remake.Modding.ModContent.MultipleSecondaryMountsEnabled) return r.ammo.Amount;
+                if (multipleSecondaryMountsEnabled) return r.ammo.Amount;
                 n += r.ammo.Amount;   // vanilla: each hardpoint retains its own ammo stack
             }
             return n;
@@ -330,6 +362,7 @@ namespace GoF2Remake.Flight
         public void Setup(Database db, int shipIndex, IList<ItemStack> equipment)
         {
             this.db = db;
+            multipleSecondaryMountsEnabled = GoF2Remake.Modding.ModContent.MultipleSecondaryMountsEnabled;
             fxRoot = new GameObject("Player weapon fx").transform;
             var primaryMounts = db.MountsOf(shipIndex, 0);
             var secondaryMounts = db.MountsOf(shipIndex, 1);
@@ -400,7 +433,7 @@ namespace GoF2Remake.Flight
                 if (secondary)
                 {
                     SecondaryAmmoPool ammoPool;
-                    if (GoF2Remake.Modding.ModContent.MultipleSecondaryMountsEnabled)
+                    if (multipleSecondaryMountsEnabled)
                     {
                         if (!secondaryAmmo.TryGetValue(item.index, out ammoPool))
                             secondaryAmmo[item.index] = ammoPool = new SecondaryAmmoPool();
