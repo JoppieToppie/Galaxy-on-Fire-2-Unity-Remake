@@ -495,6 +495,7 @@ namespace GoF2Remake.Data
         public Result Buy(int item, out int need)
         {
             need = 0;
+            if (!Storage && !Modding.ModContent.ItemAvailableFor(item, "shops")) return Result.NoStock;
             var row = Stock.items.Find(s => s.item == item && s.amount > 0);
             if (row == null) return Result.NoStock;
             bool free = !Storage && Stock.FreeOf(item) > 0;   // step 67's gifted mines (StationStock.freeUnits)
@@ -578,6 +579,7 @@ namespace GoF2Remake.Data
             swapWith = -1;
             var it = db.Item(item);
             if (it == null || CargoOf(item) <= 0) return Result.NothingToSell;
+            if (!Modding.ModContent.ItemAvailableFor(item, "equipment")) return Result.NotMountable;
             int type = it.TypeId;
             if (type > 3) return Result.NotMountable;
             if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Result.NotMountable;
