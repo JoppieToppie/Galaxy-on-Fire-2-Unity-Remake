@@ -405,6 +405,7 @@ namespace GoF2Remake.World
             }
             var all = Obstacle.All;
             var pos = transform.position;
+            var smepAvoidanceDirection = Vector3.zero;
             int frame = Time.frameCount;
             for (int i = 0; i < all.Count; i++)
             {
@@ -418,11 +419,16 @@ namespace GoF2Remake.World
                 var dir = (fwd + (p - fwd) * speed * 0.03f).normalized;
                 transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
                 // Steering correction only: the custom controller owns displacement and speed.
-                if (smepMoving) TurnSmepVelocityAwayFromObstacle(p, dtMs);
+                if (smepMoving) smepAvoidanceDirection = p;
                 else transform.position += transform.forward * speed * dtMs * M;
                 break;
             }
-            if (smepMoving) SyncSmepAfterAvoidance();
+            if (smepMoving)
+            {
+                SyncSmepAfterAvoidance();
+                if (smepAvoidanceDirection.sqrMagnitude > 0f)
+                    TurnSmepVelocityAwayFromObstacle(smepAvoidanceDirection, dtMs);
+            }
             if (resetSmepReciprocal)
             {
                 smepReciprocalLastPosition = transform.position;
