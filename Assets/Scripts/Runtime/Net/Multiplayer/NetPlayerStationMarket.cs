@@ -15,9 +15,9 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at the station using a controlled profile to create a construction buy order.";
+                return "Dock at any station using a controlled profile to create a construction buy order.";
             if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice ||
                 unitPrice > int.MaxValue / (long)Math.Max(1, amount))
                 return "Use a valid material, 1–500 units, and a supported positive unit price.";
@@ -66,9 +66,9 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at the station using a controlled profile to sell materials into a construction order.";
+                return "Dock at any station using a controlled profile to sell materials into a construction order.";
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
                 return "No construction buy order exists at that index.";
             var order = record.buyOrders[orderIndex];
@@ -146,9 +146,9 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at the station using a controlled profile to cancel a construction order.";
+                return "Dock at any station using a controlled profile to cancel a construction order.";
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
                 return "No construction buy order exists at that index.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
