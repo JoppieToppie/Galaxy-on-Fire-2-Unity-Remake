@@ -72,7 +72,9 @@ namespace GoF2Remake.Multiplayer
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
                 return "No construction buy order exists at that index.";
             var order = record.buyOrders[orderIndex];
-            if (order == null || order.remaining < 1 || order.unitPrice < 1 || order.reservedCredits < order.unitPrice * (long)order.remaining)
+            if (order == null || order.remaining < 1 || order.unitPrice < 1 || !NetGuard.Item(order.item) ||
+                order.unitPrice > long.MaxValue / order.remaining ||
+                order.reservedCredits < order.unitPrice * (long)order.remaining)
                 return "That construction buy order is invalid.";
             if (amount < 1 || amount > 500 || amount > order.remaining) return "Choose 1–500 units, up to the order's remaining quantity.";
             var material = record.materials?.Find(x => x != null && x.item == order.item);
@@ -105,22 +107,28 @@ namespace GoF2Remake.Multiplayer
                 record.underConstruction = false;
                 foreach (var pending in record.buyOrders)
                 {
-                    if (pending == null || pending.reservedCredits <= 0) continue;
-                    // Escrow belongs to the account/faction that funded this order, even if station ownership
-                    // changed while construction was in progress. Never guess when legacy data lacks a funder. 
-                    string refundProfile = pending.fundedByProfile;
-                    string refundFaction = pending.fundedByFactionId;
-                    if (!string.IsNullOrEmpty(refundProfile))
-                        credits.Add((refundProfile, pending.reservedCredits));
-                    else if (!string.IsNullOrEmpty(refundFaction))
-                        banks.Add((refundFaction, pending.reservedCredits));
-                    else
+                    if (pending == null) continue;
+                    if (pending.reservedCredits < 0)
                     {
                         material.delivered = oldDelivered;
                         record.underConstruction = wasUnderConstruction;
                         record.buyOrders = oldOrders;
-                        return "Construction cannot complete because an outstanding buy order has no recoverable escrow owner. The order was preserved for administrator recovery.";
+                        return "Construction cannot complete because an outstanding buy order has invalid negative escrow. The order was preserved for administrator recovery.";
                     }
+                    if (pending.reservedCredits == 0) continue;
+                    // Escrow belongs to exactly one recorded account or faction, even if station ownership
+                    // changed while construction was in progress. Never guess when legacy data is ambiguous.
+                    bool hasProfileFunder = !string.IsNullOrEmpty(pending.fundedByProfile);
+                    bool hasFactionFunder = !string.IsNullOrEmpty(pending.fundedByFactionId);
+                    if (hasProfileFunder == hasFactionFunder)
+                    {
+                        material.delivered = oldDelivered;
+                        record.underConstruction = wasUnderConstruction;
+                        record.buyOrders = oldOrders;
+                        return "Construction cannot complete because an outstanding buy order has an ambiguous or missing escrow owner. The order was preserved for administrator recovery.";
+                    }
+                    if (hasProfileFunder) credits.Add((pending.fundedByProfile, pending.reservedCredits));
+                    else banks.Add((pending.fundedByFactionId, pending.reservedCredits));
                 }
                 record.buyOrders.Clear();
             }
