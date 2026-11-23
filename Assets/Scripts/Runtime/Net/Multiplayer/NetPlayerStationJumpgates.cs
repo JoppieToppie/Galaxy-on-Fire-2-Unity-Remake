@@ -145,7 +145,9 @@ namespace GoF2Remake.Multiplayer
             if (faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal)) return false;
             if (string.Equals(faction.leader, account, StringComparison.Ordinal)) return true;
             var sponsor = Find(gate.constructionStationId > 0 ? gate.constructionStationId : gate.sponsorStationId);
-            if (sponsor != null && HasRole(sponsor, account, PlayerStationRole.StationAdministrator)) return true;
+            if (sponsor != null && sponsor.ownershipType == PlayerStationOwnershipType.Faction &&
+                string.Equals(sponsor.ownerFactionId, gate.ownerFactionId, StringComparison.Ordinal) &&
+                HasRole(sponsor, account, PlayerStationRole.StationAdministrator)) return true;
             return registry?.stations?.Exists(station => station != null &&
                 station.ownershipType == PlayerStationOwnershipType.Faction &&
                 string.Equals(station.ownerFactionId, gate.ownerFactionId, StringComparison.Ordinal) &&
@@ -421,16 +423,15 @@ namespace GoF2Remake.Multiplayer
             }
             foreach (var gate in registry.jumpgates)
             {
-                if (gate == null || !gate.salvageDropPending || gate.salvageMaterials == null ||
-                    gate.salvageMaterials.Count == 0) continue;
+                if (gate == null || !gate.salvageDropPending) continue;
                 var runner = NetPlayer.OrbitRunner(gate.orbitStationIndex);
                 if (runner == null) continue; // keep the salvage manifest until an orbit authority is present
                 var items = new List<int>();
                 var amounts = new List<int>();
-                foreach (var material in gate.salvageMaterials)
-                    if (material != null && material.required > 0 && NetGuard.Item(material.item))
-                    { items.Add(material.item); amounts.Add(material.required); }
-                if (items.Count == 0) { gate.salvageDropPending = false; Save(); continue; }
+                if (gate.salvageMaterials != null)
+                    foreach (var material in gate.salvageMaterials)
+                        if (material != null && material.required > 0 && NetGuard.Item(material.item))
+                        { items.Add(material.item); amounts.Add(material.required); }
                 gate.salvageDropPending = false;
                 if (!Save())
                 {
@@ -438,7 +439,8 @@ namespace GoF2Remake.Multiplayer
                     nextJumpgateRetryUtc = now + 5;
                     return;
                 }
-                runner.SpawnJumpgateSalvageRpc(gate.orbitStationIndex, items.ToArray(), amounts.ToArray());
+                if (items.Count > 0)
+                    runner.SpawnJumpgateSalvageRpc(gate.orbitStationIndex, items.ToArray(), amounts.ToArray());
             }
             foreach (var gate in registry.jumpgates)
             {
@@ -494,6 +496,9 @@ namespace GoF2Remake.Multiplayer
             if (existingGate != null && !stationRebuild)
                 return "That orbit already has a player-built jumpgate, a scrapped gate awaiting reclamation, or an active gate project. Only one gate can occupy an orbit.";
 
+            if (stationRebuild && (existingGate.explosionPending || existingGate.salvageDropPending))
+                return "Visit the destroyed gate's orbit to dispatch its pending destruction and salvage before starting a new build.";
+
             var gate = new PlayerJumpgateRecord
             {
                 orbitStationIndex = orbitStationIndex,
@@ -510,10 +515,7 @@ namespace GoF2Remake.Multiplayer
                 building = true,
                 buildSeconds = buildSeconds,
                 materials = RequiredJumpgateMaterials(),
-                contributions = new List<PlayerStationContribution>(),
-                destructionCount = stationRebuild ? existingGate.destructionCount : 0,
-                salvageMaterials = new List<PlayerStationMaterial>(),
-                salvageDropPending = false
+                contributions = new List<PlayerStationContribution>()
             };
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             int existingIndex = stationRebuild ? registry.jumpgates.IndexOf(existingGate) : -1;
@@ -784,8 +786,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Move a broken gate into its first reclaimable scrap state or its final destroyed state.
-        /// This single transition is used by both combat damage and scripted destruction, so a rebuilt
-        /// gate cannot accidentally receive a second first-destruction refund.</summary>
+        /// Reclaiming a wreck preserves its destruction count. A separately funded replacement starts a new lifecycle.</summary>
         static void TransitionDestroyedGate(PlayerJumpgateRecord gate)
         {
             if (gate == null || gate.scrapped || gate.permanentlyDestroyed) return;
@@ -848,6 +849,7 @@ namespace GoF2Remake.Multiplayer
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || !gate.scrapped || gate.permanentlyDestroyed || gate.destructionCount != 1)
                 return "That gate is not in its reclaimable scrapped state.";
+            if (gate.explosionPending) return "Wait for the gate's destruction to finish before claiming the wreck.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your controlled player profile is unavailable.";
             var faction = NetFactions.Of(account);
@@ -880,6 +882,9 @@ namespace GoF2Remake.Multiplayer
             gate.ownerFactionId = factionClaim ? faction.id : null;
             gate.ownerName = factionClaim ? faction.name : by.DisplayName;
             gate.accessFactionId = faction?.id;
+            gate.accessMode = PlayerJumpgateAccessMode.Everyone;
+            gate.blacklist = new List<PlayerJumpgateBlockEntry>();
+            gate.destinationChangedUtc = 0;
             gate.destinationSystem = newDestination;
             gate.constructionStationId = -1;
             gate.sponsorStationId = -1;
