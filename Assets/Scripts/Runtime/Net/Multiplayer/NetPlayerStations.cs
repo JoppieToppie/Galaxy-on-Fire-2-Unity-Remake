@@ -505,7 +505,8 @@ namespace GoF2Remake.Multiplayer
             if (record == null || !record.underConstruction) return "That construction project is not active.";
             var resource = record.materials?.Find(m => m != null && m.item == item);
             if (resource == null) return "That item is not required for this station project.";
-            int remaining = resource.required - resource.delivered;
+            long remaining = (long)resource.required - resource.delivered;
+            if (remaining < 0) return "That construction material has an invalid delivered total; administrator recovery is required.";
             if (amount > remaining) return $"The project needs only {remaining} more units of that material.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
@@ -529,12 +530,69 @@ namespace GoF2Remake.Multiplayer
             record.constructionContributions ??= new List<PlayerStationContribution>();
             var contribution = record.constructionContributions.Find(x => x != null &&
                 string.Equals(x.contributorProfile, account, StringComparison.Ordinal) && x.item == item);
-            if (contribution == null)
-                record.constructionContributions.Add(contribution = new PlayerStationContribution
+            bool newContribution = contribution == null;
+            if (newContribution)
+                contribution = new PlayerStationContribution
                 { contributorProfile = account, item = item, amount = 0, unitValue = unitValue, paidCredits = 0,
-                    contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+                    contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
+            if (contribution.amount < 0 || contribution.amount > int.MaxValue - amount ||
+                contribution.paidCredits < 0 || (factionOwned && contribution.paidCredits > long.MaxValue - payout))
+                return "The construction contribution ledger has an invalid or overflowing total; administrator recovery is required.";
+
+            bool complete = true;
+            foreach (var material in record.materials)
+            {
+                if (material == null) continue;
+                long delivered = (long)material.delivered + (material == resource ? amount : 0);
+                if (delivered < material.required) { complete = false; break; }
+            }
+
+            // If this contribution finishes the project, refund every unused buy-order escrow in
+            // the same journal as the cargo debit, contributor payout and completed station record.
+            var previousOrders = new List<PlayerStationBuyOrder>();
+            bool hadOrders = record.buyOrders != null;
+            var profileRefunds = new List<(string account, long amount)>();
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            if (factionOwned)
+            {
+                credits.Add((account, payout));
+                banks.Add((record.ownerFactionId, -payout));
+            }
+            if (complete && record.buyOrders != null)
+            {
+                foreach (var pending in record.buyOrders)
+                {
+                    if (pending == null) continue;
+                    previousOrders.Add(new PlayerStationBuyOrder
+                    {
+                        item = pending.item, remaining = pending.remaining, unitPrice = pending.unitPrice,
+                        reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
+                        fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy,
+                        createdUtc = pending.createdUtc
+                    });
+                    if (pending.reservedCredits < 0)
+                        return "Construction cannot complete because an outstanding buy order has invalid negative escrow. The order was preserved for administrator recovery.";
+                    if (pending.reservedCredits == 0) continue;
+                    bool hasProfileFunder = !string.IsNullOrEmpty(pending.fundedByProfile);
+                    bool hasFactionFunder = !string.IsNullOrEmpty(pending.fundedByFactionId);
+                    if (hasProfileFunder == hasFactionFunder)
+                        return "Construction cannot complete because an outstanding buy order has an ambiguous or missing escrow owner. The order was preserved for administrator recovery.";
+                    if (hasProfileFunder)
+                    {
+                        credits.Add((pending.fundedByProfile, pending.reservedCredits));
+                        profileRefunds.Add((pending.fundedByProfile, pending.reservedCredits));
+                    }
+                    else banks.Add((pending.fundedByFactionId, pending.reservedCredits));
+                }
+            }
+
+            int previousAmount = contribution.amount;
             long previousPaid = contribution.paidCredits;
             long previousPaidUtc = contribution.paidUtc;
+            int previousDelivered = resource.delivered;
+            bool wasUnderConstruction = record.underConstruction;
+            if (newContribution) record.constructionContributions.Add(contribution);
             contribution.amount += amount;
             if (factionOwned)
             {
@@ -543,37 +601,46 @@ namespace GoF2Remake.Multiplayer
                 contribution.paidUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             }
             resource.delivered += amount;
-            bool complete = true;
-            foreach (var material in record.materials)
-                if (material != null && material.delivered < material.required) { complete = false; break; }
-            if (complete) record.underConstruction = false;
+            if (complete)
+            {
+                record.underConstruction = false;
+                record.buyOrders?.Clear();
+            }
 
-            bool committed = factionOwned
-                ? CommitConstructionContribution(account, record.ownerFactionId, item, amount, payout)
-                : CommitCargoTransaction(account, (item, -amount));
+            bool committed = CommitProfileTransaction(
+                new List<(string account, int item, int delta)> { (account, item, -amount) },
+                credits.Count > 0 ? credits : null,
+                banks.Count > 0 ? banks : null);
             if (!committed)
             {
-                resource.delivered -= amount;
-                contribution.amount -= amount;
+                resource.delivered = previousDelivered;
+                record.underConstruction = wasUnderConstruction;
+                contribution.amount = previousAmount;
                 contribution.paidCredits = previousPaid;
                 contribution.paidUtc = previousPaidUtc;
-                if (contribution.amount <= 0) record.constructionContributions.Remove(contribution);
-                if (complete) record.underConstruction = true;
+                if (newContribution) record.constructionContributions.Remove(contribution);
+                if (complete && hadOrders) record.buyOrders = previousOrders;
                 return factionOwned
                     ? "The contribution and faction-bank payout could not be committed; no materials were taken."
                     : "The project transaction could not be journalled; no materials were taken.";
             }
 
-            // Construction projects are not inserted into the system's orbital list until fully funded.
-            // Apply the committed snapshot now so the newly operational station becomes visible and dockable
-            // on the authoritative host; clients do the same when they receive the replicated snapshot.
             if (complete) Apply(NetGame.Db);
-
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Station construction");
+            if (factionOwned) NotifyProfileCreditChange(account, payout, "Station construction contribution");
+            foreach (var refund in profileRefunds)
+                NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
+
             string result = $"Deposited {amount} x {NetGame.Db.Item(item).name} into {record.name}.";
             if (factionOwned) result += $" Paid {payout:N0} credits from the faction bank ({unitValue:N0} per unit).";
-            return record.underConstruction ? result : result + " Construction is complete; the station is now open.";
+            if (complete)
+            {
+                result += " Construction is complete; the station is now open.";
+                if (profileRefunds.Count > 0 || banks.Count > (factionOwned ? 1 : 0))
+                    result += " Remaining construction buy-order escrow was returned to its original funders.";
+            }
+            return result;
         }
 
         /// <summary>Reserve a new orbital site and start its long-running, server-owned material project.</summary>
