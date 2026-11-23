@@ -271,6 +271,15 @@ namespace GoF2Remake.Multiplayer
             return changed;
         }
 
+        /// <summary>A first-destruction wreck remains as physical scenery until it is reclaimed;
+        /// a second, permanent destruction leaves the orbit empty.</summary>
+        public static bool HasJumpgateWreckAtStation(int stationIndex)
+        {
+            var gate = FindJumpgate(stationIndex);
+            return gate != null && gate.scrapped && !gate.permanentlyDestroyed &&
+                gate.destructionCount == 1;
+        }
+
         /// <summary>Local travel refusal for a player gate that is offline, scrapped or being rebuilt.
         /// Server access and destination requests enforce the same restrictions authoritatively.</summary>
         public static bool JumpgateOffline(int stationIndex)
