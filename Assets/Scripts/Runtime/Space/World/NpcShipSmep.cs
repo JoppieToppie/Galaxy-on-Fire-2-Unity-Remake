@@ -85,7 +85,7 @@ namespace GoF2Remake.World
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec) && !MissionShip && !StoryShip && ScriptEnemy == null && !turnedEnemy
-                                 && order == null && mindControlMs <= 0f
+                                 && mindControlMs <= 0f
                                  && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Cruiser
                                  && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Carrier
                                  && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Frigate
@@ -239,12 +239,12 @@ namespace GoF2Remake.World
         /// <summary>SMEP's smooth range/strafe movement, applied after native ES2 steering and before obstacle avoidance.</summary>
         void ApplySmepDogfightTranslation(float dtMs, Vector3 beforePosition, float effectiveTopSpeed)
         {
-            if (!SmepEligible || target == null || !target.Alive || followingWaypoint)
+            if (!SmepEligible)
             {
                 smepDogfightState = null;
                 return;
             }
-            var targetPoint = target.transform.position;
+            var targetPoint = target != null && target.Alive && !followingWaypoint ? target.transform.position : beforePosition + transform.forward * 1200f;
             var offset = beforePosition - targetPoint;
             float distance = offset.magnitude;
             // Keep the controller and its velocity state alive through pursuit, not just close combat.
@@ -255,7 +255,7 @@ namespace GoF2Remake.World
                 smepDogfightState = new SmepDogfightState
                 {
                     target = target,
-                    velocity = es2Vel / 1000f,
+                    velocity = es2FlownFrame >= Time.frameCount - 1 ? es2Vel / 1000f : transform.forward * Mathf.Max(0f, effectiveTopSpeed),
                     phase = Random.Range(0f, Mathf.PI * 2f),
                     hoverRate = Random.Range(0.85f, 1.25f),
                     orbitSign = Random.value < 0.5f ? -1 : 1,
@@ -363,6 +363,15 @@ namespace GoF2Remake.World
             // Keep ES2's fallback velocity in sync with the authoritative SMEP displacement.
             es2Vel = dt > 0f && M > 0f ? step / (dt * M) * 1000f : Vector3.zero;
             es2FlownFrame = Time.frameCount;
+        }
+
+        void SyncSmepAfterAvoidance(Vector3 positionBeforeAvoidance, float dtMs)
+        {
+            if (!SmepEligible || smepDogfightState == null || dtMs <= 0f || M <= 0f) return;
+            // Avoidance displacement is authoritative, including its collision response.
+            var correctedVelocity = (transform.position - positionBeforeAvoidance) / (dtMs * M);
+            smepDogfightState.velocity = Vector3.ClampMagnitude(smepDogfightState.velocity + correctedVelocity, Mathf.Max(0f, speed * slow.SpeedFactor * roleSpeedFactor * RolePace));
+            es2Vel = smepDogfightState.velocity * 1000f;
         }
 
         /// <summary>Fallback for a ready primary gun when the native ES2 scheduler did not fire this frame.</summary>
