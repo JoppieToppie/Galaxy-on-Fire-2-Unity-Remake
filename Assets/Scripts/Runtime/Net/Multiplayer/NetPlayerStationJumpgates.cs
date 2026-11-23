@@ -36,21 +36,53 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanViewJumpgateManagement(NetPlayer by, PlayerJumpgateRecord gate) =>
             CanViewJumpgate(by, gate);
 
+        static bool CanIssueJumpgateOrder(NetPlayer by, PlayerStationRecord sponsor, out string account)
+        {
+            account = null;
+            if (!IsStationContext(by, sponsor, out account)) return false;
+            if (HasBuilderRights(sponsor, account)) return true;
+            if (sponsor.ownershipType == PlayerStationOwnershipType.Individual)
+                return string.Equals(account, sponsor.ownerProfile, StringComparison.Ordinal) ||
+                    HasRole(sponsor, account, PlayerStationRole.StationAdministrator);
+            var faction = NetFactions.Of(account);
+            return faction != null && string.Equals(faction.id, sponsor.ownerFactionId, StringComparison.Ordinal) &&
+                (string.Equals(faction.leader, account, StringComparison.Ordinal) ||
+                 HasRole(sponsor, account, PlayerStationRole.StationAdministrator));
+        }
+
         static bool CanManageJumpgate(NetPlayer by, PlayerJumpgateRecord gate, out string account)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             if (!NetGame.IsServer || !sessionActive || registry == null || by == null || !by.IsSpawned ||
                 !by.InHangar || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) ||
-                string.IsNullOrEmpty(account) || gate == null) return false;
-            var sponsor = Find(gate.sponsorStationId);
-            if (sponsor != null)
-                return sponsor.ownershipType == PlayerStationOwnershipType.Individual
-                    ? string.Equals(account, sponsor.ownerProfile, StringComparison.Ordinal)
-                    : IsFactionManager(sponsor, account);
-            var access = JumpgateAccessRecord(gate);
-            return gate.ownershipType == PlayerStationOwnershipType.Individual
+                string.IsNullOrEmpty(account) || gate == null || gate.scrapped || gate.permanentlyDestroyed) return false;
+            if (gate.ownershipType == PlayerStationOwnershipType.Individual)
+                return string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
+            var faction = NetFactions.Of(account);
+            if (faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal)) return false;
+            if (string.Equals(faction.leader, account, StringComparison.Ordinal)) return true;
+            var sponsor = Find(gate.constructionStationId > 0 ? gate.constructionStationId : gate.sponsorStationId);
+            return sponsor != null && HasRole(sponsor, account, PlayerStationRole.StationAdministrator);
+        }
+
+        static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
+        {
+            if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building) return false;
+            bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual
                 ? string.Equals(account, gate.ownerProfile, StringComparison.Ordinal)
-                : IsFactionManager(access, account);
+                : !string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.ownerFactionId, StringComparison.Ordinal);
+            if (owner) return true;
+            if (gate.blacklist != null)
+                foreach (var blocked in gate.blacklist)
+                {
+                    if (blocked == null || string.IsNullOrEmpty(blocked.id)) continue;
+                    if (blocked.type == PlayerJumpgateBlockType.Profile &&
+                        string.Equals(blocked.id, account, StringComparison.Ordinal)) return false;
+                    if (blocked.type == PlayerJumpgateBlockType.Faction &&
+                        string.Equals(blocked.id, factionId, StringComparison.Ordinal)) return false;
+                }
+            return gate.accessMode != PlayerJumpgateAccessMode.OwningFaction ||
+                (!string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.ownerFactionId, StringComparison.Ordinal));
         }
 
         static bool ValidOrbit(int systemIndex, int orbitStationIndex, out SystemData system)
@@ -217,8 +249,8 @@ namespace GoF2Remake.Multiplayer
                 return "Player-built jumpgates need a persistent host or dedicated server.";
             var sponsor = Find(sponsorStationId);
             if (sponsor == null) return "No player station with that project id exists.";
-            if (!CanManage(by, sponsor, out _))
-                return "Dock at a player station you own or manage to authorise a jumpgate project.";
+            if (!CanIssueJumpgateOrder(by, sponsor, out string issuer))
+                return "Only the station owner, faction leader, assigned station executive or original builder may issue a jumpgate construction order.";
             if (sponsor.underConstruction) return "The sponsoring station must be operational.";
             if (!ValidOrbit(sponsor.system, orbitStationIndex, out var origin))
                 return "Choose an existing orbital location in the sponsoring station's system.";
@@ -240,9 +272,12 @@ namespace GoF2Remake.Multiplayer
                 system = sponsor.system,
                 destinationSystem = destinationSystem,
                 ownershipType = sponsor.ownershipType,
-                ownerProfile = sponsor.ownerProfile,
-                ownerFactionId = sponsor.ownerFactionId,
-                ownerName = sponsor.ownerName,
+                ownerProfile = sponsor.ownershipType == PlayerStationOwnershipType.Individual ? issuer : null,
+                ownerFactionId = sponsor.ownershipType == PlayerStationOwnershipType.Faction ? sponsor.ownerFactionId : null,
+                ownerName = sponsor.ownershipType == PlayerStationOwnershipType.Faction ? sponsor.ownerName : by.DisplayName,
+                constructionStationId = sponsor.id,
+                constructionIssuerProfile = issuer,
+                sponsorStationId = sponsor.id,
                 building = true,
                 buildSeconds = buildSeconds,
                 materials = RequiredJumpgateMaterials(),
@@ -360,11 +395,9 @@ namespace GoF2Remake.Multiplayer
             if (gate == null) return "No player-built jumpgate exists in that orbit.";
             if (!CanManageJumpgate(by, gate, out _))
                 return "Only the gate owner or an authorised faction manager can change its destination while docked.";
-            var sponsor = Find(gate.sponsorStationId);
-            if (sponsor == null)
-                return "This jumpgate has no recoverable sponsoring station; its destination cannot be changed automatically.";
-            if (by.Station != sponsor.stationIndex)
-                return "Dock at the sponsoring player station to change this jumpgate's destination.";
+            var currentStation = NetGame.Db?.Stations?.Find(x => x != null && x.index == by.Station);
+            if (currentStation == null || currentStation.system != gate.system)
+                return "Dock at any station in the jumpgate's origin system to change its destination.";
             CompleteJumpgateIfDue(gate);
             if (gate.building || gate.startedUtc <= 0) return "The jumpgate must be fully operational before changing its destination.";
             if (destinationSystem == gate.system) return "A jumpgate must connect to a different system.";
