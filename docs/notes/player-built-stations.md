@@ -170,3 +170,28 @@ This is source-level implementation. Unity compilation and multiplayer tests rem
 - Jumpgate records now have independent access-policy, blacklist, construction provenance, scrapped/permanently-destroyed state and destruction-count fields. Access modes are Everyone, OwningFaction and Blacklist; blacklist entries can identify an individual profile or a faction.
 - Persistent factory job and repeat-order record types were added to the station registry.
 - These jumpgate fields are schema groundwork only. Access enforcement, discovery validation/granting, independent reclamation, salvage cargo drops and destruction hooks still need runtime implementation and tests. Gate upkeep remains disabled/unconfigured.
+
+
+## Factory and jumpgate implementation pass (23 November 2026)
+
+Factory follow-up:
+- Recipe definitions are now held in a mutable server-side catalogue. Mod/server extensions can register additional recipes with `NetPlayerStations.RegisterFactoryRecipe(id, outputItem, outputAmount, (inputItem, inputAmount), ...)`.
+- Factory outputs are no longer restricted to the `commodity` item type. A validated recipe may produce any item present in the active item database, including manufactured equipment and other goods.
+- The four built-in recipes are unchanged. The wider base-game recipe catalogue still needs to be authored from verified item/blueprint data.
+
+Jumpgate follow-up:
+- New construction orders are authorised only for the individual station owner, the owning faction's leader, an assigned station executive, or the station's original builder. The actual issuer determines whether the new gate is individually owned or faction-owned.
+- Gate ownership is independent after construction. A later transfer of the sponsoring station no longer transfers the gate.
+- Destination selection is checked against the individual owner's saved discoveries or the union of the owning faction's members' saved discoveries. Reclaimed gates require the new claimant/faction to have discovered the selected destination too.
+- On interaction, the gate destination is granted to the travelling profile through a server-validated RPC, persisted in the profile account index and merged into the normal `systemVisible` save data. The local galaxy map is updated immediately.
+- Access policy supports Everyone, OwningFaction, and Blacklist mode. Profile and faction blacklist entries are checked before faction access, so a faction member can be individually blocked even from their own faction's gate. The gate's actual individual owner bypasses their own blacklist.
+- Gate access changes and blacklist edits are exposed through `/station jumpgate-access` and `/station jumpgate-blacklist`. Gate management is independent of station ownership, but is performed while docked at a station in the gate's origin system.
+- Jumpgate materials must now be delivered while physically in the construction orbit. Faction-owned gate contributors are paid from the faction bank for personal-cargo contributions.
+- First-destruction and second-destruction state transitions are implemented in the server registry. Second destruction creates a 25% salvage manifest; the server waits for the orbit authority and spawns it as persistent multiplayer tractor-beam cargo crates. Scrapped gates can be reclaimed by a faction member on behalf of their faction, or individually by a player who owns an operational individual station. Reclaimers must choose a destination they have discovered. Permanently destroyed gates can only be reconstructed through a new station-issued build order.
+- Important integration gap: the registry destruction transition is exposed as `MarkJumpgateDestroyed`, but the existing in-world gate object still has no authoritative damage/destruction hook calling it. The lifecycle and salvage drop are ready behind that hook; this pass does not yet make the gate itself damageable.
+- Faction storage is not yet a distinct inventory source in the existing station/faction data model. Current gate contributions debit the delivering player's cargo and pay contributors for faction-owned gates. The no-payment path for materials withdrawn from faction storage must be added alongside a real faction-storage source, rather than guessing provenance from cargo contents.
+- Gate upkeep remains disabled and has no recurring debit.
+
+Validation status:
+- Source changes are committed to `feature/player-built-stations`.
+- No Unity compilation, multiplayer host/client run, profile reconnect test, gate travel test, cargo pickup test or destruction-hook test has been performed. Treat this as an implementation pass requiring Unity validation, not a tested release.
