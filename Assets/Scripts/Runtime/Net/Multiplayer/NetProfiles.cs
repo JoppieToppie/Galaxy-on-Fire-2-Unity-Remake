@@ -371,7 +371,9 @@ namespace GoF2Remake.Multiplayer
                 if (login.account != null && string.Equals(login.account.id, id, StringComparison.Ordinal) && IsHostClient(login.client))
                 {
                     GalaxyMap.Visibility(NetGame.Db);
-                    return Session.SystemVisible != null && system < Session.SystemVisible.Length && Session.SystemVisible[system];
+                    if (Session.SystemVisible != null && system < Session.SystemVisible.Length && Session.SystemVisible[system]) return true;
+                    return index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal))
+                        ?.gateDiscoveredSystems?.Contains(system) == true;
                 }
             var save = ReadSave(id);
             if (save?.systemVisible != null && system < save.systemVisible.Length && save.systemVisible[system]) return true;
