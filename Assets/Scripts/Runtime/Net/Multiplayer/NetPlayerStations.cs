@@ -60,6 +60,7 @@ namespace GoF2Remake.Multiplayer
         // Sponsor is retained for legacy construction provenance only. Ownership and recovery are gate-local.
         public int constructionStationId = -1;
         public string constructionIssuerProfile;
+        public string accessFactionId;
         public PlayerJumpgateAccessMode accessMode = PlayerJumpgateAccessMode.Everyone;
         public List<PlayerJumpgateBlockEntry> blacklist = new List<PlayerJumpgateBlockEntry>();
         public bool building;
