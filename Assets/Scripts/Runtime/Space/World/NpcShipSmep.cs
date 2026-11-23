@@ -331,7 +331,8 @@ namespace GoF2Remake.World
             bool bursting = nowTime < state.burstUntil;
             if (bursting) desired = state.burstDirection;
             if (desired.sqrMagnitude > 1f) desired.Normalize();
-            float topSpeed = Mathf.Min(6f, Mathf.Max(0.1f, OwnSpeed * 2f));
+            // All thrust directions share the ship's top speed; only acceleration/response may differ.
+            float topSpeed = Mathf.Max(0.1f, OwnSpeed);
             desired *= topSpeed;
 
             float dt = Mathf.Min(dtMs, 50f);
