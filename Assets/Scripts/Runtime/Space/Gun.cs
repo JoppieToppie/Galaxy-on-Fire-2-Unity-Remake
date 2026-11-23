@@ -131,6 +131,9 @@ namespace GoF2Remake.Flight
         public event Action<Vector3> Ignited;
         /// <summary>Modified: a shot stopped on the station's or jumpgate's hull there (its GunRig shows the impact).</summary>
         public event Action<Vector3> SceneryHit;
+        /// <summary>Bomb or mine detonation with its shot slot and centre. Used to check
+        /// proximity to exact player-built gate meshes, including EMP blasts.</summary>
+        public event Action<int, Vector3> BlastDetonation;
         /// <summary>Exact scenery hull hit: shot slot, hull owner and impact point (player-built gates).
         /// Unlike a generic impact position, the hull identity cannot confuse a nearby station with a gate.</summary>
         public event Action<int, HullBody, Vector3> SceneryImpact;
@@ -1054,6 +1057,7 @@ namespace GoF2Remake.Flight
                 var at = b.position;
                 b.timer = -1e9f;
                 AreaDamage(at, targets, true);
+                BlastDetonation?.Invoke(i, at);
                 Ignited?.Invoke(at);
                 Detonated?.Invoke(this, at);
             }
