@@ -344,6 +344,25 @@ namespace GoF2Remake.Multiplayer
             NetGame.IsServer ? All.Find(p => p != null && p.IsSpawned && p.OrbitAuthority &&
                 p.RunsOrbitActive && p.RunsOrbit == orbitStationIndex) : null;
 
+        /// <summary>Server: broadcast a saved gate-destruction event on the orbit runner's network object.</summary>
+        internal void BroadcastJumpgateExplosion(int orbitStationIndex)
+        {
+            if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
+            JumpgateExplosionRpc(orbitStationIndex);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateExplosionRpc(int orbitStationIndex)
+        {
+            // Every player object receives its own invocation; only the runner's object handles the event
+            // and only clients physically present in the orbit spawn the effect.
+            if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
+                Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
+            if (Local.level != null && Local.level.Layout != null &&
+                Local.level.Layout.stationIndex == orbitStationIndex)
+                Local.level.OnPlayerJumpgateDestroyed();
+        }
+
         /// <summary>Server: ask the orbit authority to materialise persistent jumpgate salvage as a tractor-beam cargo crate.</summary>
         internal void SpawnJumpgateSalvageRpc(int orbitStationIndex, int[] items, int[] amounts)
         {
