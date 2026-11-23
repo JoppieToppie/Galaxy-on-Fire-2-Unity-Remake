@@ -214,11 +214,15 @@ namespace GoF2Remake.World
         /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
         bool playerJumpgateWreck;
 
-        public void OnPlayerJumpgateDestroyed()
+        public void OnPlayerJumpgateDestroyed() => SetPlayerJumpgateWreck(true);
+
+        /// <summary>Also used when entering an orbit that already contains a persisted scrap hull.
+        /// Only a fresh server destruction event plays the explosion.</summary>
+        void SetPlayerJumpgateWreck(bool explode)
         {
             if (Jumpgate == null || Layout == null || Navigation == null || playerJumpgateWreck) return;
             playerJumpgateWreck = true;
-            Explosion.Spawn(Jumpgate.transform.position, 7f);
+            if (explode) Explosion.Spawn(Jumpgate.transform.position, 7f);
             Navigation.SetAutopilot(null);
             Navigation.Targets.RemoveAll(t => t.kind == Navigation.Kind.Jumpgate);
             SystemJump?.SetJumpgate(null);
