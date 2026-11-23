@@ -268,7 +268,7 @@ namespace GoF2Remake.World
             if (!combatMotion && (targetPoint - beforePosition).sqrMagnitude < 1f)
                 targetPoint = beforePosition + transform.forward * 1200f;
             var offset = beforePosition - targetPoint;
-            float distance = offset.magnitude;
+            float distance = combatMotion ? offset.magnitude : 0f;
             // Keep the controller and its velocity state alive through pursuit, not just close combat.
 
             if (smepDogfightState == null || smepDogfightState.target != target)
@@ -294,14 +294,26 @@ namespace GoF2Remake.World
 
             var state = smepDogfightState;
             float nowTime = Time.time;
-            var away = distance > 0.01f ? offset / distance : transform.rotation * Vector3.back;
-            if (combatMotion && distance < 520f && nowTime - state.lastCloseSample > 1.25f)
+            var away = Vector3.zero;
+            Vector3 desired;
+            bool bursting = false;
+            if (!combatMotion)
+            {
+                // Navigation does not need orbit geometry, waves, random bursts or retreat bookkeeping.
+                state.retreating = false;
+                state.burstUntil = 0f;
+                desired = (targetPoint - beforePosition).normalized;
+            }
+            else
+            {
+            away = distance > 0.01f ? offset / distance : transform.rotation * Vector3.back;
+            if (distance < 520f && nowTime - state.lastCloseSample > 1.25f)
             {
                 state.closeApproachCount = Mathf.Min(8, state.closeApproachCount + 1);
                 state.lastCloseSample = nowTime;
                 state.wideOrbit = Mathf.Min(700f, state.closeApproachCount * 100f);
             }
-            else if (combatMotion && distance > 1800f && nowTime - state.lastCloseSample > 4f)
+            else if (distance > 1800f && nowTime - state.lastCloseSample > 4f)
             {
                 state.closeApproachCount = Mathf.Max(0, state.closeApproachCount - 1);
                 state.wideOrbit = Mathf.Max(0f, state.closeApproachCount * 100f);
@@ -309,8 +321,7 @@ namespace GoF2Remake.World
             }
 
             float desiredRange = SmepDogfightRange + state.wideOrbit;
-            if (!combatMotion) state.retreating = false;
-            else if (distance <= SmepCloseLimit) state.retreating = true;
+            if (distance <= SmepCloseLimit) state.retreating = true;
             else if (state.retreating && distance >= desiredRange + 350f)
             {
                 state.retreating = false;
@@ -342,12 +353,11 @@ namespace GoF2Remake.World
             var vertical = Vector3.up * verticalWave;
             float orbitSpeed = state.wideOrbit > 0f ? 1f : (distance < 700f ? 0.92f : 0.82f);
             float sideWobble = Mathf.Sin(nowTime * 0.63f + state.phase) * (state.wideOrbit > 0f ? 0.015f : 0.04f);
-            Vector3 desired = !combatMotion ? (targetPoint - beforePosition).normalized
-                : state.retreating
+            desired = state.retreating
                 ? (away + tangent * (state.orbitSign * 0.12f) + vertical * 0.08f).normalized
                 : away * -radialShare + tangent * (state.orbitSign * orbitSpeed + sideWobble) + vertical;
 
-            if (combatMotion && nowTime >= state.nextBurstCheck)
+            if (nowTime >= state.nextBurstCheck)
             {
                 if (Random.value < (state.wideOrbit > 0f ? 0.05f : 0.12f))
                 {
@@ -358,8 +368,9 @@ namespace GoF2Remake.World
                 }
                 state.nextBurstCheck = nowTime + Random.Range(2.5f, 5f);
             }
-            bool bursting = combatMotion && nowTime < state.burstUntil;
+            bursting = nowTime < state.burstUntil;
             if (bursting) desired = state.burstDirection;
+            }
             if (desired.sqrMagnitude > 1f) desired.Normalize();
 
             // Look ahead before translating. Native obstacle handling by itself
