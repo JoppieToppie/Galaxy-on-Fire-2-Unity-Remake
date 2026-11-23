@@ -54,8 +54,7 @@ namespace GoF2Remake.World
                       : mode == SessionRules.DogfightOriginalMode ? null : customTraffic?.ai;
             bool smepMobileAllowed = SmepAiRules.EnabledOnPlatform(Application.isMobilePlatform, customTraffic?.mobileAi == true);
             var npcClass = ShipClassRules.ClassOf(db?.Ship(spec.ship));
-            bool capitalOrFreighterClass = npcClass == ShipClassRules.Cruiser || npcClass == ShipClassRules.Carrier
-                                          || npcClass == ShipClassRules.Frigate || npcClass == ShipClassRules.Freighter;
+            bool capitalOrFreighterClass = SmepAiRules.ExcludedNpcClass(npcClass);
             bool smepEligible = smep && smepMobileAllowed && !capitalOrFreighterClass
                                 && !spec.freighter && spec.fixedObject == null && spec.turretAssembly == null
                                 && spec.capital == 0 && !spec.capitalPart && !spec.modCapital && !spec.stationary
