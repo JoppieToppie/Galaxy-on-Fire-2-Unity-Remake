@@ -72,6 +72,9 @@ namespace GoF2Remake.Multiplayer
         public int buildSeconds;
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
         public List<PlayerStationContribution> contributions = new List<PlayerStationContribution>();
+        // Second destruction: the server's pending physical cargo-drop manifest (25% of original build materials).
+        public List<PlayerStationMaterial> salvageMaterials = new List<PlayerStationMaterial>();
+        public bool salvageDropPending;
     }
 
     [Serializable]
