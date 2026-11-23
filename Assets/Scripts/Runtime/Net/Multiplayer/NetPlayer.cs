@@ -338,6 +338,29 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's ship as a Target here: the local player's own where it is theirs, else the proxy Target.</summary>
         public Target LocalTarget => IsOwner ? (level != null && level.Health != null ? level.Health.Target : null) : target;
 
+        /// <summary>Called locally when a pilot interacts with a player-built jumpgate. The server rechecks the gate and persists discovery.</summary>
+        public void RequestJumpgateDiscovery(int orbitStationIndex)
+        {
+            if (IsOwner && IsSpawned) JumpgateDiscoveryUpRpc(orbitStationIndex);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void JumpgateDiscoveryUpRpc(int orbitStationIndex)
+        {
+            int destination = NetPlayerStations.JumpgateDestinationForInteraction(this, orbitStationIndex);
+            if (destination < 0 || !NetProfiles.DiscoverSystem(ProfileAccount, destination)) return;
+            JumpgateDiscoveryRpc(destination);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateDiscoveryRpc(int systemIndex)
+        {
+            if (!IsOwner || NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex) == null) return;
+            GalaxyMap.Reveal(NetGame.Db, systemIndex);
+            string name = NetGame.Db.Systems.Find(x => x != null && x.index == systemIndex)?.name ?? ("System " + systemIndex);
+            NetChat.Notice("New system discovered: " + name + ".");
+        }
+
         void OnStationValueChangedWithGateAccess(int previous, int next)
         {
             // The gate orbit is the origin of the transition. Reject a destination update
