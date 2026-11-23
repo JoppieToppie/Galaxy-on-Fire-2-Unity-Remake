@@ -53,6 +53,14 @@ namespace GoF2Remake.World
         void Steer(float dtMs)
         {
             var smepBeforePosition = transform.position;
+            // Observe actual displacement while conventional flight is active so SMEP
+            // can resume without inventing full-speed forward momentum.
+            if (smepPreviousSteerFrame == Time.frameCount - 1 && dtMs > 0f && M > 0f)
+                smepObservedVelocity = (smepBeforePosition - smepPreviousSteerPosition) / (dtMs * M);
+            else
+                smepObservedVelocity = Vector3.zero;
+            smepPreviousSteerPosition = smepBeforePosition;
+            smepPreviousSteerFrame = Time.frameCount;
             // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
             // remake option (NpcShipEs2): EVERSPACE 2's aim, a reticule on the lead that settles by the difficulty
