@@ -27,7 +27,9 @@ namespace GoF2Remake.Flight
 
         public static void Register(Target target)
         {
-            if (target == null || !target.isAsteroid || memberships.ContainsKey(target)) return;
+            if (target == null || !target.isAsteroid) return;
+            maxRadius = Mathf.Max(maxRadius, Mathf.Max(0f, target.radius));
+            if (memberships.ContainsKey(target)) return;
             long key = Key(target.transform.position);
             if (!cells.TryGetValue(key, out var cell))
             {
@@ -36,7 +38,6 @@ namespace GoF2Remake.Flight
             }
             cell.Add(target);
             memberships.Add(target, key);
-            maxRadius = Mathf.Max(maxRadius, Mathf.Max(0f, target.radius));
         }
 
         public static void Unregister(Target target)
