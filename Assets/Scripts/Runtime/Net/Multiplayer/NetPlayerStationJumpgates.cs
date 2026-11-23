@@ -676,10 +676,26 @@ namespace GoF2Remake.Multiplayer
         {
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null) return "No player-built jumpgate exists in orbit " + orbitStationIndex + ".";
-            if (!CanViewJumpgate(by, gate)) return "Jumpgate project details are private to its owner and authorised faction members.";
+            if (!CanViewJumpgate(by, gate) && !gate.scrapped && !gate.permanentlyDestroyed)
+                return "Jumpgate project details are private to its owner and authorised faction members.";
+            if (gate.scrapped || gate.permanentlyDestroyed)
+            {
+                var recovery = new List<string>
+                {
+                    "Jumpgate in orbit " + orbitStationIndex,
+                    "Status: " + (gate.scrapped ? "Scrapped and reclaimable" : "Destroyed beyond reclamation"),
+                    "Destruction count: " + gate.destructionCount,
+                    gate.scrapped
+                        ? "Claim with /station jumpgate-claim " + orbitStationIndex + " faction|individual. Faction members may claim for their faction; individual claims require station ownership."
+                        : "A new construction order from an operational player station is required."
+                };
+                if (gate.salvageDropPending) recovery.Add("25% construction-material salvage is awaiting its physical cargo drop.");
+                return string.Join("\n", recovery);
+            }
             CompleteJumpgateIfDue(gate);
-            string destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate.destinationSystem)?.name
-                ?? ("System " + gate.destinationSystem);
+            string destination = gate.destinationSystem >= 0
+                ? NetGame.Db?.Systems?.Find(x => x != null && x.index == gate.destinationSystem)?.name ?? ("System " + gate.destinationSystem)
+                : "Not assigned";
             string origin = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate.system)?.name
                 ?? ("System " + gate.system);
             var lines = new List<string> { "Jumpgate in orbit " + orbitStationIndex + " (" + origin + ")",
