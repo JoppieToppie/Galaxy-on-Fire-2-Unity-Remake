@@ -109,12 +109,9 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Synchronise every gate sponsored by this station as part of the same registry save.</summary>
         internal static bool SyncJumpgatesForStation(PlayerStationRecord station)
         {
-            if (station == null || registry?.jumpgates == null) return false;
-            bool changed = false;
-            foreach (var gate in registry.jumpgates)
-                if (gate != null && gate.sponsorStationId == station.id)
-                    changed |= CopyStationOwnershipToGate(station, gate);
-            return changed;
+            // Gate ownership is independent after its construction order is issued. Station transfers
+            // must never silently transfer an already-built gate with the former sponsor.
+            return false;
         }
 
         static bool MigrateLegacyJumpgates()
@@ -130,6 +127,8 @@ namespace GoF2Remake.Multiplayer
                 {
                     orbitStationIndex = station.stationIndex,
                     sponsorStationId = station.id,
+                    constructionStationId = station.id,
+                    constructionIssuerProfile = station.ownerProfile,
                     system = station.system,
                     destinationSystem = station.jumpgateDestinationSystem,
                     ownershipType = station.ownershipType,
@@ -177,7 +176,13 @@ namespace GoF2Remake.Multiplayer
                         changed = true;
                     }
                 }
-                if (sponsor != null) changed |= CopyStationOwnershipToGate(sponsor, gate);
+                if (sponsor != null && gate.constructionStationId <= 0)
+                {
+                    changed |= CopyStationOwnershipToGate(sponsor, gate);
+                    gate.constructionStationId = sponsor.id;
+                    gate.constructionIssuerProfile = gate.ownerProfile;
+                    changed = true;
+                }
             }
             return changed;
         }
