@@ -48,6 +48,8 @@ namespace GoF2Remake.World
         Vector3 smepFrameStartPosition;
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
+        Vector3 smepPreviousSteerPosition, smepObservedVelocity;
+        int smepPreviousSteerFrame = -1;
         SmepDogfightState smepDogfightState;
         Target smepMotionTarget;
         Vector3 smepMotionPosition, smepMotionVelocity, smepMotionAcceleration, smepMotionSampleVelocity;
@@ -253,7 +255,11 @@ namespace GoF2Remake.World
                 smepDogfightState = new SmepDogfightState
                 {
                     target = target,
-                    velocity = es2FlownFrame >= Time.frameCount - 1 ? es2Vel / 1000f : transform.forward * Mathf.Max(0f, effectiveTopSpeed),
+                    // Prefer measured recent motion when switching from the native controller.
+                    velocity = Vector3.ClampMagnitude(smepPreviousSteerFrame == Time.frameCount
+                                ? smepObservedVelocity
+                                : es2FlownFrame >= Time.frameCount - 1 ? es2Vel / 1000f
+                                : transform.forward * Mathf.Max(0f, effectiveTopSpeed), Mathf.Max(0f, effectiveTopSpeed)),
                     phase = Random.Range(0f, Mathf.PI * 2f),
                     hoverRate = Random.Range(0.85f, 1.25f),
                     orbitSign = Random.value < 0.5f ? -1 : 1,
