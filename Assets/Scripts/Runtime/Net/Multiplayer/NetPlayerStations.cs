@@ -26,7 +26,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class PlayerFactoryProductionJob
     {
-        public int recipeId, batches;
+        public int recipeId, batches, repeatOrderId = -1;
         public string operatorProfile;
         public long startedUtc, completesUtc;
         public List<PlayerStationMaterial> reservedInputs = new List<PlayerStationMaterial>();
@@ -36,7 +36,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class PlayerFactoryRepeatOrder
     {
-        public int recipeId;
+        public int id, recipeId;
         public bool continuous;
         public int remainingBatches;
         public int batchesPerCycle = 1;
@@ -116,6 +116,7 @@ namespace GoF2Remake.Multiplayer
         // Persistent factory jobs and owner-controlled repeat orders. A factory remains one general-purpose module.
         public List<PlayerFactoryProductionJob> factoryJobs = new List<PlayerFactoryProductionJob>();
         public List<PlayerFactoryRepeatOrder> factoryRepeatOrders = new List<PlayerFactoryRepeatOrder>();
+        public int nextFactoryRepeatOrderId = 1;
         public List<StoredShip> storedShips = new List<StoredShip>();
         // Parallel owner lists preserve the existing StoredShip save format while ensuring shared access never
         // grants ownership of another pilot's hull. Legacy entries are assigned to the station's individual owner.
