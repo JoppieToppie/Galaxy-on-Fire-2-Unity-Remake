@@ -20,8 +20,8 @@ namespace GoF2Remake.World
         /// <summary>SMEP is opt-in on mobile builds; desktop retains the mod hull's normal opt-in behaviour.</summary>
         public static bool EnabledOnPlatform(bool mobilePlatform, bool mobileOptIn) => !mobilePlatform || mobileOptIn;
 
-        /// <summary>On desktop hosts, the same opt-in protects mobile players connected to the orbit.</summary>
-        public static bool EnabledForTarget(bool mobileTarget, bool mobileOptIn) => !mobileTarget || mobileOptIn;
+        /// <summary>Mobile player targets always use conventional flight regardless of mod opt-in.</summary>
+        public static bool EnabledForTarget(bool mobileTarget, bool mobileOptIn) => !mobileTarget;
 
         /// <summary>Classifies local and remote player targets using the owning player's platform, not the host's.</summary>
         public static bool IsMobileTarget(bool isPlayer, bool netPilot, bool remoteMobilePlatform, bool localMobilePlatform)
@@ -87,7 +87,7 @@ namespace GoF2Remake.World
                                  && !IsStructure(Spec) && !MissionShip && !StoryShip && ScriptEnemy == null && !turnedEnemy
                                  && order == null && mindControlMs <= 0f;
         // A mobile player target always forces conventional flight, even with mobileAi opt-in.
-        bool SmepEnabledForTarget => SmepHullEligible && !MobilePlatformTarget(target);
+        bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn);
         bool SmepEligible => SmepEnabledForTarget;
 
         static bool MobilePlatformTarget(Target t)
