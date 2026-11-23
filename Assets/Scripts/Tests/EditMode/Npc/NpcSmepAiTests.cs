@@ -90,6 +90,39 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void DirectionalThrustUsesPerAxisPlayerFlightAcceleration()
+        {
+            var rotation = UnityEngine.Quaternion.identity;
+            const float top = 2f;
+            const float dt = 100f;
+            float forward = SmepAiRules.StepVelocity(UnityEngine.Vector3.zero, UnityEngine.Vector3.forward * top,
+                        rotation, top, dt, 4f, 1f, 2f, 3f).z;
+            float reverse = -SmepAiRules.StepVelocity(UnityEngine.Vector3.zero, UnityEngine.Vector3.back * top,
+                        rotation, top, dt, 4f, 1f, 2f, 3f).z;
+            float strafe = SmepAiRules.StepVelocity(UnityEngine.Vector3.zero, UnityEngine.Vector3.right * top,
+                        rotation, top, dt, 4f, 1f, 2f, 3f).x;
+            float hover = SmepAiRules.StepVelocity(UnityEngine.Vector3.zero, UnityEngine.Vector3.up * top,
+                        rotation, top, dt, 4f, 1f, 2f, 3f).y;
+            Assert.That(forward, Is.EqualTo(0.8f).Within(0.00001f));
+            Assert.That(reverse, Is.EqualTo(0.2f).Within(0.00001f));
+            Assert.That(strafe, Is.EqualTo(0.4f).Within(0.00001f));
+            Assert.That(hover, Is.EqualTo(0.6f).Within(0.00001f));
+        }
+
+        [Test]
+        public void AnyDirectionSharesOneSpeedCap()
+        {
+            var rotation = UnityEngine.Quaternion.identity;
+            var diagonal = new UnityEngine.Vector3(2f, 2f, 2f);
+            var result = SmepAiRules.StepVelocity(UnityEngine.Vector3.zero, diagonal,
+                         rotation, 2f, 5000f, 5f, 5f, 5f, 5f);
+            Assert.That(result.magnitude, Is.EqualTo(2f).Within(0.00001f));
+            var reverse = SmepAiRules.StepVelocity(UnityEngine.Vector3.zero,
+                          UnityEngine.Vector3.back * 2f, rotation, 2f, 5000f, 5f, 5f, 5f, 5f);
+            Assert.That(reverse.magnitude, Is.EqualTo(2f).Within(0.00001f));
+        }
+
+        [Test]
         public void PredictivePathCacheRetestsOnlyWhenStaleOrTurnedSharply()
         {
             var forward = UnityEngine.Vector3.forward;
