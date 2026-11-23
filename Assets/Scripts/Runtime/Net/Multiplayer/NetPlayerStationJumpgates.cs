@@ -303,6 +303,7 @@ namespace GoF2Remake.Multiplayer
                 { contributorProfile = account, item = item, amount = 0, unitValue = unitValue,
                     contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             int oldDelivered = material.delivered, oldAmount = contribution.amount;
+            long oldUnitValue = contribution.unitValue;
             long oldPaid = contribution.paidCredits, oldPaidUtc = contribution.paidUtc;
             bool oldBuilding = gate.building;
             long oldStarted = gate.startedUtc, oldCompletes = gate.completesUtc, oldChanged = gate.destinationChangedUtc;
@@ -331,6 +332,7 @@ namespace GoF2Remake.Multiplayer
             {
                 material.delivered = oldDelivered;
                 contribution.amount = oldAmount;
+                contribution.unitValue = oldUnitValue;
                 contribution.paidCredits = oldPaid;
                 contribution.paidUtc = oldPaidUtc;
                 gate.building = oldBuilding;
