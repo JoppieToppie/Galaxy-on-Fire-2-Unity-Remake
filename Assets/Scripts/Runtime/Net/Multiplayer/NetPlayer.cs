@@ -365,11 +365,15 @@ namespace GoF2Remake.Multiplayer
         {
             // The gate orbit is the origin of the transition. Reject a destination update
             // from a player who is not permitted to use that gate.
-            if (previous != next && NetPlayerStations.HasJumpgateAtStation(previous) &&
-                !NetPlayerStations.CanUseJumpgate(this, previous))
+            if (previous != next && NetPlayerStations.HasJumpgateAtStation(previous))
             {
-                station.Value = previous;
-                return;
+                int expectedDestination = NetPlayerStations.JumpgateDestinationStation(previous);
+                if (!NetPlayerStations.CanUseJumpgate(this, previous) || expectedDestination < 0 ||
+                    next != expectedDestination)
+                {
+                    station.Value = previous;
+                    return;
+                }
             }
             OnStationValueChanged(previous, next);
         }
