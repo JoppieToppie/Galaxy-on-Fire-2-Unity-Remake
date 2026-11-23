@@ -88,7 +88,12 @@ namespace GoF2Remake.World
         void Es2SyncFlight(float top)
         {
             if (es2FlownFrame >= Time.frameCount - 1) return;
-            es2Vel = transform.forward * (top * 1000f);
+            // SMEP NPCs must not invent full forward speed when ES2 resumes
+            // after EMP, drifting or an extended controller interruption.
+            // Ordinary ES2 NPCs keep their existing native initialization.
+            es2Vel = smepFighterAi
+                ? Vector3.ClampMagnitude(smepObservedVelocity, Mathf.Max(0f, top)) * 1000f
+                : transform.forward * (top * 1000f);
             es2YawRate = es2PitchRate = 0f;
             es2PathStraight = true;
             es2PathSpeed = 1f;
