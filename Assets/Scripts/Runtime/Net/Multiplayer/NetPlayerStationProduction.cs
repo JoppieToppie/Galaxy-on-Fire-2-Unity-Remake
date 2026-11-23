@@ -502,6 +502,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var record in registry.stations)
             {
                 if (record == null || !HasFactoryModule(record) || record.underConstruction) continue;
+                record.storage ??= new List<PlayerStationStorage>();
                 record.factoryJobs ??= new List<PlayerFactoryProductionJob>();
                 record.factoryRepeatOrders ??= new List<PlayerFactoryRepeatOrder>();
                 if (record.factoryJobs.Count > 0)
@@ -557,7 +558,8 @@ namespace GoF2Remake.Multiplayer
                 {
                     if (paused == null || !paused.paused) continue;
                     var pausedRecipe = FindFactoryRecipe(paused.recipeId);
-                    if (pausedRecipe == null) continue;
+                    if (pausedRecipe == null || !NetGuard.Item(pausedRecipe.output) ||
+                        NetGame.Db?.Item(pausedRecipe.output)?.type != "commodity") continue;
                     int resumeBatches = Math.Min(100, Math.Max(1, paused.batchesPerCycle));
                     if (!paused.continuous) resumeBatches = Math.Min(resumeBatches, Math.Max(0, paused.remainingBatches));
                     bool hasInputs = resumeBatches > 0;
