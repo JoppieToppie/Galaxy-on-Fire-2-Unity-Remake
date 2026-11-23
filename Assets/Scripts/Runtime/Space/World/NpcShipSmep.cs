@@ -85,7 +85,11 @@ namespace GoF2Remake.World
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec) && !MissionShip && !StoryShip && ScriptEnemy == null && !turnedEnemy
-                                 && order == null && mindControlMs <= 0f;
+                                 && order == null && mindControlMs <= 0f
+                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Cruiser
+                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Carrier
+                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Frigate
+                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Freighter;
         // A mobile player target always forces conventional flight, even with mobileAi opt-in.
         bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn);
         bool SmepEligible => SmepEnabledForTarget;
