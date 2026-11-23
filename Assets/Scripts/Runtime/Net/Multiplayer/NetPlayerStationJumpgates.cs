@@ -332,6 +332,22 @@ namespace GoF2Remake.Multiplayer
                 nextJumpgateRetryUtc = now + 5;
                 return;
             }
+            // Explosion dispatch is durable: an orbit without an authority keeps the pending event,
+            // and a failed save never broadcasts an uncommitted destruction.
+            foreach (var gate in registry.jumpgates)
+            {
+                if (gate == null || !gate.explosionPending) continue;
+                var runner = NetPlayer.OrbitRunner(gate.orbitStationIndex);
+                if (runner == null) continue;
+                gate.explosionPending = false;
+                if (!Save())
+                {
+                    gate.explosionPending = true;
+                    nextJumpgateRetryUtc = now + 5;
+                    return;
+                }
+                runner.BroadcastJumpgateExplosion(gate.orbitStationIndex);
+            }
             foreach (var gate in registry.jumpgates)
             {
                 if (gate == null || !gate.salvageDropPending || gate.salvageMaterials == null ||
