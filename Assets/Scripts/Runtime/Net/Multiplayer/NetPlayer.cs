@@ -65,6 +65,7 @@ namespace GoF2Remake.Multiplayer
             NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
         readonly NetworkVariable<FixedString64Bytes> factionId = new NetworkVariable<FixedString64Bytes>(default,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        int pendingJumpgateDestination = -1;
         readonly NetworkVariable<int> factionHome = new NetworkVariable<int>(-1);   // the server's: the faction's home station, -1 = none
         readonly NetworkVariable<int> tollStation = new NetworkVariable<int>(-1, Read, Write);   // NetFactionsClient.TollStation
         readonly NetworkVariable<bool> distress = new NetworkVariable<bool>(false, Read, Write);  // NetDistress: calls for help
@@ -405,11 +406,21 @@ namespace GoF2Remake.Multiplayer
             {
                 int expectedDestination = NetPlayerStations.JumpgateDestinationStation(previous);
                 if (!NetPlayerStations.CanUseJumpgate(this, previous) || expectedDestination < 0 ||
-                    next != expectedDestination)
+                    (next != -1 && next != expectedDestination))
                 {
                     station.Value = previous;
                     return;
                 }
+                pendingJumpgateDestination = next == -1 ? expectedDestination : -1;
+            }
+            else if (previous == -1 && pendingJumpgateDestination >= 0)
+            {
+                if (next != pendingJumpgateDestination)
+                {
+                    station.Value = previous;
+                    return;
+                }
+                pendingJumpgateDestination = -1;
             }
             OnStationValueChanged(previous, next);
         }
