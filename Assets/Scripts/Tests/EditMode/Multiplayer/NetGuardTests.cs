@@ -120,6 +120,13 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(NetGuard.Shot(0, Vector3.zero, v, up, float.NaN, 0f));
         }
 
+        [Test]
+        public void StructuralWeaponStatDoesNotAliasEnergyResistance()
+        {
+            Assert.AreEqual(189, GoF2Remake.Modding.ItemStats.IdOf("structuralDamage"));
+            Assert.AreEqual(183, GoF2Remake.Modding.ItemStats.IdOf("energyResistance"));
+        }
+
         // ---- Player-built jumpgate shot validation ----
 
         [Test]
