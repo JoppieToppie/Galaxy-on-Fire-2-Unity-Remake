@@ -724,6 +724,39 @@ namespace GoF2Remake.Multiplayer
             if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
         }
 
+        /// <summary>Only an exact local scenery mesh hit can request gate damage. The server
+        /// independently checks the recorded shot, mounted weapon, orbit and approximate flight path.</summary>
+        public void ReportJumpgateImpact(int orbitStationIndex, int weaponItem, uint shotId, Vector3 point)
+        {
+            if (IsOwner && IsSpawned && InSpace && Station == orbitStationIndex &&
+                shotId != 0 && NetGuard.Position(point))
+                JumpgateHitUpRpc(orbitStationIndex, weaponItem, shotId, point);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void JumpgateHitUpRpc(int orbitStationIndex, int weaponItem, uint shotId, Vector3 point,
+            RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                !InSpace || Station != orbitStationIndex ||
+                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
+                !NetGuard.Item(weaponItem) || !HasWeaponItem(weaponItem) ||
+                !NetGuard.Position(point) || shotId == 0 ||
+                !NetPlayerStations.HasJumpgateAtStation(orbitStationIndex)) return;
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            if (layout == null || !layout.hasJumpgate) return;
+            Vector3 gateCentre = OrbitLayout.ToUnity(layout.Place(layout.jumpgate));
+            float gateRadius = layout.JumpgateRadius * OrbitLayout.MetersPerUnit;
+            if (!NetShotRegistry.TryConsumeGateHit(NetworkObjectId, shotId, weaponItem, point,
+                gateCentre, gateRadius)) return;
+            var weapon = NetGame.Db.Item(weaponItem);
+            if (weapon == null) return;
+            // Damage numbers are resolved from the server's item registry, never the client's report.
+            float structural = Mathf.Max(0, weapon.Attr(9));
+            float empDamage = Mathf.Max(0, weapon.Attr(10));
+            NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage);
+        }
+
         void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>
             ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId, shotId));
 
@@ -736,7 +769,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"a shot of item {shot.item}"); return; }
-            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId, Mathf.Max(0f, shot.lifetimeMs + 2000f));
+            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId,
+                Mathf.Max(0f, shot.lifetimeMs + 2000f), shot.position, shot.velocity);
             if (InSpace && NetInterest.OrbitGroup(this, Station, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
