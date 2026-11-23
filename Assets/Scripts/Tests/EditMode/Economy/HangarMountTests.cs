@@ -96,9 +96,12 @@ namespace GoF2Remake.Tests
         {
             Session.ShipIndex = 44;   // Specter: two secondary hardpoints
             Session.Cargo.RemoveAll(x => x.item == 36);
-            Session.Equipment = new List<ItemStack> { new ItemStack(36, 1), new ItemStack(36, 1) };
-            var first = Session.Equipment[0];
-            var second = Session.Equipment[1];
+            Session.Equipment = new List<ItemStack>();
+            Hangar.SyncBuiltIn(Db);
+            var first = new ItemStack(36, 1);
+            var second = new ItemStack(36, 1);
+            Session.Equipment.Add(first);
+            Session.Equipment.Add(second);
             var pool = new SecondaryAmmoPool();
             pool.AddStack(first);
             pool.AddStack(second);
@@ -106,11 +109,14 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(6, first.amount);
             Assert.AreEqual(6, second.amount);
 
-            Dis().Demount(demountIndex);
+            var removed = demountIndex == 0 ? first : second;
+            var surviving = demountIndex == 0 ? second : first;
+            Dis().Demount(Session.Equipment.IndexOf(removed));
 
             Assert.AreEqual(6, Shop.CargoOf(36), "the removed launcher takes only its own saved ammo");
-            Assert.AreEqual(1, Session.Equipment.Count);
-            Assert.AreEqual(6, Session.Equipment[0].amount, "the surviving launcher retains its ammunition");
+            Assert.IsFalse(Session.Equipment.Contains(removed));
+            Assert.IsTrue(Session.Equipment.Contains(surviving));
+            Assert.AreEqual(6, surviving.amount, "the surviving launcher retains its ammunition");
         }
 
         [Test]
