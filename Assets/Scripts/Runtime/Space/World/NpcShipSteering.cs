@@ -126,7 +126,11 @@ namespace GoF2Remake.World
             bool useSmepFlight = SmepAiRules.UseCustomFlight(SmepHullEligible, MobilePlatformTarget(target), Hp.empDisabled, slow.CanTurn, noSteer);
             // SMEP owns movement and steering when active. ES2 is only the fallback controller.
             bool useEs2Flight = es2Flight && !useSmepFlight;
-            if (smepFighterAi && !useSmepFlight) smepDogfightState = null;
+            if (!useSmepFlight)
+            {
+                smepMovementFrame = -1;
+                if (smepFighterAi) smepDogfightState = null;
+            }
             if (!noSteer && !Hp.empDisabled)
             {
                 Vector3 h;
@@ -165,7 +169,13 @@ namespace GoF2Remake.World
             if (!Hp.empDisabled)
             {
                 if (useSmepFlight)
+                {
+                    smepFrameStartPosition = smepBeforePosition;
+                    smepFrameTopSpeed = Mathf.Max(0f, topSpeed);
+                    smepFrameDtMs = dtMs;
+                    smepMovementFrame = Time.frameCount;
                     ApplySmepDogfightTranslation(dtMs, smepBeforePosition, topSpeed);
+                }
                 else
                     transform.position += (useEs2Flight ? Es2FlightMove(topSpeed, dtMs) : transform.forward * topSpeed * dtMs * M) + sideStep;
             }
@@ -385,9 +395,9 @@ namespace GoF2Remake.World
         /// away (direction += (away - fwd) * speed * 0.03, up = world up) and moves it one extra step.</summary>
         void Avoid(bool landmarks, float dtMs)
         {
-            var beforeAvoidance = transform.position;
-            bool resetSmepReciprocal = !landmarks && !SmepEligible;
-            if (SmepEligible && !landmarks)
+            bool smepMoving = SmepEligible && smepMovementFrame == Time.frameCount;
+            bool resetSmepReciprocal = !landmarks && !smepMoving;
+            if (smepMoving && !landmarks)
             {
                 // Preserve native non-landmark obstacle steering as well as reciprocal player contact.
                 // Both corrections affect steering, not the SMEP displacement budget.
@@ -408,10 +418,11 @@ namespace GoF2Remake.World
                 var dir = (fwd + (p - fwd) * speed * 0.03f).normalized;
                 transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
                 // Steering correction only: the custom controller owns displacement and speed.
-                if (!SmepEligible) transform.position += transform.forward * speed * dtMs * M;
+                if (smepMoving) TurnSmepVelocityAwayFromObstacle(p, dtMs);
+                else transform.position += transform.forward * speed * dtMs * M;
                 break;
             }
-            if (SmepEligible) SyncSmepAfterAvoidance(beforeAvoidance, dtMs);
+            if (smepMoving) SyncSmepAfterAvoidance();
             if (resetSmepReciprocal)
             {
                 smepReciprocalLastPosition = transform.position;
