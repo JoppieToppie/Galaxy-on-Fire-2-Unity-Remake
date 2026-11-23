@@ -99,11 +99,13 @@ namespace GoF2Remake.World
 
         bool SmepMobileOptIn => Spec != null && (db?.Ship(Spec.ship) as CustomShipData)?.traffic?.mobileAi == true;
 
-        bool SmepHullEligible => smepFighterAi && Spec != null && !IsFreighter && !IsFixed && !IsTurret && !IsWingman
+        // A mod opted-in fighter keeps its flight controller even when it is an
+        // escort, scripted ship or under an order. Fixed structures, freighters
+        // and capital hulls were excluded at initialization.
+        bool SmepHullEligible => smepFighterAi && Spec != null && !IsFreighter && !IsFixed && !IsTurret
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
-                                 && !IsStructure(Spec) && !MissionShip && !StoryShip && ScriptEnemy == null && !turnedEnemy
-                                 && mindControlMs <= 0f;
+                                 && !IsStructure(Spec);
         // A mobile player target always forces conventional flight, even with mobileAi opt-in.
         bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn);
         bool SmepEligible => SmepEnabledForTarget;
@@ -264,10 +266,7 @@ namespace GoF2Remake.World
                 {
                     target = target,
                     // Prefer measured recent motion when switching from the native controller.
-                    velocity = Vector3.ClampMagnitude(smepPreviousSteerFrame == Time.frameCount
-                                ? smepObservedVelocity
-                                : es2FlownFrame >= Time.frameCount - 1 ? es2Vel / 1000f
-                                : transform.forward * Mathf.Max(0f, effectiveTopSpeed), Mathf.Max(0f, effectiveTopSpeed)),
+                    velocity = Vector3.ClampMagnitude(smepObservedVelocity, Mathf.Max(0f, effectiveTopSpeed)),
                     phase = Random.Range(0f, Mathf.PI * 2f),
                     hoverRate = Random.Range(0.85f, 1.25f),
                     orbitSign = Random.value < 0.5f ? -1 : 1,
@@ -350,6 +349,22 @@ namespace GoF2Remake.World
             bool bursting = combatMotion && nowTime < state.burstUntil;
             if (bursting) desired = state.burstDirection;
             if (desired.sqrMagnitude > 1f) desired.Normalize();
+
+            // Look ahead before translating. Native obstacle handling by itself
+            // only reacts after contact, which is too late for fast 6DOF fighters.
+            // Reuse ES2's cached path probe, not its movement or speed controller.
+            if (desired.sqrMagnitude > 0.0001f && M > 0f)
+            {
+                var wanted = desired.normalized;
+                if ((es2PathMs -= dtMs) <= 0f || Vector3.Angle(wanted, es2PathWanted) > Es2RetestDeg)
+                {
+                    es2PathMs = Es2NpcFlight.ForceUpdateS * 1000f;
+                    es2PathWanted = wanted;
+                    Es2PathTest(wanted, Mathf.Max(0f, effectiveTopSpeed));
+                }
+                if (!es2PathStraight)
+                    desired = es2PathDir * (desired.magnitude * es2PathSpeed);
+            }
             // All thrust directions share the ship's top speed; only acceleration/response may differ.
             float topSpeed = Mathf.Max(0f, effectiveTopSpeed);
             desired *= topSpeed;
