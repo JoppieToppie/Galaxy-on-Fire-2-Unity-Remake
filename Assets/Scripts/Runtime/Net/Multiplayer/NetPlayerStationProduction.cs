@@ -55,7 +55,7 @@ namespace GoF2Remake.Multiplayer
             };
         }
 
-        static long nextDryDockRetryUtc;
+        static long nextDryDockRetryUtc, nextTransactionRetryUtc;
 
         static int DryDockBuildDuration(int productId, int shipIndex)
         {
@@ -114,8 +114,16 @@ namespace GoF2Remake.Multiplayer
         internal static void Tick()
         {
             if (!NetGame.IsServer || !sessionActive || registry?.stations == null) return;
-            TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            // A durable write-ahead journal is the transaction's commit point. If a profile or
+            // registry write temporarily fails after the journal is created, retry it during the
+            // live session instead of waiting for another station command or a server restart.
+            if (now >= nextTransactionRetryUtc && File.Exists(TransactionPath))
+            {
+                RecoverPendingTransaction();
+                nextTransactionRetryUtc = File.Exists(TransactionPath) ? now + 5 : 0;
+            }
+            TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)
                 if (record != null && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
