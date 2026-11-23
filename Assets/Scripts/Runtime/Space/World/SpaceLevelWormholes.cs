@@ -210,6 +210,19 @@ namespace GoF2Remake.World
             MovePlayer(position, rotation);
             return true;
         }
+        /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
+        /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
+        public void OnPlayerJumpgateDestroyed()
+        {
+            if (Jumpgate == null || Layout == null || Navigation == null) return;
+            Explosion.Spawn(Jumpgate.transform.position, 7f);
+            Navigation.SetAutopilot(null);
+            Navigation.Targets.RemoveAll(t => t.kind == Navigation.Kind.Jumpgate);
+            SystemJump?.SetJumpgate(null);
+            // Retain the wreck's exact hull and its obstacle, including while it is scrap.
+            // It remains visible and physically present, but no longer offers a jump route.
+        }
+
         /// <summary>
         /// A timed player-built gate can finish while its orbit is already loaded. Materialize the same gate model,
         /// collision and navigation landmark that a fresh orbit load would create.
