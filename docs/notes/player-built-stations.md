@@ -223,3 +223,9 @@ The exclusive claimant can use `/station rebuild <wreck id>` near the wreck. Rec
 - The exclusive wreck claimant can start with `/station rebuild <wreck id> [model index]`. Reconstruction stays in the same orbit and shifts the station between two locations 1.5 km to either side of the original orbit centre. The optional model must be from the wreck model's race.
 
 - The public salvage crate is drawn from the saved wreck manifest. Tractor pickup transfers up to the pilot's cargo room, capped at 500 units per pickup, and reduces the manifest in the same profile transaction. The remaining cargo stays at the wreck through disconnects and restarts.
+
+- Bare hulls can be listed directly from the personal stored fleet. Use `/station list-ship <id> <fleet index> <price>`, `/station market <id>`, `/station buy-ship <id> <listing>` and `/station delist-ship <id> <listing>`. Purchase journals the hull, price and sales tax together.
+
+- The factory catalogue adds Medical Supplies, Explosives, Electronics, Nanotech, Energy Cells and Hydraulics. Existing repeat orders and the mod/server recipe registration API use the same recipe path.
+
+- Faction members can donate jumpgate materials from personal cargo while docked at one of their faction's operational stations. `/station faction-materials` shows the shared stock. The faction leader or an officer can allocate it via `/station jumpgate-fund-stock <orbit> <item> <amount>` while in that gate's construction orbit. Donating or allocating shared stock pays no personal credits.

@@ -562,7 +562,7 @@ namespace GoF2Remake.Multiplayer
                 " Deliver materials in the construction orbit with /station jumpgate-contribute " + orbitStationIndex + " <item id> <amount>.";
         }
 
-        internal static string ContributeJumpgate(NetPlayer by, int orbitStationIndex, int item, int amount)
+        internal static string ContributeJumpgate(NetPlayer by, int orbitStationIndex, int item, int amount, bool fromFactionStock = false)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player jumpgate construction needs a persistent server.";
@@ -583,8 +583,20 @@ namespace GoF2Remake.Multiplayer
             if (string.IsNullOrEmpty(account)) return "Your controlled player profile is unavailable.";
 
             bool factionOwned = gate.ownershipType == PlayerStationOwnershipType.Faction;
+            PlayerStationStorage factionMaterial = null;
+            if (fromFactionStock)
+            {
+                var faction = NetFactions.Of(account);
+                if (!factionOwned || faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal) ||
+                    (!string.Equals(faction.leader, account, StringComparison.Ordinal) && faction.officers?.Contains(account) != true))
+                    return "Only the owning faction's leader or officers may allocate its construction stock.";
+                factionMaterial = FactionConstructionMaterials(faction.id)?.Find(stack => stack != null && stack.item == item);
+                if (factionMaterial == null || factionMaterial.amount < amount)
+                    return "The faction does not have enough of that donated material.";
+            }
+            bool paidContribution = factionOwned && !fromFactionStock;
             long unitValue = 0, payout = 0;
-            if (factionOwned)
+            if (paidContribution)
             {
                 unitValue = Math.Max(1, NetGame.Db?.Item(item)?.minPrice ?? 0);
                 if (unitValue > long.MaxValue / amount) return "The contribution value is outside the supported credit range.";
@@ -603,7 +615,7 @@ namespace GoF2Remake.Multiplayer
                 { contributorProfile = account, item = item, amount = 0, unitValue = unitValue,
                     contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             if (contribution.amount < 0 || contribution.amount > int.MaxValue - amount ||
-                contribution.paidCredits < 0 || (factionOwned && contribution.paidCredits > long.MaxValue - payout))
+                contribution.paidCredits < 0 || (paidContribution && contribution.paidCredits > long.MaxValue - payout))
                 return "The jumpgate contribution ledger has an invalid or overflowing total; administrator recovery is required.";
             int oldDelivered = material.delivered, oldAmount = contribution.amount;
             long oldUnitValue = contribution.unitValue;
@@ -612,7 +624,7 @@ namespace GoF2Remake.Multiplayer
             long oldStarted = gate.startedUtc, oldCompletes = gate.completesUtc, oldChanged = gate.destinationChangedUtc;
             material.delivered += amount;
             contribution.amount += amount;
-            if (factionOwned)
+            if (paidContribution)
             {
                 contribution.unitValue = unitValue;
                 contribution.paidCredits += payout;
@@ -628,11 +640,13 @@ namespace GoF2Remake.Multiplayer
                 if (!gate.building && gate.destructionCount == 0) gate.destinationChangedUtc = now;
             }
 
-            bool committed = factionOwned
+            if (fromFactionStock) factionMaterial.amount -= amount;
+            bool committed = fromFactionStock ? Save() : paidContribution
                 ? CommitConstructionContribution(account, gate.ownerFactionId, item, amount, payout)
                 : CommitCargoTransaction(account, (item, -amount));
             if (!committed)
             {
+                if (fromFactionStock) factionMaterial.amount += amount;
                 material.delivered = oldDelivered;
                 contribution.amount = oldAmount;
                 contribution.unitValue = oldUnitValue;
@@ -645,11 +659,11 @@ namespace GoF2Remake.Multiplayer
                 if (contribution.amount <= 0) gate.contributions.Remove(contribution);
                 return "The contribution transaction could not be committed; no materials were taken.";
             }
-            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+            if (!fromFactionStock && !(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Jumpgate construction");
-            if (factionOwned) NotifyProfileCreditChange(account, payout, "Jumpgate construction contribution");
+            if (paidContribution) NotifyProfileCreditChange(account, payout, "Jumpgate construction contribution");
             string message = "Contributed " + amount + " x " + NetGame.Db.Item(item).name + " to jumpgate orbit " + orbitStationIndex + ".";
-            if (factionOwned) message += " Paid " + payout.ToString("N0") + " credits from the faction bank.";
+            if (paidContribution) message += " Paid " + payout.ToString("N0") + " credits from the faction bank.";
             if (complete) message += gate.building ? " Materials complete. Construction timer started." : " Jumpgate is now operational.";
             return message;
         }

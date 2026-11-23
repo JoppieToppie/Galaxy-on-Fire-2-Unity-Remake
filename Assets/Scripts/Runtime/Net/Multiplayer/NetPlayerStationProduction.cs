@@ -288,6 +288,12 @@ namespace GoF2Remake.Multiplayer
             new FactoryRecipe { id = 2, output = 125, outputAmount = 1, inputs = new[] { (156, 2), (155, 1) } }, // Mechanical Supplies
             new FactoryRecipe { id = 3, output = 129, outputAmount = 1, inputs = new[] { (118, 1), (126, 1) } }, // Optics
             new FactoryRecipe { id = 4, output = 128, outputAmount = 1, inputs = new[] { (118, 1), (127, 1) } }, // Com. Devices
+            new FactoryRecipe { id = 101, output = 98, outputAmount = 1, inputs = new[] { (97, 1), (119, 1) } }, // Medical Supplies
+            new FactoryRecipe { id = 102, output = 114, outputAmount = 1, inputs = new[] { (119, 2), (126, 1) } }, // Explosives
+            new FactoryRecipe { id = 103, output = 118, outputAmount = 1, inputs = new[] { (127, 1), (120, 1) } }, // Electronics
+            new FactoryRecipe { id = 104, output = 121, outputAmount = 1, inputs = new[] { (118, 1), (127, 1), (119, 1) } }, // Nanotech
+            new FactoryRecipe { id = 105, output = 122, outputAmount = 1, inputs = new[] { (125, 1), (124, 1), (118, 1) } }, // Energy Cells
+            new FactoryRecipe { id = 106, output = 130, outputAmount = 1, inputs = new[] { (156, 1), (119, 1) } }, // Hydraulics
         };
 
         /// <summary>Register a recipe from a mod or server extension. IDs are stable command-facing identifiers.</summary>

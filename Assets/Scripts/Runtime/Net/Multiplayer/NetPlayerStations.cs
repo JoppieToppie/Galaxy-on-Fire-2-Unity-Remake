@@ -119,6 +119,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
+        public List<PlayerStationShipListing> shipListings = new List<PlayerStationShipListing>();
         public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
         public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
@@ -163,6 +164,7 @@ namespace GoF2Remake.Multiplayer
             visible.originalBuilderProfile = null;
             visible.ownerProfile = null;
             visible.wreckBlueprintSalvage = null;
+            visible.shipListings = null;
             visible.listings = null; // public listing readout uses the server's marketplace command
             visible.buyOrders = buyOrders?.ConvertAll(order => order == null ? null : new PlayerStationBuyOrder
             {
@@ -284,6 +286,7 @@ namespace GoF2Remake.Multiplayer
             public List<PlayerStationRecord> stations = new List<PlayerStationRecord>();
             public List<PlayerJumpgateRecord> jumpgates = new List<PlayerJumpgateRecord>();
             public List<int> consumedBlueprints = new List<int>();
+            public List<PlayerFactionConstructionStock> factionConstructionStock = new List<PlayerFactionConstructionStock>();
         }
 
         static Registry registry;

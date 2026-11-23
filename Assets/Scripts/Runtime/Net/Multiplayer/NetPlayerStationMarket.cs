@@ -228,12 +228,10 @@ namespace GoF2Remake.Multiplayer
                     lines.Add($"Buy #{i}: {name} x{order.remaining:N0} at {order.unitPrice:N0} each ({order.reservedCredits:N0} credits escrowed)");
                 }
             }
-            if (record.listings == null || record.listings.Count == 0)
-            {
+            AddShipMarketplaceListings(record, lines);
+            if ((record.listings?.Count ?? 0) == 0 && (record.shipListings?.Count ?? 0) == 0)
                 lines.Add("No active listings.");
-                return string.Join("\n", lines);
-            }
-            for (int i = 0; i < record.listings.Count; i++)
+            for (int i = 0; i < (record.listings?.Count ?? 0); i++)
             {
                 var listing = record.listings[i];
                 if (listing == null || listing.amount <= 0) continue;

@@ -341,7 +341,7 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
-            new Command { name = "station", usage = "start <system id> <name> | rebuild <wreck id> [model index] | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | repeat <id> <recipe id> continuous|<total batches> [batches per cycle] | repeat-cancel <id> <order id> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | tax <id> <percent> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | rename <station id> <name> | appearance-presets | appearance <id> <built-in model station index> | recover <id> <verification note> (server admin) | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban <id> <account> <reason> | unban <id> <account> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | jumpgate-claim <orbit station index> faction|individual [destination system id] | jumpgate-access <orbit station index> everyone|faction|blacklist|owner | jumpgate-blacklist <orbit station index> add|remove player|faction <account or faction id>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+            new Command { name = "station", usage = "start <system id> <name> | rebuild <wreck id> [model index] | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | repeat <id> <recipe id> continuous|<total batches> [batches per cycle] | repeat-cancel <id> <order id> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | list-ship <id> <fleet index> <price> | buy-ship <id> <listing> | delist-ship <id> <listing> | tax <id> <percent> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | rename <station id> <name> | appearance-presets | appearance <id> <built-in model station index> | recover <id> <verification note> (server admin) | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban <id> <account> <reason> | unban <id> <account> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | faction-materials | faction-donate <item> <amount> | jumpgate-fund-stock <orbit> <item> <amount> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | jumpgate-claim <orbit station index> faction|individual [destination system id] | jumpgate-access <orbit station index> everyone|faction|blacklist|owner | jumpgate-blacklist <orbit station index> add|remove player|faction <account or faction id>", arg = Arg.Text, available = Everyone, allowed = Anyone,
                 run = (a, by) => Station(a, by), needsPlayer = true,
                 description = () => X("mpCmdStation", "builds stations and independent-orbit jumpgates, changes gate destinations daily, installs modules, manages storage, ship hangars, dry docks and station listings; persistent worlds only") },
         };
@@ -365,6 +365,23 @@ namespace GoF2Remake.Multiplayer
                 if (!int.TryParse(args.Substring(jumpgateStatus.Length).Trim(), out int statusOrbit))
                     return "/station jumpgate-status <orbit station index>";
                 return NetPlayerStations.JumpgateStatus(by as NetPlayer, statusOrbit);
+            }
+            if (args.Equals("faction-materials", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.FactionConstructionStockStatus(by as NetPlayer);
+            if (args.StartsWith("faction-donate ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[1], out int item) || !int.TryParse(words[2], out int amount))
+                    return "/station faction-donate <item> <amount>";
+                return NetPlayerStations.DonateFactionConstructionMaterials(by as NetPlayer, item, amount);
+            }
+            if (args.StartsWith("jumpgate-fund-stock ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[1], out int orbit) ||
+                    !int.TryParse(words[2], out int item) || !int.TryParse(words[3], out int amount))
+                    return "/station jumpgate-fund-stock <orbit> <item> <amount>";
+                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, orbit, item, amount, fromFactionStock: true);
             }
             const string jumpgateContribute = "jumpgate-contribute ";
             if (args.StartsWith(jumpgateContribute, StringComparison.OrdinalIgnoreCase))
@@ -565,6 +582,20 @@ namespace GoF2Remake.Multiplayer
             {
                 if (!int.TryParse(args.Substring(contributions.Length).Trim(), out int stationId)) return "/station contributions <station id>";
                 return NetPlayerStations.ConstructionContributions(by as NetPlayer, stationId);
+            }
+            if (args.StartsWith("list-ship ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("buy-ship ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("delist-ship ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                bool listing = words[0].Equals("list-ship", StringComparison.OrdinalIgnoreCase);
+                long price = 0;
+                if (words.Length != (listing ? 4 : 3) || !int.TryParse(words[1], out int shipStation) ||
+                    !int.TryParse(words[2], out int shipIndex) || (listing && !long.TryParse(words[3], out price)))
+                    return "/station list-ship <id> <fleet index> <price> | buy-ship <id> <listing> | delist-ship <id> <listing>";
+                if (listing) return NetPlayerStations.ListMarketplaceShip(by as NetPlayer, shipStation, shipIndex, price);
+                return NetPlayerStations.SettleMarketplaceShip(by as NetPlayer, shipStation, shipIndex,
+                    words[0].Equals("delist-ship", StringComparison.OrdinalIgnoreCase));
             }
             const string tax = "tax ";
             if (args.StartsWith(tax, StringComparison.OrdinalIgnoreCase))
@@ -794,7 +825,7 @@ namespace GoF2Remake.Multiplayer
                     return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
                 return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
             }
-            return "/station jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | start <system id> <name> | rebuild <wreck id> [model index] | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar | storage <id> | access <id> owner|faction | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | market <id> | tax <id> <percent> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | transfer <id> player|faction <account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | successor <id> player|faction <account> | successor-delegate <id> <officer|none> | builder-relinquish <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban/unban <id> <account> [reason] | history <id>";
+            return "/station jumpgate <sponsor station id> <orbit station index> <destination system id> [build seconds] | jumpgate-orbits <system id> | faction-materials | faction-donate <item> <amount> | jumpgate-fund-stock <orbit> <item> <amount> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | start <system id> <name> | rebuild <wreck id> [model index] | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar | storage <id> | access <id> owner|faction | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | refine <id> <ore item id> <amount> | recipes | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | market <id> | list-ship <id> <fleet index> <price> | buy-ship <id> <listing> | delist-ship <id> <listing> | tax <id> <percent> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | transfer <id> player|faction <account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | successor <id> player|faction <account> | successor-delegate <id> <officer|none> | builder-relinquish <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban/unban <id> <account> [reason] | history <id>";
         }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>
