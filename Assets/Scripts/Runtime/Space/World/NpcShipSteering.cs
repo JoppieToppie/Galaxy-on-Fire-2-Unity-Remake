@@ -163,7 +163,8 @@ namespace GoF2Remake.World
                 transform.position += (useEs2Flight ? Es2FlightMove(topSpeed, dtMs) : transform.forward * topSpeed * dtMs * M) + sideStep;
             if (smepFighterAi)
             {
-                ApplySmepDogfightTranslation(dtMs, smepBeforePosition);
+                if (!Hp.empDisabled && slow.CanTurn)
+                    ApplySmepDogfightTranslation(dtMs, smepBeforePosition, topSpeed);
                 FireSmepReadyPrimaryGuns();
             }
         }
