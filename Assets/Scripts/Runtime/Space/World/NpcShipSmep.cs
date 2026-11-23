@@ -241,7 +241,7 @@ namespace GoF2Remake.World
             return result > 0f && result <= 6f ? result : 0f;
         }
 
-        /// <summary>SMEP's smooth range/strafe movement, applied after native ES2 steering and before obstacle avoidance.</summary>
+        /// <summary>SMEP's authoritative acceleration-limited translation, with ES2 reserved for fallback.</summary>
         void ApplySmepDogfightTranslation(float dtMs, Vector3 beforePosition, float effectiveTopSpeed)
         {
             if (!SmepEligible)
@@ -284,13 +284,13 @@ namespace GoF2Remake.World
             var state = smepDogfightState;
             float nowTime = Time.time;
             var away = distance > 0.01f ? offset / distance : transform.rotation * Vector3.back;
-            if (distance < 520f && nowTime - state.lastCloseSample > 1.25f)
+            if (combatMotion && distance < 520f && nowTime - state.lastCloseSample > 1.25f)
             {
                 state.closeApproachCount = Mathf.Min(8, state.closeApproachCount + 1);
                 state.lastCloseSample = nowTime;
                 state.wideOrbit = Mathf.Min(700f, state.closeApproachCount * 100f);
             }
-            else if (distance > 1800f && nowTime - state.lastCloseSample > 4f)
+            else if (combatMotion && distance > 1800f && nowTime - state.lastCloseSample > 4f)
             {
                 state.closeApproachCount = Mathf.Max(0, state.closeApproachCount - 1);
                 state.wideOrbit = Mathf.Max(0f, state.closeApproachCount * 100f);
@@ -336,7 +336,7 @@ namespace GoF2Remake.World
                 ? (away + tangent * (state.orbitSign * 0.12f) + vertical * 0.08f).normalized
                 : away * -radialShare + tangent * (state.orbitSign * orbitSpeed + sideWobble) + vertical;
 
-            if (nowTime >= state.nextBurstCheck)
+            if (combatMotion && nowTime >= state.nextBurstCheck)
             {
                 if (Random.value < (state.wideOrbit > 0f ? 0.05f : 0.12f))
                 {
@@ -347,7 +347,7 @@ namespace GoF2Remake.World
                 }
                 state.nextBurstCheck = nowTime + Random.Range(2.5f, 5f);
             }
-            bool bursting = nowTime < state.burstUntil;
+            bool bursting = combatMotion && nowTime < state.burstUntil;
             if (bursting) desired = state.burstDirection;
             if (desired.sqrMagnitude > 1f) desired.Normalize();
             // All thrust directions share the ship's top speed; only acceleration/response may differ.
