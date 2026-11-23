@@ -61,6 +61,10 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
+        readonly NetworkVariable<FixedString64Bytes> profileAccount = new NetworkVariable<FixedString64Bytes>(default,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        readonly NetworkVariable<FixedString64Bytes> factionId = new NetworkVariable<FixedString64Bytes>(default,
+            NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         readonly NetworkVariable<int> factionHome = new NetworkVariable<int>(-1);   // the server's: the faction's home station, -1 = none
         readonly NetworkVariable<int> tollStation = new NetworkVariable<int>(-1, Read, Write);   // NetFactionsClient.TollStation
         readonly NetworkVariable<bool> distress = new NetworkVariable<bool>(false, Read, Write);  // NetDistress: calls for help
@@ -265,8 +269,19 @@ namespace GoF2Remake.Multiplayer
         public void SetObserver(bool on) { if (IsServer && observer.Value != on) observer.Value = on; }
         /// <summary>The player's faction tag (NetFactions), "" = no faction.</summary>
         public string FactionTag => factionTag.Value.ToString();
-        /// <summary>Server: NetFactions' tag for this player.</summary>
-        public void SetFactionTag(string tag) { if (IsServer && factionTag.Value.ToString() != (tag ?? "")) factionTag.Value = tag ?? ""; }
+        /// <summary>Profile identity visible only to this player and the server, for owner-bound station infrastructure.</summary>
+        public string ProfileAccount => profileAccount.Value.ToString();
+        /// <summary>Server-replicated faction identity used to enforce faction-owned infrastructure access.</summary>
+        public string FactionId => factionId.Value.ToString();
+        /// <summary>Server: NetFactions' tag and stable faction ID for this player.</summary>
+        public void SetFactionTag(string tag)
+        {
+            if (!IsServer) return;
+            if (factionTag.Value.ToString() != (tag ?? "")) factionTag.Value = tag ?? "";
+            string account = NetProfiles.AccountOf(OwnerClientId);
+            string id = NetFactions.Of(account)?.id ?? "";
+            if (factionId.Value.ToString() != id) factionId.Value = id;
+        }
         /// <summary>This pilot calls their squad for help (NetDistress).</summary>
         public bool Distress => distress.Value;
         /// <summary>Where this pilot paid the toll for the current visit (-1 = none): a held station's defence spares them.</summary>
@@ -332,10 +347,29 @@ namespace GoF2Remake.Multiplayer
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
             if (IsServer)
             {
-                station.OnValueChanged += OnStationValueChanged;
+                station.OnValueChanged += (previous, next) =>
+                {
+                    // The gate orbit is the origin of the transition. Reject a destination update
+                    // from a player who is not permitted to use that gate.
+                    if (previous != next && NetPlayerStations.HasJumpgateAtStation(previous) &&
+                        !NetPlayerStations.CanUseJumpgate(this, previous))
+                    {
+                        station.Value = previous;
+                        return;
+                    }
+                    OnStationValueChanged(previous, next);
+                };
                 place.OnValueChanged += OnPlaceValueChanged;
             }
-            if (IsServer) SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
+            if (IsServer)
+            {
+                string account = NetProfiles.AccountOf(OwnerClientId);
+                profileAccount.Value = account ?? "";
+                var faction = NetFactions.Of(account);
+                factionId.Value = faction?.id ?? "";
+                factionTag.Value = faction?.tag ?? "";
+                SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
+            }
             if (IsServer) NetNews.SendAll(OwnerClientId);   // the sector's recent news for their ticker
             NetPoses.Register(this);
             if (IsOwner)
