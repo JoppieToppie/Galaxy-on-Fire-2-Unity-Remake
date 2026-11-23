@@ -74,7 +74,8 @@ namespace GoF2Remake.Multiplayer
             stationOffsetX = station.stationOffsetX,
             name = station.name,
             createdUtc = station.createdUtc,
-            nextShipListingId = station.nextShipListingId
+            nextShipListingId = station.nextShipListingId,
+            donatedConstructionStock = station.donatedConstructionStock
         };
 
         static bool DestroyStation(PlayerStationRecord station)

@@ -12,50 +12,63 @@ namespace GoF2Remake.Multiplayer
 
     public static partial class NetPlayerStations
     {
-        const int MaxFactionConstructionUnits = 10000;
+        const int MaxStationConstructionUnits = 10000;
 
-        static List<PlayerStationStorage> FactionConstructionMaterials(string factionId) =>
-            registry?.factionConstructionStock?.Find(entry => entry != null &&
-                string.Equals(entry.factionId, factionId, StringComparison.Ordinal))?.materials;
-
-        internal static bool HasFactionConstructionStock(string factionId) =>
-            FactionConstructionMaterials(factionId)?.Exists(stack => stack != null && stack.amount > 0) == true;
-
-        internal static string WithdrawFactionConstructionMaterials(NetPlayer pilot, int item, int amount)
+        static bool CanUseStationConstructionStock(PlayerStationRecord station, string account)
         {
-            if (!NetGame.IsServer || !sessionActive || registry == null || pilot == null || !pilot.IsSpawned ||
-                !pilot.InHangar || StationClosedByCombat(pilot.Station) || !NetProfiles.Controls(pilot.OwnerClientId))
-                return "Dock at an operational station using a controlled profile to withdraw faction stock.";
-            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            var faction = NetFactions.Of(account);
-            if (faction == null || !string.Equals(account, faction.leader, StringComparison.Ordinal))
-                return "Only the faction leader can withdraw donated stock.";
-            if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Choose a valid item and 1–500 units.";
-            var stack = FactionConstructionMaterials(faction.id)?.Find(entry => entry != null && entry.item == item);
-            if (stack == null || stack.amount < amount) return "The faction does not have that quantity in stock.";
-            if (NetProfiles.WreckSalvageCargoRoom(pilot, account) < amount)
-                return "Your ship does not have enough free cargo space.";
-            stack.amount -= amount;
-            if (!CommitCargoTransaction(account, (item, amount)))
+            if (station == null || station.retired || station.underConstruction || station.wreckClaimOpen ||
+                station.destroyed || string.IsNullOrEmpty(account)) return false;
+            return station.ownershipType == PlayerStationOwnershipType.Faction
+                ? !string.IsNullOrEmpty(station.ownerFactionId) &&
+                    string.Equals(NetFactions.Of(account)?.id, station.ownerFactionId, StringComparison.Ordinal)
+                : string.Equals(station.ownerProfile, account, StringComparison.Ordinal);
+        }
+
+        // Legacy faction pools did not store their receiving station or intended gate.
+        // Bind each pool to the oldest surviving station still owned by that faction.
+        static void MigrateFactionConstructionStock()
+        {
+            if (registry?.factionConstructionStock == null) return;
+            foreach (var legacy in registry.factionConstructionStock)
             {
-                stack.amount += amount;
-                return "The withdrawal could not be saved.";
+                if (legacy?.materials == null || string.IsNullOrEmpty(legacy.factionId)) continue;
+                PlayerStationRecord target = null;
+                foreach (var station in registry.stations)
+                    if (station != null && !station.destroyed && !station.retired &&
+                        station.ownershipType == PlayerStationOwnershipType.Faction &&
+                        string.Equals(station.ownerFactionId, legacy.factionId, StringComparison.Ordinal) &&
+                        (target == null || station.id < target.id)) target = station;
+                if (target == null) continue;
+                target.donatedConstructionStock ??= new List<PlayerStationStorage>();
+                foreach (var material in legacy.materials)
+                {
+                    if (material == null || material.amount <= 0) continue;
+                    var existing = target.donatedConstructionStock.Find(stack => stack != null && stack.item == material.item);
+                    if (existing == null)
+                    {
+                        existing = new PlayerStationStorage { item = material.item };
+                        target.donatedConstructionStock.Add(existing);
+                    }
+                    int move = (int)Math.Min(material.amount, Math.Max(0L, (long)int.MaxValue - existing.amount));
+                    existing.amount += move;
+                    material.amount -= move;
+                }
             }
-            if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
-                NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Give, item, amount, 0, "", "Faction construction stock");
-            return $"Withdrew {amount:N0} units from faction construction stock.";
+            registry.factionConstructionStock.RemoveAll(legacy => legacy?.materials == null ||
+                !legacy.materials.Exists(stack => stack != null && stack.amount > 0));
         }
 
         internal static string FactionConstructionStockStatus(NetPlayer pilot)
         {
-            if (!NetGame.IsServer || pilot == null || !NetProfiles.Controls(pilot.OwnerClientId))
-                return "Use a controlled profile to view your faction's construction stock.";
-            var faction = NetFactions.Of(NetProfiles.AccountOf(pilot.OwnerClientId));
-            if (faction == null) return "Join a faction to use its construction stock.";
-            var stock = FactionConstructionMaterials(faction.id);
-            var lines = new List<string> { $"{faction.name} construction stock" };
-            if (stock != null)
-                foreach (var stack in stock)
+            if (!NetGame.IsServer || pilot == null || !pilot.IsSpawned || !pilot.InHangar ||
+                !NetProfiles.Controls(pilot.OwnerClientId))
+                return "Dock at an operational player station to view its donated stock.";
+            var station = StationAt(pilot.Station);
+            if (!CanUseStationConstructionStock(station, NetProfiles.AccountOf(pilot.OwnerClientId)))
+                return "Only the station owner or members of its owning faction can view its donated stock.";
+            var lines = new List<string> { $"{station.name} construction stock" };
+            if (station.donatedConstructionStock != null)
+                foreach (var stack in station.donatedConstructionStock)
                     if (stack != null && stack.amount > 0)
                         lines.Add($"{NetGame.Db?.Item(stack.item)?.name ?? $"Item {stack.item}"} ×{stack.amount:N0} [{stack.item}]");
             if (lines.Count == 1) lines.Add("No materials deposited.");
@@ -68,23 +81,17 @@ namespace GoF2Remake.Multiplayer
                 !pilot.InHangar || !NetProfiles.Controls(pilot.OwnerClientId))
                 return "Dock at an operational station with a controlled profile to donate materials.";
             string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            var faction = NetFactions.Of(account);
             var station = StationAt(pilot.Station);
-            if (faction == null || station == null || station.underConstruction || StationClosedByCombat(pilot.Station) ||
-                station.ownershipType != PlayerStationOwnershipType.Faction ||
-                !string.Equals(station.ownerFactionId, faction.id, StringComparison.Ordinal))
-                return "Dock at an operational station owned by your faction to donate materials.";
+            if (!CanUseStationConstructionStock(station, account))
+                return "Dock at an operational station owned by you or your faction to donate materials.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item) || !RequiredJumpgateMaterials().Exists(part => part.item == item))
                 return "Donate 1–500 units of a valid jumpgate construction material.";
 
-            registry.factionConstructionStock ??= new List<PlayerFactionConstructionStock>();
-            var stock = FactionConstructionMaterials(faction.id);
-            var newEntry = stock == null ? new PlayerFactionConstructionStock { factionId = faction.id } : null;
-            if (newEntry != null) stock = newEntry.materials;
+            var stock = station.donatedConstructionStock ??= new List<PlayerStationStorage>();
             long used = 0;
             foreach (var material in stock)
                 if (material != null) used += Math.Max(0, material.amount);
-            if (used + amount > MaxFactionConstructionUnits) return "Your faction's construction stock is full.";
+            if (used + amount > MaxStationConstructionUnits) return "This station's construction stock is full.";
             var itemStock = stock.Find(material => material != null && material.item == item);
             bool addedStack = itemStock == null;
             if (addedStack)
@@ -92,19 +99,16 @@ namespace GoF2Remake.Multiplayer
                 itemStock = new PlayerStationStorage { item = item };
                 stock.Add(itemStock);
             }
-            var entries = registry.factionConstructionStock;
-            if (newEntry != null) entries.Add(newEntry);
             itemStock.amount += amount;
             if (!CommitCargoTransaction(account, (item, -amount)))
             {
                 itemStock.amount -= amount;
                 if (addedStack) stock.Remove(itemStock);
-                if (newEntry != null) entries.Remove(newEntry);
                 return "The donation could not be saved. Your materials were kept.";
             }
             if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Faction construction donation");
-            return $"Donated {amount:N0} units to {faction.name}'s construction stock.";
+            return $"Donated {amount:N0} units to {station.name}'s construction stock.";
         }
     }
 }

@@ -228,13 +228,15 @@ The exclusive claimant can use `/station rebuild <wreck id>` near the wreck. Rec
 
 - The factory catalogue adds Medical Supplies, Explosives, Electronics, Nanotech, Energy Cells and Hydraulics. Existing repeat orders and the mod/server recipe registration API use the same recipe path.
 
-- Faction members can donate jumpgate materials from personal cargo while docked at one of their faction's operational stations. `/station faction-materials` shows the shared stock. Any member of the owning faction can allocate it via `/station jumpgate-fund-stock <orbit> <item> <amount>` while in that gate's construction orbit. Donating or allocating shared stock pays no personal credits.
+- Faction members can donate jumpgate materials from personal cargo while docked at one of their faction's operational stations. `/station faction-materials` shows the receiving station’s donated stock. The current station owner or members of its owning faction can allocate it via `/station jumpgate-fund-stock <orbit> <item> <amount>` while in that gate's construction orbit. Donating or allocating shared stock pays no personal credits.
 
 - Jumpgate salvage uses the same persistent tractor-pickup transaction as station salvage. Final destruction adds 25% of delivered construction materials, rounded up per item, to the orbit's uncollected salvage. A replacement gate preserves the manifest. Earlier saves with an undispatched drop remain eligible. Saves that had already recorded a dispatch are not reissued automatically.
 
 - Wreck salvage uses server-calculated free cargo space for both stations and gates. The persistent host uses the live hold. A remote pilot's request follows a freshly accepted upload on the same reliable network object. The server uses the active hull, saved kit build, cargo upgrades, mounted compressors and cargo load. It journals only what fits at pickup, with a 500-unit maximum per transfer. An empty or failed transfer leaves salvage available.
 
 - Wreck pickup now uses the current tractor's configured reach from the server's host loadout or the accepted remote profile. The 5 km wreck claim radius still governs contests.
-- Disbanding reopens wreck claims owned by that faction and clears its in-progress challenges. Gates not transferred with a sponsor fall back to the former faction leader. Remaining donated stock must be spent or withdrawn with `/station faction-withdraw <item> <amount>` before dissolution.
+- Disbanding reopens wreck claims owned by that faction and clears its in-progress challenges. Gates not transferred with a sponsor fall back to the former faction leader. Donated stock stays with its receiving station through succession. Materials already committed to a structure remain with that project.
 - Server administrators can use `/station retire <destroyed station id>` after the orbit's explosions and salvage have cleared. Retiring releases one station slot and removes the destination from system navigation while retaining its database index. A gate, gate wreck or remaining gate salvage at the same orbit blocks retirement.
 - Public jumpgate records omit owner account and faction IDs, construction issuer details, blacklists and individual contribution histories. The server sends management visibility only to the relevant pilot and evaluates actual access itself.
+
+- Legacy faction-wide stock with no recorded destination is assigned to the oldest surviving station owned by that faction. A pool with no surviving recipient remains saved. Station stock can fund projects sponsored by that station.

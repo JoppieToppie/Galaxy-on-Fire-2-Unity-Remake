@@ -571,12 +571,15 @@ namespace GoF2Remake.Multiplayer
             PlayerStationStorage factionMaterial = null;
             if (fromFactionStock)
             {
-                var faction = NetFactions.Of(account);
-                if (!factionOwned || faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal))
-                    return "Only members of the owning faction may allocate its construction stock.";
-                factionMaterial = FactionConstructionMaterials(faction.id)?.Find(stack => stack != null && stack.item == item);
+                var sponsor = Find(gate.sponsorStationId);
+                if (!CanUseStationConstructionStock(sponsor, account) ||
+                    gate.ownershipType != sponsor.ownershipType ||
+                    !string.Equals(factionOwned ? gate.ownerFactionId : gate.ownerProfile,
+                        factionOwned ? sponsor.ownerFactionId : sponsor.ownerProfile, StringComparison.Ordinal))
+                    return "Only the sponsor's owner or owning faction may allocate its station construction stock.";
+                factionMaterial = sponsor.donatedConstructionStock?.Find(stack => stack != null && stack.item == item);
                 if (factionMaterial == null || factionMaterial.amount < amount)
-                    return "The faction does not have enough of that donated material.";
+                    return "The sponsoring station does not have enough of that donated material.";
             }
             bool paidContribution = factionOwned && !fromFactionStock;
             long unitValue = 0, payout = 0;

@@ -136,6 +136,7 @@ namespace GoF2Remake.Multiplayer
         public int nextShipListingId = 1;
         public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
+        public List<PlayerStationStorage> donatedConstructionStock = new List<PlayerStationStorage>();
         public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
         // Persistent factory jobs and owner-controlled repeat orders. A factory remains one general-purpose module.
         public List<PlayerFactoryProductionJob> factoryJobs = new List<PlayerFactoryProductionJob>();
@@ -156,6 +157,7 @@ namespace GoF2Remake.Multiplayer
             var visible = (PlayerStationRecord)MemberwiseClone();
             visible.visibleDryDockHullCount = dryDockShips?.Count ?? 0;
             visible.storage = null;
+            visible.donatedConstructionStock = null;
             visible.storageLots = null;
             visible.storedShips = null;
             visible.storedShipOwners = null;
@@ -472,6 +474,7 @@ namespace GoF2Remake.Multiplayer
                     CompleteStationConstruction(station);
             ReconcileConsumedBlueprints();
             MigrateLegacyJumpgates();
+            MigrateFactionConstructionStock();
             foreach (var station in registry.stations)
             {
                 if (station == null) continue;

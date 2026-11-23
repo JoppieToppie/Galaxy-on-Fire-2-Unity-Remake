@@ -1027,7 +1027,6 @@ namespace GoF2Remake.Multiplayer
         internal static bool PrepareFactionDeparture(string account, string factionId, bool dissolving)
         {
             if (string.IsNullOrEmpty(factionId) || registry?.stations == null) return true;
-            if (dissolving && HasFactionConstructionStock(factionId)) return false;
             var individualStations = string.IsNullOrEmpty(account) ? new List<PlayerStationRecord>() :
                 registry.stations.FindAll(x => x != null &&
                     x.ownershipType == PlayerStationOwnershipType.Individual &&
@@ -1057,10 +1056,9 @@ namespace GoF2Remake.Multiplayer
             var changedWrecks = new List<int>();
             if (dissolving)
             {
+                MigrateFactionConstructionStock();
                 ApplyFactionDissolution(factionId);
                 ApplyDissolvedFactionAssets(factionId, account, changedWrecks);
-                registry.factionConstructionStock?.RemoveAll(entry => entry != null &&
-                    string.Equals(entry.factionId, factionId, StringComparison.Ordinal));
             }
 
             if (Save())
