@@ -285,8 +285,13 @@ namespace GoF2Remake.Flight
 
         /// <summary>Modified: the first shown hull with no target along 'from' -> 'to' (the orbit's station and jumpgate,
         /// SpaceLevel.AddObstacles): where a shot stops on it (Gun.TestHits; the original's shots pass them).</summary>
-        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point)
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point) =>
+            CastScenery(from, to, radius, out point, out _);
+
+        /// <summary>Like CastScenery, returning the actual mesh owner that the shot first struck.</summary>
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point, out HullBody body)
         {
+            body = null;
             point = to;
             var d = to - from;
             float len = d.magnitude;
@@ -300,6 +305,7 @@ namespace GoF2Remake.Flight
                 var b = BodyOf(hits[i].collider);
                 if (b == null || b.target != null || !b.Collides || !Shown(hits[i].collider)) continue;
                 best = hits[i].distance;
+                body = b;
                 point = hits[i].distance > 0f ? hits[i].point : from;
             }
             return best < float.MaxValue;
