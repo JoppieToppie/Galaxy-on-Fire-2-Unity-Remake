@@ -73,6 +73,9 @@ namespace GoF2Remake.Multiplayer
             public float playSeconds;
             public int arenaKills, arenaDeaths, arenaWins;   // NetArena's matches (the leaderboard, /top)
             public int role;   // NetModeration: 0 player, 1 op, 2 admin
+            // Gate interactions permanently reveal their destination for this profile, even if a client uploads
+            // an older save snapshot before the discovery RPC's local update arrives.
+            public List<int> gateDiscoveredSystems = new List<int>();
         }
 
         [Serializable] class AccountIndex { public string serverId; public List<Account> accounts = new List<Account>(); }
@@ -359,13 +362,67 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static bool DiscoverSystem(string id, int system)
+        {
+            if (string.IsNullOrEmpty(id) || NetGame.Db?.Systems == null ||
+                NetGame.Db.Systems.Find(x => x != null && x.index == system) == null) return false;
+            var account = index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal));
+            if (account == null) return false;
+            account.gateDiscoveredSystems ??= new List<int>();
+            if (!account.gateDiscoveredSystems.Contains(system))
+            {
+                account.gateDiscoveredSystems.Add(system);
+                SaveIndex();
+            }
+            var save = ReadSave(id);
+            bool host = false;
+            foreach (var login in logins.Values)
+                if (login.account != null && string.Equals(login.account.id, id, StringComparison.Ordinal) && IsHostClient(login.client))
+                { host = true; break; }
+            if (save == null && host)
+            {
+                try { save = JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()); }
+                catch (Exception e) { Debug.LogError($"NetProfiles: could not seed host discovery for {id}: {e.Message}"); }
+            }
+            if (save != null)
+            {
+                MergeGateDiscoveries(save, account);
+                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+            }
+            if (host) GalaxyMap.Reveal(NetGame.Db, system);
+            return true;
+        }
+
+        static void MergeGateDiscoveries(SaveData save, Account account)
+        {
+            if (save == null || account?.gateDiscoveredSystems == null || NetGame.Db?.Systems == null) return;
+            int count = 0;
+            foreach (var system in NetGame.Db.Systems) if (system != null) count = Math.Max(count, system.index + 1);
+            if (count <= 0) return;
+            var visible = new bool[count];
+            for (int i = 0; i < count; i++)
+            {
+                var definition = NetGame.Db.Systems.Find(x => x != null && x.index == i);
+                visible[i] = save.systemVisible != null && i < save.systemVisible.Length
+                    ? save.systemVisible[i] : definition?.initiallyVisible == true;
+            }
+            if (GalaxyMap.LomaSystem < visible.Length) visible[GalaxyMap.LomaSystem] = true;
+            foreach (int discovered in account.gateDiscoveredSystems)
+                if (discovered >= 0 && discovered < visible.Length) visible[discovered] = true;
+            save.systemVisible = visible;
+        }
+
         static SaveData ReadSave(string id)
         {
             if (id == null || folder == null) return null;
             try
             {
                 string path = ProfilePath(id);
-                return File.Exists(path) ? JsonUtility.FromJson<SaveData>(File.ReadAllText(path)) : null;
+                if (!File.Exists(path)) return null;
+                var save = JsonUtility.FromJson<SaveData>(File.ReadAllText(path));
+                var account = index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal));
+                if (save != null && account != null) MergeGateDiscoveries(save, account);
+                return save;
             }
             catch (Exception e) { Debug.LogError($"NetProfiles: profile {id} unreadable: {e.Message}"); return null; }
         }
