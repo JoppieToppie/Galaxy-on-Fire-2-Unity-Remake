@@ -65,15 +65,7 @@ namespace GoF2Remake.Multiplayer
                 gate.lastStructuralDamageUtc = now;
                 gate.structuralIntegrityUpdatedUtc = now;
             }
-            bool destroyed = gate.structuralIntegrity <= 0f;
-            if (destroyed)
-            {
-                gate.destructionCount = Math.Max(1, gate.destructionCount);
-                gate.scrapped = true;
-                gate.building = false;
-                gate.startedUtc = gate.completesUtc = 0;
-                gate.explosionPending = true;
-            }
+            if (gate.structuralIntegrity <= 0f) TransitionDestroyedGate(gate);
             if (Save()) return true;
             registry.jumpgates[index] = previous;
             return false;
@@ -704,6 +696,36 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
+        /// <summary>Move a broken gate into its first reclaimable scrap state or its final destroyed state.
+        /// This single transition is used by both combat damage and scripted destruction, so a rebuilt
+        /// gate cannot accidentally receive a second first-destruction refund.</summary>
+        static void TransitionDestroyedGate(PlayerJumpgateRecord gate)
+        {
+            if (gate == null || gate.scrapped || gate.permanentlyDestroyed) return;
+            gate.destructionCount = Math.Max(1, gate.destructionCount + 1);
+            gate.building = false;
+            gate.startedUtc = gate.completesUtc = 0;
+            gate.structuralIntegrity = 0f;
+            gate.empShutdownUntilUtc = 0;
+            gate.explosionPending = true;
+            if (gate.destructionCount == 1)
+            {
+                gate.scrapped = true;
+                gate.permanentlyDestroyed = false;
+                gate.salvageMaterials = new List<PlayerStationMaterial>();
+                gate.salvageDropPending = false;
+            }
+            else
+            {
+                gate.scrapped = false;
+                gate.permanentlyDestroyed = true;
+                gate.destinationSystem = -1;
+                gate.salvageMaterials = RequiredJumpgateMaterials().ConvertAll(x =>
+                    new PlayerStationMaterial { item = x.item, required = Mathf.CeilToInt(x.required * 0.25f), delivered = 0 });
+                gate.salvageDropPending = true;
+            }
+        }
+
         /// <summary>
         /// Called by the gate's authoritative destruction hook. First destruction leaves reclaimable scrap;
         /// later destruction permanently disables reclamation and returns a 25% salvage manifest for world cargo spawning.
@@ -716,30 +738,10 @@ namespace GoF2Remake.Multiplayer
             if (gate == null || gate.scrapped || gate.permanentlyDestroyed) return false;
             int index = registry.jumpgates.IndexOf(gate);
             var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
-            if (gate.destructionCount <= 0)
-            {
-                gate.destructionCount = 1;
-                gate.scrapped = true;
-                gate.permanentlyDestroyed = false;
-                gate.building = false;
-                gate.startedUtc = gate.completesUtc = 0;
-                gate.salvageMaterials = new List<PlayerStationMaterial>();
-                gate.salvageDropPending = false;
-            }
-            else
-            {
-                gate.destructionCount = Math.Max(2, gate.destructionCount + 1);
-                gate.scrapped = false;
-                gate.permanentlyDestroyed = true;
-                gate.building = false;
-                gate.startedUtc = gate.completesUtc = 0;
-                gate.destinationSystem = -1;
-                gate.salvageMaterials = RequiredJumpgateMaterials().ConvertAll(x =>
-                    new PlayerStationMaterial { item = x.item, required = Mathf.CeilToInt(x.required * 0.25f), delivered = 0 });
-                gate.salvageDropPending = true;
+            TransitionDestroyedGate(gate);
+            if (gate.salvageDropPending)
                 salvage = gate.salvageMaterials.ConvertAll(x =>
                     new PlayerStationMaterial { item = x.item, required = x.required, delivered = 0 });
-            }
             if (!Save())
             {
                 registry.jumpgates[index] = previous;
