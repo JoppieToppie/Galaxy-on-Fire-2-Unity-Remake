@@ -20,9 +20,10 @@ namespace GoF2Remake.Multiplayer
         }
         static readonly Dictionary<(ulong source, uint id), Shot> shots = new Dictionary<(ulong, uint), Shot>();
         static readonly List<(ulong source, uint id)> expired = new List<(ulong, uint)>();
+        static float nextPruneAt;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void Reset() { shots.Clear(); expired.Clear(); }
+        static void Reset() { shots.Clear(); expired.Clear(); nextPruneAt = 0f; }
         public static void Register(ulong source, uint id, int item, ulong target, float lifetimeMs,
             Vector3 origin = default, Vector3 velocity = default)
         {
@@ -64,7 +65,8 @@ namespace GoF2Remake.Multiplayer
                 gateRadius <= 0f) return false;
             Prune();
             if (!shots.TryGetValue((source, id), out var shot) || shot.item != item ||
-                shot.canceled || shot.gateHitConsumed) return false;
+                shot.canceled || shot.gateHitConsumed || Time.time >= shot.expiresAt ||
+                shot.velocity.sqrMagnitude < 1e-6f) return false;
             if ((gateSurface - gateCentre).magnitude > gateRadius + 5f) return false;
             Vector3 travel = shotPoint - shot.origin;
             float along = Vector3.Dot(travel, shot.velocity.normalized);
@@ -96,6 +98,10 @@ namespace GoF2Remake.Multiplayer
         }
         static void Prune()
         {
+            // Every untargeted player/NPC shot is tracked for gate combat. Prune at most
+            // twice per second instead of scanning the whole dictionary on every shot.
+            if (Time.time < nextPruneAt) return;
+            nextPruneAt = Time.time + 0.5f;
             expired.Clear();
             foreach (var pair in shots) if (Time.time >= pair.Value.expiresAt) expired.Add(pair.Key);
             foreach (var key in expired) shots.Remove(key);
