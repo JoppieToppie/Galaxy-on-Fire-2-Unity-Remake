@@ -515,10 +515,8 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanUseJumpgate(NetPlayer by, int orbitStationIndex)
         {
             var gate = FindJumpgate(orbitStationIndex);
-            if (gate == null || by == null || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId)) return false;
-            string account = NetProfiles.AccountOf(by.OwnerClientId);
-            string factionId = NetFactions.Of(account)?.id;
-            return JumpgateAccessAllowed(gate, account, factionId);
+            if (gate == null || by == null || !by.IsSpawned) return false;
+            return JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
         }
 
         internal static string JumpgateOrbits(int systemIndex)
