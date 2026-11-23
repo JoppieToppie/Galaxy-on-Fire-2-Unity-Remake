@@ -57,6 +57,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         static long nextDryDockRetryUtc, nextTransactionRetryUtc;
+        const int FactorySecondsPerBatch = 60;
 
         static int DryDockBuildDuration(int productId, int shipIndex)
         {
@@ -128,6 +129,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (registry?.stations == null) return;
             TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
+            TickFactoryJobs(now);
             if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)
                 if (record != null && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
@@ -324,27 +326,34 @@ namespace GoF2Remake.Multiplayer
                 lines.Add("#" + recipe.id + ": " + string.Join(" + ", inputs) + " -> " +
                     recipe.outputAmount + " x " + output);
             }
-            lines.Add("Produce with /station manufacture <station id> <recipe id> <batches> (1–100).");
+            lines.Add("Produce with /station manufacture <station id> <recipe id> <batches> (1–100); each batch takes " +
+                FactorySecondsPerBatch + " seconds.");
+            lines.Add("Owner automation: /station repeat <station id> <recipe id> continuous|<total batches> [batches per cycle].");
+            lines.Add("Cancel automation: /station repeat-cancel <station id> <order id>.");
             return string.Join("\n", lines);
         }
 
-        internal static string Manufacture(NetPlayer by, int id, int recipeId, int batches)
+        static FactoryRecipe FindFactoryRecipe(int recipeId)
         {
-            var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out string account))
-                return "Dock at this station and use its controlling profile to operate the factory.";
+            foreach (var candidate in FactoryRecipes)
+                if (candidate.id == recipeId) return candidate;
+            return null;
+        }
+
+        static bool HasFactoryModule(PlayerStationRecord record) =>
+            record?.addons?.Exists(a => a != null && a.kind == "factory" && a.level > 0) == true;
+
+        static string StartFactoryJob(PlayerStationRecord record, string account, FactoryRecipe recipe,
+            int batches, int repeatOrderId)
+        {
+            if (record == null || recipe == null) return "Unknown factory recipe.";
             if (record.underConstruction) return "Finish station construction before manufacturing.";
-            if (!(record.addons?.Exists(a => a != null && a.kind == "factory" && a.level > 0) ?? false))
-                return "Install a factory module first.";
+            if (!HasFactoryModule(record)) return "Install a factory module first.";
             int capacity = StorageCapacity(record);
             if (capacity <= 0) return "The station needs a storage module for factory inputs and output.";
             if (batches < 1 || batches > 100) return "Manufacture between 1 and 100 batches at a time.";
-
-            FactoryRecipe recipe = null;
-            foreach (var candidate in FactoryRecipes)
-                if (candidate.id == recipeId) { recipe = candidate; break; }
-            if (recipe == null) return "Unknown recipe. Use /station recipes to list available recipes.";
+            record.factoryJobs ??= new List<PlayerFactoryProductionJob>();
+            if (record.factoryJobs.Count > 0) return "The factory is already processing a production job.";
             if (!NetGuard.Item(recipe.output) || NetGame.Db?.Item(recipe.output)?.type != "commodity")
                 return "The recipe output is unavailable in this game's item database.";
             EnsureStorageLots(record);
@@ -352,7 +361,8 @@ namespace GoF2Remake.Multiplayer
             var inputStacks = new List<(PlayerStationStorage stack, int amount)>();
             foreach (var input in recipe.inputs)
             {
-                if (input.amount > int.MaxValue / batches) return "That batch count exceeds the supported input quantity.";
+                if (input.amount <= 0 || input.amount > int.MaxValue / batches)
+                    return "That batch count exceeds the supported input quantity.";
                 int required = input.amount * batches;
                 var stack = record.storage.Find(x => x != null && x.item == input.item);
                 if (stack == null || stack.amount < required || OwnedStorageAmount(record, account, input.item) < required)
@@ -361,7 +371,7 @@ namespace GoF2Remake.Multiplayer
                 inputStacks.Add((stack, required));
             }
 
-            if (recipe.outputAmount > int.MaxValue / batches)
+            if (recipe.outputAmount <= 0 || recipe.outputAmount > int.MaxValue / batches)
                 return "That batch count exceeds the supported output quantity.";
             int produced = recipe.outputAmount * batches;
             var outputStack = record.storage.Find(x => x != null && x.item == recipe.output);
@@ -376,36 +386,175 @@ namespace GoF2Remake.Multiplayer
             long consumed = 0;
             foreach (var input in inputStacks) consumed += input.amount;
             if (stored - consumed + produced > capacity)
-                return "Station storage has insufficient room for the factory output.";
+                return "Station storage has insufficient room reserved for the factory output.";
 
+            var previousStorage = new List<PlayerStationStorage>();
+            foreach (var stack in record.storage)
+                if (stack != null) previousStorage.Add(new PlayerStationStorage { item = stack.item, amount = stack.amount });
             var previousLots = CloneStorageLots(record);
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var job = new PlayerFactoryProductionJob
+            {
+                recipeId = recipe.id, batches = batches, repeatOrderId = repeatOrderId,
+                operatorProfile = account, startedUtc = now,
+                completesUtc = now + (long)FactorySecondsPerBatch * batches,
+                outputItem = recipe.output, outputAmount = produced,
+                reservedInputs = new List<PlayerStationMaterial>()
+            };
             foreach (var input in inputStacks)
             {
                 RemoveStorageLots(record, account, input.stack.item, input.amount);
                 input.stack.amount -= input.amount;
+                job.reservedInputs.Add(new PlayerStationMaterial { item = input.stack.item, required = input.amount, delivered = input.amount });
                 if (input.stack.amount == 0) record.storage.Remove(input.stack);
             }
-            if (outputStack == null)
-                record.storage.Add(outputStack = new PlayerStationStorage { item = recipe.output });
-            outputStack.amount += produced;
-            AddStorageLot(record, account, recipe.output, produced);
-
+            record.factoryJobs.Add(job);
             if (!Save())
             {
-                outputStack.amount -= produced;
+                record.storage = previousStorage;
                 record.storageLots = previousLots;
-                if (outputStack.amount == 0) record.storage.Remove(outputStack);
-                foreach (var input in inputStacks)
-                {
-                    if (input.stack.amount == 0 && !record.storage.Contains(input.stack))
-                        record.storage.Add(input.stack);
-                    input.stack.amount += input.amount;
-                }
-                return "Manufacturing could not be saved; all input materials remain in storage.";
+                record.factoryJobs.Remove(job);
+                return "The factory job could not be saved; all input materials remain in storage.";
             }
+            return "Factory job started: " + batches + " batch(es), " + (long)FactorySecondsPerBatch * batches +
+                " seconds. Inputs have been reserved; output will be added when the job completes.";
+        }
 
-            return "Factory produced " + produced + " x " + (NetGame.Db?.Item(recipe.output)?.name ?? ("item " + recipe.output)) +
-                " at " + record.name + ".";
+        internal static string Manufacture(NetPlayer by, int id, int recipeId, int batches)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at this station with a controlled profile to operate its factory.";
+            return StartFactoryJob(record, account, FindFactoryRecipe(recipeId), batches, -1);
+        }
+
+        internal static string SetFactoryRepeatOrder(NetPlayer by, int id, int recipeId,
+            bool continuous, int totalBatches, int batchesPerCycle)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationContext(by, record, out string account) ||
+                !HasStationPermission(record, account, PlayerStationPermission.StationOperations))
+                return "Only the station owner or a faction member with station-operations permission can configure repeat orders.";
+            if (!HasFactoryModule(record) || record.underConstruction)
+                return "An operational factory module is required.";
+            if (FindFactoryRecipe(recipeId) == null) return "Unknown recipe. Use /station recipes to list available recipes.";
+            if (batchesPerCycle < 1 || batchesPerCycle > 100)
+                return "Each repeat cycle must contain between 1 and 100 batches.";
+            if (continuous ? totalBatches != 0 : totalBatches < 1 || totalBatches > 100000)
+                return "Choose continuous, or a fixed total between 1 and 100,000 batches.";
+            record.factoryRepeatOrders ??= new List<PlayerFactoryRepeatOrder>();
+            if (record.factoryRepeatOrders.Count >= 32) return "This factory already has 32 repeat orders.";
+            int orderId = Math.Max(1, record.nextFactoryRepeatOrderId);
+            if (orderId == int.MaxValue) return "The factory repeat-order ID range is exhausted.";
+            var order = new PlayerFactoryRepeatOrder
+            {
+                id = orderId, recipeId = recipeId, continuous = continuous,
+                remainingBatches = continuous ? 0 : totalBatches,
+                batchesPerCycle = batchesPerCycle, createdByProfile = account,
+                createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            };
+            record.factoryRepeatOrders.Add(order);
+            record.nextFactoryRepeatOrderId = orderId + 1;
+            if (!Save())
+            {
+                record.factoryRepeatOrders.Remove(order);
+                record.nextFactoryRepeatOrderId = orderId;
+                return "The repeat order could not be saved.";
+            }
+            return "Factory repeat order #" + orderId + " created (" +
+                (continuous ? "continuous" : totalBatches + " total batches") + ").";
+        }
+
+        internal static string CancelFactoryRepeatOrder(NetPlayer by, int id, int orderId)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!IsStationContext(by, record, out string account) ||
+                !HasStationPermission(record, account, PlayerStationPermission.StationOperations))
+                return "Only the station owner or a faction member with station-operations permission can cancel repeat orders.";
+            var order = record.factoryRepeatOrders?.Find(x => x != null && x.id == orderId);
+            if (order == null) return "No repeat order with that ID exists.";
+            int index = record.factoryRepeatOrders.IndexOf(order);
+            record.factoryRepeatOrders.RemoveAt(index);
+            if (!Save())
+            {
+                record.factoryRepeatOrders.Insert(index, order);
+                return "The repeat-order cancellation could not be saved.";
+            }
+            return "Factory repeat order #" + orderId + " cancelled. Any active production batch will finish.";
+        }
+
+        static void TickFactoryJobs(long now)
+        {
+            if (registry?.stations == null) return;
+            foreach (var record in registry.stations)
+            {
+                if (record == null || !HasFactoryModule(record) || record.underConstruction) continue;
+                record.factoryJobs ??= new List<PlayerFactoryProductionJob>();
+                record.factoryRepeatOrders ??= new List<PlayerFactoryRepeatOrder>();
+                if (record.factoryJobs.Count > 0)
+                {
+                    var job = record.factoryJobs[0];
+                    if (job == null) { record.factoryJobs.RemoveAt(0); Save(); continue; }
+                    if (job.completesUtc > now) continue;
+                    EnsureStorageLots(record);
+                    var output = record.storage.Find(x => x != null && x.item == job.outputItem);
+                    long stored = 0;
+                    foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
+                    if (stored + job.outputAmount > StorageCapacity(record) ||
+                        (output == null && record.storage.Count >= MaxStorageItemTypes) ||
+                        (output != null && output.amount > int.MaxValue - job.outputAmount)) continue;
+
+                    int oldAmount = output?.amount ?? 0;
+                    bool addedStack = false;
+                    if (output == null)
+                    {
+                        record.storage.Add(output = new PlayerStationStorage { item = job.outputItem });
+                        addedStack = true;
+                    }
+                    output.amount += job.outputAmount;
+                    AddStorageLot(record, job.operatorProfile, job.outputItem, job.outputAmount);
+                    record.factoryJobs.RemoveAt(0);
+                    var order = job.repeatOrderId > 0
+                        ? record.factoryRepeatOrders.Find(x => x != null && x.id == job.repeatOrderId) : null;
+                    int previousRemaining = order?.remainingBatches ?? 0;
+                    if (order != null && !order.continuous)
+                    {
+                        order.remainingBatches = Math.Max(0, order.remainingBatches - job.batches);
+                        if (order.remainingBatches == 0) record.factoryRepeatOrders.Remove(order);
+                    }
+                    if (!Save())
+                    {
+                        if (addedStack) record.storage.Remove(output);
+                        else output.amount = oldAmount;
+                        RemoveStorageLots(record, job.operatorProfile, job.outputItem, job.outputAmount);
+                        record.factoryJobs.Insert(0, job);
+                        if (order != null)
+                        {
+                            order.remainingBatches = previousRemaining;
+                            if (!record.factoryRepeatOrders.Contains(order)) record.factoryRepeatOrders.Add(order);
+                        }
+                        continue;
+                    }
+                }
+
+                if (record.factoryJobs.Count != 0) continue;
+                var next = record.factoryRepeatOrders.Find(x => x != null && !x.paused);
+                if (next == null) continue;
+                var recipe = FindFactoryRecipe(next.recipeId);
+                if (recipe == null) { next.paused = true; Save(); continue; }
+                int batches = Math.Min(100, Math.Max(1, next.batchesPerCycle));
+                if (!next.continuous) batches = Math.Min(batches, Math.Max(0, next.remainingBatches));
+                if (batches <= 0) { record.factoryRepeatOrders.Remove(next); Save(); continue; }
+                string result = StartFactoryJob(record, next.createdByProfile, recipe, batches, next.id);
+                if (!result.StartsWith("Factory job started:", StringComparison.Ordinal))
+                {
+                    next.paused = true;
+                    Save();
+                }
+            }
         }
 
         internal static string InstallRefinery(NetPlayer by, int id)
