@@ -261,9 +261,10 @@ namespace GoF2Remake.World
 
         /// <summary>Reconstruction is confirmed by the persistent server, not inferred from
         /// a client's potentially stale station registry snapshot.</summary>
-        public void OnPlayerJumpgateRestored()
+        public void OnPlayerJumpgateRestored(Vector3 gatePosition)
         {
             if (Layout == null || Navigation == null || SystemJump == null) return;
+            Layout.jumpgate = gatePosition;
             playerJumpgateWreck = false;
             playerJumpgatePermanentlyDestroyed = false;
             playerJumpgateExplosionPlayed = false;
@@ -277,7 +278,7 @@ namespace GoF2Remake.World
             {
                 // A fully destroyed site is a new construction, not a reclaimed wreck.
                 Layout.hasJumpgate = true;
-                UpdatePlayerJumpgate();
+                UpdatePlayerJumpgate(true);
             }
         }
 
@@ -285,13 +286,13 @@ namespace GoF2Remake.World
         /// A timed player-built gate can finish while its orbit is already loaded. Materialize the same gate model,
         /// collision and navigation landmark that a fresh orbit load would create.
         /// </summary>
-        void UpdatePlayerJumpgate()
+        void UpdatePlayerJumpgate(bool serverConfirmed = false)
         {
             if (Layout == null || Navigation == null || SystemJump == null ||
                 playerJumpgateWreck || playerJumpgatePermanentlyDestroyed ||
-                !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex)) return;
+                (!serverConfirmed && !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex))) return;
             if (Jumpgate != null) return;
-            var refreshed = OrbitLayout.Build(db, Layout.stationIndex);
+            var refreshed = serverConfirmed ? Layout : OrbitLayout.Build(db, Layout.stationIndex);
             if (refreshed == null || !refreshed.hasJumpgate) return;
             Layout.hasJumpgate = true;
             Layout.jumpgate = refreshed.jumpgate;
