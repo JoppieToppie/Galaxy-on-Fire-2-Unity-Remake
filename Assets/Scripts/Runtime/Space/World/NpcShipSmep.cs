@@ -477,7 +477,9 @@ namespace GoF2Remake.World
             var previous = smepReciprocalHasPosition ? smepReciprocalLastPosition : current;
             var travel = current - previous;
             var absTravel = new Vector3(Mathf.Abs(travel.x), Mathf.Abs(travel.y), Mathf.Abs(travel.z));
-            int steps = Mathf.Clamp(Mathf.CeilToInt(travel.magnitude / 4f), 1, 16);
+            // Use finer sweep samples for fast ships while bounding the work near
+            // the player. Broadphase below avoids penetration tests when clear.
+            int steps = Mathf.Clamp(Mathf.CeilToInt(travel.magnitude / 2f), 1, 64);
 
             // Snapshot the player's native collision boxes once per frame, shared by every SMEP fighter.
             // A probe sphere is the fallback on models without hull boxes.
