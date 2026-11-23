@@ -63,6 +63,7 @@ namespace GoF2Remake.Flight
             Suppressed = false;
             modeFrame = -1;
             pending.Clear();
+            forcedExact.Clear();
         }
 
         /// <summary>Options > Gameplay "Ship collision" (SessionRules.CollisionExact / Mixed / Original; the session's in
@@ -100,6 +101,10 @@ namespace GoF2Remake.Flight
 
         /// <summary>Some hull exists (a quick skip for the shot tests).</summary>
         public static bool Any => bodies.Count > 0;
+
+        /// <summary>Exact gate hulls remain available regardless of the global ship collision preference.</summary>
+        public static bool IsForcedExact(HullBody body) => body != null && forcedExact.Contains(body);
+        static readonly HashSet<HullBody> forcedExact = new HashSet<HullBody>();
 
         /// <summary>The hull of 'model' (its root gets the HullBody); 'target' what shots on it hit, 'obstacle' what the
         /// player slides along (either may be null); 'flyableShip' a ship a player can fly (HullBody.flyableShip: Mixed
@@ -147,6 +152,7 @@ namespace GoF2Remake.Flight
                     bodies[c] = body;
                 }
             }
+            if (forceExact) forcedExact.Add(body);
             body.target = target;
             body.obstacle = obstacle;
             body.flyableShip = flyableShip;
@@ -198,6 +204,7 @@ namespace GoF2Remake.Flight
             if (target != null) pending.RemoveAll(p => p.target == target);
             var b = target != null ? target.hull : null;
             if (b == null) return;
+            forcedExact.Remove(b);
             foreach (var c in b.colliders) if (c != null) { bodies.Remove(c); UnityEngine.Object.Destroy(c.gameObject); }
             b.colliders.Clear();
             target.hull = null;

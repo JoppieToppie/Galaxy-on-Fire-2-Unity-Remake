@@ -532,7 +532,12 @@ namespace GoF2Remake.World
                     if (pa.gameObject.name.EndsWith("_anim_add") && !pa.gameObject.name.EndsWith("_jump_anim_add")) pa.applyMaterialChannels = true;
             if (go != null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
             if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
-            if (go != null) PortalRefraction.AttachIfPortal(go);   // (a mod gate's Chorus portal bends the scene behind it)
+            if (go != null) PortalRefraction.AttachIfPortal(go);
+            // Only independently constructed player gates opt into exact mesh geometry in Original mode.
+            // This does not attach a combat Target yet: the server must validate weapon hits before
+            // the gate is allowed to receive structural damage.
+            if (go != null && GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex))
+                GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);   // (a mod gate's Chorus portal bends the scene behind it)
             return go;
         }
 
