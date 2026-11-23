@@ -104,11 +104,11 @@ namespace GoF2Remake.Flight
         /// <summary>The hull of 'model' (its root gets the HullBody); 'target' what shots on it hit, 'obstacle' what the
         /// player slides along (either may be null); 'flyableShip' a ship a player can fly (HullBody.flyableShip: Mixed
         /// ship collision leaves it out). Null when the model has no readable hull mesh.</summary>
-        public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false)
+        public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false, bool forceExact = false)
         {
             if (model == null || Suppressed) return null;
             var body = model.GetComponent<HullBody>();
-            if (body == null && Application.isPlaying && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal)
+            if (body == null && Application.isPlaying && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal && !forceExact)
             {
                 pending.RemoveAll(p => p.model == null || p.model == model);
                 pending.Add((model, target, obstacle, flyableShip));
