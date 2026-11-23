@@ -191,21 +191,47 @@ namespace GoF2Remake.Multiplayer
                 !string.Equals(gate.ownerProfile, station.ownerProfile, StringComparison.Ordinal) ||
                 !string.Equals(gate.ownerFactionId, station.ownerFactionId, StringComparison.Ordinal) ||
                 !string.Equals(gate.ownerName, station.ownerName, StringComparison.Ordinal);
+            string accessFaction = station.ownershipType == PlayerStationOwnershipType.Faction
+                ? station.ownerFactionId : NetFactions.Of(station.ownerProfile)?.id;
+            changed |= !string.Equals(gate.accessFactionId, accessFaction, StringComparison.Ordinal);
             gate.ownershipType = station.ownershipType;
             gate.ownerProfile = station.ownerProfile;
             gate.ownerFactionId = station.ownerFactionId;
             gate.ownerName = station.ownerName;
-            gate.accessFactionId = station.ownershipType == PlayerStationOwnershipType.Faction
-                ? station.ownerFactionId : NetFactions.Of(station.ownerProfile)?.id;
+            gate.accessFactionId = accessFaction;
             return changed;
         }
 
         /// <summary>Synchronise every gate sponsored by this station as part of the same registry save.</summary>
         internal static bool SyncJumpgatesForStation(PlayerStationRecord station)
         {
-            // Gate ownership is independent after its construction order is issued. Station transfers
-            // must never silently transfer an already-built gate with the former sponsor.
-            return false;
+            if (station == null || station.wreckClaimOpen || station.destroyed || station.reconstructing ||
+                registry?.jumpgates == null) return false;
+            bool changed = false;
+            foreach (var gate in registry.jumpgates)
+                if (gate != null && gate.sponsorStationId == station.id && !gate.permanentlyDestroyed)
+                    changed |= CopyStationOwnershipToGate(station, gate);
+            return changed;
+        }
+
+        static Action RestoreSponsoredGateOwnership(PlayerStationRecord station)
+        {
+            var saved = new List<(PlayerJumpgateRecord Gate, PlayerStationOwnershipType Type, string Profile,
+                string Faction, string Name, string AccessFaction)>();
+            foreach (var gate in registry.jumpgates)
+                if (gate != null && gate.sponsorStationId == station.id && !gate.permanentlyDestroyed)
+                    saved.Add((gate, gate.ownershipType, gate.ownerProfile, gate.ownerFactionId, gate.ownerName, gate.accessFactionId));
+            return () =>
+            {
+                foreach (var entry in saved)
+                {
+                    entry.Gate.ownershipType = entry.Type;
+                    entry.Gate.ownerProfile = entry.Profile;
+                    entry.Gate.ownerFactionId = entry.Faction;
+                    entry.Gate.ownerName = entry.Name;
+                    entry.Gate.accessFactionId = entry.AccessFaction;
+                }
+            };
         }
 
         static bool MigrateLegacyJumpgates()
@@ -518,6 +544,7 @@ namespace GoF2Remake.Multiplayer
                 materials = RequiredJumpgateMaterials(),
                 contributions = new List<PlayerStationContribution>()
             };
+            CopyStationOwnershipToGate(sponsor, gate);
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             int existingIndex = stationRebuild ? registry.jumpgates.IndexOf(existingGate) : -1;
             if (stationRebuild && existingIndex >= 0) registry.jumpgates[existingIndex] = gate;

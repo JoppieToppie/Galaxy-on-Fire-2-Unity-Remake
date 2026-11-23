@@ -66,9 +66,11 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
+            if (!NetGame.IsServer || by == null || !by.IsSpawned ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at any station using a controlled profile to sell materials into a construction order.";
+                return "Use a controlled profile to sell materials into a construction order.";
+            string locationError = ConstructionDeliveryError(by, record);
+            if (locationError != null) return locationError;
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
                 return "No construction buy order exists at that index.";
             var order = record.buyOrders[orderIndex];
@@ -92,7 +94,7 @@ namespace GoF2Remake.Multiplayer
                     unitPrice = pending.unitPrice, reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
                     fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy, createdUtc = pending.createdUtc });
             int oldDelivered = material.delivered;
-            bool wasUnderConstruction = record.underConstruction;
+            Action rollbackCompletion = null;
             material.delivered += amount;
             order.remaining -= amount;
             order.reservedCredits -= total;
@@ -105,14 +107,12 @@ namespace GoF2Remake.Multiplayer
             var profileRefunds = new List<(string account, long amount)>();
             if (complete)
             {
-                record.underConstruction = false;
                 foreach (var pending in record.buyOrders)
                 {
                     if (pending == null) continue;
                     if (pending.reservedCredits < 0)
                     {
                         material.delivered = oldDelivered;
-                        record.underConstruction = wasUnderConstruction;
                         record.buyOrders = oldOrders;
                         return "Construction cannot complete because an outstanding buy order has invalid negative escrow. The order was preserved for administrator recovery.";
                     }
@@ -124,7 +124,6 @@ namespace GoF2Remake.Multiplayer
                     if (hasProfileFunder == hasFactionFunder)
                     {
                         material.delivered = oldDelivered;
-                        record.underConstruction = wasUnderConstruction;
                         record.buyOrders = oldOrders;
                         return "Construction cannot complete because an outstanding buy order has an ambiguous or missing escrow owner. The order was preserved for administrator recovery.";
                     }
@@ -135,12 +134,13 @@ namespace GoF2Remake.Multiplayer
                     }
                     else banks.Add((pending.fundedByFactionId, pending.reservedCredits));
                 }
+                rollbackCompletion = CompleteStationConstruction(record);
                 record.buyOrders.Clear();
             }
             if (!CommitProfileTransaction(new List<(string account, int item, int delta)> { (seller, order.item, -amount) }, credits, banks))
             {
                 material.delivered = oldDelivered;
-                record.underConstruction = wasUnderConstruction;
+                rollbackCompletion?.Invoke();
                 record.buyOrders = oldOrders;
                 return "The sale could not be journalled; no cargo or credits were transferred.";
             }
@@ -196,12 +196,27 @@ namespace GoF2Remake.Multiplayer
         }
 
 
+        internal static string SetMarketplaceTax(NetPlayer by, int id, int percent)
+        {
+            var station = Find(id);
+            if (percent < 0 || percent > 10) return "Choose a marketplace tax from 0% to 10%.";
+            if (!IsStationContext(by, station, out string account) || !IsOwnershipAuthority(station, account))
+                return "Dock at the station as its owner or owning faction leader to set marketplace tax.";
+            if (station.marketplaceTaxPercent == percent) return $"Marketplace tax is already {percent}%.";
+            int previous = station.marketplaceTaxPercent;
+            station.marketplaceTaxPercent = percent;
+            if (Save()) return $"Marketplace tax is now {percent}%.";
+            station.marketplaceTaxPercent = previous;
+            return "The new tax rate could not be saved.";
+        }
+
         internal static string MarketStatus(int id)
         {
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            var lines = new List<string> { "Marketplace at " + record.name + ":" };
+            var lines = new List<string> { "Marketplace at " + record.name + ":",
+                $"Sales tax: {Math.Clamp(record.marketplaceTaxPercent, 0, 10)}% added at checkout." };
             if (record.buyOrders != null && record.buyOrders.Count > 0)
             {
                 lines.Add("Construction buy orders:");
@@ -297,8 +312,11 @@ namespace GoF2Remake.Multiplayer
             if (listing.unitPrice > int.MaxValue / (long)amount)
                 return "That purchase exceeds the marketplace's per-transaction credit limit.";
             long total = listing.unitPrice * amount;
+            long tax = (total * Math.Clamp(record.marketplaceTaxPercent, 0, 10) + 99) / 100;
+            long charge = total + tax;
+            if (charge > int.MaxValue) return "The purchase including tax exceeds the per-transaction credit limit.";
             long credits = NetProfiles.CreditAmount(buyer);
-            if (credits < total) return "Your saved profile does not have enough credits. Dock again to sync your balance.";
+            if (credits < charge) return "Your saved profile does not have enough credits for the purchase and tax.";
             int cargo = NetProfiles.CargoAmount(buyer, listing.item);
             if (cargo < 0 || (long)cargo + amount > int.MaxValue)
                 return "Your saved cargo could not accept this purchase.";
@@ -307,9 +325,18 @@ namespace GoF2Remake.Multiplayer
             if (removeListing) record.listings.RemoveAt(listingIndex);
             else listing.amount -= amount;
             bool paidToFaction = !string.IsNullOrEmpty(listing.payoutFactionId);
-            bool committed = paidToFaction
-                ? CommitMarketplaceFactionTransaction(buyer, listing.payoutFactionId, listing.item, amount, total)
-                : CommitMarketplaceTransaction(buyer, seller, listing.item, amount, total);
+            var payments = new List<(string account, long delta)> { (buyer, -charge) };
+            var banks = new List<(string factionId, long delta)>();
+            if (paidToFaction) banks.Add((listing.payoutFactionId, total));
+            else payments.Add((seller, total));
+            bool factionTax = record.ownershipType == PlayerStationOwnershipType.Faction;
+            if (tax > 0)
+            {
+                if (factionTax) banks.Add((record.ownerFactionId, tax));
+                else payments.Add((record.ownerProfile, tax));
+            }
+            bool committed = CommitProfileTransaction(
+                new List<(string account, int item, int delta)> { (buyer, listing.item, amount) }, payments, banks);
             if (!committed)
             {
                 if (removeListing) record.listings.Insert(listingIndex, listing);
@@ -320,7 +347,8 @@ namespace GoF2Remake.Multiplayer
             bool buyerIsHost = NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId;
             if (!buyerIsHost)
             {
-                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, -(int)total, 0, 0, "", "Station marketplace");
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits,
+                    -(int)(charge - (!factionTax && record.ownerProfile == buyer ? tax : 0)), 0, 0, "", "Station marketplace");
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, amount, 0, "", "Station marketplace");
             }
 
@@ -332,9 +360,12 @@ namespace GoF2Remake.Multiplayer
                 break;
             }
 
+            if (tax > 0 && !factionTax && record.ownerProfile != buyer)
+                NotifyProfileCreditChange(record.ownerProfile, tax, "Station marketplace tax");
             string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
-            return "Purchased " + amount + " x " + itemName + " for " + total.ToString("N0") +
-                " credits from " + record.name + (paidToFaction ? "; proceeds credited to faction treasury." : "; proceeds credited to the seller.") ;
+            return "Purchased " + amount + " x " + itemName + " for " + charge.ToString("N0") +
+                (tax > 0 ? $" credits including {tax:N0} tax" : " credits") +
+                " from " + record.name + (paidToFaction ? "; proceeds credited to faction treasury." : "; proceeds credited to the seller.") ;
         }
 
         internal static string CancelListing(NetPlayer by, int id, int listingIndex)

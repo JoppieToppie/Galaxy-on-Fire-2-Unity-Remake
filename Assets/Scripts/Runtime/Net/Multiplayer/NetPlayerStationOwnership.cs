@@ -278,6 +278,7 @@ namespace GoF2Remake.Multiplayer
                     : " Original builder rights and builder-imposed visitor bans were preserved."));
             // Gates are assets of the station that sponsored them. Keep their ownership in
             // the same registry transaction as the station transfer.
+            var rollbackGateOwnership = RestoreSponsoredGateOwnership(record);
             SyncJumpgatesForStation(record);
             if (!Save())
             {
@@ -300,7 +301,7 @@ namespace GoF2Remake.Multiplayer
                     record.history.RemoveRange(previousHistoryCount, record.history.Count - previousHistoryCount);
                 record.nextHistorySequence = previousHistorySequence;
                 record.pendingTransfer = proposal;
-                SyncJumpgatesForStation(record);
+                rollbackGateOwnership();
                 return "The ownership change could not be saved; the previous owner and pending proposal were restored.";
             }
             EjectDeniedVisitors(record);

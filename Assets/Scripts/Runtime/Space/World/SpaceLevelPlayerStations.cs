@@ -31,16 +31,19 @@ namespace GoF2Remake.World
             bool modelPresent = NetPlayerStations.StationSceneryPresent(orbit);
             bool operational = modelPresent && !NetPlayerStations.StationClosedByCombat(orbit);
             int state = operational ? 2 : modelPresent ? 1 : 0;
-            if (visiblePlayerStationState == state) return;
+            bool moved = modelPresent && Station != null &&
+                Station.transform.position != NetPlayerStations.StationPosition(orbit);
+            if (visiblePlayerStationState == state && !moved) return;
             visiblePlayerStationState = state;
             Layout.stationObject = modelPresent;
             Layout.hasStation = operational;
 
-            if (!modelPresent && Station != null)
+            if ((!modelPresent || moved) && Station != null)
             {
                 Station.SetActive(false);
                 Destroy(Station);
                 Station = null;
+                playerStationDockPointsSpawned = false;
             }
             if (modelPresent && Station == null)
             {

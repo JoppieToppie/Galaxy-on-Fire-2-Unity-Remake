@@ -78,10 +78,10 @@ namespace GoF2Remake.Multiplayer
             if (orbit < 0) return first;
             foreach (var pilot in NetPlayer.All)
             {
-                // Stations are built at the orbit origin. Pilot positions are already in Unity metres.
+                // Both the wreck position and the pilot pose are in Unity metres.
                 if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != orbit ||
                     !pilot.HasCurrentWreckClaimPose || pilot.Hull <= 0 ||
-                    pilot.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres) continue;
+                    (pilot.Position - StationPosition(orbit)).sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres) continue;
                 string account = NetProfiles.AccountOf(pilot.OwnerClientId);
                 bool controls = !string.IsNullOrEmpty(account) && NetProfiles.Controls(pilot.OwnerClientId);
                 eligibleToClaim |= controls;

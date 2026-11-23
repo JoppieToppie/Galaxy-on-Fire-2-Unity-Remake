@@ -202,7 +202,7 @@ namespace GoF2Remake.World
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
         bool InDockRange => Es2 != null ? Es2.InZone(Player.transform.position)   // EVERSPACE 2: the dock's Interact box
-                                         : Player.transform.position.sqrMagnitude < DockMeters * DockMeters;
+                                         : (Player.transform.position - GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(Layout.stationIndex)).sqrMagnitude < DockMeters * DockMeters;
         /// <summary>The dock range in metres in the scaled orbit (OrbitScale.Radius).</summary>
         float DockMeters => Layout.PlaceRadius(StationDockRange) * M;
         /// <summary>Remake mods: a mobile station whose dock range the player is in (having left it once since the level began).</summary>

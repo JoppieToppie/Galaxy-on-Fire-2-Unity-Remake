@@ -16,6 +16,9 @@ namespace GoF2Remake.Multiplayer
         static PlayerStationRecord StationAt(int orbit) =>
             registry?.stations?.Find(station => station != null && station.stationIndex == orbit);
 
+        public static Vector3 StationPosition(int orbit) =>
+            new Vector3(StationAt(orbit)?.stationOffsetX ?? 0f, 0f, 0f);
+
         public static bool StationClosedByCombat(int orbit)
         {
             var station = StationAt(orbit);
@@ -67,6 +70,7 @@ namespace GoF2Remake.Multiplayer
             stationIndex = station.stationIndex,
             system = station.system,
             looksLike = station.looksLike,
+            stationOffsetX = station.stationOffsetX,
             name = station.name,
             createdUtc = station.createdUtc
         };
@@ -80,11 +84,19 @@ namespace GoF2Remake.Multiplayer
             if (wasOperational)
             {
                 site.materials = station.materials;
+                site.wreckBlueprintSalvage = BlueprintSalvage(station);
                 OpenWreckClaim(site);
             }
             else if (station.wreckClaimOpen)
             {
                 site.stationSalvage = RollStationSalvage(station.materials);
+                foreach (var part in station.wreckBlueprintSalvage ?? new List<PlayerStationMaterial>())
+                {
+                    if (part == null || part.required <= 0 || !NetGuard.Item(part.item)) continue;
+                    var existing = site.stationSalvage.Find(material => material.item == part.item);
+                    if (existing == null) site.stationSalvage.Add(part);
+                    else existing.required = (int)Math.Min(int.MaxValue, (long)existing.required + part.required);
+                }
                 site.stationSalvagePending = site.stationSalvage.Count > 0;
             }
             // An interrupted reconstruction leaves no claim, salvage, or compensation.
@@ -134,6 +146,44 @@ namespace GoF2Remake.Multiplayer
             return value / 2;
         }
 
+        static List<PlayerStationMaterial> BlueprintSalvage(PlayerStationRecord station)
+        {
+            var totals = new Dictionary<int, long>();
+            var recipesByShip = new Dictionary<int, ItemData>();
+            foreach (var product in Blueprints.Products(NetGame.Db))
+            {
+                int ship = Modding.ModBlueprints.ShipOf(product.index);
+                if (ship >= 0 && product.blueprint?.Count > 0)
+                    recipesByShip.TryAdd(ship, product);
+            }
+            void AddHull(StoredShip hull)
+            {
+                if (hull == null || !recipesByShip.TryGetValue(hull.ship, out var product)) return;
+                foreach (var ingredient in product.blueprint)
+                    if (ingredient != null && ingredient.amount > 0 && NetGuard.Item(ingredient.item))
+                    {
+                        totals.TryGetValue(ingredient.item, out long previous);
+                        totals[ingredient.item] = previous + ingredient.amount;
+                    }
+            }
+
+            foreach (var hull in station.storedShips) AddHull(hull);
+            foreach (var hull in station.dryDockShips) AddHull(hull);
+
+            var manifest = new List<PlayerStationMaterial>();
+            long remainder = 0;
+            var items = new List<int>(totals.Keys);
+            items.Sort();
+            foreach (int item in items)
+            {
+                long numerator = totals[item] * 3 + remainder;
+                int amount = (int)Math.Min(int.MaxValue, numerator / 10);
+                remainder = numerator % 10;
+                if (amount > 0) manifest.Add(new PlayerStationMaterial { item = item, required = amount });
+            }
+            return manifest;
+        }
+
         static List<PlayerStationMaterial> RollStationSalvage(List<PlayerStationMaterial> materials)
         {
             // Draw a quarter of delivered construction units without replacement.
@@ -168,7 +218,7 @@ namespace GoF2Remake.Multiplayer
             return available;
         }
 
-        internal static string RebuildStation(NetPlayer pilot, int id)
+        internal static string RebuildStation(NetPlayer pilot, int id, int appearance = -1)
         {
             if (!NetGame.IsServer || !sessionActive || registry?.stations == null)
                 return "Reconstruction requires a persistent server.";
@@ -179,7 +229,7 @@ namespace GoF2Remake.Multiplayer
             if (wreck.stationExplosionPending) return "Wait for the destruction event to finish.";
             if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != wreck.stationIndex ||
                 pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose ||
-                pilot.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres ||
+                (pilot.Position - StationPosition(wreck.stationIndex)).sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres ||
                 !NetProfiles.Controls(pilot.OwnerClientId))
                 return "Fly within 5 km of the wreck with a controlled profile to start reconstruction.";
 
@@ -193,7 +243,11 @@ namespace GoF2Remake.Multiplayer
                 faction.officers?.Contains(account) != true)
                 return "An officer or leader of the claiming faction must start reconstruction.";
 
+            if (appearance >= 0 && !CanUseRebuildAppearance(wreck, appearance))
+                return "Choose a station model from the wreck model's race. Use /station appearance-presets to list model indices.";
             var project = SiteOf(wreck);
+            if (appearance >= 0) project.looksLike = appearance;
+            project.stationOffsetX = wreck.stationOffsetX > 0f ? -1500f : 1500f;
             var materials = RequiredMaterials();
             foreach (var material in materials)
                 material.required = (material.required * ReconstructionPercent + 99) / 100;
@@ -220,6 +274,17 @@ namespace GoF2Remake.Multiplayer
             wreckControl.Remove(id);
             Apply(NetGame.Db);
             return $"Reconstruction started for {wreck.name}. Deposit materials with /station contribute {id} <item id> <amount>.";
+        }
+
+        static bool CanUseRebuildAppearance(PlayerStationRecord wreck, int appearance)
+        {
+            var db = NetGame.Db;
+            var target = db?.Stations?.Find(value => value != null && value.index == appearance);
+            if (target == null || IsPlayerStation(appearance)) return false;
+            var original = db.Stations.Find(value => value != null && value.index == wreck.looksLike);
+            var originalSystem = db.Systems.Find(value => value != null && value.index == (original?.system ?? wreck.system));
+            var targetSystem = db.Systems.Find(value => value != null && value.index == target.system);
+            return originalSystem != null && targetSystem != null && originalSystem.raceId == targetSystem.raceId;
         }
 
         static void TickStationDestruction()

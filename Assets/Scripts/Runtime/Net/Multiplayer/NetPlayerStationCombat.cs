@@ -41,11 +41,11 @@ namespace GoF2Remake.Multiplayer
                 if (kind is not (Gun.Kind.Nuke or Gun.Kind.Ionizing or Gun.Kind.Mine or Gun.Kind.ShockBlast)) return;
                 float blastRadius = Mathf.Max(0, weapon.Attr(14)) * OrbitLayout.MetersPerUnit;
                 if (blastRadius <= 0f ||
-                    !NetShotRegistry.TryConsumeGateBlast(NetworkObjectId, shotId, item, point, surface, Vector3.zero, radius, blastRadius, station: true))
+                    !NetShotRegistry.TryConsumeGateBlast(NetworkObjectId, shotId, item, point, surface, NetPlayerStations.StationPosition(orbit), radius, blastRadius, station: true))
                     return;
                 damage *= Mathf.Clamp01(1f - Vector3.Distance(point, surface) / blastRadius);
             }
-            else if (!NetShotRegistry.TryConsumeGateHit(NetworkObjectId, shotId, item, point, Vector3.zero, radius, station: true))
+            else if (!NetShotRegistry.TryConsumeGateHit(NetworkObjectId, shotId, item, point, NetPlayerStations.StationPosition(orbit), radius, station: true))
                 return;
             NetPlayerStations.ApplyStationCombatHit(orbit, item, damage);
         }
@@ -60,7 +60,7 @@ namespace GoF2Remake.Multiplayer
         void PlayerStationExplosionRpc(int orbit)
         {
             if (Local != null && Local.InSpace && Local.Station == orbit && Local.level?.Layout?.stationIndex == orbit)
-                Explosion.Spawn(Vector3.zero, 15f);
+                Explosion.Spawn(NetPlayerStations.StationPosition(orbit), 15f);
         }
 
         internal void SpawnPlayerStationSalvage(int orbit, int[] items, int[] amounts)
@@ -82,7 +82,7 @@ namespace GoF2Remake.Multiplayer
 
             var station = NetGame.Db?.Stations?.Find(value => value != null && value.index == orbit);
             int race = NetGame.Db?.Systems?.Find(value => value != null && station != null && value.index == station.system)?.raceId ?? 0;
-            Crate.Spawn(Vector3.forward * 30f, loot, race, Crate.LookContainer).keep = true;
+            Crate.Spawn(NetPlayerStations.StationPosition(orbit) + Vector3.forward * 30f, loot, race, Crate.LookContainer).keep = true;
         }
     }
 }

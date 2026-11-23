@@ -414,6 +414,7 @@ namespace GoF2Remake.World
             // from the usual (0, pi, 0), -45 deg about Unity's up), every model of it (a player's request).
             var gameRotation = layout.stationIndex == 111 ? LuurRotation : new Vector3(0f, Mathf.PI, 0f);
             var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(gameRotation), "Station", parent);
+            if (go != null) go.transform.position = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(layout.stationIndex);
             // Remake, experimental (OrbitScale): Options > Gameplay "Station scale".
             if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
             // Remake: the station's opacity keys play like the engine's (the blinking lights of the Nivelian, Midorian, pirate,

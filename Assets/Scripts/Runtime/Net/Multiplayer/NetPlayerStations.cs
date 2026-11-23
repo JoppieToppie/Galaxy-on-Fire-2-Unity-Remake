@@ -147,6 +147,9 @@ namespace GoF2Remake.Multiplayer
         public bool wreckClaimOpen;
         public bool reconstructing, destroyed, stationIntegrityInitialized;
         public float stationIntegrity, stationIntegrityCapacity;
+        public int marketplaceTaxPercent;
+        public float stationOffsetX;
+        public List<PlayerStationMaterial> wreckBlueprintSalvage = new List<PlayerStationMaterial>();
         public bool stationExplosionPending, stationSalvagePending;
         public List<PlayerStationMaterial> stationSalvage = new List<PlayerStationMaterial>();
         public PlayerStationWreckClaim wreckClaim;
@@ -386,8 +389,15 @@ namespace GoF2Remake.Multiplayer
                 Debug.LogError("NetPlayerStations: station persistence is disabled because an interrupted transaction could not be recovered. Preserve the journal and registry for manual recovery.");
                 return;
             }
+            // Older buy-order completions could leave a funded rebuild marked as closed.
+            foreach (var station in registry.stations)
+                if (station != null && station.reconstructing && !station.underConstruction &&
+                    !station.destroyed && !station.wreckClaimOpen && station.materials?.Count > 0 &&
+                    station.materials.TrueForAll(material => material != null && material.delivered >= material.required))
+                    CompleteStationConstruction(station);
             ReconcileConsumedBlueprints();
             MigrateLegacyJumpgates();
+            foreach (var station in registry.stations) SyncJumpgatesForStation(station);
             // Persist one-time governance-field migrations for existing individual stations.
             Save();
         }
@@ -559,7 +569,46 @@ namespace GoF2Remake.Multiplayer
         internal static bool UnderConstruction(int stationIndex) =>
             registry?.stations?.Find(s => s != null && s.stationIndex == stationIndex)?.underConstruction == true;
 
-        /// <summary>Deposit one of the project's required cargo resources from a docked controlled profile.</summary>
+        static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record)
+        {
+            if (record.reconstructing)
+            {
+                if (!by.InSpace || by.Station != record.stationIndex || by.Hull <= 0 || !by.HasCurrentWreckClaimPose ||
+                    (by.Position - StationPosition(record.stationIndex)).sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres)
+                    return "Fly within 5 km of the reconstruction site to deliver materials.";
+            }
+            else if (!by.InHangar || StationClosedByCombat(by.Station))
+                return "Dock at any operational station to deposit construction materials.";
+            return null;
+        }
+
+        // Callers stage this change in the same journal as materials and escrow.
+        static Action CompleteStationConstruction(PlayerStationRecord record)
+        {
+            bool wasUnderConstruction = record.underConstruction;
+            bool wasReconstructing = record.reconstructing;
+            var rollbackGateOwnership = wasReconstructing ? RestoreSponsoredGateOwnership(record) : null;
+            bool integrityInitialized = record.stationIntegrityInitialized;
+            float previousIntegrity = record.stationIntegrity;
+            float previousIntegrityCapacity = record.stationIntegrityCapacity;
+            record.underConstruction = false;
+            record.reconstructing = false;
+            record.stationIntegrityInitialized = false;
+            record.stationIntegrity = 0f;
+            record.stationIntegrityCapacity = 0f;
+            if (wasReconstructing) SyncJumpgatesForStation(record);
+            return () =>
+            {
+                record.underConstruction = wasUnderConstruction;
+                record.reconstructing = wasReconstructing;
+                record.stationIntegrityInitialized = integrityInitialized;
+                record.stationIntegrity = previousIntegrity;
+                record.stationIntegrityCapacity = previousIntegrityCapacity;
+                rollbackGateOwnership?.Invoke();
+            };
+        }
+
+        /// <summary>Deposit cargo at the delivery location required by the project.</summary>
         internal static string Contribute(NetPlayer by, int id, int item, int amount)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null) return "Player construction needs a persistent server.";
@@ -568,14 +617,8 @@ namespace GoF2Remake.Multiplayer
             if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Deposit between 1 and 500 units of a valid item.";
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
-            if (record.reconstructing)
-            {
-                if (!by.InSpace || by.Station != record.stationIndex || by.Hull <= 0 || !by.HasCurrentWreckClaimPose ||
-                    by.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres)
-                    return "Fly within 5 km of the reconstruction site to deliver materials.";
-            }
-            else if (!by.InHangar || StationClosedByCombat(by.Station))
-                return "Dock at any operational station to deposit construction materials.";
+            string locationError = ConstructionDeliveryError(by, record);
+            if (locationError != null) return locationError;
             var resource = record.materials?.Find(m => m != null && m.item == item);
             if (resource == null) return "That item is not required for this station project.";
             long remaining = (long)resource.required - resource.delivered;
@@ -665,11 +708,7 @@ namespace GoF2Remake.Multiplayer
             long previousPaid = contribution.paidCredits;
             long previousPaidUtc = contribution.paidUtc;
             int previousDelivered = resource.delivered;
-            bool wasUnderConstruction = record.underConstruction;
-            bool wasReconstructing = record.reconstructing;
-            bool integrityInitialized = record.stationIntegrityInitialized;
-            float previousIntegrity = record.stationIntegrity;
-            float previousIntegrityCapacity = record.stationIntegrityCapacity;
+            Action rollbackCompletion = null;
             if (newContribution) record.constructionContributions.Add(contribution);
             contribution.amount += amount;
             if (factionOwned)
@@ -681,11 +720,7 @@ namespace GoF2Remake.Multiplayer
             resource.delivered += amount;
             if (complete)
             {
-                record.underConstruction = false;
-                record.reconstructing = false;
-                record.stationIntegrityInitialized = false;
-                record.stationIntegrity = 0f;
-                record.stationIntegrityCapacity = 0f;
+                rollbackCompletion = CompleteStationConstruction(record);
                 record.buyOrders?.Clear();
             }
 
@@ -696,11 +731,7 @@ namespace GoF2Remake.Multiplayer
             if (!committed)
             {
                 resource.delivered = previousDelivered;
-                record.underConstruction = wasUnderConstruction;
-                record.reconstructing = wasReconstructing;
-                record.stationIntegrityInitialized = integrityInitialized;
-                record.stationIntegrity = previousIntegrity;
-                record.stationIntegrityCapacity = previousIntegrityCapacity;
+                rollbackCompletion?.Invoke();
                 contribution.amount = previousAmount;
                 contribution.unitValue = previousUnitValue;
                 contribution.paidCredits = previousPaid;

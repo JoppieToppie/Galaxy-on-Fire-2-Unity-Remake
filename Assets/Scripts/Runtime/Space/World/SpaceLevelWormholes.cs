@@ -409,7 +409,7 @@ namespace GoF2Remake.World
             }
             else
                 root.transform.SetPositionAndRotation(
-                    OrbitScale.ToUnity(UndockPoint),
+                    OrbitScale.ToUnity(UndockPoint) + GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(Layout.stationIndex),
                     OrbitLayout.RotationToUnity(new Vector3(0f, (Random.value < 0.5f ? 1 : -1) * OrbitLayout.UndockYaw / 65536f * 2f * Mathf.PI, 0f)));
             // Modified: at Luur the station is turned -45 deg (OrbitBuilder.SpawnStation), and the undock point with it, about the
             // station (a player's request): out of its hangar, in front of it as at any other station. Arrivals stay as they were.

@@ -385,7 +385,8 @@ namespace GoF2Remake.Flight
             // Level::getLandmarks: [0] station (none in empty orbits), [1] the visible jumpgate (gate orbit only).
             var st = db.Stations.Find(s => s.index == layout.stationIndex);
             if (layout.hasStation && st != null)
-                Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = st.index,
+                Targets.Add(new Target { kind = Kind.Station,
+                    fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(st.index), station = st.index,
                                          name = st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}" });
             else if (layout.hasStation && layout.alienOrbit)   // the Void station: distance only, no autopilot
             {
@@ -699,7 +700,8 @@ namespace GoF2Remake.Flight
             }
             else if (target == null)
             {
-                Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = orbit,
+                Targets.Add(new Target { kind = Kind.Station,
+                    fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(orbit), station = orbit,
                     name = $"{name} {Localization.Get(136)}" });
             }
         }
