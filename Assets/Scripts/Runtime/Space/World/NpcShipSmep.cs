@@ -104,17 +104,14 @@ namespace GoF2Remake.World
                               : Application.isMobilePlatform && InputMode.Current == InputKind.Touch;
         }
 
-        /// <summary>The Lua mode's multiplayer player pick: desktop first, mobile second, mobile cruisers first of all.</summary>
+        /// <summary>Choose a hostile remote player only when the current opponent is no longer valid.</summary>
         void UpdateSmepTargetPriority()
         {
             if (!SmepHullEligible || !NetSession.Active || RemotePlayers == null || HostileToRemote == null) return;
-            // Keep an existing valid hostile target instead of switching pilots every update.
-            // Mobile pilots without explicit opt-in remain ineligible for SMEP priority selection.
+            // Keep mobile opponents too: they switch the flight controller, not the NPC's hostility.
             if (target != null && Pursuable(target) && InBox(target)
-                && (target.netPilot ? HostileToRemote(this, target) : remoteTarget == null)
-                && !MobilePlatformTarget(target)) return;
+                && (!target.netPilot || HostileToRemote(this, target))) return;
             Target best = null;
-            int bestPriority = int.MaxValue;
             float bestDistance = float.MaxValue;
             var origin = transform.position;
             foreach (var candidate in RemotePlayers)
@@ -123,14 +120,9 @@ namespace GoF2Remake.World
                 if (!Pursuable(candidate) || !HostileToRemote(this, candidate)) continue;
                 float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
                 if ((candidate.transform.position - origin).sqrMagnitude > detect * detect) continue;
-                bool mobile = MobilePlatformTarget(candidate);
-                bool cruiser = candidate.netShipIndex >= 0
-                               && ShipClassRules.ClassOf(db?.Ship(candidate.netShipIndex)) == ShipClassRules.Cruiser;
-                int priority = mobile ? (cruiser ? 0 : 2) : 1;
                 float distance = (candidate.transform.position - origin).sqrMagnitude;
-                if (priority > bestPriority || (priority == bestPriority && distance >= bestDistance)) continue;
+                if (distance >= bestDistance) continue;
                 best = candidate;
-                bestPriority = priority;
                 bestDistance = distance;
             }
             if (best == null) return;
