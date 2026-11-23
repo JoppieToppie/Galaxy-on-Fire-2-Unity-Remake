@@ -103,6 +103,11 @@ namespace GoF2Remake.World
         void UpdateSmepTargetPriority()
         {
             if (!SmepHullEligible || !NetSession.Active || RemotePlayers == null || HostileToRemote == null) return;
+            // Keep an existing valid hostile target instead of switching pilots every update.
+            // Mobile pilots without explicit opt-in remain ineligible for SMEP priority selection.
+            if (target != null && Pursuable(target) && InBox(target)
+                && (!target.netPilot || HostileToRemote(this, target))
+                && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn)) return;
             Target best = null;
             int bestPriority = int.MaxValue;
             float bestDistance = float.MaxValue;
