@@ -255,7 +255,8 @@ namespace GoF2Remake.UI
             energyLine.style.display = energy || route ? DisplayStyle.Flex : DisplayStyle.None;
             if (energy)
             {
-                energyLine.text = $"{T(578)} {cells} / {cellsInCargo}";
+                string risk = DriveFailureRisk(energySystem);
+                energyLine.text = $"{T(578)} {cells} / {cellsInCargo}" + (risk != null ? "  ·  " + risk : "");
                 energyLine.EnableInClassList("energy-line--short", cellsInCargo < cells);
             }
             else if (route)
