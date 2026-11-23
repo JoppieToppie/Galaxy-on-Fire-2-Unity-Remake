@@ -82,7 +82,7 @@ namespace GoF2Remake.Multiplayer
                         string.Equals(blocked.id, factionId, StringComparison.Ordinal)) return false;
                 }
             return gate.accessMode != PlayerJumpgateAccessMode.OwningFaction ||
-                (!string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.ownerFactionId, StringComparison.Ordinal));
+                (!string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.accessFactionId, StringComparison.Ordinal));
         }
 
         static bool ValidOrbit(int systemIndex, int orbitStationIndex, out SystemData system)
@@ -103,6 +103,8 @@ namespace GoF2Remake.Multiplayer
             gate.ownerProfile = station.ownerProfile;
             gate.ownerFactionId = station.ownerFactionId;
             gate.ownerName = station.ownerName;
+            gate.accessFactionId = station.ownershipType == PlayerStationOwnershipType.Faction
+                ? station.ownerFactionId : NetFactions.Of(station.ownerProfile)?.id;
             return changed;
         }
 
@@ -135,6 +137,8 @@ namespace GoF2Remake.Multiplayer
                     ownerProfile = station.ownerProfile,
                     ownerFactionId = station.ownerFactionId,
                     ownerName = station.ownerName,
+                    accessFactionId = station.ownershipType == PlayerStationOwnershipType.Faction
+                        ? station.ownerFactionId : NetFactions.Of(station.ownerProfile)?.id,
                     building = station.jumpgateBuilding,
                     startedUtc = station.jumpgateStartedUtc,
                     completesUtc = station.jumpgateCompletesUtc,
@@ -292,6 +296,7 @@ namespace GoF2Remake.Multiplayer
                 ownerProfile = factionIssued ? null : issuer,
                 ownerFactionId = factionIssued ? sponsor.ownerFactionId : null,
                 ownerName = factionIssued ? sponsor.ownerName : by.DisplayName,
+                accessFactionId = factionIssued ? sponsor.ownerFactionId : issuerFaction?.id,
                 constructionStationId = sponsor.id,
                 constructionIssuerProfile = issuer,
                 building = true,
