@@ -57,8 +57,8 @@ namespace GoF2Remake.Multiplayer
                 record.buyOrders.Remove(order);
                 return "The order could not be journalled; no funds were reserved.";
             }
-            if (fundingProfile != null && !(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, -(int)reserve, 0, 0, "", "Construction buy order escrow");
+            if (fundingProfile != null)
+                NotifyProfileCreditChange(fundingProfile, -reserve, "Construction buy order escrow");
             return $"Construction buy order #{record.buyOrders.Count - 1} created for {amount} x {NetGame.Db?.Item(item)?.name ?? ("Item " + item)} at {unitPrice:N0} each. {reserve:N0} credits escrowed.";
         }
 
@@ -102,6 +102,7 @@ namespace GoF2Remake.Multiplayer
                 if (resource != null && resource.delivered < resource.required) { complete = false; break; }
             var credits = new List<(string account, long delta)> { (seller, total) };
             var banks = new List<(string factionId, long delta)>();
+            var profileRefunds = new List<(string account, long amount)>();
             if (complete)
             {
                 record.underConstruction = false;
@@ -127,7 +128,11 @@ namespace GoF2Remake.Multiplayer
                         record.buyOrders = oldOrders;
                         return "Construction cannot complete because an outstanding buy order has an ambiguous or missing escrow owner. The order was preserved for administrator recovery.";
                     }
-                    if (hasProfileFunder) credits.Add((pending.fundedByProfile, pending.reservedCredits));
+                    if (hasProfileFunder)
+                    {
+                        credits.Add((pending.fundedByProfile, pending.reservedCredits));
+                        profileRefunds.Add((pending.fundedByProfile, pending.reservedCredits));
+                    }
                     else banks.Add((pending.fundedByFactionId, pending.reservedCredits));
                 }
                 record.buyOrders.Clear();
@@ -142,10 +147,10 @@ namespace GoF2Remake.Multiplayer
             if (complete) Apply(NetGame.Db);
 
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-            {
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, order.item, amount, 0, "", "Construction buy order");
-                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, (int)total, 0, 0, "", "Construction buy order");
-            }
+            NotifyProfileCreditChange(seller, total, "Construction buy order");
+            foreach (var refund in profileRefunds)
+                NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
             return $"Sold {amount} x {NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item)} into construction order #{orderIndex} for {total:N0} credits." +
                 (complete ? " Construction is complete; remaining order escrow was refunded." : " Materials were added to the construction project.");
         }
@@ -185,8 +190,8 @@ namespace GoF2Remake.Multiplayer
                 record.buyOrders.Insert(orderIndex, order);
                 return "The cancellation could not be journalled; the order and escrow remain active.";
             }
-            if (order.fundedByProfile != null && !(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
-                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits, (int)order.reservedCredits, 0, 0, "", "Construction buy order refund");
+            if (!string.IsNullOrEmpty(order.fundedByProfile) && order.reservedCredits > 0)
+                NotifyProfileCreditChange(order.fundedByProfile, order.reservedCredits, "Construction buy order refund");
             return $"Construction buy order cancelled. {order.reservedCredits:N0} unspent escrow credits were returned.";
         }
 
