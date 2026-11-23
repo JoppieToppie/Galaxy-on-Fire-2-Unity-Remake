@@ -284,8 +284,10 @@ namespace GoF2Remake.Multiplayer
                     : "You must personally discover the destination system before connecting a gate to it.";
             if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
                 return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
-            if (FindJumpgate(orbitStationIndex) != null)
-                return "That orbit already has a player-built jumpgate or an active gate project. Only one gate can occupy an orbit.";
+            var existingGate = FindJumpgate(orbitStationIndex);
+            bool stationRebuild = existingGate != null && existingGate.permanentlyDestroyed;
+            if (existingGate != null && !stationRebuild)
+                return "That orbit already has a player-built jumpgate, a scrapped gate awaiting reclamation, or an active gate project. Only one gate can occupy an orbit.";
 
             var gate = new PlayerJumpgateRecord
             {
@@ -303,13 +305,19 @@ namespace GoF2Remake.Multiplayer
                 building = true,
                 buildSeconds = buildSeconds,
                 materials = RequiredJumpgateMaterials(),
-                contributions = new List<PlayerStationContribution>()
+                contributions = new List<PlayerStationContribution>(),
+                destructionCount = stationRebuild ? existingGate.destructionCount : 0,
+                salvageMaterials = new List<PlayerStationMaterial>(),
+                salvageDropPending = false
             };
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
-            registry.jumpgates.Add(gate);
+            int existingIndex = stationRebuild ? registry.jumpgates.IndexOf(existingGate) : -1;
+            if (stationRebuild && existingIndex >= 0) registry.jumpgates[existingIndex] = gate;
+            else registry.jumpgates.Add(gate);
             if (!Save())
             {
-                registry.jumpgates.Remove(gate);
+                if (stationRebuild && existingIndex >= 0) registry.jumpgates[existingIndex] = existingGate;
+                else registry.jumpgates.Remove(gate);
                 return "The jumpgate construction plan could not be saved.";
             }
             return "Jumpgate project started in orbit " + orbitStationIndex + " of " + origin.name +
