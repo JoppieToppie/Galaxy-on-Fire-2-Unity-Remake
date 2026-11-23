@@ -561,11 +561,24 @@ namespace GoF2Remake.Multiplayer
                     int resumeBatches = Math.Min(100, Math.Max(1, paused.batchesPerCycle));
                     if (!paused.continuous) resumeBatches = Math.Min(resumeBatches, Math.Max(0, paused.remainingBatches));
                     bool hasInputs = resumeBatches > 0;
+                    long consumed = 0;
                     if (hasInputs)
                         foreach (var input in pausedRecipe.inputs)
-                            if (input.amount > int.MaxValue / resumeBatches ||
+                        {
+                            if (input.amount <= 0 || input.amount > int.MaxValue / resumeBatches ||
                                 OwnedStorageAmount(record, paused.createdByProfile, input.item) < input.amount * resumeBatches)
                             { hasInputs = false; break; }
+                            consumed += (long)input.amount * resumeBatches;
+                        }
+                    long produced = (long)pausedRecipe.outputAmount * resumeBatches;
+                    var pausedOutput = record.storage.Find(x => x != null && x.item == pausedRecipe.output);
+                    long storedNow = 0;
+                    foreach (var stack in record.storage) if (stack != null) storedNow += Math.Max(0, stack.amount);
+                    if (produced <= 0 || produced > int.MaxValue ||
+                        (pausedOutput == null && record.storage.Count >= MaxStorageItemTypes) ||
+                        (pausedOutput != null && pausedOutput.amount > int.MaxValue - produced) ||
+                        storedNow - consumed + produced > StorageCapacity(record))
+                        hasInputs = false;
                     if (hasInputs) { paused.paused = false; resumed = true; }
                 }
                 if (resumed) Save();
