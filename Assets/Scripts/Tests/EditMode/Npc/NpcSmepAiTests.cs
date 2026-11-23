@@ -50,6 +50,27 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(expected, SmepAiRules.UseCustomFlight(eligibleNpc, mobileTarget, empDisabled, canTurn, drifting));
         }
 
+        [TestCase("frigate", true)]
+        [TestCase("CRUISER", true)]
+        [TestCase("Carrier", true)]
+        [TestCase("FREIGHTER", true)]
+        [TestCase("interceptor", false)]
+        [TestCase("heavy_bomber", false)]
+        [TestCase(null, false)]
+        public void ExcludedNpcClassesDoNotDependOnCapitalization(string classId, bool excluded)
+        {
+            Assert.AreEqual(excluded, SmepAiRules.ExcludedNpcClass(classId));
+        }
+
+        [Test]
+        public void MobileOptInDoesNotOverrideMobileTargetFallback()
+        {
+            // Mobile AI opt-in controls the build, not the target's controller.
+            Assert.IsTrue(SmepAiRules.EnabledOnPlatform(true, true));
+            Assert.IsFalse(SmepAiRules.EnabledForTarget(true, true));
+            Assert.IsFalse(SmepAiRules.UseCustomFlight(true, true, false, true, false));
+        }
+
         [Test]
         public void MobilePilotJoiningMidFightForcesConventionalFlight()
         {
