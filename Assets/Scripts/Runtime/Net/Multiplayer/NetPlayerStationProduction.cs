@@ -274,7 +274,7 @@ namespace GoF2Remake.Multiplayer
             public (int item, int amount)[] inputs;
         }
 
-        // Basic industrial commodities assembled from the game's existing trade goods.
+        // Built-in starter recipes. Mods can register any validated item output through RegisterFactoryRecipe.
         // Recipe identifiers are stable command-facing IDs; item IDs are resolved against the active database.
         static readonly List<FactoryRecipe> FactoryRecipes = new List<FactoryRecipe>
         {
