@@ -74,18 +74,20 @@ namespace GoF2Remake.Multiplayer
         {
             contested = false;
             WreckClaimant? first = null;
+            bool eligibleToClaim = false;
             if (orbit < 0) return first;
             foreach (var pilot in NetPlayer.All)
             {
                 // Stations are built at the orbit origin. Pilot positions are already in Unity metres.
                 if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != orbit ||
                     !pilot.HasCurrentWreckClaimPose || pilot.Hull <= 0 ||
-                    pilot.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres ||
-                    !NetProfiles.Controls(pilot.OwnerClientId)) continue;
+                    pilot.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres) continue;
                 string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-                if (string.IsNullOrEmpty(account)) continue;
+                bool controls = !string.IsNullOrEmpty(account) && NetProfiles.Controls(pilot.OwnerClientId);
+                eligibleToClaim |= controls;
                 var faction = NetFactions.Of(account);
-                var side = new WreckClaimant(account, faction?.id, faction?.name ?? pilot.DisplayName);
+                var side = new WreckClaimant(string.IsNullOrEmpty(account) ? $"guest:{pilot.OwnerClientId}" : account,
+                    faction?.id, faction?.name ?? pilot.DisplayName);
                 if (!first.HasValue) first = side;
                 else if (!first.Value.SameSide(side))
                 {
@@ -93,7 +95,7 @@ namespace GoF2Remake.Multiplayer
                     return null;
                 }
             }
-            return first;
+            return eligibleToClaim ? first : null;
         }
 
         static string WreckClaimStatus(PlayerStationRecord station)

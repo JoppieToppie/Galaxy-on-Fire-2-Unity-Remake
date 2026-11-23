@@ -119,7 +119,8 @@ namespace GoF2Remake.World
         public PlayerDevices Devices { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
         public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, StoryLocked) || (Siege != null && Siege.Active) || FreelanceBlocks
-                                      || GoF2Remake.World.SpaceHooks.NoDocking;   // an event's Restrict Travel
+                                      || GoF2Remake.World.SpaceHooks.NoDocking
+                                      || GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(Layout.stationIndex);   // an event's Restrict Travel
         bool freelanceMissionOrbit;
         /// <summary>The orbit was built around the freelance mission (Status::departStation put it in Status+400) and it holds
         /// the player here until it is won or failed (Freelance.BlocksTravel).</summary>
@@ -560,12 +561,11 @@ namespace GoF2Remake.World
                 Docking.Docked += () => { if (DockedLook) FreeLook.EnterDockedLook(); };
             }
             // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
-            if (plainOrbit && !prologue && !interstellar && Station != null)
-            {
-                SpawnStationPads(station);
-                SpawnExternalDockPoints(station);
-            }
-            Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active))
+            if (plainOrbit && !prologue && !interstellar && Station != null &&
+                (Layout.hasStation || !GoF2Remake.Multiplayer.NetPlayerStations.IsPlayerStation(station)))
+                SpawnPlayerStationDockPoints(station);
+            Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active) ||
+                    GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(Layout.stationIndex))
                 ? Localization.Get(525) : null;
             Docking.Docked += () =>
             {
@@ -821,6 +821,7 @@ namespace GoF2Remake.World
             if (Session.Wingmen.Count > 0 && Session.WingmanContractMs > 0f) Session.WingmanContractMs = Mathf.Max(0f, Session.WingmanContractMs - Time.deltaTime * 1000f);
             if (Health == null) return;
             UpdatePlayerJumpgate();
+            UpdatePlayerStationLifecycle();
             bool warpHolds = WarpHolds;
             if (Weapons != null) Weapons.WarpHeld = warpHolds;
             Navigation.ArrivalHeld = warpSky != null && warpSky.Arriving;

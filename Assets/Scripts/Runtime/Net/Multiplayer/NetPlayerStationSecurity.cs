@@ -54,7 +54,7 @@ namespace GoF2Remake.Multiplayer
                 if (player == null || !player.IsSpawned || player.Where != NetPlayer.Place.Hangar ||
                     player.Station != record.stationIndex) continue;
                 string account = NetProfiles.AccountOf(player.OwnerClientId);
-                if (!HasStationPermission(record, account, PlayerStationPermission.Visit))
+                if (!CanVisitStation(record.stationIndex, account))
                     player.ForceStationLaunch("Your permission to visit " + record.name + " has been revoked.");
             }
         }

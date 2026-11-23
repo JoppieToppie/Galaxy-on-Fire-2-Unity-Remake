@@ -391,14 +391,17 @@ namespace GoF2Remake.Flight
             }
             gun.owner = owner;
             gun.Hit += (i, target, point) => OnHit(rig, i, target, point);
-            gun.BlastDetonation += (i, centre) => OnGateBlast(gun, i, centre);
+            gun.BlastDetonation += (i, centre) => OnStructureBlast(gun, i, centre);
             // Scenery collision supplies the actual mesh body, not just a position near a gate.
             gun.SceneryImpact += (i, body, point) =>
             {
-                if (body == null || body.playerJumpgateOrbit < 0 ||
-                    !HullCollision.IsForcedExact(body)) return;
-                GoF2Remake.Multiplayer.NetPlayer.Local?.ReportJumpgateImpact(
-                    body.playerJumpgateOrbit, gun.itemIndex, gun.bullets[i].networkShotId, point);
+                if (body == null || !HullCollision.IsForcedExact(body)) return;
+                var pilot = GoF2Remake.Multiplayer.NetPlayer.Local;
+                uint shotId = gun.bullets[i].networkShotId;
+                if (body.playerStationOrbit >= 0)
+                    pilot?.ReportPlayerStationContact(body.playerStationOrbit, gun.itemIndex, shotId, point, point, false);
+                else if (body.playerJumpgateOrbit >= 0)
+                    pilot?.ReportJumpgateImpact(body.playerJumpgateOrbit, gun.itemIndex, shotId, point);
             };
             gun.AreaHit += (target, dmg, emp, center) => OnAreaHit(rig, target, dmg, emp, center);
             gun.Ignited += point => OnIgnited(rig, point);
@@ -707,7 +710,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>Only a blast that actually reaches a shown, precise gate mesh reports its
         /// closest contact point. The server rechecks the recorded projectile and damage formula.</summary>
-        static void OnGateBlast(Gun gun, int bullet, Vector3 centre)
+        static void OnStructureBlast(Gun gun, int bullet, Vector3 centre)
         {
             if (gun == null || gun.magnitude <= 0f || bullet < 0 || bullet >= gun.bullets.Length) return;
             uint shotId = gun.bullets[bullet].networkShotId;
@@ -717,7 +720,7 @@ namespace GoF2Remake.Flight
             Physics.SyncTransforms();  // bombs can detonate on expiry without a preceding hull cast
             foreach (var body in UnityEngine.Object.FindObjectsByType<HullBody>(FindObjectsSortMode.None))
             {
-                if (body == null || body.playerJumpgateOrbit < 0 ||
+                if (body == null || (body.playerJumpgateOrbit < 0 && body.playerStationOrbit < 0) ||
                     !HullCollision.IsForcedExact(body) || !body.Collides) continue;
                 float nearest = radius;
                 Vector3 surface = default;
@@ -725,15 +728,29 @@ namespace GoF2Remake.Flight
                 foreach (var collider in body.colliders)
                 {
                     if (collider == null || !collider.enabled || !HullCollision.Shown(collider)) continue;
-                    Vector3 candidate = collider.ClosestPoint(centre);
+                    Vector3 candidate;
+                    if (body.playerStationOrbit >= 0)
+                    {
+                        // ClosestPoint does not support the non-convex station meshes. The bounds
+                        // only select rays; the contact itself must come from the exact collider.
+                        Vector3 aim = collider.bounds.ClosestPoint(centre) - centre;
+                        if ((aim.sqrMagnitude < 0.001f ||
+                            !collider.Raycast(new Ray(centre, aim.normalized), out var hit, nearest)) &&
+                            !collider.Raycast(new Ray(centre, (collider.bounds.center - centre).normalized), out hit, nearest))
+                            continue;
+                        candidate = hit.point;
+                    }
+                    else candidate = collider.ClosestPoint(centre);
                     float distance = Vector3.Distance(centre, candidate);
                     if (distance > nearest) continue;
                     nearest = distance;
                     surface = candidate;
                     found = true;
                 }
-                if (found) pilot.ReportJumpgateBlast(body.playerJumpgateOrbit,
-                    gun.itemIndex, shotId, centre, surface);
+                if (!found) continue;
+                if (body.playerStationOrbit >= 0)
+                    pilot.ReportPlayerStationContact(body.playerStationOrbit, gun.itemIndex, shotId, centre, surface, true);
+                else pilot.ReportJumpgateBlast(body.playerJumpgateOrbit, gun.itemIndex, shotId, centre, surface);
             }
         }
 

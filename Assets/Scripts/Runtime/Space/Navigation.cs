@@ -687,6 +687,23 @@ namespace GoF2Remake.Flight
         /// its landmark with it.</summary>
         public GameObject StationObject;
 
+        internal void RefreshPlayerStation(int orbit, bool operational, string name)
+        {
+            var target = Targets.Find(value => value.kind == Kind.Station && value.station == orbit && value.transform == null);
+            if (!operational)
+            {
+                if (target == null) return;
+                if (Locked == target || Candidate == target) { Locked = Candidate = null; LockTimer = 0f; }
+                if (AutopilotTarget == target) SetAutopilot(null);
+                Targets.Remove(target);
+            }
+            else if (target == null)
+            {
+                Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = orbit,
+                    name = $"{name} {Localization.Get(136)}" });
+            }
+        }
+
         /// <summary>Set by a level whose station a docking target stands in for (remake, 102: Tadram's pads): the station's own
         /// landmark leaves the locks, markers and the autopilot menu, so the two don't sit on top of each other.</summary>
         public bool StationReplaced;

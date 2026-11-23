@@ -82,7 +82,7 @@ namespace GoF2Remake.Multiplayer
         public static bool DockedAt(ulong client, int station)
         {
             var p = NetSquad.Find(client);
-            return p != null && p.InHangar && p.Station == station;
+            return p != null && p.InHangar && p.Station == station && !NetPlayerStations.StationClosedByCombat(station);
         }
 
         /// <summary>A shot as NetShotSender sends it: a weapon item, finite values in range.</summary>

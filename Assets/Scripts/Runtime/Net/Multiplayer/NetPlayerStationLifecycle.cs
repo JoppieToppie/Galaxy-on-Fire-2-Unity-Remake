@@ -1,0 +1,241 @@
+using System;
+using System.Collections.Generic;
+using GoF2Remake.Data;
+using UnityEngine;
+
+namespace GoF2Remake.Multiplayer
+{
+    public static partial class NetPlayerStations
+    {
+        const float StationMaxIntegrity = 30000f;
+        const float WreckMaxIntegrity = 12000f;
+        const int ReconstructionPercent = 50;
+
+        static PlayerStationRecord StationAt(int orbit) =>
+            registry?.stations?.Find(station => station != null && station.stationIndex == orbit);
+
+        public static bool StationClosedByCombat(int orbit)
+        {
+            var station = StationAt(orbit);
+            return station != null && (station.wreckClaimOpen || station.reconstructing || station.destroyed);
+        }
+
+        public static bool StationSceneryPresent(int orbit)
+        {
+            var station = StationAt(orbit);
+            return station != null && !station.destroyed && (!station.underConstruction || station.reconstructing);
+        }
+
+        internal static bool CanDamagePlayerStation(int orbit) => StationSceneryPresent(orbit);
+
+        internal static bool ApplyStationCombatHit(int orbit, int weaponItem, float damage)
+        {
+            if (!NetGame.IsServer || !sessionActive || !CanDamagePlayerStation(orbit) ||
+                !NetGuard.Item(weaponItem) || StructuralWeaponEligible?.Invoke(weaponItem) != true ||
+                !NetGuard.Finite(damage) || damage <= 0f) return false;
+
+            var station = StationAt(orbit);
+            float integrity = station.stationIntegrityInitialized ? station.stationIntegrity :
+                station.wreckClaimOpen || station.reconstructing ? WreckMaxIntegrity : StationMaxIntegrity;
+            if (damage >= integrity) return DestroyStation(station);
+
+            bool initialized = station.stationIntegrityInitialized;
+            float previous = station.stationIntegrity;
+            station.stationIntegrityInitialized = true;
+            station.stationIntegrity = integrity - damage;
+            if (Save()) return true;
+            station.stationIntegrityInitialized = initialized;
+            station.stationIntegrity = previous;
+            return false;
+        }
+
+        // A new record drops live assets and governance while retaining the stable orbit and project identity.
+        static PlayerStationRecord SiteOf(PlayerStationRecord station) => new PlayerStationRecord
+        {
+            id = station.id,
+            stationIndex = station.stationIndex,
+            system = station.system,
+            looksLike = station.looksLike,
+            name = station.name,
+            createdUtc = station.createdUtc
+        };
+
+        static bool DestroyStation(PlayerStationRecord station)
+        {
+            var site = SiteOf(station);
+            bool wasOperational = !station.wreckClaimOpen && !station.reconstructing;
+            site.destroyed = !wasOperational;
+            site.stationExplosionPending = true;
+            if (wasOperational)
+            {
+                site.materials = station.materials;
+                OpenWreckClaim(site);
+            }
+            else if (station.wreckClaimOpen)
+            {
+                site.stationSalvage = RollStationSalvage(station.materials);
+                site.stationSalvagePending = site.stationSalvage.Count > 0;
+            }
+            // An interrupted reconstruction leaves no claim, salvage, or compensation.
+
+            int index = registry.stations.IndexOf(station);
+            var originalRegistry = registry;
+            registry.stations[index] = site;
+            long payout = wasOperational ? StationCompensation(station) : 0;
+            bool factionOwned = station.ownershipType == PlayerStationOwnershipType.Faction;
+            string recipient = factionOwned ? station.ownerFactionId : station.ownerProfile;
+            bool paysOwner = payout > 0 && !string.IsNullOrEmpty(recipient);
+            bool saved = !paysOwner ? Save() : factionOwned
+                ? CommitProfileTransaction(null, null, new List<(string, long)> { (recipient, payout) })
+                : CommitProfileTransaction(null, new List<(string, long)> { (recipient, payout) }, null);
+            if (!saved)
+            {
+                if (ReferenceEquals(registry, originalRegistry)) registry.stations[index] = station;
+                return false;
+            }
+
+            if (paysOwner && !factionOwned && !System.IO.File.Exists(TransactionPath))
+                NotifyProfileCreditChange(recipient, payout, "Station destruction compensation");
+            wreckControl.Remove(station.id);
+            Apply(NetGame.Db);
+            EjectDeniedVisitors(site);
+            return true;
+        }
+
+        static long StationCompensation(PlayerStationRecord station)
+        {
+            var db = NetGame.Db;
+            long value = 0;
+            void AddValue(int amount, int unitPrice)
+            {
+                long line = (long)Math.Max(0, amount) * Math.Max(0, unitPrice);
+                value += Math.Min(long.MaxValue - value, line);
+            }
+
+            foreach (var material in station.materials)
+                if (material != null) AddValue(material.delivered, db.Item(material.item)?.minPrice ?? 0);
+            foreach (var stack in station.storage)
+                if (stack != null) AddValue(stack.amount, db.Item(stack.item)?.minPrice ?? 0);
+            foreach (var ship in station.storedShips)
+                if (ship != null) AddValue(1, db.Ship(ship.ship)?.price ?? 0);
+            foreach (var ship in station.dryDockShips)
+                if (ship != null) AddValue(1, db.Ship(ship.ship)?.price ?? 0);
+            return value / 2;
+        }
+
+        static List<PlayerStationMaterial> RollStationSalvage(List<PlayerStationMaterial> materials)
+        {
+            // Draw a quarter of delivered construction units without replacement.
+            var available = new List<PlayerStationMaterial>();
+            int units = 0;
+            foreach (var material in materials)
+            {
+                if (material == null || !NetGuard.Item(material.item)) continue;
+                int count = Math.Clamp(material.delivered, 0, Math.Max(0, material.required));
+                if (count == 0) continue;
+                available.Add(new PlayerStationMaterial { item = material.item, delivered = count });
+                units += count;
+            }
+
+            int salvageUnits = units / 4;
+            for (int i = 0; i < salvageUnits; i++)
+            {
+                int pick = UnityEngine.Random.Range(0, units--);
+                foreach (var material in available)
+                {
+                    if (pick < material.delivered)
+                    {
+                        material.delivered--;
+                        material.required++;
+                        break;
+                    }
+                    pick -= material.delivered;
+                }
+            }
+            available.RemoveAll(material => material.required == 0);
+            foreach (var material in available) material.delivered = 0;
+            return available;
+        }
+
+        internal static string RebuildStation(NetPlayer pilot, int id)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry?.stations == null)
+                return "Reconstruction requires a persistent server.";
+            var wreck = Find(id);
+            if (wreck == null || !wreck.wreckClaimOpen || wreck.wreckClaim == null)
+                return "That project is not a reclaimable station wreck.";
+            if (!wreck.wreckClaim.exclusive) return "Wait for the wreck claim to become exclusive.";
+            if (wreck.stationExplosionPending) return "Wait for the destruction event to finish.";
+            if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != wreck.stationIndex ||
+                pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose ||
+                pilot.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres ||
+                !NetProfiles.Controls(pilot.OwnerClientId))
+                return "Fly within 5 km of the wreck with a controlled profile to start reconstruction.";
+
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return "Your controlled profile is unavailable.";
+            var faction = NetFactions.Of(account);
+            var side = new WreckClaimant(account, faction?.id, faction?.name ?? pilot.DisplayName);
+            if (!wreck.wreckClaim.BelongsTo(side)) return "Only the exclusive claimant can rebuild this wreck.";
+            bool factionOwned = side.FactionId != null;
+            if (factionOwned && !string.Equals(faction.leader, account, StringComparison.Ordinal) &&
+                faction.officers?.Contains(account) != true)
+                return "An officer or leader of the claiming faction must start reconstruction.";
+
+            var project = SiteOf(wreck);
+            var materials = RequiredMaterials();
+            foreach (var material in materials)
+                material.required = (material.required * ReconstructionPercent + 99) / 100;
+            project.materials = materials;
+            project.reconstructing = project.underConstruction = true;
+            project.createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            project.ownershipType = factionOwned ? PlayerStationOwnershipType.Faction : PlayerStationOwnershipType.Individual;
+            project.ownerProfile = side.Profile;
+            project.ownerFactionId = side.FactionId;
+            project.ownerName = side.Name;
+            project.originalBuilderProfile = account;
+            project.governanceVersion = 1;
+            project.factionPermissions = NewIndividualFactionPermissionProfile(false);
+            RecordHistory(project, account, "station-reconstruction-started", null, "The exclusive claimant began rebuilding the wreck.");
+
+            int index = registry.stations.IndexOf(wreck);
+            var originalRegistry = registry;
+            registry.stations[index] = project;
+            if (!Save())
+            {
+                if (ReferenceEquals(registry, originalRegistry)) registry.stations[index] = wreck;
+                return "The reconstruction project could not be saved.";
+            }
+            wreckControl.Remove(id);
+            Apply(NetGame.Db);
+            return $"Reconstruction started for {wreck.name}. Deposit materials with /station contribute {id} <item id> <amount>.";
+        }
+
+        static void TickStationDestruction()
+        {
+            foreach (var station in registry.stations)
+            {
+                if (station == null || (!station.stationExplosionPending && !station.stationSalvagePending)) continue;
+                var runner = NetPlayer.OrbitRunner(station.stationIndex);
+                if (runner == null) continue;
+                bool explosion = station.stationExplosionPending;
+                bool salvage = station.stationSalvagePending;
+                station.stationExplosionPending = false;
+                station.stationSalvagePending = false;
+                if (!Save())
+                {
+                    station.stationExplosionPending = explosion;
+                    station.stationSalvagePending = salvage;
+                    return;
+                }
+                if (explosion) runner.BroadcastPlayerStationExplosion(station.stationIndex);
+                if (salvage)
+                {
+                    var items = station.stationSalvage.ConvertAll(material => material.item);
+                    var amounts = station.stationSalvage.ConvertAll(material => material.required);
+                    runner.SpawnPlayerStationSalvage(station.stationIndex, items.ToArray(), amounts.ToArray());
+                }
+            }
+        }
+    }
+}

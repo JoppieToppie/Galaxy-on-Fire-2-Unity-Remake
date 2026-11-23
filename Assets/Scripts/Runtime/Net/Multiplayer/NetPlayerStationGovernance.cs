@@ -146,6 +146,7 @@ namespace GoF2Remake.Multiplayer
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             return NetGame.IsServer && sessionActive && registry != null && record != null &&
                 by != null && by.IsSpawned && by.InHangar && by.Station == record.stationIndex &&
+                !StationClosedByCombat(record.stationIndex) &&
                 NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account);
         }
 
@@ -337,7 +338,7 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanVisitStation(int stationIndex, string account)
         {
             var record = registry?.stations?.Find(x => x != null && x.stationIndex == stationIndex);
-            return record == null || HasStationPermission(record, account, PlayerStationPermission.Visit);
+            return record == null || (!StationClosedByCombat(stationIndex) && HasStationPermission(record, account, PlayerStationPermission.Visit));
         }
 
         // Ownership authority controls staffing and faction-wide station policy.
@@ -641,6 +642,7 @@ namespace GoF2Remake.Multiplayer
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             if (!NetGame.IsServer || !sessionActive || registry == null || record == null ||
                 by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
+                StationClosedByCombat(record.stationIndex) ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) || string.IsNullOrEmpty(account))
                 return false;
 

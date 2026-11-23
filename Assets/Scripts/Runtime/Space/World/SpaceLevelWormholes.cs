@@ -309,7 +309,7 @@ namespace GoF2Remake.World
         {
             OrbitBuilder.AddObstacles(Layout, Station, Jumpgate);
             // Remake: the player slides along their real shapes (HullCollision); shots pass them as in the original.
-            if (Station != null) HullCollision.Attach(Station, null, Station.GetComponent<Obstacle>());
+            if (Station != null) AttachStationHull();
             if (Jumpgate != null) HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>());
             // Remake mods: a station of its own model sizes the dock range and the launch point.
             var own = Modding.ModWorld.ModelOf(Layout.stationIndex);

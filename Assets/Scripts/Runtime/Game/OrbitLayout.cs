@@ -224,8 +224,8 @@ namespace GoF2Remake.World
             {
                 // Player projects reserve a generated orbit when construction begins. It remains empty until all
                 // required materials arrive; completion makes that orbit a normal dockable station.
-                o.hasStation = !GoF2Remake.Multiplayer.NetPlayerStations.UnderConstruction(stationIndex);
-                o.stationObject = o.hasStation;
+                o.stationObject = GoF2Remake.Multiplayer.NetPlayerStations.StationSceneryPresent(stationIndex);
+                o.hasStation = o.stationObject && !GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(stationIndex);
             }
             o.stationScale = OrbitScale.Chosen;
             // Coromesk (103): the Mining Plant at the origin from campaign 0x55 (TrafficSpecials.AddCampaignStatics; 0x87's level

@@ -145,6 +145,10 @@ namespace GoF2Remake.Multiplayer
         public PlayerStationTransferProposal pendingTransfer;
         // JsonUtility can deserialize a null inline record as an empty object. Check the flag.
         public bool wreckClaimOpen;
+        public bool reconstructing, destroyed, stationIntegrityInitialized;
+        public float stationIntegrity;
+        public bool stationExplosionPending, stationSalvagePending;
+        public List<PlayerStationMaterial> stationSalvage = new List<PlayerStationMaterial>();
         public PlayerStationWreckClaim wreckClaim;
         // One fixed-destination jumpgate may be built in this station's orbit.
         public int jumpgateDestinationSystem = -1;
@@ -488,6 +492,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return $"No player station with project id {id} exists in this world.";
             if (record.wreckClaimOpen && record.wreckClaim != null) return WreckClaimStatus(record);
+            if (record.destroyed) return $"Station #{id}: {record.name} was destroyed beyond recovery.";
             if (!CanViewStationRecord(by, record)) return "That station's management status is private to its owner and authorised faction members.";
 
             var system = NetGame.Db?.Systems?.Find(s => s != null && s.index == record.system);
@@ -496,7 +501,7 @@ namespace GoF2Remake.Multiplayer
                 $"Station #{record.id}: {record.name}",
                 $"System: {(system != null ? system.name : $"Unknown ({record.system})")}",
                 $"Owner: {(record.ownershipType == PlayerStationOwnershipType.Faction ? "Faction " + (string.IsNullOrWhiteSpace(record.ownerName) ? (record.ownerFactionId ?? "unknown") : record.ownerName) : (string.IsNullOrWhiteSpace(record.ownerName) ? "Unknown" : record.ownerName))}",
-                $"Status: {(record.underConstruction ? "Under construction" : "Operational")}",
+                $"Status: {(record.reconstructing ? "Reconstructing" : record.underConstruction ? "Under construction" : "Operational")}",
             };
 
             if (record.materials != null && record.materials.Count > 0)
@@ -547,7 +552,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!sessionActive || registry?.stations == null) return false;
             var station = registry.stations.Find(s => s != null && s.stationIndex == stationIndex);
-            return station != null && !station.underConstruction &&
+            return station != null && !station.underConstruction && !StationClosedByCombat(stationIndex) &&
                 (station.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
         }
 
@@ -558,11 +563,19 @@ namespace GoF2Remake.Multiplayer
         internal static string Contribute(NetPlayer by, int id, int item, int amount)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null) return "Player construction needs a persistent server.";
-            if (by == null || !by.IsSpawned || !by.InHangar) return "Dock at any station to deposit construction materials.";
+            if (by == null || !by.IsSpawned) return "Connect a pilot to deposit construction materials.";
             if (!NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId)) return "Use a controlled player profile to contribute materials.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Deposit between 1 and 500 units of a valid item.";
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
+            if (record.reconstructing)
+            {
+                if (!by.InSpace || by.Station != record.stationIndex || by.Hull <= 0 || !by.HasCurrentWreckClaimPose ||
+                    by.Position.sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres)
+                    return "Fly within 5 km of the reconstruction site to deliver materials.";
+            }
+            else if (!by.InHangar || StationClosedByCombat(by.Station))
+                return "Dock at any operational station to deposit construction materials.";
             var resource = record.materials?.Find(m => m != null && m.item == item);
             if (resource == null) return "That item is not required for this station project.";
             long remaining = (long)resource.required - resource.delivered;
@@ -653,6 +666,9 @@ namespace GoF2Remake.Multiplayer
             long previousPaidUtc = contribution.paidUtc;
             int previousDelivered = resource.delivered;
             bool wasUnderConstruction = record.underConstruction;
+            bool wasReconstructing = record.reconstructing;
+            bool integrityInitialized = record.stationIntegrityInitialized;
+            float previousIntegrity = record.stationIntegrity;
             if (newContribution) record.constructionContributions.Add(contribution);
             contribution.amount += amount;
             if (factionOwned)
@@ -665,6 +681,9 @@ namespace GoF2Remake.Multiplayer
             if (complete)
             {
                 record.underConstruction = false;
+                record.reconstructing = false;
+                record.stationIntegrityInitialized = false;
+                record.stationIntegrity = 0f;
                 record.buyOrders?.Clear();
             }
 
@@ -676,6 +695,9 @@ namespace GoF2Remake.Multiplayer
             {
                 resource.delivered = previousDelivered;
                 record.underConstruction = wasUnderConstruction;
+                record.reconstructing = wasReconstructing;
+                record.stationIntegrityInitialized = integrityInitialized;
+                record.stationIntegrity = previousIntegrity;
                 contribution.amount = previousAmount;
                 contribution.unitValue = previousUnitValue;
                 contribution.paidCredits = previousPaid;
@@ -724,7 +746,7 @@ namespace GoF2Remake.Multiplayer
             if (registry.stations.Count >= MaxStations)
                 return "This world has reached its player station limit.";
             int inSystem = 0;
-            foreach (var station in registry.stations) if (station != null && station.system == system.index) inSystem++;
+            foreach (var station in registry.stations) if (station != null && !station.destroyed && station.system == system.index) inSystem++;
             if (inSystem >= MaxStationsPerSystem)
                 return "This system has reached its player station limit.";
 
@@ -819,7 +841,7 @@ namespace GoF2Remake.Multiplayer
                 }
 
                 int count = 0;
-                foreach (var station in registry.stations) if (station != null && station.system == record.system) count++;
+                foreach (var station in registry.stations) if (station != null && !station.destroyed && station.system == record.system) count++;
                 bool validOrbit = system != null && system.stations != null && system.stations.Count > 0;
                 bool validPreset = look != null;
                 bool available = count <= MaxStationsPerSystem && validOrbit && validPreset;
@@ -842,7 +864,7 @@ namespace GoF2Remake.Multiplayer
                             existing.systemName = system.name;
                             existing.techLevel = look.techLevel;
                             existing.textureIndex = look.textureIndex;
-                            if (record.underConstruction) system.stations.Remove(record.stationIndex);
+                            if (record.underConstruction && !record.reconstructing) system.stations.Remove(record.stationIndex);
                             else if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
                         }
                         else
@@ -885,7 +907,7 @@ namespace GoF2Remake.Multiplayer
                     techLevel = look.techLevel,
                     textureIndex = look.textureIndex,
                 });
-                if (record.underConstruction) system.stations.Remove(record.stationIndex);
+                if (record.underConstruction && !record.reconstructing) system.stations.Remove(record.stationIndex);
                 else if (!system.stations.Contains(record.stationIndex)) system.stations.Add(record.stationIndex);
             }
             NetGuard.RefreshStations();

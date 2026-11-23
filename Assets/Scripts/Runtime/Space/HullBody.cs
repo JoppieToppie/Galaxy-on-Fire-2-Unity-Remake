@@ -16,6 +16,7 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public Target target;
         /// <summary>Orbit of an independently built gate; -1 for all other scenery.</summary>
         [System.NonSerialized] public int playerJumpgateOrbit = -1;
+        [System.NonSerialized] public int playerStationOrbit = -1;
         /// <summary>What the player is pushed out of; null = the player flies through (fighters, like the original).</summary>
         [System.NonSerialized] public Obstacle obstacle;
         [System.NonSerialized] public readonly List<MeshCollider> colliders = new List<MeshCollider>();
