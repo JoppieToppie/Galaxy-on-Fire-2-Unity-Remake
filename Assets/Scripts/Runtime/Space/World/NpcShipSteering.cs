@@ -126,6 +126,7 @@ namespace GoF2Remake.World
             bool useSmepFlight = smepFighterAi && SmepEnabledForTarget && !Hp.empDisabled && slow.CanTurn && !noSteer;
             // SMEP owns movement and steering when active. ES2 is only the fallback controller.
             bool useEs2Flight = es2Flight && !useSmepFlight;
+            if (smepFighterAi && !useSmepFlight) smepDogfightState = null;
             if (!noSteer && !Hp.empDisabled)
             {
                 Vector3 h;
