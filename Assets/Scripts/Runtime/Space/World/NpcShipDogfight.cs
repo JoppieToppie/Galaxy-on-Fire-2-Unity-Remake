@@ -50,7 +50,7 @@ namespace GoF2Remake.World
             var customTraffic = (db?.Ship(spec.ship) as CustomShipData)?.traffic;
             // An explicit SMEP mod opt-in outranks global dogfight presets. Global
             // settings still govern NPCs that did not opt into SMEP.
-            bool smep = string.Equals(customTraffic?.ai, "smep", System.StringComparison.OrdinalIgnoreCase);
+            bool smep = SmepAiRules.RequestedByMod(customTraffic?.ai);
             string ai = mode == SessionRules.DogfightAll ? "gof3" : mode == SessionRules.DogfightEs2All ? "es2"
                       : mode == SessionRules.DogfightOriginalMode ? null : customTraffic?.ai;
             bool smepMobileAllowed = SmepAiRules.EnabledOnPlatform(Application.isMobilePlatform, customTraffic?.mobileAi == true);
