@@ -90,6 +90,29 @@ namespace GoF2Remake.Tests
             Assert.Greater(Hangar.UnitsOf(Db, second), 0, "the second launcher can be demounted with its own ammunition");
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        public void SharedRestockSurvivesDemountingEitherLauncher(int demountIndex)
+        {
+            Session.ShipIndex = 44;   // Specter: two secondary hardpoints
+            Session.Cargo.RemoveAll(x => x.item == 36);
+            Session.Equipment = new List<ItemStack> { new ItemStack(36, 1), new ItemStack(36, 1) };
+            var first = Session.Equipment[0];
+            var second = Session.Equipment[1];
+            var pool = new SecondaryAmmoPool();
+            pool.AddStack(first);
+            pool.AddStack(second);
+            Assert.AreEqual(10, pool.Add(10));
+            Assert.AreEqual(6, first.amount);
+            Assert.AreEqual(6, second.amount);
+
+            Dis().Demount(demountIndex);
+
+            Assert.AreEqual(6, Shop.CargoOf(36), "the removed launcher takes only its own saved ammo");
+            Assert.AreEqual(1, Session.Equipment.Count);
+            Assert.AreEqual(6, Session.Equipment[0].amount, "the surviving launcher retains its ammunition");
+        }
+
         [Test]
         public void BuiltInAndFittedDuplicateSecondariesCanShareAndRestock()
         {
