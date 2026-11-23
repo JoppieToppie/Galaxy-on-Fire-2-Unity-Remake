@@ -23,12 +23,12 @@ namespace GoF2Remake.World
         const float Es2CountMs = 500f, Es2LegMs = 3000f, Es2SwerveFactor = 1.25f, Es2LoiterM = 200f;
 
         /// <summary>ES2's aim for fighters and wingmen while the option is on (not freighters, turrets, objects, capital ships).</summary>
-        void SetupEs2Aim(SpawnSpec spec)
+        void SetupEs2Aim(SpawnSpec spec, bool force = false)
         {
             es2Aim = null;
             es2AimFor = null;
             if (spec.freighter || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.capitalPart || spec.modCapital) return;
-            if (!Settings.Es2Aiming) return;
+            if (!Settings.Es2Aiming && !force) return;
             es2Aim = new Es2Aim();
             es2Seed = Random.Range(int.MinValue, int.MaxValue);
         }
@@ -37,9 +37,11 @@ namespace GoF2Remake.World
         void SetupEs2Fight() => es2Fight = new Es2Dogfight(Es2Dogfight.RollChanceFor(Session.Difficulty), () => Random.value);
 
         /// <summary>It fights ES2's way this frame: attacking a target on its own (no route, order, wingman duty).</summary>
-        bool Es2Fighting => es2Fight != null && !IsWingman && attacking && target != null && !followingWaypoint && order == null && mindControlMs <= 0f;
+        bool Es2Fighting => es2Fight != null && (!smepFighterAi || SmepEnabledForTarget) && !IsWingman
+                            && attacking && target != null && !followingWaypoint && order == null && mindControlMs <= 0f;
 
-        bool Es2Aiming => es2Aim != null && attacking && !followingWaypoint && target != null;
+        bool Es2Aiming => es2Aim != null && (!smepFighterAi || SmepEnabledForTarget || Settings.Es2Aiming)
+                          && attacking && !followingWaypoint && target != null;
 
         static bool PlayerTarget(Target t) => t != null && (t.isPlayer || t.netPilot);
 
@@ -128,7 +130,8 @@ namespace GoF2Remake.World
             float speed = Mathf.Max(0.1f, gunSpeed) * M;   // metres a ms
             var v = dogTargetVel;
             float ms = Es2Aim.InterceptTime(rel.x, rel.y, rel.z, v.x, v.y, v.z, speed);
-            return aimPoint + v * Mathf.Min(ms, 20000f);
+            var nativeLead = aimPoint + v * Mathf.Min(ms, 20000f);
+            return SmepEnabledForTarget ? SmepAccelerationLead(aimPoint, from, nativeLead) : nativeLead;
         }
 
         /// <summary>ES2's director: this ship holds fire now, one of a crowd on a player.</summary>
