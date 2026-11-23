@@ -195,3 +195,14 @@ Jumpgate follow-up:
 Validation status:
 - Source changes are committed to `feature/player-built-stations`.
 - No Unity compilation, multiplayer host/client run, profile reconnect test, gate travel test, cargo pickup test or destruction-hook test has been performed. Treat this as an implementation pass requiring Unity validation, not a tested release.
+
+## Player-station destruction and claims
+
+Player stations follow the server-owned jumpgate lifecycle pattern for damage, persistent wreck state and salvage dispatch. The station lifecycle has two destruction states.
+
+- **Partial destruction** leaves a claimable wreck with no cargo drop. A solo player or faction may claim it and rebuild at a reduced construction cost.
+- **Full destruction** releases a random selection representing 25% of the construction resources actually used for that station as public pickup cargo. The resource manifest is rolled once and persisted before dispatch so a server restart cannot reroll it.
+- **Compensation** is a one-time payout to the owner at destruction for 50% of the combined credit value of the station and all personal belongings still stored there. Marketplace listings, buy orders and payouts are excluded, consistent with the station asset policy. The payout and settled destruction state must use the same durable transaction.
+- **Claims** may be contested by a faction or an individual who holds the wreck area for more than five minutes. The claim becomes exclusive after 30 minutes even if a contest is active. The initial claim timestamp and the lock must survive a restart.
+
+The compensation trigger and the exact handover after five minutes of contest are pending confirmation.
