@@ -98,8 +98,16 @@ if they disable an item required by their campaign.
 `GameHooks.JumpgateLinkOperational` is an optional `Func<int, int, bool>` for live
 gate availability (including EMP disabling, scrapping and destruction). It is null in
 the existing base game, which means static reciprocal links count as operational.
-A player-station/jumpgate lifecycle module must register this callback for dynamically
-damaged gates to participate in misjump safety checks.
+In multiplayer, NetHooksInstaller registers the player-jumpgate registry as the live
+link provider. Original static reciprocal links remain valid. A connection created
+by player-built gates qualifies only if BOTH systems have operational gates
+pointing at one another. Construction, EMP shutdown, structural destruction and
+scrapping remove those dynamic links from emergency-destination eligibility.
+The provider checks gate operational state, not the player's access permissions.
+
+These checks currently run in the local jump controller, using its latest
+replicated station registry. This is not yet server-authoritative validation:
+a client could hold stale gate state or choose an unapproved destination.
 
 Failure outcomes are calculated by the local player jump controller. The current
 changes do **not** add authoritative host-side validation or new network messages;
