@@ -41,6 +41,7 @@ namespace GoF2Remake.World
             smepMotionInitialized = false;
             smepReciprocalHasPosition = false;
             smepMovementFrame = -1;
+            smepPathInitialized = false;
             smepPreviousSteerFrame = -1;
             smepObservedVelocity = UnityEngine.Vector3.zero;
             smepPendingAvoidanceDirection = UnityEngine.Vector3.zero;
