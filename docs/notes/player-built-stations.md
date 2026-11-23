@@ -203,6 +203,7 @@ Player stations follow the server-owned jumpgate lifecycle pattern for damage, p
 - **Partial destruction** leaves a claimable wreck with no cargo drop. A solo player or faction may claim it and rebuild at a reduced construction cost.
 - **Full destruction** releases a random selection representing 25% of the construction resources actually used for that station as public pickup cargo. The resource manifest is rolled once and persisted before dispatch so a server restart cannot reroll it.
 - **Compensation** is a one-time payout to the owner at destruction for 50% of the combined credit value of the station and all personal belongings still stored there. Marketplace listings, buy orders and payouts are excluded, consistent with the station asset policy. The payout and settled destruction state must use the same durable transaction.
-- **Claims** may be contested by a faction or an individual who holds the wreck area for more than five minutes. The claim becomes exclusive after 30 minutes even if a contest is active. The initial claim timestamp and the lock must survive a restart.
+- **Claim transfer.** A solo player or faction takes over the existing wreck claim as soon as it accumulates five minutes of uncontested control. Contested control pauses its progress. If the same challenger regains uncontested control, its timer resumes from the time already earned.
+- **Claim exclusivity.** The 30-minute timer starts when the claim is established or transferred and continues through contests. A completed transfer to a different player or faction restarts the full 30-minute timer for the new claimant. When the timer expires, the current claim becomes exclusive even if a contest is active. The current claim timestamp and exclusive lock must survive a server restart.
 
-The compensation trigger and the exact handover after five minutes of contest are pending confirmation.
+The compensation trigger is pending confirmation.
