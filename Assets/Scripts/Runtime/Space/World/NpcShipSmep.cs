@@ -23,6 +23,13 @@ namespace GoF2Remake.World
         /// <summary>Mobile player targets always use conventional flight regardless of mod opt-in.</summary>
         public static bool EnabledForTarget(bool mobileTarget, bool mobileOptIn) => !mobileTarget;
 
+        /// <summary>Excluded NPC hull classes; the target's class is never consulted.</summary>
+        public static bool ExcludedNpcClass(string shipClass)
+            => string.Equals(shipClass, ShipClassRules.Frigate, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(shipClass, ShipClassRules.Cruiser, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(shipClass, ShipClassRules.Carrier, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(shipClass, ShipClassRules.Freighter, System.StringComparison.OrdinalIgnoreCase);
+
         /// <summary>Pure controller-selection rule, independent of the targeted ship's class.</summary>
         public static bool UseCustomFlight(bool eligibleNpc, bool mobileTarget, bool empDisabled, bool canTurn, bool drifting)
             => eligibleNpc && !mobileTarget && !empDisabled && canTurn && !drifting;
