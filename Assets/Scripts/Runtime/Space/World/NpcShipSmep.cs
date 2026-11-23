@@ -27,6 +27,13 @@ namespace GoF2Remake.World
         public static bool UseCustomFlight(bool eligibleNpc, bool mobileTarget, bool empDisabled, bool canTurn, bool drifting)
             => eligibleNpc && !mobileTarget && !empDisabled && canTurn && !drifting;
 
+        /// <summary>Velocity after an entire frame, including collision correction. No additive impulses.</summary>
+        public static Vector3 VelocityFromDisplacement(Vector3 start, Vector3 end, float dtMs, float scale, float maxSpeed)
+        {
+            if (dtMs <= 0f || scale <= 0f) return Vector3.zero;
+            return Vector3.ClampMagnitude((end - start) / (dtMs * scale), Mathf.Max(0f, maxSpeed));
+        }
+
         /// <summary>Classifies local and remote player targets using the owning player's platform, not the host's.</summary>
         public static bool IsMobileTarget(bool isPlayer, bool netPilot, bool remoteMobilePlatform, bool localMobilePlatform)
             => (isPlayer || netPilot) && (netPilot ? remoteMobilePlatform : localMobilePlatform);
@@ -372,8 +379,8 @@ namespace GoF2Remake.World
             // Reconstruct the movement once from the frame start, never add corrections twice.
             // Penetration resolution may move farther than normal thrust; cap the resulting
             // velocity rather than putting the ship back inside the collision volume.
-            var actualVelocity = (transform.position - smepFrameStartPosition) / (smepFrameDtMs * M);
-            smepDogfightState.velocity = Vector3.ClampMagnitude(actualVelocity, smepFrameTopSpeed);
+            smepDogfightState.velocity = SmepAiRules.VelocityFromDisplacement(smepFrameStartPosition,
+                                                                             transform.position, smepFrameDtMs, M, smepFrameTopSpeed);
             es2Vel = smepDogfightState.velocity * 1000f;
             es2FlownFrame = Time.frameCount;
         }
