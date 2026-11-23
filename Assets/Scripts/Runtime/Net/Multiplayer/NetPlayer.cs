@@ -730,6 +730,44 @@ namespace GoF2Remake.Multiplayer
             if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
         }
 
+        /// <summary>Client: an explosive or EMP blast reached a precise gate mesh.</summary>
+        public void ReportJumpgateBlast(int orbitStationIndex, int weaponItem, uint shotId,
+            Vector3 detonation, Vector3 gateSurface)
+        {
+            if (IsOwner && IsSpawned && InSpace && Station == orbitStationIndex &&
+                shotId != 0 && NetGuard.Position(detonation) && NetGuard.Position(gateSurface))
+                JumpgateBlastUpRpc(orbitStationIndex, weaponItem, shotId, detonation, gateSurface);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void JumpgateBlastUpRpc(int orbitStationIndex, int weaponItem, uint shotId,
+            Vector3 detonation, Vector3 gateSurface, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                !InSpace || Station != orbitStationIndex || shotId == 0 ||
+                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
+                !NetGuard.Item(weaponItem) || !HasWeaponItem(weaponItem) ||
+                !NetGuard.Position(detonation) || !NetGuard.Position(gateSurface) ||
+                !NetPlayerStations.HasJumpgateAtStation(orbitStationIndex)) return;
+            var weapon = NetGame.Db.Item(weaponItem);
+            if (weapon == null) return;
+            var kind = (Gun.Kind)weapon.categoryId;
+            if (kind is not (Gun.Kind.EmpBomb or Gun.Kind.Nuke or Gun.Kind.Ionizing
+                or Gun.Kind.Mine or Gun.Kind.ShockBlast)) return;
+            float blastRadius = Mathf.Max(0, weapon.Attr(14)) * OrbitLayout.MetersPerUnit;
+            if (blastRadius <= 0f) return;
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            if (layout == null || !layout.hasJumpgate) return;
+            Vector3 gateCentre = OrbitLayout.ToUnity(layout.Place(layout.jumpgate));
+            float gateRadius = layout.JumpgateRadius * OrbitLayout.MetersPerUnit;
+            if (!NetShotRegistry.TryConsumeGateBlast(NetworkObjectId, shotId, weaponItem,
+                detonation, gateSurface, gateCentre, gateRadius, blastRadius)) return;
+            float factor = Mathf.Clamp01((blastRadius - Vector3.Distance(detonation, gateSurface)) / blastRadius);
+            float structural = kind == Gun.Kind.EmpBomb ? 0f : Mathf.Max(0, weapon.Attr(9)) * factor;
+            float empDamage = Mathf.Max(0, weapon.Attr(10)) * factor;
+            NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage);
+        }
+
         /// <summary>Only an exact local scenery mesh hit can request gate damage. The server
         /// independently checks the recorded shot, mounted weapon, orbit and approximate flight path.</summary>
         public void ReportJumpgateImpact(int orbitStationIndex, int weaponItem, uint shotId, Vector3 point)
