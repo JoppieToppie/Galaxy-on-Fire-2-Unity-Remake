@@ -38,6 +38,20 @@ namespace GoF2Remake.World
         public static bool UseCustomFlight(bool eligibleNpc, bool mobileTarget, bool empDisabled, bool canTurn, bool drifting)
             => eligibleNpc && !mobileTarget && !empDisabled && canTurn && !drifting;
 
+        /// <summary>Player-style directional acceleration with one speed cap for all movement axes.</summary>
+        public static Vector3 StepVelocity(Vector3 velocity, Vector3 desired, Quaternion rotation, float topSpeed,
+                                           float dtMs, float forwardAccel, float reverseAccel, float strafeAccel, float hoverAccel)
+        {
+            var local = Quaternion.Inverse(rotation) * velocity;
+            var goal = Quaternion.Inverse(rotation) * Vector3.ClampMagnitude(desired, Mathf.Max(0f, topSpeed));
+            float dt = Mathf.Max(0f, dtMs) / 1000f;
+            float cap = Mathf.Max(0f, topSpeed);
+            local.x = Mathf.MoveTowards(local.x, goal.x, cap * Mathf.Max(0f, strafeAccel) * dt);
+            local.y = Mathf.MoveTowards(local.y, goal.y, cap * Mathf.Max(0f, hoverAccel) * dt);
+            local.z = Mathf.MoveTowards(local.z, goal.z, cap * Mathf.Max(0f, goal.z >= local.z ? forwardAccel : reverseAccel) * dt);
+            return Vector3.ClampMagnitude(rotation * local, cap);
+        }
+
         /// <summary>Refresh stale or sharply redirected path predictions without per-frame acos.</summary>
         public static bool RefreshPath(bool initialized, float remainingMs, Vector3 wanted, Vector3 previousWanted)
             => !initialized || remainingMs <= 0f || Vector3.Dot(wanted, previousWanted) < 0.8660254f;
@@ -71,6 +85,9 @@ namespace GoF2Remake.World
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
         bool smepPathInitialized;
+        float smepPathMs, smepPathSpeed = 1f;
+        Vector3 smepPathWanted, smepPathDirection;
+        bool smepPathStraight = true;
         float smepHullTopSpeed, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
         // Player flight rules are resolved once at spawn, never in the movement loop.
         void SetupSmepHullFlight(ShipData ship)
