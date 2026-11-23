@@ -550,7 +550,13 @@ namespace GoF2Remake.Multiplayer
             string origin = NetGame.Db?.Systems?.Find(x => x != null && x.index == gate.system)?.name
                 ?? ("System " + gate.system);
             var lines = new List<string> { "Jumpgate in orbit " + orbitStationIndex + " (" + origin + ")",
-                "Destination: " + destination };
+                "Destination: " + destination,
+                "Access: " + (gate.accessMode == PlayerJumpgateAccessMode.Everyone ? "Everyone" :
+                    gate.accessMode == PlayerJumpgateAccessMode.OwningFaction ? "Owning faction only" : "Blacklist mode"),
+                "Blacklisted profiles/factions: " + (gate.blacklist?.Count ?? 0),
+                "Owner: " + (gate.ownershipType == PlayerStationOwnershipType.Faction
+                    ? (NetFactions.FindById(gate.ownerFactionId)?.tag ?? gate.ownerName ?? "Owning faction")
+                    : (gate.ownerName ?? gate.ownerProfile ?? "Unknown")) };
             if (gate.materials != null)
                 foreach (var m in gate.materials)
                     if (m != null) lines.Add((NetGame.Db?.Item(m.item)?.name ?? ("Item " + m.item)) +
