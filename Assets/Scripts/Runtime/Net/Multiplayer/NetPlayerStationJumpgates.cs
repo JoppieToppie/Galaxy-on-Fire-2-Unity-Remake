@@ -432,6 +432,95 @@ namespace GoF2Remake.Multiplayer
                 ". Its next destination change is available in 24 hours.";
         }
 
+        static bool JumpgateManagementDocked(NetPlayer by, PlayerJumpgateRecord gate)
+        {
+            var current = NetGame.Db?.Stations?.Find(x => x != null && x.index == by?.Station);
+            return by != null && by.InHangar && current != null && current.system == gate.system;
+        }
+
+        internal static string SetJumpgateAccess(NetPlayer by, int orbitStationIndex, string mode)
+        {
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null) return "No player-built jumpgate exists in that orbit.";
+            if (!CanManageJumpgate(by, gate, out _) || !JumpgateManagementDocked(by, gate))
+                return "Only the gate owner or assigned faction executive may change access while docked in its origin system.";
+            mode = (mode ?? "").Trim().ToLowerInvariant();
+            PlayerJumpgateAccessMode next;
+            if (mode == "everyone") next = PlayerJumpgateAccessMode.Everyone;
+            else if (mode == "faction" || mode == "owningfaction") next = PlayerJumpgateAccessMode.OwningFaction;
+            else if (mode == "blacklist") next = PlayerJumpgateAccessMode.Blacklist;
+            else return "Choose everyone, faction or blacklist.";
+            var previous = gate.accessMode;
+            gate.accessMode = next;
+            if (!Save())
+            {
+                gate.accessMode = previous;
+                return "The jumpgate access policy could not be saved.";
+            }
+            return "Jumpgate access is now " + (next == PlayerJumpgateAccessMode.Everyone ? "open to everyone" :
+                next == PlayerJumpgateAccessMode.OwningFaction ? "restricted to the owning faction" :
+                "open except to blacklisted profiles and factions") + ".";
+        }
+
+        internal static string SetJumpgateBlacklist(NetPlayer by, int orbitStationIndex,
+            string action, string targetType, string target)
+        {
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null) return "No player-built jumpgate exists in that orbit.";
+            if (!CanManageJumpgate(by, gate, out _) || !JumpgateManagementDocked(by, gate))
+                return "Only the gate owner or assigned faction executive may edit its blacklist while docked in its origin system.";
+            action = (action ?? "").Trim().ToLowerInvariant();
+            targetType = (targetType ?? "").Trim().ToLowerInvariant();
+            if (action != "add" && action != "remove") return "Choose add or remove.";
+            PlayerJumpgateBlockType type;
+            string id;
+            if (targetType == "player")
+            {
+                type = PlayerJumpgateBlockType.Profile;
+                id = NetProfiles.FindAccount((target ?? "").Trim());
+                if (string.IsNullOrEmpty(id)) return "Supply a valid player profile or account name.";
+            }
+            else if (targetType == "faction")
+            {
+                type = PlayerJumpgateBlockType.Faction;
+                var faction = NetFactions.FindById((target ?? "").Trim());
+                id = faction?.id;
+                if (string.IsNullOrEmpty(id)) return "Supply a valid faction ID.";
+            }
+            else return "Choose player or faction.";
+            gate.blacklist ??= new List<PlayerJumpgateBlockEntry>();
+            var existing = gate.blacklist.Find(x => x != null && x.type == type &&
+                string.Equals(x.id, id, StringComparison.Ordinal));
+            if (action == "add")
+            {
+                if (existing != null) return "That profile or faction is already blacklisted.";
+                gate.blacklist.Add(new PlayerJumpgateBlockEntry { type = type, id = id });
+            }
+            else
+            {
+                if (existing == null) return "That profile or faction is not on this gate's blacklist.";
+                gate.blacklist.Remove(existing);
+            }
+            if (!Save())
+            {
+                if (action == "add") gate.blacklist.RemoveAll(x => x != null && x.type == type &&
+                    string.Equals(x.id, id, StringComparison.Ordinal));
+                else gate.blacklist.Add(existing);
+                return "The jumpgate blacklist change could not be saved.";
+            }
+            return action == "add" ? "Added " + targetType + " to the jumpgate blacklist." :
+                "Removed " + targetType + " from the jumpgate blacklist.";
+        }
+
+        internal static bool CanUseJumpgate(NetPlayer by, int orbitStationIndex)
+        {
+            var gate = FindJumpgate(orbitStationIndex);
+            if (gate == null || by == null || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId)) return false;
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            string factionId = NetFactions.Of(account)?.id;
+            return JumpgateAccessAllowed(gate, account, factionId);
+        }
+
         internal static string JumpgateOrbits(int systemIndex)
         {
             var system = NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex);
