@@ -196,9 +196,9 @@ namespace GoF2Remake.Multiplayer
         internal static bool HasJumpgateAtStation(int stationIndex)
         {
             var gate = FindJumpgate(stationIndex);
-            if (gate == null || gate.destinationSystem < 0) return false;
+            if (gate == null || gate.destinationSystem < 0 || gate.scrapped || gate.permanentlyDestroyed) return false;
             CompleteJumpgateIfDue(gate);
-            return gate.destinationSystem >= 0 && !gate.building;
+            return gate.destinationSystem >= 0 && !gate.building && !gate.scrapped && !gate.permanentlyDestroyed;
         }
 
         /// <summary>Returns the arrival orbit in the gate's fixed destination system.</summary>
