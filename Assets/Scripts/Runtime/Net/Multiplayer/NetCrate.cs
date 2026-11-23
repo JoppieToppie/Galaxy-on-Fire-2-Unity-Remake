@@ -42,7 +42,7 @@ namespace GoF2Remake.Multiplayer
         string dataRead;
         int race = -1, look = -1;
         string model;
-        bool fromFriend, missionCrate, missionLoot;
+        bool fromFriend, missionCrate, missionLoot, keep;
         double born;
         string lootText = "";
         Vector3 posePosition;
@@ -73,6 +73,7 @@ namespace GoF2Remake.Multiplayer
             fromFriend = (flags & 1) != 0;
             missionCrate = (flags & 2) != 0;
             missionLoot = (flags & 4) != 0;
+            keep = (flags & 8) != 0;
             lootText = parts[4];
             model = parts.Length > 5 && parts[5].Length > 0 ? parts[5] : null;
         }
@@ -81,7 +82,8 @@ namespace GoF2Remake.Multiplayer
 
         void WriteData()
         {
-            int flags = (crate.fromFriend ? 1 : 0) | (crate.missionCrate ? 2 : 0) | (crate.missionLoot ? 4 : 0);
+            int flags = (crate.fromFriend ? 1 : 0) | (crate.missionCrate ? 2 : 0) |
+                (crate.missionLoot ? 4 : 0) | (crate.keep ? 8 : 0);
             double madeAt = ServerNow - crate.AgeMs / 1000f;
             string text = $"{crate.race}|{crate.look}|{flags}|{madeAt.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)}|{Encode(crate.loot)}|{crate.model}";
             if (data.Value.ToString() != text) data.Value = text;
@@ -261,6 +263,7 @@ namespace GoF2Remake.Multiplayer
             crate.fromFriend = fromFriend;
             crate.missionCrate = missionCrate;
             crate.missionLoot = missionLoot;
+            crate.keep = keep;
             foreach (var s in Decode(lootText)) crate.loot.Add(s);
             crate.PullStarted = () => ClaimRpc();
             crate.CapturedHere = () =>
