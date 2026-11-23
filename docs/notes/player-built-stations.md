@@ -151,3 +151,22 @@ This is source-level implementation. Unity compilation and multiplayer tests rem
 - **Construction escrow and live balances:** direct material contributions and buy-order fulfilment return unused order escrow to its original profile or faction in the same journal as project completion. Ambiguous escrow ownership blocks completion rather than guessing. Credit deltas are sent to the correct online profile controller for buy-order debits, seller payments, contributor payouts and refunds; faction-funded jumpgate contributions use the same live-credit synchronization.
 - **Runtime journal recovery:** if a durable station transaction cannot finish because a profile or registry write temporarily fails, the server retries the journal every five seconds during the live session, including after station persistence has entered its faulted state. A successful recovery republishes the authoritative registry snapshot.
 - These are source-level changes. The only GitHub Actions workflow builds release server images (release publication or manual dispatch); it does not compile or test this branch, and no runs were recorded for it. Unity compilation, edit-mode tests, multiplayer synchronization, and persistence crash-injection tests remain outstanding.
+
+
+## Factory production and automation (23 November 2026)
+
+- Factory production is now a persistent timed job rather than an immediate inventory conversion. The current initial duration is 60 seconds per batch; batches scale linearly. Inputs are reserved from the initiating profile's station-storage lots when the job starts, and outputs are credited to that profile only when the job completes.
+- A factory runs one production job at a time. A job records its recipe, batch count, operator, output, reserved inputs and UTC start/completion timestamps. Jobs survive server restarts through the station registry.
+- One-off manufacture is available to any controlled profile docked at the station, provided that profile owns the required inputs in station storage.
+- Repeat orders support continuous production and a fixed total batch count. Each order specifies its cycle size (1–100 batches); fixed orders are removed after the requested total is completed. An order pauses when its owner-profile storage lacks the next cycle's inputs and automatically resumes when enough owned stock is present.
+- Repeat-order creation and cancellation are restricted to the individual station owner, or to members of the owning faction who have station-operations permission. The order remains attributed to its creator profile so another player's storage is never silently consumed.
+- Commands: `/station repeat <station id> <recipe id> continuous|<total batches> [batches per cycle]` and `/station repeat-cancel <station id> <order id>`.
+- The four existing recipes remain unchanged. The recipe catalogue still needs expansion using verified in-game item data; no unverified recipes have been invented.
+- The general-purpose factory remains one module type. Recipe definitions are still source-defined rather than fully data-driven, and should be migrated to validated data definitions as the catalogue expands.
+- Source-level changes only. Unity compilation, restart recovery, simultaneous storage deposits/withdrawals, owner/faction permission tests, and factory job completion tests remain outstanding.
+
+## Jumpgate lifecycle schema groundwork (23 November 2026)
+
+- Jumpgate records now have independent access-policy, blacklist, construction provenance, scrapped/permanently-destroyed state and destruction-count fields. Access modes are Everyone, OwningFaction and Blacklist; blacklist entries can identify an individual profile or a faction.
+- Persistent factory job and repeat-order record types were added to the station registry.
+- These jumpgate fields are schema groundwork only. Access enforcement, discovery validation/granting, independent reclamation, salvage cargo drops and destruction hooks still need runtime implementation and tests. Gate upkeep remains disabled/unconfigured.
