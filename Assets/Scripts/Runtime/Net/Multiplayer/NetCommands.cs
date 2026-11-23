@@ -380,7 +380,7 @@ namespace GoF2Remake.Multiplayer
             {
                 string[] words = args.Substring(jumpgateClaim.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if ((words.Length != 2 && words.Length != 3) || !int.TryParse(words[0], out int claimOrbit) ||
-                    (words.Length == 3 && !int.TryParse(words[2], out int claimDestination)))
+                    (words.Length == 3 && !int.TryParse(words[2], out _)))
                     return "/station jumpgate-claim <orbit station index> faction|individual [destination system id]";
                 int claimDestinationId = words.Length == 3 ? int.Parse(words[2]) : -1;
                 return NetPlayerStations.ClaimScrappedJumpgate(by as NetPlayer, claimOrbit, words[1], claimDestinationId);
