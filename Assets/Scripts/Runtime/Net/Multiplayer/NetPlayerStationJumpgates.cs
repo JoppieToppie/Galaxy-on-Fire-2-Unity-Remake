@@ -14,7 +14,9 @@ namespace GoF2Remake.Multiplayer
         internal static float JumpgateRegenPerSecond = 1f;
         internal static float JumpgateEmpThreshold = 100f;
         internal static long JumpgateEmpDisableSeconds = 120;
-        internal static Func<int, bool> StructuralWeaponEligible = weaponId => weaponId >= 0;
+        // Fail closed until an explicit weapon-level structural damage policy is registered.
+        // EMP effects are independent of this policy.
+        internal static Func<int, bool> StructuralWeaponEligible = weaponId => false;
         const long JumpgateDestinationCooldownSeconds = 86400;
         static long nextJumpgateRetryUtc;
 
@@ -47,13 +49,16 @@ namespace GoF2Remake.Multiplayer
                 structuralDamage < 0f || empDamage < 0f) return false;
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
+            bool structuralEligible = structuralDamage > 0f && StructuralWeaponEligible != null && StructuralWeaponEligible(weaponId);
+            bool empEligible = empDamage > 0f && empDamage >= JumpgateEmpThreshold;
+            if (!structuralEligible && !empEligible) return false;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             int index = registry.jumpgates.IndexOf(gate);
             var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
             RegenerateGate(gate, now);
-            if (empDamage >= JumpgateEmpThreshold && empDamage > 0f)
+            if (empEligible)
                 gate.empShutdownUntilUtc = Math.Max(gate.empShutdownUntilUtc, now + JumpgateEmpDisableSeconds);
-            if (structuralDamage > 0f && StructuralWeaponEligible != null && StructuralWeaponEligible(weaponId))
+            if (structuralEligible)
             {
                 gate.structuralIntegrity = Mathf.Max(0f, gate.structuralIntegrity - structuralDamage);
                 gate.lastStructuralDamageUtc = now;
@@ -309,13 +314,31 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.IsServer || !sessionActive || registry?.jumpgates == null) return;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now < nextJumpgateRetryUtc) return;
-            // Persist regeneration at a coarse cadence, never once per frame.
+            // Persist regeneration at a coarse cadence and roll back any unsaved heals.
             bool changedIntegrity = false;
+            var snapshots = new List<(PlayerJumpgateRecord gate, float integrity, long updated, bool initialized)>();
             foreach (var activeGate in registry.jumpgates)
-                if (activeGate != null && (activeGate.structuralIntegrityUpdatedUtc == 0 ||
-                    now - activeGate.structuralIntegrityUpdatedUtc >= 60))
-                    changedIntegrity |= RegenerateGate(activeGate, now);
-            if (changedIntegrity && !Save()) { nextJumpgateRetryUtc = now + 5; return; }
+            {
+                if (activeGate == null || (activeGate.structuralIntegrityUpdatedUtc != 0 &&
+                    now - activeGate.structuralIntegrityUpdatedUtc < 60)) continue;
+                float integrity = activeGate.structuralIntegrity;
+                long updated = activeGate.structuralIntegrityUpdatedUtc;
+                bool initialized = activeGate.combatStateInitialized;
+                if (!RegenerateGate(activeGate, now)) continue;
+                snapshots.Add((activeGate, integrity, updated, initialized));
+                changedIntegrity = true;
+            }
+            if (changedIntegrity && !Save())
+            {
+                foreach (var snapshot in snapshots)
+                {
+                    snapshot.gate.structuralIntegrity = snapshot.integrity;
+                    snapshot.gate.structuralIntegrityUpdatedUtc = snapshot.updated;
+                    snapshot.gate.combatStateInitialized = snapshot.initialized;
+                }
+                nextJumpgateRetryUtc = now + 5;
+                return;
+            }
             foreach (var gate in registry.jumpgates)
             {
                 if (gate == null || !gate.salvageDropPending || gate.salvageMaterials == null ||
