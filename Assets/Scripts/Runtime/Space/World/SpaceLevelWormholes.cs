@@ -212,9 +212,12 @@ namespace GoF2Remake.World
         }
         /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
         /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
+        bool playerJumpgateWreck;
+
         public void OnPlayerJumpgateDestroyed()
         {
-            if (Jumpgate == null || Layout == null || Navigation == null) return;
+            if (Jumpgate == null || Layout == null || Navigation == null || playerJumpgateWreck) return;
+            playerJumpgateWreck = true;
             Explosion.Spawn(Jumpgate.transform.position, 7f);
             Navigation.SetAutopilot(null);
             Navigation.Targets.RemoveAll(t => t.kind == Navigation.Kind.Jumpgate);
@@ -229,8 +232,19 @@ namespace GoF2Remake.World
         /// </summary>
         void UpdatePlayerJumpgate()
         {
-            if (Layout == null || Jumpgate != null || Navigation == null || SystemJump == null ||
+            if (Layout == null || Navigation == null || SystemJump == null ||
                 !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex)) return;
+            // A reclaimed and reconstructed gate reuses the wreck's physical model in the
+            // same loaded orbit. Restore its destination and navigation without duplicating a hull.
+            if (playerJumpgateWreck && Jumpgate != null)
+            {
+                playerJumpgateWreck = false;
+                Layout.hasJumpgate = true;
+                Navigation.AddPlayerJumpgateTarget();
+                SystemJump.SetJumpgate(Jumpgate);
+                return;
+            }
+            if (Jumpgate != null) return;
             var refreshed = OrbitLayout.Build(db, Layout.stationIndex);
             if (refreshed == null || !refreshed.hasJumpgate) return;
             Layout.hasJumpgate = true;
