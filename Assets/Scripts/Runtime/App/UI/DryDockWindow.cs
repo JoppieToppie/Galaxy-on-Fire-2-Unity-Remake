@@ -245,11 +245,12 @@ namespace GoF2Remake.UI
                 lines.Add("No valid recipe is defined.");
             else
             {
-                var required = new SortedDictionary<int, int>();
+                var required = new SortedDictionary<int, long>();
                 foreach (var part in product.blueprint)
-                    if (part != null) required[part.item] = required.TryGetValue(part.item, out int amount) ? amount + part.amount : part.amount;
+                    if (part != null && part.amount > 0)
+                        required[part.item] = required.TryGetValue(part.item, out long amount) ? amount + part.amount : part.amount;
                 foreach (var pair in required)
-                    lines.Add((level.Database.Item(pair.Key)?.name ?? ("Item " + pair.Key)) + "  ×  " + pair.Value);
+                    lines.Add((level.Database.Item(pair.Key)?.name ?? ("Item " + pair.Key)) + "  ×  " + pair.Value.ToString("N0"));
             }
             recipeText.text = string.Join("\n", lines);
             var dockStatus = NetPlayerStations.GetDryDockVisualStatus(station.id);
