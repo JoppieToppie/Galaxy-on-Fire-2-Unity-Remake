@@ -329,6 +329,18 @@ namespace GoF2Remake.World
             ship.ExternalSpeedMetersPerSecond = ship.SpeedMetersPerSecond;
             if (weapons != null) weapons.Blocked = true;
             nav.Paused = true;
+            bool playerGate = GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Session.StationIndex);
+            if (playerGate && !GoF2Remake.Multiplayer.NetPlayerStations.CanUseJumpgate(
+                GoF2Remake.Multiplayer.NetPlayer.Local, Session.StationIndex))
+            {
+                nav.Paused = false;
+                ship.externalControl = false;
+                ship.ExternalSpeedMetersPerSecond = 0f;
+                if (weapons != null) weapons.Blocked = false;
+                state = State.None;
+                Message?.Invoke("Access denied: this player-built jumpgate is restricted by its owner.");
+                return;
+            }
             int fixedDestination = GoF2Remake.Multiplayer.NetPlayerStations.JumpgateDestinationStation(Session.StationIndex);
             if (fixedDestination >= 0)
             {
