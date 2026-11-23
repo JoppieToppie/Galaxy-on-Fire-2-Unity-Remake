@@ -588,6 +588,7 @@ namespace GoF2Remake.Multiplayer
             }
 
             int previousAmount = contribution.amount;
+            long previousUnitValue = contribution.unitValue;
             long previousPaid = contribution.paidCredits;
             long previousPaidUtc = contribution.paidUtc;
             int previousDelivered = resource.delivered;
@@ -616,6 +617,7 @@ namespace GoF2Remake.Multiplayer
                 resource.delivered = previousDelivered;
                 record.underConstruction = wasUnderConstruction;
                 contribution.amount = previousAmount;
+                contribution.unitValue = previousUnitValue;
                 contribution.paidCredits = previousPaid;
                 contribution.paidUtc = previousPaidUtc;
                 if (newContribution) record.constructionContributions.Remove(contribution);
