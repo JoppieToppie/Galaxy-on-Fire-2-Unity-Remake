@@ -389,9 +389,9 @@ namespace GoF2Remake.World
             bool resetSmepReciprocal = !landmarks && !SmepEligible;
             if (SmepEligible && !landmarks)
             {
+                // Preserve native non-landmark obstacle steering as well as reciprocal player contact.
+                // Both corrections affect steering, not the SMEP displacement budget.
                 SeparateSmepNpcFromPlayer();
-                SyncSmepAfterAvoidance(beforeAvoidance, dtMs);
-                return;   // retain the Lua mode's reciprocal contact, skip native non-landmark avoidance
             }
             var all = Obstacle.All;
             var pos = transform.position;
