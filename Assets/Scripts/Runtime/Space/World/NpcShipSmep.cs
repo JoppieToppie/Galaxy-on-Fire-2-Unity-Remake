@@ -67,6 +67,7 @@ namespace GoF2Remake.World
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
         bool smepPathInitialized;
+        const float SmepRetestCos = 0.8660254f; // cos(30 degrees)
         Vector3 smepPendingAvoidanceDirection;
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
@@ -380,11 +381,13 @@ namespace GoF2Remake.World
             {
                 var wanted = desired.normalized;
                 es2PathMs -= dtMs;
-                if (!smepPathInitialized || es2PathMs <= 0f || Vector3.Angle(wanted, es2PathWanted) > Es2RetestDeg)
+                // Dot product avoids an acos for every moving NPC each frame.
+                // Clear paths can use a longer cache; obstructed paths recheck at native frequency.
+                if (!smepPathInitialized || es2PathMs <= 0f || Vector3.Dot(wanted, es2PathWanted) < SmepRetestCos)
                 {
-                    es2PathMs = Es2NpcFlight.ForceUpdateS * 1000f;
                     es2PathWanted = wanted;
                     Es2PathTest(wanted, Mathf.Max(0f, effectiveTopSpeed));
+                    es2PathMs = Es2NpcFlight.ForceUpdateS * 1000f * (es2PathStraight ? 2f : 1f);
                     smepPathInitialized = true;
                 }
                 if (!es2PathStraight)
