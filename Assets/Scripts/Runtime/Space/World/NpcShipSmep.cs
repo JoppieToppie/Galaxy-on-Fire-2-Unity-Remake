@@ -414,40 +414,31 @@ namespace GoF2Remake.World
             }
             if (desired.sqrMagnitude > 1f) desired.Normalize();
 
-            // Look ahead before translating. Native obstacle handling by itself
-            // only reacts after contact, which is too late for fast 6DOF fighters.
-            // Reuse ES2's cached path probe, not its movement or speed controller.
+            // Look ahead along actual 6DOF velocity, accelerating toward each candidate
+            // with the same flight-rule step as the real NPC. ES2's forward-only
+            // trajectory simulator cannot accurately predict strafing or hovering.
             if (desired.sqrMagnitude > 0.0001f && M > 0f)
             {
                 var wanted = desired.normalized;
-                es2PathMs -= dtMs;
-                // Dot product avoids an acos for every moving NPC each frame.
-                // Clear paths can use a longer cache; obstructed paths recheck at native frequency.
-                if (SmepAiRules.RefreshPath(smepPathInitialized, es2PathMs, wanted, es2PathWanted))
+                smepPathMs -= dtMs;
+                if (SmepAiRules.RefreshPath(smepPathInitialized, smepPathMs, wanted, smepPathWanted))
                 {
-                    es2PathWanted = wanted;
-                    Es2PathTest(wanted, Mathf.Max(0f, effectiveTopSpeed));
-                    es2PathMs = Es2NpcFlight.ForceUpdateS * 1000f * (es2PathStraight ? 2f : 1f);
+                    smepPathWanted = wanted;
+                    SmepPathTest(state.velocity, wanted, Mathf.Max(0f, effectiveTopSpeed));
+                    smepPathMs = Es2NpcFlight.ForceUpdateS * 1000f * (smepPathStraight ? 2f : 1f);
                     smepPathInitialized = true;
                 }
-                if (!es2PathStraight)
-                    desired = es2PathDir * (desired.magnitude * es2PathSpeed);
+                if (!smepPathStraight)
+                    desired = smepPathDirection * (desired.magnitude * smepPathSpeed);
             }
             // All thrust directions share the ship's top speed; only acceleration/response may differ.
             float topSpeed = Mathf.Max(0f, effectiveTopSpeed);
             desired *= topSpeed;
 
             float dt = Mathf.Max(0f, dtMs);
-            float responseMs = bursting ? 90f : 240f;
-            float blend = 1f - Mathf.Exp(-dt / responseMs);
-            // Axis-specific acceleration in ship space; top speed remains shared across directions.
-            var localCurrent = transform.InverseTransformDirection(state.velocity);
-            var localDesired = transform.InverseTransformDirection(desired);
-            float axisStep = topSpeed * blend;
-            localCurrent.x = Mathf.MoveTowards(localCurrent.x, localDesired.x, axisStep * 0.65f);
-            localCurrent.y = Mathf.MoveTowards(localCurrent.y, localDesired.y, axisStep * 0.55f);
-            localCurrent.z = Mathf.MoveTowards(localCurrent.z, localDesired.z, axisStep * (localDesired.z < localCurrent.z ? 0.75f : 1f));
-            state.velocity = Vector3.ClampMagnitude(transform.TransformDirection(localCurrent), topSpeed);
+            state.velocity = SmepAiRules.StepVelocity(state.velocity, desired, transform.rotation,
+                                                       topSpeed, dt, smepAccelerationForward, smepAccelerationReverse,
+                                                       smepAccelerationStrafe, smepAccelerationHover);
             // The already-clamped velocity is the only movement source, including retreat.
             var step = state.velocity * dt * M;
             transform.position = beforePosition + step;
