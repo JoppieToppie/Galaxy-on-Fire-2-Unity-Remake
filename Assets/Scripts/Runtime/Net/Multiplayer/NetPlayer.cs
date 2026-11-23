@@ -348,17 +348,22 @@ namespace GoF2Remake.Multiplayer
         void JumpgateDiscoveryUpRpc(int orbitStationIndex)
         {
             int destination = NetPlayerStations.JumpgateDestinationForInteraction(this, orbitStationIndex);
-            if (destination < 0 || !NetProfiles.DiscoverSystem(ProfileAccount, destination)) return;
-            JumpgateDiscoveryRpc(destination);
+            if (destination < 0) return;
+            bool newlyDiscovered = !NetProfiles.HasDiscoveredSystem(ProfileAccount, destination);
+            if (!NetProfiles.DiscoverSystem(ProfileAccount, destination)) return;
+            JumpgateDiscoveryRpc(destination, newlyDiscovered);
         }
 
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void JumpgateDiscoveryRpc(int systemIndex)
+        void JumpgateDiscoveryRpc(int systemIndex, bool newlyDiscovered)
         {
             if (!IsOwner || NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex) == null) return;
             GalaxyMap.Reveal(NetGame.Db, systemIndex);
-            string name = NetGame.Db.Systems.Find(x => x != null && x.index == systemIndex)?.name ?? ("System " + systemIndex);
-            NetChat.Notice("New system discovered: " + name + ".");
+            if (newlyDiscovered)
+            {
+                string name = NetGame.Db.Systems.Find(x => x != null && x.index == systemIndex)?.name ?? ("System " + systemIndex);
+                NetChat.Notice("New system discovered: " + name + ".");
+            }
         }
 
         void OnStationValueChangedWithGateAccess(int previous, int next)
