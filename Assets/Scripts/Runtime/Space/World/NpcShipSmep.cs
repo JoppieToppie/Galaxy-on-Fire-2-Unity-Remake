@@ -71,6 +71,25 @@ namespace GoF2Remake.World
         float smepFrameTopSpeed, smepFrameDtMs;
         int smepMovementFrame = -1;
         bool smepPathInitialized;
+        float smepHullTopSpeed, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
+        // Player flight rules are resolved once at spawn, never in the movement loop.
+        void SetupSmepHullFlight(ShipData ship)
+        {
+            var stats = Database.BuildFlightStats(ship, null);
+            var rules = stats.rules ?? FlightRules.Default;
+            var bonus = stats.free?.bonus ?? new FlightBonus();
+            float handling = Mathf.Max(5f, stats.handling / 100f * 20f);
+            float handlingFactor = Mathf.Pow(handling / 20f, rules.freeAccelHandlingExponent)
+                                   * FlightBonus.Scale(bonus.acceleration);
+            smepHullTopSpeed = rules.baseSpeed * FlightBonus.Scale(bonus.topSpeed);
+            smepAccelerationForward = rules.freeAccelForward * handlingFactor * FlightBonus.Scale(bonus.forwardAcceleration);
+            smepAccelerationReverse = (rules.freeAccelReverse > 0f ? rules.freeAccelReverse : rules.freeAccelSide)
+                                      * handlingFactor * FlightBonus.Scale(bonus.reverseAcceleration);
+            smepAccelerationStrafe = (rules.freeAccelStrafe > 0f ? rules.freeAccelStrafe : rules.freeAccelSide)
+                                     * handlingFactor * FlightBonus.Scale(bonus.strafeAcceleration);
+            smepAccelerationHover = (rules.freeAccelHover > 0f ? rules.freeAccelHover : rules.freeAccelSide)
+                                    * handlingFactor * FlightBonus.Scale(bonus.hoverAcceleration);
+        }
         Vector3 smepPendingAvoidanceDirection;
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
