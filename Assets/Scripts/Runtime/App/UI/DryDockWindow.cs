@@ -20,7 +20,7 @@ namespace GoF2Remake.UI
         readonly StationLevel level;
         readonly VisualElement safeArea, panel, list, detail;
         readonly Label title, statusText, feedbackText, detailTitle, detailText, recipeText;
-        readonly Button openButton, closeButton, buildButton;
+        readonly Button closeButton, buildButton;
         readonly List<(int productId, int shipIndex, string name, string className)> blueprints =
             new List<(int, int, string, string)>();
         PlayerStationRecord station;
@@ -31,7 +31,6 @@ namespace GoF2Remake.UI
         float feedbackRemaining;
 
         public bool IsOpen => isOpen;
-        public Button MenuButton => openButton;
 
         public VisualElement[] NavItems()
         {
@@ -46,21 +45,6 @@ namespace GoF2Remake.UI
             this.menu = menu;
             this.level = level;
             safeArea = root.Q("safeArea") ?? root;
-
-            openButton = new Button(Open) { name = "dryDockButton", text = "DRY DOCK" };
-            openButton.AddToClassList("station-button");
-            openButton.AddToClassList("gof-semibold");
-            openButton.AddToClassList("drydock-menu-button");
-            var buttons = root.Q("sidePanel")?.Q(className: "station-buttons");
-            if (buttons != null)
-            {
-                int before = buttons.IndexOf(root.Q("inspectButton"));
-                buttons.Insert(before >= 0 ? before : buttons.childCount, openButton);
-            }
-            else safeArea.Add(openButton);
-            openButton.style.display = DisplayStyle.None;
-            openButton.clicked += menu.PlayRelease;
-            openButton.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
 
             panel = new VisualElement { name = "dryDockWindow" };
             panel.AddToClassList("drydock-window");
@@ -119,7 +103,6 @@ namespace GoF2Remake.UI
         public void Dispose()
         {
             NetChat.Added -= OnChat;
-            openButton?.RemoveFromHierarchy();
             panel?.RemoveFromHierarchy();
         }
 
@@ -127,7 +110,6 @@ namespace GoF2Remake.UI
         {
             if (level == null || level.Layout == null || !NetGame.Active)
             {
-                openButton.style.display = DisplayStyle.None;
                 if (IsOpen) Close();
                 return;
             }
@@ -136,7 +118,6 @@ namespace GoF2Remake.UI
             var current = NetPlayerStations.Stations?.FirstOrDefault(s => s != null && s.stationIndex == stationIndex);
             bool hasDock = current != null && !current.underConstruction &&
                 (current.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
-            openButton.style.display = hasDock ? DisplayStyle.Flex : DisplayStyle.None;
             if (!hasDock)
             {
                 if (IsOpen) Close();
@@ -162,8 +143,9 @@ namespace GoF2Remake.UI
             }
         }
 
-        void Open()
+        internal void Open()
         {
+            Update();
             if (station == null || !NetGame.Active) return;
             menu.CloseHangar();
             panel.style.display = DisplayStyle.Flex;

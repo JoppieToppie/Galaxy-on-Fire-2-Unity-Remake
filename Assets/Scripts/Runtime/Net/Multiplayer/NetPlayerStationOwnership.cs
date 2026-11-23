@@ -17,6 +17,27 @@ namespace GoF2Remake.Multiplayer
                 string.Equals(faction.leader, account, StringComparison.Ordinal);
         }
 
+        internal static string RenameStation(NetPlayer by, int id, string name)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (!CanManage(by, record, out string account) || !IsOwnershipAuthority(record, account))
+                return "Only the individual owner or owning faction leader can rename a station while docked there.";
+            name = (name ?? "").Trim();
+            if (!ValidStationName(name)) return "Choose a station name between 3 and 40 characters.";
+            string previous = record.name;
+            if (string.Equals(name, previous, StringComparison.Ordinal)) return "The station already has that name.";
+
+            record.name = name;
+            if (!Save())
+            {
+                record.name = previous;
+                return "The station name could not be saved.";
+            }
+            Apply(NetGame.Db);
+            return "Station renamed to " + name + ".";
+        }
+
         /// <summary>
         /// Propose an ownership change. targetAccount is either the receiving player's account ID,
         /// or an account belonging to the receiving faction (its current leader must accept).

@@ -23,6 +23,7 @@ namespace GoF2Remake.UI
         float feedbackTime;
 
         public bool IsOpen => open;
+        internal Button MenuButton => openButton;
         public VisualElement[] NavItems() => panel.Query<Button>().ToList().Cast<VisualElement>().ToArray();
 
         public StationManagementWindow(StationMenu menu, StationLevel level, VisualElement root)
@@ -73,6 +74,7 @@ namespace GoF2Remake.UI
             if (!available) { if (open) Close(); return; }
             if (!open) return;
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
+            if (TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
             {
                 refresh = 2f;
@@ -174,6 +176,8 @@ namespace GoF2Remake.UI
 
             if (selected != null)
             {
+                AddField("stationName", "New station name", selected.name);
+                AddAction("Rename station", () => Send("/station rename " + selected.id + " " + Value("stationName")));
                 AddSection("PLAYER-BUILT JUMPGATES", "Sponsor construction from this station, but place the gate in any orbital location in this system. Each orbit can contain only one gate. Owners and faction managers can change an operational gate's destination once every 24 hours.");
                 AddField("jumpgateOrbit", "Orbit station index (see orbital list)", selected.stationIndex.ToString());
                 AddAction("List this system's orbital locations", "/station jumpgate-orbits " + selected.system);
@@ -227,6 +231,24 @@ namespace GoF2Remake.UI
                         ?? ("System " + gate.destinationSystem);
                     AddInfo("Gate · " + orbitName + " (" + orbitId + ")", "Destination: " + destinationName);
                     AddAction("Refresh gate status · orbit " + orbitId, "/station jumpgate-status " + orbitId);
+                    if (!gate.scrapped && !gate.permanentlyDestroyed)
+                    {
+                        string modeKey = "gateAccess_" + orbitId;
+                        string typeKey = "gateBlockType_" + orbitId;
+                        string targetKey = "gateBlockTarget_" + orbitId;
+                        string access = gate.accessMode == PlayerJumpgateAccessMode.OwningFaction ? "faction"
+                            : gate.accessMode == PlayerJumpgateAccessMode.Blacklist ? "blacklist"
+                            : gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly ? "owner" : "everyone";
+                        AddField(modeKey, "Access · everyone, faction, blacklist or owner", access);
+                        AddAction("Set gate access · orbit " + orbitId, () =>
+                            Send("/station jumpgate-access " + orbitId + " " + Value(modeKey)));
+                        AddField(typeKey, "Blacklist entry type · player or faction", "player");
+                        AddField(targetKey, "Blacklist account or faction ID", "");
+                        AddAction("Add to gate blacklist", () =>
+                            Send("/station jumpgate-blacklist " + orbitId + " add " + Value(typeKey) + " " + Value(targetKey)));
+                        AddAction("Remove from gate blacklist", () =>
+                            Send("/station jumpgate-blacklist " + orbitId + " remove " + Value(typeKey) + " " + Value(targetKey)));
+                    }
                     if (gate.startedUtc <= 0)
                     {
                         AddInfo("Gate status", "Awaiting construction materials");
@@ -318,7 +340,8 @@ namespace GoF2Remake.UI
             AddAction("Retrieve a ship to your fleet", () => Send("/station retrieve-ship " + id + " " + Value("hangarIndex")));
 
             AddSection("DRY DOCK & SHIPYARD", "Dedicated large-hull storage and timed construction of dry-dock-restricted ship blueprints.");
-            AddAction("Open dedicated dry-dock shipyard", () => { Close(); NetChat.Notice("Use the DRY DOCK button in the station menu to open the shipyard."); });
+            if (!selected.underConstruction && (selected.addons?.Any(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
+                AddAction("Open dry-dock shipyard", () => { Close(); menu.OpenPlayerDryDock(); });
             AddAction("List dry-dock hulls and build status", "/station drydock " + id);
             AddField("dryFleetIndex", "Personal fleet index", "1");
             AddAction("Store a large hull", () => Send("/station drydock-store " + id + " " + Value("dryFleetIndex")));

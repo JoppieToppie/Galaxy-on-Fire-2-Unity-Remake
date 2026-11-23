@@ -710,7 +710,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Sign in to a controlled player profile before building a station.";
             name = (name ?? "").Trim();
-            if (name.Length < 3 || name.Length > 40 || name.IndexOfAny(new[] { '\\r', '\\n', '\\t', '\\0', '<', '>' }) >= 0)
+            if (!ValidStationName(name))
                 return "Choose a station name between 3 and 40 characters.";
             var db = NetGame.Db;
             var system = db?.Systems?.Find(s => s != null && s.index == systemIndex);
@@ -779,6 +779,24 @@ namespace GoF2Remake.Multiplayer
             nextTransactionRetryUtc = 0;
         }
 
+        static bool ValidStationName(string name) =>
+            name.Length >= 3 && name.Length <= 40 &&
+            name.IndexOfAny(new[] { '\r', '\n', '\t', '\0', '<', '>' }) < 0;
+
+        sealed class RuntimeStationIdentity
+        {
+            public int ProjectId;
+        }
+
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<StationData, RuntimeStationIdentity>
+            runtimeStations = new System.Runtime.CompilerServices.ConditionalWeakTable<StationData, RuntimeStationIdentity>();
+
+        static void AddRuntimeStation(Database db, PlayerStationRecord record, StationData station)
+        {
+            db.Stations.Add(station);
+            runtimeStations.Add(station, new RuntimeStationIdentity { ProjectId = record.id });
+        }
+
         /// <summary>Add saved player stations to a freshly loaded game database, after mods have added their stations.</summary>
         internal static void Apply(Database db)
         {
@@ -809,10 +827,11 @@ namespace GoF2Remake.Multiplayer
                 if (record.stationIndex != db.Stations.Count)
                 {
                     if (db.Stations.Find(s => s != null && s.index == record.stationIndex) is StationData existing &&
-                        (existing.name == stationName || existing.name == record.name))
+                        runtimeStations.TryGetValue(existing, out var identity) && identity.ProjectId == record.id)
                     {
                         if (available)
                         {
+                            existing.name = stationName;
                             existing.system = record.system;
                             existing.systemName = system.name;
                             existing.techLevel = look.techLevel;
@@ -838,7 +857,7 @@ namespace GoF2Remake.Multiplayer
                     string reason = count > MaxStationsPerSystem ? "the system exceeds the player station limit" :
                         !validOrbit ? "the system is missing or has no orbital locations" : "no valid model preset exists";
                     Debug.LogError($"NetPlayerStations: station {record.id} is unavailable because {reason}; its index is reserved but it will not be added to the system.");
-                    db.Stations.Add(new StationData
+                    AddRuntimeStation(db, record, new StationData
                     {
                         index = record.stationIndex,
                         name = stationName,
@@ -851,7 +870,7 @@ namespace GoF2Remake.Multiplayer
                 }
 
                 if (record.looksLike < 0) record.looksLike = look.index;
-                db.Stations.Add(new StationData
+                AddRuntimeStation(db, record, new StationData
                 {
                     index = record.stationIndex,
                     name = stationName,

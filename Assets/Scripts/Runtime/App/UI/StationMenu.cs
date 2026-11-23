@@ -68,6 +68,7 @@ namespace GoF2Remake.UI
         Button customizeButton;   // remake mods: a customizable ship's Customize screen (ShipCustomizePanel)
         StatusWindow status;
         DryDockWindow dryDock;
+        internal void OpenPlayerDryDock() => dryDock?.Open();
         StationManagementWindow stationManagement;
         LoungePanel lounge;
         bool safeAreaHidden;
