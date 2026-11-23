@@ -307,6 +307,38 @@ namespace GoF2Remake.Multiplayer
             return gate.destinationSystem >= 0 && !gate.building && !gate.scrapped && !gate.permanentlyDestroyed;
         }
 
+        /// <summary>
+        /// Live reciprocal system connection for emergency misjump routing.
+        /// Original static galaxy connections remain valid; newly constructed connections
+        /// must have a functioning gate at BOTH ends. This does not grant gate access.
+        /// </summary>
+        public static bool JumpgateLinkOperational(int fromSystem, int toSystem)
+        {
+            if (fromSystem < 0 || toSystem < 0 || fromSystem == toSystem) return false;
+            var db = NetGame.Db;
+            var origin = db?.Systems?.Find(s => s != null && s.index == fromSystem);
+            var destination = db?.Systems?.Find(s => s != null && s.index == toSystem);
+            if (origin == null || destination == null) return false;
+            // Static routes are not managed by the player-station lifecycle.
+            if (origin.jumpRoutesTo != null && destination.jumpRoutesTo != null &&
+                origin.jumpRoutesTo.Contains(toSystem) && destination.jumpRoutesTo.Contains(fromSystem))
+                return true;
+            if (!NetGame.Active || !sessionActive || registry?.jumpgates == null) return false;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            bool forward = false, backward = false;
+            foreach (var gate in registry.jumpgates)
+            {
+                if (gate == null || gate.building || gate.startedUtc <= 0 ||
+                    gate.scrapped || gate.permanentlyDestroyed || gate.explosionPending ||
+                    gate.empShutdownUntilUtc > now ||
+                    (gate.combatStateInitialized && gate.structuralIntegrity <= 0f)) continue;
+                if (gate.system == fromSystem && gate.destinationSystem == toSystem) forward = true;
+                if (gate.system == toSystem && gate.destinationSystem == fromSystem) backward = true;
+                if (forward && backward) return true;
+            }
+            return false;
+        }
+
         /// <summary>Returns the arrival orbit in the gate's fixed destination system.</summary>
         internal static int JumpgateDestinationStation(int stationIndex)
         {
