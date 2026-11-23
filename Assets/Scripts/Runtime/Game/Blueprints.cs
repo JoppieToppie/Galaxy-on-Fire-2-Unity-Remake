@@ -51,7 +51,8 @@ namespace GoF2Remake.Data
         static readonly HashSet<int> NeedsRoutes = new HashSet<int> { 210, 223 };
 
         /// <summary>Every product (items with ingredients) in item-index order (Status::resetGame).</summary>
-        public static List<ItemData> Products(Database db) => db.Items.FindAll(i => i.blueprint != null && i.blueprint.Count > 0);
+        public static List<ItemData> Products(Database db) => db.Items.FindAll(i => i.blueprint != null && i.blueprint.Count > 0
+            && Modding.ModContent.ItemAvailableFor(i.index, "blueprints"));
 
         public static bool IsUnlocked(int product) => Session.UnlockedBlueprints.Contains(product);
         public static void Unlock(int product) => Session.UnlockedBlueprints.Add(product);
@@ -268,7 +269,7 @@ namespace GoF2Remake.Data
             // Keep the final production path authoritative too; the UI's CanStartIn check is not a security boundary.
             if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(currentStation)) return false;
             var it = db.Item(product);
-            if (it == null || it.blueprint == null) return false;   // not a product (-1 from a stale hangar row)
+            if (it == null || it.blueprint == null || !Modding.ModContent.ItemAvailableFor(product, "blueprints")) return false;   // unavailable or stale product
             var s = State(db, product);
             int qty = BaseQuantity(it);
             if (s.station < 0) s.station = currentStation;
