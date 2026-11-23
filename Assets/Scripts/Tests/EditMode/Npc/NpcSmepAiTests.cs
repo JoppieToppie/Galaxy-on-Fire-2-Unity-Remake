@@ -59,6 +59,28 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void CollisionVelocityUsesWholeFrameMovementNotAddedCorrection()
+        {
+            var start = new UnityEngine.Vector3(2f, 0f, 0f);
+            var afterThrust = new UnityEngine.Vector3(5f, 0f, 0f);
+            var afterCollision = new UnityEngine.Vector3(4f, 0f, 0f);
+            var velocity = SmepAiRules.VelocityFromDisplacement(start, afterCollision, 100f, 1f, 10f);
+            Assert.That(velocity.x, Is.EqualTo(0.02f).Within(0.00001f));
+            Assert.That(SmepAiRules.VelocityFromDisplacement(start, afterThrust, 100f, 1f, 10f).x,
+                        Is.EqualTo(0.03f).Within(0.00001f));
+        }
+
+        [Test]
+        public void CollisionCorrectionCannotExceedSharedSpeedLimit()
+        {
+            var velocity = SmepAiRules.VelocityFromDisplacement(UnityEngine.Vector3.zero,
+                             new UnityEngine.Vector3(200f, 0f, 0f), 100f, 1f, 0.5f);
+            Assert.That(velocity.magnitude, Is.EqualTo(0.5f).Within(0.00001f));
+            Assert.AreEqual(UnityEngine.Vector3.zero, SmepAiRules.VelocityFromDisplacement(
+                            UnityEngine.Vector3.zero, UnityEngine.Vector3.one, 0f, 1f, 1f));
+        }
+
+        [Test]
         public void ExistingModsDoNotOptIntoMobileSmepByDefault()
         {
             Assert.IsFalse(new GoF2Remake.Data.CustomTraffic().mobileAi);
