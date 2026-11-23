@@ -391,6 +391,14 @@ namespace GoF2Remake.Flight
             }
             gun.owner = owner;
             gun.Hit += (i, target, point) => OnHit(rig, i, target, point);
+            // Scenery collision supplies the actual mesh body, not just a position near a gate.
+            gun.SceneryImpact += (i, body, point) =>
+            {
+                if (body == null || body.playerJumpgateOrbit < 0 ||
+                    !HullCollision.IsForcedExact(body)) return;
+                GoF2Remake.Multiplayer.NetPlayer.Local?.ReportJumpgateImpact(
+                    body.playerJumpgateOrbit, gun.itemIndex, gun.bullets[i].networkShotId, point);
+            };
             gun.AreaHit += (target, dmg, emp, center) => OnAreaHit(rig, target, dmg, emp, center);
             gun.Ignited += point => OnIgnited(rig, point);
             gun.Expired += _ => Session.RocketAsteroids = 0;   // Gun::update: a rocket / missile ran out (medal 41)
