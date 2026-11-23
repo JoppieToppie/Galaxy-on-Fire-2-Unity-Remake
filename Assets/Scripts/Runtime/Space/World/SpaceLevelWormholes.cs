@@ -212,22 +212,38 @@ namespace GoF2Remake.World
         }
         /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
         /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
-        bool playerJumpgateWreck;
+        bool playerJumpgateWreck, playerJumpgateExplosionPlayed;
 
-        public void OnPlayerJumpgateDestroyed() => SetPlayerJumpgateWreck(true);
+        public void OnPlayerJumpgateDestroyed(bool permanent = false)
+        {
+            SetPlayerJumpgateWreck(true);
+            if (permanent && Jumpgate != null)
+            {
+                // A rebuilt gate's second destruction ends the lifecycle. Scrap is recoverable,
+                // but permanent destruction leaves no obstructing gate model in the orbit.
+                Destroy(Jumpgate);
+                Jumpgate = null;
+                if (Layout != null) Layout.hasJumpgate = false;
+                playerJumpgateWreck = false;
+            }
+        }
 
         /// <summary>Also used when entering an orbit that already contains a persisted scrap hull.
         /// Only a fresh server destruction event plays the explosion.</summary>
         void SetPlayerJumpgateWreck(bool explode)
         {
-            if (Jumpgate == null || Layout == null || Navigation == null || playerJumpgateWreck) return;
+            if (Jumpgate == null || Layout == null || Navigation == null) return;
+            if (explode && !playerJumpgateExplosionPlayed)
+            {
+                Explosion.Spawn(Jumpgate.transform.position, 7f);
+                playerJumpgateExplosionPlayed = true;
+            }
+            if (playerJumpgateWreck) return;
             playerJumpgateWreck = true;
-            if (explode) Explosion.Spawn(Jumpgate.transform.position, 7f);
             Navigation.SetAutopilot(null);
             Navigation.Targets.RemoveAll(t => t.kind == Navigation.Kind.Jumpgate);
             SystemJump?.SetJumpgate(null);
-            // Retain the wreck's exact hull and its obstacle, including while it is scrap.
-            // It remains visible and physically present, but no longer offers a jump route.
+            // The first destruction leaves visible collidable scrap until reclamation.
         }
 
         /// <summary>
