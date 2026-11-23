@@ -9,14 +9,44 @@ namespace GoF2Remake.UI
     public sealed partial class MultiplayerWindow
     {
         int projectOrbit = -1;
+        string projectSnapshot;
+        StationProjectActions projectActions;
+        Label wreckCountdown, gateCountdown;
+        PlayerStationWreckClaim timedClaim;
+        long gateCompletesUtc, nextProjectClockUtc;
         int rebuildModel = -1;
         string wreckMaterial = "", wreckAmount = "1", gateMaterial = "", gateAmount = "1";
+
+        void UpdateOrbitProjects()
+        {
+            var pilot = NetPlayer.Local;
+            int orbit = pilot?.InSpace == true ? pilot.Station : -1;
+            var actions = pilot?.AvailableStationActions ?? StationProjectActions.None;
+            if (!Busy && (orbit != projectOrbit || actions != projectActions ||
+                !ReferenceEquals(projectSnapshot, NetState.Instance?.PlayerStations)))
+                Rebuild();
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (now < nextProjectClockUtc) return;
+            nextProjectClockUtc = now + 1;
+            if (wreckCountdown != null)
+            {
+                long seconds = Math.Max(0, timedClaim.ExclusiveAt - now * 1000 + 999) / 1000;
+                wreckCountdown.text = $"Claim held by {timedClaim.claimantName} · exclusive in {seconds / 60}:{seconds % 60:00}";
+            }
+            if (gateCountdown != null)
+                gateCountdown.text = $"{Math.Max(0, gateCompletesUtc - now):N0} seconds remaining";
+        }
 
         void BuildOrbitProjects()
         {
             var pilot = NetPlayer.Local;
-            if (pilot == null || !pilot.InSpace) return;
-            int orbit = pilot.Station;
+            projectSnapshot = NetState.Instance?.PlayerStations;
+            projectActions = pilot?.AvailableStationActions ?? StationProjectActions.None;
+            wreckCountdown = gateCountdown = null;
+            timedClaim = null;
+            nextProjectClockUtc = 0;
+            int orbit = pilot?.InSpace == true ? pilot.Station : -1;
             if (orbit != projectOrbit)
             {
                 projectOrbit = orbit;
@@ -25,6 +55,7 @@ namespace GoF2Remake.UI
                 wreckAmount = gateAmount = "1";
             }
 
+            if (pilot?.InSpace != true) return;
             var station = NetPlayerStations.StationAt(orbit);
             var gate = NetPlayerStations.FindJumpgate(orbit);
             if (station?.wreckClaimOpen == true)
@@ -77,8 +108,9 @@ namespace GoF2Remake.UI
                 body.Add(Text("Exclusive claim held by " + claim.claimantName, 16, Dim));
             else
             {
-                long seconds = Math.Max(0, claim.ExclusiveAt - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 999) / 1000;
-                body.Add(Text($"Claim held by {claim.claimantName} · exclusive in {seconds / 60}:{seconds % 60:00}", 16, Dim));
+                timedClaim = claim;
+                wreckCountdown = Text("", 16, Dim);
+                body.Add(wreckCountdown);
             }
             if (!actions.HasFlag(StationProjectActions.RebuildWreck)) return;
 
@@ -115,8 +147,9 @@ namespace GoF2Remake.UI
             }
             if (gate.startedUtc > 0)
             {
-                long seconds = Math.Max(0, gate.completesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                body.Add(Text($"{seconds:N0} seconds remaining", 16, Dim));
+                gateCompletesUtc = gate.completesUtc;
+                gateCountdown = Text("", 16, Dim);
+                body.Add(gateCountdown);
                 return;
             }
             var row = ProjectDeliveryFields(gateMaterial, gateAmount, value => gateMaterial = value, value => gateAmount = value);

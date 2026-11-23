@@ -206,6 +206,7 @@ namespace GoF2Remake.UI
             plateButton.text = (label + (waiting || unread ? "  •" : "")).UiCaps();
             if (isOpen && tab == Tab.Squad && SquadKey() != squadKey) Rebuild();
             if (isOpen && tab == Tab.Trade && TradeKey() != tradeKey && !Busy) Rebuild();
+            if (isOpen && tab == Tab.OrbitProjects) UpdateOrbitProjects();
             // The plate's dot needs a snapshot now and then even while the window is closed.
             if ((refresh -= Time.unscaledDeltaTime) <= 0f) { refresh = isOpen ? NetPanel.RefreshSeconds : NetPanel.RefreshSeconds * 3f; NetPanel.Request(); }
         }
@@ -213,7 +214,7 @@ namespace GoF2Remake.UI
         void OnChanged()
         {
             if (NetPanel.Latest != null && NetPanel.Latest.role != shownRole && tabs != null) BuildTabs();   // made an op / admin, or no longer
-            if (!isOpen || tab == Tab.Squad || tab == Tab.Trade) return;   // they follow the players, not the snapshot
+            if (!isOpen || tab == Tab.Squad || tab == Tab.Trade || tab == Tab.OrbitProjects) return;
             // Not under a finger or a text field being typed into (a rebuild made new fields: the focus and Android's keyboard
             // went, and a pressed button was gone before its release): once they are done (Update).
             if (Busy) pendingRebuild = true;
