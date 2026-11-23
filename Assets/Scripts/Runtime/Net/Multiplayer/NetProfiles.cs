@@ -315,7 +315,8 @@ namespace GoF2Remake.Multiplayer
                     stack.amount = amount;
                     if (amount == 0) save.cargo.Remove(stack);
                 }
-                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false)))
+                    Debug.LogWarning("NetProfiles: jumpgate discovery was saved in the account index but the profile snapshot could not be refreshed.");
             }
 
             if (host)
