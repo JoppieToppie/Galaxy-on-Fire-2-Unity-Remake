@@ -33,13 +33,33 @@ namespace GoF2Remake.World
             chorusFight = null;
             chorusTarget = null;
             dogTarget = null;
-            SetupEs2Aim(spec);   // remake option: EVERSPACE 2's aim, apart from the way of fighting (NpcShipEs2)
-            SetupEs2Flight(spec);   // remake option: EVERSPACE 2's physics flight (NpcShipEs2Flight)
-            if (spec.freighter || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.capitalPart || spec.modCapital) return;
+            smepFighterAi = false;
+            smepHoldFire = true;
+            smepDogfightState = null;
+            smepMotionTarget = null;
+            smepMotionInitialized = false;
+            smepReciprocalHasPosition = false;
+
             int mode = Settings.NpcDogfight;
-            if (mode == SessionRules.DogfightOriginalMode) return;
+            var customTraffic = (db?.Ship(spec.ship) as CustomShipData)?.traffic;
             string ai = mode == SessionRules.DogfightAll ? "gof3" : mode == SessionRules.DogfightEs2All ? "es2"
-                      : (db?.Ship(spec.ship) as CustomShipData)?.traffic?.ai;
+                      : mode == SessionRules.DogfightOriginalMode ? null : customTraffic?.ai;
+            bool smep = string.Equals(ai, "smep", System.StringComparison.OrdinalIgnoreCase);
+            bool smepMobileAllowed = SmepAiRules.EnabledOnPlatform(Application.isMobilePlatform, customTraffic?.mobileAi == true);
+            bool smepEligible = smep && smepMobileAllowed && !spec.freighter && spec.fixedObject == null && spec.turretAssembly == null
+                                && spec.capital == 0 && !spec.capitalPart && !spec.modCapital && !spec.stationary
+                                && !spec.structure && !spec.stationPort && !spec.eventWreck && spec.eventTag == 0
+                                && !IsStructure(spec);
+            SetupEs2Aim(spec, smepEligible);   // SMEP opts this hull into native ES2 aiming without changing the global option
+            SetupEs2Flight(spec, smepEligible);   // likewise for ES2's physics flight
+            if (spec.freighter || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.capitalPart || spec.modCapital) return;
+            if (mode == SessionRules.DogfightOriginalMode) return;
+            if (smepEligible)
+            {
+                smepFighterAi = true;
+                SetupEs2Fight();
+                return;
+            }
             if (string.Equals(ai, "es2", System.StringComparison.OrdinalIgnoreCase)) { SetupEs2Fight(); return; }   // (NpcShipEs2)
             if (ChorusDogfight.KindOf(ai) is ChorusDogfight.Kind ck) { chorusFight = new ChorusDogfight(() => Random.value, ck); return; }   // (NpcShipChorus)
             if (!string.Equals(ai, "gof3", System.StringComparison.OrdinalIgnoreCase)) return;
@@ -54,6 +74,7 @@ namespace GoF2Remake.World
         /// <summary>After the targeting: the target's motion (for the lead), the mode, the roll's invulnerability.</summary>
         void UpdateDogfight(float dtMs)
         {
+            if (smepFighterAi) UpdateSmepTargetPriority();
             UpdateEs2(dtMs);   // remake options: EVERSPACE 2's aim and way of fighting (NpcShipEs2)
             UpdateChorus(dtMs);   // remake mods: Chorus's way of fighting (NpcShipChorus)
             if (dogfight == null) return;
