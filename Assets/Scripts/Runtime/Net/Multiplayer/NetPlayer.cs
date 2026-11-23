@@ -344,6 +344,23 @@ namespace GoF2Remake.Multiplayer
             NetGame.IsServer ? All.Find(p => p != null && p.IsSpawned && p.OrbitAuthority &&
                 p.RunsOrbitActive && p.RunsOrbit == orbitStationIndex) : null;
 
+        /// <summary>Server: notify pilots of a persisted EMP shutdown immediately.</summary>
+        internal void BroadcastJumpgateEmp(int orbitStationIndex, long untilUtc)
+        {
+            if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
+            JumpgateEmpRpc(orbitStationIndex, untilUtc);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateEmpRpc(int orbitStationIndex, long untilUtc)
+        {
+            if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
+                Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
+            if (Local.level != null && Local.level.Layout != null &&
+                Local.level.Layout.stationIndex == orbitStationIndex)
+                Local.level.OnPlayerJumpgateEmpShutdown(untilUtc);
+        }
+
         /// <summary>Server: broadcast a saved gate-destruction event on the orbit runner's network object.</summary>
         internal void BroadcastJumpgateExplosion(int orbitStationIndex, bool permanentlyDestroyed)
         {
