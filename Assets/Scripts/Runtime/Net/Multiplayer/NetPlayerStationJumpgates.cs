@@ -73,7 +73,8 @@ namespace GoF2Remake.Multiplayer
                 gate.lastStructuralDamageUtc = now;
                 gate.structuralIntegrityUpdatedUtc = now;
             }
-            if (gate.structuralIntegrity <= 0f) TransitionDestroyedGate(gate);
+            bool destroyed = gate.structuralIntegrity <= 0f;
+            if (destroyed) TransitionDestroyedGate(gate);
             if (Save())
             {
                 // The durable shutdown applies immediately to active pilots; do not rely on
