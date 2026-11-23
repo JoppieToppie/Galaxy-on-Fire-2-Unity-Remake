@@ -698,11 +698,15 @@ namespace GoF2Remake.Flight
                 if (AutopilotTarget == target) SetAutopilot(null);
                 Targets.Remove(target);
             }
-            else if (target == null)
+            else
             {
-                Targets.Add(new Target { kind = Kind.Station,
-                    fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(orbit), station = orbit,
-                    name = $"{name} {Localization.Get(136)}" });
+                if (target == null)
+                {
+                    target = new Target { kind = Kind.Station, station = orbit };
+                    Targets.Add(target);
+                }
+                target.fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(orbit);
+                target.name = $"{name} {Localization.Get(136)}";
             }
         }
 

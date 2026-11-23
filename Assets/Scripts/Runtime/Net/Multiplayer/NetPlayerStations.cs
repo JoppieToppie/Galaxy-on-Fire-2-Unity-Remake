@@ -120,6 +120,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
         public List<PlayerStationShipListing> shipListings = new List<PlayerStationShipListing>();
+        public int nextShipListingId = 1;
         public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
         public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
@@ -451,7 +452,19 @@ namespace GoF2Remake.Multiplayer
                     CompleteStationConstruction(station);
             ReconcileConsumedBlueprints();
             MigrateLegacyJumpgates();
-            foreach (var station in registry.stations) SyncJumpgatesForStation(station);
+            foreach (var station in registry.stations)
+            {
+                if (station == null) continue;
+                SyncJumpgatesForStation(station);
+                if (station.shipListings == null) continue;
+                int next = Math.Max(1, station.nextShipListingId);
+                foreach (var listing in station.shipListings)
+                    if (listing != null && listing.id >= next)
+                        next = listing.id == int.MaxValue ? int.MaxValue : listing.id + 1;
+                foreach (var listing in station.shipListings)
+                    if (listing != null && listing.id <= 0 && next < int.MaxValue) listing.id = next++;
+                station.nextShipListingId = next;
+            }
             // Persist one-time governance-field migrations for existing individual stations.
             Save();
         }

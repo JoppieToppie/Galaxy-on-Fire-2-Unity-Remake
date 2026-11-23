@@ -178,6 +178,22 @@ namespace GoF2Remake.UI
             {
                 AddField("stationName", "New station name", selected.name);
                 AddAction("Rename station", () => Send("/station rename " + selected.id + " " + Value("stationName")));
+                AddSection("MARKETPLACE", "Ship sales use the personal stored fleet and the station's sales tax.");
+                AddField("salesTax", "Sales tax (0–10%)", selected.marketplaceTaxPercent.ToString());
+                AddAction("Set marketplace tax", () => Send("/station tax " + selected.id + " " + Value("salesTax")));
+                AddAction("List personal stored hulls", "/station fleet");
+                AddField("marketFleetIndex", "Personal stored hull number", "1");
+                AddField("marketHullPrice", "Hull price in credits", "");
+                AddAction("List hull for sale", () => Send("/station list-ship " + selected.id + " " +
+                    Value("marketFleetIndex") + " " + Value("marketHullPrice")));
+                AddField("marketShipListing", "Ship listing number", "1");
+                AddAction("Buy listed hull", () => Send("/station buy-ship " + selected.id + " " + Value("marketShipListing")));
+                AddAction("Cancel my hull listing", () => Send("/station delist-ship " + selected.id + " " + Value("marketShipListing")));
+                AddAction("View faction construction stock", "/station faction-materials");
+                AddField("factionDonationItem", "Donated material item ID", "156");
+                AddField("factionDonationAmount", "Amount to donate", "25");
+                AddAction("Donate to faction construction stock", () => Send("/station faction-donate " +
+                    Value("factionDonationItem") + " " + Value("factionDonationAmount")));
                 AddSection("PLAYER-BUILT JUMPGATES", "Sponsor construction from this station, but place the gate in any orbital location in this system. Each orbit can contain only one gate. Owners and faction managers can change an operational gate's destination once every 24 hours.");
                 AddField("jumpgateOrbit", "Orbit station index (see orbital list)", selected.stationIndex.ToString());
                 AddAction("List this system's orbital locations", "/station jumpgate-orbits " + selected.system);

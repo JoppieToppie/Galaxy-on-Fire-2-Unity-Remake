@@ -7,6 +7,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class PlayerStationShipListing
     {
+        public int id;
         public StoredShip hull;
         public string sellerProfile;
         public long price;
@@ -25,12 +26,11 @@ namespace GoF2Remake.Multiplayer
         static void AddShipMarketplaceListings(PlayerStationRecord station, List<string> lines)
         {
             if (station.shipListings == null) return;
-            for (int i = 0; i < station.shipListings.Count; i++)
+            foreach (var listing in station.shipListings)
             {
-                var listing = station.shipListings[i];
                 if (listing?.hull == null) continue;
                 string name = NetGame.Db?.Ship(listing.hull.ship)?.name ?? $"Hull {listing.hull.ship}";
-                lines.Add($"Ship #{i + 1}: {name} for {listing.price:N0} credits.");
+                lines.Add($"Ship #{listing.id}: {name} for {listing.price:N0} credits.");
             }
         }
 
@@ -55,24 +55,30 @@ namespace GoF2Remake.Multiplayer
 
             var fleet = new List<StoredShip>(ships);
             fleet.RemoveAt(fleetIndex - 1);
-            var escrow = new PlayerStationShipListing { hull = BareHull(ship), sellerProfile = seller, price = price };
+            int previousNextId = station.nextShipListingId;
+            int id = Math.Max(1, previousNextId);
+            if (id == int.MaxValue) return "The ship listing ID limit has been reached.";
+            station.nextShipListingId = id + 1;
+            var escrow = new PlayerStationShipListing { id = id, hull = BareHull(ship), sellerProfile = seller, price = price };
             station.shipListings.Add(escrow);
             if (!CommitStoredShipTransaction(seller, fleet))
             {
                 station.shipListings.Remove(escrow);
+                station.nextShipListingId = previousNextId;
                 return "The listing could not be saved. The ship remains in your fleet.";
             }
             if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId)) NetProfiles.RefreshProfile(pilot.OwnerClientId);
-            return $"Ship #{station.shipListings.Count} listed at {station.name} for {price:N0} credits.";
+            return $"Ship #{escrow.id} listed at {station.name} for {price:N0} credits.";
         }
 
-        internal static string SettleMarketplaceShip(NetPlayer pilot, int stationId, int index, bool cancel)
+        internal static string SettleMarketplaceShip(NetPlayer pilot, int stationId, int listingId, bool cancel)
         {
             var station = Find(stationId);
             if (!ShipMarketContext(pilot, station, out string buyer))
                 return "Dock at the operational station with a controlled profile.";
-            if (index < 1 || index > (station.shipListings?.Count ?? 0)) return "No ship listing with that number.";
-            var listing = station.shipListings[index - 1];
+            int index = station.shipListings?.FindIndex(value => value != null && value.id == listingId) ?? -1;
+            if (listingId < 1 || index < 0) return "No ship listing with that number.";
+            var listing = station.shipListings[index];
             if (listing?.hull == null || listing.price <= 0 || listing.price > MaxStationUnitPrice ||
                 string.IsNullOrEmpty(listing.sellerProfile) || NetGame.Db?.Ship(listing.hull.ship) == null)
                 return "The ship listing is unavailable.";
@@ -99,10 +105,10 @@ namespace GoF2Remake.Multiplayer
                     else payments.Add((station.ownerProfile, tax));
                 }
             }
-            station.shipListings.RemoveAt(index - 1);
+            station.shipListings.RemoveAt(index);
             if (!CommitProfileTransaction(null, payments, banks, new List<(string account, List<StoredShip> ships)> { (buyer, target) }))
             {
-                station.shipListings.Insert(index - 1, listing);
+                station.shipListings.Insert(index, listing);
                 return "The ship transaction could not be saved. The hull remains in escrow.";
             }
 
