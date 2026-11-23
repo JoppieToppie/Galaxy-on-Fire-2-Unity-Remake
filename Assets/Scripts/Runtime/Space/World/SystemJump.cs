@@ -940,16 +940,28 @@ namespace GoF2Remake.World
                 {
                     if (station.system == origin || station.system == intended) continue;
                     var system = db.Systems.Find(s => s.index == station.system);
-                    if (system == null || system.jumpRoutesTo == null) continue;
+                    if (system == null) continue;
                     bool connected = false;
-                    foreach (int neighbourId in system.jumpRoutesTo)
-                    {
-                        var neighbour = db.Systems.Find(s => s.index == neighbourId);
-                        if (neighbour != null && neighbour.jumpRoutesTo != null && neighbour.jumpRoutesTo.Contains(system.index)
-                            && (GameHooks.JumpgateLinkOperational?.Invoke(system.index, neighbourId) ?? true)
-                            && (GameHooks.JumpgateLinkOperational?.Invoke(neighbourId, system.index) ?? true))
-                        { connected = true; break; }
-                    }
+                    // Static vanilla links require reciprocity. A live provider may additionally
+                    // expose fully operational, reciprocal player-built gate connections.
+                    if (system.jumpRoutesTo != null)
+                        foreach (int neighbourId in system.jumpRoutesTo)
+                        {
+                            var neighbour = db.Systems.Find(s => s.index == neighbourId);
+                            if (neighbour != null && neighbour.jumpRoutesTo != null &&
+                                neighbour.jumpRoutesTo.Contains(system.index) &&
+                                (GameHooks.JumpgateLinkOperational?.Invoke(system.index, neighbourId) ?? true) &&
+                                (GameHooks.JumpgateLinkOperational?.Invoke(neighbourId, system.index) ?? true))
+                            { connected = true; break; }
+                        }
+                    if (!connected && GameHooks.JumpgateLinkOperational != null)
+                        foreach (var neighbour in db.Systems)
+                        {
+                            if (neighbour == null || neighbour.index == system.index) continue;
+                            if (GameHooks.JumpgateLinkOperational(system.index, neighbour.index) &&
+                                GameHooks.JumpgateLinkOperational(neighbour.index, system.index))
+                            { connected = true; break; }
+                        }
                     if (!connected) continue;
                 }
                 candidates.Add(station.index);
