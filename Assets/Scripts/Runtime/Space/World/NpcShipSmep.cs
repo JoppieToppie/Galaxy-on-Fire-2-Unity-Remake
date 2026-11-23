@@ -45,6 +45,9 @@ namespace GoF2Remake.World
         const float SmepWideFireRange = 4000f, SmepMobileFireAngle = 12f;
 
         bool smepFighterAi, smepHoldFire = true;
+        Vector3 smepFrameStartPosition;
+        float smepFrameTopSpeed, smepFrameDtMs;
+        int smepMovementFrame = -1;
         SmepDogfightState smepDogfightState;
         Target smepMotionTarget;
         Vector3 smepMotionPosition, smepMotionVelocity, smepMotionAcceleration, smepMotionSampleVelocity;
@@ -85,15 +88,16 @@ namespace GoF2Remake.World
         }
 
         bool SmepMobileOptIn => Spec != null && (db?.Ship(Spec.ship) as CustomShipData)?.traffic?.mobileAi == true;
+
+        // Eligibility is fixed at spawn. Runtime checks below handle temporary scripted restrictions.
+        static bool SmepExcludedShipClass(ShipClassRules.Class shipClass)
+            => shipClass == ShipClassRules.Cruiser || shipClass == ShipClassRules.Carrier
+               || shipClass == ShipClassRules.Frigate || shipClass == ShipClassRules.Freighter;
         bool SmepHullEligible => smepFighterAi && Spec != null && !IsFreighter && !IsFixed && !IsTurret && !IsWingman
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec) && !MissionShip && !StoryShip && ScriptEnemy == null && !turnedEnemy
-                                 && mindControlMs <= 0f
-                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Cruiser
-                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Carrier
-                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Frigate
-                                 && ShipClassRules.ClassOf(db?.Ship(Spec.ship)) != ShipClassRules.Freighter;
+                                 && mindControlMs <= 0f;
         // A mobile player target always forces conventional flight, even with mobileAi opt-in.
         bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn);
         bool SmepEligible => SmepEnabledForTarget;
@@ -120,7 +124,6 @@ namespace GoF2Remake.World
             var origin = transform.position;
             foreach (var candidate in RemotePlayers)
             {
-                if (MobilePlatformTarget(candidate)) continue;
                 if (!Pursuable(candidate) || !HostileToRemote(this, candidate)) continue;
                 float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
                 if ((candidate.transform.position - origin).sqrMagnitude > detect * detect) continue;
@@ -352,26 +355,35 @@ namespace GoF2Remake.World
             localCurrent.y = Mathf.MoveTowards(localCurrent.y, localDesired.y, axisStep * 0.55f);
             localCurrent.z = Mathf.MoveTowards(localCurrent.z, localDesired.z, axisStep * (localDesired.z < localCurrent.z ? 0.75f : 1f));
             state.velocity = Vector3.ClampMagnitude(transform.TransformDirection(localCurrent), topSpeed);
-            float maxStep = topSpeed * dt * M;
+            // The already-clamped velocity is the only movement source, including retreat.
             var step = state.velocity * dt * M;
-            bool hardRetreat = state.retreating;
-            // Retreat uses the same acceleration-limited velocity as all other movement.
-
-            if (maxStep <= 0f) step = Vector3.zero;
-            else if (step.magnitude > maxStep)
-                step = hardRetreat ? away * maxStep : step.normalized * maxStep;
             transform.position = beforePosition + step;
             // Keep ES2's fallback velocity in sync with the authoritative SMEP displacement.
             es2Vel = dt > 0f && M > 0f ? step / (dt * M) * 1000f : Vector3.zero;
             es2FlownFrame = Time.frameCount;
         }
 
-        void SyncSmepAfterAvoidance(Vector3 positionBeforeAvoidance, float dtMs)
+        void SyncSmepAfterAvoidance()
         {
-            if (!SmepEligible || smepDogfightState == null || dtMs <= 0f || M <= 0f) return;
-            // Avoidance displacement is authoritative, including its collision response.
-            var correctedVelocity = (transform.position - positionBeforeAvoidance) / (dtMs * M);
-            smepDogfightState.velocity = Vector3.ClampMagnitude(smepDogfightState.velocity + correctedVelocity, Mathf.Max(0f, speed * slow.SpeedFactor * roleSpeedFactor * RolePace));
+            if (!SmepEligible || smepDogfightState == null || smepMovementFrame != Time.frameCount
+                || smepFrameDtMs <= 0f || M <= 0f) return;
+            // Reconstruct the movement once from the frame start, never add corrections twice.
+            // Penetration resolution may move farther than normal thrust; cap the resulting
+            // velocity rather than putting the ship back inside the collision volume.
+            var actualVelocity = (transform.position - smepFrameStartPosition) / (smepFrameDtMs * M);
+            smepDogfightState.velocity = Vector3.ClampMagnitude(actualVelocity, smepFrameTopSpeed);
+            es2Vel = smepDogfightState.velocity * 1000f;
+            es2FlownFrame = Time.frameCount;
+        }
+
+        void TurnSmepVelocityAwayFromObstacle(Vector3 direction, float dtMs)
+        {
+            if (!SmepEligible || smepDogfightState == null || direction.sqrMagnitude < 0.00001f) return;
+            var velocity = smepDogfightState.velocity;
+            if (velocity.sqrMagnitude < 0.00001f) return;
+            // A bounded steering response, preserving speed rather than adding a second move.
+            smepDogfightState.velocity = Vector3.RotateTowards(velocity, direction.normalized * velocity.magnitude,
+                                                               Mathf.Max(0f, dtMs) * 0.001f, 0f);
             es2Vel = smepDogfightState.velocity * 1000f;
         }
 
