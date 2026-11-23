@@ -316,15 +316,15 @@ namespace GoF2Remake.Multiplayer
                 ", linking to " + destination.name + ". Required materials: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. " +
                 (buildSeconds == 0 ? "The gate will become operational as soon as it is fully funded." :
                 "After funding, construction will take " + TimeText(buildSeconds) + ".") +
-                " Contribute with /station jumpgate-contribute " + orbitStationIndex + " <item id> <amount>.";
+                " Deliver materials in the construction orbit with /station jumpgate-contribute " + orbitStationIndex + " <item id> <amount>.";
         }
 
         internal static string ContributeJumpgate(NetPlayer by, int orbitStationIndex, int item, int amount)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player jumpgate construction needs a persistent server.";
-            if (by == null || !by.IsSpawned || !by.InHangar)
-                return "Dock at any station to contribute jumpgate construction materials.";
+            if (by == null || !by.IsSpawned || !by.InSpace || by.Station != orbitStationIndex)
+                return "Fly to the jumpgate's construction orbit to deliver materials; contributions cannot be made remotely or while docked.";
             if (!NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Use a controlled player profile to contribute materials.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item))
