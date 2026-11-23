@@ -54,7 +54,6 @@ namespace GoF2Remake.Flight
         public static void Query(Vector3 centre, float reach, List<Target> into)
         {
             float search = Mathf.Max(0f, reach) + maxRadius + Margin;
-            float searchSq = search * search;
             int x0 = Cell(centre.x - search), x1 = Cell(centre.x + search);
             int y0 = Cell(centre.y - search), y1 = Cell(centre.y + search);
             int z0 = Cell(centre.z - search), z1 = Cell(centre.z + search);
