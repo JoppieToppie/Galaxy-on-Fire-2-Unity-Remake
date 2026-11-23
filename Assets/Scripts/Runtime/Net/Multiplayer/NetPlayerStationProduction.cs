@@ -434,9 +434,14 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!IsStationContext(by, record, out string account) ||
-                !HasStationPermission(record, account, PlayerStationPermission.StationOperations))
-                return "Only the station owner or a faction member with station-operations permission can configure repeat orders.";
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at the station using a controlled profile to configure repeat orders.";
+            bool automationAuthority = record.ownershipType == PlayerStationOwnershipType.Individual
+                ? string.Equals(record.ownerProfile, account, StringComparison.Ordinal)
+                : HasStationPermission(record, account, PlayerStationPermission.StationOperations) &&
+                    string.Equals(NetFactions.Of(account)?.id, record.ownerFactionId, StringComparison.Ordinal);
+            if (!automationAuthority)
+                return "Repeat orders are restricted to the individual station owner or authorised members of its owning faction.";
             if (!HasFactoryModule(record) || record.underConstruction)
                 return "An operational factory module is required.";
             if (FindFactoryRecipe(recipeId) == null) return "Unknown recipe. Use /station recipes to list available recipes.";
@@ -471,9 +476,14 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!IsStationContext(by, record, out string account) ||
-                !HasStationPermission(record, account, PlayerStationPermission.StationOperations))
-                return "Only the station owner or a faction member with station-operations permission can cancel repeat orders.";
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at the station using a controlled profile to cancel repeat orders.";
+            bool automationAuthority = record.ownershipType == PlayerStationOwnershipType.Individual
+                ? string.Equals(record.ownerProfile, account, StringComparison.Ordinal)
+                : HasStationPermission(record, account, PlayerStationPermission.StationOperations) &&
+                    string.Equals(NetFactions.Of(account)?.id, record.ownerFactionId, StringComparison.Ordinal);
+            if (!automationAuthority)
+                return "Repeat orders are restricted to the individual station owner or authorised members of its owning faction.";
             var order = record.factoryRepeatOrders?.Find(x => x != null && x.id == orderId);
             if (order == null) return "No repeat order with that ID exists.";
             int index = record.factoryRepeatOrders.IndexOf(order);
