@@ -302,6 +302,9 @@ namespace GoF2Remake.Multiplayer
                 gate.contributions.Add(contribution = new PlayerStationContribution
                 { contributorProfile = account, item = item, amount = 0, unitValue = unitValue,
                     contributedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            if (contribution.amount < 0 || contribution.amount > int.MaxValue - amount ||
+                contribution.paidCredits < 0 || (factionOwned && contribution.paidCredits > long.MaxValue - payout))
+                return "The jumpgate contribution ledger has an invalid or overflowing total; administrator recovery is required.";
             int oldDelivered = material.delivered, oldAmount = contribution.amount;
             long oldUnitValue = contribution.unitValue;
             long oldPaid = contribution.paidCredits, oldPaidUtc = contribution.paidUtc;
