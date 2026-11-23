@@ -131,6 +131,8 @@ namespace GoF2Remake.Multiplayer
                 record.buyOrders = oldOrders;
                 return "The sale could not be journalled; no cargo or credits were transferred.";
             }
+            if (complete) Apply(NetGame.Db);
+
             if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
             {
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, order.item, amount, 0, "", "Construction buy order");
