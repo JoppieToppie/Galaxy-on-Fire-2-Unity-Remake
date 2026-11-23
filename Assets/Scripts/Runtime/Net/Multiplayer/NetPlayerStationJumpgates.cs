@@ -237,6 +237,27 @@ namespace GoF2Remake.Multiplayer
             if (now < nextJumpgateRetryUtc) return;
             foreach (var gate in registry.jumpgates)
             {
+                if (gate == null || !gate.salvageDropPending || gate.salvageMaterials == null ||
+                    gate.salvageMaterials.Count == 0) continue;
+                var runner = NetPlayer.OrbitRunner(gate.orbitStationIndex);
+                if (runner == null) continue; // keep the salvage manifest until an orbit authority is present
+                var items = new List<int>();
+                var amounts = new List<int>();
+                foreach (var material in gate.salvageMaterials)
+                    if (material != null && material.required > 0 && NetGuard.Item(material.item))
+                    { items.Add(material.item); amounts.Add(material.required); }
+                if (items.Count == 0) { gate.salvageDropPending = false; Save(); continue; }
+                gate.salvageDropPending = false;
+                if (!Save())
+                {
+                    gate.salvageDropPending = true;
+                    nextJumpgateRetryUtc = now + 5;
+                    return;
+                }
+                runner.SpawnJumpgateSalvageRpc(gate.orbitStationIndex, items.ToArray(), amounts.ToArray());
+            }
+            foreach (var gate in registry.jumpgates)
+            {
                 if (gate == null || !gate.building || gate.startedUtc <= 0 ||
                     gate.completesUtc <= 0 || gate.completesUtc > now) continue;
                 CompleteJumpgateIfDue(gate);
