@@ -123,8 +123,7 @@ namespace GoF2Remake.World
                            || !slow.CanTurn;   // remake: an EMP device's slow
             float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : chorusF ? chorusFight.SpeedFactor : formationSpeed;   // (GoF3's Easy: slower in your sights)
             float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
-            bool useSmepFlight = smepFighterAi && SmepEnabledForTarget && target != null && target.Alive
-                                 && !followingWaypoint && !Hp.empDisabled && slow.CanTurn;
+            bool useSmepFlight = smepFighterAi && SmepEnabledForTarget && !Hp.empDisabled && slow.CanTurn && !noSteer;
             // SMEP owns movement and steering when active. ES2 is only the fallback controller.
             bool useEs2Flight = es2Flight && !useSmepFlight;
             if (!noSteer && !Hp.empDisabled)
@@ -385,10 +384,12 @@ namespace GoF2Remake.World
         /// away (direction += (away - fwd) * speed * 0.03, up = world up) and moves it one extra step.</summary>
         void Avoid(bool landmarks, float dtMs)
         {
+            var beforeAvoidance = transform.position;
             bool resetSmepReciprocal = !landmarks && !SmepEligible;
             if (SmepEligible && !landmarks)
             {
                 SeparateSmepNpcFromPlayer();
+                SyncSmepAfterAvoidance(beforeAvoidance, dtMs);
                 return;   // retain the Lua mode's reciprocal contact, skip native non-landmark avoidance
             }
             var all = Obstacle.All;
@@ -405,9 +406,11 @@ namespace GoF2Remake.World
                 var fwd = transform.forward;
                 var dir = (fwd + (p - fwd) * speed * 0.03f).normalized;
                 transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-                transform.position += transform.forward * speed * dtMs * M;
+                // Steering correction only: the custom controller owns displacement and speed.
+                if (!SmepEligible) transform.position += transform.forward * speed * dtMs * M;
                 break;
             }
+            if (SmepEligible) SyncSmepAfterAvoidance(beforeAvoidance, dtMs);
             if (resetSmepReciprocal)
             {
                 smepReciprocalLastPosition = transform.position;
