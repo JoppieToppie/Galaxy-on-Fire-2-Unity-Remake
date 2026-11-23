@@ -129,6 +129,8 @@ namespace GoF2Remake.Multiplayer
             }
             if (registry?.stations == null) return;
             TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
+            TickWreckClaims();
+            if (registry?.stations == null) return; // a failed station save can disable the registry
             TickFactoryJobs(now);
             if (now < nextDryDockRetryUtc) return;
             foreach (var record in registry.stations)

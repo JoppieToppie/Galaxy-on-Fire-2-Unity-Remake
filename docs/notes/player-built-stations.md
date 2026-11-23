@@ -206,4 +206,6 @@ Player stations follow the server-owned jumpgate lifecycle pattern for damage, p
 - **Claim transfer.** A solo player or faction takes over the existing wreck claim as soon as it accumulates five minutes of uncontested control. Contested control pauses its progress. If the same challenger regains uncontested control, its timer resumes from the time already earned.
 - **Claim exclusivity.** The 30-minute timer starts when the claim is established or transferred and continues through contests. A completed transfer to a different player or faction restarts the full 30-minute timer for the new claimant. When the timer expires, the current claim becomes exclusive even if a contest is active. The current claim timestamp and exclusive lock must survive a server restart.
 
-The compensation trigger is pending confirmation.
+Server claim timing runs for wrecks opened by the partial-destruction transaction. By default, the first player or faction with uncontested control claims an unclaimed wreck immediately. Control comes from living, signed-in pilots within 5 km of the wreck in its orbit. Faction members count as one side. An empty area or a change in the side holding uncontested control clears any partial transfer progress. That progress is tracked live and starts fresh on restart. The current claimant and exclusivity deadline are saved with the station registry.
+
+The station combat handler still needs to call `OpenWreckClaim` within the partial-destruction transaction. Wreck creation, compensation, salvage, and reconstruction are pending.

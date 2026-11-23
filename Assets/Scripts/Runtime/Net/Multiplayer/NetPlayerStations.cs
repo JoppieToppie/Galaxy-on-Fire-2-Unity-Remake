@@ -143,6 +143,9 @@ namespace GoF2Remake.Multiplayer
         public bool factionStorageAccess;
         public List<PlayerStationContribution> constructionContributions = new List<PlayerStationContribution>();
         public PlayerStationTransferProposal pendingTransfer;
+        // JsonUtility can deserialize a null inline record as an empty object. Check the flag.
+        public bool wreckClaimOpen;
+        public PlayerStationWreckClaim wreckClaim;
         // One fixed-destination jumpgate may be built in this station's orbit.
         public int jumpgateDestinationSystem = -1;
         public bool jumpgateBuilding;
@@ -284,6 +287,7 @@ namespace GoF2Remake.Multiplayer
             registry = null;
             path = null;
             nextDryDockRetryUtc = 0;
+            ResetWreckControl();
             nextTransactionRetryUtc = 0;
             persistenceFaulted = false;
             consumedBlueprintsReconciled = false;
@@ -483,6 +487,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.Active || registry?.stations == null) return "Join a multiplayer session first.";
             var record = Find(id);
             if (record == null) return $"No player station with project id {id} exists in this world.";
+            if (record.wreckClaimOpen && record.wreckClaim != null) return WreckClaimStatus(record);
             if (!CanViewStationRecord(by, record)) return "That station's management status is private to its owner and authorised faction members.";
 
             var system = NetGame.Db?.Systems?.Find(s => s != null && s.index == record.system);
@@ -777,6 +782,7 @@ namespace GoF2Remake.Multiplayer
             path = null;
             sessionActive = false;
             nextTransactionRetryUtc = 0;
+            ResetWreckControl();
         }
 
         static bool ValidStationName(string name) =>
