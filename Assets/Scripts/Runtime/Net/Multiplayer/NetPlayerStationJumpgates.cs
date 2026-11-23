@@ -270,19 +270,23 @@ namespace GoF2Remake.Multiplayer
             if (FindJumpgate(orbitStationIndex) != null)
                 return "That orbit already has a player-built jumpgate or an active gate project. Only one gate can occupy an orbit.";
 
+            var issuerFaction = NetFactions.Of(issuer);
+            bool factionIssued = sponsor.ownershipType == PlayerStationOwnershipType.Faction &&
+                issuerFaction != null && string.Equals(issuerFaction.id, sponsor.ownerFactionId, StringComparison.Ordinal) &&
+                (string.Equals(issuerFaction.leader, issuer, StringComparison.Ordinal) ||
+                 HasRole(sponsor, issuer, PlayerStationRole.StationAdministrator));
             var gate = new PlayerJumpgateRecord
             {
                 orbitStationIndex = orbitStationIndex,
                 sponsorStationId = sponsor.id,
                 system = sponsor.system,
                 destinationSystem = destinationSystem,
-                ownershipType = sponsor.ownershipType,
-                ownerProfile = sponsor.ownershipType == PlayerStationOwnershipType.Individual ? issuer : null,
-                ownerFactionId = sponsor.ownershipType == PlayerStationOwnershipType.Faction ? sponsor.ownerFactionId : null,
-                ownerName = sponsor.ownershipType == PlayerStationOwnershipType.Faction ? sponsor.ownerName : by.DisplayName,
+                ownershipType = factionIssued ? PlayerStationOwnershipType.Faction : PlayerStationOwnershipType.Individual,
+                ownerProfile = factionIssued ? null : issuer,
+                ownerFactionId = factionIssued ? sponsor.ownerFactionId : null,
+                ownerName = factionIssued ? sponsor.ownerName : by.DisplayName,
                 constructionStationId = sponsor.id,
                 constructionIssuerProfile = issuer,
-                sponsorStationId = sponsor.id,
                 building = true,
                 buildSeconds = buildSeconds,
                 materials = RequiredJumpgateMaterials(),
