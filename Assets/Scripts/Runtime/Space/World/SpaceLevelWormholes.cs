@@ -212,7 +212,7 @@ namespace GoF2Remake.World
         }
         /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
         /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
-        bool playerJumpgateWreck, playerJumpgateExplosionPlayed;
+        bool playerJumpgateWreck, playerJumpgateExplosionPlayed, playerJumpgatePermanentlyDestroyed;
         long playerJumpgateEmpUntilUtc;
 
         public bool PlayerJumpgateEmpDisabled =>
@@ -237,6 +237,7 @@ namespace GoF2Remake.World
                 Jumpgate = null;
                 if (Layout != null) Layout.hasJumpgate = false;
                 playerJumpgateWreck = false;
+                playerJumpgatePermanentlyDestroyed = true;
             }
         }
 
@@ -258,6 +259,28 @@ namespace GoF2Remake.World
             // The first destruction leaves visible collidable scrap until reclamation.
         }
 
+        /// <summary>Reconstruction is confirmed by the persistent server, not inferred from
+        /// a client's potentially stale station registry snapshot.</summary>
+        public void OnPlayerJumpgateRestored()
+        {
+            if (Layout == null || Navigation == null || SystemJump == null) return;
+            playerJumpgateWreck = false;
+            playerJumpgatePermanentlyDestroyed = false;
+            playerJumpgateExplosionPlayed = false;
+            if (Jumpgate != null)
+            {
+                Layout.hasJumpgate = true;
+                Navigation.AddPlayerJumpgateTarget();
+                SystemJump.SetJumpgate(Jumpgate);
+            }
+            else
+            {
+                // A fully destroyed site is a new construction, not a reclaimed wreck.
+                Layout.hasJumpgate = true;
+                UpdatePlayerJumpgate();
+            }
+        }
+
         /// <summary>
         /// A timed player-built gate can finish while its orbit is already loaded. Materialize the same gate model,
         /// collision and navigation landmark that a fresh orbit load would create.
@@ -265,17 +288,8 @@ namespace GoF2Remake.World
         void UpdatePlayerJumpgate()
         {
             if (Layout == null || Navigation == null || SystemJump == null ||
+                playerJumpgateWreck || playerJumpgatePermanentlyDestroyed ||
                 !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex)) return;
-            // A reclaimed and reconstructed gate reuses the wreck's physical model in the
-            // same loaded orbit. Restore its destination and navigation without duplicating a hull.
-            if (playerJumpgateWreck && Jumpgate != null)
-            {
-                playerJumpgateWreck = false;
-                Layout.hasJumpgate = true;
-                Navigation.AddPlayerJumpgateTarget();
-                SystemJump.SetJumpgate(Jumpgate);
-                return;
-            }
             if (Jumpgate != null) return;
             var refreshed = OrbitLayout.Build(db, Layout.stationIndex);
             if (refreshed == null || !refreshed.hasJumpgate) return;
