@@ -228,4 +228,4 @@ The exclusive claimant can use `/station rebuild <wreck id>` near the wreck. Rec
 
 - The factory catalogue adds Medical Supplies, Explosives, Electronics, Nanotech, Energy Cells and Hydraulics. Existing repeat orders and the mod/server recipe registration API use the same recipe path.
 
-- Faction members can donate jumpgate materials from personal cargo while docked at one of their faction's operational stations. `/station faction-materials` shows the shared stock. The faction leader or an officer can allocate it via `/station jumpgate-fund-stock <orbit> <item> <amount>` while in that gate's construction orbit. Donating or allocating shared stock pays no personal credits.
+- Faction members can donate jumpgate materials from personal cargo while docked at one of their faction's operational stations. `/station faction-materials` shows the shared stock. Any member of the owning faction can allocate it via `/station jumpgate-fund-stock <orbit> <item> <amount>` while in that gate's construction orbit. Donating or allocating shared stock pays no personal credits.

@@ -587,9 +587,8 @@ namespace GoF2Remake.Multiplayer
             if (fromFactionStock)
             {
                 var faction = NetFactions.Of(account);
-                if (!factionOwned || faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal) ||
-                    (!string.Equals(faction.leader, account, StringComparison.Ordinal) && faction.officers?.Contains(account) != true))
-                    return "Only the owning faction's leader or officers may allocate its construction stock.";
+                if (!factionOwned || faction == null || !string.Equals(faction.id, gate.ownerFactionId, StringComparison.Ordinal))
+                    return "Only members of the owning faction may allocate its construction stock.";
                 factionMaterial = FactionConstructionMaterials(faction.id)?.Find(stack => stack != null && stack.item == item);
                 if (factionMaterial == null || factionMaterial.amount < amount)
                     return "The faction does not have enough of that donated material.";
