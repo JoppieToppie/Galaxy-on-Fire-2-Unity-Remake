@@ -17,6 +17,10 @@ namespace GoF2Remake.World
     /// <summary>Pure SMEP policy shared by runtime and regression tests.</summary>
     public static class SmepAiRules
     {
+        /// <summary>An explicit per-hull SMEP request is independent of global dogfight presets.</summary>
+        public static bool RequestedByMod(string ai)
+            => string.Equals(ai, "smep", System.StringComparison.OrdinalIgnoreCase);
+
         /// <summary>SMEP is opt-in on mobile builds; desktop retains the mod hull's normal opt-in behaviour.</summary>
         public static bool EnabledOnPlatform(bool mobilePlatform, bool mobileOptIn) => !mobilePlatform || mobileOptIn;
 
