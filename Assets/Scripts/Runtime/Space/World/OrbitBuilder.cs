@@ -537,7 +537,10 @@ namespace GoF2Remake.World
             // This does not attach a combat Target yet: the server must validate weapon hits before
             // the gate is allowed to receive structural damage.
             if (go != null && GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex))
-                GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);   // (a mod gate's Chorus portal bends the scene behind it)
+            {
+                var hull = GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);
+                if (hull != null) hull.playerJumpgateOrbit = layout.stationIndex;
+            }   // (a mod gate's Chorus portal bends the scene behind it)
             return go;
         }
 
