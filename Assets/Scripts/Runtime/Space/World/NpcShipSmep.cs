@@ -106,7 +106,7 @@ namespace GoF2Remake.World
             // Keep an existing valid hostile target instead of switching pilots every update.
             // Mobile pilots without explicit opt-in remain ineligible for SMEP priority selection.
             if (target != null && Pursuable(target) && InBox(target)
-                && (!target.netPilot || HostileToRemote(this, target))
+                && (target.netPilot ? HostileToRemote(this, target) : remoteTarget == null)
                 && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn)) return;
             Target best = null;
             int bestPriority = int.MaxValue;
