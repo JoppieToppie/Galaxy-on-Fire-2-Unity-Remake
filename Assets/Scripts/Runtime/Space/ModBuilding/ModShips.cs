@@ -44,7 +44,7 @@ namespace GoF2Remake.Modding
         static GameObject holder;
         static GLTFast.TimeBudgetPerFrameDeferAgent agent;
         static int loadingRevision = -1, loadedRevision = -1;
-        static Task loading;
+        static System.Threading.CancellationTokenSource loadCancellation;
         static int steps, stepsDone;
         static readonly List<string> current = new List<string>();
         static System.Threading.SemaphoreSlim shipSlots;
@@ -82,7 +82,10 @@ namespace GoF2Remake.Modding
             templates.Clear(); icons.Clear(); imports.Clear(); names.Clear();
             partTemplates.Clear(); kitShips.Clear(); variants.Clear(); variantOrder.Clear(); partsLoading.Clear(); KitPartsLoaded = null; notifyPending = false;
             skinned.Clear(); skinnedOrder.Clear();
-            holder = null; agent = null; loading = null; ModelsChanged = null;
+            loadCancellation?.Cancel();
+            loadCancellation?.Dispose();
+            loadCancellation = null;
+            holder = null; agent = null; ModelsChanged = null;
             loadingRevision = loadedRevision = -1;
             steps = stepsDone = 0; current.Clear(); Count = Done = 0;
         }
@@ -105,7 +108,25 @@ namespace GoF2Remake.Modding
             int rev = ModManager.Revision;
             if (loadingRevision == rev) return;
             loadingRevision = rev;
-            loading = LoadAll(rev);
+            loadCancellation?.Cancel();
+            loadCancellation?.Dispose();
+            loadCancellation = new System.Threading.CancellationTokenSource();
+            _ = FinishLoad(rev);
+        }
+
+        // An unexpected batch failure must still let the UI leave the loading state.
+        static async Task FinishLoad(int rev)
+        {
+            try { await LoadAll(rev); }
+            catch (System.Exception e)
+            {
+                if (rev != ModManager.Revision) return;
+                Debug.LogException(e);
+            }
+            if (rev != ModManager.Revision) return;
+            loadedRevision = rev;
+            try { ModelsChanged?.Invoke(); }
+            catch (System.Exception e) { Debug.LogException(e); }
         }
 
         const int StepsPerShip = 4;   // textures, file, glTF, built
@@ -176,7 +197,13 @@ namespace GoF2Remake.Modding
                 else
                     foreach (var f in EngineFxTextures(e.mod, e.fx)) tasks.Add(ModMaterials.PreloadTexture(e.mod, f, true, false, false));
             }
-            await Task.WhenAll(tasks);
+            try { await Task.WhenAll(tasks); }
+            catch (System.Exception e)
+            {
+                if (rev != ModManager.Revision) return;
+                // Keep the models that loaded and still assemble the kit defaults.
+                Debug.LogException(e);
+            }
             if (rev != ModManager.Revision) return;   // the mods changed meanwhile: a newer load runs
             // The kit ships' default builds (what dealers sell and NPCs fly), their icons and textures.
             foreach (var (mod, c) in kitted)
@@ -194,9 +221,7 @@ namespace GoF2Remake.Modding
                 catch (System.Exception e) { Warn(mod, $"ships.json: \"{c.name}\": {e.Message}"); Debug.LogException(e); }
                 finally { stepsDone++; Done++; }
             }
-            loadedRevision = rev;
             if (ships.Count > 0) Debug.Log($"Mods: {ships.Count} ship model(s) loaded in {watch.ElapsedMilliseconds} ms");
-            ModelsChanged?.Invoke();
         }
 
         /// <summary>The PNGs a ship's entry uses, with how they are read (ModMaterials.FromSpec, the throttle glow masks).</summary>
@@ -248,6 +273,39 @@ namespace GoF2Remake.Modding
                 if (em?.Any == true) yield return em.texture;
         }
 
+        // Keep the import local until instantiation finishes. A newer load can release
+        // the published imports while this call is awaiting glTFast.
+        static async Task<GameObject> InstantiateForRevision(int rev, GLTFast.GltfImport import,
+            Transform parent, string name, ModInfo mod, string file)
+        {
+            GameObject scene = null;
+            bool published = false;
+            try
+            {
+                if (rev != ModManager.Revision || parent == null) return null;
+                scene = new GameObject(name);
+                scene.transform.SetParent(parent, false);
+                bool built = await ModGltf.InstantiateMain(import, scene.transform);
+                if (rev != ModManager.Revision || scene == null) return null;
+                if (!built)
+                {
+                    Warn(mod, $"{file}: no scene to show");
+                    return null;
+                }
+                imports.Add(import);
+                published = true;
+                return scene;
+            }
+            finally
+            {
+                if (!published)
+                {
+                    if (scene != null) Object.Destroy(scene);
+                    import.Dispose();
+                }
+            }
+        }
+
         /// <summary>A ship's add parts (ships.json "addParts": its lights and engine glows beside the hull) as glTF scenes
         /// under 'parent', the ones that load; a part that doesn't is a warning and left out.</summary>
         static async Task<List<(CustomAddPart spec, GameObject scene)>> LoadAddParts(int rev, ModInfo mod, CustomShipData c, Transform parent)
@@ -261,11 +319,8 @@ namespace GoF2Remake.Modding
                 if (bytes == null || rev != ModManager.Revision || parent == null) continue;
                 var import = await ModGltf.Load(mod, bytes, agent);
                 if (import == null) { Warn(mod, $"{p.model}: not a glTF model glTFast can read"); continue; }
-                imports.Add(import);
-                if (rev != ModManager.Revision || parent == null) continue;
-                var scene = new GameObject("scene");
-                scene.transform.SetParent(parent, false);
-                if (!await ModGltf.InstantiateMain(import, scene.transform)) { Object.Destroy(scene); Warn(mod, $"{p.model}: no scene to show"); continue; }
+                var scene = await InstantiateForRevision(rev, import, parent, "scene", mod, p.model);
+                if (scene == null) continue;
                 parts.Add((p, scene));
             }
             return parts;
@@ -274,12 +329,14 @@ namespace GoF2Remake.Modding
         /// <summary>One ship: its textures and model file at once, then glTFast, then the template.</summary>
         static async Task LoadShip(int rev, ModInfo mod, CustomShipData c)
         {
+            if (rev != ModManager.Revision) return;
             var slots = ShipSlots;
-            await slots.WaitAsync();
+            try { await slots.WaitAsync(loadCancellation?.Token ?? default); }
+            catch (System.OperationCanceledException) { return; }
             string label = c.name;
-            current.Add(label);
+            if (rev == ModManager.Revision) current.Add(label);
             int counted = 0;
-            void Step() { counted++; stepsDone++; }
+            void Step() { counted++; if (rev == ModManager.Revision) stepsDone++; }
             try
             {
                 if (rev != ModManager.Revision) return;
@@ -300,12 +357,8 @@ namespace GoF2Remake.Modding
                 var import = await ModGltf.Load(mod, bytes, agent);
                 bytes = null;
                 if (import == null) { Warn(mod, $"{c.model}: not a glTF model glTFast can read"); return; }
-                imports.Add(import);
-                Step();
-                if (rev != ModManager.Revision || holder == null) return;
-                var scene = new GameObject("scene");
-                scene.transform.SetParent(holder.transform, false);
-                if (!await ModGltf.InstantiateMain(import, scene.transform)) { Object.Destroy(scene); Warn(mod, $"{c.model}: no scene to show"); return; }
+                var scene = await InstantiateForRevision(rev, import, holder != null ? holder.transform : null, "scene", mod, c.model);
+                if (scene == null) return;
                 if (rev != ModManager.Revision || holder == null) return;
                 if (ModGltf.HasNoMeshes(scene)) Warn(mod, $"{c.model}: the model has no meshes to show");   // #134: an empty turntable said nothing
                 var addParts = await LoadAddParts(rev, mod, c, holder != null ? holder.transform : null);
@@ -324,8 +377,8 @@ namespace GoF2Remake.Modding
                 {
                     stepsDone += StepsPerShip - counted;   // the steps a failed ship skipped
                     Done++;
+                    current.Remove(label);
                 }
-                current.Remove(label);
                 slots.Release();
             }
         }
@@ -343,37 +396,39 @@ namespace GoF2Remake.Modding
                                                                      (m.damageDetail, false, false), (m.damageNormal, true, true) })
                                             .Where(t => !string.IsNullOrEmpty(t.Item1))
                                             .Select(t => ModMaterials.PreloadTexture(kit.mod, t.Item1, t.Item2, false, t.Item3)));
+            if (rev != ModManager.Revision) return;
             string label = kit.Name;
             current.Add(label);
             try
             {
                 await Task.WhenAll(files.Select(f => LoadPart(rev, kit, f)));
             }
-            finally { current.Remove(label); }
+            finally { if (rev == ModManager.Revision) current.Remove(label); }
         }
 
         static async Task LoadPart(int rev, ModShipKits.Kit kit, string file)
         {
+            if (rev != ModManager.Revision) return;
             var slots = ShipSlots;
-            await slots.WaitAsync();
+            try { await slots.WaitAsync(loadCancellation?.Token ?? default); }
+            catch (System.OperationCanceledException) { return; }
             try
             {
                 if (rev != ModManager.Revision) return;
                 var bytes = await Task.Run(() => kit.mod.Source.ReadBytes(file));
+                if (rev != ModManager.Revision) return;
                 if (bytes == null) { Warn(kit.mod, $"{ModShipKits.File}: {kit.localId}: {file} not found"); return; }
                 var import = await ModGltf.Load(kit.mod, bytes, agent);
                 bytes = null;
                 if (import == null) { Warn(kit.mod, $"{file}: not a glTF model glTFast can read"); return; }
-                imports.Add(import);
-                if (rev != ModManager.Revision || holder == null) return;
-                var part = new GameObject(file);
-                part.transform.SetParent(holder.transform, false);
-                if (!await ModGltf.InstantiateMain(import, part.transform)) { Object.Destroy(part); Warn(kit.mod, $"{file}: no scene to show"); return; }
+                var part = await InstantiateForRevision(rev, import, holder != null ? holder.transform : null, file, kit.mod, file);
+                if (part == null) return;
                 if (rev != ModManager.Revision || holder == null) return;
                 ModShipBuilder.ApplyMaterials(kit.mod, kit.materials, part.GetComponentsInChildren<Renderer>(true), kit.Key);
                 partTemplates[kit.Key + "|" + file] = part;
             }
-            catch (System.Exception e) { Warn(kit.mod, $"{file}: {e.Message}"); Debug.LogException(e); }
+            catch (System.Exception e) when (rev == ModManager.Revision) { Warn(kit.mod, $"{file}: {e.Message}"); Debug.LogException(e); }
+            catch (System.Exception) { }
             finally
             {
                 if (rev == ModManager.Revision) stepsDone++;
@@ -487,10 +542,17 @@ namespace GoF2Remake.Modding
                 // waiting for it for good.
                 if (rev == ModManager.Revision) foreach (var t in textures) ModMaterials.Texture(t.mod, t.path, t.linear, false, t.normal);
             }
+            catch (System.Exception e)
+            {
+                if (rev == ModManager.Revision) Debug.LogException(e);
+            }
             finally
             {
-                foreach (var f in missing) partsLoading.Remove(kit.Key + "|" + f);
-                foreach (var t in textures) partsLoading.Remove(t.mod.Id + "|texture|" + t.path);
+                if (rev == ModManager.Revision)
+                {
+                    foreach (var f in missing) partsLoading.Remove(kit.Key + "|" + f);
+                    foreach (var t in textures) partsLoading.Remove(t.mod.Id + "|texture|" + t.path);
+                }
             }
             if (rev != ModManager.Revision || (quiet && !notifyPending)) return;
             notifyPending = false;
@@ -804,6 +866,7 @@ namespace GoF2Remake.Modding
             foreach (var t in templates.Values) if (t != null) Object.Destroy(t);
             templates.Clear();
             partTemplates.Clear(); kitShips.Clear(); variants.Clear(); variantOrder.Clear();   // under the holder: destroyed below
+            partsLoading.Clear(); notifyPending = false;
             skinned.Clear(); skinnedOrder.Clear();
             icons.Clear();
             names.Clear();
