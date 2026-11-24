@@ -219,7 +219,7 @@ namespace GoF2Remake.Modding
                     names[c.index] = c.name;
                 }
                 catch (System.Exception e) { Warn(mod, $"ships.json: \"{c.name}\": {e.Message}"); Debug.LogException(e); }
-                finally { stepsDone++; Done++; }
+                finally { if (rev == ModManager.Revision) { stepsDone++; Done++; } }
             }
             if (ships.Count > 0) Debug.Log($"Mods: {ships.Count} ship model(s) loaded in {watch.ElapsedMilliseconds} ms");
         }
