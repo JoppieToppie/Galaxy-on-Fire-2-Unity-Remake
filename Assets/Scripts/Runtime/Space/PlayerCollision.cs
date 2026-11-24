@@ -78,6 +78,13 @@ namespace GoF2Remake.Flight
             mining = miningSystem;
         }
 
+        /// <summary>The local player's collision shapes for SMEP's reciprocal NPC contact. Uses the native hull boxes
+        /// when available and falls back to the existing probe sphere.</summary>
+        internal int SmepShapeCount => hullBoxes.Count > 0 ? hullBoxes.Count : probe != null ? 1 : 0;
+        internal Collider SmepShapeAt(int index) => hullBoxes.Count > 0
+            ? (Collider)hullBoxes[index] : index == 0 ? probe : null;
+        internal SphereCollider Probe => probe;
+
         // Remake: where the ship was after last frame's collision, for the hull sweep (none after a skipped frame)
         Vector3 lastPosition;
         bool hasLastPosition;

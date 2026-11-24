@@ -116,6 +116,9 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: another player's ship (NetPlayer, not a proxied NPC or sentry): its marker carries the pilot's
         /// name (CombatView), so players stand apart from the NPCs of the same colour.</summary>
         [NonSerialized] public bool netPilot;
+        /// <summary>Multiplayer (NetPlayer): the owning device's platform and whether it is still using touch controls.
+        /// Defaults are conservative until the owner's first state update: mobile touch is protected from advanced AI.</summary>
+        [NonSerialized] public bool mobilePlatform = true, mobileTouchControls = true;
         /// <summary>Remake (#216, players' request): one of the player's own wingmen (NpcShip.MakeWingman). The original draws
         /// them in the plain friend green; the HUD markers (CombatView) and the VR scope (VrRadar) draw them blue so they stand
         /// apart from the other allies (a battleship's escorts, a fleet battle).</summary>

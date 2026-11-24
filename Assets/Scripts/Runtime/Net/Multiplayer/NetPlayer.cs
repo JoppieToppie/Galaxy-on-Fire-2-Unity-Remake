@@ -109,6 +109,9 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> admin = new NetworkVariable<bool>(false);   // the server's: admin commands (NetCommands)
         readonly NetworkVariable<byte> staffRole = new NetworkVariable<byte>(0);   // the server's: the profile's role (NetModeration)
         readonly NetworkVariable<bool> visible = new NetworkVariable<bool>(true, Read, Write);   // the ship's model shows (gone in a jump, exploded)
+        // Owner-written platform/input flags for mod-selected SMEP AI. Unknown clients default to mobile touch.
+        readonly NetworkVariable<bool> mobilePlatform = new NetworkVariable<bool>(true, Read, Write);
+        readonly NetworkVariable<bool> mobileTouchControls = new NetworkVariable<bool>(true, Read, Write);
         readonly NetworkVariable<int> standing0 = new NetworkVariable<int>(0, Read, Write);    // Session.Standing, the signature
         readonly NetworkVariable<int> standing1 = new NetworkVariable<int>(0, Read, Write);
         readonly NetworkVariable<int> signature = new NetworkVariable<int>(-1, Read, Write);
@@ -1086,6 +1089,11 @@ namespace GoF2Remake.Multiplayer
             if (IsServer) CheckReportedCollisionMode();
             if (!IsOwner)
             {
+                if (target != null)
+                {
+                    target.mobilePlatform = mobilePlatform.Value;
+                    target.mobileTouchControls = mobileTouchControls.Value;
+                }
                 if (joinNoticePending && pilot.Value.Length > 0 && Time.unscaledTime - spawnedAt > JoinNoticeSeconds)
                 {
                     joinNoticePending = false;
@@ -1120,6 +1128,15 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             ReportCollisionModeIfNeeded();
+            bool isMobile = Application.isMobilePlatform;
+            bool usesTouch = isMobile && InputMode.Current == InputKind.Touch;
+            if (mobilePlatform.Value != isMobile) mobilePlatform.Value = isMobile;
+            if (mobileTouchControls.Value != usesTouch) mobileTouchControls.Value = usesTouch;
+            if (target != null)
+            {
+                target.mobilePlatform = isMobile;
+                target.mobileTouchControls = usesTouch;
+            }
             NetProfileClient.Tick();   // the server profile's periodic upload
             WriteEquipment();   // max hull, emergency clock, sentries (NetPlayerEquipment)
             if (tollStation.Value != NetFactionsClient.TollStation) tollStation.Value = NetFactionsClient.TollStation;
