@@ -213,8 +213,16 @@ namespace GoF2Remake.Multiplayer
             foreach (var target in journal.credits) affectedAccounts.Add(target.account);
             foreach (var target in journal.storedShips) affectedAccounts.Add(target.account);
             foreach (string account in affectedAccounts) NetProfiles.InvalidateEconomyUploads(account);
-            if (!FinishTransaction(journal, preserveLiveRegistry: true))
-                Debug.LogWarning("NetPlayerStations: station transaction is journalled and will be retried during recovery.");
+            try
+            {
+                if (!FinishTransaction(journal, preserveLiveRegistry: true))
+                    Debug.LogWarning("NetPlayerStations: station transaction is journalled and will be retried during recovery.");
+            }
+            catch (Exception e)
+            {
+                // The journal is already durable. An exception must not trigger a caller's rollback/refund.
+                Debug.LogError($"NetPlayerStations: committed station transaction requires recovery ({e.Message}).");
+            }
             return true; // A durable journal commits the intent; callers must not compensate it.
         }
 
