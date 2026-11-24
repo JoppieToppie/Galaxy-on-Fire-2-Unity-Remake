@@ -58,6 +58,7 @@ namespace GoF2Remake.UI
         static readonly (string key, string english, ModBuilder.Kind kind)[] KindTabs =
         {
             ("mbShips", "Ships", ModBuilder.Kind.Ships), ("mbItems", "Items", ModBuilder.Kind.Items), ("mbFx", "Weapon fx", ModBuilder.Kind.WeaponFx),
+            ("mbPlayerInfrastructure", "Player-built stations & gates", ModBuilder.Kind.PlayerInfrastructure),
             ("mbSkins", "Skins", ModBuilder.Kind.Skins), ("mbKits", "Ship kits", ModBuilder.Kind.Kits), ("mbBlueprints", "Blueprints", ModBuilder.Kind.Blueprints),
             ("mbCharacters", "Characters", ModBuilder.Kind.Characters), ("mbQuests", "Missions", ModBuilder.Kind.Quests), ("mbAudio", "Audio", ModBuilder.Kind.Audio),
             ("mbSystems", "Systems", ModBuilder.Kind.Systems), ("mbModRaces", "Races", ModBuilder.Kind.Races), ("mbStations", "Stations", ModBuilder.Kind.Stations), ("mbNpcShips", "NPC ships", ModBuilder.Kind.NpcShips),
@@ -850,7 +851,6 @@ namespace GoF2Remake.UI
             Act(box, T("mbDependencies", "Dependencies"), ShowDependencies, "mbv-menu-item");
             Act(box, T("mbModDetails", "Mod details"), ShowModDetails, "mbv-menu-item");
             Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
-            Act(box, T("mbPlayerInfrastructure", "Player-built stations & gates"), ShowPlayerInfrastructure, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
             Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
@@ -858,34 +858,44 @@ namespace GoF2Remake.UI
             modal.AddToClassList("mbv-modal--shown");
         }
 
-        void ShowPlayerInfrastructure()
+        JObject displayedInfrastructure;
+
+        protected void RefreshPlayerInfrastructure()
+        {
+            if (Project != null && !JToken.DeepEquals(displayedInfrastructure, Project.PlayerInfrastructure))
+                ShowPlayerInfrastructure();
+        }
+
+        protected void ShowPlayerInfrastructure()
         {
             if (Project == null) return;
-            var draft = (JObject)Project.PlayerInfrastructure.DeepClone();
+            displayedInfrastructure = (JObject)Project.PlayerInfrastructure.DeepClone();
+            var draft = (JObject)displayedInfrastructure.DeepClone();
+            var box = rightGroups[(int)ModBuilder.Kind.PlayerInfrastructure];
+            box.Clear();
+            Heading(box, T("mbPlayerInfrastructure", "Player-built stations & gates"));
             ModPlayerInfrastructure settings;
             try { settings = ModPlayerInfrastructure.Parse(draft); }
             catch (ModJsonException error)
             {
-                // Invalid saved rules must remain editable rather than locking the user out of the editor.
-                EditJson(draft, () =>
+                Note(box, error.Message);
+                Act(box, "Repair rules JSON", () => EditJson(draft, () =>
                 {
                     try { ModPlayerInfrastructure.Parse(draft); }
                     catch (ModJsonException invalid) { Status(invalid.Message, true); return; }
-                    Project.PlayerInfrastructure = draft;
-                    RequestReload(false);
-                    ShowPlayerInfrastructure();
-                }, "Repair the player infrastructure rules: " + error.Message);
+                    SaveInfrastructure(draft);
+                }, "Repair the player infrastructure rules"));
                 return;
             }
 
-            CloseModal();
-            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
-            Heading(box, T("mbPlayerInfrastructure", "Player-built stations & gates"));
             var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            if (!draft.HasValues) Note(scroll, "This project inherits its player infrastructure rules until you apply a configuration.");
+            Heading(scroll, "Construction and models");
             var enabled = Add(scroll, new Toggle("Allow new player station projects") { value = settings.Enabled }, "mbv-field");
             var gates = Add(scroll, new Toggle("Allow new sponsored jumpgate projects") { value = settings.JumpgatesEnabled }, "mbv-field");
             var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
             var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
+            Heading(scroll, "Race policies and player identity");
             var stationRaceMarketLimit = Add(scroll, new IntegerField("Race marketplace adjustment cap (%)")
                 { value = settings.StationRaceMarketLimitPercent }, "mbv-field");
             var stationRaceRevenue = Add(scroll, new Toggle("Pay race marketplace fees to the station owner or faction")
@@ -901,6 +911,7 @@ namespace GoF2Remake.UI
                 { value = settings.JumpgateRacePoliciesEnabled }, "mbv-field");
             var gateRaceExemptions = Add(scroll, new Toggle("Allow gate managers to grant race exemptions")
                 { value = settings.JumpgateRaceExemptionsEnabled }, "mbv-field");
+            Heading(scroll, "Station and jumpgate models");
             var integrity = Add(scroll, new FloatField("Fresh scrap integrity") { value = settings.ScrapIntegrity }, "mbv-field");
             var stationScale = Add(scroll, new FloatField("Minimum station scale") { value = settings.MinimumStationScale }, "mbv-field");
             var jumpgateScale = Add(scroll, new FloatField("Minimum jumpgate scale") { value = settings.MinimumJumpgateScale }, "mbv-field");
@@ -921,6 +932,7 @@ namespace GoF2Remake.UI
                 .Where(system => system.ToJson()["jumpgate"] is JObject gate && gate["model"] != null).Select(system =>
                     (system.Name, system.IsOverride ? system.OverrideRef : Project.Key(system.LocalId))));
 
+            Heading(scroll, "Orbital defenses and structures");
             var stockDefense = Add(scroll, new Toggle("Offer the stock orbital defense")
                 { value = (bool?)draft["includeStockOrbitalDefense"] ?? true }, "mbv-field");
             var defenseLimit = Add(scroll, new IntegerField("Defense limit per orbit")
@@ -1151,18 +1163,18 @@ namespace GoF2Remake.UI
                     errorLabel.text = error.Message;
                     return;
                 }
-                Project.PlayerInfrastructure = draft;
-                RequestReload(false);
-                ShowMenu();
+                SaveInfrastructure(draft);
             });
-            Act(actions, "Use inherited rules", () =>
-            {
-                Project.PlayerInfrastructure = new JObject();
-                RequestReload(false);
-                ShowMenu();
-            });
-            Act(actions, T("mbCancel", "Cancel"), ShowMenu);
-            modal.AddToClassList("mbv-modal--shown");
+            Act(actions, "Use inherited rules", () => SaveInfrastructure(new JObject()));
+            Act(actions, "Discard changes", ShowPlayerInfrastructure);
+        }
+
+        void SaveInfrastructure(JObject rules)
+        {
+            Project.PlayerInfrastructure = rules;
+            RequestReload(false);
+            RefreshPlayerInfrastructure();
+            Status(T("mbSaved", "Saved."), false);
         }
 
         static JArray InfrastructureReferences(string text) => new JArray((text ?? "").Split('\n')

@@ -1362,6 +1362,14 @@
 }
 .mbv-narrow.mbv-root--scripts .mbv-right { left: 340px; width: auto; }
 
+.mbv-root--infrastructure .mbv-left { display: none; }
+.mbv-root--infrastructure .mbv-right {
+    left: 20px;
+    width: auto;
+    max-width: 1100px;
+}
+.mbv-compact.mbv-root--infrastructure .mbv-right { left: 12px; }
+
 .mbv-code-page {
     flex-grow: 1;
     flex-shrink: 1;

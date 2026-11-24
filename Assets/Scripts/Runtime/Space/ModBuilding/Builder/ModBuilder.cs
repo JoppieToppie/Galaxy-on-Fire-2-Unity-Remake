@@ -74,8 +74,8 @@ namespace GoF2Remake.Modding
         // Remake: Races (the mod's own races, races.json) before AiTools, edited on the star map beside Systems.
         // Remake: NpcShips (npcships.json: capital ships, freighters, bosses; ModNpcShips), edited in space, before AiTools.
         // Remake: Scripts (the mod's Lua files, scripts/*.lua; Modding.ModScripts), a text editor in the hangar screen, before AiTools.
-        public enum Kind { Ships, Items, Characters, Skins, WeaponFx, Systems, Stations, Interiors, Quests, Campaigns, Audio, Blueprints, Kits, Races, NpcShips, Scripts, AiTools }
-        public const int KindCount = 17;
+        public enum Kind { Ships, Items, Characters, Skins, WeaponFx, Systems, Stations, Interiors, Quests, Campaigns, Audio, Blueprints, Kits, Races, NpcShips, Scripts, AiTools, PlayerInfrastructure }
+        public const int KindCount = (int)Kind.PlayerInfrastructure + 1;
 
         /// <summary>Where a kind is edited: in the game's own place for it.</summary>
         public enum Place { Hangar, Lounge, Map, Space }
