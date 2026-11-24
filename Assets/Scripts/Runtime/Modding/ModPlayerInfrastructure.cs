@@ -165,7 +165,7 @@ namespace GoF2Remake.Modding
                         MinimumOrbitalDecayIntegrityPercent, MinimumOrbitalDecayIntegrityPercent, 100f);
                     maintenanceCosts = ReadStructureMaterials(maintenance, id + " maintenance");
                 }
-                result.RemoveAll(definition => definition.Id == id);
+                result.RemoveAll(definition => string.Equals(definition.Id, id, StringComparison.OrdinalIgnoreCase));
                 result.Add(new OrbitalDefinition
                 {
                     Id = id, Name = StructureText(value, "name", 64), Assembly = assembly, StationModel = station, Defense = defense,
