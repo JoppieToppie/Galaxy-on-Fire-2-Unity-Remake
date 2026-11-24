@@ -775,9 +775,10 @@ namespace GoF2Remake.Multiplayer
             {
                 string tmp = path + ".tmp";
                 File.WriteAllText(tmp, text);
-                if (File.Exists(path)) File.Copy(path, path + ".bak", true);
-                if (File.Exists(path)) File.Delete(path);
-                File.Move(tmp, path);
+                // Replace the destination atomically. Deleting it before moving the temporary
+                // file leaves a crash window with no primary profile or transaction journal.
+                if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+                else File.Move(tmp, path);
                 return true;
             }
             catch (Exception e) { Debug.LogError($"NetProfiles: writing {path} failed: {e.Message}"); return false; }
