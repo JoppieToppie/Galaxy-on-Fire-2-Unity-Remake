@@ -893,6 +893,9 @@ namespace GoF2Remake.UI
             Note(scroll, "Use one mod_id:id reference per line. Gate references point to systems with a custom jumpgate.");
             var stationModels = Add(scroll, new TextField("Additional station models")
                 { multiline = true, value = string.Join("\n", settings.StationModels) }, "mbv-field");
+            Note(scroll, "Optional model thumbnails: one station reference = image ID or mod-relative image path per line.");
+            var modelImages = Add(scroll, new TextField("Station model thumbnail IDs") { multiline = true,
+                value = string.Join("\n", settings.StationModelImages.Select(entry => entry.Key + " = " + entry.Value)) }, "mbv-field");
             var gateModels = Add(scroll, new TextField("Additional jumpgate models")
                 { multiline = true, value = string.Join("\n", settings.JumpgateModels) }, "mbv-field");
 
@@ -1097,6 +1100,17 @@ namespace GoF2Remake.UI
                 draft["otherOrbitalStructureLimit"] = otherStructureLimit.value;
                 try
                 {
+                    var images = new JObject();
+                    foreach (string line in (modelImages.value ?? "").Split('\n'))
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        int split = line.IndexOf('=');
+                        if (split <= 0 || split == line.Length - 1) throw new ModJsonException("Use station reference = image ID for each thumbnail.");
+                        string reference = line.Substring(0, split).Trim();
+                        if (images[reference] != null) throw new ModJsonException("Duplicate thumbnail reference: " + reference);
+                        images.Add(reference, line.Substring(split + 1).Trim());
+                    }
+                    draft["stationModelImages"] = images;
                     draft["orbitalStructures"] = JArray.Parse(structures.value);
                     ModPlayerInfrastructure.Parse(draft);
                 }
