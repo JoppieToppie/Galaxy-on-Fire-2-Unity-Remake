@@ -29,6 +29,8 @@ namespace GoF2Remake.World
         Obstacle obstacle;
         float reach;
         int refreshFrame = -30;
+        Vector3 refreshPosition;
+        const float MaxTravelBeforeRefresh = 10f;
 
         public static void Attach(GameObject host, Database database, int shipIndex, Target target, Obstacle volumes)
         {
@@ -61,10 +63,13 @@ namespace GoF2Remake.World
 
             // Asteroids are stationary in normal flight. Refresh the broadphase candidate set every
             // 30 frames; the per-frame work is then limited to nearby rocks and actual volume tests.
-            if (Time.frameCount - refreshFrame >= 30)
+            if (Time.frameCount - refreshFrame >= 30 ||
+                (transform.position - refreshPosition).sqrMagnitude >=
+                    MaxTravelBeforeRefresh * MaxTravelBeforeRefresh)
             {
                 RefreshCandidates();
                 refreshFrame = Time.frameCount;
+                refreshPosition = transform.position;
             }
 
             for (int i = nearby.Count - 1; i >= 0; i--)
