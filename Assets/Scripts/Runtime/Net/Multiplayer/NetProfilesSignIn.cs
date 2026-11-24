@@ -107,6 +107,13 @@ namespace GoF2Remake.Multiplayer
         {
             if (!Enabled) return;
             float now = Time.realtimeSinceStartup;
+            if (!NetPlayerStations.ProfileWritesBlocked)
+                foreach (var login in logins.Values)
+                    if (login.economyRevisionDirty && NetState.Instance != null && NetState.Instance.IsSpawned)
+                    {
+                        login.economyRevisionDirty = false;
+                        NetState.Instance.SendEconomyRevision(login.client, login.economyRevision);
+                    }
             if (now >= nextPrune) Prune();   // hourly: profiles unused for PruneDays
             if (links.Count > 0)
                 foreach (var code in new List<string>(links.Keys))
@@ -254,12 +261,14 @@ namespace GoF2Remake.Multiplayer
         }
         // ---- uploads ----------------------------------------------------------------------------------------
         /// <summary>NetState.UploadChunkRpc: a piece of a client's profile; the last one checks and saves it.</summary>
-        public static void OnUploadChunk(ulong client, int seq, int part, int count, byte[] data)
+        public static void OnUploadChunk(ulong client, int seq, int part, int count, long economyRevision, byte[] data)
         {
             if (!Enabled || data == null || data.Length > ChunkBytes || count < 1 || count > MaxChunks || part < 0 || part >= count) return;
+            if (!logins.TryGetValue(client, out var login) || login.account == null ||
+                economyRevision != login.economyRevision || login.economyRevisionDirty || NetPlayerStations.ProfileWritesBlocked) return;
             if (!incoming.TryGetValue(client, out var inc) || inc.seq != seq)
-                incoming[client] = inc = new Incoming { seq = seq, count = count, parts = new byte[count][] };
-            if (inc.count != count || inc.parts[part] != null) return;
+                incoming[client] = inc = new Incoming { seq = seq, count = count, economyRevision = economyRevision, parts = new byte[count][] };
+            if (inc.count != count || inc.economyRevision != economyRevision || inc.parts[part] != null) return;
             inc.parts[part] = data;
             if (++inc.got < count) return;
             incoming.Remove(client);
