@@ -1069,6 +1069,13 @@ namespace GoF2Remake.Multiplayer
         internal static void Apply(Database db)
         {
             if (!sessionActive || registry?.stations == null || db?.Stations == null || db.Systems == null) return;
+            var countsBySystem = new Dictionary<int, int>();
+            foreach (var station in registry.stations)
+            {
+                if (station == null || station.destroyed) continue;
+                countsBySystem.TryGetValue(station.system, out int existingCount);
+                countsBySystem[station.system] = existingCount + 1;
+            }
             foreach (var record in registry.stations)
             {
                 if (record == null || record.stationIndex < 0) continue;
@@ -1081,8 +1088,7 @@ namespace GoF2Remake.Multiplayer
                     look = db.Stations.Find(s => s != null && s.index == fallback);
                 }
 
-                int count = 0;
-                foreach (var station in registry.stations) if (station != null && !station.destroyed && station.system == record.system) count++;
+                countsBySystem.TryGetValue(record.system, out int count);
                 bool validOrbit = system != null && system.stations != null && system.stations.Count > 0;
                 bool validPreset = look != null;
                 bool available = count <= MaxStationsPerSystem && validOrbit && validPreset;
