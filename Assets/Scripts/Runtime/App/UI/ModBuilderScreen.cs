@@ -957,8 +957,14 @@ namespace GoF2Remake.UI
             {
                 graphical.Clear();
                 JArray entries;
-                try { entries = JArray.Parse(structures.value); }
-                catch (Newtonsoft.Json.JsonException e) { Note(graphical, "Repair the advanced JSON: " + e.Message); return; }
+                try
+                {
+                    entries = JArray.Parse(structures.value);
+                    // A malformed value should be repairable in the raw editor, not crash its graphical view.
+                    ModPlayerInfrastructure.Parse(new JObject { ["orbitalStructures"] = entries.DeepClone() });
+                }
+                catch (Exception e) when (e is Newtonsoft.Json.JsonException || e is ModJsonException || e is FormatException || e is OverflowException)
+                { Note(graphical, "Repair the advanced JSON: " + e.Message); return; }
                 void Sync() => structures.SetValueWithoutNotify(entries.ToString(Newtonsoft.Json.Formatting.Indented));
                 void MaterialEditor(VisualElement parent, JObject owner, string heading)
                 {
