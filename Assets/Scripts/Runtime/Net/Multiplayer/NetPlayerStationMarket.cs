@@ -267,6 +267,8 @@ namespace GoF2Remake.Multiplayer
                 return "Use a saleable item, 1–500 units, and a unit price from 1 to 1,000,000,000 credits.";
             record.listings ??= new List<PlayerStationListing>();
             if (record.listings.Count >= MaxStationListings) return "This station has reached its listing limit.";
+            NormalizeItemListingIds(record);
+            if (record.nextItemListingId >= int.MaxValue) return "The item listing ID limit has been reached.";
             string payoutFactionId = null;
             if (payFactionTreasury)
             {
@@ -285,16 +287,73 @@ namespace GoF2Remake.Multiplayer
             RemoveStorageLots(record, account, item, amount);
             stock.amount -= amount;
             if (stock.amount == 0) record.storage.Remove(stock);
-            record.listings.Add(new PlayerStationListing { item = item, amount = amount, unitPrice = unitPrice, sellerProfile = account, payoutFactionId = payoutFactionId });
+            int listingId = record.nextItemListingId++;
+            record.listings.Add(new PlayerStationListing { id = listingId, item = item, amount = amount, unitPrice = unitPrice, sellerProfile = account, payoutFactionId = payoutFactionId });
             if (!Save())
             {
                 record.listings.RemoveAt(record.listings.Count - 1);
+                record.nextItemListingId = listingId;
                 record.storageLots = previousLots;
                 if (stock.amount == 0) record.storage.Add(stock);
                 stock.amount += amount;
                 return "The listing could not be saved; the goods were returned to storage where possible.";
             }
             return "Listing #" + (record.listings.Count - 1) + " created. " + amount + " units are held in marketplace escrow.";
+        }
+
+        static void NormalizeItemListingIds(PlayerStationRecord station)
+        {
+            if (station?.listings == null) return;
+            int next = Math.Max(1, station.nextItemListingId);
+            foreach (var listing in station.listings)
+                if (listing != null && listing.id >= next) next = listing.id == int.MaxValue ? int.MaxValue : listing.id + 1;
+            var used = new HashSet<int>();
+            foreach (var listing in station.listings)
+            {
+                if (listing == null) continue;
+                if (listing.id > 0 && used.Add(listing.id)) continue;
+                if (next < int.MaxValue) { listing.id = next++; used.Add(listing.id); }
+                else listing.id = 0;
+            }
+            station.nextItemListingId = next;
+        }
+
+        internal static string BuyItemListingById(NetPlayer by, int stationId, int listingId, int amount, bool cancel)
+        {
+            var station = Find(stationId);
+            if (listingId <= 0) return "Choose an active item listing.";
+            int index = station?.listings?.FindIndex(listing => listing != null && listing.id == listingId) ?? -1;
+            if (index < 0) return "That listing is no longer available. Refresh the marketplace.";
+            return cancel ? CancelListing(by, stationId, index) : BuyListing(by, stationId, index, amount);
+        }
+
+        [Serializable] internal sealed class MarketUiRow
+        {
+            public int id, item, amount;
+            public long price;
+            public bool hull, mine;
+        }
+        [Serializable] internal sealed class MarketUiCatalogue
+        {
+            public int stationId;
+            public List<MarketUiRow> rows = new List<MarketUiRow>();
+        }
+        internal static MarketUiCatalogue MarketCatalogueFor(NetPlayer pilot, int stationId)
+        {
+            var result = new MarketUiCatalogue { stationId = stationId };
+            var station = Find(stationId);
+            if (!IsStationContext(pilot, station, out string account) || station.underConstruction) return result;
+            if (station.listings != null)
+                foreach (var listing in station.listings)
+                    if (listing != null && listing.id > 0 && listing.amount > 0)
+                        result.rows.Add(new MarketUiRow { id = listing.id, item = listing.item, amount = listing.amount,
+                            price = listing.unitPrice, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+            if (station.shipListings != null)
+                foreach (var listing in station.shipListings)
+                    if (listing?.hull != null && listing.id > 0)
+                        result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
+                            price = listing.price, hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+            return result;
         }
 
         internal static string BuyListing(NetPlayer by, int id, int listingIndex, int amount)
