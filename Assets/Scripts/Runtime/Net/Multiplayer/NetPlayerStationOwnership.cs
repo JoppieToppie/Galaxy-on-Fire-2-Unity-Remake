@@ -22,10 +22,10 @@ namespace GoF2Remake.Multiplayer
             offer.offeredForClaimUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             offer.pendingTransfer = null;
             RecordHistory(offer, account, "opened-for-public-claim");
-            original.stations[index] = offer;
+            ReplaceStationRecord(original, index, offer);
             if (!Save())
             {
-                if (ReferenceEquals(registry, original)) original.stations[index] = station;
+                if (ReferenceEquals(registry, original)) ReplaceStationRecord(original, index, station);
                 return "The station could not be opened for public claim.";
             }
             NetState.Instance?.BroadcastStock(offer.stationIndex);
@@ -99,7 +99,7 @@ namespace GoF2Remake.Multiplayer
 
             RecordHistory(station, account, "public-claim-completed");
             var rollbackGates = RestoreSponsoredGateOwnership(station);
-            original.stations[index] = station;
+            ReplaceStationRecord(original, index, station);
             foreach (var gate in original.jumpgates)
             {
                 if (gate == null || gate.sponsorStationId != station.id || !gate.building ||
@@ -112,7 +112,7 @@ namespace GoF2Remake.Multiplayer
             {
                 if (ReferenceEquals(registry, original))
                 {
-                    original.stations[index] = offer;
+                    ReplaceStationRecord(original, index, offer);
                     rollbackGates();
                 }
                 return "The claim could not be saved. Your credits were kept.";
