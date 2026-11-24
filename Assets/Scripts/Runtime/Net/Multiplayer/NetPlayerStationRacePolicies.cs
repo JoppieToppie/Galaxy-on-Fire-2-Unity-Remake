@@ -82,7 +82,7 @@ namespace GoF2Remake.Multiplayer
             if (words.Length != 2 || (!string.Equals(words[1], "clear", StringComparison.OrdinalIgnoreCase) &&
                 !TryPolicyRaceKey(words[1], out race))) return "/station profile-race <profile ID> <race|clear>";
             return NetProfiles.TrySetStationPolicyRace(words[0], race)
-                ? "Profile race saved." : "The profile race could not be saved. Check the profile ID.";
+                ? "Profile race saved." : "The race could not be saved. Completed pilot identities cannot be changed.";
         }
 
         internal static string SetJumpgateRace(NetPlayer pilot, string arg)
