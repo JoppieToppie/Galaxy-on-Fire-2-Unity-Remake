@@ -200,7 +200,9 @@ namespace GoF2Remake.Multiplayer
             if (record.underConstruction) return "Finish station construction before building ships.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
                 return "Install a dry dock module first.";
+            var originalRegistry = registry;
             CompleteDryDockJob(record, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            if (!ReferenceEquals(registry, originalRegistry)) return "Station recovery completed; retry the dry dock request.";
             if (record.dryDockBuilding)
                 return "The dry dock is already constructing " + (NetGame.Db?.Ship(record.dryDockShip)?.name ?? "a ship") +
                     "; remaining seconds: " + Math.Max(0L, record.dryDockCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds()) + ".";
@@ -276,7 +278,7 @@ namespace GoF2Remake.Multiplayer
                 record.storage = previousStorage;
                 record.storageLots = previousLots;
                 ClearDryDockJob(record);
-                if (consumeBlueprint) registry?.consumedBlueprints?.Remove(productId);
+                if (consumeBlueprint && ReferenceEquals(registry, originalRegistry)) registry.consumedBlueprints?.Remove(productId);
                 return "The dry-dock job could not be saved; all materials and the blueprint were restored.";
             }
             if (consumeBlueprint) GoF2Remake.Data.Session.UnlockedBlueprints.Remove(productId);
@@ -544,10 +546,13 @@ namespace GoF2Remake.Multiplayer
 
         static void TickFactoryJobs(long now)
         {
-            if (registry?.stations == null) return;
-            foreach (var record in registry.stations)
+            var original = registry;
+            if (original?.stations == null) return;
+            foreach (var record in original.stations)
             {
-                if (record == null || record.offeredForClaimUtc > 0 || !HasFactoryModule(record) || record.underConstruction) continue;
+                if (!ReferenceEquals(registry, original)) return;
+                if (record == null || record.offeredForClaimUtc > 0 || !HasFactoryModule(record) || record.underConstruction ||
+                    StationClosedByCombat(record.stationIndex) || record.retired) continue;
                 record.storage ??= new List<PlayerStationStorage>();
                 record.factoryJobs ??= new List<PlayerFactoryProductionJob>();
                 record.factoryRepeatOrders ??= new List<PlayerFactoryRepeatOrder>();
@@ -629,7 +634,8 @@ namespace GoF2Remake.Multiplayer
                         hasInputs = false;
                     if (hasInputs) { paused.paused = false; resumed = true; }
                 }
-                if (resumed) Save();
+                if (resumed && !Save()) return;
+                if (!ReferenceEquals(registry, original)) return;
                 var next = record.factoryRepeatOrders.Find(x => x != null && !x.paused);
                 if (next == null) continue;
                 var recipe = FindFactoryRecipe(next.recipeId);
