@@ -27,6 +27,12 @@ namespace GoF2Remake.Multiplayer
         static int seed;
         static float uploadTimer = UploadSeconds;
         static int outSeq;
+        static long economyRevision;
+
+        internal static void OnEconomyRevision(long revision)
+        {
+            if (revision > economyRevision) economyRevision = revision;
+        }
         static int pendingWreckPickup;
         static float wreckPickupSentAt;
         static int pendingJumpSequence;
@@ -44,6 +50,7 @@ namespace GoF2Remake.Multiplayer
             waiting = false;
             uploadTimer = UploadSeconds;
             outSeq = 0;
+            economyRevision = 0;
             pendingWreckPickup = 0;
             pendingJumpSequence = 0;
             pendingJump = null;
@@ -73,6 +80,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>NetState reached this client on a server with profiles: sign in, the world waits for the profile.</summary>
         public static void Begin(string server, int worldSeed)
         {
+            economyRevision = 0;
+            outSeq = 0;
             serverId = server ?? "";
             seed = worldSeed;
             waiting = true;
@@ -235,7 +244,7 @@ namespace GoF2Remake.Multiplayer
             uploadTimer = UploadSeconds;
             var parts = NetProfiles.Pack(SaveGame.ProfileJson());
             int seq = ++outSeq;
-            for (int i = 0; i < parts.Count; i++) NetState.Instance.UploadChunkRpc(seq, i, parts.Count, parts[i]);
+            for (int i = 0; i < parts.Count; i++) NetState.Instance.UploadChunkRpc(seq, i, parts.Count, economyRevision, parts[i]);
             return seq;
         }
 
