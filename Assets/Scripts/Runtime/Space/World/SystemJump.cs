@@ -250,6 +250,24 @@ namespace GoF2Remake.World
                 if (cam != null) cam.transform.SetPositionAndRotation(ship.transform.TransformPoint(heldView), ship.transform.rotation * heldTurn);
                 return;
             }
+            if (cam != null && state == State.KhadorScene && khadorModFx && modCamera != null)
+            {
+                var fallback = new Vector3(2000f, 300f, -2000f);
+                var offset = modCamera.Position(animMs, fallback);
+                if (modCamera.keys.Count == 0 && !modCamera.drift.HasValue)
+                    offset += new Vector3(-5f, 2f, -5f) * animMs;
+                cam.transform.position = modCameraOrigin + sceneFrame * (offset * M);
+                var aim = modCamera.lookAt == "effect" && fx != null ? fx.transform.position :
+                    modCamera.lookAt == "custom" ? modCameraOrigin : ship.transform.position;
+                aim += sceneFrame * ((modCamera.lookOffset ?? Vector3.zero) * M);
+                var direction = aim - cam.transform.position;
+                if (modCamera.rotation.HasValue)
+                    cam.transform.rotation = sceneFrame * Quaternion.Euler(modCamera.rotation.Value);
+                else if (direction.sqrMagnitude > 1e-6f)
+                    cam.transform.rotation = Quaternion.LookRotation(direction, up);
+                if (modCamera.fov.HasValue) cam.fieldOfView = Aspect.VerticalFov(modCamera.fov.Value, cam.aspect);
+                return;
+            }
             if (cam != null) cam.transform.rotation = Quaternion.LookRotation(ship.transform.position - cam.transform.position, up);
             if (cam != null && toInterstellar && state == State.KhadorScene) GlideBehindShip(cam);
         }
@@ -268,6 +286,9 @@ namespace GoF2Remake.World
             cam.fieldOfView = Mathf.Lerp(sceneFov, Aspect.VerticalFov(chase.baseFov, cam.aspect), t);
         }
 
+        GoF2Remake.Modding.ModJumpFx.Cinematic modCamera;
+        GoF2Remake.Modding.ModJumpFx.Spec sceneDrive;
+        Vector3 modCameraOrigin;
         Vector3 sceneCam;
         float sceneFov;
 
@@ -767,13 +788,20 @@ namespace GoF2Remake.World
             var modSpec = toInterstellar ? null : jumpFailed && failDrive != null ? failDrive : GoF2Remake.Modding.ModJumpFx.ActiveDrive();
             khadorHideMs = 1700f;
             khadorModFx = false;
+            sceneDrive = modSpec;
+            modCamera = null;
             if (rift == null && modSpec != null)
             {
-                var meet = ship.transform.position + sceneDir * (BaseSpeed * modSpec.meetMs * M);
+                modCamera = modSpec.departureCamera;
+                if (modCamera?.shipSpeed != null) speed = modCamera.shipSpeed.Value;
+                if (modCamera?.shipRotation != null)
+                    ship.transform.rotation = sceneFrame * Quaternion.Euler(modCamera.shipRotation.Value);
+                var meet = ship.transform.position + sceneDir * (speed * modSpec.meetMs * M);
                 var modRot = Quaternion.LookRotation(-sceneDir, sceneFrame * Vector3.up);   // its front toward the ship
                 var modFx = ModJumpEffect.Spawn(modSpec, meet - modRot * ModJumpEffect.MeetOffset(modSpec), modRot, jumpFailed ? modSpec.failTexture : null);
                 fx = modFx.gameObject;
                 animLength = Mathf.Max(modFx.LengthMs, modSpec.meetMs) + modSpec.endHoldMs;   // then the next area loads
+                if (modCamera?.durationMs != null) animLength = Mathf.Max(animLength, modCamera.durationMs.Value);
                 khadorHideMs = modSpec.meetMs;
                 khadorModFx = true;
             }
@@ -781,7 +809,7 @@ namespace GoF2Remake.World
             JumpFxStarted?.Invoke(false, fxPos, fxRot);
             activated = true;
             animMs = 0f;
-            ship.turnOnly = rift == null;   // remake: the player turns the ship (and the camera's drift with it), not its path
+            ship.turnOnly = rift == null && (modCamera == null || modCamera.allowShipTurning);   // remake: the player turns the ship (and the camera's drift with it), not its path
             var cam = Camera.main;
             // game (-2000, 300, -2000), in the ship's frame. Into the hole the camera stays where it is behind the ship.
             if (rift != null && cam != null)
@@ -805,7 +833,8 @@ namespace GoF2Remake.World
             }
             if (cam != null && rift == null)
             {
-                cam.transform.position = fxPos + sceneFrame * (new Vector3(2000f, 300f, -2000f) * M);
+                modCameraOrigin = fxPos;
+                cam.transform.position = fxPos + sceneFrame * ((modCamera != null ? modCamera.Position(0f, new Vector3(2000f, 300f, -2000f)) : new Vector3(2000f, 300f, -2000f)) * M);
                 sceneCam = cam.transform.position;
                 sceneFov = cam.fieldOfView;
             }
@@ -858,7 +887,7 @@ namespace GoF2Remake.World
             bool gateScene = state == State.GateScene;
             var cam = Camera.main;
             // Modified: a mod drive's effect keeps the camera drifting off after the ship vanished, to its end and the hold after.
-            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
+            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null && (gateScene || !khadorModFx || modCamera == null))   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
                 cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M * (gateScene ? gateSceneScale : 1f));
             if (rift != null)
             {
@@ -1151,6 +1180,7 @@ namespace GoF2Remake.World
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;
             Session.DriveFailArrival = jumpFailed;   // Modified: a failed mod jump comes out somewhere near the station
+            Session.DriveArrivalSpec = khadorModFx && !viaGate ? sceneDrive : null;
             Session.DriveArrival = khadorModFx && !viaGate;   // Modified: a mod drive's jump arrives with its effect (ModJumpFx "arrivalFx")
             jumpFailed = false;
             Session.ArrivedBySystemJump = !Session.WarpLocal;
