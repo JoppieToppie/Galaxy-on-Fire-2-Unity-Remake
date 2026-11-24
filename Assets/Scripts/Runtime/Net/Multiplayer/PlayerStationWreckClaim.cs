@@ -48,6 +48,9 @@ namespace GoF2Remake.Multiplayer
         bool previouslyUncontested;
 
         internal WreckClaimant Challenger => challenger;
+        internal bool Contested { get; private set; }
+        internal bool Advancing => previouslyUncontested;
+        internal int EarnedWholeSeconds => (int)Math.Floor(earnedSeconds);
 
         internal WreckClaimControl(PlayerStationWreckClaim saved = null)
         {
@@ -86,6 +89,7 @@ namespace GoF2Remake.Multiplayer
             WreckClaimant? uncontested, bool contested, double sampleSeconds, long utcMilliseconds,
             bool firstClaimImmediate, bool challengerPresent = true)
         {
+            Contested = contested;
             if (claim.exclusive) return null;
             if (claim.HasClaimant && utcMilliseconds >= claim.ExclusiveAt)
             {

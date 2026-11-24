@@ -10,7 +10,12 @@ namespace GoF2Remake.Multiplayer
         None = 0,
         OfferForClaim = 1,
         RebuildWreck = 2,
-        FundJumpgate = 4
+        FundJumpgate = 4,
+        UseStationStock = 8,
+        RelinquishBuilder = 16,
+        ClaimGateForFaction = 32,
+        ClaimGateIndividually = 64,
+        ViewStationManagement = 128
     }
 
     public static partial class NetPlayerStations
@@ -60,31 +65,94 @@ namespace GoF2Remake.Multiplayer
             foreach (var pilot in NetPlayer.All)
             {
                 if (pilot == null || !pilot.IsSpawned) continue;
-                var station = pilot.InHangar ? StationAt(pilot.Station) : null;
+                var orbitStation = StationAt(pilot.Station);
+                var station = pilot.InHangar ? orbitStation : null;
                 string account = NetProfiles.Controls(pilot.OwnerClientId) ? NetProfiles.AccountOf(pilot.OwnerClientId) : null;
                 bool manages = station != null && !StationClosedByCombat(station.stationIndex) &&
                     HasStationPermission(station, account, PlayerStationPermission.StationOperations);
                 pilot.SetManagedStationOrbit(manages ? station.stationIndex : -1);
                 pilot.SetStationProjectActions(AvailableStationProjectActions(pilot, station, account));
-                if (refreshGates) PublishJumpgateManagementAccess(pilot);
+                PublishWreckControlAccess(pilot, orbitStation, account);
+                if (refreshGates)
+                {
+                    PublishJumpgateManagementAccess(pilot);
+                    PublishStationProjectFundingAccess(pilot, account);
+                }
             }
+        }
+
+        static void PublishWreckControlAccess(NetPlayer pilot, PlayerStationRecord station, string account)
+        {
+            int earned = -1;
+            bool contested = false;
+            bool advancing = false;
+            if (pilot.InSpace && station?.wreckClaimOpen == true && station.wreckClaim?.exclusive != true &&
+                wreckControl.TryGetValue(station.id, out var control))
+            {
+                contested = control.Contested;
+                if (!string.IsNullOrEmpty(account))
+                {
+                    var side = new WreckClaimant(account, NetFactions.Of(account)?.id, null);
+                    if (control.Challenger.SameSide(side))
+                    {
+                        earned = control.EarnedWholeSeconds;
+                        advancing = control.Advancing;
+                    }
+                }
+            }
+            pilot.SetWreckControlProgress(earned, contested, advancing);
+        }
+
+        static void PublishStationProjectFundingAccess(NetPlayer pilot, string account)
+        {
+            var ids = new StringBuilder();
+            if (!string.IsNullOrEmpty(account) && pilot.InHangar)
+                foreach (var project in registry.stations)
+                {
+                    if (ProcurementMaterials(project) == null) continue;
+                    bool canFund = project.ownershipType == PlayerStationOwnershipType.Faction
+                        ? IsFactionManager(project, account)
+                        : string.Equals(project.ownerProfile, account, StringComparison.Ordinal);
+                    if (!canFund) continue;
+                    if (ids.Length >= 3900) break;
+                    if (ids.Length > 0) ids.Append(',');
+                    ids.Append(project.id);
+                }
+            pilot.SetStationProjectFundingAccess(ids.ToString());
         }
 
         static StationProjectActions AvailableStationProjectActions(NetPlayer pilot, PlayerStationRecord docked, string account)
         {
             if (string.IsNullOrEmpty(account)) return StationProjectActions.None;
-            if (docked != null && !docked.underConstruction && !docked.reconstructing && !docked.wreckClaimOpen &&
-                !docked.destroyed && !docked.retired && docked.offeredForClaimUtc <= 0 && IsOwnershipAuthority(docked, account))
-                return StationProjectActions.OfferForClaim;
-            if (!pilot.InSpace) return StationProjectActions.None;
-
             var actions = StationProjectActions.None;
+            if (IsStationContext(pilot, docked, out _))
+            {
+                if (!docked.underConstruction && !docked.retired && IsOwnershipAuthority(docked, account))
+                    actions |= StationProjectActions.OfferForClaim;
+                if (CanUseStationConstructionStock(docked, account))
+                    actions |= StationProjectActions.UseStationStock;
+                if (HasBuilderRights(docked, account))
+                    actions |= StationProjectActions.RelinquishBuilder;
+                if (CanManageAppearance(pilot, docked, out _) || CanManageConstruction(pilot, docked, out _) ||
+                    IsOwnershipAuthority(docked, account) || HasStationPermission(docked, account, PlayerStationPermission.Security) ||
+                    HasStationPermission(docked, account, PlayerStationPermission.Storage) ||
+                    HasStationPermission(docked, account, PlayerStationPermission.Hangar) ||
+                    HasStationPermission(docked, account, PlayerStationPermission.Marketplace))
+                    actions |= StationProjectActions.ViewStationManagement;
+            }
+            if (!pilot.InSpace) return actions;
+
             var wreck = StationAt(pilot.Station);
             if (wreck?.wreckClaimOpen == true && RebuildAuthorization(pilot, wreck, out _, out _) == null)
                 actions |= StationProjectActions.RebuildWreck;
             var gate = FindJumpgate(pilot.Station);
             if (gate != null && gate.building && gate.startedUtc <= 0 && CanUseJumpgateConstructionStock(gate, account))
                 actions |= StationProjectActions.FundJumpgate;
+            if (gate?.scrapped == true && !gate.explosionPending && JumpgateConstructionPausedAt(gate) == 0)
+            {
+                if (NetFactions.Of(account) != null) actions |= StationProjectActions.ClaimGateForFaction;
+                if (OwnsOperationalStationForGateClaim(account)) actions |= StationProjectActions.ClaimGateIndividually;
+            }
             return actions;
         }
 

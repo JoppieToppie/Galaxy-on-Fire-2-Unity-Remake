@@ -178,13 +178,29 @@ namespace GoF2Remake.World
 
         static readonly string[] JumpgateByRace = { "jumpgate_terran", "jumpgate_vossk_anim", "jumpgate_nivelian", "jumpgate_midorian" };
 
-        public string JumpgateAssembly => JumpgateByRace[Look >= 0 && Look < 4 ? Look : 0];
+        public string JumpgateAssembly => JumpgateByRace[PlayerGateLook >= 0 ? PlayerGateLook : Look >= 0 && Look < 4 ? Look : 0];
+        internal static string JumpgatePresetAssembly(int preset) =>
+            preset > 0 && preset <= JumpgateByRace.Length ? JumpgateByRace[preset - 1] : null;
+
+        internal int? ConfirmedPlayerGatePreset { get; set; }
+
+        int PlayerGateLook
+        {
+            get
+            {
+                int preset = ConfirmedPlayerGatePreset ??
+                    GoF2Remake.Multiplayer.NetPlayerStations.FindJumpgate(stationIndex)?.modelPreset ?? 0;
+                return JumpgatePresetAssembly(preset) != null ? preset - 1 : -1;
+            }
+        }
         /// <summary>The system's own gate (a mod's systems.json "jumpgate", Modding.ModWorld.GateModelOf), else null: the race's.</summary>
-        public string ModJumpgateAssembly => Modding.ModWorld.GateModelOf(systemIndex)?.Assembly;
+        public string ModJumpgateAssembly => PlayerGateLook >= 0 ? null : Modding.ModWorld.GateModelOf(systemIndex)?.Assembly;
         /// <summary>The gate's collision and approach radius (game units); with the station scale (OrbitScale) the gate grows
         /// with the stations, and its radius with it.</summary>
-        public int JumpgateRadius => Mathf.RoundToInt(StationScale * (Modding.ModWorld.GateModelOf(systemIndex) is Modding.ModWorld.StationModel g && g.gateRadius > 0f
-            ? g.gateRadius : Look == 1 ? GateRadiusVossk : GateRadius));
+        public int JumpgateRadius => Mathf.RoundToInt(StationScale * (PlayerGateLook >= 0
+            ? (PlayerGateLook == 1 ? GateRadiusVossk : GateRadius)
+            : Modding.ModWorld.GateModelOf(systemIndex) is Modding.ModWorld.StationModel g && g.gateRadius > 0f
+                ? g.gateRadius : Look == 1 ? GateRadiusVossk : GateRadius));
         /// <summary>The race whose tables the orbit uses (a mod race's look, Standing.Look).</summary>
         int Look => Flight.Standing.Look(raceId);
 
@@ -244,7 +260,9 @@ namespace GoF2Remake.World
         public static float StationReach(int stationIndex, bool alienOrbit)
         {
             float reach = VolumesReach(Flight.CollisionVolume.ForStation(StationLook(stationIndex), alienOrbit, alienOrbit && Story.Dlc1Won)) * 1.15f;
-            if (!alienOrbit && Modding.ModWorld.ModelOf(stationIndex) is Modding.ModWorld.StationModel own) reach = Mathf.Max(reach, own.size * 0.6f);
+            int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(stationIndex);
+            if (!alienOrbit && Modding.ModWorld.ModelOf(preset >= 0 ? preset : stationIndex) is Modding.ModWorld.StationModel own)
+                reach = Mathf.Max(reach, own.size * 0.6f);
             return Mathf.Max(reach, 10000f);
         }
 
@@ -264,6 +282,8 @@ namespace GoF2Remake.World
             if (Session.CompletedWorld && station == 109) return 114;
             if (Session.CompletedWorld && station == 110) return 115;
             int playerStationLook = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(station);
+            if (playerStationLook == 109) return 114;
+            if (playerStationLook == 110) return 115;
             return playerStationLook >= 0 ? Modding.ModWorld.StationLook(playerStationLook) : Modding.ModWorld.StationLook(station);
         }
 

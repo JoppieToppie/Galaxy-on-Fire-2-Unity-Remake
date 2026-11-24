@@ -378,12 +378,41 @@ namespace GoF2Remake.World
             }
             // A mod's own station model (ModStations), once built; else (and for the rest) the original it names ("looksLike",
             // Modding.ModWorld.StationLook).
+            int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(layout.stationIndex);
+            if (preset >= 0)
+            {
+                var source = db.Stations.Find(s => s != null && s.index == preset);
+                if (source != null && StationPresetAssembly(db, source) is string chosen) return chosen;
+            }
             var own = Modding.ModWorld.ModelOf(layout.stationIndex);
             if (own != null && Modding.ModStations.Built(own.station)) return own.Assembly;
-            string prefix = $"station_{StationLook(layout.stationIndex):000}_";
+            return StockStationAssembly(db, StationLook(layout.stationIndex), layout.raceId);
+        }
+
+        internal static string StationPresetAssembly(Database db, StationData station)
+        {
+            int index = station.index;
+            var model = Modding.ModWorld.ModelOf(index);
+            int race = db.Systems.Find(system => system != null && system.index == station.system)?.raceId ?? -1;
+            string assembly = model != null && Modding.ModStations.Built(index) ? model.Assembly : index switch
+            {
+                100 => "v_station_deep_science",
+                101 => "v_station_battlestation_anim",
+                108 => "station_kaamo_club",
+                109 => StockStationAssembly(db, 114, race),
+                110 => StockStationAssembly(db, 115, race),
+                111 => "station_111_luur_intact_mission_89",
+                _ => StockStationAssembly(db, StationLook(index), race)
+            };
+            return assembly != null && db.AssemblyByName(assembly) != null ? assembly : null;
+        }
+
+        static string StockStationAssembly(Database db, int index, int race)
+        {
+            string prefix = $"station_{index:000}_";
             var entry = db.Assemblies.Find(a => a.category == "stations" && (a.name.StartsWith(prefix)
                                                   || a.name.StartsWith("v_" + prefix) || a.name.StartsWith("sn_" + prefix)));
-            return entry != null ? entry.name : layout.raceId == 1 ? "station_vossk" : null;   // Vossk: no collision entry
+            return entry != null ? entry.name : race == 1 ? "station_vossk" : null;   // Vossk: no collision entry
         }
 
         /// <summary>Modified: Luur's game rotation, as the burning station of its missions (createStaticObject's (0, -2.356, 0)).</summary>
@@ -486,7 +515,8 @@ namespace GoF2Remake.World
             {
                 var o = station.AddComponent<GoF2Remake.Flight.Obstacle>();
                 o.landmark = o.isStation = true;
-                var own = Modding.ModWorld.ModelOf(layout.stationIndex);
+                int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(layout.stationIndex);
+                var own = Modding.ModWorld.ModelOf(preset >= 0 ? preset : layout.stationIndex);
                 o.volumes = own != null && Modding.ModStations.Built(own.station) ? Modding.ModStations.Volumes(own, station)   // a mod's model
                           : GoF2Remake.Flight.CollisionVolume.ForStation(KotharDamaged(layout) ? KotharDamagedCollision
                                                                          : StationLook(layout.stationIndex), layout.systemIndex < 0,
@@ -517,7 +547,7 @@ namespace GoF2Remake.World
             }
         }
 
-        public static GameObject SpawnJumpgate(Database db, OrbitLayout layout, Transform parent = null)
+        public static GameObject SpawnJumpgate(Database db, OrbitLayout layout, Transform parent = null, bool forcePlayerGate = false)
         {
             if (!layout.hasJumpgate) return null;
             // OrbitScale: the gate where the scaled orbit has it, grown like the stations (its radius with it: JumpgateRadius).
@@ -537,7 +567,7 @@ namespace GoF2Remake.World
             // Only independently constructed player gates opt into exact mesh geometry in Original mode.
             // This does not attach a combat Target yet: the server must validate weapon hits before
             // the gate is allowed to receive structural damage.
-            if (go != null && (GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex) ||
+            if (go != null && (forcePlayerGate || GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex) ||
                 GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(layout.stationIndex)))
             {
                 var hull = GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);

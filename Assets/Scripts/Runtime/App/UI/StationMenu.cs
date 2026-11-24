@@ -652,7 +652,15 @@ namespace GoF2Remake.UI
             if (infoWindow != null && infoWindow.IsOpen) { infoWindow.Tick(); return; }   // it takes all input
             if (MultiplayerWindow.IsOpenAny) return;   // the faction window's buttons and text fields take the input
             if (dryDock != null && dryDock.IsOpen) return; // the dry-dock panel owns its navigation while open
-            if (stationManagement != null && stationManagement.IsOpen) return; // station management owns its controls
+            if (stationManagement?.IsOpen == true)
+            {
+                if (root.focusController?.focusedElement == null && MenuFocus.NavPressed(pad, kb))
+                {
+                    SetTouchMode(false);
+                    stationManagement.FocusFirst();
+                }
+                return;
+            }
             if (pad != null && pad.startButton.wasPressedThisFrame && !DialogOpen)
             {
                 Play(buttonRelease);

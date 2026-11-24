@@ -11,10 +11,12 @@ namespace GoF2Remake.UI
         int projectOrbit = -1;
         string projectSnapshot;
         StationProjectActions projectActions;
+        int wreckControlProgress;
         Label wreckCountdown, gateCountdown;
         PlayerStationWreckClaim timedClaim;
         long gateCompletesUtc, nextProjectClockUtc;
         int rebuildModel = -1;
+        int reclaimModel, reclaimDestination = -1;
         string wreckMaterial = "", wreckAmount = "1", gateMaterial = "", gateAmount = "1";
 
         void UpdateOrbitProjects()
@@ -23,6 +25,7 @@ namespace GoF2Remake.UI
             int orbit = pilot?.InSpace == true ? pilot.Station : -1;
             var actions = pilot?.AvailableStationActions ?? StationProjectActions.None;
             if (!Busy && (orbit != projectOrbit || actions != projectActions ||
+                (pilot?.WreckControlProgress ?? 0) != wreckControlProgress ||
                 !ReferenceEquals(projectSnapshot, NetState.Instance?.PlayerStations)))
                 Rebuild();
 
@@ -43,6 +46,7 @@ namespace GoF2Remake.UI
             var pilot = NetPlayer.Local;
             projectSnapshot = NetState.Instance?.PlayerStations;
             projectActions = pilot?.AvailableStationActions ?? StationProjectActions.None;
+            wreckControlProgress = pilot?.WreckControlProgress ?? 0;
             wreckCountdown = gateCountdown = null;
             timedClaim = null;
             nextProjectClockUtc = 0;
@@ -51,6 +55,8 @@ namespace GoF2Remake.UI
             {
                 projectOrbit = orbit;
                 rebuildModel = -1;
+                reclaimModel = 0;
+                reclaimDestination = -1;
                 wreckMaterial = gateMaterial = "";
                 wreckAmount = gateAmount = "1";
             }
@@ -59,7 +65,7 @@ namespace GoF2Remake.UI
             var station = NetPlayerStations.StationAt(orbit);
             var gate = NetPlayerStations.FindJumpgate(orbit);
             if (station?.wreckClaimOpen == true)
-                BuildWreckProject(station, pilot.AvailableStationActions);
+                BuildWreckProject(station, pilot);
             else if (station?.reconstructing == true)
             {
                 Section("Reconstructing " + station.name);
@@ -72,8 +78,16 @@ namespace GoF2Remake.UI
 
             if (gate?.building == true)
                 BuildGateProject(gate, pilot.AvailableStationActions);
-            else if (station?.wreckClaimOpen != true && station?.reconstructing != true)
-                body.Add(Text("No active construction projects in this orbit.", 16, Dim));
+            else if (gate?.scrapped == true)
+                BuildGateReclaim(gate, pilot.AvailableStationActions);
+            var stationSalvage = NetPlayerStations.StationSalvageAt(orbit);
+            var gateSalvage = NetPlayerStations.JumpgateSalvageAt(orbit);
+            if (stationSalvage?.Count > 0) BuildSalvageReadout("Station salvage", stationSalvage);
+            if (gateSalvage?.Count > 0) BuildSalvageReadout("Jumpgate salvage", gateSalvage);
+            if (body.childCount == 0) body.Add(Text("No active projects or salvage in this orbit.", 16, Dim));
+
+            if (station?.destroyed == true && !station.retired && NetCommands.IsAdmin(pilot))
+                body.Add(Btn("Release destroyed station orbit", () => Send("/station retire " + station.id), null));
         }
 
         void BuildReconstructionOrders(PlayerStationRecord station)
@@ -94,9 +108,16 @@ namespace GoF2Remake.UI
             }
         }
 
-        void BuildWreckProject(PlayerStationRecord station, StationProjectActions actions)
+        void BuildWreckProject(PlayerStationRecord station, NetPlayer pilot)
         {
             Section(station.name + " wreck");
+            if (pilot.WreckControlContested)
+                body.Add(Text("Control contested within 5 km. Takeover progress is paused.", 16, Dim));
+            int earned = pilot.WreckControlEarnedSeconds;
+            if (earned >= 0)
+                body.Add(Text($"Your side's takeover · {earned / 60}:{earned % 60:00} / 5:00" +
+                    (pilot.WreckControlAdvancing ? "" : " · paused"), 16, Dim));
+
             var claim = station.wreckClaim;
             if (claim == null || claim.claimedUtcMilliseconds <= 0)
             {
@@ -112,7 +133,7 @@ namespace GoF2Remake.UI
                 wreckCountdown = Text("", 16, Dim);
                 body.Add(wreckCountdown);
             }
-            if (!actions.HasFlag(StationProjectActions.RebuildWreck)) return;
+            if (!pilot.AvailableStationActions.HasFlag(StationProjectActions.RebuildWreck)) return;
 
             var labels = new List<string> { "Use the wreck's model" };
             var indices = new List<int> { -1 };
@@ -135,9 +156,58 @@ namespace GoF2Remake.UI
                 "squad-button--accept"));
         }
 
+        void BuildGateReclaim(PlayerJumpgateRecord gate, StationProjectActions actions)
+        {
+            Section("Scrapped jumpgate");
+            if (NetPlayerStations.JumpgateConstructionPausedAt(gate) > 0)
+            {
+                body.Add(Text("Reclamation is paused until the sponsoring station is claimed.", 16, Dim));
+                return;
+            }
+            bool faction = actions.HasFlag(StationProjectActions.ClaimGateForFaction);
+            bool individual = actions.HasFlag(StationProjectActions.ClaimGateIndividually);
+            if (!faction && !individual)
+            {
+                body.Add(Text("Reclamation requires a faction membership or an operational station you own.", 16, Dim));
+                return;
+            }
+
+            var models = new List<(int id, string label)> { (0, "Keep the existing gate model") };
+            for (int id = 1; id <= NetPlayerStations.JumpgateModelNames.Length; id++)
+                if (NetPlayerStations.IsJumpgateModelPreset(id)) models.Add((id, NetPlayerStations.JumpgateModelNames[id - 1]));
+            var destinations = new List<(int id, string label)> { (-1, "Keep the current destination") };
+            foreach (var system in NetGame.Db.Systems)
+                if (system != null && system.index != gate.system && system.stations?.Count > 0)
+                    destinations.Add((system.index, system.name + " [" + system.index + "]"));
+
+            AddReclaimChoice("Jumpgate model", models, reclaimModel, value => reclaimModel = value);
+            AddReclaimChoice("Destination system", destinations, reclaimDestination, value => reclaimDestination = value);
+            if (faction) AddGateReclaimAction(gate, "faction", "Reclaim for my faction");
+            if (individual) AddGateReclaimAction(gate, "individual", "Reclaim for myself");
+        }
+
+        void AddReclaimChoice(string label, List<(int id, string label)> choices, int current, Action<int> apply)
+        {
+            var labels = choices.ConvertAll(option => option.label);
+            int index = Math.Max(0, choices.FindIndex(option => option.id == current));
+            apply(choices[index].id);
+            var choice = new DropdownField(label, labels, index);
+            choice.RegisterValueChangedCallback(_ =>
+            {
+                if (choice.index >= 0) apply(choices[choice.index].id);
+            });
+            body.Add(choice);
+        }
+
+        void AddGateReclaimAction(PlayerJumpgateRecord gate, string ownership, string label) =>
+            body.Add(Btn(label, () => Send($"/station jumpgate-claim {gate.orbitStationIndex} {ownership} {reclaimDestination} {reclaimModel}"),
+                "squad-button--accept"));
+
         void BuildGateProject(PlayerJumpgateRecord gate, StationProjectActions actions)
         {
             Section("Jumpgate construction");
+            if (gate.modelPreset > 0 && gate.modelPreset <= NetPlayerStations.JumpgateModelNames.Length)
+                body.Add(Text(NetPlayerStations.JumpgateModelNames[gate.modelPreset - 1] + " model", 16, Dim));
             BuildMaterialProgress(gate.materials);
             long pausedAt = NetPlayerStations.JumpgateConstructionPausedAt(gate);
             if (pausedAt > 0)
@@ -152,11 +222,22 @@ namespace GoF2Remake.UI
                 body.Add(gateCountdown);
                 return;
             }
+            var firstOutstanding = gate.materials?.Find(material => material != null && material.required > material.delivered);
+            if (string.IsNullOrEmpty(gateMaterial) && firstOutstanding != null) gateMaterial = firstOutstanding.item.ToString();
             var row = ProjectDeliveryFields(gateMaterial, gateAmount, value => gateMaterial = value, value => gateAmount = value);
             row.Add(Btn("Deliver cargo", () => SendProjectDelivery("jumpgate-contribute", gate.orbitStationIndex, gateMaterial, gateAmount), null));
             if (actions.HasFlag(StationProjectActions.FundJumpgate))
                 row.Add(Btn("Use donated stock", () => SendProjectDelivery("jumpgate-fund-stock", gate.orbitStationIndex, gateMaterial, gateAmount), null));
             body.Add(row);
+        }
+
+        void BuildSalvageReadout(string title, IReadOnlyList<PlayerStationMaterial> materials)
+        {
+            Section(title);
+            body.Add(Text("Use your tractor beam when in reach.", 16, Dim));
+            foreach (var material in materials)
+                if (material != null && material.required > 0)
+                    body.Add(Text($"{NetGame.Db?.Item(material.item)?.name ?? ("Item " + material.item)} · {material.required:N0}", 16, Dim));
         }
 
         void BuildMaterialProgress(List<PlayerStationMaterial> materials)

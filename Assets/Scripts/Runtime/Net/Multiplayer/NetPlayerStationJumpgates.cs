@@ -182,6 +182,22 @@ namespace GoF2Remake.Multiplayer
                 (!string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.accessFactionId, StringComparison.Ordinal));
         }
 
+        internal static readonly string[] JumpgateModelNames = { "Terran", "Vossk", "Nivelian", "Midorian" };
+
+        internal static bool IsJumpgateModelPreset(int model)
+        {
+            string assembly = GoF2Remake.World.OrbitLayout.JumpgatePresetAssembly(model);
+            return assembly != null && NetGame.Db?.AssemblyByName(assembly) != null;
+        }
+
+        internal static bool CanBuildGateInOrbit(int systemIndex, int orbit)
+        {
+            if (!ValidOrbit(systemIndex, orbit, out var system) || system.jumpgateStation == orbit ||
+                Modding.ModWorld.OrbitOf(orbit)?.jumpgate == true) return false;
+            var gate = FindJumpgate(orbit);
+            return gate == null || gate.permanentlyDestroyed && !gate.explosionPending;
+        }
+
         static bool ValidOrbit(int systemIndex, int orbitStationIndex, out SystemData system)
         {
             system = NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex);
@@ -467,7 +483,7 @@ namespace GoF2Remake.Multiplayer
         static List<PlayerStationMaterial> RequiredJumpgateMaterials() => ConstructionCost("jumpgate");
 
         /// <summary>Build at any orbital anchor in the sponsor station's system, not only at the sponsor station itself.</summary>
-        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int buildSeconds)
+        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int buildSeconds, int modelPreset = 0)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built jumpgates need a persistent host or dedicated server.";
@@ -498,6 +514,8 @@ namespace GoF2Remake.Multiplayer
                     : "You must personally discover the destination system before connecting a gate to it.";
             if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
                 return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
+            if (modelPreset != 0 && !IsJumpgateModelPreset(modelPreset))
+                return "Choose an existing jumpgate model from the game catalogue.";
             var existingGate = FindJumpgate(orbitStationIndex);
             bool stationRebuild = existingGate != null && existingGate.permanentlyDestroyed;
             if (existingGate != null && !stationRebuild)
@@ -521,6 +539,7 @@ namespace GoF2Remake.Multiplayer
                 constructionIssuerProfile = issuer,
                 building = true,
                 buildSeconds = buildSeconds,
+                modelPreset = modelPreset,
                 materials = RequiredJumpgateMaterials(),
                 contributions = new List<PlayerStationContribution>()
             };
@@ -541,7 +560,7 @@ namespace GoF2Remake.Multiplayer
                 return "The jumpgate construction plan could not be saved.";
             }
             return "Jumpgate project started in orbit " + orbitStationIndex + " of " + origin.name +
-                ", linking to " + destination.name + ". Required materials: 500 Iron, 250 Titanium, 200 Electronics and 150 Microchips. " +
+                ", linking to " + destination.name + ". " + ConstructionCostSummary("jumpgate", "Required materials") + ". " +
                 (buildSeconds == 0 ? "The gate will become operational as soon as it is fully funded." :
                 "After funding, construction will take " + TimeText(buildSeconds) + ".") +
                 " Deliver materials in the construction orbit with /station jumpgate-contribute " + orbitStationIndex + " <item id> <amount>.";
@@ -892,7 +911,14 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        internal static string ClaimScrappedJumpgate(NetPlayer by, int orbitStationIndex, string claimType, int destinationSystem = -1)
+        static bool OwnsOperationalStationForGateClaim(string account) =>
+            registry.stations?.Exists(station => station != null && !station.underConstruction && station.offeredForClaimUtc <= 0 &&
+                !station.retired && !station.destroyed && !station.wreckClaimOpen &&
+                station.ownershipType == PlayerStationOwnershipType.Individual &&
+                string.Equals(station.ownerProfile, account, StringComparison.Ordinal)) == true;
+
+        internal static string ClaimScrappedJumpgate(NetPlayer by, int orbitStationIndex, string claimType, int destinationSystem = -1,
+            int modelPreset = 0)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Jumpgate reclamation needs a persistent host or dedicated server.";
@@ -908,9 +934,7 @@ namespace GoF2Remake.Multiplayer
             string account = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Your controlled player profile is unavailable.";
             var faction = NetFactions.Of(account);
-            bool ownsStation = registry.stations?.Exists(x => x != null && !x.underConstruction &&
-                x.ownershipType == PlayerStationOwnershipType.Individual &&
-                string.Equals(x.ownerProfile, account, StringComparison.Ordinal)) == true;
+            bool ownsStation = OwnsOperationalStationForGateClaim(account);
             claimType = (claimType ?? "").Trim().ToLowerInvariant();
             bool factionClaim = claimType == "faction";
             if (claimType != "faction" && claimType != "individual")
@@ -919,6 +943,8 @@ namespace GoF2Remake.Multiplayer
                 return "Only a faction member may reclaim a gate on behalf of their faction.";
             if (!factionClaim && !ownsStation)
                 return "An individual reclaim requires you to own an operational player station. Faction members may claim on behalf of their faction.";
+            if (modelPreset != 0 && !IsJumpgateModelPreset(modelPreset))
+                return "Choose an existing jumpgate model from the game catalogue.";
             int newDestination = destinationSystem >= 0 ? destinationSystem : gate.destinationSystem;
             var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == newDestination);
             if (destination?.stations == null || destination.stations.Count == 0 || newDestination == gate.system)
@@ -941,6 +967,7 @@ namespace GoF2Remake.Multiplayer
             gate.blacklist = new List<PlayerJumpgateBlockEntry>();
             gate.destinationChangedUtc = 0;
             gate.destinationSystem = newDestination;
+            if (modelPreset > 0) gate.modelPreset = modelPreset;
             gate.constructionStationId = -1;
             gate.sponsorStationId = -1;
             gate.constructionIssuerProfile = account;
@@ -992,6 +1019,8 @@ namespace GoF2Remake.Multiplayer
                 ?? ("System " + gate.system);
             var lines = new List<string> { "Jumpgate in orbit " + orbitStationIndex + " (" + origin + ")",
                 "Destination: " + destination,
+                "Model: " + (gate.modelPreset > 0 && gate.modelPreset <= JumpgateModelNames.Length
+                    ? JumpgateModelNames[gate.modelPreset - 1] : "Orbit default"),
                 "Access: " + (gate.accessMode == PlayerJumpgateAccessMode.Everyone ? "Everyone" :
                     gate.accessMode == PlayerJumpgateAccessMode.OwningFaction ? "Owning faction only" :
                     gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly ? "Individual owner only" : "Blacklist mode"),

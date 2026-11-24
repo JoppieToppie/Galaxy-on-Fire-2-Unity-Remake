@@ -434,6 +434,27 @@ namespace GoF2Remake.Multiplayer
             return StartFactoryJob(record, account, FindFactoryRecipe(recipeId), batches, -1);
         }
 
+        internal static string FactoryStatus(NetPlayer by, int id)
+        {
+            var station = Find(id);
+            if (!IsStationContext(by, station, out string account) ||
+                !HasStationPermission(station, account, PlayerStationPermission.StationOperations))
+                return "Dock here with station operations permission to view the factory queue.";
+            if (!HasFactoryModule(station)) return "This station has no factory.";
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var lines = new List<string>();
+            foreach (var job in station.factoryJobs ?? new List<PlayerFactoryProductionJob>())
+                if (job != null)
+                    lines.Add($"Recipe #{job.recipeId} · {job.batches:N0} batches · {Math.Max(0, job.completesUtc - now):N0}s remaining");
+            foreach (var order in station.factoryRepeatOrders ?? new List<PlayerFactoryRepeatOrder>())
+            {
+                if (order == null) continue;
+                string quantity = order.continuous ? "continuous" : $"{order.remainingBatches:N0} remaining";
+                lines.Add($"Repeat #{order.id} · recipe #{order.recipeId} · {quantity}" + (order.paused ? " · paused" : ""));
+            }
+            return lines.Count > 0 ? string.Join("\n", lines) : "The factory queue is empty.";
+        }
+
         internal static string SetFactoryRepeatOrder(NetPlayer by, int id, int recipeId,
             bool continuous, int totalBatches, int batchesPerCycle)
         {

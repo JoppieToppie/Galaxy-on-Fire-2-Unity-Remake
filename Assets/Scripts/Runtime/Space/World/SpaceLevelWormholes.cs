@@ -261,25 +261,22 @@ namespace GoF2Remake.World
 
         /// <summary>Reconstruction is confirmed by the persistent server, not inferred from
         /// a client's potentially stale station registry snapshot.</summary>
-        public void OnPlayerJumpgateRestored(Vector3 gatePosition)
+        public void OnPlayerJumpgateRestored(Vector3 gatePosition, int modelPreset)
         {
             if (Layout == null || Navigation == null || SystemJump == null) return;
             Layout.jumpgate = gatePosition;
+            Layout.ConfirmedPlayerGatePreset = modelPreset;
             playerJumpgateWreck = false;
             playerJumpgatePermanentlyDestroyed = false;
             playerJumpgateExplosionPlayed = false;
             if (Jumpgate != null)
             {
-                Layout.hasJumpgate = true;
-                Navigation.AddPlayerJumpgateTarget();
-                SystemJump.SetJumpgate(Jumpgate);
+                Jumpgate.SetActive(false);
+                Destroy(Jumpgate);
+                Jumpgate = null;
             }
-            else
-            {
-                // A fully destroyed site is a new construction, not a reclaimed wreck.
-                Layout.hasJumpgate = true;
-                UpdatePlayerJumpgate(true);
-            }
+            Layout.hasJumpgate = true;
+            UpdatePlayerJumpgate(true);
         }
 
         /// <summary>
@@ -296,10 +293,10 @@ namespace GoF2Remake.World
             if (refreshed == null || !refreshed.hasJumpgate) return;
             Layout.hasJumpgate = true;
             Layout.jumpgate = refreshed.jumpgate;
-            Jumpgate = OrbitBuilder.SpawnJumpgate(db, Layout);
+            Jumpgate = OrbitBuilder.SpawnJumpgate(db, Layout, forcePlayerGate: serverConfirmed);
             if (Jumpgate == null) return;
             OrbitBuilder.AddObstacles(Layout, null, Jumpgate);
-            HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>());
+            HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>(), forceExact: true);
             Navigation.AddPlayerJumpgateTarget();
             SystemJump.SetJumpgate(Jumpgate);
         }

@@ -10,6 +10,7 @@ namespace GoF2Remake.World
     {
         bool playerStationDockPointsSpawned;
         int visiblePlayerStationState = -1;
+        int visiblePlayerStationModel = -1;
         Crate stationSalvageCrate;
         IReadOnlyList<PlayerStationMaterial> renderedStationSalvage;
         Crate jumpgateSalvageCrate;
@@ -96,13 +97,22 @@ namespace GoF2Remake.World
             int state = operational ? 2 : modelPresent ? 1 : 0;
             bool moved = modelPresent && Station != null &&
                 Station.transform.position != NetPlayerStations.StationPosition(orbit);
-            if (visiblePlayerStationState == state && !moved) return;
+            int model = NetPlayerStations.LooksLike(orbit);
+            bool modelChanged = visiblePlayerStationState >= 0 && visiblePlayerStationModel != model;
+            if (modelChanged && DockedInOrbit && visiblePlayerStationState == state && !moved) return;
+            if (visiblePlayerStationState == state && !moved && !modelChanged) return;
             visiblePlayerStationState = state;
+            visiblePlayerStationModel = model;
             Layout.stationObject = modelPresent;
             Layout.hasStation = operational;
 
-            if ((!modelPresent || moved) && Station != null)
+            if ((!modelPresent || moved || modelChanged) && Station != null)
             {
+                if (Es2 != null && Es2 != ActiveEs2)
+                {
+                    Destroy(Es2);
+                    Es2 = null;
+                }
                 Station.SetActive(false);
                 Destroy(Station);
                 Station = null;

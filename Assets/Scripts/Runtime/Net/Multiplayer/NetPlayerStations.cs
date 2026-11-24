@@ -53,6 +53,8 @@ namespace GoF2Remake.Multiplayer
         // Ownership follows the player station that authorised construction, not the orbital anchor.
         // -1 denotes a legacy gate whose sponsor could not be identified unambiguously.
         public int sponsorStationId = -1;
+        // Zero preserves the original orbit model on older saves.
+        public int modelPreset;
         public int system;
         public int destinationSystem = -1;
         public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
@@ -873,7 +875,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Reserve a new orbital site and start its long-running, server-owned material project.</summary>
-        internal static string StartConstruction(NetPlayer by, int systemIndex, string name)
+        internal static string StartConstruction(NetPlayer by, int systemIndex, string name, int modelPreset = -1)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built stations need a persistent host or dedicated server.";
@@ -898,8 +900,17 @@ namespace GoF2Remake.Multiplayer
             string owner = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(owner)) return "Your controlled profile has no account identity.";
 
-            int look = system.jumpgateStation >= 0 ? system.jumpgateStation : system.stations[0];
-            if (db.Stations.Find(s => s != null && s.index == look) == null) look = system.stations[0];
+            int look = modelPreset;
+            if (look < 0)
+            {
+                look = system.jumpgateStation;
+                if (!IsStationModelPreset(look))
+                {
+                    int slot = system.stations.FindIndex(IsStationModelPreset);
+                    look = slot >= 0 ? system.stations[slot] : -1;
+                }
+            }
+            if (!IsStationModelPreset(look)) return "Choose an existing station model from the game catalogue.";
             int stationIndex = db.Stations.Count;
             foreach (var station in registry.stations)
                 if (station != null && station.stationIndex >= stationIndex) stationIndex = station.stationIndex + 1;

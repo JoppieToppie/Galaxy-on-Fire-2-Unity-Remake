@@ -302,7 +302,7 @@ namespace GoF2Remake.Multiplayer
         {
             var db = NetGame.Db;
             var target = db?.Stations?.Find(value => value != null && value.index == appearance);
-            if (target == null || IsPlayerStation(appearance)) return false;
+            if (target == null || !IsStationModelPreset(appearance)) return false;
             var original = db.Stations.Find(value => value != null && value.index == wreck.looksLike);
             var originalSystem = db.Systems.Find(value => value != null && value.index == (original?.system ?? wreck.system));
             var targetSystem = db.Systems.Find(value => value != null && value.index == target.system);

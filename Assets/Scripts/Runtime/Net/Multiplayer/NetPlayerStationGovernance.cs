@@ -720,13 +720,21 @@ namespace GoF2Remake.Multiplayer
             return "Builder rights could not be relinquished because the change could not be saved.";
         }
 
+        internal static bool IsStationModelPreset(int index)
+        {
+            if (index < 0 || IsPlayerStation(index)) return false;
+            var db = NetGame.Db;
+            var station = db?.Stations?.Find(value => value != null && value.index == index);
+            return station != null && GoF2Remake.World.OrbitBuilder.StationPresetAssembly(db, station) != null;
+        }
+
         internal static string AppearancePresets()
         {
             var stations = NetGame.Db?.Stations;
             if (stations == null) return "The station model catalogue is unavailable.";
             var lines = new List<string> { "Built-in station appearance presets (use the index):" };
             foreach (var model in stations)
-                if (model != null && model.index >= 0 && !IsPlayerStation(model.index))
+                if (model != null && IsStationModelPreset(model.index))
                     lines.Add("  " + model.index + ": " + (string.IsNullOrWhiteSpace(model.name) ? "Unnamed station model" : model.name));
             return string.Join("\n", lines);
         }
@@ -750,7 +758,7 @@ namespace GoF2Remake.Multiplayer
                 return "The original builder controls appearance while present; otherwise an authorised owner or construction manager must be docked here.";
             var db = NetGame.Db;
             var model = db?.Stations?.Find(x => x != null && x.index == modelStationIndex);
-            if (model == null || modelStationIndex < 0 || IsPlayerStation(modelStationIndex))
+            if (model == null || !IsStationModelPreset(modelStationIndex))
                 return "Choose the index of an existing built-in station model preset.";
             var live = db.Stations.Find(x => x != null && x.index == record.stationIndex);
             if (live == null) return "The station's live model record is unavailable.";

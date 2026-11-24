@@ -61,6 +61,35 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
+        readonly NetworkVariable<int> wreckControlProgress = new NetworkVariable<int>(0,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal int WreckControlProgress => wreckControlProgress.Value;
+        internal int WreckControlEarnedSeconds => (wreckControlProgress.Value >> 2) - 1;
+        internal bool WreckControlContested => (wreckControlProgress.Value & 1) != 0;
+        internal bool WreckControlAdvancing => (wreckControlProgress.Value & 2) != 0;
+
+        internal void SetWreckControlProgress(int earnedSeconds, bool contested, bool advancing)
+        {
+            int value = ((earnedSeconds + 1) << 2) | (contested ? 1 : 0) | (advancing ? 2 : 0);
+            if (IsServer && wreckControlProgress.Value != value) wreckControlProgress.Value = value;
+        }
+
+        readonly NetworkVariable<FixedString4096Bytes> stationProjectsFundable = new NetworkVariable<FixedString4096Bytes>(default,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+
+        internal void SetStationProjectFundingAccess(string ids)
+        {
+            if (!IsServer) return;
+            var encoded = new FixedString4096Bytes(ids);
+            if (!stationProjectsFundable.Value.Equals(encoded)) stationProjectsFundable.Value = encoded;
+        }
+
+        internal bool CanFundStationProjectInUi(int id) =>
+            System.Array.IndexOf(stationProjectsFundable.Value.ToString().Split(','), id.ToString()) >= 0;
+
+        internal bool CanUseStationStockInUi => AvailableStationActions.HasFlag(StationProjectActions.UseStationStock);
+        internal bool CanRelinquishBuilderRightsInUi => AvailableStationActions.HasFlag(StationProjectActions.RelinquishBuilder);
+
         readonly NetworkVariable<byte> stationProjectActions = new NetworkVariable<byte>(0,
             NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
         internal StationProjectActions AvailableStationActions => (StationProjectActions)stationProjectActions.Value;
@@ -358,17 +387,17 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
             var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
             if (layout != null && layout.hasJumpgate)
-                JumpgateRestoredRpc(orbitStationIndex, layout.jumpgate);
+                JumpgateRestoredRpc(orbitStationIndex, layout.jumpgate, NetPlayerStations.FindJumpgate(orbitStationIndex)?.modelPreset ?? 0);
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-        void JumpgateRestoredRpc(int orbitStationIndex, Vector3 gatePosition)
+        void JumpgateRestoredRpc(int orbitStationIndex, Vector3 gatePosition, int modelPreset)
         {
             if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
                 Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
             if (Local.level != null && Local.level.Layout != null &&
                 Local.level.Layout.stationIndex == orbitStationIndex)
-                Local.level.OnPlayerJumpgateRestored(gatePosition);
+                Local.level.OnPlayerJumpgateRestored(gatePosition, modelPreset);
         }
 
         /// <summary>Server: notify pilots of a persisted EMP shutdown immediately.</summary>

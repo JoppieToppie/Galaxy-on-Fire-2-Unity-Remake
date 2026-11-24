@@ -160,7 +160,8 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.NetChat.Typing) return;
             pointerDriven = false;
             if (root.focusController?.focusedElement != null) return;
-            if (dryDock != null && dryDock.IsOpen) Select(dryDock.NavItems()[0]);
+            if (stationManagement?.IsOpen == true) stationManagement.FocusFirst();
+            else if (dryDock != null && dryDock.IsOpen) Select(dryDock.NavItems()[0]);
             else if (missions != null && missions.IsOpen) Select(missions.NavItems()[0]);
             else if (lounge != null && lounge.ChatOpen) lounge.FocusFirst();
             else Select(DefaultFocus());
@@ -224,6 +225,7 @@ namespace GoF2Remake.UI
             if (DialogOpen) items = new VisualElement[] { dialogYes, dialogNo };
             else if (squadPopup) items = SquadView.PopupButtons;
             else if (SystemMenuOpen) items = SystemMenuItems();
+            else if (stationManagement?.IsOpen == true) { items = stationManagement.NavItems(); vertical |= horizontal; }
             else if (dryDock != null && dryDock.IsOpen) { items = dryDock.NavItems(); vertical |= horizontal; }
             else if (missions != null && missions.IsOpen) { items = missions.NavItems(); vertical |= horizontal; }
             else if (status != null && status.IsOpen) { items = status.NavItems(); vertical |= horizontal; }
@@ -300,7 +302,8 @@ namespace GoF2Remake.UI
             }
             var focusedNow = root.focusController?.focusedElement as VisualElement;
             int index = System.Array.IndexOf(items, focusedNow);
-            bool mainView = !DialogOpen && !squadPopup && !SystemMenuOpen && !(missions != null && missions.IsOpen) && !(status != null && status.IsOpen)
+            bool mainView = !DialogOpen && !squadPopup && !SystemMenuOpen && stationManagement?.IsOpen != true &&
+                            !(dryDock != null && dryDock.IsOpen) && !(missions != null && missions.IsOpen) && !(status != null && status.IsOpen)
                             && !(lounge != null && lounge.ChatOpen);
             if (mainView && index >= 0 && focusedNow != launchButton) lastSideItem = focusedNow;
             if (mainView && horizontal && InputMode.Current == InputKind.Gamepad)
