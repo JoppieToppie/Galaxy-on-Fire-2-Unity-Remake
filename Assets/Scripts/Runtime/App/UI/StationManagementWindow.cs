@@ -994,6 +994,14 @@ namespace GoF2Remake.UI
                 });
                 AddAction("Apply station race rule", () => Send("/station race-policy " + id + " " +
                     Value("raceFacility") + " " + Value("stationPolicyRace") + " " + Value("racePolicyState")));
+                if (Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
+                {
+                    AddChoice("raceMarketAction", "Price adjustment", new List<(string, string)>
+                        { ("purchase", "Purchase surcharge or tax discount"), ("sale", "Seller proceeds deduction") });
+                    AddField("raceMarketPercent", "Percent or inherit", "0");
+                    AddAction("Apply race price adjustment", () => Send("/station race-policy " + id + " " +
+                        Value("raceMarketAction") + " " + Value("stationPolicyRace") + " " + Value("raceMarketPercent")));
+                }
                 AddAction("View station and faction race rules", "/station race-policy " + id);
                 if (Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
                 {

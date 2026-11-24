@@ -886,6 +886,11 @@ namespace GoF2Remake.UI
             var gates = Add(scroll, new Toggle("Allow new sponsored jumpgate projects") { value = settings.JumpgatesEnabled }, "mbv-field");
             var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
             var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
+            var stationRaceMarketLimit = Add(scroll, new IntegerField("Race marketplace adjustment cap (%)")
+                { value = settings.StationRaceMarketLimitPercent }, "mbv-field");
+            var stationRaceRevenue = Add(scroll, new Toggle("Pay race marketplace fees to the station owner or faction")
+                { value = settings.StationRaceRevenueToOwner }, "mbv-field");
+            Note(scroll, "A cap of 0 disables adjustments. When fee payout is off, fees leave the economy.");
             var stationRacePolicies = Add(scroll, new Toggle("Enable station race policies")
                 { value = settings.StationRacePoliciesEnabled }, "mbv-field");
             var stationRaceExemptions = Add(scroll, new Toggle("Allow station ownership authorities to grant race exemptions")
@@ -1113,6 +1118,8 @@ namespace GoF2Remake.UI
                 draft["scrapIntegrity"] = integrity.value;
                 draft["minimumStationScale"] = stationScale.value;
                 draft["minimumJumpgateScale"] = jumpgateScale.value;
+                draft["stationRaceMarketLimitPercent"] = stationRaceMarketLimit.value;
+                draft["stationRaceRevenueToOwner"] = stationRaceRevenue.value;
                 draft["stationRacePoliciesEnabled"] = stationRacePolicies.value;
                 draft["stationRaceExemptionsEnabled"] = stationRaceExemptions.value;
                 draft["playerIdentityEnabled"] = playerIdentity.value;

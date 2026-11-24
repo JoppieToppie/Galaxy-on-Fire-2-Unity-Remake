@@ -91,7 +91,9 @@ namespace GoF2Remake.Multiplayer
             var target = new List<StoredShip>(ships) { listing.hull };
 
             long tax = cancel ? 0 : (listing.price * Math.Clamp(station.marketplaceTaxPercent, 0, 10) + 99) / 100;
-            long charge = cancel ? 0 : listing.price + tax;
+            var (charge, proceeds, ownerRevenue) = cancel
+                ? (0L, 0L, 0L) : StationMarketSettlement(station, buyer, listing.sellerProfile, listing.price, tax);
+            tax = ownerRevenue;
             if (!cancel && NetProfiles.CreditAmount(buyer) < charge)
                 return "Your profile does not have enough credits for the ship and tax.";
             var payments = new List<(string account, long delta)>();
@@ -100,7 +102,7 @@ namespace GoF2Remake.Multiplayer
             if (!cancel)
             {
                 payments.Add((buyer, -charge));
-                payments.Add((listing.sellerProfile, listing.price));
+                if (proceeds > 0) payments.Add((listing.sellerProfile, proceeds));
                 if (tax > 0)
                 {
                     if (factionTax) banks.Add((station.ownerFactionId, tax));
@@ -116,10 +118,10 @@ namespace GoF2Remake.Multiplayer
 
             if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId)) NetProfiles.RefreshProfile(pilot.OwnerClientId);
             if (cancel) return "The listing was cancelled and the hull is back in your personal fleet.";
-            NotifyProfileCreditChange(listing.sellerProfile, listing.price, "Station ship marketplace");
+            NotifyProfileCreditChange(listing.sellerProfile, proceeds, "Station ship marketplace");
             if (tax > 0 && !factionTax && station.ownerProfile != buyer)
                 NotifyProfileCreditChange(station.ownerProfile, tax, "Station ship marketplace tax");
-            return $"Purchased the hull for {charge:N0} credits including {tax:N0} tax. The hull is in your personal fleet.";
+            return $"Purchased the hull for {charge:N0} credits. The hull is in your personal fleet.";
         }
     }
 }

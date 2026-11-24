@@ -391,7 +391,8 @@ namespace GoF2Remake.Multiplayer
                 return "That purchase exceeds the marketplace's per-transaction credit limit.";
             long total = listing.unitPrice * amount;
             long tax = (total * Math.Clamp(record.marketplaceTaxPercent, 0, 10) + 99) / 100;
-            long charge = total + tax;
+            var (charge, proceeds, ownerRevenue) = StationMarketSettlement(record, buyer, seller, total, tax);
+            tax = ownerRevenue;
             if (charge > int.MaxValue) return "The purchase including tax exceeds the per-transaction credit limit.";
             long credits = NetProfiles.CreditAmount(buyer);
             if (credits < charge) return "Your saved profile does not have enough credits for the purchase and tax.";
@@ -409,8 +410,11 @@ namespace GoF2Remake.Multiplayer
             bool paidToFaction = !string.IsNullOrEmpty(listing.payoutFactionId);
             var payments = new List<(string account, long delta)> { (buyer, -charge) };
             var banks = new List<(string factionId, long delta)>();
-            if (paidToFaction) banks.Add((listing.payoutFactionId, total));
-            else payments.Add((seller, total));
+            if (proceeds > 0)
+            {
+                if (paidToFaction) banks.Add((listing.payoutFactionId, proceeds));
+                else payments.Add((seller, proceeds));
+            }
             bool factionTax = record.ownershipType == PlayerStationOwnershipType.Faction;
             if (tax > 0)
             {
@@ -434,11 +438,11 @@ namespace GoF2Remake.Multiplayer
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, amount, 0, "", "Station marketplace");
             }
 
-            foreach (ulong client in (paidToFaction ? new List<ulong>() : NetProfiles.ClientsOf(seller)))
+            foreach (ulong client in (paidToFaction || proceeds == 0 ? new List<ulong>() : NetProfiles.ClientsOf(seller)))
             {
                 if (!NetProfiles.Controls(client)) continue;
                 if (!(NetGame.PersistentHost && client == NetGame.LocalId))
-                    NetState.Instance?.SendAdmin(client, NetAdmin.Order.Credits, (int)total, 0, 0, "", "Station marketplace");
+                    NetState.Instance?.SendAdmin(client, NetAdmin.Order.Credits, (int)proceeds, 0, 0, "", "Station marketplace");
                 break;
             }
 
@@ -446,7 +450,7 @@ namespace GoF2Remake.Multiplayer
                 NotifyProfileCreditChange(record.ownerProfile, tax, "Station marketplace tax");
             string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
             return "Purchased " + amount + " x " + itemName + " for " + charge.ToString("N0") +
-                (tax > 0 ? $" credits including {tax:N0} tax" : " credits") +
+                " credits" +
                 " from " + record.name + (paidToFaction ? "; proceeds credited to faction treasury." : "; proceeds credited to the seller.") ;
         }
 

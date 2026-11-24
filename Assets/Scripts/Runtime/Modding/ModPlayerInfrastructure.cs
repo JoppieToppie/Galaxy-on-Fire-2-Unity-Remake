@@ -17,6 +17,8 @@ namespace GoF2Remake.Modding
 
         public bool Enabled { get; private set; } = true;
         public bool JumpgatesEnabled { get; private set; } = true;
+        public int StationRaceMarketLimitPercent { get; private set; }
+        public bool StationRaceRevenueToOwner { get; private set; }
         public bool StationRacePoliciesEnabled { get; private set; }
         public bool StationRaceExemptionsEnabled { get; private set; }
         public bool PlayerIdentityEnabled { get; private set; }
@@ -133,6 +135,9 @@ namespace GoF2Remake.Modding
                 RestrictStationModels = true,
                 Enabled = ReadToggle(settings, "enabled"),
                 JumpgatesEnabled = ReadToggle(settings, "jumpgatesEnabled"),
+                StationRaceMarketLimitPercent = StructureInt(settings, "stationRaceMarketLimitPercent", 0, 0, 100),
+                StationRaceRevenueToOwner = settings["stationRaceRevenueToOwner"] != null &&
+                    ReadToggle(settings, "stationRaceRevenueToOwner"),
                 StationRacePoliciesEnabled = settings["stationRacePoliciesEnabled"] != null &&
                     ReadToggle(settings, "stationRacePoliciesEnabled"),
                 StationRaceExemptionsEnabled = settings["stationRaceExemptionsEnabled"] != null &&

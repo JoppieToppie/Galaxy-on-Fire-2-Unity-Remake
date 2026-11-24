@@ -10,6 +10,7 @@ namespace GoF2Remake.Multiplayer
     {
         public string facility, race;
         public PlayerStationPermissionState state;
+        public int percent;
     }
 
     public static partial class NetPlayerStations
@@ -44,6 +45,38 @@ namespace GoF2Remake.Multiplayer
             return state != PlayerStationPermissionState.Deny;
         }
 
+        static int MarketPolicyPercent(PlayerStationRecord station, string account, string facility)
+        {
+            var settings = ModPlayerInfrastructure.Current;
+            int limit = settings.StationRaceMarketLimitPercent;
+            if (!settings.StationRacePoliciesEnabled || limit == 0 ||
+                (settings.StationRaceExemptionsEnabled && station.facilityRaceExemptions?.Contains(account) == true)) return 0;
+            string race = NetProfiles.StationPolicyRaceOf(account);
+            if (string.IsNullOrEmpty(race)) return 0;
+            bool Matches(StationFacilityRaceRule rule) => rule != null && rule.race == race &&
+                rule.facility == facility && rule.state == PlayerStationPermissionState.Allow;
+            var local = station.facilityRaceRules?.Find(Matches);
+            var defaults = local == null && station.ownershipType == PlayerStationOwnershipType.Faction
+                ? NetFactions.FindById(station.ownerFactionId)?.stationRaceRules : null;
+            return Math.Clamp(local?.percent ?? defaults?.Find(Matches)?.percent ?? 0,
+                facility == "purchase" ? -limit : 0, limit);
+        }
+
+        internal static (long charge, long proceeds, long ownerRevenue) RaceMarketSettlement(
+            long price, long tax, int purchasePercent, int salePercent, bool payOwner)
+        {
+            long surcharge = purchasePercent > 0 ? price * purchasePercent / 100 : 0;
+            long discount = purchasePercent < 0 ? Math.Min(tax, price * -(long)purchasePercent / 100) : 0;
+            long deduction = price * salePercent / 100;
+            return (price + tax + surcharge - discount, price - deduction,
+                tax - discount + (payOwner ? surcharge + deduction : 0));
+        }
+
+        static (long charge, long proceeds, long ownerRevenue) StationMarketSettlement(
+            PlayerStationRecord station, string buyer, string seller, long price, long tax) =>
+            RaceMarketSettlement(price, tax, MarketPolicyPercent(station, buyer, "purchase"),
+                MarketPolicyPercent(station, seller, "sale"), ModPlayerInfrastructure.Current.StationRaceRevenueToOwner);
+
         internal static bool AllowsFacilityUse(PlayerStationRecord station, string account, string facility) =>
             AllowsStationRace(station, account, "docking") && AllowsStationRace(station, account, facility);
 
@@ -62,6 +95,19 @@ namespace GoF2Remake.Multiplayer
             rule = null;
             if (words.Length != 2) return false;
             string facility = words[0].ToLowerInvariant();
+            if (facility == "purchase" || facility == "sale")
+            {
+                var args = words[1].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (args.Length != 2 || !TryPolicyRaceKey(args[0], out string key)) return false;
+                int limit = ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
+                bool inherit = args[1].Equals("inherit", StringComparison.OrdinalIgnoreCase);
+                int percent = 0;
+                if (!inherit && (limit == 0 || !int.TryParse(args[1], out percent) ||
+                    percent < (facility == "purchase" ? -limit : 0) || percent > limit)) return false;
+                rule = new StationFacilityRaceRule { facility = facility, race = key, percent = percent,
+                    state = inherit ? PlayerStationPermissionState.Inherit : PlayerStationPermissionState.Allow };
+                return true;
+            }
             bool supported = false;
             foreach (string candidate in RacePolicyFacilities)
                 if (candidate == facility) { supported = true; break; }
@@ -83,7 +129,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || !ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
                 return "Station race policies are disabled.";
-            const string usage = "/station race-policy <id> [<facility> <race> <inherit|allow|deny>]";
+            const string usage = "/station race-policy <id> [<facility> <race> <inherit|allow|deny|percent>]";
             var words = arg.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
             if (words.Length == 0 || !int.TryParse(words[0], out int id)) return usage;
             var station = Find(id);
@@ -141,7 +187,7 @@ namespace GoF2Remake.Multiplayer
             {
                 var rule = rules[i];
                 if (rule != null) lines.Append('\n').Append(scope).Append(" · ").Append(rule.facility)
-                    .Append(" · ").Append(rule.race).Append(" · ").Append(rule.state);
+                    .Append(" · ").Append(rule.race).Append(" · ").Append(rule.facility == "purchase" || rule.facility == "sale" ? rule.percent + "%" : rule.state.ToString());
             }
         }
     }

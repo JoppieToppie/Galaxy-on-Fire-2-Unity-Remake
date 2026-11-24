@@ -88,7 +88,7 @@ namespace GoF2Remake.Multiplayer
             if (faction == null || faction.leader != account)
                 return "Only the faction leader can change faction station race defaults.";
             if (!NetPlayerStations.TryReadFacilityRaceRule(arg, out var rule))
-                return "/faction station-race <facility> <race> <inherit|allow|deny>";
+                return "/faction station-race <facility|purchase|sale> <race> <inherit|allow|deny|percent>";
             var previous = faction.stationRaceRules;
             faction.stationRaceRules = NetPlayerStations.WithFacilityRaceRule(previous, rule);
             if (!Save())

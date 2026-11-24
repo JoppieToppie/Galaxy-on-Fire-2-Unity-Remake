@@ -6,6 +6,17 @@ namespace GoF2Remake.Tests
 {
     public class StationRacePolicyTests
     {
+        [TestCase(20, 15, true, 1250, 850, 400)]
+        [TestCase(20, 15, false, 1250, 850, 50)]
+        [TestCase(-20, 0, true, 1000, 1000, 0)]
+        [TestCase(0, 100, true, 1050, 0, 1050)]
+        public void MarketplaceAppliesRaceAdjustmentsToBothSides(int purchase, int sale, bool payOwner,
+            long charge, long proceeds, long ownerRevenue)
+        {
+            Assert.AreEqual((charge, proceeds, ownerRevenue),
+                NetPlayerStations.RaceMarketSettlement(1000, 50, purchase, sale, payOwner));
+        }
+
         [Test]
         public void StationOverrideAffectsOnlyTheSelectedFacilityAndRace()
         {
