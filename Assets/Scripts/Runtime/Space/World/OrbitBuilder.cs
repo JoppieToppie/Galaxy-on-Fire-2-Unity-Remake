@@ -682,6 +682,7 @@ namespace GoF2Remake.World
                 // PlayerAsteroid: hit radius = meshRadius * scale * 0.7, HP = scale * 100 + 30.
                 var target = go.AddComponent<GoF2Remake.Flight.Target>();
                 target.isAsteroid = true;
+                GoF2Remake.Flight.AsteroidTargetGrid.Register(target);
                 target.radius = (isMagma ? MagmaMeshRadius : layout.AsteroidMeshRadius) * scale * 0.7f * M;
                 target.maxHp = target.hp = scale * 100f + 30f;
                 target.explosionPrefab = isMagma ? magmaExplosion : explosion;

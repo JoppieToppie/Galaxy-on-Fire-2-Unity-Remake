@@ -585,6 +585,8 @@ namespace GoF2Remake.World
             // A fighter (not a freighter, a fixed object such as the battleship or a capital ship, nor a turret) is a flyable
             // ship: Original ship collision hits it on its cube (HullBody.flyableShip).
             if (modelGo != null) HullCollision.Attach(modelGo, Target, obstacle, !IsFreighter && !IsFixed && !IsTurret && HullCollision.FlyableShip(spec.ship));
+            // Native asteroid destruction for explicitly classified large ships; no player-style push-out.
+            AsteroidVolumeCollision.Attach(gameObject, database, spec.ship, Target, obstacle);
             if (spec.deadButSelectable) ShowWreckAtEnd();
             Target.Damaged += OnDamaged;
             Target.Died += OnDied;
