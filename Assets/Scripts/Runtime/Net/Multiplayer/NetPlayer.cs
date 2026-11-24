@@ -442,6 +442,45 @@ namespace GoF2Remake.Multiplayer
                 Local.level.OnPlayerJumpgateDestroyed(permanentlyDestroyed);
         }
 
+        int stationUiSequence;
+        float stationUiSentAt;
+        System.Action<string> stationUiReply;
+        internal bool RequestStationUiCommand(string command, System.Action<string> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null || string.IsNullOrEmpty(command) ||
+                !command.StartsWith("/station ", System.StringComparison.OrdinalIgnoreCase)) return false;
+            if (stationUiReply != null && Time.realtimeSinceStartup - stationUiSentAt < 10f) return false;
+            stationUiReply = reply;
+            stationUiSentAt = Time.realtimeSinceStartup;
+            stationUiSequence = stationUiSequence == int.MaxValue ? 1 : stationUiSequence + 1;
+            StationUiCommandRpc(stationUiSequence, command.Substring(9));
+            return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationUiCommandRpc(int sequence, string args, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId) return;
+            string result;
+            if (string.IsNullOrWhiteSpace(args) || args.Length > NetGuard.MaxCommandArgs)
+                result = "Invalid station command.";
+            else if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Command))
+                result = "Too many station requests. Try again shortly.";
+            else
+                result = NetCommands.RunOnServer("station", args, this) ?? "Station command unavailable.";
+            StationUiResultRpc(sequence, result ?? "");
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void StationUiResultRpc(int sequence, string result)
+        {
+            if (!IsOwner || sequence != stationUiSequence) return;
+            var reply = stationUiReply;
+            stationUiReply = null;
+            if (!string.IsNullOrEmpty(result)) NetChat.Notice(result);
+            reply?.Invoke(result);
+        }
+
         int stationPlannerSequence;
         System.Action<int[]> stationPlannerReply;
         internal bool RequestStationPlannerLocations(System.Action<int[]> reply)
