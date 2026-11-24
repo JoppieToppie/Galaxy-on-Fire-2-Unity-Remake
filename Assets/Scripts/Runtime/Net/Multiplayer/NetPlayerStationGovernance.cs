@@ -339,7 +339,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool CanVisitStation(int stationIndex, string account)
         {
-            var record = registry?.stations?.Find(x => x != null && x.stationIndex == stationIndex);
+            var record = StationAt(stationIndex);
             return record == null || (!StationClosedByCombat(stationIndex) && HasStationPermission(record, account, PlayerStationPermission.Visit));
         }
 
