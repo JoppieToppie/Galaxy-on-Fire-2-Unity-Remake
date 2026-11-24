@@ -201,6 +201,7 @@ namespace GoF2Remake.UI
             KeepKeyboardText();
 #endif
             DpadTapNavigation.Pump(root);   // D-pad taps the panel's own navigation drops (the Steam controller)
+            if (UpdatePlayerIdentitySetup()) return;
             // Remake: the debug panel (F10, LB + RB or three fingers held for a second, or five taps on the version text).
             if (screen == MenuState.Menu && Keyboard.current != null && Keyboard.current.f10Key.wasPressedThisFrame) OpenDebug();
             EscBack();
