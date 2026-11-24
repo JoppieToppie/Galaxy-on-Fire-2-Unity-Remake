@@ -205,6 +205,68 @@ namespace GoF2Remake.Tests
             });
         }
 
+        [Test]
+        public void LowPopulationDoesNotRestoreTheFourPatrolFallback()
+        {
+            InFreePlay(0);
+            var system = SystemOf(78);
+            system.ambientPopulation = 0.01f;
+            system.derelictFreighters = false;
+            Repeat(78, 500, 1900, list =>
+            {
+                Assert.LessOrEqual(Count(list, NpcGroup.Local), 1,
+                    "a scaled-down non-empty plan must not become the four-patrol fallback");
+            });
+        }
+
+        [Test]
+        public void ZeroPopulationDoesNotRestoreTheEmptyOrbitPatrolFallback()
+        {
+            InFreePlay(0);
+            var system = SystemOf(78);
+            system.ambientPopulation = 0f;
+            system.derelictFreighters = false;
+            Repeat(78, 100, 1901, list =>
+            {
+                var counts = CountGroups(list);
+                Assert.AreEqual(0, counts.local + counts.jumpers + counts.freighters + counts.raiders);
+            });
+        }
+
+        [Test]
+        public void ZeroPopulationSuppressesRandomLateCampaignSpecterRaids()
+        {
+            InStory(120, 0);
+            var system = SystemOf(20);
+            system.ambientPopulation = 0f;
+            system.derelictFreighters = false;
+            int specters = 0;
+            Repeat(20, 500, 1904, list => specters += list.Count(s => s.race == Standing.Specter));
+            Assert.AreEqual(0, specters);
+        }
+
+        [Test]
+        public void DerelictFreightersRemainIndependentOfAmbientPopulation()
+        {
+            InFreePlay(0);
+            var system = SystemOf(20);
+            system.ambientPopulation = 0f;
+            system.derelictFreighters = true;
+            Settings.DerelictWrecks = true;
+            int wrecks = 0;
+            Repeat(20, 500, 1902, list =>
+            {
+                wrecks += list.Count(s => s.derelict);
+                var counts = CountGroups(list);
+                Assert.AreEqual(0, counts.local + counts.jumpers + counts.freighters + counts.raiders,
+                    "zero ambient population must not restore ordinary traffic");
+            });
+            Assert.Greater(wrecks, 0, "the independent per-system derelict toggle should still permit random wrecks");
+
+            system.derelictFreighters = false;
+            Repeat(20, 100, 1903, list => Assert.IsFalse(list.Exists(s => s.derelict)));
+        }
+
         // ---- difficulty ----------------------------------------------------------------------------------------
 
         [Test]
@@ -459,5 +521,62 @@ namespace GoF2Remake.Tests
             InStory(0x2a);
             Repeat(20, 500, 36, list => Assert.AreEqual(0, Count(list, NpcGroup.Raider)));
         }
+        [Test]
+        public void ZeroPopulationSuppressesRandomAmbientTrafficAndSpecialGroups()
+        {
+            InFreePlay(0);
+            var stations = new List<int> { 20, 102, 103, 104, 105, 132, 133 };
+            int pirateBaseStation = Db.Stations.First(s => PirateBases.SystemHasBase(Db, s.system)).index;
+            stations.Add(pirateBaseStation);
+
+            foreach (int station in stations)
+            {
+                SystemOf(station).ambientPopulation = 0f;
+                var list = Build(station);
+                Assert.AreEqual(0, Count(list, NpcGroup.Local), "locals at " + station);
+                Assert.AreEqual(0, Count(list, NpcGroup.Jumper), "jumpers at " + station);
+                Assert.AreEqual(0, Count(list, NpcGroup.Freighter), "freighters at " + station);
+                Assert.AreEqual(0, Count(list, NpcGroup.Raider), "raiders at " + station);
+                Assert.AreEqual(0, Count(list, NpcGroup.Escort), "ambient escorts at " + station);
+            }
+        }
+
+        [Test]
+        public void FractionalPopulationScalesSpecialPirateOrbitGroups()
+        {
+            InFreePlay(0);
+            SystemOf(105).ambientPopulation = 0.5f; // Loma: vanilla mean 7.5 raiders
+            double total = 0;
+            Repeat(105, 2000, 831, list =>
+            {
+                int count = Count(list, NpcGroup.Raider);
+                Assert.That(count, Is.InRange(3, 5));
+                total += count;
+            });
+            Assert.AreEqual(3.75, total / 2000, 0.12);
+        }
+
+        [Test]
+        public void PerSystemDerelictToggleIsIndependentOfAmbientTrafficAndGlobalOption()
+        {
+            InFreePlay(0);
+            var system = SystemOf(120);
+            system.ambientPopulation = 1f;
+            system.derelictFreighters = false;
+            Settings.DerelictWrecks = true;
+            Repeat(120, 500, 832, list => Assert.IsFalse(list.Exists(s => s.derelict), "disabled for this system"));
+
+            system.derelictFreighters = true;
+            system.ambientPopulation = 1f;
+            Settings.DerelictWrecks = true;
+            int wrecks = 0;
+            Repeat(120, 1000, 833, list => { if (list.Exists(s => s.derelict)) wrecks++; });
+            Assert.Greater(wrecks, 0, "derelict toggle independently disables this spawn category");
+
+            system.ambientPopulation = 1f;
+            Settings.DerelictWrecks = false;
+            Repeat(120, 500, 834, list => Assert.IsFalse(list.Exists(s => s.derelict), "global gameplay option is the master switch"));
+        }
+
     }
 }

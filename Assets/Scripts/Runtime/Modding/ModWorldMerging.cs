@@ -17,6 +17,8 @@ namespace GoF2Remake.Modding
         public static void Apply(Database db)
         {
             NoteOriginalCounts(db);
+            // Restore vanilla defaults before applying active mods.
+            foreach (var system in db.Systems) { system.ambientPopulation = 1f; system.derelictFreighters = true; }
             EnsureMapping();
             systemSpaceMusic.Clear(); systemStationMusic.Clear(); systemBattleMusic.Clear(); stationMusic.Clear(); stationSpaceMusic.Clear(); stationBattleMusic.Clear(); stationSubtitle.Clear(); stationLore.Clear();
             stationModels.Clear(); gateModels.Clear(); stationInterior.Clear(); planetTextures.Clear(); planetSpheres.Clear(); sunTextures.Clear(); sunColors.Clear(); skyboxes.Clear();
@@ -51,6 +53,7 @@ namespace GoF2Remake.Modding
                             s = new SystemData
                             {
                                 index = index, raceId = race, race = template.race, initiallyVisible = true, jumpgateStation = -1,
+                                ambientPopulation = 1f, derelictFreighters = true,
                                 mapPosition = new MapPos { x = (int)pos[0], y = (int)pos[1], z = (int)pos[2] },
                                 textureIndex = template.textureIndex,
                                 stations = new List<int>(), jumpRoutesTo = new List<int>(),
@@ -81,6 +84,8 @@ namespace GoF2Remake.Modding
                             if (l.Count > 0) into[s.index] = l;
                         }
                         s.securityLevel = Mathf.Clamp(ModJson.Int(o, "security", s.securityLevel, d.file), 0, 3);
+                        if (ModJson.Has(o, "population")) s.ambientPopulation = Mathf.Clamp(ModJson.Float(o, "population", 1f, d.file), 0f, 4f);
+                        if (ModJson.Has(o, "derelictFreighters")) s.derelictFreighters = ModJson.Bool(o, "derelictFreighters", true, d.file);
                         s.initiallyVisible = ModJson.Bool(o, "visible", s.initiallyVisible, d.file);
                         s.textureIndex = Mathf.Clamp(ModJson.Int(o, "sky", s.textureIndex, d.file), 0, 18);
                         foreach (var g in ModJson.Strings(o, "gates"))

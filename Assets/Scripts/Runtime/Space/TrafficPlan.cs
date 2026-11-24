@@ -178,6 +178,17 @@ namespace GoF2Remake.Flight
         /// system (3) up to 10 in a Dangerous one (0).</summary>
         public static int DerelictChance(int security) => 10 - 2 * Mathf.Clamp(security, 0, 3);
 
+        /// <summary>Scales only ambient counts; explicit/scripted spawns are added separately.</summary>
+        public static int ScaleAmbientCount(int count, float population)
+        {
+            if (count <= 0) return 0;
+            population = Mathf.Clamp(population, 0f, 4f);
+            if (Mathf.Approximately(population, 1f)) return count;
+            float scaled = count * population;
+            int whole = Mathf.FloorToInt(scaled);
+            return whole + (Random.value < scaled - whole ? 1 : 0);
+        }
+
         /// <summary>'playerGame': the player's start (game units), where freelance escorts gather.</summary>
         /// <param name="wormholeGame">The orbit's visible wormhole (game units), where a Void raid comes from; null = none.</param>
         /// <summary>Level::createMission's Informer layout: an Informer mission at its target station while it isn't spoiled
@@ -250,8 +261,19 @@ namespace GoF2Remake.Flight
                 x = Random.Range(0, 2);
             }
             int local = (mido ? Random.Range(0, 2) : secEff) + x + freighters / 4;
-            // The "big battle" (npc_traffic_ai.md 2.2): raiders on, campaign > 0x1f, 8 %: 9 raiders against 9 locals.
-            if (raidersOn && cm > 0x1f && Random.Range(0, 100) < 8) raiders = local = 9;
+            // Modder-controlled ambient traffic only. Apply before scripted encounter rules below so their
+            // minimums and explicit spawns (missions, pirate events, Void raids, sieges, rifts, etc.) remain untouched.
+            float population = Mathf.Clamp(system.ambientPopulation, 0f, 4f);
+            // Remember the original random ambient plan so rounding a small population down to zero does not
+            // trigger the vanilla four-patrol empty-orbit fallback and add ships back.
+            if (Session.AttackedStations.Contains(station)) local = Mathf.Max(local, 7);
+            // The "big battle" is random ambient traffic too, so population zero suppresses its roll.
+            if (population > 0f && raidersOn && cm > 0x1f && Random.Range(0, 100) < 8) raiders = local = 9;
+            int unscaledAmbientCount = jumpers + local + freighters + raiders;
+            raiders = ScaleAmbientCount(raiders, population);
+            jumpers = ScaleAmbientCount(jumpers, population);
+            local = ScaleAmbientCount(local, population);
+            freighters = ScaleAmbientCount(freighters, population);
             // Freelance cargo attracts pirates: int(d / 10 * 5) escorts for Courier, Passenger and Ore Mining missions (types 0,
             // 0xb, 0xf; Ore Mining is only rolled in multiplayer). The station 100 / 101 / 108 / 10 rule below leaves them too.
             var fm = Session.FreelanceMission;
@@ -261,6 +283,9 @@ namespace GoF2Remake.Flight
             bool baseSystem = PirateBases.SystemHasBase(db, system.index);
             int baseEscorts = 0;
             if (baseSystem) { raidersOn = false; raiders = 0; escorts = 0; baseEscorts = hardcore ? Random.Range(0, 3) + 4 : 2; }
+            // Preserve the pre-scaling base patrol count for the empty-orbit fallback decision.
+            unscaledAmbientCount += baseEscorts;
+            baseEscorts = ScaleAmbientCount(baseEscorts, population);
             // Coming out of the Void, or at the station the Void attack (not at 42): 2-5 Void raiders from the wormhole and at
             // least 2 freighters for them to hunt (Level::createMission, npc_traffic_ai.md 2.2).
             bool voidRaid = story && cm != 42 && cm < 45 && (Session.ComingFromVoid || station == Session.VoidInvasionStation);
@@ -282,11 +307,12 @@ namespace GoF2Remake.Flight
             if (informer) { local = Session.InformerKilled ? 6 : 7; jumpers = freighters = raiders = escorts = baseEscorts = 0; raidersOn = false; }
             else
             {
-                if (Session.AttackedStations.Contains(station)) local = Mathf.Max(local, 7);
-                if (jumpers + local + freighters + raiders + escorts + baseEscorts == 0) local = 4;
+                // Only use the four-patrol fallback when the original ambient plan was genuinely empty.
+                if (population > 0f && unscaledAmbientCount == 0 && jumpers + local + freighters + raiders + escorts + baseEscorts == 0)
+                    local = ScaleAmbientCount(4, population);
             }
             // The special orbits: 102-104 only 3-7 pirates (escorts stay); 100 / 101 / 108 and Thynome (10) empty.
-            if (station >= 102 && station <= 104) { local = jumpers = freighters = 0; raiders = Random.Range(0, 5) + 3; raidersOn = true; raiderRace = Standing.Pirate; }
+            if (station >= 102 && station <= 104) { local = jumpers = freighters = 0; raiders = population > 0f ? ScaleAmbientCount(Random.Range(0, 5) + 3, population) : 0; raidersOn = raiders > 0; raiderRace = Standing.Pirate; }
             else if (station == 100 || station == 101 || station == 108 || station == 10) { local = jumpers = freighters = raiders = 0; raidersOn = false; }
             // Campaign 0x24 / 0x25 in S'kolptorr: no local fighters, no raiders; 0x2a / 0x2b: no raiders, no pirate escorts.
             if (story && (cm == 0x24 || cm == 0x25) && system.index == 5) local = raiders = 0;
@@ -298,29 +324,31 @@ namespace GoF2Remake.Flight
             if (system.index == 25 || lootOrbit)
             {
                 escorts = baseEscorts = local = jumpers = freighters = 0;
-                raiders = Random.Range(0, 4) + (lootOrbit ? 10 : 6);
-                if (hardcore) raiders = Random.Range(0, 3) + raiders * 2;
-                raidersOn = true;
+                raiders = population > 0f ? Random.Range(0, 4) + (lootOrbit ? 10 : 6) : 0;
+                if (hardcore && raiders > 0) raiders = Random.Range(0, 3) + raiders * 2;
+                raiders = ScaleAmbientCount(raiders, population);
+                raidersOn = raiders > 0;
                 if (raiderRaces == null) raiderRace = Standing.Pirate;
             }
             // Late-campaign Specter raids (100 < campaign < 0x91): (campaign / 144 * 15 + 5) % (x2 Extreme), 2-4 (x2).
             int specters = 0;
-            if (story && cm > 100 && cm < 0x91)
+            if (population > 0f && story && cm > 100 && cm < 0x91)
             {
                 int p = (int)(cm / 144f * 15f + 5f) << (hardcore ? 1 : 0);
                 if (Random.Range(0, 100) < p) specters = (Random.Range(0, 3) + 2) << (hardcore ? 1 : 0);
+                specters = ScaleAmbientCount(specters, population);
             }
             // The capital-ship specials (npc_combat_specials.md 2.1): the first freighter becomes the battleship / carrier
             // (Terran) or the Vossk battleship.
             // Remake mods: a mod's "spawn.chance" for the battleship / carrier / Vossk battleship (ModNpcShips) in place of 30.
-            bool terran = sysRace == 0 && freighters > 0 && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.Battleship, 30);
-            bool vossk = sysRace == 1 && freighters > 0 && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.VosskBattleship, 30) && cm > 0x8c;
+            bool terran = population > 0f && sysRace == 0 && freighters > 0 && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.Battleship, 30);
+            bool vossk = population > 0f && sysRace == 1 && freighters > 0 && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.VosskBattleship, 30) && cm > 0x8c;
             bool carrier = terran && Random.Range(0, 100) < Modding.ModNpcShips.Chance(Modding.ModNpcShips.Carrier, 30) && cm > 0x67;
             // The supernova system (27) before campaign 0x9e (Status::inSupernovaSystem): nothing but the story's.
             if (story && system.index == 27 && cm < 0x9e) { local = jumpers = freighters = raiders = 0; raidersOn = terran = vossk = false; }
             // Remake (CapitalShips): now and then a fleet battle (a Terran and a Vossk capital ship with their wings) instead of
             // the single capital ship special.
-            bool fleetBattle = FleetBattleHere(station, system, sysRace, baseSystem, story);
+            bool fleetBattle = population > 0f && FleetBattleHere(station, system, sysRace, baseSystem, story);
             if (fleetBattle) terran = vossk = false;
             // Remake mods (Modding.ModCapitalShips): a mod's capital ship of the system's race in the special's place (Terran /
             // Vossk at the "Mod ships in traffic" chance), or in a Nivelian / Midorian system, which has none, at the same 30 %.
@@ -332,11 +360,11 @@ namespace GoF2Remake.Flight
                     modCapital = Modding.ModCapitalShips.PickCapital(sysRace, true);
                     if (modCapital >= 0) terran = vossk = carrier = false;
                 }
-                else if ((sysRace == 2 || sysRace == 3 || Modding.ModRaces.Is(sysRace)) && freighters > 0
+                else if (population > 0f && (sysRace == 2 || sysRace == 3 || Modding.ModRaces.Is(sysRace)) && freighters > 0
                          && Modding.ModCapitalShips.Has(sysRace, Modding.ModCapitalShips.Battleship) && Random.Range(0, 100) < 30)
                     modCapital = Modding.ModCapitalShips.PickCapital(sysRace, false);
             }
-            if (terran || vossk || modCapital >= 0) freighters--;
+            if (terran || vossk || modCapital >= 0) freighters = Mathf.Max(0, freighters - 1);
             // A pirate raid on a traveller (initStreamOutPosition): rnd(100) < rank + 20 (40 Extreme) moves the pirates'
             // point toward the arriving player (Route::setNewCoords(player position / 3), the divisor read in the iOS build's
             // Level::createMission; the remake takes a quarter of the way: half the way put up to 19 Extreme pirates on a player just arrived within
@@ -396,7 +424,7 @@ namespace GoF2Remake.Flight
             // the game's capital ship's place. Not in the special orbits (the story's, the pirate havens, Loma).
             bool quietOrbit = (station >= 100 && station <= 104) || station == 108 || station == 10 || system.index == 25 || lootOrbit
                               || informer || (story && system.index == 27 && cm < 0x9e);
-            if (!quietOrbit && AddModNpcShips(db, list, station, system, sysRace, terran || vossk)) terran = vossk = carrier = false;
+            if (population > 0f && !quietOrbit && AddModNpcShips(db, list, station, system, sysRace, terran || vossk, population)) terran = vossk = carrier = false;
             if (terran || vossk) AddCapitalShip(db, list, terran, carrier, station);
             if (modCapital >= 0) AddModCapital(list, modCapital, sysRace, station);
             if (fleetBattle) AddFleetBattle(db, list, station);
@@ -450,7 +478,8 @@ namespace GoF2Remake.Flight
             // wreck like the hidden blueprints' (its race's: the Vossk freighter 13, else 15, docking point sets 11-14),
             // somewhere out in front of the station, or in the orbits / at the spot its "stations" / "position" name; the hack
             // leaves the blueprint in a data crate (Traffic.OnHackWon).
-            var derelict = Modding.ModBlueprints.RollDerelict(station);
+            // Derelicts have their own per-system switch, independent of ambient population.
+            var derelict = system.derelictFreighters ? Modding.ModBlueprints.RollDerelict(station) : null;
             if (derelict != null)
             {
                 var at = derelict.derelictPosition ?? new Vector3(Random.Range(-80000f, 80000f), Random.Range(-40000f, 40000f), Random.Range(60000f, 140000f));
@@ -463,14 +492,14 @@ namespace GoF2Remake.Flight
             // Dangerous system 2-4 pirates wait at it. One wreck an orbit, not in the special or the storylines' orbits, a
             // pirate base's system, Mido or a freelance mission's orbit. A session rule: the orbit's runner rolls it, the
             // other players hack a stand-in of its copy (NetOrbit.UpdateDerelictStandIns).
-            if (Settings.DerelictWrecks && !quietOrbit && !baseSystem && system.index != 15 && (fm == null || fm.target != station)
+            if (system.derelictFreighters && Settings.DerelictWrecks && !quietOrbit && !baseSystem && system.index != 15 && (fm == null || fm.target != station)
                 && !PirateEventRules.InStoryline(station) && !list.Exists(s => s.deadButSelectable) && Random.Range(0, 100) < DerelictChance(secEff))
             {
                 var at = new Vector3(Random.Range(-80000f, 80000f), Random.Range(-40000f, 40000f), Random.Range(60000f, 140000f));
                 var wreck = HackableWreck(-1, at);
                 wreck.derelict = true;
                 list.Add(wreck);
-                if (secEff <= 1) AddRaiders(list, Random.Range(2, 5), pirateRace, at);
+                if (secEff <= 1) AddRaiders(list, ScaleAmbientCount(Random.Range(2, 5), population), pirateRace, at);
             }
             // 7 Specters, always enemy: one point near the player, each at it + createShip's +-20000 jitter.
             if (specters > 0)
@@ -480,7 +509,7 @@ namespace GoF2Remake.Flight
                 for (int i = 0; i < specters; i++)
                     list.Add(new SpawnSpec { group = NpcGroup.Special, race = Standing.Specter, ship = 44, alwaysEnemy = true, position = sp + Jitter() });
             }
-            AddPirateEvent(list, db, station, system, secEff, story, cm, baseSystem, raiders > 0);
+            AddPirateEvent(list, db, station, system, secEff, story, cm, baseSystem, raiders > 0, population > 0f);
             return list;
         }
 
