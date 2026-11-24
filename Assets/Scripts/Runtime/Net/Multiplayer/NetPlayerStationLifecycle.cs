@@ -71,6 +71,7 @@ namespace GoF2Remake.Multiplayer
             stationIndex = station.stationIndex,
             system = station.system,
             looksLike = station.looksLike,
+            stationModelReference = station.stationModelReference,
             stationOffsetX = station.stationOffsetX,
             name = station.name,
             createdUtc = station.createdUtc,
@@ -245,7 +246,11 @@ namespace GoF2Remake.Multiplayer
             if (appearance >= 0 && !CanUseRebuildAppearance(wreck, appearance))
                 return "Choose a station model from the wreck model's race. Use /station appearance-presets to list model indices.";
             var project = SiteOf(wreck);
-            if (appearance >= 0) project.looksLike = appearance;
+            if (appearance >= 0)
+            {
+                project.looksLike = appearance;
+                project.stationModelReference = StationModelReference(appearance);
+            }
             project.stationOffsetX = wreck.stationOffsetX > 0f ? -1500f : 1500f;
             project.materials = ConstructionCost("reconstruction");
             project.reconstructing = project.underConstruction = true;
@@ -303,7 +308,8 @@ namespace GoF2Remake.Multiplayer
             var db = NetGame.Db;
             var target = db?.Stations?.Find(value => value != null && value.index == appearance);
             if (target == null || !IsStationModelPreset(appearance)) return false;
-            var original = db.Stations.Find(value => value != null && value.index == wreck.looksLike);
+            int originalIndex = StationModelIndex(wreck);
+            var original = db.Stations.Find(value => value != null && value.index == originalIndex);
             var originalSystem = db.Systems.Find(value => value != null && value.index == (original?.system ?? wreck.system));
             var targetSystem = db.Systems.Find(value => value != null && value.index == target.system);
             return originalSystem != null && targetSystem != null && originalSystem.raceId == targetSystem.raceId;

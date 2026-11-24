@@ -720,19 +720,37 @@ namespace GoF2Remake.Multiplayer
             return "Builder rights could not be relinquished because the change could not be saved.";
         }
 
+        static int StationModelIndex(PlayerStationRecord station)
+        {
+            if (string.IsNullOrEmpty(station.stationModelReference)) return station.looksLike;
+            return Modding.ModWorld.TryResolveStation(station.stationModelReference, out int index) ? index : -1;
+        }
+
+        static string StationModelReference(int index)
+        {
+            foreach (var entry in Modding.ModWorld.ActiveStationKeys())
+                if (entry.Key == index) return entry.Value;
+            return null;
+        }
+
         internal static bool IsStationModelPreset(int index)
         {
             if (index < 0 || IsPlayerStation(index)) return false;
             var db = NetGame.Db;
             var station = db?.Stations?.Find(value => value != null && value.index == index);
-            return station != null && GoF2Remake.World.OrbitBuilder.StationPresetAssembly(db, station) != null;
+            if (station == null || GoF2Remake.World.OrbitBuilder.StationPresetAssembly(db, station) == null) return false;
+            var settings = Modding.ModPlayerInfrastructure.Current;
+            if (!settings.RestrictStationModels) return true;
+            foreach (var reference in settings.StationModels)
+                if (Modding.ModWorld.TryResolveStation(reference, out int resolved) && resolved == index) return true;
+            return settings.IncludeStockStations && Modding.ModWorld.ModelOf(index) == null && !Modding.ModWorld.IsModStation(index);
         }
 
         internal static string AppearancePresets()
         {
             var stations = NetGame.Db?.Stations;
             if (stations == null) return "The station model catalogue is unavailable.";
-            var lines = new List<string> { "Built-in station appearance presets (use the index):" };
+            var lines = new List<string> { "Station appearance presets (use the index):" };
             foreach (var model in stations)
                 if (model != null && IsStationModelPreset(model.index))
                     lines.Add("  " + model.index + ": " + (string.IsNullOrWhiteSpace(model.name) ? "Unnamed station model" : model.name));
@@ -759,13 +777,15 @@ namespace GoF2Remake.Multiplayer
             var db = NetGame.Db;
             var model = db?.Stations?.Find(x => x != null && x.index == modelStationIndex);
             if (model == null || !IsStationModelPreset(modelStationIndex))
-                return "Choose the index of an existing built-in station model preset.";
+                return "Choose an enabled station model from the construction catalogue.";
             var live = db.Stations.Find(x => x != null && x.index == record.stationIndex);
             if (live == null) return "The station's live model record is unavailable.";
             int previousLook = record.looksLike;
+            string previousReference = record.stationModelReference;
             int previousTech = live.techLevel;
             int previousTexture = live.textureIndex;
             record.looksLike = modelStationIndex;
+            record.stationModelReference = StationModelReference(modelStationIndex);
             live.techLevel = model.techLevel;
             live.textureIndex = model.textureIndex;
             RecordHistory(record, account, "station-appearance-changed", null,
@@ -776,6 +796,7 @@ namespace GoF2Remake.Multiplayer
                 return "Station appearance preset updated. Model preset " + modelStationIndex + " is now active.";
             }
             record.looksLike = previousLook;
+            record.stationModelReference = previousReference;
             live.techLevel = previousTech;
             live.textureIndex = previousTexture;
             record.history?.RemoveAt(record.history.Count - 1);

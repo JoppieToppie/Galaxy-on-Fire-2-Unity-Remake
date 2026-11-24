@@ -249,7 +249,7 @@ namespace GoF2Remake.UI
             if (selected != null)
             {
                 AddField("stationName", "New station name", selected.name);
-                AddAction("Rename station", () => Send("/station rename " + selected.id + " " + Value("stationName")));
+                AddAction("Rename station", () => SendStationName("rename " + selected.id, Value("stationName")));
                 AddSection("MARKETPLACE", "Ship sales use the personal stored fleet and the station's sales tax.");
                 AddField("salesTax", "Sales tax (0–10%)", selected.marketplaceTaxPercent.ToString());
                 AddAction("Set marketplace tax", () => Send("/station tax " + selected.id + " " + Value("salesTax")));
@@ -280,6 +280,14 @@ namespace GoF2Remake.UI
                 }
             }
 
+            if (Modding.ModPlayerInfrastructure.Current.Enabled && Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled)
+                BuildNewJumpgateControls(id);
+
+            BuildFacilityControls(id);
+        }
+
+        void BuildNewJumpgateControls(string id)
+        {
             AddSection("BUILD A JUMPGATE", "The build timer starts once all materials are delivered.");
             AddAction("View jumpgate construction costs", "/station jumpgate-cost");
             if (selected.underConstruction)
@@ -313,6 +321,10 @@ namespace GoF2Remake.UI
                 });
             }
 
+        }
+
+        void BuildFacilityControls(string id)
+        {
             AddSection("STORAGE & ACCESS", "Move goods between your cargo hold and shared station storage. Access can be restricted to the owner or shared with current faction members.");
             AddField("storageItem", "Item ID", "156");
             AddField("storageAmount", "Amount", "10");
@@ -559,16 +571,22 @@ namespace GoF2Remake.UI
             NetGame.Db.Stations.Where(station => station != null && NetPlayerStations.IsStationModelPreset(station.index))
                 .OrderBy(station => station.name).Select(station => (station.index.ToString(), station.name + " [" + station.index + "]")).ToList();
 
-        static List<(string value, string label)> GateModelChoices()
-        {
-            var choices = new List<(string, string)>();
-            for (int index = 0; index < NetPlayerStations.JumpgateModelNames.Length; index++)
-                if (NetPlayerStations.IsJumpgateModelPreset(index + 1))
-                    choices.Add(((index + 1).ToString(), NetPlayerStations.JumpgateModelNames[index]));
-            return choices;
-        }
+        static List<(string value, string label)> GateModelChoices() =>
+            NetPlayerStations.JumpgateModelChoices().Select(model => (model.id.ToString(), model.label)).ToList();
 
         void BuildStationPlanner()
+        {
+            if (Modding.ModPlayerInfrastructure.Current.Enabled)
+                BuildNewStationControls();
+
+            AddField("sharedProject", "Shared project ID", "");
+            AddField("sharedMaterial", "Material item ID", "");
+            AddField("sharedAmount", "Units", "1");
+            AddAction("Deliver to a shared project", () =>
+                Send("/station contribute " + Value("sharedProject") + " " + Value("sharedMaterial") + " " + Value("sharedAmount")));
+        }
+
+        void BuildNewStationControls()
         {
             AddSection("BUILD A STATION", "");
             var systems = NetGame.Db.Systems.Where(system => system != null && system.stations?.Count > 0)
@@ -578,12 +596,7 @@ namespace GoF2Remake.UI
             AddField("newStationName", "Station name", "");
             if (!string.IsNullOrEmpty(Value("newStationModel")))
                 AddAction("Start station project", () =>
-                    Send("/station start-model " + Value("system") + " " + Value("newStationModel") + " " + Value("newStationName")));
-            AddField("sharedProject", "Shared project ID", "");
-            AddField("sharedMaterial", "Material item ID", "");
-            AddField("sharedAmount", "Units", "1");
-            AddAction("Deliver to a shared project", () =>
-                Send("/station contribute " + Value("sharedProject") + " " + Value("sharedMaterial") + " " + Value("sharedAmount")));
+                    SendStationName("start-model " + Value("system") + " " + Value("newStationModel"), Value("newStationName")));
         }
 
         void BuildStationConstruction(PlayerStationRecord project)
@@ -695,6 +708,7 @@ namespace GoF2Remake.UI
         void AddField(string key, string label, string initial)
         {
             var field = new TextField(label) { value = drafts.TryGetValue(key, out string draft) ? draft : initial ?? "" };
+            if (key == "newStationName" || key == "stationName") field.maxLength = NetPlayerStations.StationNameMaxLength;
             field.RegisterValueChangedCallback(change => drafts[key] = change.newValue);
             field.AddToClassList("player-station-field");
             fields[key] = field; body.Add(field);
@@ -713,6 +727,17 @@ namespace GoF2Remake.UI
 
         string Value(string key) => fields.TryGetValue(key, out var field) ? (field.value ?? "").Trim() :
             drafts.TryGetValue(key, out var choice) ? choice : "";
+        void SendStationName(string action, string name)
+        {
+            if (!NetPlayerStations.ValidStationName(name))
+            {
+                feedback.text = NetPlayerStations.StationNameRules;
+                feedbackTime = 8f;
+                return;
+            }
+            Dispatch("/station " + action + " " + name);
+        }
+
         void Send(string command)
         {
             if (string.IsNullOrWhiteSpace(command) || command.Contains("  "))
@@ -721,6 +746,11 @@ namespace GoF2Remake.UI
                 feedbackTime = 8f;
                 return;
             }
+            Dispatch(command);
+        }
+
+        void Dispatch(string command)
+        {
             NetPanel.Command(command.TrimEnd());
             feedback.text = "Request sent. The server response will appear here.";
             feedbackTime = 8f;

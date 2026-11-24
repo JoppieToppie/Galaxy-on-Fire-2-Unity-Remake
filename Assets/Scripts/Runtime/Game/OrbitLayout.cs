@@ -183,6 +183,12 @@ namespace GoF2Remake.World
             preset > 0 && preset <= JumpgateByRace.Length ? JumpgateByRace[preset - 1] : null;
 
         internal int? ConfirmedPlayerGatePreset { get; set; }
+        internal string ConfirmedPlayerGateReference { get; set; }
+
+        Modding.ModWorld.StationModel PlayerGateModel =>
+            GoF2Remake.Multiplayer.NetPlayerStations.ResolveJumpgateModel(ConfirmedPlayerGatePreset.HasValue
+                ? ConfirmedPlayerGateReference
+                : GoF2Remake.Multiplayer.NetPlayerStations.FindJumpgate(stationIndex)?.modelReference);
 
         int PlayerGateLook
         {
@@ -194,13 +200,21 @@ namespace GoF2Remake.World
             }
         }
         /// <summary>The system's own gate (a mod's systems.json "jumpgate", Modding.ModWorld.GateModelOf), else null: the race's.</summary>
-        public string ModJumpgateAssembly => PlayerGateLook >= 0 ? null : Modding.ModWorld.GateModelOf(systemIndex)?.Assembly;
+        public string ModJumpgateAssembly => PlayerGateModel?.Assembly ??
+            (PlayerGateLook >= 0 ? null : Modding.ModWorld.GateModelOf(systemIndex)?.Assembly);
         /// <summary>The gate's collision and approach radius (game units); with the station scale (OrbitScale) the gate grows
         /// with the stations, and its radius with it.</summary>
-        public int JumpgateRadius => Mathf.RoundToInt(StationScale * (PlayerGateLook >= 0
-            ? (PlayerGateLook == 1 ? GateRadiusVossk : GateRadius)
-            : Modding.ModWorld.GateModelOf(systemIndex) is Modding.ModWorld.StationModel g && g.gateRadius > 0f
-                ? g.gateRadius : Look == 1 ? GateRadiusVossk : GateRadius));
+        public int JumpgateRadius
+        {
+            get
+            {
+                int stockLook = PlayerGateLook;
+                var model = PlayerGateModel ?? (stockLook < 0 ? Modding.ModWorld.GateModelOf(systemIndex) : null);
+                float radius = model != null && model.gateRadius > 0f
+                    ? model.gateRadius : (stockLook >= 0 ? stockLook : Look) == 1 ? GateRadiusVossk : GateRadius;
+                return Mathf.RoundToInt(StationScale * radius);
+            }
+        }
         /// <summary>The race whose tables the orbit uses (a mod race's look, Standing.Look).</summary>
         int Look => Flight.Standing.Look(raceId);
 

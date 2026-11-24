@@ -183,6 +183,12 @@ namespace GoF2Remake.Modding
                     try { p.FlightRules = JObject.Parse(File.ReadAllText(flight)); }
                     catch (Exception e) { p.LoadError ??= $"{ModFlight.File}: {e.Message}"; }
                 }
+                string infrastructure = Path.Combine(folder, ModPlayerInfrastructure.FileName);
+                if (File.Exists(infrastructure))
+                {
+                    try { p.PlayerInfrastructure = JObject.Parse(File.ReadAllText(infrastructure)); }
+                    catch (Exception e) { p.LoadError ??= $"{ModPlayerInfrastructure.FileName}: {e.Message}"; }
+                }
                 string events = Path.Combine(folder, ProjectQuest.Folder);
                 if (Directory.Exists(events))
                     foreach (var f in Directory.GetFiles(events, "*." + ProjectQuest.Extension).Concat(Directory.GetFiles(events, "*." + ProjectQuest.LegacyExtension))
@@ -239,6 +245,9 @@ namespace GoF2Remake.Modding
             string flight = Path.Combine(Folder, ModFlight.File);
             if (FlightRules.Count > 0) Write(ModFlight.File, FlightRules.ToString(Formatting.Indented));
             else if (File.Exists(flight)) File.Delete(flight);
+            string infrastructure = Path.Combine(Folder, ModPlayerInfrastructure.FileName);
+            if (PlayerInfrastructure.Count > 0) Write(ModPlayerInfrastructure.FileName, PlayerInfrastructure.ToString(Formatting.Indented));
+            else if (File.Exists(infrastructure)) File.Delete(infrastructure);
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
             Modified = DateTime.UtcNow;

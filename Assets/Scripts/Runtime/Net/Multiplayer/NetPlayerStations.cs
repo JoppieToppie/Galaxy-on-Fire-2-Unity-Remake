@@ -55,6 +55,8 @@ namespace GoF2Remake.Multiplayer
         public int sponsorStationId = -1;
         // Zero preserves the original orbit model on older saves.
         public int modelPreset;
+        public string modelReference;
+        public bool scrapIntegrityInitialized;
         public int system;
         public int destinationSystem = -1;
         public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
@@ -128,6 +130,7 @@ namespace GoF2Remake.Multiplayer
         public int system;
         /// <summary>Existing station index whose look is used for this station's model and collision preset.</summary>
         public int looksLike = -1;
+        public string stationModelReference;
         public long createdUtc;
         /// <summary>True until all construction materials have been deposited.</summary>
         public bool underConstruction;
@@ -489,6 +492,8 @@ namespace GoF2Remake.Multiplayer
                     CompleteStationConstruction(station);
             ReconcileConsumedBlueprints();
             MigrateLegacyJumpgates();
+            foreach (var gate in registry.jumpgates)
+                if (gate != null && gate.scrapped && !gate.permanentlyDestroyed) InitializeGateScrap(gate);
             MigrateFactionConstructionStock();
             foreach (var station in registry.stations)
             {
@@ -663,7 +668,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!sessionActive || registry?.stations == null) return -1;
             foreach (var station in registry.stations)
-                if (station != null && station.stationIndex == stationIndex) return station.looksLike;
+                if (station != null && station.stationIndex == stationIndex) return StationModelIndex(station);
             return -1;
         }
 
@@ -883,9 +888,9 @@ namespace GoF2Remake.Multiplayer
                 return "You must be connected in the game to plan station construction.";
             if (!NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Sign in to a controlled player profile before building a station.";
+            if (!Modding.ModPlayerInfrastructure.Current.Enabled) return "New player station projects are disabled by the active mods.";
             name = (name ?? "").Trim();
-            if (!ValidStationName(name))
-                return "Choose a station name between 3 and 40 characters.";
+            if (!ValidStationName(name)) return StationNameRules;
             var db = NetGame.Db;
             var system = db?.Systems?.Find(s => s != null && s.index == systemIndex);
             if (system == null || system.stations == null || system.stations.Count == 0)
@@ -907,7 +912,8 @@ namespace GoF2Remake.Multiplayer
                 if (!IsStationModelPreset(look))
                 {
                     int slot = system.stations.FindIndex(IsStationModelPreset);
-                    look = slot >= 0 ? system.stations[slot] : -1;
+                    look = slot >= 0 ? system.stations[slot] :
+                        db.Stations.Find(station => station != null && IsStationModelPreset(station.index))?.index ?? -1;
                 }
             }
             if (!IsStationModelPreset(look)) return "Choose an existing station model from the game catalogue.";
@@ -927,6 +933,7 @@ namespace GoF2Remake.Multiplayer
                 factionPermissions = NewIndividualFactionPermissionProfile(false),
                 system = system.index,
                 looksLike = look,
+                stationModelReference = StationModelReference(look),
                 createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 underConstruction = true,
                 materials = RequiredMaterials(),
@@ -957,9 +964,21 @@ namespace GoF2Remake.Multiplayer
             ResetWreckControl();
         }
 
-        static bool ValidStationName(string name) =>
-            name.Length >= 3 && name.Length <= 40 &&
-            name.IndexOfAny(new[] { '\r', '\n', '\t', '\0', '<', '>' }) < 0;
+        internal const int StationNameMaxLength = 40;
+        internal const string StationNameRules =
+            "Station names must be 3–40 characters. Use letters, digits, spaces, hyphens, underscores or apostrophes.";
+
+        internal static bool ValidStationName(string name)
+        {
+            if (name == null || name.Length < 3 || name.Length > StationNameMaxLength) return false;
+            bool hasLetterOrDigit = false;
+            foreach (char c in name)
+            {
+                if (char.IsLetter(c) || c is >= '0' and <= '9') hasLetterOrDigit = true;
+                else if (c is not (' ' or '-' or '_' or '\'')) return false;
+            }
+            return hasLetterOrDigit;
+        }
 
         sealed class RuntimeStationIdentity
         {
@@ -983,7 +1002,8 @@ namespace GoF2Remake.Multiplayer
             {
                 if (record == null || record.stationIndex < 0) continue;
                 var system = db.Systems.Find(s => s != null && s.index == record.system);
-                var look = db.Stations.Find(s => s != null && s.index == record.looksLike);
+                int modelIndex = StationModelIndex(record);
+                var look = db.Stations.Find(s => s != null && s.index == modelIndex);
                 if (look == null && system?.stations != null && system.stations.Count > 0)
                 {
                     int fallback = system.jumpgateStation >= 0 ? system.jumpgateStation : system.stations[0];

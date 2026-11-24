@@ -36,6 +36,16 @@ namespace GoF2Remake.Multiplayer
             gate.structuralIntegrityUpdatedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         }
 
+        internal static float JumpgateScrapIntegrity(PlayerJumpgateRecord gate) =>
+            gate.scrapIntegrityInitialized ? gate.structuralIntegrity : Modding.ModPlayerInfrastructure.Current.ScrapIntegrity;
+
+        static void InitializeGateScrap(PlayerJumpgateRecord gate)
+        {
+            if (gate.scrapIntegrityInitialized) return;
+            gate.structuralIntegrity = Modding.ModPlayerInfrastructure.Current.ScrapIntegrity;
+            gate.scrapIntegrityInitialized = true;
+        }
+
         static bool RegenerateGate(PlayerJumpgateRecord gate, long now)
         {
             if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
@@ -57,14 +67,15 @@ namespace GoF2Remake.Multiplayer
                 float.IsNaN(empDamage) || float.IsInfinity(empDamage) ||
                 structuralDamage < 0f || empDamage < 0f) return false;
             var gate = FindJumpgate(orbitStationIndex);
-            if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
+            if (gate == null || gate.building || gate.permanentlyDestroyed || gate.explosionPending) return false;
             bool structuralEligible = structuralDamage > 0f && StructuralWeaponEligible != null && StructuralWeaponEligible(weaponId);
-            bool empEligible = empDamage > 0f && empDamage >= JumpgateEmpThreshold;
+            bool empEligible = !gate.scrapped && empDamage > 0f && empDamage >= JumpgateEmpThreshold;
             if (!structuralEligible && !empEligible) return false;
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             int index = registry.jumpgates.IndexOf(gate);
             var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
-            RegenerateGate(gate, now);
+            if (gate.scrapped) InitializeGateScrap(gate);
+            else RegenerateGate(gate, now);
             if (empEligible)
                 gate.empShutdownUntilUtc = Math.Max(gate.empShutdownUntilUtc, now + JumpgateEmpDisableSeconds);
             if (structuralEligible)
@@ -73,7 +84,7 @@ namespace GoF2Remake.Multiplayer
                 gate.lastStructuralDamageUtc = now;
                 gate.structuralIntegrityUpdatedUtc = now;
             }
-            bool destroyed = gate.structuralIntegrity <= 0f;
+            bool destroyed = structuralEligible && gate.structuralIntegrity <= 0f;
             if (destroyed) TransitionDestroyedGate(gate);
             if (Save())
             {
@@ -184,10 +195,59 @@ namespace GoF2Remake.Multiplayer
 
         internal static readonly string[] JumpgateModelNames = { "Terran", "Vossk", "Nivelian", "Midorian" };
 
-        internal static bool IsJumpgateModelPreset(int model)
+        const int ModGatePresetBase = 1000;
+
+        internal static IEnumerable<(int id, string label)> JumpgateModelChoices()
         {
-            string assembly = GoF2Remake.World.OrbitLayout.JumpgatePresetAssembly(model);
-            return assembly != null && NetGame.Db?.AssemblyByName(assembly) != null;
+            var settings = Modding.ModPlayerInfrastructure.Current;
+            var db = NetGame.Db;
+            if (settings.IncludeStockJumpgates)
+                for (int i = 0; i < JumpgateModelNames.Length; i++)
+                    if (db.AssemblyByName(GoF2Remake.World.OrbitLayout.JumpgatePresetAssembly(i + 1)) != null)
+                        yield return (i + 1, JumpgateModelNames[i]);
+
+            var seen = new HashSet<int>();
+            foreach (var reference in settings.JumpgateModels)
+            {
+                var model = ResolveJumpgateModel(reference);
+                if (model == null || db.AssemblyByName(model.Assembly) == null || !seen.Add(model.gateSystem)) continue;
+                var system = db.Systems.Find(value => value != null && value.index == model.gateSystem);
+                yield return (ModGatePresetBase + model.gateSystem,
+                    (string.IsNullOrWhiteSpace(model.label) ? system?.name ?? reference : model.label) + " (mod gate)");
+            }
+        }
+
+        internal static Modding.ModWorld.StationModel ResolveJumpgateModel(string reference) =>
+            !string.IsNullOrEmpty(reference) && Modding.ModWorld.TryResolveSystem(reference, out int system)
+                ? Modding.ModWorld.GateModelOf(system) : null;
+
+        static bool TrySelectJumpgateModel(int preset, out string reference)
+        {
+            reference = null;
+            if (preset == 0) return Modding.ModPlayerInfrastructure.Current.IncludeStockJumpgates;
+            foreach (var choice in JumpgateModelChoices())
+            {
+                if (choice.id != preset) continue;
+                if (preset < ModGatePresetBase) return true;
+                foreach (var candidate in Modding.ModPlayerInfrastructure.Current.JumpgateModels)
+                    if (ResolveJumpgateModel(candidate)?.gateSystem == preset - ModGatePresetBase)
+                    {
+                        reference = candidate;
+                        return true;
+                    }
+            }
+            return false;
+        }
+
+        internal static string JumpgateModelLabel(PlayerJumpgateRecord gate)
+        {
+            var model = ResolveJumpgateModel(gate.modelReference);
+            if (model != null)
+                return string.IsNullOrWhiteSpace(model.label)
+                    ? NetGame.Db.Systems.Find(system => system != null && system.index == model.gateSystem)?.name ?? gate.modelReference
+                    : model.label;
+            return gate.modelPreset >= 1 && gate.modelPreset <= JumpgateModelNames.Length
+                ? JumpgateModelNames[gate.modelPreset - 1] : "Orbit default";
         }
 
         internal static bool CanBuildGateInOrbit(int systemIndex, int orbit)
@@ -332,14 +392,15 @@ namespace GoF2Remake.Multiplayer
             return changed;
         }
 
-        /// <summary>A first-destruction wreck remains as physical scenery until it is reclaimed;
-        /// a second, permanent destruction leaves the orbit empty.</summary>
+        /// <summary>Scrap keeps the gate mesh in the orbit until rebuilding or final destruction.</summary>
         public static bool HasJumpgateWreckAtStation(int stationIndex)
         {
             var gate = FindJumpgate(stationIndex);
-            return gate != null && gate.scrapped && !gate.permanentlyDestroyed &&
-                gate.destructionCount == 1;
+            return gate != null && gate.scrapped && !gate.permanentlyDestroyed;
         }
+
+        internal static bool HasAttackableJumpgateAtStation(int orbit) =>
+            HasJumpgateAtStation(orbit) || HasJumpgateWreckAtStation(orbit);
 
         /// <summary>Local travel refusal for a player gate that is offline, scrapped or being rebuilt.
         /// Server access and destination requests enforce the same restrictions authoritatively.</summary>
@@ -487,6 +548,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built jumpgates need a persistent host or dedicated server.";
+            var rules = Modding.ModPlayerInfrastructure.Current;
+            if (!rules.Enabled || !rules.JumpgatesEnabled) return "New player jumpgate projects are disabled by the active mods.";
             var sponsor = Find(sponsorStationId);
             if (sponsor == null) return "No player station with that project id exists.";
             if (!CanIssueJumpgateOrder(by, sponsor, out string issuer))
@@ -514,8 +577,8 @@ namespace GoF2Remake.Multiplayer
                     : "You must personally discover the destination system before connecting a gate to it.";
             if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
                 return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
-            if (modelPreset != 0 && !IsJumpgateModelPreset(modelPreset))
-                return "Choose an existing jumpgate model from the game catalogue.";
+            if (!TrySelectJumpgateModel(modelPreset, out string modelReference))
+                return "Choose an enabled jumpgate model from the construction catalogue.";
             var existingGate = FindJumpgate(orbitStationIndex);
             bool stationRebuild = existingGate != null && existingGate.permanentlyDestroyed;
             if (existingGate != null && !stationRebuild)
@@ -540,6 +603,7 @@ namespace GoF2Remake.Multiplayer
                 building = true,
                 buildSeconds = buildSeconds,
                 modelPreset = modelPreset,
+                modelReference = modelReference,
                 materials = RequiredJumpgateMaterials(),
                 contributions = new List<PlayerStationContribution>()
             };
@@ -676,6 +740,8 @@ namespace GoF2Remake.Multiplayer
             if (!fromFactionStock && !(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Jumpgate construction");
             if (paidContribution) NotifyProfileCreditChange(account, payout, "Jumpgate construction contribution");
+            if (complete && !gate.building)
+                NetPlayer.OrbitRunner(orbitStationIndex)?.BroadcastJumpgateRestored(orbitStationIndex);
             string message = "Contributed " + amount + " x " + NetGame.Db.Item(item).name + " to jumpgate orbit " + orbitStationIndex + ".";
             if (paidContribution) message += " Paid " + payout.ToString("N0") + " credits from the faction bank.";
             if (complete) message += gate.building ? " Materials complete. Construction timer started." : " Jumpgate is now operational.";
@@ -848,21 +914,23 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
-        /// <summary>Move a broken gate into its first reclaimable scrap state or its final destroyed state.
-        /// Reclaiming a wreck preserves its destruction count. A separately funded replacement starts a new lifecycle.</summary>
+        /// <summary>Every operational gate becomes scrap first. A separate hit can destroy exhausted scrap.</summary>
         static void TransitionDestroyedGate(PlayerJumpgateRecord gate)
         {
-            if (gate == null || gate.scrapped || gate.permanentlyDestroyed) return;
-            gate.destructionCount = Math.Max(1, gate.destructionCount + 1);
+            if (gate == null || gate.permanentlyDestroyed) return;
+            bool wasScrap = gate.scrapped;
+            if (!wasScrap && gate.destructionCount < int.MaxValue)
+                gate.destructionCount = Math.Max(1, gate.destructionCount + 1);
             gate.building = false;
             gate.startedUtc = gate.completesUtc = 0;
             gate.structuralIntegrity = 0f;
             gate.empShutdownUntilUtc = 0;
             gate.explosionPending = true;
-            if (gate.destructionCount == 1)
+            if (!wasScrap)
             {
                 gate.scrapped = true;
-                gate.permanentlyDestroyed = false;
+                gate.scrapIntegrityInitialized = false;
+                InitializeGateScrap(gate);
             }
             else
             {
@@ -887,15 +955,14 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>
-        /// Called by the gate's authoritative destruction hook. First destruction leaves reclaimable scrap;
-        /// later destruction permanently disables reclamation and returns a 25% salvage manifest for world cargo spawning.
+        /// An operational destruction event can leave scrap. Final destruction requires structural damage to that scrap.
         /// </summary>
         internal static bool MarkJumpgateDestroyed(int orbitStationIndex, out List<PlayerStationMaterial> salvage)
         {
             salvage = new List<PlayerStationMaterial>();
             if (!NetGame.IsServer || !sessionActive || registry == null) return false;
             var gate = FindJumpgate(orbitStationIndex);
-            if (gate == null || gate.scrapped || gate.permanentlyDestroyed) return false;
+            if (gate == null || gate.building || gate.scrapped || gate.permanentlyDestroyed) return false;
             int index = registry.jumpgates.IndexOf(gate);
             var previous = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
             TransitionDestroyedGate(gate);
@@ -926,7 +993,7 @@ namespace GoF2Remake.Multiplayer
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Fly to the scrapped gate's orbit to claim it using a controlled profile.";
             var gate = FindJumpgate(orbitStationIndex);
-            if (gate == null || !gate.scrapped || gate.permanentlyDestroyed || gate.destructionCount != 1)
+            if (gate == null || !gate.scrapped || gate.permanentlyDestroyed)
                 return "That gate is not in its reclaimable scrapped state.";
             if (JumpgateConstructionPausedAt(gate) > 0)
                 return "This gate cannot change ownership until its sponsoring station is claimed.";
@@ -943,8 +1010,9 @@ namespace GoF2Remake.Multiplayer
                 return "Only a faction member may reclaim a gate on behalf of their faction.";
             if (!factionClaim && !ownsStation)
                 return "An individual reclaim requires you to own an operational player station. Faction members may claim on behalf of their faction.";
-            if (modelPreset != 0 && !IsJumpgateModelPreset(modelPreset))
-                return "Choose an existing jumpgate model from the game catalogue.";
+            string modelReference = null;
+            if (modelPreset != 0 && !TrySelectJumpgateModel(modelPreset, out modelReference))
+                return "Choose an enabled jumpgate model from the construction catalogue.";
             int newDestination = destinationSystem >= 0 ? destinationSystem : gate.destinationSystem;
             var destination = NetGame.Db?.Systems?.Find(x => x != null && x.index == newDestination);
             if (destination?.stations == null || destination.stations.Count == 0 || newDestination == gate.system)
@@ -967,11 +1035,16 @@ namespace GoF2Remake.Multiplayer
             gate.blacklist = new List<PlayerJumpgateBlockEntry>();
             gate.destinationChangedUtc = 0;
             gate.destinationSystem = newDestination;
-            if (modelPreset > 0) gate.modelPreset = modelPreset;
+            if (modelPreset > 0)
+            {
+                gate.modelPreset = modelPreset;
+                gate.modelReference = modelReference;
+            }
             gate.constructionStationId = -1;
             gate.sponsorStationId = -1;
             gate.constructionIssuerProfile = account;
             gate.scrapped = false;
+            gate.scrapIntegrityInitialized = false;
             gate.permanentlyDestroyed = false;
             gate.building = true;
             gate.startedUtc = gate.completesUtc = 0;
@@ -1008,6 +1081,7 @@ namespace GoF2Remake.Multiplayer
                         ? "Claim with /station jumpgate-claim " + orbitStationIndex + " faction|individual [destination system id]. Faction members may claim for their faction; individual claims require station ownership."
                         : "A new construction order from an operational player station is required."
                 };
+                if (gate.scrapped) recovery.Add($"Scrap integrity: {JumpgateScrapIntegrity(gate):N0}");
                 if (gate.salvageDropPending) recovery.Add("Construction-material salvage remains available for tractor pickup near the destroyed gate.");
                 return string.Join("\n", recovery);
             }
@@ -1019,8 +1093,7 @@ namespace GoF2Remake.Multiplayer
                 ?? ("System " + gate.system);
             var lines = new List<string> { "Jumpgate in orbit " + orbitStationIndex + " (" + origin + ")",
                 "Destination: " + destination,
-                "Model: " + (gate.modelPreset > 0 && gate.modelPreset <= JumpgateModelNames.Length
-                    ? JumpgateModelNames[gate.modelPreset - 1] : "Orbit default"),
+                "Model: " + JumpgateModelLabel(gate),
                 "Access: " + (gate.accessMode == PlayerJumpgateAccessMode.Everyone ? "Everyone" :
                     gate.accessMode == PlayerJumpgateAccessMode.OwningFaction ? "Owning faction only" :
                     gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly ? "Individual owner only" : "Blacklist mode"),

@@ -41,6 +41,7 @@ namespace GoF2Remake.Modding
                 ["npcShips"] = new JArray(NpcShips.Select(c => c.ToJson())),
                 ["campaign"] = Campaign != null ? (JToken)Campaign.ToJson() : JValue.CreateNull(),
                 ["flightRules"] = FlightRules.DeepClone(),
+                ["playerInfrastructure"] = PlayerInfrastructure.DeepClone(),
                 ["quests"] = quests,
                 ["builder"] = b,
             };
@@ -71,6 +72,8 @@ namespace GoF2Remake.Modding
             NpcShips.Clear(); NpcShips.AddRange(Objects(state, "npcShips").Select(o => new ProjectNpcShip(o)));
             Campaign = state["campaign"] is JObject c ? new ProjectCampaign((JObject)c.DeepClone()) : null;
             FlightRules = state["flightRules"] is JObject fr ? (JObject)fr.DeepClone() : new JObject();
+            PlayerInfrastructure = state["playerInfrastructure"] is JObject infrastructure
+                ? (JObject)infrastructure.DeepClone() : new JObject();
             Quests.Clear();
             if (state["quests"] is JObject qs)
                 foreach (var prop in qs.Properties()) if (prop.Value is JObject qo) Quests.Add(new ProjectQuest(prop.Name, (JObject)qo.DeepClone()));

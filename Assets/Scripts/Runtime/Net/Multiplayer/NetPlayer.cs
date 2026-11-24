@@ -386,18 +386,19 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
             var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
-            if (layout != null && layout.hasJumpgate)
-                JumpgateRestoredRpc(orbitStationIndex, layout.jumpgate, NetPlayerStations.FindJumpgate(orbitStationIndex)?.modelPreset ?? 0);
+            var gate = NetPlayerStations.FindJumpgate(orbitStationIndex);
+            if (layout != null && layout.hasJumpgate && gate != null)
+                JumpgateRestoredRpc(orbitStationIndex, layout.jumpgate, gate.modelPreset, gate.modelReference ?? "");
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
-        void JumpgateRestoredRpc(int orbitStationIndex, Vector3 gatePosition, int modelPreset)
+        void JumpgateRestoredRpc(int orbitStationIndex, Vector3 gatePosition, int modelPreset, string modelReference)
         {
             if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
                 Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
             if (Local.level != null && Local.level.Layout != null &&
                 Local.level.Layout.stationIndex == orbitStationIndex)
-                Local.level.OnPlayerJumpgateRestored(gatePosition, modelPreset);
+                Local.level.OnPlayerJumpgateRestored(gatePosition, modelPreset, modelReference);
         }
 
         /// <summary>Server: notify pilots of a persisted EMP shutdown immediately.</summary>
@@ -789,7 +790,7 @@ namespace GoF2Remake.Multiplayer
                 !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
                 !NetGuard.Item(weaponItem) || !HasWeaponItem(weaponItem) ||
                 !NetGuard.Position(detonation) || !NetGuard.Position(gateSurface) ||
-                !NetPlayerStations.HasJumpgateAtStation(orbitStationIndex)) return;
+                !NetPlayerStations.HasAttackableJumpgateAtStation(orbitStationIndex)) return;
             var weapon = NetGame.Db.Item(weaponItem);
             if (weapon == null) return;
             var kind = (Gun.Kind)weapon.categoryId;
@@ -827,7 +828,7 @@ namespace GoF2Remake.Multiplayer
                 !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
                 !NetGuard.Item(weaponItem) || !HasWeaponItem(weaponItem) ||
                 !NetGuard.Position(point) || shotId == 0 ||
-                !NetPlayerStations.HasJumpgateAtStation(orbitStationIndex)) return;
+                !NetPlayerStations.HasAttackableJumpgateAtStation(orbitStationIndex)) return;
             var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
             if (layout == null || !layout.hasJumpgate) return;
             Vector3 gateCentre = OrbitLayout.ToUnity(layout.Place(layout.jumpgate));

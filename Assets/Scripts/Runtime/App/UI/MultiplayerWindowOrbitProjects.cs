@@ -159,6 +159,7 @@ namespace GoF2Remake.UI
         void BuildGateReclaim(PlayerJumpgateRecord gate, StationProjectActions actions)
         {
             Section("Scrapped jumpgate");
+            body.Add(Text($"Scrap integrity · {NetPlayerStations.JumpgateScrapIntegrity(gate):N0}", 16, Dim));
             if (NetPlayerStations.JumpgateConstructionPausedAt(gate) > 0)
             {
                 body.Add(Text("Reclamation is paused until the sponsoring station is claimed.", 16, Dim));
@@ -173,8 +174,7 @@ namespace GoF2Remake.UI
             }
 
             var models = new List<(int id, string label)> { (0, "Keep the existing gate model") };
-            for (int id = 1; id <= NetPlayerStations.JumpgateModelNames.Length; id++)
-                if (NetPlayerStations.IsJumpgateModelPreset(id)) models.Add((id, NetPlayerStations.JumpgateModelNames[id - 1]));
+            models.AddRange(NetPlayerStations.JumpgateModelChoices());
             var destinations = new List<(int id, string label)> { (-1, "Keep the current destination") };
             foreach (var system in NetGame.Db.Systems)
                 if (system != null && system.index != gate.system && system.stations?.Count > 0)
@@ -206,8 +206,7 @@ namespace GoF2Remake.UI
         void BuildGateProject(PlayerJumpgateRecord gate, StationProjectActions actions)
         {
             Section("Jumpgate construction");
-            if (gate.modelPreset > 0 && gate.modelPreset <= NetPlayerStations.JumpgateModelNames.Length)
-                body.Add(Text(NetPlayerStations.JumpgateModelNames[gate.modelPreset - 1] + " model", 16, Dim));
+            body.Add(Text(NetPlayerStations.JumpgateModelLabel(gate), 16, Dim));
             BuildMaterialProgress(gate.materials);
             long pausedAt = NetPlayerStations.JumpgateConstructionPausedAt(gate);
             if (pausedAt > 0)

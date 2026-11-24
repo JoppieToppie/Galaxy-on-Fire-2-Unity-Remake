@@ -561,7 +561,7 @@ namespace GoF2Remake.World
             if (go != null)
                 foreach (var pa in go.GetComponentsInChildren<PartAnimation>(true))
                     if (pa.gameObject.name.EndsWith("_anim_add") && !pa.gameObject.name.EndsWith("_jump_anim_add")) pa.applyMaterialChannels = true;
-            if (go != null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
+            if (go != null && layout.ModJumpgateAssembly == null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
             if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
             if (go != null) PortalRefraction.AttachIfPortal(go);
             // Only independently constructed player gates opt into exact mesh geometry in Original mode.

@@ -143,7 +143,7 @@ namespace GoF2Remake.Multiplayer
             if (!CanManage(by, record, out string account) || !IsOwnershipAuthority(record, account))
                 return "Only the individual owner or owning faction leader can rename a station while docked there.";
             name = (name ?? "").Trim();
-            if (!ValidStationName(name)) return "Choose a station name between 3 and 40 characters.";
+            if (!ValidStationName(name)) return StationNameRules;
             string previous = record.name;
             if (string.Equals(name, previous, StringComparison.Ordinal)) return "The station already has that name.";
 

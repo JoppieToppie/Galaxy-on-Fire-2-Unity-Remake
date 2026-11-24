@@ -228,6 +228,7 @@ namespace GoF2Remake.World
 
         public void OnPlayerJumpgateDestroyed(bool permanent = false)
         {
+            if (permanent) playerJumpgateExplosionPlayed = false;
             SetPlayerJumpgateWreck(true);
             if (permanent && Jumpgate != null)
             {
@@ -261,11 +262,12 @@ namespace GoF2Remake.World
 
         /// <summary>Reconstruction is confirmed by the persistent server, not inferred from
         /// a client's potentially stale station registry snapshot.</summary>
-        public void OnPlayerJumpgateRestored(Vector3 gatePosition, int modelPreset)
+        public void OnPlayerJumpgateRestored(Vector3 gatePosition, int modelPreset, string modelReference)
         {
             if (Layout == null || Navigation == null || SystemJump == null) return;
             Layout.jumpgate = gatePosition;
             Layout.ConfirmedPlayerGatePreset = modelPreset;
+            Layout.ConfirmedPlayerGateReference = modelReference;
             playerJumpgateWreck = false;
             playerJumpgatePermanentlyDestroyed = false;
             playerJumpgateExplosionPlayed = false;
