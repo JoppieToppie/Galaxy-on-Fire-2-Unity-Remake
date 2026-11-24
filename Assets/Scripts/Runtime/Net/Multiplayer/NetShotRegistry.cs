@@ -32,6 +32,8 @@ namespace GoF2Remake.Multiplayer
             bool interceptable = weapon != null && (weapon.Attr(105) > 0 ||
                 (Gun.Kind)weapon.categoryId is Gun.Kind.Rocket or Gun.Kind.Missile or Gun.Kind.Nuke);
             Prune();
+            // A duplicate fire report must not refresh a live shot or clear its consumed flags.
+            if (shots.TryGetValue((source, id), out var existing) && Time.time < existing.expiresAt) return;
             shots[(source, id)] = new Shot
             {
                 target = target, item = item, origin = origin, velocity = velocity,
@@ -95,7 +97,8 @@ namespace GoF2Remake.Multiplayer
         public static bool TryCancel(ulong source, uint id, ulong defender)
         {
             Prune();
-            if (!shots.TryGetValue((source, id), out var shot) || shot.canceled || !shot.interceptable || shot.target != defender) return false;
+            if (!shots.TryGetValue((source, id), out var shot) || shot.canceled || !shot.interceptable ||
+                shot.target != defender || Time.time >= shot.expiresAt) return false;
             shot.canceled = true;
             shots[(source, id)] = shot;
             return true;
