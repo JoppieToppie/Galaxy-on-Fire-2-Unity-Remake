@@ -189,6 +189,22 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        // Each chunk was encoded independently and may end with Base64 padding.
+        internal static string DecodePlayerStationChunks(string[] payloads)
+        {
+            if (payloads == null || payloads.Length < 1 || payloads.Length > MaxPlayerStationChunks)
+                throw new FormatException("Invalid station snapshot chunk count.");
+            using var bytes = new System.IO.MemoryStream();
+            for (int i = 0; i < payloads.Length; i++)
+            {
+                var part = Convert.FromBase64String(payloads[i]);
+                if (part.Length > PlayerStationChunkBytes || (i < payloads.Length - 1 && part.Length != PlayerStationChunkBytes))
+                    throw new FormatException("Invalid station snapshot chunk length.");
+                bytes.Write(part, 0, part.Length);
+            }
+            return Encoding.UTF8.GetString(bytes.GetBuffer(), 0, checked((int)bytes.Length));
+        }
+
         void TryApplyPlayerStationSnapshot()
         {
             if (IsServer || playerStationChunks.Count == 0) return;
@@ -214,17 +230,12 @@ namespace GoF2Remake.Multiplayer
                 payloads[index] = entry.Substring(d + 1);
             }
             if (count != payloads.Length) return;
-            var joined = new StringBuilder();
-            for (int i = 0; i < count; i++)
-            {
-                if (payloads[i] == null) return;
-                joined.Append(payloads[i]);
-            }
+            for (int i = 0; i < count; i++) if (payloads[i] == null) return;
             try
             {
-                byte[] snapshot = Convert.FromBase64String(joined.ToString());
-                playerStationJson = Encoding.UTF8.GetString(snapshot);
-                NetPlayerStations.ReceiveSnapshot(playerStationJson);
+                string snapshot = DecodePlayerStationChunks(payloads);
+                NetPlayerStations.ReceiveSnapshot(snapshot);
+                playerStationJson = snapshot;
                 appliedPlayerStationRevision = revision;
             }
             catch (Exception e)
