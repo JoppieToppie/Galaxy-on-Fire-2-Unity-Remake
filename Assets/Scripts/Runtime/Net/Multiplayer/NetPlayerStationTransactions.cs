@@ -211,7 +211,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var target in journal.credits) affectedAccounts.Add(target.account);
             foreach (var target in journal.storedShips) affectedAccounts.Add(target.account);
             foreach (string account in affectedAccounts) NetProfiles.InvalidateEconomyUploads(account);
-            if (!FinishTransaction(journal))
+            if (!FinishTransaction(journal, preserveLiveRegistry: true))
                 Debug.LogWarning("NetPlayerStations: station transaction is journalled and will be retried during recovery.");
             return true; // A durable journal commits the intent; callers must not compensate it.
         }
@@ -245,9 +245,19 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
-        static bool FinishTransaction(StationTransactionJournal journal)
+        static bool FinishTransaction(StationTransactionJournal journal, bool preserveLiveRegistry = false)
         {
             if (journal.completed) return CleanupCompletedJournal();
+            // Validate the registry before changing any participant's durable balance.
+            var recovered = JsonUtility.FromJson<Registry>(journal.registryJson);
+            if (recovered == null || recovered.stations == null || recovered.jumpgates == null) return false;
+            var bankTargets = new Dictionary<string, long>(StringComparer.Ordinal);
+            foreach (var target in journal.factionBanks)
+            {
+                if (target == null || string.IsNullOrEmpty(target.factionId) || target.amount < 0 ||
+                    NetFactions.BankAmount(target.factionId) < 0 || bankTargets.ContainsKey(target.factionId)) return false;
+                bankTargets.Add(target.factionId, target.amount);
+            }
             var accounts = new HashSet<string>(StringComparer.Ordinal);
             foreach (var target in journal.cargo)
             {
@@ -277,14 +287,12 @@ namespace GoF2Remake.Multiplayer
                     if (target.account == account) ships = target.ships;
                 if (!NetProfiles.ApplyStationProfileTargets(account, cargo, credits, ships)) return false;
             }
-            foreach (var target in journal.factionBanks)
-                if (target == null || !NetFactions.SetBankAmount(target.factionId, target.amount))
-                    return false;
+            if (!NetFactions.SetBankAmounts(bankTargets)) return false;
 
             if (!NetProfiles.Write(path, journal.registryJson)) return false;
-            registry = JsonUtility.FromJson<Registry>(journal.registryJson);
-            if (registry == null) return false;
-            registry.stations ??= new List<PlayerStationRecord>();
+            // A normal synchronous commit already has exactly this state in memory. Keep
+            // object identity for callers; only recovery must replace the live registry.
+            if (!preserveLiveRegistry) registry = recovered;
             // Record completion before attempting deletion. A cleanup failure must never
             // cause already committed absolute targets to be applied a second time.
             journal.completed = true;
