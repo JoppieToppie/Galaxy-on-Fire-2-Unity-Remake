@@ -230,7 +230,7 @@ namespace GoF2Remake.Multiplayer
         /// (its profile is written when it leaves).</summary>
         internal static bool MoveCredits(ulong client, string id, long delta)
         {
-            if (id == null) return false;
+            if (id == null || NetPlayerStations.ProfileWritesBlocked) return false;
             if (IsHostClient(client)) { AdjustWorth(id, delta); return true; }
             var save = ReadSave(id);
             if (save == null)
@@ -244,6 +244,7 @@ namespace GoF2Remake.Multiplayer
             save.credits = now;
             if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
             AdjustWorth(id, delta);
+            InvalidateEconomyUploads(id);
             return true;
         }
 
@@ -251,7 +252,8 @@ namespace GoF2Remake.Multiplayer
         /// authority for its own save; another player's last uploaded profile is changed before its game is updated.</summary>
         internal static bool MoveCargo(ulong client, string id, int item, int delta)
         {
-            if (id == null || item < 0 || delta == 0 || NetGame.Db.Item(item) == null) return false;
+            if (id == null || item < 0 || delta == 0 || NetGame.Db.Item(item) == null ||
+                NetPlayerStations.ProfileWritesBlocked) return false;
             if (IsHostClient(client))
             {
                 int have = Shop.CargoOf(item);
@@ -277,6 +279,7 @@ namespace GoF2Remake.Multiplayer
             if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
             int unitValue = Math.Max(0, NetGame.Db.Item(item)?.minPrice ?? 0);
             AdjustWorth(id, (long)unitValue * delta);
+            InvalidateEconomyUploads(id);
             return true;
         }
 
