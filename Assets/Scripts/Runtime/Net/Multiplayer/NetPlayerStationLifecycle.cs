@@ -72,6 +72,7 @@ namespace GoF2Remake.Multiplayer
         {
             id = station.id,
             stationIndex = station.stationIndex,
+            existingOrbit = station.existingOrbit,
             system = station.system,
             looksLike = station.looksLike,
             stationModelReference = station.stationModelReference,
@@ -414,9 +415,11 @@ namespace GoF2Remake.Multiplayer
             if (registry.orbitalStructures?.Exists(structure => structure != null && structure.orbit == record.stationIndex) == true)
                 return "Dismantle or destroy the remaining orbital structures before retiring this orbit.";
             record.retired = true;
+            indexedStationCount = -1;
             if (!Save())
             {
                 record.retired = false;
+                indexedStationCount = -1;
                 return "Retirement could not be saved.";
             }
             Apply(NetGame.Db);
