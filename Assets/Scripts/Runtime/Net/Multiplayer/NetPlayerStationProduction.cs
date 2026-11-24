@@ -112,10 +112,24 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
+        // UTC timestamps remain the authority for persistent state. Realtime only throttles scans.
+        static float nextSlowStationTick;
+        static float nextWreckClaimTick;
+
         /// <summary>Called by the authoritative server update loop; due jobs survive restarts via UTC timestamps.</summary>
         internal static void Tick()
         {
             if (!NetGame.IsServer || !sessionActive) return;
+            float realtime = Time.realtimeSinceStartup;
+            // Wreck claims need responsive progress updates; production, permissions, maintenance
+            // and construction do not need to be inspected every rendered frame.
+            if (registry?.stations != null && realtime >= nextWreckClaimTick)
+            {
+                nextWreckClaimTick = realtime + 0.125f; // 8 Hz
+                TickWreckClaims();
+            }
+            if (realtime < nextSlowStationTick) return;
+            nextSlowStationTick = realtime + 1f; // 1 Hz
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             // A durable write-ahead journal is the transaction's commit point. If a profile or
             // registry write temporarily fails after the journal is created, retry it during the
@@ -134,8 +148,6 @@ namespace GoF2Remake.Multiplayer
             TickStationDestruction();
             if (registry?.stations == null) return;
             TickOrbitalStructures(now);
-            if (registry?.stations == null) return;
-            TickWreckClaims();
             if (registry?.stations == null) return; // a failed station save can disable the registry
             TickFactoryJobs(now);
             if (now < nextDryDockRetryUtc) return;
