@@ -349,7 +349,7 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
-            if (Instance == this) Instance = null;
+            if (Instance == this) { Instance = null; NetProfileClient.ClearIdentitySetup(); }
             playerStationJson = "";
             appliedPlayerStationRevision = 0;
             playerStationSnapshotDirty = false;
