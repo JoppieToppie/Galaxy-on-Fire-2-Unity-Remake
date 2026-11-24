@@ -144,7 +144,8 @@ namespace GoF2Remake.UI
                         rows.Add((Localization.Extra("statShieldPerSecond", "Shield per second"), drainRate));
                         rows.Add((T(188), drainRate));
                         break;
-                    case 22: case 25: case 28: case 46: case 54: case 56: rows.Add((T(157), $"{v} %")); break;
+                    case 22: case 25: case 28: rows.Add((T(157), v > 0 ? Signed(v) + " %" : $"{v} %")); break;
+                    case 46: case 54: case 56: rows.Add((T(157), $"{v} %")); break;
                     case 24: case 29: rows.Add((T(141), $"{v} ms")); break;
                     case 27: rows.Add((T(152), $"{v} ms")); break;
                     case 32: if (it.Attr(100) != 1) rows.Add((T(164), $"{v} %")); break;   // a mining beam has no drill handling
