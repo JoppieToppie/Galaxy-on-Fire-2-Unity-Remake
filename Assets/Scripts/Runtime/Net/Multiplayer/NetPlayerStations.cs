@@ -956,6 +956,9 @@ namespace GoF2Remake.Multiplayer
 
             string owner = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(owner)) return "Your controlled profile has no account identity.";
+            if (!NetProfiles.HasDiscoveredSystem(owner, systemIndex))
+                return "Discover the selected system before planning station construction.";
+            if (registry.nextId >= int.MaxValue) return "The station ID limit has been reached.";
 
             int look = modelPreset;
             if (look < 0)
@@ -992,13 +995,17 @@ namespace GoF2Remake.Multiplayer
             };
             RecordHistory(record, owner, "station-construction-started", null,
                 "Original builder established the station project.");
+            var originalRegistry = registry;
             registry.stations.Add(record);
             indexedStationCount = -1;
             if (!Save())
             {
-                registry.stations.Remove(record);
-                indexedStationCount = -1;
-                registry.nextId--;
+                if (ReferenceEquals(registry, originalRegistry))
+                {
+                    registry.stations.Remove(record);
+                    indexedStationCount = -1;
+                    registry.nextId--;
+                }
                 return "The construction plan could not be saved.";
             }
             Apply(db);
