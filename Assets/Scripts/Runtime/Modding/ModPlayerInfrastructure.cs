@@ -13,6 +13,7 @@ namespace GoF2Remake.Modding
         public const float DefaultOrbitalDecayPercentPerDay = 1f;
         public const float MinimumOrbitalDecayIntegrityPercent = 15f;
         public const int MaxOtherOrbitalStructureLimit = 8;
+        public const float MaxStructureScale = 6f;
 
         public bool Enabled { get; private set; } = true;
         public bool JumpgatesEnabled { get; private set; } = true;
@@ -21,6 +22,8 @@ namespace GoF2Remake.Modding
         public bool IncludeStockJumpgates { get; private set; } = true;
         public int OrbitalDefenseLimit { get; private set; } = DefaultOrbitalDefenseLimit;
         public int OtherOrbitalStructureLimit { get; private set; } = MaxOtherOrbitalStructureLimit;
+        public float MinimumStationScale { get; private set; } = 1f;
+        public float MinimumJumpgateScale { get; private set; } = 1f;
         public float ScrapIntegrity { get; private set; } = DefaultScrapIntegrity;
         public IReadOnlyList<string> StationModels { get; private set; } = Array.Empty<string>();
         public IReadOnlyList<OrbitalDefinition> OrbitalStructures { get; private set; } = StockStructures;
@@ -54,20 +57,40 @@ namespace GoF2Remake.Modding
         static readonly ModPlayerInfrastructure Defaults = new ModPlayerInfrastructure();
         static ModPlayerInfrastructure current = Defaults;
         static int currentRevision = -1;
+        static (float Station, float Jumpgate) minimumScales = (1f, 1f);
 
         public static ModPlayerInfrastructure Current
         {
             get
             {
-                var mods = ModManager.Active;
-                if (currentRevision == ModManager.Revision) return current;
-                current = Defaults;
-                foreach (var mod in mods)
-                    if (ModContent.Parse(mod).playerInfrastructure is ModPlayerInfrastructure rules)
-                        current = rules;
-                currentRevision = ModManager.Revision;
+                ResolveActiveRules();
                 return current;
             }
+        }
+
+        public static (float Station, float Jumpgate) ActiveMinimumScales
+        {
+            get
+            {
+                ResolveActiveRules();
+                return minimumScales;
+            }
+        }
+
+        static void ResolveActiveRules()
+        {
+            var mods = ModManager.Active;
+            if (currentRevision == ModManager.Revision) return;
+            current = Defaults;
+            minimumScales = (1f, 1f);
+            foreach (var mod in mods)
+            {
+                if (!(ModContent.Parse(mod).playerInfrastructure is ModPlayerInfrastructure rules)) continue;
+                current = rules;
+                minimumScales.Station = Math.Max(minimumScales.Station, rules.MinimumStationScale);
+                minimumScales.Jumpgate = Math.Max(minimumScales.Jumpgate, rules.MinimumJumpgateScale);
+            }
+            currentRevision = ModManager.Revision;
         }
 
         internal static ModPlayerInfrastructure Read(ModInfo mod)
@@ -90,12 +113,22 @@ namespace GoF2Remake.Modding
                 IncludeStockStations = ReadToggle(settings, "includeStockStations"),
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,
+                MinimumStationScale = ReadMinimumScale(settings, "minimumStationScale"),
+                MinimumJumpgateScale = ReadMinimumScale(settings, "minimumJumpgateScale"),
                 OrbitalDefenseLimit = StructureInt(settings, "orbitalDefenseLimit", DefaultOrbitalDefenseLimit, 0, MaxOrbitalDefenseLimit),
                 OtherOrbitalStructureLimit = StructureInt(settings, "otherOrbitalStructureLimit", MaxOtherOrbitalStructureLimit, 0, MaxOtherOrbitalStructureLimit),
                 OrbitalStructures = ReadStructures(settings),
                 StationModels = ReadReferences(settings, "stationModels"),
                 JumpgateModels = ReadReferences(settings, "jumpgateModels")
             };
+        }
+
+        static float ReadMinimumScale(JObject settings, string key)
+        {
+            float scale = ModJson.Float(settings, key, 1f, FileName);
+            if (float.IsNaN(scale) || scale < 1f || scale > MaxStructureScale)
+                throw new ModJsonException($"{FileName} {key} must be between 1 and {MaxStructureScale}.");
+            return scale;
         }
 
         static IReadOnlyList<OrbitalDefinition> ReadStructures(JObject settings)

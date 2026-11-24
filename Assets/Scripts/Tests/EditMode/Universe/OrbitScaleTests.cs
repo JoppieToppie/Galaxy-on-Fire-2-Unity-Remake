@@ -107,6 +107,29 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AJumpgateMinimumCanScaleAnOrbitWithoutAStation()
+        {
+            var layout = new OrbitLayout { hasJumpgate = true, minimumJumpgateScale = 2.5f };
+            OrbitScale.Use(layout);
+            Assert.AreEqual(1f, layout.StationScale);
+            Assert.AreEqual(2.5f, OrbitScale.JumpgateFactor);
+            Assert.AreEqual(Mathf.RoundToInt(OrbitLayout.GateRadius * 2.5f), layout.JumpgateRadius);
+        }
+
+        [Test]
+        public void TheDefaultArrivalClearsAnEnlargedGate()
+        {
+            var layout = new OrbitLayout
+            {
+                hasJumpgate = true, minimumJumpgateScale = 6f,
+                jumpgate = new Vector3(0f, 0f, 90000f), hiddenJumpgate = new Vector3(0f, 0f, 120000f)
+            };
+            layout.ArrivalPose(-1, out var arrival, out _);
+            float distance = Vector3.Distance(arrival, OrbitLayout.ToUnity(layout.jumpgate));
+            Assert.Greater(distance, layout.JumpgateRadius * OrbitLayout.MetersPerUnit);
+        }
+
+        [Test]
         public void StationScaleSnapsToTheOfferedChoices()
         {
             using (new SettingsScope<float>(() => Settings.StationScale, v => Settings.StationScale = v))

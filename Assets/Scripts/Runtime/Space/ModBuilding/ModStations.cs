@@ -366,7 +366,7 @@ namespace GoF2Remake.Modding
 
         /// <summary>The collision of a placed mod station (OrbitBuilder.AddObstacles): its "volumes" (game units around the
         /// station), else a box / sphere of the model's bounds, or none. Axis-aligned like the originals'.</summary>
-        public static List<CollisionVolume> Volumes(ModWorld.StationModel s, GameObject placed)
+        public static List<CollisionVolume> Volumes(ModWorld.StationModel s, GameObject placed, float scale = 1f)
         {
             var list = new List<CollisionVolume>();
             var pos = placed.transform.position;
@@ -374,8 +374,9 @@ namespace GoF2Remake.Modding
             {
                 foreach (var v in s.volumes)
                 {
-                    var c = pos + new Vector3(v.centre.x, v.centre.y, -v.centre.z) * M;
-                    list.Add(v.sphere ? CollisionVolume.Sphere(c, v.radius * M) : CollisionVolume.Box(c, v.half * M));
+                    float units = M * scale;
+                    var c = new Vector3(v.centre.x, v.centre.y, -v.centre.z) * units;
+                    list.Add(v.sphere ? CollisionVolume.Sphere(c, v.radius * units) : CollisionVolume.Box(c, v.half * units));
                 }
                 return list;
             }
@@ -387,8 +388,10 @@ namespace GoF2Remake.Modding
                 if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds);
             }
             if (!any) return list;
-            if (s.collision == "sphere") list.Add(CollisionVolume.Sphere(b.center, Mathf.Max(b.extents.x, Mathf.Max(b.extents.y, b.extents.z))));
-            else list.Add(CollisionVolume.Box(b.center, b.extents));
+            // Renderer bounds already include the placed model’s scale. Obstacles take centres relative to their owner.
+            var centre = b.center - pos;
+            if (s.collision == "sphere") list.Add(CollisionVolume.Sphere(centre, Mathf.Max(b.extents.x, Mathf.Max(b.extents.y, b.extents.z))));
+            else list.Add(CollisionVolume.Box(centre, b.extents));
             return list;
         }
     }

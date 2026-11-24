@@ -10,6 +10,7 @@
 using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
+using GoF2Remake.World;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -24,6 +25,21 @@ namespace GoF2Remake.Tests
             var m = Installed("frontier_systems");
             Assert.IsFalse(m.Broken, AllMessages(m));
             return Database.Load();
+        }
+
+        [Test]
+        public void ActiveModsSetIndependentSizeFloorsForStockOrbits()
+        {
+            WriteMod("t_station_size", "t_station_size", "1.0", "",
+                (ModPlayerInfrastructure.FileName, "{ 'minimumStationScale': 2.5, 'minimumJumpgateScale': 2 }"));
+            WriteMod("t_gate_size", "t_gate_size", "1.0", "",
+                (ModPlayerInfrastructure.FileName, "{ 'minimumJumpgateScale': 4 }"));
+            ScanAndEnable("t_station_size", "t_gate_size");
+
+            var layout = OrbitLayout.Build(Database.Load(), 0);
+            Assert.AreEqual(2.5f, layout.StationScale);
+            Assert.AreEqual(4f, layout.JumpgateScale);
+            Assert.AreEqual(OrbitLayout.GateRadius * 4, layout.JumpgateRadius);
         }
 
         [Test]

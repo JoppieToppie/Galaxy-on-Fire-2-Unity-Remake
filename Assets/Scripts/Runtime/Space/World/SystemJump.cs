@@ -386,7 +386,7 @@ namespace GoF2Remake.World
             ship.externalControl = false;
             if (weapons != null) weapons.Blocked = false;
             if (gate != null)
-                ship.transform.SetPositionAndRotation(gate.transform.position + OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.Factor),   // OrbitScale: past the grown gate
+                ship.transform.SetPositionAndRotation(gate.transform.position + OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.JumpgateFactor),   // OrbitScale: past the grown gate
                                                       Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
         }
 
@@ -402,7 +402,7 @@ namespace GoF2Remake.World
             state = State.GateScene;
             var g = gate != null ? gate.transform.position : ship.transform.position;
             // OrbitScale: the scene round the grown gate grown with it, its motion too (gateSceneScale), so it keeps its timing.
-            gateSceneScale = gate != null ? OrbitScale.Factor : 1f;
+            gateSceneScale = gate != null ? OrbitScale.JumpgateFactor : 1f;
             ship.transform.SetPositionAndRotation(g + OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * (M * gateSceneScale),
                                                   Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
             var cam = Camera.main;

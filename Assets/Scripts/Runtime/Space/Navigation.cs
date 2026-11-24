@@ -636,12 +636,12 @@ namespace GoF2Remake.Flight
 
         /// <summary>Remake (OrbitScale): a distance to a target (units) as the original's would be, for its thresholds (the
         /// 20000 of AboutToReach, the cruise drive's arrival): from the station unmapped (OrbitScale.Unradius), from the grown
-        /// jumpgate over its scale; anything else as it is. The identity without the station scale.</summary>
+        /// jumpgate over its scale; anything else as it is.</summary>
         float ReachUnits(Target t, float units)
         {
-            if (t == null || !OrbitScale.Active) return units;
+            if (t == null) return units;
             if (t.kind == Kind.Station && t.transform == null) return OrbitScale.Unradius(units);
-            if (t.kind == Kind.Jumpgate) return units / OrbitScale.Factor;
+            if (t.kind == Kind.Jumpgate) return units / OrbitScale.JumpgateFactor;
             return units;
         }
 

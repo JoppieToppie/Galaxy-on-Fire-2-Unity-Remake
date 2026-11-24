@@ -98,11 +98,13 @@ namespace GoF2Remake.World
         // Remake, experimental: Options > Gameplay "Station scale" (OrbitScale, docs/notes/space-scene.md "Station scale").
         /// <summary>The station's scale in this orbit (OrbitScale.Chosen when the layout was built; 1: none).</summary>
         public float stationScale = 1f;
+        internal float minimumJumpgateScale = 1f;
         /// <summary>How far the station reaches from its centre at scale 1 (game units, its collision volumes + 15 %): the
         /// radius inside which the orbit grows with the station (OrbitScale's header).</summary>
         public float stationReach;
         /// <summary>The scale the station is drawn and collides at (1 without a station).</summary>
         public float StationScale => Scaled ? stationScale : 1f;
+        public float JumpgateScale => Mathf.Max(StationScale, minimumJumpgateScale);
         /// <summary>This orbit maps its positions (OrbitScale): a station, a scale above 1, not interstellar space.</summary>
         public bool Scaled => stationScale > 1.0001f && stationReach > 0f && (stationObject || originStructure) && !interstellar;
         /// <summary>OrbitScale: a structure stands at the origin in place of a station (Coromesk's Mining Plant from campaign
@@ -212,7 +214,7 @@ namespace GoF2Remake.World
                 var model = PlayerGateModel ?? (stockLook < 0 ? Modding.ModWorld.GateModelOf(systemIndex) : null);
                 float radius = model != null && model.gateRadius > 0f
                     ? model.gateRadius : (stockLook >= 0 ? stockLook : Look) == 1 ? GateRadiusVossk : GateRadius;
-                return Mathf.RoundToInt(StationScale * radius);
+                return Mathf.RoundToInt(JumpgateScale * radius);
             }
         }
         /// <summary>The race whose tables the orbit uses (a mod race's look, Standing.Look).</summary>
@@ -259,7 +261,9 @@ namespace GoF2Remake.World
                 o.stationObject = GoF2Remake.Multiplayer.NetPlayerStations.StationSceneryPresent(stationIndex);
                 o.hasStation = o.stationObject && !GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(stationIndex);
             }
-            o.stationScale = OrbitScale.Chosen;
+            var minimumScales = Modding.ModPlayerInfrastructure.ActiveMinimumScales;
+            o.stationScale = o.stationObject ? Mathf.Max(OrbitScale.Chosen, minimumScales.Station) : OrbitScale.Chosen;
+            o.minimumJumpgateScale = minimumScales.Jumpgate;
             // Coromesk (103): the Mining Plant at the origin from campaign 0x55 (TrafficSpecials.AddCampaignStatics; 0x87's level
             // builds its own); collision 2000.
             o.originStructure = !alien && !Session.FreePlay && stationIndex == 103 && Session.CampaignMission > 0x54;
@@ -587,7 +591,17 @@ namespace GoF2Remake.World
             facing = Quaternion.LookRotation(-DirToUnity(game).normalized, Vector3.up);
             // Level::init: arriving in Loma's black market (system 25) puts the player 40 000 further along game +z.
             if (systemIndex == 25) game += new Vector3(0f, 0f, 40000f);
-            position = ToUnity(Place(game));   // OrbitScale: in the scaled orbit
+            var placed = Place(game);
+            if (hasJumpgate && !arrival.HasValue && JumpgateScale > 1f)
+            {
+                // A large gate can reach the usual arrival point. Keep the same approach side where possible.
+                var centre = Place(jumpgate);
+                var fromGate = placed - centre;
+                float clearance = JumpgateRadius + 2000f;
+                if (fromGate.sqrMagnitude < clearance * clearance)
+                    placed = centre + (fromGate.sqrMagnitude > 1f ? fromGate.normalized : Vector3.forward) * clearance;
+            }
+            position = ToUnity(placed);
         }
 
         /// <summary>Remake: an arrival by cruise to this orbit's planet (Navigation.RunPlanet): as far out as any, on the near side

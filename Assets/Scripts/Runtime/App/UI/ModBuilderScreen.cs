@@ -875,6 +875,9 @@ namespace GoF2Remake.UI
             var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
             var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
             var integrity = Add(scroll, new FloatField("Fresh scrap integrity") { value = settings.ScrapIntegrity }, "mbv-field");
+            var stationScale = Add(scroll, new FloatField("Minimum station scale") { value = settings.MinimumStationScale }, "mbv-field");
+            var jumpgateScale = Add(scroll, new FloatField("Minimum jumpgate scale") { value = settings.MinimumJumpgateScale }, "mbv-field");
+            Note(scroll, $"Scales apply to stock and player-built structures in solo and modded multiplayer. Enter 1–{ModPlayerInfrastructure.MaxStructureScale}.");
             Note(scroll, "Use one mod_id:id reference per line. Gate references point to systems with a custom jumpgate.");
             var stationModels = Add(scroll, new TextField("Additional station models")
                 { multiline = true, value = string.Join("\n", settings.StationModels) }, "mbv-field");
@@ -909,6 +912,8 @@ namespace GoF2Remake.UI
                 draft["includeStockStations"] = stockStations.value;
                 draft["includeStockJumpgates"] = stockGates.value;
                 draft["scrapIntegrity"] = integrity.value;
+                draft["minimumStationScale"] = stationScale.value;
+                draft["minimumJumpgateScale"] = jumpgateScale.value;
                 draft["stationModels"] = InfrastructureReferences(stationModels.value);
                 draft["jumpgateModels"] = InfrastructureReferences(gateModels.value);
                 draft["includeStockOrbitalDefense"] = stockDefense.value;

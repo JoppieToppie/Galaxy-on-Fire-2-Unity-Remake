@@ -517,13 +517,12 @@ namespace GoF2Remake.World
                 o.landmark = o.isStation = true;
                 int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(layout.stationIndex);
                 var own = Modding.ModWorld.ModelOf(preset >= 0 ? preset : layout.stationIndex);
-                o.volumes = own != null && Modding.ModStations.Built(own.station) ? Modding.ModStations.Volumes(own, station)   // a mod's model
-                          : GoF2Remake.Flight.CollisionVolume.ForStation(KotharDamaged(layout) ? KotharDamagedCollision
-                                                                         : StationLook(layout.stationIndex), layout.systemIndex < 0,
-                                                                         layout.alienOrbit && Story.Dlc1Won);
-                // OrbitScale: the volumes grow with the hull, about the station's centre (copies: the Void station's extras
-                // are shared).
-                if (layout.Scaled) o.volumes = GoF2Remake.Flight.CollisionVolume.Scaled(o.volumes, layout.StationScale);
+                o.volumes = own != null && Modding.ModStations.Built(own.station)
+                    ? Modding.ModStations.Volumes(own, station, layout.StationScale)
+                    : GoF2Remake.Flight.CollisionVolume.Scaled(
+                        GoF2Remake.Flight.CollisionVolume.ForStation(KotharDamaged(layout) ? KotharDamagedCollision
+                            : StationLook(layout.stationIndex), layout.systemIndex < 0, layout.alienOrbit && Story.Dlc1Won),
+                        layout.StationScale);
                 // PlayerStation+0x150: the transform's bounding radius (Transform+0xe0, about the station's own origin)
                 // + 5000 units. A radius from the origin, not the bounds' half size: a lopsided station (Tornard, 57,
                 // towers 3.4 km out on one side) had its far tower outside the cube, so nothing collided there.
@@ -562,7 +561,7 @@ namespace GoF2Remake.World
                 foreach (var pa in go.GetComponentsInChildren<PartAnimation>(true))
                     if (pa.gameObject.name.EndsWith("_anim_add") && !pa.gameObject.name.EndsWith("_jump_anim_add")) pa.applyMaterialChannels = true;
             if (go != null && layout.ModJumpgateAssembly == null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
-            if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
+            if (go != null) go.transform.localScale *= layout.JumpgateScale;
             if (go != null) PortalRefraction.AttachIfPortal(go);
             // Only independently constructed player gates opt into exact mesh geometry in Original mode.
             // This does not attach a combat Target yet: the server must validate weapon hits before

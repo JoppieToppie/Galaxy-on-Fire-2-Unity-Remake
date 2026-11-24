@@ -12,7 +12,7 @@
 //                                    convoy, a waypoint and the ships around it keep their own spacing and timing, and
 //                                    the gap between the hull and the gate / the asteroids / a battle stays the original's
 // F = the chosen scale, R = the station's reach (OrbitLayout.stationReach, game units, from its collision volumes). No
-// station (an empty orbit, interstellar space), multiplayer (the players' orbits must agree) or 1x: the identity.
+// station (an empty orbit or interstellar space), or 1x: the identity. Multiplayer uses the session mods’ shared minimums.
 // Offsets from a ship or an object (a chase or cutscene camera beside it, a formation slot, a muzzle), speeds and
 // ship-to-ship distances are never mapped. A distance from the station (the dock range, "near the station") maps with
 // Radius. See docs/notes/space-scene.md "Station scale".
@@ -27,7 +27,7 @@ namespace GoF2Remake.World
     {
         /// <summary>The scales the option offers (Settings.StationScale snaps to them).</summary>
         public static readonly float[] Choices = { 1f, 1.5f, 2f, 2.5f, 3f, 4f, 5f, 6f };
-        public const float Max = 6f;
+        public const float Max = Modding.ModPlayerInfrastructure.MaxStructureScale;
 
         /// <summary>The orbit whose map applies now: the flight level's (SpaceLevel) or the menu backdrop's (MenuBackground);
         /// null: none (the identity).</summary>
@@ -44,6 +44,7 @@ namespace GoF2Remake.World
 
         /// <summary>The station's scale in the current orbit (1: none).</summary>
         public static float Factor => Current != null ? Current.StationScale : 1f;
+        public static float JumpgateFactor => Current != null ? Current.JumpgateScale : 1f;
 
         /// <summary>The current orbit maps positions (a station, a scale above 1).</summary>
         public static bool Active => Current != null && Current.Scaled;

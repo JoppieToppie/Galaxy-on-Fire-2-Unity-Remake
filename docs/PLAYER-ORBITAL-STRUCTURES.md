@@ -6,6 +6,12 @@ An operational defense engages hostile ships within its configured range. Player
 
 Additional structures use the same construction, sponsorship and damage rules. They are physical installations with configurable models and integrity. A structure with `defense: false` has no weapon behavior. Structural weapons can destroy an operational structure and free its slot. Sponsor managers can dismantle a structure from Station Management. Dismantling does not refund materials.
 
+## Station and jumpgate size
+
+In **Mod Builder → Player-built stations & gates**, **Minimum station scale** and **Minimum jumpgate scale** accept multipliers from 1× to 6×. They export as `minimumStationScale` and `minimumJumpgateScale` in `playerInfrastructure.json`. The floors apply to stock and player-built models, including custom station and gate models. If multiple mods set a floor, the highest value applies for each setting. In solo play the existing station-scale option can raise the result. Modded multiplayer uses the session’s shared mod settings.
+
+Jumpgates continue to grow with the station scale where it applies. The jumpgate floor can increase a gate independently, including in an orbit without a station. Geometry, collision radius and jump approach range scale together.
+
 ## Defense maintenance
 
 Defense presets can require recurring materials. The first deadline starts when construction completes. While overdue, a defense stops firing and by default loses 1% of its maximum integrity per 24 hours of elapsed time. Decay stops at the preset’s integrity floor, which defaults to 15% of maximum integrity. A defense already below its floor takes no further maintenance decay. The defense occupies its slot and remains vulnerable to structural damage. Decay includes elapsed time while the server was offline. Open **Multiplayer → Orbit Projects** to deliver upkeep cargo or use eligible sponsor stock. Partial deliveries are saved. Completing all upkeep materials ends decay, restores firing eligibility and starts a fresh interval. Lost integrity stays lost. Maintenance cargo receives no faction payout.
