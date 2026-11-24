@@ -110,7 +110,7 @@ namespace GoF2Remake.Multiplayer
 
             int index = registry.stations.IndexOf(station);
             var originalRegistry = registry;
-            registry.stations[index] = site;
+            ReplaceStationRecord(originalRegistry, index, site);
             long payout = wasOperational ? StationCompensation(station) : 0;
             bool factionOwned = station.ownershipType == PlayerStationOwnershipType.Faction;
             string recipient = factionOwned ? station.ownerFactionId : station.ownerProfile;
@@ -127,7 +127,7 @@ namespace GoF2Remake.Multiplayer
             bool saved = validOrders && (credits.Count == 0 && banks.Count == 0 ? Save() : CommitProfileTransaction(null, credits, banks));
             if (!saved)
             {
-                if (ReferenceEquals(registry, originalRegistry)) registry.stations[index] = station;
+                if (ReferenceEquals(registry, originalRegistry)) ReplaceStationRecord(originalRegistry, index, station);
                 return false;
             }
 
@@ -269,10 +269,10 @@ namespace GoF2Remake.Multiplayer
 
             int index = registry.stations.IndexOf(wreck);
             var originalRegistry = registry;
-            registry.stations[index] = project;
+            ReplaceStationRecord(originalRegistry, index, project);
             if (!Save())
             {
-                if (ReferenceEquals(registry, originalRegistry)) registry.stations[index] = wreck;
+                if (ReferenceEquals(registry, originalRegistry)) ReplaceStationRecord(originalRegistry, index, wreck);
                 return "The reconstruction project could not be saved.";
             }
             wreckControl.Remove(id);
