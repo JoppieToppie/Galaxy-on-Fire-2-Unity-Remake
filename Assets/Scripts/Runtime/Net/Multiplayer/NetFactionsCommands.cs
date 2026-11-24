@@ -44,6 +44,8 @@ namespace GoF2Remake.Multiplayer
             if (cmd == "/f") return Talk(me, text.Trim().Length > 2 ? text.Trim().Substring(2).Trim() : "");
             string sub = words.Length > 1 ? words[1].ToLowerInvariant() : "info";
             string arg = words.Length > 2 ? words[2].Trim() : "";
+            if (NetPlayerStations.ProfileWritesBlocked && sub != "info" && sub != "list" && sub != "claims" && sub != "sieges")
+                return "Faction changes are paused while a station transaction is being recovered.";
             switch (sub)
             {
                 case "create": return Create(me, arg);
@@ -245,7 +247,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A member out of the faction (left, kicked, profile deleted); an emptied faction ends, a leaderless one passes on.</summary>
         static bool Remove(Faction faction, string account)
         {
-            if (faction == null || string.IsNullOrEmpty(account)) return false;
+            if (faction == null || string.IsNullOrEmpty(account) || NetPlayerStations.ProfileWritesBlocked) return false;
             if (faction.members.Count == 1 && NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
                 return false;
             if (!NetPlayerStations.PrepareFactionDeparture(account, faction.id, faction.members.Count == 1))
