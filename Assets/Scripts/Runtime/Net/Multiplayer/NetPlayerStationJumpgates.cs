@@ -922,7 +922,8 @@ namespace GoF2Remake.Multiplayer
         internal static int JumpgateDestinationForInteraction(NetPlayer by, int orbitStationIndex)
         {
             if (!NetGame.IsServer || !sessionActive || by == null || !by.IsSpawned ||
-                !by.InSpace || by.Station != orbitStationIndex || !CanUseJumpgate(by, orbitStationIndex)) return -1;
+                !by.InSpace || by.Hull <= 0f || by.Station != orbitStationIndex ||
+                !NetProfiles.Controls(by.OwnerClientId) || !CanUseJumpgate(by, orbitStationIndex)) return -1;
             var gate = FindJumpgate(orbitStationIndex);
             CompleteJumpgateIfDue(gate);
             return gate != null && !gate.building && !gate.scrapped && !gate.permanentlyDestroyed
