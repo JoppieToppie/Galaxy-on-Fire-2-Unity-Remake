@@ -986,10 +986,14 @@ namespace GoF2Remake.UI
                         pick.RegisterValueChangedCallback(_ =>
                         {
                             int index = pick.index - (unresolved ? 1 : 0);
-                            if (index >= 0 && index < choices.Count) { cost["item"] = choices[index].index; Sync(); }
+                            if (index < 0 || index >= choices.Count) return;
+                            int chosen = choices[index].index;
+                            if (costs.OfType<JObject>().Any(other => other != cost && (int?)other["item"] == chosen))
+                            { errorLabel.text = "A preset cannot repeat a material item."; RenderPresets(); return; }
+                            cost["item"] = chosen; Sync();
                         });
                         Int(line, "Units", (int?)cost["amount"] ?? 1, 1, 100000, value => { cost["amount"] = value; Sync(); });
-                        Act(line, "Remove material", () => { cost.Remove(); Sync(); RenderPresets(); });
+                        if (costs.Count > 1) Act(line, "Remove material", () => { cost.Remove(); Sync(); RenderPresets(); });
                     }
                     Act(parent, "+ Material", () =>
                     {
