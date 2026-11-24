@@ -396,6 +396,8 @@ namespace GoF2Remake.Multiplayer
             registry = null;
             path = null;
             nextDryDockRetryUtc = 0;
+            nextSlowStationTick = nextWreckClaimTick = 0f;
+            nextGateManagementUpdate = 0;
             ResetWreckControl();
             nextTransactionRetryUtc = 0;
             persistenceFaulted = false;
@@ -621,7 +623,34 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Find a station by its persistent server-assigned id.</summary>
-        public static PlayerStationRecord Find(int id) => registry?.stations.Find(s => s != null && s.id == id);
+        static Registry indexedRegistry;
+        static int indexedStationCount = -1;
+        static readonly Dictionary<int, PlayerStationRecord> stationsById = new Dictionary<int, PlayerStationRecord>();
+        static readonly Dictionary<int, PlayerStationRecord> stationsByOrbit = new Dictionary<int, PlayerStationRecord>();
+
+        static void EnsureStationIndex()
+        {
+            int count = registry?.stations?.Count ?? 0;
+            if (ReferenceEquals(indexedRegistry, registry) && indexedStationCount == count) return;
+            stationsById.Clear();
+            stationsByOrbit.Clear();
+            indexedRegistry = registry;
+            indexedStationCount = count;
+            if (registry?.stations == null) return;
+            foreach (var station in registry.stations)
+            {
+                if (station == null) continue;
+                // Preserve the first-match semantics of the original list lookup.
+                if (!stationsById.ContainsKey(station.id)) stationsById.Add(station.id, station);
+                if (!stationsByOrbit.ContainsKey(station.stationIndex)) stationsByOrbit.Add(station.stationIndex, station);
+            }
+        }
+
+        public static PlayerStationRecord Find(int id)
+        {
+            EnsureStationIndex();
+            return stationsById.TryGetValue(id, out var station) ? station : null;
+        }
 
         /// <summary>Show the persistent state and construction progress of one player station.</summary>
         internal static string Status(NetPlayer by, int id)
@@ -685,25 +714,24 @@ namespace GoF2Remake.Multiplayer
         internal static int LooksLike(int stationIndex)
         {
             if (!sessionActive || registry?.stations == null) return -1;
-            foreach (var station in registry.stations)
-                if (station != null && station.stationIndex == stationIndex) return StationModelIndex(station);
-            return -1;
+            var station = StationAt(stationIndex);
+            return station != null ? StationModelIndex(station) : -1;
         }
 
         internal static bool IsPlayerStation(int stationIndex) =>
-            sessionActive && registry?.stations?.Exists(s => s != null && s.stationIndex == stationIndex) == true;
+            sessionActive && StationAt(stationIndex) != null;
 
         /// <summary>Whether an existing station index belongs to a completed player station with an installed dry dock.</summary>
         internal static bool HasDryDockAtStation(int stationIndex)
         {
             if (!sessionActive || registry?.stations == null) return false;
-            var station = registry.stations.Find(s => s != null && s.stationIndex == stationIndex);
+            var station = StationAt(stationIndex);
             return station != null && station.offeredForClaimUtc == 0 && !station.underConstruction && !StationClosedByCombat(stationIndex) &&
                 (station.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
         }
 
         internal static bool UnderConstruction(int stationIndex) =>
-            registry?.stations?.Find(s => s != null && s.stationIndex == stationIndex)?.underConstruction == true;
+            StationAt(stationIndex)?.underConstruction == true;
 
         static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record)
         {
@@ -959,9 +987,11 @@ namespace GoF2Remake.Multiplayer
             RecordHistory(record, owner, "station-construction-started", null,
                 "Original builder established the station project.");
             registry.stations.Add(record);
+            indexedStationCount = -1;
             if (!Save())
             {
                 registry.stations.Remove(record);
+                indexedStationCount = -1;
                 registry.nextId--;
                 return "The construction plan could not be saved.";
             }
@@ -978,6 +1008,10 @@ namespace GoF2Remake.Multiplayer
             registry = null;
             path = null;
             sessionActive = false;
+            indexedRegistry = null;
+            indexedStationCount = -1;
+            stationsById.Clear();
+            stationsByOrbit.Clear();
             nextTransactionRetryUtc = 0;
             ResetWreckControl();
         }
