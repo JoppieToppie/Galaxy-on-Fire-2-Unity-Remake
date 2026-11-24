@@ -17,6 +17,15 @@ namespace GoF2Remake.Tests
         public void ForgetOrbit() => OrbitScale.Use(null);
 
         [Test]
+        public void ConstructionDoesNotTreatOccupiedOrWreckedOrbitsAsVacant()
+        {
+            Assert.IsFalse(OrbitLayout.VacantStationSite(Session.VoidOrbit, 20));
+            Assert.IsFalse(OrbitLayout.VacantStationSite(41, 20));
+            Assert.IsFalse(OrbitLayout.VacantStationSite(110, 20));
+            Assert.IsTrue(OrbitLayout.VacantStationSite(102, 20));
+        }
+
+        [Test]
         public void TheMapScalesInsideTheReachAndShiftsBeyond()
         {
             const float f = 4f, r = 40000f;
