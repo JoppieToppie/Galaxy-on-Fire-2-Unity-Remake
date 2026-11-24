@@ -153,7 +153,13 @@ namespace GoF2Remake.UI
                 }
             });
             UpdatePortraits();
-            scroll.RegisterCallback<FocusInEvent>(evt => { if (evt.target is VisualElement element && scroll.Contains(element)) scroll.ScrollTo(element); });
+            scroll.RegisterCallback<FocusInEvent>(evt =>
+            {
+                // The scrollbar and other ScrollView controls can also receive focus.
+                var content = scroll.contentContainer;
+                if (evt.target is VisualElement element && element != content && content.Contains(element))
+                    scroll.ScrollTo(element);
+            });
             identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => { evt.StopPropagation(); });
             identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
             identityRacePicker.Focus();
