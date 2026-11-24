@@ -335,10 +335,10 @@ namespace GoF2Remake.Multiplayer
         }
         [Serializable] internal sealed class MarketUiCatalogue
         {
-            public int stationId;
+            public int stationId, page, pageCount;
             public List<MarketUiRow> rows = new List<MarketUiRow>();
         }
-        internal static MarketUiCatalogue MarketCatalogueFor(NetPlayer pilot, int stationId)
+        internal static MarketUiCatalogue MarketCatalogueFor(NetPlayer pilot, int stationId, int page)
         {
             var result = new MarketUiCatalogue { stationId = stationId };
             var station = Find(stationId);
@@ -353,6 +353,11 @@ namespace GoF2Remake.Multiplayer
                     if (listing?.hull != null && listing.id > 0)
                         result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
                             price = listing.price, hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+            const int pageSize = 64;
+            result.pageCount = Math.Max(1, (result.rows.Count + pageSize - 1) / pageSize);
+            result.page = Math.Clamp(page, 0, result.pageCount - 1);
+            int start = result.page * pageSize;
+            result.rows = result.rows.GetRange(start, Math.Min(pageSize, result.rows.Count - start));
             return result;
         }
 
