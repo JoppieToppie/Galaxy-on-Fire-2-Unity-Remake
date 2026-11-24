@@ -683,6 +683,67 @@ namespace GoF2Remake.Multiplayer
             return Write(ProfilePath(id), JsonUtility.ToJson(save, false));
         }
 
+        /// <summary>Apply one journal account's absolute targets in a single durable profile write.</summary>
+        internal static bool ApplyStationProfileTargets(string id, Dictionary<int, int> cargo, long? credits, List<StoredShip> ships)
+        {
+            if (string.IsNullOrEmpty(id) || (credits.HasValue && credits.Value < 0)) return false;
+            if (ships != null && (ships.Count > 100 || ships.Exists(x => x == null || x.ship < 0))) return false;
+            foreach (var pair in cargo)
+                if (pair.Key < 0 || pair.Value < 0 || NetGame.Db?.Item(pair.Key) == null) return false;
+
+            bool host = false;
+            foreach (var login in logins.Values)
+                if (login.account != null && login.account.id == id && IsHostClient(login.client))
+                { host = true; break; }
+            var save = ReadSave(id);
+            if (save == null && host)
+            {
+                try { save = JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()); }
+                catch (Exception e) { Debug.LogError($"NetProfiles: could not seed station profile: {e.Message}"); }
+            }
+            if (save == null) return false;
+            save.cargo ??= new List<ItemStack>();
+            foreach (var pair in cargo)
+            {
+                var stack = save.cargo.Find(x => x != null && x.item == pair.Key);
+                if (stack == null && pair.Value > 0) save.cargo.Add(new ItemStack(pair.Key, pair.Value));
+                else if (stack != null)
+                {
+                    stack.amount = pair.Value;
+                    if (pair.Value == 0) save.cargo.Remove(stack);
+                }
+            }
+            if (credits.HasValue) save.credits = credits.Value;
+            if (ships != null) save.kaamoShips = new List<StoredShip>(ships);
+            if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
+
+            if (host)
+            {
+                foreach (var pair in cargo)
+                {
+                    int before = Shop.CargoOf(pair.Key);
+                    if (before < pair.Value) Shop.AddToCargo(pair.Key, pair.Value - before);
+                    else if (before > pair.Value) Shop.RemoveFromCargo(pair.Key, before - pair.Value);
+                }
+                if (credits.HasValue) Session.Credits = credits.Value;
+                if (ships != null)
+                {
+                    Session.KaamoShips ??= new List<StoredShip>();
+                    Session.KaamoShips.Clear();
+                    Session.KaamoShips.AddRange(ships);
+                }
+                if (cargo.Count > 0) GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+            }
+            // Recompute from the durable target, rather than applying a delta twice on replay.
+            var account = index?.accounts.Find(x => x.id == id);
+            if (account != null)
+            {
+                account.worth = Worth(save);
+                SaveIndex();
+            }
+            return true;
+        }
+
         /// <summary>Replace a profile's complete stored-hull list with an absolute target for journal replay.</summary>
         internal static bool SetStoredShips(string id, List<StoredShip> ships)
         {
