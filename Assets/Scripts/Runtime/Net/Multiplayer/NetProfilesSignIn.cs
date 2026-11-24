@@ -272,6 +272,11 @@ namespace GoF2Remake.Multiplayer
             var account = login.account;
             bool handing = handovers.TryGetValue(account.id, out var handover) && handover.from == client;
             if (!login.controller && !handing) return;   // observers don't write
+            if (NetPlayerStations.ProfileWritesBlocked)
+            {
+                Reject(login, "a station transaction is awaiting durable recovery; retry after recovery completes");
+                return;
+            }
             if (acceptedSequence != 0 && acceptedSequence <= login.lastAcceptedUploadSequence) return;
             float now = Time.realtimeSinceStartup;
             if (!SaveGame.TryParse(json, NetGame.Db, out var save, out string problem))
