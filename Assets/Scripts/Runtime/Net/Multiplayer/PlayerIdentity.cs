@@ -13,6 +13,12 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanChoose(string savedRace, string savedPortrait, string race) =>
             !IsComplete(savedRace, savedPortrait) && (string.IsNullOrEmpty(savedRace) || string.Equals(savedRace, race, StringComparison.Ordinal));
 
+        // Void and Specters remain valid world/policy races, but cannot be chosen by players.
+        internal static bool IsSelectableRace(int race) => race != 9 && race != 10;
+
+        internal static bool TryResolveSelectableRace(string key, out int race) =>
+            TryResolveRace(key, out race) && IsSelectableRace(race);
+
         internal static string RaceKey(int race) => ModRaces.Is(race)
             ? ModRaces.Get(race)?.key : race.ToString(CultureInfo.InvariantCulture);
 
