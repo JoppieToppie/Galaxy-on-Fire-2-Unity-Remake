@@ -62,21 +62,21 @@ namespace GoF2Remake.UI
         readonly Dictionary<OptionGroup, List<OptionDef>> groupOptions = new Dictionary<OptionGroup, List<OptionDef>>();
         readonly List<OptionDef> rows = new List<OptionDef>();   // every row of the section: its heading hides with them
         public readonly VisualElement Body;
-        public readonly VisualElement Preset;
+
         public OptionSectionBlock(VisualElement parent, OptionSection section, Action<Action> requestAccess, bool focusable, Action<Action> requestDebugAccess = null)
         {
             this.section = section;
             this.requestAccess = requestAccess;
             this.requestDebugAccess = requestDebugAccess ?? requestAccess;
             heading = new Label { pickingMode = PickingMode.Ignore };
-            if (section == OptionSection.GameRules) Preset = new VisualElement();
+
 
             heading.AddToClassList("options-section-title");
             heading.AddToClassList("gof-semibold");
             Body = new VisualElement();
             Body.AddToClassList("options-section-body");
-            parent.Add(heading);
-            if (Preset != null) parent.Add(Preset);
+            if (section != OptionSection.GameRules) parent.Add(heading);
+
             parent.Add(Body);
             Refresh();
         }
@@ -92,12 +92,6 @@ namespace GoF2Remake.UI
                     requestDebugAccess?.Invoke(() => { set(true); OptionControl.RefreshShown(); });
                     OptionControl.RefreshShown();
                 };
-            }
-            if (def.id == "gameplayExperience" || def.id == "difficulty")
-            {
-                if (def.id == "gameplayExperience") def.customRulesRequested = Open;
-                Preset.Add(row);
-                return;
             }
             rows.Add(def);
             if (def.group == OptionGroup.None) { Body.Add(row); RefreshGroups(); return; }

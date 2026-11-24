@@ -21,6 +21,11 @@ namespace GoF2Remake.Tests
             foreach (var row in rows)
             {
                 Assert.IsTrue(OptionsCatalog.HasExplicitOrganization(row.id), row.id + " needs an explicit layout decision");
+                if (row.id == "cosmeticExperience" || row.id == "gameplayExperience" || row.id == "difficulty")
+                {
+                    Assert.AreEqual(OptionSection.None, row.section, row.id);
+                    continue;
+                }
                 Assert.AreNotEqual(OptionSection.None, row.section, row.id);
                 if (row.page == OptionPage.Cosmetics) Assert.AreEqual(OptionGroup.None, row.group, row.id);
                 if (row.page == OptionPage.Gameplay && row.section != OptionSection.Tools && row.section != OptionSection.Mods)
@@ -78,7 +83,7 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(all.Any(o => o.group == OptionGroup.Custom && !o.id.StartsWith("mod:")),
                 "Custom-only policy is independent of a built-in option's functional location");
             var rules = all.Where(o => o.section == OptionSection.GameRules).ToArray();
-            Assert.AreEqual("gameplayExperience", rules[0].id);
+            CollectionAssert.AreEqual(new[] { "gameplayExperience", "difficulty" }, all.Where(o => o.page == OptionPage.Gameplay).Take(2).Select(o => o.id));
             Assert.IsFalse(rules.Any(o => o.id == "debugTools"));
             Assert.AreEqual(OptionGroup.None, all.Single(o => o.id == "difficulty").group);
             Assert.AreEqual(OptionGroup.Missions, all.Single(o => o.id == "modShipTraffic").group);
@@ -140,17 +145,14 @@ namespace GoF2Remake.Tests
                 bool pirates = Settings.PirateEvents;
                 Action accept = null;
                 var block = new OptionSectionBlock(new VisualElement(), OptionSection.GameRules, a => accept = a, false);
-                var preset = new OptionDef { id = "gameplayExperience" };
-                var presetRow = new VisualElement();
-                block.Add(preset, presetRow);
                 var ruleRow = new VisualElement();
                 block.Add(new OptionDef { id = "pirateEvents", group = OptionGroup.World }, ruleRow);
-                Assert.AreSame(block.Preset, presetRow.parent);
+                Assert.AreEqual(1, block.Body.parent.childCount);
                 Assert.IsTrue(block.Body.Contains(ruleRow));
                 Assert.AreEqual(1, block.Body.Query<Label>(className: "options-group-title").ToList().Count);
                 Assert.AreNotEqual(DisplayStyle.None, block.Body.style.display.value, "the rules show without a gate (2026-11-20)");
                 Assert.AreEqual(1, Settings.CurrentScopedExperience(false));
-                preset.customRulesRequested();
+                OptionsCatalog.All().Single(o => o.id == "gameplayExperience").setIndex(2);
                 Assert.IsNull(accept, "no consent is asked");
                 Assert.AreEqual(2, Settings.CurrentScopedExperience(false));
                 Assert.AreEqual(pirates, Settings.PirateEvents, "picking Custom applies no rule");
