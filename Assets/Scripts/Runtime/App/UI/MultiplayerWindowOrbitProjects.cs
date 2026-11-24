@@ -128,7 +128,10 @@ namespace GoF2Remake.UI
                         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                         if (structure.MaintenanceDue(now))
                         {
-                            body.Add(Text("Offline · maintenance due · integrity slowly decaying", 16, Dim));
+                            string status = structure.integrity > 1f
+                                ? "Offline · maintenance due · integrity slowly decaying"
+                                : "Offline · maintenance due";
+                            body.Add(Text(status, 16, Dim));
                             BuildOrbitalDelivery(structure, true);
                         }
                         else
