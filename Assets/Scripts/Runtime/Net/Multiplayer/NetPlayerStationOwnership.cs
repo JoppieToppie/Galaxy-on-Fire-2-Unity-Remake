@@ -168,7 +168,7 @@ namespace GoF2Remake.Multiplayer
             if (!CanManage(by, record, out string account) || !IsOwnershipAuthority(record, account))
                 return "Only the individual owner or owning faction leader can propose a station transfer while docked there.";
             targetKind = (targetKind ?? "").Trim().ToLowerInvariant();
-            targetAccount = NetProfiles.FindAccount((targetAccount ?? "").Trim());
+            targetAccount = ResolveStationAccount(targetAccount);
             if (targetKind != "player" && targetKind != "faction")
                 return "Choose a recipient type: player or faction.";
             if (string.IsNullOrEmpty(targetAccount)) return "Supply the receiving player's or faction leader's profile account ID.";
