@@ -67,6 +67,8 @@ namespace GoF2Remake.Multiplayer
         public string accessFactionId;
         public PlayerJumpgateAccessMode accessMode = PlayerJumpgateAccessMode.Everyone;
         public List<PlayerJumpgateBlockEntry> blacklist = new List<PlayerJumpgateBlockEntry>();
+        public List<StationRaceAccessRule> raceAccess;
+        public List<string> raceAccessExemptions;
         public bool building;
         // First destruction moves the gate into recoverable scrap. The second destroys it permanently
         // and drops 25% of the original build materials; subsequent rebuilding requires a station order.
@@ -94,6 +96,8 @@ namespace GoF2Remake.Multiplayer
             visible.ownerName = null;
             visible.constructionIssuerProfile = null;
             visible.blacklist = null;
+            visible.raceAccess = null;
+            visible.raceAccessExemptions = null;
             visible.contributions = null;
             return visible;
         }

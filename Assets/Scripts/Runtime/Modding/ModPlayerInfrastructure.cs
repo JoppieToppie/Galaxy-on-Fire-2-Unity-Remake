@@ -17,6 +17,8 @@ namespace GoF2Remake.Modding
 
         public bool Enabled { get; private set; } = true;
         public bool JumpgatesEnabled { get; private set; } = true;
+        public bool JumpgateRacePoliciesEnabled { get; private set; }
+        public bool JumpgateRaceExemptionsEnabled { get; private set; }
         internal bool RestrictStationModels { get; private set; }
         public bool IncludeStockStations { get; private set; } = true;
         public bool IncludeStockJumpgates { get; private set; } = true;
@@ -128,6 +130,10 @@ namespace GoF2Remake.Modding
                 RestrictStationModels = true,
                 Enabled = ReadToggle(settings, "enabled"),
                 JumpgatesEnabled = ReadToggle(settings, "jumpgatesEnabled"),
+                JumpgateRacePoliciesEnabled = settings["jumpgateRacePoliciesEnabled"] != null &&
+                    ReadToggle(settings, "jumpgateRacePoliciesEnabled"),
+                JumpgateRaceExemptionsEnabled = settings["jumpgateRaceExemptionsEnabled"] != null &&
+                    ReadToggle(settings, "jumpgateRaceExemptionsEnabled"),
                 IncludeStockStations = ReadToggle(settings, "includeStockStations"),
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,

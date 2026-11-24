@@ -217,6 +217,7 @@ namespace GoF2Remake.Multiplayer
                     if (blocked.type == PlayerJumpgateBlockType.Faction &&
                         string.Equals(blocked.id, factionId, StringComparison.Ordinal)) return false;
                 }
+            if (!AllowsJumpgateRace(gate, account)) return false;
             return gate.accessMode != PlayerJumpgateAccessMode.OwningFaction ||
                 (!string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.accessFactionId, StringComparison.Ordinal));
         }
@@ -1088,6 +1089,8 @@ namespace GoF2Remake.Multiplayer
             gate.accessFactionId = faction?.id;
             gate.accessMode = PlayerJumpgateAccessMode.Everyone;
             gate.blacklist = new List<PlayerJumpgateBlockEntry>();
+            gate.raceAccess = null;
+            gate.raceAccessExemptions = null;
             gate.destinationChangedUtc = 0;
             gate.destinationSystem = newDestination;
             if (modelPreset > 0)

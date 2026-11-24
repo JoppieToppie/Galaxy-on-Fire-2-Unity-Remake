@@ -157,6 +157,7 @@ namespace GoF2Remake.Multiplayer
         [Serializable]
         public class Faction
         {
+            public List<StationRaceAccessRule> jumpgateRaceAccess;
             public string id, name, tag, leader, created;
             public List<string> officers = new List<string>(), members = new List<string>();   // members include everyone
             public long bank;
@@ -260,7 +261,7 @@ namespace GoF2Remake.Multiplayer
             PublishClaims();
         }
 
-        static void Save() { if (list != null) NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true)); }
+        static bool Save() => list != null && NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true));
 
         /// <summary>Find a faction by its stable ID, null = unknown.</summary>
         public static Faction FindById(string id) => string.IsNullOrEmpty(id) || list == null

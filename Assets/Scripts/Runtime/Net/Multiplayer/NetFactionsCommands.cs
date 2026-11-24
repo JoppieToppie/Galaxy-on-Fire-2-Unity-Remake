@@ -69,13 +69,31 @@ namespace GoF2Remake.Multiplayer
                 case "sieges": return SiegesText();
                 case "garrison": return SetGarrison(client, me, arg);
                 case "vat": return SetVat(client, me, arg);
+                case "gate-race": return NetProfiles.Controls(client) ?
+                    SetFactionJumpgateRace(me, arg) : "Take profile control before editing faction policy.";
                 default:
                     return Localization.Extra("mpFactionHelp", "Faction commands: /faction create TAG Name, invite <pilot>, join TAG, leave, kick <pilot>, " +
                                                             "promote / demote <pilot>, leader <pilot>, disband, info [TAG], list; deposit N, withdraw N; " +
                                                             "claim, unclaim, home, claims [TAG] (docked at the station); garrison <ships> <level> [station]; vat <0-20> [station]; siege (in another faction's orbit), sieges; " +
-                                                            "/f <text> talks to your faction.");
+                                                            "gate-race <race> <inherit|allow|deny> sets race defaults for faction-owned jumpgates. /f <text> talks to your faction.");
             }
         }
+        static string SetFactionJumpgateRace(string account, string arg)
+        {
+            if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.JumpgateRacePoliciesEnabled)
+                return "Jumpgate race policies are disabled.";
+            var faction = Of(account);
+            if (faction == null || faction.leader != account)
+                return "Only the faction leader can change faction jumpgate race defaults.";
+            if (!NetPlayerStations.TryReadRaceAccess(arg, out string race, out var state))
+                return "/faction gate-race <race> <inherit|allow|deny>";
+            var previous = faction.jumpgateRaceAccess;
+            faction.jumpgateRaceAccess = NetPlayerStations.WithRaceAccess(previous, race, state);
+            if (Save()) return "Faction jumpgate race default saved.";
+            faction.jumpgateRaceAccess = previous;
+            return "The faction jumpgate race default could not be saved.";
+        }
+
         static string Create(string me, string arg)
         {
             if (Of(me) != null) return Localization.Extra("mpFactionAlready", "You are in a faction already: /faction leave first.");

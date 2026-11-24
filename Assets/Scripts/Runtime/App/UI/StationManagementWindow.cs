@@ -635,6 +635,30 @@ namespace GoF2Remake.UI
                         Send("/station jumpgate-blacklist " + orbitId + " add " + Value(typeKey) + " " + Value(targetKey)));
                     AddAction("Remove from gate blacklist", () =>
                         Send("/station jumpgate-blacklist " + orbitId + " remove " + Value(typeKey) + " " + Value(targetKey)));
+                    if (Modding.ModPlayerInfrastructure.Current.JumpgateRacePoliciesEnabled)
+                    {
+                        string raceKey = "gateRace_" + orbitId;
+                        string raceStateKey = "gateRaceState_" + orbitId;
+                        AddField(raceKey, "Race · name or qualified mod ID", "");
+                        AddChoice(raceStateKey, "Race access", new List<(string, string)>
+                        {
+                            ("inherit", "Inherit faction policy"),
+                            ("allow", "Allow under race policy"),
+                            ("deny", "Deny under race policy")
+                        });
+                        AddAction("Apply gate race rule", () =>
+                            Send("/station jumpgate-race " + orbitId + " " + Value(raceKey) + " " + Value(raceStateKey)));
+                        AddAction("View gate and faction race rules", () => Send("/station jumpgate-race " + orbitId));
+                        if (Modding.ModPlayerInfrastructure.Current.JumpgateRaceExemptionsEnabled)
+                        {
+                            string exemptionKey = "gateRaceExemption_" + orbitId;
+                            AddAccountField(exemptionKey, "Race exemption target");
+                            AddAction("Grant gate race exemption", () =>
+                                Send("/station jumpgate-race " + orbitId + " exempt add " + Value(exemptionKey)));
+                            AddAction("Revoke gate race exemption", () =>
+                                Send("/station jumpgate-race " + orbitId + " exempt remove " + Value(exemptionKey)));
+                        }
+                    }
                 }
                 if (gate.scrapped || gate.permanentlyDestroyed)
                 {

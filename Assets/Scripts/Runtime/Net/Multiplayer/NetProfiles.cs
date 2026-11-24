@@ -68,6 +68,7 @@ namespace GoF2Remake.Multiplayer
         class Account
         {
             public string id, name, squad, created, lastSeen;
+            public string stationPolicyRace;
             public List<Device> devices = new List<Device>();
             public long worth;     // at the last accepted upload (Worth)
             public float playSeconds;
@@ -889,6 +890,21 @@ namespace GoF2Remake.Multiplayer
         static string ProfilePath(string id) => Path.Combine(folder, id + ".json");
 
         // ---- files and helpers ------------------------------------------------------------------------------
+
+        internal static string StationPolicyRaceOf(string id) => string.IsNullOrEmpty(id)
+            ? null : index?.accounts.Find(account => account != null && account.id == id)?.stationPolicyRace;
+
+        internal static bool TrySetStationPolicyRace(string id, string race)
+        {
+            if (!NetGame.IsServer || string.IsNullOrEmpty(id)) return false;
+            var account = index?.accounts.Find(entry => entry != null && entry.id == id);
+            if (account == null) return false;
+            string previous = account.stationPolicyRace;
+            account.stationPolicyRace = race;
+            if (Write(IndexPath, JsonUtility.ToJson(index, true))) return true;
+            account.stationPolicyRace = previous;
+            return false;
+        }
 
         static void SaveIndex()
         {
