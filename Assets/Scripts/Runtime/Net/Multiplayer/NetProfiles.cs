@@ -731,7 +731,11 @@ namespace GoF2Remake.Multiplayer
                     if (before < pair.Value) Shop.AddToCargo(pair.Key, pair.Value - before);
                     else if (before > pair.Value) Shop.RemoveFromCargo(pair.Key, before - pair.Value);
                 }
-                if (credits.HasValue) Session.Credits = credits.Value;
+                if (credits.HasValue)
+                {
+                    Session.Credits = credits.Value;
+                    GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+                }
                 if (ships != null)
                 {
                     Session.KaamoShips ??= new List<StoredShip>();
