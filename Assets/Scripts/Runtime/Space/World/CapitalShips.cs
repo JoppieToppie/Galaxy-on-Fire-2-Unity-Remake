@@ -261,7 +261,8 @@ namespace GoF2Remake.World
         internal static List<ItemData> GearPool(Database db) =>
             db.Items.FindAll(it => it.maxPrice > 0 && it.blueprint.Count == 0 && it.TypeId <= 3 && it.techLevel >= 5 && it.occurrence > 0
                                    && Hangar.IsSaleable(it.index) && !Modding.ModContent.IsMissingItem(it.index)
-                                   && Modding.ModUnlocks.ItemAvailable(it.index) && !Shop.NotInSession(db, it.index));
+                                   && Modding.ModUnlocks.ItemAvailable(it.index) && !Shop.NotInSession(db, it.index)
+                                    && Modding.ModContent.ItemAvailableFor(it.index, "loot") && Modding.ModContent.ItemAvailableFor(it.index, "npcCargo"));
 
         /// <summary>'amount' of 'item' into 'list', on its stack when it has one (a crate per kind: NpcShip.DropCrate).</summary>
         public static void Add(List<ItemStack> list, int item, int amount)

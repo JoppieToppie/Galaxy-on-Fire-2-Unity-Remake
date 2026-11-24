@@ -67,6 +67,9 @@ namespace GoF2Remake.UI
         Button hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, launchButton, dialogYes, dialogNo;
         Button customizeButton;   // remake mods: a customizable ship's Customize screen (ShipCustomizePanel)
         StatusWindow status;
+        DryDockWindow dryDock;
+        internal void OpenPlayerDryDock() => dryDock?.Open();
+        StationManagementWindow stationManagement;
         LoungePanel lounge;
         bool safeAreaHidden;
         MissionsWindow missions;
@@ -121,6 +124,8 @@ namespace GoF2Remake.UI
             InputMode.Changed -= ApplyInputMode;
             Localization.Changed -= RefreshTexts;
             if (level != null) level.ViewChanged -= OnViewChanged;
+            dryDock?.Dispose();
+            stationManagement?.Dispose();
         }
 
         void OnApplicationFocus(bool focused)
@@ -199,6 +204,10 @@ namespace GoF2Remake.UI
             SetupTicker();
             missions = new MissionsWindow(this, level, root);
             status = new StatusWindow(this, level, root);
+            dryDock?.Dispose();
+            dryDock = new DryDockWindow(this, level, root);
+            stationManagement?.Dispose();
+            stationManagement = new StationManagementWindow(this, level, root);
             root.Q("storyDialogue").pickingMode = PickingMode.Ignore;
             if (voiceSource == null)
             {
@@ -506,6 +515,8 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (root == null || level == null) return;
+            dryDock?.Update();
+            stationManagement?.Update();
             // The layout first: the Mod Builder's screen below shares this panel and its scale.
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
             if (builderView != null) { builderView.Update(); return; }   // the Mod Builder's hangar
@@ -616,7 +627,7 @@ namespace GoF2Remake.UI
             // laid out a frame after it appears (a focus set before that doesn't take), so it is tried again until it
             // lands; Select itself does nothing while the mouse is the one in use.
             bool popupNow = SquadView.PopupOpen;
-            bool canFocusPopup = !HangarOpen && !DialogOpen && !SystemMenuOpen && !MultiplayerWindow.IsOpenAny
+            bool canFocusPopup = !HangarOpen && !DialogOpen && !SystemMenuOpen && !MultiplayerWindow.IsOpenAny && !(dryDock != null && dryDock.IsOpen) && !(stationManagement != null && stationManagement.IsOpen)
                                  && InputMode.Current != InputKind.Touch && !InputMode.MousePointing;
             if (popupNow != squadPopupShown)
             {
@@ -640,6 +651,16 @@ namespace GoF2Remake.UI
             if ((kb != null && kb.escapeKey.wasPressedThisFrame) || (pad != null && pad.buttonEast.wasPressedThisFrame)) { Back(); return; }
             if (infoWindow != null && infoWindow.IsOpen) { infoWindow.Tick(); return; }   // it takes all input
             if (MultiplayerWindow.IsOpenAny) return;   // the faction window's buttons and text fields take the input
+            if (dryDock != null && dryDock.IsOpen) return; // the dry-dock panel owns its navigation while open
+            if (stationManagement?.IsOpen == true)
+            {
+                if (root.focusController?.focusedElement == null && MenuFocus.NavPressed(pad, kb))
+                {
+                    SetTouchMode(false);
+                    stationManagement.FocusFirst();
+                }
+                return;
+            }
             if (pad != null && pad.startButton.wasPressedThisFrame && !DialogOpen)
             {
                 Play(buttonRelease);
@@ -658,7 +679,9 @@ namespace GoF2Remake.UI
                 && (InputMode.Current == InputKind.Gamepad || MenuFocus.NavPressed(pad, kb)))
             {
                 SetTouchMode(false);
-                var target = missions != null && missions.IsOpen ? MenuFocus.First(missions.NavItems())
+                var target = stationManagement != null && stationManagement.IsOpen ? MenuFocus.First(stationManagement.NavItems())
+                            : dryDock != null && dryDock.IsOpen ? MenuFocus.First(dryDock.NavItems())
+                           : missions != null && missions.IsOpen ? MenuFocus.First(missions.NavItems())
                            : status != null && status.IsOpen ? MenuFocus.First(status.NavItems())
                            : lounge != null && lounge.ChatOpen ? MenuFocus.First(lounge.NavItems())
                            : DefaultFocus();

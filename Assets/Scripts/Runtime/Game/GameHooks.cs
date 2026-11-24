@@ -86,6 +86,13 @@ namespace GoF2Remake.Data
         /// false = no session, the player's own option.</summary>
         public static NumberQuery SessionFlightStyle;
 
+        // ---- opt-in mod jump drives and dynamic jumpgate lifecycles -----------------------------------------------
+
+        /// <summary>Whether a listed jumpgate connection is presently usable (EMP, destruction, scrapping).
+        /// Null means the game's static galaxy links are operational, preserving vanilla behaviour.
+        /// A station/gate lifecycle implementation can supply this per directed system link.</summary>
+        public static Func<int, int, bool> JumpgateLinkOperational;
+
         // ---- the co-op campaign (NetCoop; CoopCampaign) -------------------------------------------------------------
 
         /// <summary>The session is a co-op campaign (NetState's flag); unset: no.</summary>

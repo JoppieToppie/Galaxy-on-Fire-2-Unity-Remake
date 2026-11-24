@@ -212,11 +212,23 @@ namespace GoF2Remake.Data
 
         /// <summary>Base cargo (+30 with mod 1, Ship::refreshValue, before compression) + (int)(base * sum of mounted
         /// compression (attr 22, category 12) % / 100).</summary>
-        public static int MaxLoad(Database db)
+        public static int MaxLoad(Database db) =>
+            CargoCapacity(db, Modding.KitRules.Cargo(db.Ship(Session.ShipIndex), 0), Session.ModLevel(1), Session.Equipment);
+
+        public static int CargoCapacity(Database db, int hullCargo, int upgradeLevel, IReadOnlyList<ItemStack> equipment)
         {
-            int b = Modding.KitRules.Cargo(db.Ship(Session.ShipIndex), 0) + 30 * Session.ModLevel(1), pct = 0;   // a kit ship's build too
-            foreach (var e in Session.Equipment) { var it = db.Item(e.item); if (it != null && it.categoryId == 12) pct += it.Attr(22); }
-            return b + (int)(b * pct / 100f);
+            long basis = Math.Max(0, hullCargo) + 30L * Math.Max(0, upgradeLevel);
+            long compression = 0;
+            if (equipment != null)
+                foreach (var stack in equipment)
+                {
+                    if (stack == null) continue;
+                    var item = db.Item(stack.item);
+                    if (item != null && item.categoryId == 12) compression += item.Attr(22);
+                }
+
+            double capacity = basis + Math.Truncate(basis * (double)compression / 100);
+            return (int)Math.Clamp(capacity, 0, int.MaxValue);
         }
 
         public static int FreeCargo(Database db) => MaxLoad(db) - CargoLoad();
@@ -375,6 +387,9 @@ namespace GoF2Remake.Data
             if (KaamoClub.StorageAt(station)) stock.items = Session.KaamoItems;
             Freelance.OnEnterStation(stock);
             GameHooks.StockEntered?.Invoke(stock);   // multiplayer: the stock everyone shares replaces it
+            // Filter after shared stock substitution too, not only locally generated stock.
+            if (!KaamoClub.StorageAt(station))  // the club's inventory is the player's own storage, not shop stock
+                stock.items?.RemoveAll(row => !Modding.ModContent.ItemAvailableFor(row.item, "shops"));
             return stock;
         }
 
@@ -384,7 +399,7 @@ namespace GoF2Remake.Data
         {
             var list = GenerateItemsOriginal(db, station);
             list.RemoveAll(s => !Modding.ModCampaigns.ItemAllowed(db, s.item) || !Modding.ModUnlocks.ItemAvailable(s.item)
-                                || NotInSession(db, s.item));
+                                || !Modding.ModContent.ItemAvailableFor(s.item, "shops") || NotInSession(db, s.item));
             return list;
         }
 

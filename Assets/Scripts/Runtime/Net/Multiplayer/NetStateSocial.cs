@@ -409,6 +409,25 @@ namespace GoF2Remake.Multiplayer
         [Rpc(SendTo.Server)]
         public void UploadChunkRpc(int seq, int part, int count, byte[] data, RpcParams rpc = default)
             => NetProfiles.OnUploadChunk(rpc.Receive.SenderClientId, seq, part, count, data);
+        // Keep this request on the same reliable network object as UploadChunkRpc.
+        [Rpc(SendTo.Server)]
+        public void RequestWreckSalvageRpc(int orbit, int room, bool jumpgate, int uploadSequence, RpcParams rpc = default)
+        {
+            if (!IsServer) return;
+            ulong client = rpc.Receive.SenderClientId;
+            if (NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) &&
+                NetProfiles.ConsumeWreckSalvageUpload(client, uploadSequence))
+            {
+                var pilot = NetPlayer.All.Find(value => value != null && value.IsSpawned && value.OwnerClientId == client);
+                NetPlayerStations.CollectWreckSalvage(pilot, orbit, room, jumpgate);
+            }
+            AcknowledgeWreckSalvageRpc(uploadSequence, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void AcknowledgeWreckSalvageRpc(int sequence, RpcParams rpc = default) =>
+            NetProfileClient.AcknowledgeWreckSalvage(sequence);
+
         /// <summary>Server: this player's device controls its profile now, or watches.</summary>
         internal void SendRole(ulong client, bool controller)
         {

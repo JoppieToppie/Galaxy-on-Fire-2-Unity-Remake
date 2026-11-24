@@ -255,6 +255,10 @@ namespace GoF2Remake.Multiplayer
 
         static void Save() { if (list != null) NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true)); }
 
+        /// <summary>Find a faction by its stable ID, null = unknown.</summary>
+        public static Faction FindById(string id) => string.IsNullOrEmpty(id) || list == null
+            ? null : list.factions.Find(c => c != null && string.Equals(c.id, id, StringComparison.Ordinal));
+
         /// <summary>The faction a profile belongs to, null = none.</summary>
         public static Faction Of(string account) => account == null || list == null ? null : list.factions.Find(c => c.members.Contains(account));
 

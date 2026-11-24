@@ -80,6 +80,10 @@ namespace GoF2Remake.Multiplayer
             GameHooks.SessionKaamoLevel = NetRules.TryGetKaamoLevel;
             GameHooks.KaamoLevelChangedByHost = NetRules.HostKaamoLevelChanged;
             GameHooks.SessionFlightStyle = NetRules.TryGetFlight;
+            // Single-player uses static reciprocal routes. Multiplayer also considers live
+            // player-built gates and their construction, EMP and destruction state.
+            GameHooks.JumpgateLinkOperational = (from, to) => !NetGame.Active ||
+                NetPlayerStations.JumpgateLinkOperational(from, to);
             GameHooks.EventFlightStyle = () => Events.EventFlight.Forced;   // PR #87: the Set Flight Model node, /flightstyle
 
             // The co-op campaign (NetCoop; CoopCampaign).

@@ -155,7 +155,8 @@ namespace GoF2Remake.Multiplayer
         {
             var faction = ByTag(tag);
             if (faction == null) return $"No faction with the tag {tag}.";
-            return Disband(faction.leader) == "" ? $"Disbanded [{faction.tag}] {faction.name}." : "Could not disband it.";
+            var result = Disband(faction.leader);
+            return string.IsNullOrEmpty(result) ? $"Disbanded [{faction.tag}] {faction.name}." : result;
         }
     }
 }

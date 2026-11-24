@@ -217,12 +217,105 @@ namespace GoF2Remake.World
             MovePlayer(position, rotation);
             return true;
         }
+        /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
+        /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
+        bool playerJumpgateWreck, playerJumpgateExplosionPlayed, playerJumpgatePermanentlyDestroyed;
+        long playerJumpgateEmpUntilUtc;
+
+        public bool PlayerJumpgateEmpDisabled =>
+            playerJumpgateEmpUntilUtc > System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        public void OnPlayerJumpgateEmpShutdown(long untilUtc)
+        {
+            if (Layout == null || Jumpgate == null) return;
+            playerJumpgateEmpUntilUtc = System.Math.Max(playerJumpgateEmpUntilUtc, untilUtc);
+            // Keep the visual model, physical obstacle, and targeting marker intact.
+            // SystemJump.GateBlocked refuses interactions until the server's deadline.
+        }
+
+        public void OnPlayerJumpgateDestroyed(bool permanent = false)
+        {
+            if (permanent) playerJumpgateExplosionPlayed = false;
+            SetPlayerJumpgateWreck(true);
+            if (permanent && Jumpgate != null)
+            {
+                // A rebuilt gate's second destruction ends the lifecycle. Scrap is recoverable,
+                // but permanent destruction leaves no obstructing gate model in the orbit.
+                Destroy(Jumpgate);
+                Jumpgate = null;
+                if (Layout != null) Layout.hasJumpgate = false;
+                playerJumpgateWreck = false;
+                playerJumpgatePermanentlyDestroyed = true;
+            }
+        }
+
+        /// <summary>Also used when entering an orbit that already contains a persisted scrap hull.
+        /// Only a fresh server destruction event plays the explosion.</summary>
+        void SetPlayerJumpgateWreck(bool explode)
+        {
+            if (Jumpgate == null || Layout == null || Navigation == null) return;
+            if (explode && !playerJumpgateExplosionPlayed)
+            {
+                Explosion.Spawn(Jumpgate.transform.position, 7f);
+                playerJumpgateExplosionPlayed = true;
+            }
+            if (playerJumpgateWreck) return;
+            playerJumpgateWreck = true;
+            Navigation.SetAutopilot(null);
+            Navigation.Targets.RemoveAll(t => t.kind == Navigation.Kind.Jumpgate);
+            SystemJump?.SetJumpgate(null);
+            // The first destruction leaves visible collidable scrap until reclamation.
+        }
+
+        /// <summary>Reconstruction is confirmed by the persistent server, not inferred from
+        /// a client's potentially stale station registry snapshot.</summary>
+        public void OnPlayerJumpgateRestored(Vector3 gatePosition, int modelPreset, string modelReference)
+        {
+            if (Layout == null || Navigation == null || SystemJump == null) return;
+            Layout.jumpgate = gatePosition;
+            Layout.ConfirmedPlayerGatePreset = modelPreset;
+            Layout.ConfirmedPlayerGateReference = modelReference;
+            playerJumpgateWreck = false;
+            playerJumpgatePermanentlyDestroyed = false;
+            playerJumpgateExplosionPlayed = false;
+            if (Jumpgate != null)
+            {
+                Jumpgate.SetActive(false);
+                Destroy(Jumpgate);
+                Jumpgate = null;
+            }
+            Layout.hasJumpgate = true;
+            UpdatePlayerJumpgate(true);
+        }
+
+        /// <summary>
+        /// A timed player-built gate can finish while its orbit is already loaded. Materialize the same gate model,
+        /// collision and navigation landmark that a fresh orbit load would create.
+        /// </summary>
+        void UpdatePlayerJumpgate(bool serverConfirmed = false)
+        {
+            if (Layout == null || Navigation == null || SystemJump == null ||
+                playerJumpgateWreck || playerJumpgatePermanentlyDestroyed ||
+                (!serverConfirmed && !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex))) return;
+            if (Jumpgate != null) return;
+            var refreshed = serverConfirmed ? Layout : OrbitLayout.Build(db, Layout.stationIndex);
+            if (refreshed == null || !refreshed.hasJumpgate) return;
+            Layout.hasJumpgate = true;
+            Layout.jumpgate = refreshed.jumpgate;
+            Jumpgate = OrbitBuilder.SpawnJumpgate(db, Layout, forcePlayerGate: serverConfirmed);
+            if (Jumpgate == null) return;
+            OrbitBuilder.AddObstacles(Layout, null, Jumpgate);
+            HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>(), forceExact: true);
+            Navigation.AddPlayerJumpgateTarget();
+            SystemJump.SetJumpgate(Jumpgate);
+        }
+
         /// <summary>The station's volumes (collision.json) and the visible jumpgate's sphere (see Obstacle).</summary>
         void AddObstacles()
         {
             OrbitBuilder.AddObstacles(Layout, Station, Jumpgate);
             // Remake: the player slides along their real shapes (HullCollision); shots pass them as in the original.
-            if (Station != null) HullCollision.Attach(Station, null, Station.GetComponent<Obstacle>());
+            if (Station != null) AttachStationHull();
             if (Jumpgate != null) HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>());
             // Remake mods: a station of its own model sizes the dock range and the launch point.
             var own = Modding.ModWorld.ModelOf(Layout.stationIndex);
@@ -322,7 +415,7 @@ namespace GoF2Remake.World
             }
             else
                 root.transform.SetPositionAndRotation(
-                    OrbitScale.ToUnity(UndockPoint),
+                    OrbitScale.ToUnity(UndockPoint) + GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(Layout.stationIndex),
                     OrbitLayout.RotationToUnity(new Vector3(0f, (Random.value < 0.5f ? 1 : -1) * OrbitLayout.UndockYaw / 65536f * 2f * Mathf.PI, 0f)));
             // Modified: at Luur the station is turned -45 deg (OrbitBuilder.SpawnStation), and the undock point with it, about the
             // station (a player's request): out of its hangar, in front of it as at any other station. Arrivals stay as they were.

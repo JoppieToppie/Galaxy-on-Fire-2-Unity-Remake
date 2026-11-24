@@ -188,7 +188,7 @@ namespace GoF2Remake.Flight
                 tractorLockMs = tractor.Attr(24);
                 tractorMode = tractor.Attr(23);
                 tractorTargets = TractorTargets(tractor);
-                tractorRangeUnits = tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits);
+                tractorRangeUnits = TractorReachUnits(tractor);
                 tractorNoLock = tractor.Attr(TractorNoLockAttr) == 1;
                 beamColor = BeamColor(tractor);
             }
@@ -208,6 +208,10 @@ namespace GoF2Remake.Flight
                 if (beamLength <= 0f) beamLength = M;
             }
         }
+
+        /// <summary>The tractor beam's configured reach in game units, or zero without a beam.</summary>
+        public static float TractorReachUnits(ItemData tractor) =>
+            tractor == null ? 0 : Mathf.Max(0, tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits));
 
         /// <summary>The tractor beam's crate count (attr 122, 1..MaxTractorTargets; 1 = the original's one beam).</summary>
         public static int TractorTargets(ItemData tractor) =>
@@ -719,6 +723,15 @@ namespace GoF2Remake.Flight
             if (crate == Salvaging) Salvaging = null;
             UpdateBeamLoop();
             if (assets != null && assets.tractorClose != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.tractorClose), Settings.SfxVolume);
+            if (crate.CollectStationSalvage != null)
+            {
+                int room = Shop.FreeCargo(db);
+                crate.pulled = false;
+                if (room > 0) crate.CollectStationSalvage(room);
+                else Message?.Invoke(Localization.Get(322), 1, HudMessageKind.Normal);
+                refusedCrate = crate;
+                return;
+            }
             var entry = crate.loot.Find(s => s.amount > 0);
             if (entry == null) { Destroy(crate.gameObject); return; }
             if (GoF2Remake.Modding.ModBlueprints.Of(entry.item) != null)

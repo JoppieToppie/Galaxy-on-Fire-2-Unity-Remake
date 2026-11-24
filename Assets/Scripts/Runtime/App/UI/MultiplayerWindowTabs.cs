@@ -31,6 +31,7 @@ namespace GoF2Remake.UI
             if (tab == Tab.Chat) return;   // the chat pane is built once (its line keeps the focus and the draft)
             if (tab == Tab.Squad) { BuildSquad(); scroll.scrollOffset = new Vector2(0f, y); return; }   // no snapshot needed
             if (tab == Tab.Trade) { BuildTrade(); scroll.scrollOffset = new Vector2(0f, y); return; }
+            if (tab == Tab.OrbitProjects) { BuildOrbitProjects(); scroll.scrollOffset = new Vector2(0f, y); return; }
             var s = NetPanel.Latest;
             if (s == null) { var wait = Text(Localization.Extra("mpPanelLoading", "Asking the server..."), 16, Dim); UiBusy.Mark(wait, true); body.Add(wait); return; }
             switch (tab)

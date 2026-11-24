@@ -803,3 +803,161 @@
     margin: 0 1px;
     border-radius: var(--glyph-sm-bumper-r);
 }
+
+
+/* ---- player-built station dry dock / shipyard -------------------------------------- */
+.drydock-window {
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    top: 7%;
+    bottom: 7%;
+    flex-direction: column;
+    padding: 24px;
+    background-color: rgb(4, 10, 18);
+    border-width: 2px;
+    border-color: var(--gof-line);
+    border-top-width: 4px;
+    border-top-color: var(--gof-cyan);
+}
+.drydock-header {
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--gof-line);
+}
+.drydock-title {
+    flex-grow: 1;
+    font-size: var(--text-heading);
+    letter-spacing: 5px;
+    color: #FFFFFF;
+}
+.drydock-close {
+    min-width: 120px;
+    padding: 10px 18px;
+    color: var(--gof-text);
+    background-color: rgba(4, 10, 18, 0.8);
+    border-width: 1px;
+    border-color: var(--gof-cyan-soft);
+}
+.drydock-content {
+    flex-grow: 1;
+    min-height: 0;
+    flex-direction: row;
+    padding-top: 16px;
+    padding-bottom: 12px;
+}
+.drydock-blueprint-list {
+    width: 40%;
+    flex-shrink: 0;
+    margin-right: 18px;
+    background-color: rgba(15, 28, 40, 0.75);
+    border-width: 1px;
+    border-color: var(--gof-line);
+}
+.drydock-blueprint-row {
+    min-height: 64px;
+    margin: 3px;
+    padding: 10px 14px;
+    white-space: normal;
+    -unity-text-align: middle-left;
+    font-size: var(--text-body);
+    color: var(--gof-text);
+    background-color: rgba(20, 39, 54, 0.72);
+    border-left-width: 3px;
+    border-left-color: var(--gof-cyan-soft);
+}
+.drydock-blueprint-row--locked {
+    opacity: 0.48;
+}
+.drydock-blueprint-row--selected {
+    color: #FFFFFF;
+    background-color: rgba(42, 73, 91, 0.95);
+    border-left-color: var(--gof-amber);
+}
+.drydock-details {
+    flex-grow: 1;
+    min-width: 0;
+    padding: 18px;
+    background-color: rgba(12, 23, 34, 0.72);
+    border-width: 1px;
+    border-color: var(--gof-line);
+}
+.drydock-detail-title {
+    margin-bottom: 10px;
+    font-size: var(--text-subhead);
+    color: #FFFFFF;
+}
+.drydock-detail-text,
+.drydock-recipe,
+.drydock-status {
+    white-space: normal;
+    margin-bottom: 12px;
+    font-size: var(--text-body);
+    color: var(--gof-text);
+}
+.drydock-recipe {
+    flex-grow: 1;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    color: var(--gof-cyan);
+}
+.drydock-status {
+    min-height: 58px;
+    color: var(--gof-amber);
+}
+.drydock-build {
+    min-height: 54px;
+    padding: 12px 20px;
+    font-size: var(--text-subhead);
+    letter-spacing: 2px;
+    color: #FFFFFF;
+    background-color: var(--button-primary-fill);
+    border-width: 1px;
+    border-color: var(--button-primary-line);
+}
+.drydock-build:disabled {
+    opacity: 0.45;
+}
+.drydock-footer {
+    padding-top: 10px;
+    border-top-width: 1px;
+    border-top-color: var(--gof-line);
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
+}
+
+
+.layout-phone .drydock-window {
+    left: 2%;
+    right: 2%;
+    top: 3%;
+    bottom: 3%;
+    padding: 12px;
+}
+.layout-phone .drydock-content {
+    flex-direction: column;
+}
+.layout-phone .drydock-blueprint-list {
+    width: auto;
+    height: 38%;
+    margin-right: 0;
+    margin-bottom: 10px;
+}
+.layout-phone .drydock-details {
+    flex-grow: 1;
+    padding: 12px;
+}
+.layout-phone .drydock-title {
+    font-size: var(--text-subhead);
+    letter-spacing: 2px;
+}
+
+.drydock-feedback {
+    min-height: 24px;
+    margin-bottom: 8px;
+    white-space: normal;
+    font-size: var(--text-small);
+    color: var(--gof-cyan);
+}

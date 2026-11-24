@@ -48,6 +48,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>Multiplayer (NetCrate): this player's beam captured it (CombatRadar, just before it is destroyed).</summary>
         [System.NonSerialized] public System.Action CapturedHere;
+        [System.NonSerialized] public System.Action<int> CollectStationSalvage;
         /// <summary>Multiplayer: dropped by a freelance mission's ship or junk: only the mission's team can take it (NetCrate).</summary>
         [System.NonSerialized] public bool missionLoot;
         /// <summary>Multiplayer (NetCrate): another player's tractor beam has it; the radar leaves it alone.</summary>

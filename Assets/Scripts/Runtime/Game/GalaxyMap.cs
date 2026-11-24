@@ -282,6 +282,9 @@ namespace GoF2Remake.Data
         /// any distance.</summary>
         public static int NextHop(Database db, int from, int to, bool safest = false)
         {
+            // A player-built gate has one fixed destination and bypasses the ordinary system-route graph.
+            int playerGateDestination = GoF2Remake.Multiplayer.NetPlayerStations.JumpgateDestinationStation(from);
+            if (playerGateDestination >= 0) return playerGateDestination;
             int a = db.Stations.Find(s => s.index == from)?.system ?? -1;
             int b = db.Stations.Find(s => s.index == to)?.system ?? -1;
             if (a < 0 || b < 0 || (!safest && IsInRoutes(db.Systems.Find(s => s.index == a), b))) return to;
@@ -326,7 +329,8 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Ship::hasJumpDriveIntegrated (37 / 38 / 40, and a mod ship's "integrated": "khadorDrive").</summary>
-        public static bool HasIntegratedDrive(int ship) => Database.Shared.HasIntegratedDrive(ship);
+        public static bool HasIntegratedDrive(int ship) =>
+            Modding.ModContent.ItemAvailableFor(KhadorDriveItem, "equipment") && Database.Shared.HasIntegratedDrive(ship);
 
         /// <summary>Modified: jumps take no energy cells: the Debug panel's free jumps, or a mounted mod drive whose "jumpFx" has
         /// "freeJumps": true (Modding.ModJumpFx).</summary>
@@ -336,6 +340,7 @@ namespace GoF2Remake.Data
         /// own jump effect and rules); not a cruise drive, which is based on it too (Shop.IsCruiseDrive).</summary>
         public static bool IsKhadorDrive(int item)
         {
+            if (!GoF2Remake.Modding.ModContent.ItemAvailableFor(item, "equipment")) return false;
             if (item == KhadorDriveItem) return true;
             var it = item >= 0 ? Database.Shared.Item(item) : null;
             return it != null && it.Look == KhadorDriveItem && !Shop.IsCruiseDrive(it);

@@ -23,6 +23,18 @@ namespace GoF2Remake.UI
             return !suffix || st.index == 101 ? st.name : $"{st.name} {T(136)}";
         }
         int SystemOf(int station) => db.Stations.Find(s => s.index == station)?.system ?? -1;
+
+        /// <summary>Opt-in mod jump risk shown on the map and in the confirmation before cells are spent.</summary>
+        string DriveFailureRisk(int destinationSystem)
+        {
+            var drive = ModJumpFx.ActiveDrive();
+            if (drive == null || !drive.showFailureChance || destinationSystem < 0 || destinationSystem == currentSystem)
+                return null;
+            var path = GalaxyMap.SystemPath(db, currentSystem, destinationSystem);
+            float risk = ModJumpFx.FailureProbability(drive, path != null ? path.Count - 1 : 0, path != null, Session.IsExtreme);
+            return string.Format(Localization.Extra("modJumpRisk", "Jump drive failure risk: {0}%"),
+                Mathf.RoundToInt(risk * 100f));
+        }
         void Select(int system)
         {
             if (system != selected && system >= 0) Play(assets.selectSystem);
@@ -148,6 +160,11 @@ namespace GoF2Remake.UI
             if (GateRoutes && !jumpDrive && otherSystem && !GateReachable(system)) { ShowDialog(T(420), null, null, true); return; }
             int gateJumps = GateRoutes && otherSystem ? GalaxyMap.GateJumps(db, currentSystem, system) : 0;
             string travelTo = DestinationText(station, gateJumps);
+            if (jumpDrive && otherSystem)
+            {
+                string risk = DriveFailureRisk(system);
+                if (risk != null) travelTo = risk + "\n" + travelTo;
+            }
             if (jumpDrive && otherSystem && GalaxyMap.HasVolatileGoods)
             {
                 // Ship::hasVolatileGoods: no Khador Drive; a gate neighbour (remake: any system on a gate route) is still

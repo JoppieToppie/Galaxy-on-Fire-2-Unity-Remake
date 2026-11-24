@@ -141,6 +141,20 @@ namespace GoF2Remake.Flight
             return t;
         }
         public bool GoingToGate => AutopilotTarget?.kind == Kind.Jumpgate;
+
+        /// <summary>Add the landmark when a timed player-built gate becomes operational during this orbit.</summary>
+        internal void AddPlayerJumpgateTarget()
+        {
+            if (layout == null || !layout.hasJumpgate) return;
+            gateRadiusUnits = layout.JumpgateRadius;
+            if (Targets.Exists(t => t.kind == Kind.Jumpgate)) return;
+            Targets.Add(new Target
+            {
+                kind = Kind.Jumpgate,
+                fixedPosition = OrbitLayout.ToUnity(layout.Place(layout.jumpgate)),
+                name = Localization.Get(547)
+            });
+        }
         /// <summary>A campaign level's player route (Level+0x108, PlayerEgo::setRoute): its current waypoint is a landmark
         /// target named "Waypoint" (548): marked on the HUD, lockable, and the autopilot flies to it; "Waypoint reached."
         /// (543) / "Last waypoint reached." (544) as the route advances.</summary>
@@ -371,7 +385,8 @@ namespace GoF2Remake.Flight
             // Level::getLandmarks: [0] station (none in empty orbits), [1] the visible jumpgate (gate orbit only).
             var st = db.Stations.Find(s => s.index == layout.stationIndex);
             if (layout.hasStation && st != null)
-                Targets.Add(new Target { kind = Kind.Station, fixedPosition = Vector3.zero, station = st.index,
+                Targets.Add(new Target { kind = Kind.Station,
+                    fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(st.index), station = st.index,
                                          name = st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}" });
             else if (layout.hasStation && layout.alienOrbit)   // the Void station: distance only, no autopilot
             {
@@ -621,12 +636,12 @@ namespace GoF2Remake.Flight
 
         /// <summary>Remake (OrbitScale): a distance to a target (units) as the original's would be, for its thresholds (the
         /// 20000 of AboutToReach, the cruise drive's arrival): from the station unmapped (OrbitScale.Unradius), from the grown
-        /// jumpgate over its scale; anything else as it is. The identity without the station scale.</summary>
+        /// jumpgate over its scale; anything else as it is.</summary>
         float ReachUnits(Target t, float units)
         {
-            if (t == null || !OrbitScale.Active) return units;
+            if (t == null) return units;
             if (t.kind == Kind.Station && t.transform == null) return OrbitScale.Unradius(units);
-            if (t.kind == Kind.Jumpgate) return units / OrbitScale.Factor;
+            if (t.kind == Kind.Jumpgate) return units / OrbitScale.JumpgateFactor;
             return units;
         }
 
@@ -672,6 +687,28 @@ namespace GoF2Remake.Flight
         /// <summary>The orbit's station object (SpaceLevel): a level script that hides it (78: the Valkyrie jumps away) takes
         /// its landmark with it.</summary>
         public GameObject StationObject;
+
+        internal void RefreshPlayerStation(int orbit, bool operational, string name)
+        {
+            var target = Targets.Find(value => value.kind == Kind.Station && value.station == orbit && value.transform == null);
+            if (!operational)
+            {
+                if (target == null) return;
+                if (Locked == target || Candidate == target) { Locked = Candidate = null; LockTimer = 0f; }
+                if (AutopilotTarget == target) SetAutopilot(null);
+                Targets.Remove(target);
+            }
+            else
+            {
+                if (target == null)
+                {
+                    target = new Target { kind = Kind.Station, station = orbit };
+                    Targets.Add(target);
+                }
+                target.fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(orbit);
+                target.name = $"{name} {Localization.Get(136)}";
+            }
+        }
 
         /// <summary>Set by a level whose station a docking target stands in for (remake, 102: Tadram's pads): the station's own
         /// landmark leaves the locks, markers and the autopilot menu, so the two don't sit on top of each other.</summary>

@@ -98,11 +98,13 @@ namespace GoF2Remake.World
         // Remake, experimental: Options > Gameplay "Station scale" (OrbitScale, docs/notes/space-scene.md "Station scale").
         /// <summary>The station's scale in this orbit (OrbitScale.Chosen when the layout was built; 1: none).</summary>
         public float stationScale = 1f;
+        internal float minimumJumpgateScale = 1f;
         /// <summary>How far the station reaches from its centre at scale 1 (game units, its collision volumes + 15 %): the
         /// radius inside which the orbit grows with the station (OrbitScale's header).</summary>
         public float stationReach;
         /// <summary>The scale the station is drawn and collides at (1 without a station).</summary>
         public float StationScale => Scaled ? stationScale : 1f;
+        public float JumpgateScale => Mathf.Max(StationScale, minimumJumpgateScale);
         /// <summary>This orbit maps its positions (OrbitScale): a station, a scale above 1, not interstellar space.</summary>
         public bool Scaled => stationScale > 1.0001f && stationReach > 0f && (stationObject || originStructure) && !interstellar;
         /// <summary>OrbitScale: a structure stands at the origin in place of a station (Coromesk's Mining Plant from campaign
@@ -178,13 +180,43 @@ namespace GoF2Remake.World
 
         static readonly string[] JumpgateByRace = { "jumpgate_terran", "jumpgate_vossk_anim", "jumpgate_nivelian", "jumpgate_midorian" };
 
-        public string JumpgateAssembly => JumpgateByRace[Look >= 0 && Look < 4 ? Look : 0];
+        public string JumpgateAssembly => JumpgateByRace[PlayerGateLook >= 0 ? PlayerGateLook : Look >= 0 && Look < 4 ? Look : 0];
+        internal static string JumpgatePresetAssembly(int preset) =>
+            preset > 0 && preset <= JumpgateByRace.Length ? JumpgateByRace[preset - 1] : null;
+
+        internal int? ConfirmedPlayerGatePreset { get; set; }
+        internal string ConfirmedPlayerGateReference { get; set; }
+
+        Modding.ModWorld.StationModel PlayerGateModel =>
+            GoF2Remake.Multiplayer.NetPlayerStations.ResolveJumpgateModel(ConfirmedPlayerGatePreset.HasValue
+                ? ConfirmedPlayerGateReference
+                : GoF2Remake.Multiplayer.NetPlayerStations.FindJumpgate(stationIndex)?.modelReference);
+
+        int PlayerGateLook
+        {
+            get
+            {
+                int preset = ConfirmedPlayerGatePreset ??
+                    GoF2Remake.Multiplayer.NetPlayerStations.FindJumpgate(stationIndex)?.modelPreset ?? 0;
+                return JumpgatePresetAssembly(preset) != null ? preset - 1 : -1;
+            }
+        }
         /// <summary>The system's own gate (a mod's systems.json "jumpgate", Modding.ModWorld.GateModelOf), else null: the race's.</summary>
-        public string ModJumpgateAssembly => Modding.ModWorld.GateModelOf(systemIndex)?.Assembly;
+        public string ModJumpgateAssembly => PlayerGateModel?.Assembly ??
+            (PlayerGateLook >= 0 ? null : Modding.ModWorld.GateModelOf(systemIndex)?.Assembly);
         /// <summary>The gate's collision and approach radius (game units); with the station scale (OrbitScale) the gate grows
         /// with the stations, and its radius with it.</summary>
-        public int JumpgateRadius => Mathf.RoundToInt(StationScale * (Modding.ModWorld.GateModelOf(systemIndex) is Modding.ModWorld.StationModel g && g.gateRadius > 0f
-            ? g.gateRadius : Look == 1 ? GateRadiusVossk : GateRadius));
+        public int JumpgateRadius
+        {
+            get
+            {
+                int stockLook = PlayerGateLook;
+                var model = PlayerGateModel ?? (stockLook < 0 ? Modding.ModWorld.GateModelOf(systemIndex) : null);
+                float radius = model != null && model.gateRadius > 0f
+                    ? model.gateRadius : (stockLook >= 0 ? stockLook : Look) == 1 ? GateRadiusVossk : GateRadius;
+                return Mathf.RoundToInt(JumpgateScale * radius);
+            }
+        }
         /// <summary>The race whose tables the orbit uses (a mod race's look, Standing.Look).</summary>
         int Look => Flight.Standing.Look(raceId);
 
@@ -194,7 +226,9 @@ namespace GoF2Remake.World
         public static Vector3 Direction(float pitch, float yaw) =>
             new Vector3(Mathf.Sin(yaw), -Mathf.Sin(pitch) * Mathf.Cos(yaw), Mathf.Cos(pitch) * Mathf.Cos(yaw));
 
-        public static OrbitLayout Build(Database db, int stationIndex)
+        public static OrbitLayout Build(Database db, int stationIndex) => Build(db, stationIndex, includePlayerGateLandmark: false);
+
+        public static OrbitLayout Build(Database db, int stationIndex, bool includePlayerGateLandmark)
         {
             var st = db.Stations.Find(s => s.index == stationIndex);
             var sys = st != null ? db.Systems.Find(s => s.index == st.system) : null;
@@ -214,13 +248,22 @@ namespace GoF2Remake.World
             o.stationObject = o.hasStation || (st != null && System.Array.IndexOf(StationObjectInEmptyOrbit, stationIndex) >= 0);
             // Status::inEmptyOrbit: the alien orbit has its Void station until the mother ship is destroyed (index 43..83).
             if (alien) o.hasStation = o.stationObject = Story.Index < 43 || Story.Index > 83 && Story.Index < 154;
-            o.BuildGates(sys);
+            o.BuildGates(sys, includePlayerGateLandmark);
             o.BuildSky();
             o.BuildStarSystem(db, sys);
             o.BuildLights();
             o.BuildAsteroidField();
             if (!alien) o.ApplyMod(Modding.ModWorld.OrbitOf(stationIndex), st);
-            o.stationScale = OrbitScale.Chosen;
+            if (GoF2Remake.Multiplayer.NetPlayerStations.IsPlayerStation(stationIndex))
+            {
+                // Player projects reserve a generated orbit when construction begins. It remains empty until all
+                // required materials arrive; completion makes that orbit a normal dockable station.
+                o.stationObject = GoF2Remake.Multiplayer.NetPlayerStations.StationSceneryPresent(stationIndex);
+                o.hasStation = o.stationObject && !GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(stationIndex);
+            }
+            var minimumScales = Modding.ModPlayerInfrastructure.ActiveMinimumScales;
+            o.stationScale = o.stationObject ? Mathf.Max(OrbitScale.Chosen, minimumScales.Station) : OrbitScale.Chosen;
+            o.minimumJumpgateScale = minimumScales.Jumpgate;
             // Coromesk (103): the Mining Plant at the origin from campaign 0x55 (TrafficSpecials.AddCampaignStatics; 0x87's level
             // builds its own); collision 2000.
             o.originStructure = !alien && !Session.FreePlay && stationIndex == 103 && Session.CampaignMission > 0x54;
@@ -235,7 +278,9 @@ namespace GoF2Remake.World
         public static float StationReach(int stationIndex, bool alienOrbit)
         {
             float reach = VolumesReach(Flight.CollisionVolume.ForStation(StationLook(stationIndex), alienOrbit, alienOrbit && Story.Dlc1Won)) * 1.15f;
-            if (!alienOrbit && Modding.ModWorld.ModelOf(stationIndex) is Modding.ModWorld.StationModel own) reach = Mathf.Max(reach, own.size * 0.6f);
+            int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(stationIndex);
+            if (!alienOrbit && Modding.ModWorld.ModelOf(preset >= 0 ? preset : stationIndex) is Modding.ModWorld.StationModel own)
+                reach = Mathf.Max(reach, own.size * 0.6f);
             return Mathf.Max(reach, 10000f);
         }
 
@@ -254,7 +299,10 @@ namespace GoF2Remake.World
         {
             if (Session.CompletedWorld && station == 109) return 114;
             if (Session.CompletedWorld && station == 110) return 115;
-            return Modding.ModWorld.StationLook(station);
+            int playerStationLook = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(station);
+            if (playerStationLook == 109) return 114;
+            if (playerStationLook == 110) return 115;
+            return playerStationLook >= 0 ? Modding.ModWorld.StationLook(playerStationLook) : Modding.ModWorld.StationLook(station);
         }
 
         /// <summary>Remake mods: stations.json "orbit" over the seeded layout (Modding.ModWorld.OrbitSpec). The station stays
@@ -326,9 +374,11 @@ namespace GoF2Remake.World
         }
 
         // Level::createSpace: landmark 1 only in the gate orbit, landmark 2 (hidden) always.
-        void BuildGates(SystemData sys)
+        void BuildGates(SystemData sys, bool includePlayerGateLandmark)
         {
-            hasJumpgate = sys != null && sys.jumpgateStation == stationIndex;
+            hasJumpgate = sys != null && (includePlayerGateLandmark || sys.jumpgateStation == stationIndex ||
+                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(stationIndex) ||
+                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(stationIndex));
             var rnd = new JavaRandom(2L * stationIndex);
             int a = 0;
             for (int i = hasJumpgate ? 1 : 2; i <= 2; i++)
@@ -541,7 +591,17 @@ namespace GoF2Remake.World
             facing = Quaternion.LookRotation(-DirToUnity(game).normalized, Vector3.up);
             // Level::init: arriving in Loma's black market (system 25) puts the player 40 000 further along game +z.
             if (systemIndex == 25) game += new Vector3(0f, 0f, 40000f);
-            position = ToUnity(Place(game));   // OrbitScale: in the scaled orbit
+            var placed = Place(game);
+            if (hasJumpgate && !arrival.HasValue && JumpgateScale > 1f)
+            {
+                // A large gate can reach the usual arrival point. Keep the same approach side where possible.
+                var centre = Place(jumpgate);
+                var fromGate = placed - centre;
+                float clearance = JumpgateRadius + 2000f;
+                if (fromGate.sqrMagnitude < clearance * clearance)
+                    placed = centre + (fromGate.sqrMagnitude > 1f ? fromGate.normalized : Vector3.forward) * clearance;
+            }
+            position = ToUnity(placed);
         }
 
         /// <summary>Remake: an arrival by cruise to this orbit's planet (Navigation.RunPlanet): as far out as any, on the near side

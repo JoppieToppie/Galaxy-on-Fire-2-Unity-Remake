@@ -23,6 +23,14 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>A pose of this ship is known here (the owner's own; elsewhere one from the stream).</summary>
         public bool HasPose => hasPose;
+
+        // A remote pose is usable only in the orbit where the server received it. Stationary
+        // ships still send a pose every two seconds, so brief packet loss can be tolerated.
+        const double WreckClaimPoseTimeoutSeconds = 5;
+        int lastClaimPoseOrbit;
+        double lastClaimPoseTime;
+        internal bool HasCurrentWreckClaimPose => hasPose && (IsOwner ||
+            (lastClaimPoseOrbit == Station && Time.realtimeSinceStartupAsDouble - lastClaimPoseTime <= WreckClaimPoseTimeoutSeconds));
         /// <summary>The boost the others see (0..1).</summary>
         float Boost => look.boost / 255f;
 
@@ -44,6 +52,11 @@ namespace GoF2Remake.Multiplayer
             poseRotation = entry.rotation;
             if (entry.hasLook) look = entry.look;
             hasPose = true;
+            if (IsServer)
+            {
+                lastClaimPoseOrbit = Station;
+                lastClaimPoseTime = Time.realtimeSinceStartupAsDouble;
+            }
             if (show && !IsOwner) smoothing.Push(entry.position, gap);
         }
 

@@ -14,6 +14,10 @@ namespace GoF2Remake.Flight
     {
         /// <summary>What a shot on this hull hits; null = nothing (shots pass, like the original's stations).</summary>
         [System.NonSerialized] public Target target;
+        /// <summary>Orbit of an independently built gate; -1 for all other scenery.</summary>
+        [System.NonSerialized] public int playerJumpgateOrbit = -1;
+        [System.NonSerialized] public int playerStationOrbit = -1;
+        [System.NonSerialized] public int orbitalStructureId;
         /// <summary>What the player is pushed out of; null = the player flies through (fighters, like the original).</summary>
         [System.NonSerialized] public Obstacle obstacle;
         [System.NonSerialized] public readonly List<MeshCollider> colliders = new List<MeshCollider>();
@@ -28,7 +32,7 @@ namespace GoF2Remake.Flight
 
         /// <summary>Shots and the player's ship meet this hull: active, and taken by the ship collision mode (Exact: every
         /// hull; Mixed: not a flyable ship's; Original: none, HullCollision.Takes).</summary>
-        public bool Collides => Active && HullCollision.Takes(flyableShip);
+        public bool Collides => Active && (HullCollision.IsForcedExact(this) || HullCollision.Takes(flyableShip));
 
         /// <summary>NPC navigation uses obstacle geometry regardless of the player's ship-collision preference.</summary>
         public bool NavigationActive => Active && obstacle != null;

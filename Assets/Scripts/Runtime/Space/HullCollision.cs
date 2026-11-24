@@ -85,6 +85,7 @@ namespace GoF2Remake.Flight
             modeFrame = -1;
             pending.Clear();
             avoidanceProbe = null;
+            forcedExact.Clear();
         }
 
         /// <summary>Options > Gameplay "Ship collision" (SessionRules.CollisionExact / Mixed / Original; the session's in
@@ -123,16 +124,21 @@ namespace GoF2Remake.Flight
         /// <summary>Some hull exists (a quick skip for the shot tests).</summary>
         public static bool Any => bodies.Count > 0;
 
+        /// <summary>Exact gate hulls remain available regardless of the global ship collision preference.</summary>
+        public static bool IsForcedExact(HullBody body) => body != null && forcedExact.Contains(body);
+        static readonly HashSet<HullBody> forcedExact = new HashSet<HullBody>();
+
         /// <summary>The hull of 'model' (its root gets the HullBody); 'target' what shots on it hit, 'obstacle' what the
         /// player slides along (either may be null); 'flyableShip' a ship a player can fly (HullBody.flyableShip: Mixed
         /// ship collision leaves it out). Null when the model has no readable hull mesh.</summary>
-        public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false)
+        public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false, bool forceExact = false)
         {
             if (model == null || Suppressed) return null;
             var body = model.GetComponent<HullBody>();
-            // Obstacle hulls also provide NPC navigation geometry. Build them under Original; Collides still
-            // excludes them from player and weapon queries in that mode.
-            if (body == null && obstacle == null && Application.isPlaying && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal)
+            // Preserve NPC navigation geometry and forced-exact hulls.
+            if (body == null && obstacle == null && Application.isPlaying
+                && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal
+                && !forceExact)
             {
                 pending.RemoveAll(p => p.model == null || p.model == model);
                 pending.Add((model, target, obstacle, flyableShip));
@@ -171,6 +177,7 @@ namespace GoF2Remake.Flight
                     bodies[c] = body;
                 }
             }
+            if (forceExact) forcedExact.Add(body);
             body.target = target;
             body.obstacle = obstacle;
             body.flyableShip = flyableShip;
@@ -222,6 +229,7 @@ namespace GoF2Remake.Flight
             if (target != null) pending.RemoveAll(p => p.target == target);
             var b = target != null ? target.hull : null;
             if (b == null) return;
+            forcedExact.Remove(b);
             foreach (var c in b.colliders) if (c != null) { bodies.Remove(c); UnityEngine.Object.Destroy(c.gameObject); }
             b.colliders.Clear();
             target.hull = null;
@@ -302,8 +310,13 @@ namespace GoF2Remake.Flight
 
         /// <summary>Modified: the first shown hull with no target along 'from' -> 'to' (the orbit's station and jumpgate,
         /// SpaceLevel.AddObstacles): where a shot stops on it (Gun.TestHits; the original's shots pass them).</summary>
-        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point)
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point) =>
+            CastScenery(from, to, radius, out point, out _);
+
+        /// <summary>Like CastScenery, returning the actual mesh owner that the shot first struck.</summary>
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point, out HullBody body)
         {
+            body = null;
             point = to;
             var d = to - from;
             float len = d.magnitude;
@@ -317,6 +330,7 @@ namespace GoF2Remake.Flight
                 var b = BodyOf(hits[i].collider);
                 if (b == null || b.target != null || !b.Collides || !Shown(hits[i].collider)) continue;
                 best = hits[i].distance;
+                body = b;
                 point = hits[i].distance > 0f ? hits[i].point : from;
             }
             return best < float.MaxValue;
@@ -422,6 +436,7 @@ namespace GoF2Remake.Flight
 
             float reach = Mathf.Max(0f, lookAhead);
             if (reach <= 0.01f || forward.sqrMagnitude < 1e-6f) return false;
+            sweptFrame = -1;
             int n = Physics.SphereCastNonAlloc(position, Mathf.Max(0.1f, clearance * 0.65f), forward.normalized,
                 hits, reach, HullMask, QueryTriggerInteraction.Ignore);
             float nearest = float.MaxValue;

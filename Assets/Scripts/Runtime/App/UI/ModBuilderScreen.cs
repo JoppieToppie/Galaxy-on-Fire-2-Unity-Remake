@@ -850,11 +850,119 @@ namespace GoF2Remake.UI
             Act(box, T("mbDependencies", "Dependencies"), ShowDependencies, "mbv-menu-item");
             Act(box, T("mbModDetails", "Mod details"), ShowModDetails, "mbv-menu-item");
             Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
+            Act(box, T("mbPlayerInfrastructure", "Player-built stations & gates"), ShowPlayerInfrastructure, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
             Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
             Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { CloseModal(); SaveNow(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
             modal.AddToClassList("mbv-modal--shown");
+        }
+
+        void ShowPlayerInfrastructure()
+        {
+            if (Project == null) return;
+            var draft = (JObject)Project.PlayerInfrastructure.DeepClone();
+            ModPlayerInfrastructure settings;
+            try { settings = ModPlayerInfrastructure.Parse(draft); }
+            catch (ModJsonException error) { Status(error.Message, true); return; }
+
+            CloseModal();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, T("mbPlayerInfrastructure", "Player-built stations & gates"));
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            var enabled = Add(scroll, new Toggle("Allow new player station projects") { value = settings.Enabled }, "mbv-field");
+            var gates = Add(scroll, new Toggle("Allow new sponsored jumpgate projects") { value = settings.JumpgatesEnabled }, "mbv-field");
+            var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
+            var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
+            var integrity = Add(scroll, new FloatField("Fresh scrap integrity") { value = settings.ScrapIntegrity }, "mbv-field");
+            var stationScale = Add(scroll, new FloatField("Minimum station scale") { value = settings.MinimumStationScale }, "mbv-field");
+            var jumpgateScale = Add(scroll, new FloatField("Minimum jumpgate scale") { value = settings.MinimumJumpgateScale }, "mbv-field");
+            Note(scroll, $"Scales apply to stock and player-built structures in solo and modded multiplayer. Enter 1–{ModPlayerInfrastructure.MaxStructureScale}.");
+            Note(scroll, "Use one mod_id:id reference per line. Gate references point to systems with a custom jumpgate.");
+            var stationModels = Add(scroll, new TextField("Additional station models")
+                { multiline = true, value = string.Join("\n", settings.StationModels) }, "mbv-field");
+            var gateModels = Add(scroll, new TextField("Additional jumpgate models")
+                { multiline = true, value = string.Join("\n", settings.JumpgateModels) }, "mbv-field");
+
+            AddInfrastructureModelPicker(scroll, "Add a project station", stationModels, Project.Stations
+                .Where(station => !string.IsNullOrEmpty(station.Model)).Select(station =>
+                    (station.Name, station.IsOverride ? station.OverrideRef : Project.Key(station.LocalId))));
+            AddInfrastructureModelPicker(scroll, "Add a project gate", gateModels, Project.Systems
+                .Where(system => system.ToJson()["jumpgate"] is JObject gate && gate["model"] != null).Select(system =>
+                    (system.Name, system.IsOverride ? system.OverrideRef : Project.Key(system.LocalId))));
+
+            var stockDefense = Add(scroll, new Toggle("Offer the stock orbital defense")
+                { value = (bool?)draft["includeStockOrbitalDefense"] ?? true }, "mbv-field");
+            var defenseLimit = Add(scroll, new IntegerField("Defense limit per orbit")
+                { value = settings.OrbitalDefenseLimit }, "mbv-field");
+            Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOrbitalDefenseLimit}. Build orders reserve a slot. A limit of 0 blocks new defense orders.");
+            var otherStructureLimit = Add(scroll, new IntegerField("Other structure limit per orbit")
+                { value = settings.OtherOrbitalStructureLimit }, "mbv-field");
+            Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOtherOrbitalStructureLimit} for structures without weapons.");
+            Note(scroll, "Add presets as a JSON array. Use sponsorRaces to filter by the sponsor system’s race. Defense presets can set targetPlayers and targetNpcs.");
+            Note(scroll, "Add maintenance with intervalSeconds and materials for upkeep. Optional decayPercentPerDay defaults to 1. Optional minimumIntegrityPercent defaults to 15 and can be set from 15 to 100.");
+            var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
+                value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
+            var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");
+            var actions = Row(box);
+            Act(actions, T("mbApply", "Apply"), () =>
+            {
+                draft["enabled"] = enabled.value;
+                draft["jumpgatesEnabled"] = gates.value;
+                draft["includeStockStations"] = stockStations.value;
+                draft["includeStockJumpgates"] = stockGates.value;
+                draft["scrapIntegrity"] = integrity.value;
+                draft["minimumStationScale"] = stationScale.value;
+                draft["minimumJumpgateScale"] = jumpgateScale.value;
+                draft["stationModels"] = InfrastructureReferences(stationModels.value);
+                draft["jumpgateModels"] = InfrastructureReferences(gateModels.value);
+                draft["includeStockOrbitalDefense"] = stockDefense.value;
+                draft["orbitalDefenseLimit"] = defenseLimit.value;
+                draft["otherOrbitalStructureLimit"] = otherStructureLimit.value;
+                try
+                {
+                    draft["orbitalStructures"] = JArray.Parse(structures.value);
+                    ModPlayerInfrastructure.Parse(draft);
+                }
+                catch (Exception error) when (error is ModJsonException || error is Newtonsoft.Json.JsonException)
+                {
+                    errorLabel.text = error.Message;
+                    return;
+                }
+                Project.PlayerInfrastructure = draft;
+                RequestReload(false);
+                ShowMenu();
+            });
+            Act(actions, "Use inherited rules", () =>
+            {
+                Project.PlayerInfrastructure = new JObject();
+                RequestReload(false);
+                ShowMenu();
+            });
+            Act(actions, T("mbCancel", "Cancel"), ShowMenu);
+            modal.AddToClassList("mbv-modal--shown");
+        }
+
+        static JArray InfrastructureReferences(string text) => new JArray((text ?? "").Split('\n')
+            .Select(reference => reference.Trim()).Where(reference => !string.IsNullOrEmpty(reference)));
+
+        void AddInfrastructureModelPicker(VisualElement panel, string title, TextField field,
+            IEnumerable<(string name, string reference)> models)
+        {
+            var choices = models.Where(model => !string.IsNullOrEmpty(model.reference)).ToList();
+            if (choices.Count == 0) return;
+            var labels = choices.Select(model => (string.IsNullOrEmpty(model.name) ? model.reference : model.name)
+                + " [" + model.reference + "]").ToList();
+            labels.Insert(0, "Choose a model");
+            var picker = Add(panel, new DropdownField(title, labels, 0), "mbv-field");
+            picker.RegisterValueChangedCallback(_ =>
+            {
+                if (picker.index <= 0) return;
+                string reference = choices[picker.index - 1].reference;
+                if (!InfrastructureReferences(field.value).Values<string>().Contains(reference, StringComparer.OrdinalIgnoreCase))
+                    field.value = string.IsNullOrWhiteSpace(field.value) ? reference : field.value.TrimEnd() + "\n" + reference;
+                picker.SetValueWithoutNotify(labels[0]);
+            });
         }
 
         void ShowOptions()

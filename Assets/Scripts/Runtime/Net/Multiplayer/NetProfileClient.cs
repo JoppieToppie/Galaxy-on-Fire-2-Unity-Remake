@@ -27,6 +27,8 @@ namespace GoF2Remake.Multiplayer
         static int seed;
         static float uploadTimer = UploadSeconds;
         static int outSeq;
+        static int pendingWreckPickup;
+        static float wreckPickupSentAt;
         // The profile coming in.
         static int inSeq = -1, inGot;
         static byte[][] inParts;
@@ -39,6 +41,7 @@ namespace GoF2Remake.Multiplayer
             waiting = false;
             uploadTimer = UploadSeconds;
             outSeq = 0;
+            pendingWreckPickup = 0;
             inSeq = -1; inGot = 0; inParts = null;
             Controller = true;
             Guest = false;
@@ -157,13 +160,43 @@ namespace GoF2Remake.Multiplayer
         /// control to another device of the profile).</summary>
         public static void Upload(bool handover = false)
         {
-            if (!Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return;
-            if (SaveGame.HostSaves) return;   // the co-op host's game is in its save slots
-            if (NetArenaClient.InMatch) return;   // nothing of an arena match is saved (its start uploaded the profile)
+            if (!handover && WreckPickupPending()) return;
+            UploadSnapshot(handover);
+        }
+
+        internal static void RequestWreckSalvage(int orbit, int room, bool jumpgate)
+        {
+            if (WreckPickupPending()) return;
+            int sequence = UploadSnapshot(handover: false);
+            if (sequence == 0) return;
+            pendingWreckPickup = sequence;
+            wreckPickupSentAt = Time.realtimeSinceStartup;
+            NetState.Instance.RequestWreckSalvageRpc(orbit, room, jumpgate, sequence);
+        }
+
+        static bool WreckPickupPending()
+        {
+            if (pendingWreckPickup == 0) return false;
+            if (Time.realtimeSinceStartup - wreckPickupSentAt < 8f) return true;
+            pendingWreckPickup = 0;
+            return false;
+        }
+
+        internal static void AcknowledgeWreckSalvage(int sequence)
+        {
+            if (pendingWreckPickup == sequence) pendingWreckPickup = 0;
+        }
+
+        static int UploadSnapshot(bool handover)
+        {
+            if (!Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return 0;
+            if (SaveGame.HostSaves) return 0;   // the co-op host's game is in its save slots
+            if (NetArenaClient.InMatch) return 0;   // nothing of an arena match is saved (its start uploaded the profile)
             uploadTimer = UploadSeconds;
             var parts = NetProfiles.Pack(SaveGame.ProfileJson());
             int seq = ++outSeq;
             for (int i = 0; i < parts.Count; i++) NetState.Instance.UploadChunkRpc(seq, i, parts.Count, parts[i]);
+            return seq;
         }
 
         /// <summary>A persistent hosted world's host leaving: its game straight into its profile (NetProfiles.SaveHost). The
