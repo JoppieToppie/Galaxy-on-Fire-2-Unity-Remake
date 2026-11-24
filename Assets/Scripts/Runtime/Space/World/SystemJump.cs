@@ -50,7 +50,7 @@ namespace GoF2Remake.World
 
         public string spaceScene = "Space";
 
-        enum State { None, AtGate, Charging, AwaitingNetworkJump, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
+        enum State { None, AtGate, Charging, AwaitingNetworkJump, AwaitingPlayerGate, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
 
         Database db;
         Navigation nav;
@@ -61,6 +61,7 @@ namespace GoF2Remake.World
         StarMapAssets assets;
         AudioSource sfx;
         State state;
+        float playerGateDeadline;
         float chargeMs, animMs, animLength, speed;
         /// <summary>Modified: when the ship vanishes in the Khador scene (1700 ms; a mounted drive's own effect, ModJumpFx:
         /// its meetMs, when the ship reaches the effect's meeting point).</summary>
@@ -96,7 +97,7 @@ namespace GoF2Remake.World
         Vector3 sceneDir = Vector3.forward;
 
         /// <summary>The HUD is hidden: docked to the gate or a jump scene running.</summary>
-        public bool Cinematic => state == State.AtGate || state == State.GateScene || state == State.KhadorScene || swapping;
+        public bool Cinematic => state == State.AtGate || state == State.AwaitingPlayerGate || state == State.GateScene || state == State.KhadorScene || swapping;
         public bool Charging => state == State.Charging;
         /// <summary>Remake: the ship is on its way through a jumpgate or the Khador Drive (the jump scenes; ThrottleGlow).</summary>
         public bool Traveling => state == State.GateScene || state == State.KhadorScene;
@@ -215,6 +216,10 @@ namespace GoF2Remake.World
                 case State.AtGate:
                     // dockToStream: input locked, the ship keeps moving at its speed (the game is paused while asking).
                     ship.transform.position += ship.transform.forward * speed * dtMs * M;
+                    break;
+                case State.AwaitingPlayerGate:
+                    if (Time.realtimeSinceStartup >= playerGateDeadline || (health != null && health.Dead))
+                        FinishPlayerGateRequest(-1);
                     break;
                 case State.Charging:
                     chargeMs += dtMs;
@@ -365,16 +370,13 @@ namespace GoF2Remake.World
                 return;
             }
             if (playerGate)
-                SpaceHooks.DiscoverPlayerJumpgate?.Invoke(Session.StationIndex);
-            int fixedDestination = GameHooks.PlayerJumpgateDestination?.Invoke(Session.StationIndex) ?? -1;
-            if (fixedDestination >= 0)
             {
-                // A player-built gate is a point-to-point connection, not a general-purpose system gate.
-                nav.Paused = false;
-                Session.ProgrammedStation = fixedDestination;
-                Session.RouteSafest = false;
-                hopping = false;
-                StartGateScene(fixedDestination);
+                // Do not start a gate cinematic or fall back to normal routing until the server approves.
+                state = State.AwaitingPlayerGate;
+                playerGateDeadline = Time.realtimeSinceStartup + 10f;
+                ship.ExternalSpeedMetersPerSecond = 0f;
+                if (SpaceHooks.RequestPlayerJumpgateTravel?.Invoke(Session.StationIndex, FinishPlayerGateRequest) != true)
+                    FinishPlayerGateRequest(-1);
                 return;
             }
             int prog = Session.ProgrammedStation;
@@ -389,6 +391,26 @@ namespace GoF2Remake.World
             }
             bool opened = SpaceHooks.OpenStarMap != null && SpaceHooks.OpenStarMap(db, StarMapMode.Gate, false, OnGateMapClosed, prog >= 0 && prog != Session.StationIndex ? prog : -1, false);
             if (!opened) OnGateMapClosed(new StarMapResult { station = -1 });
+        }
+
+        void FinishPlayerGateRequest(int destination)
+        {
+            if (this == null || state != State.AwaitingPlayerGate) return;
+            nav.Paused = false;
+            if (destination < 0 || (health != null && health.Dead))
+            {
+                state = State.None;
+                ship.externalControl = false;
+                ship.ExternalSpeedMetersPerSecond = 0f;
+                if (weapons != null) weapons.Blocked = false;
+                nav.Refuse();
+                Message?.Invoke("Player jumpgate travel was refused or timed out.");
+                return;
+            }
+            Session.ProgrammedStation = destination;
+            Session.RouteSafest = false;
+            hopping = false;
+            StartGateScene(destination);
         }
 
         /// <summary>DockToStream: the gate jumps on toward the programmed station without its "Travel to this station?" (a
