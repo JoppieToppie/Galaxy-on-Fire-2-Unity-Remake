@@ -28,6 +28,46 @@ namespace GoF2Remake.Tests
         static readonly Ship Raider = new Ship { name = "raider", dx = 90, dy = 0, hostile = true };
 
         [Test]
+        public void FreeLookAcquiresTargetsFromTheCameraViewportCentre()
+        {
+            var cameraObject = new UnityEngine.GameObject("camera");
+            var shipObject = new UnityEngine.GameObject("ship");
+            try
+            {
+                var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+                camera.pixelRect = new UnityEngine.Rect(100f, 50f, 800f, 600f);
+                var crosshair = CombatRadar.LockCrosshairPoint(camera, shipObject.transform, true);
+                // (an edit-mode camera's pixelRect is clipped to the Game view's size, so the centre is read back)
+                var centre = camera.pixelRect.center;
+                Assert.AreEqual(new UnityEngine.Vector3(centre.x, centre.y, 1f), crosshair);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+            }
+        }
+
+        [Test]
+        public void NormalFlightKeepsTheShipForwardAimLine()
+        {
+            var cameraObject = new UnityEngine.GameObject("camera");
+            var shipObject = new UnityEngine.GameObject("ship");
+            try
+            {
+                var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+                var expected = camera.WorldToScreenPoint(ChaseCamera.AimOrigin(shipObject.transform)
+                                                          + shipObject.transform.forward * (22000f * 0.05f));
+                Assert.AreEqual(expected, CombatRadar.LockCrosshairPoint(camera, shipObject.transform, false));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(shipObject);
+            }
+        }
+
+        [Test]
         public void HostileShipsComeFirstThenTheNearest()
         {
             Assert.AreEqual("enemy", Pick(new[] { Trader, Raider, Enemy }, true, false), "hostile first, the nearer of the two");

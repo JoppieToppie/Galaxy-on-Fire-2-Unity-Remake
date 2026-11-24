@@ -121,7 +121,12 @@ a space ("20,000个信用分"), all-caps words of item / ship / station / system
   orbit planet `planet_000_big` (`switchPlanetForIntro`'s x2 never shows: `StarSystem::render` resets the orbit planet's
   scale every frame), the tumbling wreck (156) trailing smoke and fire (`ShipSmoke`; the drift along game -z, the model
   alone turning by `PlayerEgo::rotate`'s stored Euler angles from (pi/4, pi/4, pi/4), `IntroCutscenes.Tumble`,
-  `ShipController.modelHeld`), fade → index 1. Index 1, the rescue: the frozen Phantom, Gunant's salvager (ship 30)
+  `ShipController.modelHeld`), fade → index 1. Camera as the iOS build (2026-11-16): the pirates' shot keeps its dolly
+  (0.2, 0, 2.2) u/ms through step 3; when control is given the chase camera eases over from that shot
+  (`CutsceneCamera.Release(snap: false)`, no cut), its look point easing from pirate 0 as the original's
+  (`ChaseCamera.ReturnLookingAt`: the Original follow for the glide, whatever the option), so the view stays on the pirates
+  opening fire and swings over to the ship; remake: slowed at first over `ReturnGlideMs` 5 s; in step 14 the camera dollies back along game -z at 2 u/ms (before:
+  it travelled with the wreck). Index 1, the rescue: the frozen Phantom, Gunant's salvager (ship 30)
   closing in, his three radio lines, fade → docked. **Skip** (the pause menu's 395 entry,
   `LevelScript::canSkipCutsceneNow`; no on-screen button): the original's unreachable `MGame::OnTouchEnd` branches,
   index 0 = 3 kills + advance to the rescue, index 1 = straight to the station. (Remake #16's "Hold to skip" plate was

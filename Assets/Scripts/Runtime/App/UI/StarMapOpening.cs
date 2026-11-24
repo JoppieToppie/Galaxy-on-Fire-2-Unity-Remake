@@ -102,6 +102,7 @@ namespace GoF2Remake.UI
             backButton = root.Q<Button>("backButton");
             keyButton = root.Q<Button>("keyButton");
             zoomButton = root.Q<Button>("zoomButton");
+            animationSpeedButton = root.Q<Button>("animationSpeedButton");
             voidButton = root.Q<Button>("voidButton");
             sideButtons = root.Q("mapSideButtons");
             dialogYes = root.Q<Button>("dialogYes");
@@ -177,7 +178,7 @@ namespace GoF2Remake.UI
             keyButton.text = T(400).UiCaps();
             voidButton.text = VoidButtonText;
             dialogNo.text = T(135).UiCaps();
-            foreach (var b in new[] { backButton, keyButton, zoomButton, voidButton, dialogYes, dialogAlt, dialogAlt2, dialogNo })
+            foreach (var b in new[] { backButton, keyButton, zoomButton, animationSpeedButton, voidButton, dialogYes, dialogAlt, dialogAlt2, dialogNo })
             {
                 b.focusable = false;
                 b.RegisterCallback<PointerDownEvent>(_ => Play(assets.buttonPush), TrickleDown.TrickleDown);
@@ -185,6 +186,7 @@ namespace GoF2Remake.UI
             backButton.clicked += () => { Play(assets.buttonRelease); Back(); };
             keyButton.clicked += () => { Play(assets.buttonRelease); ToggleKey(); };
             zoomButton.clicked += () => { Play(assets.buttonRelease); SetOverview(!overview); };
+            animationSpeedButton.clicked += CycleAnimationSpeed;
             keyButton.RegisterCallback<GeometryChangedEvent>(_ => FitSideButtons());
             voidButton.clicked += () => { Play(assets.buttonRelease); AskVoid(); };
             touch.RegisterCallback<WheelEvent>(e => { if (e.delta.y > 0.01f) SetOverview(true); else if (e.delta.y < -0.01f) SetOverview(false); e.StopPropagation(); });
@@ -223,7 +225,7 @@ namespace GoF2Remake.UI
                     // it, so "its order - 1" kept the map over the builder's panels.
                     if (runtimePanel != null) runtimePanel.sortingOrder = baseSortingOrder - 1;
                     root.AddToClassList("map-builder");
-                    foreach (var n in new[] { "mapTitle", "mapKeys", "mapHelp", "backButton", "keyButton", "zoomButton", "voidButton", "hints" })
+                    foreach (var n in new[] { "mapTitle", "mapKeys", "mapHelp", "backButton", "keyButton", "zoomButton", "animationSpeedButton", "voidButton", "hints" })
                         if (root.Q(n) is VisualElement el) el.style.display = DisplayStyle.None;
                 }
                 // askVoid: the original asks 422 before the map shows; remake: the map opens and the footer's Jump to the Void
@@ -257,20 +259,21 @@ namespace GoF2Remake.UI
         void FitSideButtons()
         {
             if (sideButtons == null || keyButton == null) return;
+            var stack = root.Q("mapActionStack") ?? sideButtons;
             // Modified: the Original style puts them in a row (OriginalFlight.uss), each sized to its label: the row as wide as
             // they are together (the column's width cut Key off at the screen's edge).
             if (Settings.OriginalUi)
             {
-                if (sideButtons.style.width.keyword != StyleKeyword.Auto) sideButtons.style.width = StyleKeyword.Auto;
+                if (stack.style.width.keyword != StyleKeyword.Auto) stack.style.width = StyleKeyword.Auto;
                 return;
             }
             float w = 0f;
-            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), T(400).UiCaps() })
+            foreach (var text in new[] { VoidButtonText, Localization.Extra("mapFullMap", "FULL MAP").OgCase(), Localization.Extra("mapCloseUp", "CLOSE UP").OgCase(), AnimationSpeedText, T(400).UiCaps() })
                 w = Mathf.Max(w, keyButton.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
             if (!(w > 0f)) return;
             var s = keyButton.resolvedStyle;
             w += s.paddingLeft + s.paddingRight + s.borderLeftWidth + s.borderRightWidth + 4f;
-            if (Mathf.Abs(sideButtons.resolvedStyle.width - w) > 0.5f) sideButtons.style.width = w;
+            if (Mathf.Abs(stack.resolvedStyle.width - w) > 0.5f) stack.style.width = w;
         }
         /// <summary>Modified: the camera is still on its way in or out of the full-map overview (Full map / Close up wait).</summary>
         bool OverviewMoving => overviewT > 0f && overviewT < 1f;

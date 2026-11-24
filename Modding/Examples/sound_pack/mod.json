@@ -1,0 +1,9 @@
+{
+    "id": "sound_pack",
+    "name": "Sound Pack (sounds and music example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "Changes what the game sounds like without a line of code: the target lock becomes a soft chime (a file named like the game's sound replaces it), and Pan gets a calm music track of its own (a new track in the music folder, given to the system by an override)."
+    }
+}

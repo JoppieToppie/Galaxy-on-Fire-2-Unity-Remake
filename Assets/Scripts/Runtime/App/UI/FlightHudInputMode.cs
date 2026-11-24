@@ -76,7 +76,7 @@ namespace GoF2Remake.UI
         {
             hints.Clear();
             hintKind = kind;
-            if (kind == InputKind.Touch) return;
+            if (kind == InputKind.Touch || Benchmark.Active) return;   // (a benchmark run flies itself: no key hints)
             bool pad = kind == InputKind.Gamepad;
             string T(string key, string english) => Localization.Extra(key, english);
             // The menus' own keys are fixed (arrows / D-pad, Enter / A, Esc / B / Menu); the rest are GameControls' bindings.
@@ -144,7 +144,7 @@ namespace GoF2Remake.UI
                 Hint(T("hudAimTurret", "AIM TURRET"), GameControls.Steer);
                 Hint(throttle, GameControls.Throttle);
                 Hint(fire, GameControls.FirePrimary);
-                Hint(T("hudTurretExit", "CHASE VIEW"), GameControls.Camera);
+                Hint(T("hudTurretExit", "CHASE VIEW"), GameControls.TurretView);
                 return;
             }
             // Multiplayer (or single player with Options > Gameplay "Fast-forward" = Ship cruise): the held button is a cruise
@@ -170,26 +170,31 @@ namespace GoF2Remake.UI
                 Hint(drilling ? T("hudMiningStop", "STOP MINING") : T("hudMiningAbort", "ABORT"), GameControls.FirePrimary, GameControls.Action);
                 return;
             }
-            if (FlightStyles.Current == FlightStyles.Free)
+            if (FlightStyles.IsFree(FlightStyles.Current))
             {
                 // Free flight (EVERSPACE 2's layout, ShipController.FreeFlightActive): the held movement axes, the held boost.
+                // Chorus flight's layout (2026-11-11): no strafe, up / down or dampeners; the held drift and the dodge instead.
+                bool chorus = FlightStyles.Current == FlightStyles.Chorus;
                 if (!pad) Hint(T("hudAim", "AIM"), InputGlyph.Key(T("hudMouse", "MOUSE")));
                 Hint(pad ? T("hudAim", "AIM") : T("hudSteer", "STEER"), GameControls.Steer);
                 Hint(T("hudThrust", "THRUST"), GameControls.Thrust);
-                Hint(T("hudStrafe", "STRAFE"), GameControls.StrafeAxis);
-                Hint(T("hudHover", "UP / DOWN"), GameControls.Hover);
+                if (!chorus) Hint(T("hudStrafe", "STRAFE"), GameControls.StrafeAxis);
+                if (!chorus) Hint(T("hudHover", "UP / DOWN"), GameControls.Hover);
                 Hint(T("hudRoll", "ROLL"), GameControls.Roll);
                 Hint(T("hudBoost", "BOOST") + " (" + T("hudHold", "HOLD") + ")", GameControls.Boost);
+                if (chorus) Hint(T("hudDrift", "DRIFT") + " (" + T("hudHold", "HOLD") + ")", GameControls.Drift);
+                if (chorus) Hint(T("hudDodge", "DODGE"), GameControls.DodgeLeft, GameControls.DodgeRight);
+                if (chorus) Hint(T("hudTravelBoost", "TRAVEL BOOST"), GameControls.TravelBoost);   // out of combat (FlightModel.ToggleTravelBoost)
                 if (lastLockFastForward) Hint(ff, GameControls.FastForward);   // remake: toward a stationary lock (Navigation.LockFastForward)
                 else if (nav != null && nav.Drive != null) Hint(T("hudCruiseDrive", "CRUISE") + " (" + T("hudHold", "HOLD") + ")", GameControls.FastForward);   // remake: a cruise drive
-                Hint(T("hudDampeners", "DAMPENERS"), GameControls.Dampeners);
+                if (!chorus) Hint(T("hudDampeners", "DAMPENERS"), GameControls.Dampeners);
                 Hint(fire, GameControls.FirePrimary);
                 Hint(T("hudMissile", "MISSILE"), GameControls.FireSecondary);
                 if (weapons != null && weapons.CanCycleSecondary) Hint(T("hudSwitchSecondary", "SWITCH"), GameControls.SwitchSecondary);
                 if (radar != null && radar.Locked != null) Hint(T("hudUnlock", "UNLOCK"), GameControls.UnlockTarget);
                 Hint(T("hudFreeLook", "FREE LOOK"), GameControls.FreeLookHold);
-                if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
-                if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
+                if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), HasManualTurret() ? GameControls.AutoTurret : GameControls.TurretView);
+                if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
                 CockpitHint(pad);
                 if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
                 if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
@@ -212,8 +217,8 @@ namespace GoF2Remake.UI
             Hint(T("hudRoll", "ROLL"), GameControls.Roll);
             Hint(T("hudLevel", "LEVEL"), GameControls.LevelOut);
             // Remake: a ship may carry an auto turret and a manual one at once: a hint for each kind it has.
-            if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), GameControls.AutoTurret);
-            if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.Camera);
+            if (FirstAuto() != null) Hint(Localization.Get(37).UiCaps(), HasManualTurret() ? GameControls.AutoTurret : GameControls.TurretView);
+            if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
             CockpitHint(pad);
             if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
             if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);

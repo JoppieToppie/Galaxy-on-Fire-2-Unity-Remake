@@ -65,7 +65,8 @@ namespace GoF2Remake.World
         void OnHit(int b, Target hit, Vector3 point)
         {
             bool big = hit.boxes != null && hit.boxes.Length > 0;
-            hit.Damage(missiles.damage * (big ? BigFactor : 1f), false, missiles.bullets[b].velocity);
+            hit.lastPlayerWeapon = missiles.itemIndex;
+            hit.Damage(missiles.damage * (big ? BigFactor : 1f), false, missiles.bullets[b].velocity, missiles.damageType == DamageType.None ? 1f : missiles.shieldFactor, missiles.damageType);
             rig.ShowImpact(point);
         }
 

@@ -20,6 +20,7 @@ namespace GoF2Remake.Visuals
     public sealed class CloakPass : ScriptableRenderPass
     {
         static readonly ShaderTagId Tag = new ShaderTagId("GoF2Cloak");
+        static readonly ShaderTagId DepthAllTag = new ShaderTagId("GoF2CloakDepthAll");   // Modified
         static readonly int SceneId = Shader.PropertyToID("_GoF2CloakScene");
         static readonly HashSet<object> owners = new HashSet<object>();
         static CloakPass instance;
@@ -32,8 +33,19 @@ namespace GoF2Remake.Visuals
             if (on) owners.Add(owner); else owners.Remove(owner);
         }
 
+        /// <summary>Modified (2026-11-17): the cloaked ships whose lights and glow are drawn against their hull's whole
+        /// depth before the copy (CloakGlow.Defer), so the ones on its far side stay hidden and the near ones refract.</summary>
+        static readonly Dictionary<object, GoF2Remake.Flight.CloakGlow> afterHull = new Dictionary<object, GoF2Remake.Flight.CloakGlow>();
+
+        /// <summary>Modified: 'glow''s renderers drawn against the cloaked hulls' depth (null: no longer).</summary>
+        public static void DrawAfterHull(object owner, GoF2Remake.Flight.CloakGlow glow)
+        {
+            if (owner == null) return;
+            if (glow != null) afterHull[owner] = glow; else afterHull.Remove(owner);
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetOwners() => owners.Clear();
+        static void ResetOwners() { owners.Clear(); afterHull.Clear(); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Install()
@@ -119,6 +131,39 @@ namespace GoF2Remake.Visuals
             var camera = frameData.Get<UniversalCameraData>();
             var lights = frameData.Get<UniversalLightData>();
             if (resources.isActiveTargetBackBuffer) return;
+
+            // Modified (2026-11-17): the cloaked hulls' whole depth, then the cloaked ships' own lights and glow
+            // (CloakGlow.Defer) against it: those on the far side of the invisible hull stay hidden, the near ones go into
+            // the copy below and are refracted (bent and wobbled) with the rest. The other transparents are drawn already.
+            var depthAll = RenderingUtils.CreateDrawingSettings(DepthAllTag, rendering, camera, lights, SortingCriteria.CommonOpaque);
+            var depthList = renderGraph.CreateRendererList(new RendererListParams(rendering.cullResults, depthAll, new FilteringSettings(RenderQueueRange.all)));
+            using (var lightsBuilder = renderGraph.AddRasterRenderPass<PassData>("GoF2 Cloak Lights", out var lightsData))
+            {
+                lightsData.list = depthList;
+                lightsBuilder.UseRendererList(depthList);
+                lightsBuilder.AllowPassCulling(false);
+                lightsBuilder.SetRenderAttachment(resources.activeColorTexture, 0);
+                lightsBuilder.SetRenderAttachmentDepth(resources.activeDepthTexture, AccessFlags.ReadWrite);
+                lightsBuilder.SetRenderFunc((PassData d, RasterGraphContext ctx) =>
+                {
+                    ctx.cmd.DrawRendererList(d.list);
+                    var cmd = ctx.cmd;
+                    foreach (var glow in afterHull.Values)
+                        glow?.ForEachDeferred(r =>
+                        {
+                            var mats = r.sharedMaterials;
+                            for (int i = 0; i < mats.Length; i++)
+                            {
+                                var m = mats[i];
+                                if (m == null) continue;
+                                int pass = m.FindPass("Universal Forward");
+                                if (pass < 0) pass = m.FindPass("UniversalForward");
+                                if (pass < 0) pass = 0;
+                                cmd.DrawRenderer(r, m, i, pass);
+                            }
+                        });
+                });
+            }
 
             // Engine::CopyFBO: the frame so far, full size.
             var desc = renderGraph.GetTextureDesc(resources.activeColorTexture);

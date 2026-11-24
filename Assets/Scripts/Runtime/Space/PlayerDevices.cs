@@ -13,6 +13,10 @@
 // item off the ship. The sensor cloud hides the ship from the enemies while it flies inside it (Target.cloaked, as the
 // cloak does: no fire, missiles shaken off); the repairs and the restock are instant; the charger ends the other
 // devices' cooldowns.
+// Remake (2026-11-13): Chorus's Rites (a device with deviceVoidCost > 0, Rite of the Hunt first) also pay that many pips of the
+// ship's Void energy (Flight.VoidEnergy, made when one is mounted: 3 pips, one back every 4.5 s); a Rite is ready only with
+// the pips there ("{0}: not enough Void energy"), and its HUD sweep is the pool's fill toward its cost. The pips grow back
+// on Void Crystals from the hold (VoidEnergy.Burn: 1 t a pip; none aboard, none grow: "No Void Crystals aboard").
 
 using System;
 using System.Collections.Generic;
@@ -35,12 +39,26 @@ namespace GoF2Remake.Flight
             /// <summary>Remake: a consumable (one use per unit, deviceConsumable) and the restock's rounds (deviceAmmo).</summary>
             public bool consumable;
             public int ammo, range2;
+            /// <summary>Remake: a Rite's Void energy cost (deviceVoidCost; 0 = not a Rite).</summary>
+            public int voidCost;
+            /// <summary>Remake: the Rite of the Storm's jam and the Senses' length (their deviceDurationMs: the devices themselves
+            /// are instant), the Storm's jumps.</summary>
+            public int jamMs, chain;
+            /// <summary>Remake: a Rite's upgrades (deviceUpgrade: Device.UpgradeA / UpgradeB bits).</summary>
+            public int upgrade;
+            public bool A => (upgrade & Device.UpgradeA) != 0;
+            public bool B => (upgrade & Device.UpgradeB) != 0;
             /// <summary>Available last frame: "{0} ready" when it turns true (the cooldown's end, the strike charge filled).</summary>
             public bool wasAvailable = true;
         }
 
         readonly List<Entry> devices = new List<Entry>();
+        // Remake: the passive Rites (Device.Type.RitePassive): mounted, never fired; their pips and immunity
+        int voidPips;
+        bool hasRite, elementalProof;
         public IReadOnlyList<Entry> Devices => devices;
+        /// <summary>Remake: the Void energy the Rites pay from, null without a Rite mounted (3 pips and the passives' more).</summary>
+        public VoidEnergy VoidPool { get; private set; }
         /// <summary>A HUD message ("{0} ready", not enough shield, not charged).</summary>
         public event Action<string> Message;
         /// <summary>No device may be fired now (the launch camera, a jump, a cutscene, the guns blocked).</summary>
@@ -56,7 +74,7 @@ namespace GoF2Remake.Flight
         readonly Dictionary<Entry, Shot> shots = new Dictionary<Entry, Shot>();
         readonly Dictionary<int, Shot> deflected = new Dictionary<int, Shot>();   // by the shooter's gun item
         readonly List<Wave> waves = new List<Wave>();
-        readonly List<(Transform beam, Target to, float ms)> beams = new List<(Transform, Target, float)>();
+        readonly List<(Transform beam, Target from, Target to, float ms)> beams = new List<(Transform, Target, Target, float)>();
         readonly List<Transform> beamPool = new List<Transform>();
         Func<Gun, int, bool> deflect;
         Entry deflector;
@@ -80,6 +98,8 @@ namespace GoF2Remake.Flight
             c.self = self;
             c.weapons = weapons;
             foreach (var it in items) c.Add(it);
+            if (c.hasRite) c.VoidPool = new VoidEnergy(VoidEnergy.ChorusMax + c.voidPips);
+            Hazards.ElementalProof = c.elementalProof;
             c.Setup();
             return c;
         }
@@ -87,20 +107,37 @@ namespace GoF2Remake.Flight
         void Add(ItemData it)
         {
             var type = Shop.DeviceType(it);
+            if (type == Device.Type.RitePassive)
+            {
+                voidPips += Mathf.Max(0, it.Attr(Device.VoidPipsAttr));
+                elementalProof |= it.Attr(Device.ElementalAttr) > 0;
+                return;
+            }
             bool consumable = Shop.IsConsumableDevice(it);
+            bool hunt = type == Device.Type.RiteHunt, storm = type == Device.Type.RiteStorm, star = type == Device.Type.RiteStar,
+                 control = type == Device.Type.RiteControl, senses = type == Device.Type.RiteSenses;
             var e = new Entry
             {
                 item = it,
                 name = GameNames.Item(it.index),
                 // (a consumable has no cooldown unless given one: its uses are the limit)
-                rules = new Device(it.index, type, it.Attr(Device.DurationAttr), it.Attr(Device.CooldownAttr, consumable ? 0 : Device.DefaultCooldownMs),
+                rules = new Device(it.index, type, storm || senses ? 0 : it.Attr(Device.DurationAttr, star ? Device.StarMaxMs : control ? Device.ControlHoldMs : 0),
+                                   it.Attr(Device.CooldownAttr, consumable ? 0 : hunt ? Device.HuntCooldownMs : storm ? Device.StormCooldownMs
+                                                                  : star ? Device.StarCooldownMs : control ? Device.ControlCooldownMs
+                                                                  : senses ? Device.SensesCooldownMs
+                                                                  : Device.DefaultCooldownMs),
                                    type == Device.Type.StrikeCharge ? it.Attr(Device.ChargeAttr) : 0),
                 consumable = consumable,
                 ammo = it.Attr(Device.AmmoAttr),
                 range2 = it.Attr(Device.Range2Attr),
+                voidCost = it.Attr(Device.VoidCostAttr, hunt ? Device.HuntCost : storm ? Device.StormCost : star ? Device.StarCost
+                                                        : control ? Device.ControlCost : senses ? Device.SensesCost : 0),
+                jamMs = storm ? it.Attr(Device.DurationAttr, Device.StormJamMs) : senses ? it.Attr(Device.DurationAttr, Device.SensesMs) : 0,
+                upgrade = it.Attr(Device.UpgradeAttr),
+                chain = it.Attr(Device.ChainAttr, storm && (it.Attr(Device.UpgradeAttr) & Device.UpgradeA) != 0 ? Device.StormChainA : 0),
                 radius = it.Attr(Device.RadiusAttr),
-                growMs = it.Attr(Device.GrowAttr),
-                slowPercent = it.Attr(Device.SlowAttr, 25),
+                growMs = it.Attr(Device.GrowAttr, storm ? Device.StormChainMs : star ? Device.StarTickMs : 0),
+                slowPercent = it.Attr(Device.SlowAttr, storm ? 0 : 25),
                 shieldCost = it.Attr(Device.ShieldCostAttr),
                 damagePercent = it.Attr(Device.DamagePercentAttr, 100),
                 coneDeg = it.Attr(Device.ConeAttr, 30),
@@ -108,7 +145,15 @@ namespace GoF2Remake.Flight
                 emp = it.Attr(10),
             };
             devices.Add(e);
+            if (e.voidCost > 0) hasRite = true;
         }
+
+        /// <summary>Whether 'e' can be fired now: its own rules, and a Rite's energy.</summary>
+        public bool Ready(Entry e) => e.rules.Available && (e.voidCost <= 0 || VoidPool == null || Cheats.NoEquipmentCooldown || VoidPool.CanPay(e.voidCost));
+
+        /// <summary>The HUD's sweep for 'e': its cooldown, a ready Rite's the pool's fill toward its cost.</summary>
+        public float Charge(Entry e) =>
+            e.rules.State == Device.Phase.Ready && e.voidCost > 0 && VoidPool != null ? VoidPool.ChargeToward(e.voidCost) : e.rules.RechargeRate;
 
         void Setup()
         {
@@ -117,12 +162,19 @@ namespace GoF2Remake.Flight
             sfx.playOnAwake = false;
             sfx.spatialBlend = 0f;
             if (weapons != null) weapons.PrimaryDamageDealt += OnDamageDealt;
+            if (VoidPool != null)
+            {
+                // the regrowth's fuel (the user's choice): Void Crystals from the hold; the debug's free equipment needs none
+                VoidPool.HasFuel = () => Cheats.NoEquipmentCooldown || Shop.CargoOf(VoidEnergy.VoidCrystalItem) >= VoidEnergy.CrystalsPerPip;
+                VoidPool.Burn = () => { if (!Cheats.NoEquipmentCooldown) Shop.RemoveFromCargo(VoidEnergy.VoidCrystalItem, VoidEnergy.CrystalsPerPip); };
+            }
             SetupEffects();
         }
 
         void OnDestroy()
         {
             if (weapons != null) { weapons.PrimaryDamageDealt -= OnDamageDealt; weapons.DamageBoost = 1f; }
+            Hazards.ElementalProof = false;
             if (self != null && (object)self.Deflects == (object)deflect) self.Deflects = null;
             DestroyEffects();
         }
@@ -133,11 +185,28 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The quick menu's entry / the key for device 'slot' (mount order).</summary>
-        public void Use(int slot)
+        public void Use(int slot) => Use(slot, false);
+
+        /// <summary>'longRange': the Rite of the Senses' long range (its key held).</summary>
+        public void Use(int slot, bool longRange)
         {
+            senseLong = longRange;
             if (slot < 0 || slot >= devices.Count || self == null || !self.Alive) return;
             if (Time.timeScale <= 0f || (Blocked != null && Blocked())) return;
             var e = devices[slot];
+            // Remake (Chorus's Drill: MinDurationTime 0.5): a second press on a running Star ends it, after its first 0.5 s
+            if (e.rules.type == Device.Type.RiteStar && e.rules.Active)
+            {
+                if (e.rules.Timer >= Device.StarMinMs && e.rules.Cancel()) End(e);
+                return;
+            }
+            // Remake (Chorus's Telekinesis): a second press on a held ship throws it
+            if (e.rules.type == Device.Type.RiteControl && e.rules.Active)
+            {
+                Toss(e);
+                if (e.rules.Cancel()) End(e);
+                return;
+            }
             if (e.rules.State == Device.Phase.Ready && !e.rules.Charged)
             {
                 Message?.Invoke(string.Format(Localization.Extra("deviceNoCharge", "{0}: not charged yet ({1} %)"), e.name,
@@ -145,8 +214,15 @@ namespace GoF2Remake.Flight
                 return;
             }
             if (!e.rules.Available) return;
+            bool payVoid = e.voidCost > 0 && VoidPool != null && !Cheats.NoEquipmentCooldown;   // remake debug: Chorus's InfiniteVoidEnergy
+            if (payVoid && !VoidPool.CanPay(e.voidCost))
+            {
+                Message?.Invoke(string.Format(Localization.Extra("deviceNoVoidEnergy", "{0}: not enough Void energy"), e.name));
+                return;
+            }
             if (!CanFire(e)) return;
             if (!e.rules.TryFire()) return;
+            if (payVoid) VoidPool.TryPay(e.voidCost);
             Fire(e);
             if (e.consumable) Spend(e);
         }
@@ -171,11 +247,18 @@ namespace GoF2Remake.Flight
         }
 
         readonly List<Entry> spent = new List<Entry>();
+        bool voidStarved;
+        // the Senses' key held (its slot, -1 = none) and for how long; the next fire's range
+        int senseKey = -1;
+        float senseHeldMs;
+        bool senseLong;
 
         /// <summary>A death, a cutscene or a jump: every running device stops and cools down.</summary>
         public void Cancel()
         {
             foreach (var e in devices) if (e.rules.Cancel()) End(e);
+            EndHunt();   // (a leap under way: the model back, no leap)
+            stormLeft = 0;
         }
 
         void Update()
@@ -185,7 +268,21 @@ namespace GoF2Remake.Flight
             for (int i = 0; i < Keys.Length && i < devices.Count; i++)
             {
                 var key = Keys[i]();
-                if (key != null && key.WasPressedThisFrame()) Use(i);
+                if (key == null) continue;
+                if (devices[i].rules.type == Device.Type.RiteSenses)
+                {
+                    // Remake (Chorus's Scan): a tap scans close by; held SensesChargeMs, the long range
+                    if (key.WasPressedThisFrame()) { senseKey = i; senseHeldMs = 0f; }
+                    if (senseKey != i) continue;
+                    if (key.IsPressed())
+                    {
+                        senseHeldMs += Time.unscaledDeltaTime * 1000f;
+                        if (senseHeldMs >= Device.SensesChargeMs) { senseKey = -1; Use(i, true); }
+                    }
+                    else { senseKey = -1; Use(i); }
+                    continue;
+                }
+                if (key.WasPressedThisFrame()) Use(i);
             }
             for (int i = devices.Count - 1; i >= 0; i--)
             {
@@ -195,9 +292,17 @@ namespace GoF2Remake.Flight
                     End(e);
                     if (spent.Remove(e)) { devices.RemoveAt(i); continue; }   // the last use of a consumable, now over
                 }
-                bool available = e.rules.Available;
+                bool available = Ready(e);
                 if (available && !e.wasAvailable) Message?.Invoke(string.Format(Localization.Extra("deviceReady", "{0} ready"), e.name));
                 e.wasAvailable = available;
+            }
+            if (VoidPool != null)
+            {
+                VoidPool.Step(dtMs / 1000f);
+                if (VoidPool.Starved && !voidStarved)
+                    Message?.Invoke(string.Format(Localization.Extra("voidNoCrystals", "No {0} aboard: the Void energy can't grow back"),
+                                                  GameNames.Item(VoidEnergy.VoidCrystalItem)));
+                voidStarved = VoidPool.Starved;
             }
             UpdateEffects(dtMs);
         }

@@ -23,7 +23,20 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class Hangar
     {
-        public enum Result { Ok, NoStock, NoCredits, NothingToSell, NoFreeSlot, Swap, NotMountable, SameShip, NotSaleable, Passengers, AlreadyStored, WrongShipClass }
+        public enum Result { Ok, NoStock, NoCredits, NothingToSell, NoFreeSlot, Swap, NotMountable, SameShip, NotSaleable, Passengers, AlreadyStored }
+
+        /// <summary>Optional mod rule: why this item cannot be mounted on this ship (null = allowed). Called by every
+        /// mounting path and when a ship's built-in equipment is synchronised, so a mod can enforce ship-class rules.</summary>
+        public static System.Func<int, int, string> MountRefusal = (ship, item) => null;
+
+        /// <summary>Class compatibility is enforced locally from mod data; the optional refusal hook remains an extension
+        /// point for other mod rules.</summary>
+        static string ClassRefusal(Database db, int ship, int item)
+        {
+            if (!Modding.ShipClassRules.Fits(db?.Item(item), db?.Ship(ship)))
+                return "This ship's class cannot mount this item.";
+            return MountRefusal?.Invoke(ship, item);
+        }
 
         readonly Database db;
         readonly Dictionary<int, int> prices = new Dictionary<int, int>();
@@ -124,16 +137,25 @@ namespace GoF2Remake.Data
         /// <summary>Item::mixItems: everything in cargo or in stock, by item index. Remake: an item number the item table
         /// doesn't have is left out (logged once): the window reads every row's item, and one unknown number in the hold
         /// or the stock threw on every trade (crash reports from a Windows build, 2026-10-12, source not found yet).
-        /// Remake (PR #282, Settings.ShopByCategory, off by default): by category, then tech level, then index, so the DLC
-        /// items (indices after the base game's) sit beside their kind.</summary>
+        /// CLAUDE.md "Shop order": the optional category order also keeps beam/auto families together.
+        /// This orders only the returned view; the cargo and stock lists keep their own order.</summary>
         public List<int> ShopItems()
         {
             var items = Session.Cargo.Where(s => s.amount > 0).Select(s => s.item)
                 .Concat(Stock.items.Where(s => s.amount > 0).Select(s => s.item)).Distinct().Where(Known);
             return (Settings.ShopByCategory
-                ? items.OrderBy(i => db.Item(i).categoryId).ThenBy(i => db.Item(i).techLevel).ThenBy(i => i)
+                ? items.OrderBy(i => db.Item(i).categoryId).ThenBy(i => DisplaySubtype(db.Item(i)))
+                    .ThenBy(i => db.Item(i).techLevel).ThenBy(i => i)
                 : items.OrderBy(i => i)).ToList();
         }
+
+        /// <summary>Display-only subgroups: ordinary lasers before M6 beams, manual turrets before automatic ones.</summary>
+        public static int DisplaySubtype(ItemData item) => item.categoryId switch
+        {
+            0 => ItemData.IsBeamLook(item.Look) ? 1 : 0,
+            8 => item.Attr(16) == 1 ? 1 : 0,
+            _ => 0,
+        };
 
         static readonly HashSet<int> reportedUnknown = new HashSet<int>();
 
@@ -218,12 +240,6 @@ namespace GoF2Remake.Data
                 foreach (var e in Session.Equipment)
                     if (!drop.Contains(e) && !e.builtIn && e.item != GalaxyMap.KhadorDriveItem && GalaxyMap.IsKhadorDrive(e.item) && IsSaleable(e.item))
                     { drop.Add(e); Shop.AddToCargo(e.item, Mathf.Max(1, e.amount)); moved++; }
-            // Remake mods (Modding.ShipClassRules): gear the ship's class can't mount (a mod gave the ship a class, or the item a
-            // list, since it was fitted) goes to the hold; the story's unsaleable items stay.
-            var flown = db.Ship(Session.ShipIndex);
-            foreach (var e in Session.Equipment)
-                if (!drop.Contains(e) && !e.builtIn && IsSaleable(e.item) && !Modding.ShipClassRules.Fits(db.Item(e.item), flown))
-                { drop.Add(e); int n = UnitsOf(db, e); if (n > 0) Shop.AddToCargo(e.item, n); moved++; }
             if (moved > 0) Session.Equipment = Session.Equipment.Where(e => !drop.Contains(e)).ToList();
             // An item in a slot past the ship's (a hull with fewer slots) to the first empty one it has.
             for (int type = 0; type <= 3; type++)
@@ -402,8 +418,20 @@ namespace GoF2Remake.Data
         public static bool SyncBuiltIn(Database db)
         {
             if (db == null || Session.Equipment == null) return false;
-            var want = db.BuiltInItems(Session.ShipIndex);
             bool changed = false;
+            // A ship may have been loaded or swapped into a hull whose mod rules forbid some fitted equipment.
+            // Return those items to the hold; never silently delete them.
+            for (int i = Session.Equipment.Count - 1; i >= 0; i--)
+            {
+                var e = Session.Equipment[i];
+                if (e.builtIn) continue;
+                if (string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, e.item))) continue;
+                int amount = UnitsOf(db, e);
+                Session.Equipment.RemoveAt(i);
+                if (amount > 0) Shop.AddToCargo(e.item, amount);
+                changed = true;
+            }
+            var want = db.BuiltInItems(Session.ShipIndex);
             var matched = new bool[want.Count];
             // A fitted item of the same one-per-ship kind has taken a built-in one's place: that one steps aside (counted as
             // matched, so it isn't added; one present goes below).
@@ -506,10 +534,10 @@ namespace GoF2Remake.Data
             return Result.Ok;
         }
 
-        /// <summary>Status::changeCredits: ignores absurd changes, never below 0.</summary>
-        static void ChangeCredits(int delta)
+        /// <summary>Status::changeCredits: never below 0. Remake (64-bit credits): the original ignored a change over
+        /// 1 000 000 000 as absurd, which let a mod ship priced over that be bought for nothing (and sold for nothing).</summary>
+        static void ChangeCredits(long delta)
         {
-            if (Mathf.Abs(delta) > 1000000000) return;
             Session.Credits = System.Math.Max(0L, Session.SaturatingAdd(Session.Credits, delta));
         }
 
@@ -552,9 +580,7 @@ namespace GoF2Remake.Data
             if (it == null || CargoOf(item) <= 0) return Result.NothingToSell;
             int type = it.TypeId;
             if (type > 3) return Result.NotMountable;
-            // Remake mods (Modding.ShipClassRules): an item restricted to some ship classes (items.json allowedClasses /
-            // excludedClasses) isn't mounted on another; every original item fits every ship.
-            if (!Modding.ShipClassRules.Fits(it, db.Ship(Session.ShipIndex))) return Result.WrongShipClass;
+            if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Result.NotMountable;
             // Modified: one jump drive aboard: a mod jump drive (based on the Khador Drive) doesn't go on a ship with the Khador
             // Drive built in; a mounted Khador Drive and a mod one swap (category 18 is one per ship).
             if (GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex)) return Result.NotMountable;
@@ -598,6 +624,7 @@ namespace GoF2Remake.Data
         public bool Swap(int equipmentIndex, int item)
         {
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count || CargoOf(item) <= 0 || Session.Equipment[equipmentIndex].builtIn) return false;
+            if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return false;
             PinSlots(db, Session.Equipment);
             int slot = Session.Equipment[equipmentIndex].slot;
             Demount(equipmentIndex);
@@ -778,9 +805,7 @@ namespace GoF2Remake.Data
             foreach (var e in mounted)
             {
                 int type = TypeOf(e.item);
-                // Remake mods: gear the new hull's class can't mount (Modding.ShipClassRules) goes to the hold like the rest that doesn't fit.
-                bool fitsClass = Modding.ShipClassRules.Fits(db.Item(e.item), db.Ship(ship));
-                if (fitsClass && (!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
+                if ((!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
                 else if (UnitsOf(db, e) > 0) AddToCargo(e.item, UnitsOf(db, e));
             }
             Session.Equipment = Session.Equipment.OrderBy(e => listOrder.IndexOf(e)).ToList();
@@ -838,6 +863,45 @@ namespace GoF2Remake.Data
         }
 
         // ---- Kaamo Club ------------------------------------------------------------------------------------------
+
+        /// <summary>CLAUDE.md "Kaamo Club": buy the offered hull into storage at full price, without trading the flown hull.
+        /// Passengers and the flown hull's capacity do not constrain a delivery to storage.</summary>
+        public Result CanBuyShipToKaamoFor(int ship, int price, out int need)
+        {
+            need = 0;
+            if (!KaamoClub.Owned || NetSession.Active || db.Ship(ship) == null || price < 0) return Result.NotSaleable;
+            if (KaamoClub.HasShip(ship)) return Result.AlreadyStored;
+            int cost = Cheats.FreeShopping ? 0 : price;
+            if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
+            return Result.Ok;
+        }
+
+        public bool BuyShipToKaamoFor(int ship, int price, List<int> mods = null)
+        {
+            if (CanBuyShipToKaamoFor(ship, price, out _) != Result.Ok) return false;
+            if (!KaamoClub.Store(ship, 0, mods != null ? new List<int>(mods) : null)) return false;
+            if (!Cheats.FreeShopping) ChangeCredits(-price);
+            Session.ShipsBought.Add(Session.ShipRef(ship));
+            return true;
+        }
+
+        public Result CanBuyShipToKaamo(int ship, out int need)
+        {
+            need = 0;
+            if (Storage || Stock.ships == null || !Stock.ships.Contains(ship)) return Result.NoStock;
+            return CanBuyShipToKaamoFor(ship, BuyShipPrice(ship), out need);
+        }
+
+        public bool BuyShipToKaamo(int ship)
+        {
+            if (CanBuyShipToKaamo(ship, out _) != Result.Ok) return false;
+            if (!BuyShipToKaamoFor(ship, BuyShipPrice(ship), Stock.ModsOf(ship))) return false;
+            if (CronusGift(ship)) Session.KhadorCronusGift = false;
+            Stock.TakeMods(ship);
+            Stock.ships.Remove(ship);
+            GameHooks.StockShipChanged?.Invoke(Station, ship, -1);
+            return true;
+        }
 
         /// <summary>327 -> 331 "Keep": the old hull goes to the club, the new one costs its full price.</summary>
         public Result CanKeepAndBuyShip(int ship, out int need)

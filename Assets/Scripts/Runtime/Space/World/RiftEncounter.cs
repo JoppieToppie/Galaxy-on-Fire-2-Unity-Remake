@@ -37,6 +37,10 @@
 //   Apocalypse        every 12-22 s safe fields around the boss, then a countdown and a blast from it over the whole stage
 //                     (ApocalypseBlastSeconds of its gun's fire) that only a safe field held long enough keeps off
 // A stage's hazards go with it (ES2: the next location); Overheat cools down when the run ends.
+// A mod's rift look (2026-11-11, Modding.ModEncounters.RiftLookFor: Chorus's rifts in its systems): the rift model stands at
+// the run's centre while it runs, the look's sky replaces the orbit's (back when the run ends: SpaceLevel.RestoreOrbitSky),
+// and each stage's end opens the look's portal where the stage was fought (RiftPortal: it grows, holds and closes, the
+// survivors gone through it).
 // Who fights (2026-11-04, the user: the mods' enemy fighters and races, and the Void): each stage its own side, as ES2's
 // portals lead to another place each stage: the pirates, the Void, or a hostile mod race with fighters of its own (Sides),
 // at random. A mod race flies its mods' ships; the pirates and the Void fly the game's, now and then a mod's of theirs (the
@@ -86,6 +90,8 @@ namespace GoF2Remake.World
         GameObject barrier;
         Vector3 barrierHalf;
         readonly List<RiftField> snares = new List<RiftField>(), safeFields = new List<RiftField>();
+        Modding.ModEncounters.RiftLook look;
+        GameObject riftModel;
 
         public RiftRun Run => run;
 
@@ -99,6 +105,7 @@ namespace GoF2Remake.World
             r.es2Level = CruiseEncounterSpawner.Es2Level(level);
             r.bosses = bosses;
             Current = r;
+            r.Dress(Modding.ModEncounters.RiftLookFor(level.Layout != null ? level.Layout.systemIndex : -1));
             r.BeginStage();
             return r;
         }
@@ -119,10 +126,31 @@ namespace GoF2Remake.World
         // OrbitScale: centreGame is the encounter's point in the original's coordinates: mapped here, the spread around it
         // not (CruiseEncounterSpawner.Near); spawn specs take the original's coordinates (NpcShip maps them).
         Vector3 Centre => OrbitScale.ToUnity(centreGame);
+        /// <summary>Where the last stage's survivors are (their middle), else the run's centre.</summary>
+        Vector3 StageMiddle()
+        {
+            Vector3 sum = Vector3.zero; int n = 0;
+            foreach (var e in enemies) if (e != null && !e.Gone) { sum += e.transform.position; n++; }
+            return n > 0 ? sum / n : Centre;
+        }
         Vector3 Around(float units) => CruiseEncounterSpawner.Near(centreGame, new Vector3(Random.Range(-units, units), Random.Range(-units, units) * 0.5f, Random.Range(-units, units)));
+
+        /// <summary>The run's look: the rift at its centre, its sky.</summary>
+        void Dress(Modding.ModEncounters.RiftLook l)
+        {
+            look = l;
+            if (l == null) return;
+            if (l.rift != null)
+            {
+                riftModel = Modding.ModCrates.InstantiateFitted(l.mod.Id + "|" + l.rift, Centre, RiftPortal.Facing(Centre), l.riftSize * M, transform);
+                if (riftModel != null) { riftModel.name = "Rift look"; PortalRefraction.AttachIfPortal(riftModel); }
+            }
+            if (l.skybox != null && level.Layout != null) OrbitBuilder.SetupSky(level.Layout, skyOverride: l.skybox);
+        }
 
         void OnDestroy()
         {
+            if (look?.skybox != null && level != null) level.RestoreOrbitSky();
             if (Current == this) Current = null;
             Overheat.Clear();
             if (boss != null) boss.Target.playerProof = false;
@@ -150,7 +178,9 @@ namespace GoF2Remake.World
                 int r = Standing.RaceWord(bossPick.race);
                 if (r >= 0) race = r;
             }
-            foreach (var e in enemies) if (e != null && !e.Gone && e.Target.Alive) e.Vanish();   // (ES2: the next location)
+            // (ES2: the next location) a look's portal opens where the stage was fought and takes its survivors
+            if (look?.portal != null && run.Stage > 0) RiftPortal.Open(look.mod.Id + "|" + look.portal, StageMiddle(), look.portalSize * M, transform);
+            foreach (var e in enemies) if (e != null && !e.Gone && e.Target.Alive) e.Vanish();
             enemies.Clear(); kinds.Clear(); guards.Clear();
             // the last stage's hazards are left behind with it
             if (hazards != null) Destroy(hazards.gameObject);

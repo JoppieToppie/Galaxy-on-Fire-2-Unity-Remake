@@ -82,8 +82,7 @@ namespace GoF2Remake.UI
             {
                 Act(add, T("mbBackdropTexture", "A planet, sun or ring…"), () =>
                 {
-                    var names = Resources.LoadAll<Material>("GoF2Backdrop").Select(m => m.mainTexture != null ? m.mainTexture.name : null)
-                                         .Where(x => x != null).Distinct().OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+                    var names = Visuals.OriginalBackdrop.TextureNames();
                     ShowPicker(T("mbBackdropTexture", "A planet, sun or ring…"), names.Select(x => (x, (Texture2D)null, (Action)(() =>
                         PickImage(x, png => { Project.SetSkinTexture(x, png); SkinChanged(); ShowOtherTextures(); })))).ToList(), true);
                 }, "mbv-add", "mbv-change");

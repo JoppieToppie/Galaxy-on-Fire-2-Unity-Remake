@@ -1,0 +1,67 @@
+[
+    // wanted.json is a list of criminals for the Most Wanted boards (the Missions window's Most Wanted tab). Each one
+    // travels between stations; in the orbit where it is, it waits with its escorts until you lock it, and its death
+    // pays the bounty. Ships and items go by number here (the game's own), or "mod_id:id" for a mod's.
+
+    // 1. The least a criminal needs ("id", "name", "ship") and the everyday fields. With no "race" and no "board" it
+    //    is a pirate on the Terran board: listed in every Terran system's stations, travelling anywhere on your map.
+    {
+        "id": "brannoc_vey",
+        "name": "Brannoc Vey",
+        "description": "Sold the same stolen freighter to three buyers and shot all three when they came to collect.",
+        "ship": 23,                         // Azov
+        "weapon": 24,                       // 64MJ Railgun (default: item 0, the first laser)
+        "hitpoints": 600,                   // on top of the hull every criminal gets (default 1000)
+        "reward": 45000,                    // the bounty (default 50000)
+        "loot": 114, "lootAmount": 6,       // drops 6 t of Explosives (default: nothing)
+        "wingmen": 2,                       // two escorts: pirate fighters, as no "escorts" names their ships
+        "taunt": "Another collector? Get in line.",    // said over the radio when you uncover him
+        "available": "systemsvisited >= 2"  // a condition: only once you have left your first star system
+    },
+
+    // 2. Where a criminal is found. "systems" keeps her to three neighbouring Nivelian systems, and then only their
+    //    stations list her; "route" is how many systems one of her trips crosses, both ends counted, so 2 is a
+    //    neighbour and the list needs at least two systems joined by jumpgates.
+    {
+        "id": "ilvane_sorr",
+        "name": "Ilvane Sorr",
+        "description": "A customs officer who kept what she seized, and then the patrol wing sent to bring her in.",
+        "race": "nivelian",                 // hers and her escorts' (default pirate); "board" follows it: the Nivelian board
+        "gender": "female",                 // the face on the board (default male)
+        "ship": 43,                         // Wraith
+        "weapon": 19,                       // Gram Blaster
+        "secondary": 37,                    // Intelli Jet missiles (default: none)
+        "hitpoints": 2500,
+        "reward": 140000,
+        "loot": 113, "lootAmount": 3,       // Implants
+        "wingmen": 3,
+        "escorts": [ 18, 35 ],              // their ships in turn: Hatsuyuki, Night Owl, Hatsuyuki
+        "systems": [ 2, 9, 17 ],            // Behén, Weymire, Nesla
+        "route": [ 2, 3 ],                  // [ least, most ] systems a trip crosses (default [ 2, 4 ])
+        "taunt": "You should have stayed on the right side of the border.",
+        "available": "standing(nivelian) >= 0 and kills >= 10"    // the Nivelians trust you, and you have 10 kills
+    },
+
+    // 3. What must be done first. "requiredBounties": 1 keeps him off the board until one of the Terran board's mod
+    //    criminals is dead (Brannoc Vey above); "available" asks for 15 pirate kills as well. "board" puts a pirate on
+    //    a board by name (pirates have none of their own).
+    {
+        "id": "hask_the_ledger",
+        "name": "Hask the Ledger",
+        "description": "Keeps the books for half the pirate clans, and settles every late account in person.",
+        "board": "terran",
+        "race": "pirate",
+        "ship": 29,                         // Mantis
+        "weapon": 9,                        // M6 A1 "Wolf"
+        "secondary": 40,                    // Dephase EMP missiles
+        "hitpoints": 6000,
+        "reward": 320000,
+        "loot": 104, "lootAmount": 8,       // Luxury
+        "wingmen": 4,
+        "escorts": [ 25, 24 ],              // Tyrion, Velasco
+        "route": [ 3, 5 ],                  // long trips: harder to pin down
+        "requiredBounties": 1,
+        "taunt": "Vey owed me money. Now you do.",
+        "available": "stat(piratekills) >= 15"
+    }
+]

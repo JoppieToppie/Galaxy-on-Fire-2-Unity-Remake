@@ -87,7 +87,7 @@ namespace GoF2Remake.UI
             radioPortrait = layer.Q("radioPortrait");
             radioSpeaker = layer.Q<Label>("radioSpeaker");
             radioText = layer.Q<Label>("radioText");
-            var tex = Resources.Load<Texture2D>("GoF2Hud/ending_logo");
+            var tex = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/ending_logo");
             if (tex != null) logo.style.backgroundImage = new StyleBackground(tex);
             credits.text = Localization.Get(48).Replace("\r", "");
             column.style.visibility = Visibility.Hidden;

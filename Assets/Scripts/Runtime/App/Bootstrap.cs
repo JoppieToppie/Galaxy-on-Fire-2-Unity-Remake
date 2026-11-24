@@ -70,7 +70,9 @@ namespace GoF2Remake
             UwpDisplay.Install();                 // UWP: the display's real pixel size (a 4K TV, an Xbox), not its view pixels
 #endif
             Visuals.ClassicBloomPass.Install();   // the "Original" bloom option
+            Visuals.RadialBlurPass.Install();     // Modified: the original's boost blur (post effect 0x1400002), always on
             Visuals.PreTransformGuard.Install();  // Android Vulkan: the scene never drawn straight to the pre-rotated back buffer
+            FrameGeneration.Install();            // Windows D3D12, NVIDIA: DLSS Frame Generation and Reflex (Streamline)
             HitchLogger.Install();                // development builds: frame hitches to hitches.log
             UI.ScreenshotKey.Install();           // F12: a screenshot to the pictures library
             UI.IssueReport.Install();               // keeps the last log lines for an issue report (the pause menu's)
@@ -160,7 +162,12 @@ namespace GoF2Remake
             ApplyFog();
             ApplyPostProcessing();
             ApplyDisplay();
+            ApplyHdr();
+            // Options > Graphics "Remastered shield and cloak" (#340): the shield bubble's and the cloak's look (ShieldBubble,
+            // Cloak shaders); 0 = the phone original's.
+            Shader.SetGlobalFloat(RemasteredFxId, Settings.RemasteredEffects ? 1f : 0f);
         }
+        static readonly int RemasteredFxId = Shader.PropertyToID("_GoF2RemasteredFx");
 
         // Android at 100 % render scale (#45, #163): since Vulkan pre-transform went back on (2026.10.23) part of the screen
         // stays black / frozen at exactly 100 % (rotating the phone 180 degrees shows the other part), on Mali, Exynos and
@@ -195,7 +202,7 @@ namespace GoF2Remake
             if (!Application.isPlaying || urp == null) return;
             int upscaler = ActiveUpscaler;
 #if ENABLE_UPSCALER_FRAMEWORK
-            UpscalerFramework.Apply(UpscalerId(upscaler), Settings.UpscalerQuality);
+            UpscalerFramework.Apply(UpscalerId(upscaler), Settings.UpscalerQuality, Settings.Fsr4Lite, Settings.DlssPreset);
 #else
             // FSR 1 only below 100 % (#45: on Android FSR at 100 % or more left part of the screen frozen; at those scales
             // there is nothing to upscale). The cause was thought to be the scene drawn straight to the pre-rotated back buffer, which
@@ -219,10 +226,11 @@ namespace GoF2Remake
         {
             Settings.UpscalerFsr => UpscalerFramework.Fsr1,
             Settings.UpscalerStp => UpscalerFramework.Stp,
-            Settings.UpscalerDlss => UpscalerFramework.Dlss,
+            Settings.UpscalerDlss => UpscalerFramework.DlssId,
             Settings.UpscalerFsrTemporal => UpscalerFramework.BestFsr ?? UpscalerFramework.Auto,
             Settings.UpscalerMetalFxSpatial => UpscalerFramework.MetalFxSpatial,
             Settings.UpscalerMetalFxTemporal => UpscalerFramework.MetalFxTemporal,
+            Settings.UpscalerXess => UpscalerFramework.Xess,
             _ => UpscalerFramework.Auto,
         };
 
@@ -230,11 +238,14 @@ namespace GoF2Remake
         /// the resolution of DLSS / FSR).</summary>
         public static bool IsTemporal(int upscaler) =>
             upscaler == Settings.UpscalerStp || upscaler == Settings.UpscalerDlss || upscaler == Settings.UpscalerFsrTemporal
-            || upscaler == Settings.UpscalerMetalFxTemporal;
+            || upscaler == Settings.UpscalerMetalFxTemporal || upscaler == Settings.UpscalerXess;
 
         /// <summary>NVIDIA DLSS on this device (desktop builds with the upscaler framework, an RTX GPU, Direct3D 11 / 12 or
         /// Vulkan; known once URP has made its pipeline).</summary>
         public static bool DlssSupported => UpscalerFramework.DlssSupported;
+
+        /// <summary>Intel XeSS on this device (Windows Direct3D 12 builds with its plugin; any GPU with Shader Model 6.4).</summary>
+        public static bool XessSupported => UpscalerFramework.XessSupported;
 
         /// <summary>AMD FSR 2 / 3 / 4 on this device (the newest it runs, UpscalerFramework.BestFsr).</summary>
         public static bool FsrTemporalSupported => UpscalerFramework.BestFsr != null;
@@ -279,14 +290,30 @@ namespace GoF2Remake
         }
 
         /// <summary>The upscaler option as far as this device supports it (else off).</summary>
-        public static int ActiveUpscaler => Settings.Upscaler switch
+        public static int ActiveUpscaler => (upscalerOverride ??= ReadUpscalerOverride()) >= 0 ? Supported(upscalerOverride.Value) : Supported(Settings.Upscaler);
+
+        // (testing: $GOF2_UPSCALER = a Settings.Upscaler* number takes the option's place for this run)
+        static int? upscalerOverride;
+        static int ReadUpscalerOverride() =>
+            int.TryParse(System.Environment.GetEnvironmentVariable("GOF2_UPSCALER"), out int v) ? Mathf.Clamp(v, 0, Settings.UpscalerXess) : -1;
+
+        static int Supported(int upscaler) => upscaler switch
         {
             Settings.UpscalerFsr when FsrSupported => Settings.UpscalerFsr,
             Settings.UpscalerStp when StpSupported => Settings.UpscalerStp,
             Settings.UpscalerDlss when DlssSupported => Settings.UpscalerDlss,
+            Settings.UpscalerXess when XessSupported => Settings.UpscalerXess,
+            // (XeSS where the device has none: the temporal upscaler it does have)
+            Settings.UpscalerXess when FsrTemporalSupported => Settings.UpscalerFsrTemporal,
+            Settings.UpscalerXess when StpSupported => Settings.UpscalerStp,
             Settings.UpscalerFsrTemporal when FsrTemporalSupported => Settings.UpscalerFsrTemporal,
             Settings.UpscalerMetalFxSpatial when MetalFxSpatialSupported => Settings.UpscalerMetalFxSpatial,
             Settings.UpscalerMetalFxTemporal when MetalFxTemporalSupported => Settings.UpscalerMetalFxTemporal,
+            // Remake (2026-11-14): MetalFX where the device has none (a preset's on an older Mac): its counterpart, not
+            // a plain stretch
+            Settings.UpscalerMetalFxSpatial when FsrSupported => Settings.UpscalerFsr,
+            Settings.UpscalerMetalFxTemporal when FsrTemporalSupported => Settings.UpscalerFsrTemporal,
+            Settings.UpscalerMetalFxTemporal when FsrSupported => Settings.UpscalerFsr,
             _ => Settings.UpscalerOff,
         };
 
@@ -305,27 +332,47 @@ namespace GoF2Remake
         {
             if (!Application.isPlaying) return;
             bool mobile = Application.isMobilePlatform;
-            switch (Settings.FrameRate)
+            // A benchmark run measures what the device can do: no limit, no V-Sync (Data.Benchmark).
+            switch (Benchmark.Active ? FrameRate.Uncapped : Settings.FrameRate)
             {
-                case FrameRate.Fps30: Limit(30); break;
-                case FrameRate.Fps60: Limit(60); break;
-                case FrameRate.Fps120: Limit(120); break;
                 case FrameRate.Uncapped:
                     QualitySettings.vSyncCount = 0;
                     Application.targetFrameRate = mobile ? 1000 : -1;   // -1 on mobile would mean 30 fps
                     break;
-                default:
+                case FrameRate.VSync:
                     QualitySettings.vSyncCount = 1;
                     Application.targetFrameRate = mobile ? Mathf.Max(30, DisplayRefreshRate) : -1;
                     break;
+                default: Limit(Settings.FrameRateLimit(Settings.FrameRate)); break;
             }
         }
 
         static void Limit(int fps)
         {
             QualitySettings.vSyncCount = 0;   // targetFrameRate is ignored while vSyncCount > 0
-            Application.targetFrameRate = fps;
+            // Reflex's own limiter holds the cap while Streamline runs (FrameGeneration.FrameLimitUs: the driver paces it
+            // with frame generation); Unity's then stays out of the way.
+            Application.targetFrameRate = FrameGeneration.ReflexLimits ? -1 : fps;
         }
+
+        /// <summary>The frame rate cap the frame rate option asks for (0: none, V-Sync or uncapped).</summary>
+        public static int FrameRateCap => Settings.FrameRateLimit(Settings.FrameRate);
+
+        /// <summary>The frame rate option's choices on this device (Settings.FrameRateChoices): every limit on a desktop
+        /// (above the display's rate one still caps the load without V-Sync), on a phone or tablet those its screen
+        /// can show; the one in use always.</summary>
+        public static List<FrameRate> FrameRateChoices()
+        {
+            var list = new List<FrameRate>();
+            bool mobile = Application.isMobilePlatform;
+            int hz = DisplayRefreshRate;
+            foreach (var rate in Settings.FrameRateChoices)
+                if (!mobile || Settings.FrameRateLimit(rate) <= hz || rate == Settings.FrameRate) list.Add(rate);
+            return list;
+        }
+
+        /// <summary>Who holds the frame rate cap changed (FrameGeneration: Reflex's limiter took it, or gave it back).</summary>
+        public static void RefreshFrameRate() => ApplyFrameRate();
 
         // ---- window ------------------------------------------------------------------------------------------
 
@@ -405,6 +452,133 @@ namespace GoF2Remake
         }
 
         static void ApplyFog() => RenderSettings.fog = sceneFog && Settings.Fog;
+
+        // ---- HDR output (remake, 2026-11-20, the user's request; docs/notes/options.md "HDR") --------------------------
+        // The player allows and uses HDR display output (10 bit: HDR10, which DLSS frame generation needs; without "Use HDR
+        // Display Output" Unity reports no HDR display at all, 2026-11-20); Unity then starts in it on a display with HDR on,
+        // so the option (off by default) switches it at every start as well. While it is on, a global
+        // volume of our own carries URP's Tonemapping override with the options' values (its HDR parameters: paper white,
+        // the display's limits or ours, the tonemapper and its settings); off, the volume is gone and the scenes are as built.
+
+        /// <summary>The display takes HDR now (HDR on in Windows' display settings; desktop players).</summary>
+        public static bool HdrAvailable
+        {
+            get
+            {
+                if (Application.isMobilePlatform || Application.isEditor) return false;
+                LogHdr();
+                try { return HDROutputSettings.main != null && HDROutputSettings.main.available; }
+                catch (System.Exception) { return false; }
+            }
+        }
+
+        // (testing: $GOF2_HDR=1 / 0 takes the HDR option's place for this run)
+        static int hdrOverride = -2;
+        static bool HdrOption
+        {
+            get
+            {
+                if (hdrOverride == -2) hdrOverride = System.Environment.GetEnvironmentVariable("GOF2_HDR") switch { "1" => 1, "0" => 0, _ => -1 };
+                return hdrOverride >= 0 ? hdrOverride > 0 : Settings.Hdr;
+            }
+        }
+
+        static string hdrLogged;
+        static bool hdrLogLater;
+
+        /// <summary>What Unity says about HDR on this display, in the log whenever it changes (a player's "pretty sure I
+        /// have HDR on" with the option greyed out, 2026-11-20: the log has to say why).</summary>
+        static void LogHdr()
+        {
+            string line;
+            try
+            {
+                var display = HDROutputSettings.main;
+                bool available = display != null && display.available;
+                line = $"HDR: system {SystemInfo.hdrDisplaySupportFlags}, displays {HDROutputSettings.displays.Length}, main available {available}"
+                    + (available ? $", active {display.active}, gamut {display.displayColorGamut}, format {display.graphicsFormat}, "
+                                   + $"{display.minToneMapLuminance} - {display.maxToneMapLuminance} nits, paper white {display.paperWhiteNits}" : "")
+                    + $", window mode {Screen.fullScreenMode}, {Screen.width} x {Screen.height}, frame generation hook {FrameGeneration.Bound || FrameGeneration.FsrRunning}";
+            }
+            catch (System.Exception e) { line = "HDR: " + e.Message; }
+            if (line != hdrLogged) { hdrLogged = line; Debug.Log(line); }
+            if (!hdrLogLater) { hdrLogLater = true; LogHdrLater(); }
+        }
+
+        /// <summary>Once more a while after the start: the window is on its display and the swap chain settled by then.</summary>
+        static async void LogHdrLater()
+        {
+            try
+            {
+                await Awaitable.WaitForSecondsAsync(10f);
+                LogHdr();
+            }
+            catch (System.Exception) { }
+        }
+
+        /// <summary>HDR output is on (the option, on a display that takes it).</summary>
+        public static bool HdrActive => HdrAvailable && HDROutputSettings.main.active;
+
+        static Volume hdrVolume;
+        static Tonemapping hdrTonemapping;
+        static Bloom hdrBloom;
+        static ColorAdjustments hdrColor;
+
+        /// <summary>The HDR volume again (UI.HdrCalibration opened or closed: it wants the picture untouched meanwhile).</summary>
+        public static void RefreshHdr() => ApplyHdr();
+
+        static void ApplyHdr()
+        {
+            if (!Application.isPlaying || Application.isEditor) return;
+            LogHdr();
+            bool available;
+            try { available = HDROutputSettings.main != null && HDROutputSettings.main.available; }
+            catch (System.Exception) { return; }
+            bool want = available && HdrOption && !Application.isMobilePlatform;
+            if (available && HDROutputSettings.main.active != want)
+            {
+                FrameGeneration.Pause(90);   // the swap chain changes its format: no generated frames across it
+                HDROutputSettings.main.RequestHDRModeChange(want);
+                Debug.Log("HDR output " + (want ? "on" : "off"));
+            }
+            if (!want)
+            {
+                if (hdrVolume != null) hdrVolume.gameObject.SetActive(false);
+                return;
+            }
+            HDROutputSettings.main.automaticHDRTonemapping = false;   // (URP tonemaps for the display itself)
+            if (hdrVolume == null)
+            {
+                var go = new GameObject("HDR tonemapping (remake)");
+                Object.DontDestroyOnLoad(go);
+                hdrVolume = go.AddComponent<Volume>();
+                hdrVolume.isGlobal = true;
+                hdrVolume.priority = 1000f;
+                var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                hdrVolume.sharedProfile = profile;
+                hdrTonemapping = profile.Add<Tonemapping>(true);
+                hdrBloom = profile.Add<Bloom>(false);
+                hdrColor = profile.Add<ColorAdjustments>(false);
+            }
+            hdrVolume.gameObject.SetActive(true);
+            hdrTonemapping.active = true;
+            // The calibration screen's pattern stands for nits: no tonemapping, bloom or brightness exposure while it is open.
+            bool calibrating = UI.HdrCalibration.Active;
+            hdrBloom.active = calibrating;
+            hdrBloom.intensity.Override(0f);
+            hdrColor.active = calibrating;
+            hdrColor.postExposure.Override(0f);
+            int tonemapper = calibrating ? 0 : Settings.HdrTonemapping;
+            hdrTonemapping.mode.Override(tonemapper switch { 1 => TonemappingMode.Neutral, 2 => TonemappingMode.ACES, _ => TonemappingMode.None });
+            hdrTonemapping.detectPaperWhite.Override(false);
+            hdrTonemapping.paperWhite.Override(Settings.HdrPaperWhite);
+            hdrTonemapping.detectBrightnessLimits.Override(Settings.HdrDetectLimits);
+            hdrTonemapping.minNits.Override(Settings.HdrBlack);
+            hdrTonemapping.maxNits.Override(Settings.HdrPeak);
+            hdrTonemapping.acesPreset.Override((HDRACESPreset)Mathf.Clamp(Settings.HdrAcesPreset, 0, 2));
+            hdrTonemapping.neutralHDRRangeReductionMode.Override(Settings.HdrRangeReduction == 1 ? NeutralRangeReductionMode.Reinhard : NeutralRangeReductionMode.BT2390);
+            hdrTonemapping.hueShiftAmount.Override(Settings.HdrHueShift);
+        }
 
         // ---- post-processing ---------------------------------------------------------------------------------
 

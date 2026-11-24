@@ -11,7 +11,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   baked into a plain one in its drawn pose first,
   `ModShipBuilder.FlattenSkinned`: the sizing, collision, shadows and the Mod Builder read the bind-pose mesh, which the
   bones drew elsewhere and at another size, so bone animations don't play; the GLB's node animations, parts moving on
-  their own, loop: `ModGltf.LoopAnimations`, glTFast's legacy Animation at the default wrap mode played its clip once),
+  their own, loop: `ModGltf.LoopAnimations`, glTFast's legacy Animation at the default wrap mode played its clip once;
+  2026-11-11: ships.json `animations` names clips by state instead, `ModShipAnimator` on the built ship: idle on a loop,
+  Chorus flight's drift start / loop / end cross-faded, driven by `PlayerEngine` from `FlightModel.Drifting` (and a `braking`
+  state the same way while `SetPoses`' brake is past half, Chorus's capital ship's flaps); for Chorus's
+  Forsaken, whose rigid skin the importer splits into parts on its skeleton's nodes),
   engine glow discs at the
   slot-3 mounts on mat_34813 (a mount's `glowSize` [half width, half height, flame length] makes an ellipse, its
   `glowShape` another outline in that box: rounded / square / hexagon / diamond / triangle, `EngineGlowShape`, the
@@ -49,8 +53,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   GoF3's copper): GoF2/Hull's `_GOF2_PBR` + `_SPECULAR_SETUP` variant skips URP's PBR (`HullForwardPass.hlsl`
   `GoF3ShipShader`), a port of GoF3's ShipShader fragment (the retro body's `shader_1873945865.ae4shader`, read with the
   importer's `ae4_shaders.text`): in gamma space, Phong `pow(R.V, exp2(9 gloss + 1))`, spec and gloss raised by a fresnel
-  `(1 - N.V)^2`, the diffuse cut only by the highlight, `Specular_Multiplier` 1.5 on the highlight alone, the environment's
-  brightness (GoF3's cubes are grey) x spec x (light + fresnel) blended over, a 0.1 rim; one light (the main, in a GoF2
+  `(1 - N.V)^2`, the diffuse cut only by the highlight, `Specular_Multiplier` 1.5 on the highlight alone, the environment
+  (the material's own GoF3 cube, its blurs by gloss, below; else the place's brightness) x spec x (light + fresnel) blended over, a 0.1 rim; one light (the main, in a GoF2
   hangar the key light from above, `_GoF2PbrLight`), URP's ambient, both and the environment dimmed by `_GoF2PbrIndirectDim`
   (the room cubemap's sheen). URP's PBR specular setup cut the diffuse to `albedo x (1 - max(spec))`, turned panels white at
   grazing angles and reflected the room at the map's strength; URP's Blinn-Phong (N.H) of GoF3's exponent is four times as
@@ -92,9 +96,30 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   ship names (no sprite). Code that sizes a ship by its renderers must skip trails (empty at the origin): the item window and
   `NetPlayer` use mesh renderers only. Another player's ship built before the session's mods were on (they join before
   NetState applies them) is built again on `ModShips.ModelsChanged`.
+  **GoF3's effect terms on the glow layers** (2026-11-12, the user's request after the missed GoF3 ships: GoF3's effect vertex
+  shaders, ae4_shaders): `GoF2/ModGlow` takes `_FxAngle` (on, min, max, absolute: |N.E| with E the eye's direction faded in
+  between, AngleBlend), `_FxPulse` / `_FxPulseMode` (frequency, threshold, min, max; on, step, smooth, vertex offset:
+  |sin((t [+ vertex red]) x f)|, [step], then smoothstep into min..max or clamped: Pulsate) and `_Billboard` (UV1 = the
+  corner's view-space offset x length(MV (1, 1, 1) / sqrt 3): GoF3's sprites, whose vertices sit at their centre with
+  a_pos2dOffset), all off by default (`ModMaterials.GlowTerms`, declared in the shader so a kit skin's copy keeps them). From a
+  JSON material's `angleFade` / `pulse` / `billboard`, or a glTF material whose `extras` say `"additive": true`
+  (`ModGlbImages.Glow`, `ModGltfMaterials` -> `ModMaterials.GlowFromGltf`: a ModGlow copy of its emissive texture x
+  `intensity`, no lit material). The GoF3 importer bakes each effect's colour into that texture (`tools/gof3_fx.py`) and
+  writes the rest. **A GoF3 material's own environment cube** (2026-11-12, the user's report: the Key Art Sutoe-Shii had no
+  shine): GoF3ShipShader reflects `_GoF3EnvMap` (a 6:1 strip, `_GoF3Env` x 1 on, y its texel height) where a material has
+  one (`environmentCube`, JSON or glTF extras; `ModMaterials.GoF3Environment`), reading its four blurs (RGBA, R the
+  sharpest) by gloss as GoF3's ShipShader does ("Generic cube maps are monochrome and contain four blurriness levels
+  separated into RGBA"; its ETC2 RGB cubes give A = 1, a flat full reflection for low gloss), else the place's environment.
+  The place's sky too (2026-11-12, the user's choice over GoF3's cube alone, which ignored where the ship is): the system's
+  reflection cubemap (`_GoF2ReflectionCube`, SkyReflection) at the gloss's blur tints that reflection by its hue, as much as
+  the sky is bright there (a dark sky leaves GoF3's grey), and adds its light, so a sun or nebula shows on the hull.
+  `ModHullLightingTests`.
 - **How a ship is seen** (`ModShipView`, 2026-10-24; GoF3's ship files): ships.json `"camera"` { distance, height,
   lookHeight, lookAhead } game units (`ShipData.chaseCamera`; `ModShipView.CameraOffsets` in `SpaceLevel`'s camera
-  set-up and `PlayerHull.FitCamera`'s ordinary path, the original's 1338 / 600 / 600 / -650 for a field left out),
+  set-up and `PlayerHull.FitCamera`, the original's 1338 / 600 / 600 / -650 for a field left out; a hull over 150 m
+  across keeps it too, shifted with its centred model, `PlayerHull.BigHullOffsets`: it was fitted to the hull before,
+  so the builder's values changed nothing there, the user's report 2026-11-16; free flight's EVERSPACE 2 camera takes
+  only distance and height, it looks along the ship),
   `"cockpit"` [x, y, z] (`ShipData.cockpit`, mount axes; `ChaseCamera.FirstPersonSeat` takes it, still behind the
   frontmost primary, not for the debug Big hulls), `"smoke"` up to 4 points (`ShipData.smokePoints`; `ShipSmoke` makes a
   smoke / fire pair at each, the rate and pool shared, the fire on the point) and `"explosionScale"` 0.25..20
@@ -158,6 +183,14 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `_BendOrigin`, `_BendAxis` per exhaust; L from the parts' rest bounds, x the holder's length that frame), a sprite (the
   glare) with its centre; the parts' bounds grown by the bend. NPCs, mobile stations, the Customize preview and the Fork
   particles don't bend. Not yet checked in Play mode (another session had the Editor).
+  **The turn's own bend** (2026-11-17, the user's video of a Shotér Paah in the original flight: three Nivelian helixes
+  rigid through every turn): that bend follows the drift alone, and the original flight has none (the ship flies where its
+  nose points: the offset lay along the flame and only lengthened it). Added to it, for `EngineFx` and `EngineFlame` alike:
+  `EngineFlame.TurnBend`, the tip where the nozzle pointed `TurnLag` 0.15 s ago, -(spin x back) x 0.15 of the length, at
+  most `TurnShare` 0.25 (~95 deg/s), toward the inside of the turn; the spin measured from the model's rotation each frame
+  (`TrackSpin`: eased at 12 / s, a turn of more than 12 rad/s in a frame a cut), so the autopilot's and a cutscene's turns
+  bend them too; a roll about the flame's axis bends nothing. The same scope: the player's ship in space. Tests
+  `EngineModelTests.ATurnTrailsTheTipTowardItsInside`. Not yet checked in Play mode.
 - **Exhaust styles** (`ModExhausts`, a mod's `exhausts.json`; the guide's "Exhaust styles"): engine effects any ship can wear,
   picked in the hangar's Customize screen (`ShipCustomizePanel`'s Exhaust row and the style's two colour rows; with styles in
   the mods that are on every ship has the screen: `ModShipKits.CustomizationOf` gives a ship without other customizations a
@@ -322,6 +355,65 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   roughness map (0.5 = as it is); the rim x (1 + `rimBoost` (1 - N.V)^3). The vertex colour reaches the fragment through
   HullLitForwardPass.hlsl, URP 17.7's LitForwardPass.hlsl copied with the lines marked GoF2 (copy it again when URP is
   updated). The ModLit / ModSpec materials gain the new properties' defaults when Unity imports the shader. Landed 2026-11-06.
+- **Chorus's layers** (remake 2026-11-11, the Chorus importer's NPC hulls; a material's `chorus` block, `ChorusLayersSpec` in
+  Database.cs, `ModMaterials.ChorusLayers`; GoF2/Hull's `ChorusLayers` / `ChorusFarEmission` in HullForwardPass.hlsl, on
+  while `_ChorusParams.x` > 0: 1 trim, 2 plating; `ChorusLayersTests`): Chorus's M_TrimLayersMaster, M_NPCShipTrimMaster
+  and M_PlatingMaster after their compiled base-pass pixel and vertex shaders (the exporter's `shaders` command, d3dcompiler's
+  disassembly; the importer's tools/npcs.py TRIM_SHADER has the formulas). A baked texture set over the lightmap UVs lost the
+  trim sheet's detail (a 2K map over a 4 km warship: metres a texel), so the hull keeps Chorus's UV sets: UV0 the trim sheet
+  (or plating), UV1 the tiling layer and dirt (Attributes .staticLightmapUV: mod hulls have no lightmaps), UV3 the palette
+  (a new TEXCOORD3 attribute), both carried in Varyings .chorusUV. The palette PNG is LayerColors and LayerData side by
+  side, read by texel (`LOAD_TEXTURE2D`, frac of the UVs: UE wraps it) so no filtering bleeds between swatches. The other
+  maps take URP's slots, which the template's keywords (no detail, no occlusion) leave unread by Lit itself: _BaseMap the
+  tiling diffuse, _MetallicGlossMap its RMO, _DetailNormalMap the tiling normal (in its own UVs' frame from the derivatives,
+  as Chorus builds it, then reoriented onto the trim normal in _BumpMap), _OcclusionMap Trim AAO (R the accent mask),
+  _EmissionMap Trim Emissive, _DetailAlbedoMap / _DetailMask the dirt; the dirt's roughness in _ChorusDirtRough. glTFast
+  flips V, so the masters' emissive "UV shift" mask (UV3.v < 0) is UV3.y > 1 here. M_NPCShipTrimMaster's emissive is 2x up
+  close; past Kicker Fade Offset (view depth) it fades to the kicker rim plus the emissive x Emissive Channel Distance Boost.
+  Its dirt permutation (2026-11-11, the Disruptor's MI_TER_Disruptor_Trim_Emissive decompiled): the same mask, x the
+  vertex alpha instead of its red, and the dirt covering the trim emissive (e x (1 - d)): `_ChorusDirt3` y / z
+  (`dirtByAlpha`, `dirtOverEmissive`). Its "Accent 1 Contrast" (saturate(x (1 + 2c) - c)) is 0 on every wear instance:
+  the fighters' accent formula stands for them.
+  Kind "shell" (`_ChorusParams.x` 3, 2026-11-11, Chorus's Guilt; `ModMaterials.ChorusShell`, HullForwardPass.hlsl
+  `ChorusShell`, HullInput.hlsl `ChorusShellFlow` / `ChorusShellPush`): M_Guilt_Shell after its compiled base, masked depth
+  and vertex passes. Its flowing noise (two phases half a cycle apart, a triangle-wave blend) dissolves it
+  (`ChorusShellClip`, with InterleavedGradientNoise for UE's screen dither) and pushes it out along its normals: in
+  LitPassVertex and, since 2026-11-11, in the ShadowCaster, DepthOnly and DepthNormals passes too (Hull.shader's
+  `HullShadowPassVertex` / `HullDepthOnlyVertex` (its own Attributes with the normal) / `HullDepthNormalsVertex` and their
+  fragments; those passes at target 3.0 for the vertex texture read; the material turns `_ALPHATEST_ON` on with a
+  `_Cutoff` of 0 so URP's passes carry the UVs, its own test never clipping). `ChorusIsShell()` (x 3 only) gates the push:
+  before, `x > 2.5` pushed the crystal and the tissue too, by their unrelated `_ChorusEmitG`. Its normal (the base pass's)
+  is the noise map's red and green at the two flowed UVs as a tangent normal, blended as the noise, Unreal's green
+  flipped (`_NORMALMAP` on). Slots: _BaseMap the mask (T_Guilt_A), _OcclusionMap the noise (and its normal),
+  _DetailNormalMap the flow vectors (loaded as plain data), _DetailMask the phase, _EmissionMap the glow map that flows
+  (`glow`; none: the mask). The Chorus importer's maps per the masked depth pass's five textures in the master's
+  referenced-texture order (2026-11-11; before, each was one slot off): phase FlowmapRandomness (Noise_01), flow
+  T_Guilt_Flow, noise asteroid_obsidian_rock_000_norm_spec_diff, glow its _ao, mask T_Guilt_A.
+- **Chorus crystal and tissue** (remake, 2026-11-11, two more Chorus layer kinds from their compiled base passes; GoF2/Hull
+  `ChorusCrystal` (`_ChorusParams.x` 4) and `ChorusTissue` (5) in HullForwardPass.hlsl, `ModMaterials.ChorusCrystal` /
+  `ChorusTissue`; the far kicker skips both, its vectors carry their numbers). Both reuse the template's slots (no new
+  samplers; the slot map is in each function's header) and turn `_NORMALMAP` on for the tangent frame. Crystal
+  (M_JTU_Blend, MI_JTU_Blend / _LocTRN): surfaces A / B mapped by the object-space position (cm) on the tangent and
+  bitangent / their world scales; the blend from the vertex colour's red, a 3-octave value-noise turbulence (Unreal's
+  noise texture stands in) and the breath, height-blended against A's mask by VC Transition Softness; macro tint and
+  roughness; overlay with the inner variation (green) read through the vein heightmap's parallax and the normal's tilt;
+  the glow variation x Inner Glow x the breath (CA_BaseVFX row: R glow, G blend) x each surface's mask and intensities.
+  A Breath Interval of 0 (the Prophet's) holds the breath at the row's start. Tissue (M_JTU_Faceless): the formula above
+  `_faceless` in the importer, with the ice scrolling 0.1 a second, the parallax and fresnel per pixel and the breath
+  rippling from the origin; its warp-in dissolve edge left out (the remake's `warpIn`). Its core permutation (Enable Core,
+  2026-11-11, MI_JTU_OmenDroneCore's compiled base pass: the Omen drones' and bat swarms' cores) adds m x (the glow +
+  saturate(N.V)^Inner Contrast x Inner Core Color), m = saturate(1 - |p - Sphere Offset| / sphere radius) (object space,
+  cm, as the breath's) x Thickness.r x (1 - (0.04 + 0.96 (1 - N.V)^5)): `coreColor` / `coreContrast` in `_ChorusAccent`,
+  `sphereOffset` / `sphereRadius` in `_ChorusDirt` (both unused by the tissue otherwise). Tests in `ChorusLayersTests`.
+- **Skinned mod ships** (2026-11-11, ships.json `skinned`; `CustomShipData.skinned`, `ModShipBuilder.KeepSkinned`): the
+  model's SkinnedMeshRenderers are kept (updateWhenOffscreen, its arms swing past the bind pose's bounds) instead of
+  `FlattenSkinned`, so `animations` play on the bones (Chorus's Guilt: a soft skin, 26 joints, its 42 s idle). Measuring,
+  collision and the LODs (AutoLods takes MeshFilters only: none for it) read or skip the bind pose.
+- **Quantized models** (2026-11-11): glTFast 6.20 reads KHR_mesh_quantization (`GltfImport`'s supported extensions), so a
+  mod model may carry its normals and tangents as normalized bytes and its vertex colours as normalized unsigned bytes
+  (the Chorus importer's stations, `glb.save(quantize=True)`: a third smaller, as Unreal itself keeps them); `ModGltf`
+  needs nothing for it. The test assembly references glTFast for it. Tests `ModGltfQuantizedTests` (a `[UnityTest]`
+  loading a quantized triangle through `ModGltf.Load` / `InstantiateMain`).
 - **Image formats** (`ImageImport`): every mod image (ModMaterials' `Texture` and background `PreloadTexture`, so skins,
   portraits, icons, hull textures, planets / suns / skies; ModInfo's preview; ModTextures' file list) and the Mod Builder's
   pickers (which store a picked image as PNG) read PNG / JPG by Unity's decoders and TGA (plain / RLE), BMP (8 / 24 / 32-bit),
@@ -335,3 +427,166 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   colours, alpha), a PC `.aei` skin identical to an independent decode and shown on the turntable through the background
   loader; PVRTC 4bpp on that iOS file (the Midorian ships' atlas, identical to an independent Python decode); PVRTC 2bpp
   and ATC only against hand-built blocks (`ImageImportTests`), no real file.
+
+- **Chorus portals** (remake, 2026-11-11, for Chorus's jumpgate): a material's `"portal"` block (`ChorusPortalSpec` in
+  Database.cs, `ModMaterials.Portal`, GoF2/ChorusPortal in Resources/GoF2Fx) after Chorus's FTL portal's compiled shaders:
+  M_FTL_Portal's base pass (a bump offset by HeightRatioInput x the spherical gradient along the view, the UVs to polar
+  coordinates about the card's middle x (1, Tiling V) scrolling by Panning V, T_main there ^ Structure Power x Structure
+  Mult into a CA_BaseVFX row, x FadeInAndOut, additive) and its distortion pass (SphericalNormal_001 zoomed about the
+  middle by frac(t x VeinPulse_speed) x B - 2, plus T_Circle_N, in view space, x (IOR - 1) x the gradient's mask squared;
+  here a pass before the veins sampling URP's opaque texture at that offset x `refraction`, blended in by the mask, as
+  Chorus's screen offsets aren't the remake's: the scale is the remake's own); M_FTL_PortalGlow (T_Gradient_Vertical_04 at
+  -UV, lerp(Color1 x g, the curve, LerpColorParm) x g, additive). `World.PortalRefraction` switches the opaque texture on
+  for the main camera while a gate with one is in the orbit (`OrbitBuilder.SpawnJumpgate`, `Flight.OpaqueTexture`).
+  Kind `"core"` (2026-11-11, Guilt's core: MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal, its compiled translucent base
+  pass): the card's UVs about its middle pinched by `pinch` (Threads Pinch Max: d x (1 - max(edge, 0))^pinch, edge
+  1 - 2|d|), in polar coordinates x (`tilingU`, `tilingV`), `noise` (the threads, R) read there panned by (`speedU`,
+  `panningV`) and by (-`speedU`, `panningV`) + 0.5, added; the core g = 1 - e^-(2.333 edge)^2, g^`corePower` x `coreMult`;
+  the colour `curve` at threads + core (x `fade`); the alpha saturate((threads + threads^`threadsPower` x `threadsMult` +
+  core) x g) - (1 - `masterAlpha`), faded within `depthFade` (game units) of the scene behind it (the camera depth
+  texture; none on mobile: no fade); alpha-blended (`_SrcBlend` / `_DstBlend`, the other kinds stay added). Its UV
+  distortion (off on Guilt) and CompAmount (Chorus's auto-exposure compensation) are left out. No refraction pass.
+  Tests `ChorusPortalTests`.
+- **Wrecks that break apart** (remake, 2026-11-11, after Chorus's wrecks: SK_*_Wreck skeletal meshes, a bone a piece, flung
+  apart by their ABP_Explosion_* blueprints' ExplosionPhysics node, a C++ node whose impulses aren't in the assets):
+  ships.json `"wreck"` (`CustomWreck` in Database.cs: model, seconds 6, speed 1, spin 1). `ModCrates` loads its model with
+  the crates (`wreckKeys`, painted with the ship's `materials`; `InstantiateWreck` at the hull node's world pose and
+  scale: ModShipBuilder's "hull" child carries the glTF scene's turn and size). `World.WreckBreakup` (`Spawn` / `Break`,
+  `Step`): each renderer a piece, out from the wreck's bounds' middle at speed x length / 10 per second (x 0.6-1.4, a
+  little scatter) plus the ship's motion, x2/3 a second, turning about its own bounds' middle, the two largest with a
+  `ShipBurn` for the first half, shrunk about their middles over the last quarter, gone at the end. Hooked at the final
+  explosion: `NpcShipDamage.UpdateDying` (not fixed objects, turrets or ships with the game's wreck; the dying fighter's
+  tumble velocity, a freighter's none; the model hidden) and `PlayerHealth.UpdateDeath` (at 3 s). Local only (proxies
+  explode plainly). Tests `WreckBreakupTests`. Chorus's own burn (2026-11-11, MF_WreckBurn's compiled base pass, M_WreckBurn
+  / MI_MountWreck_Burn01): `"burnMap"` (its Burn_Noise, T_DamageSurface01_D, R) with `burnTiling` / `burnOffset` /
+  `burnFalloff` / `burnTemperature` / `burnVertexRed` / `burnUv1`, loaded with the wreck (`ModCrates.WreckBurnMap`), set on
+  each hull piece's block (`_WreckBurnMap`, `_WreckBurn`, the temperature in `_WreckBurnColor.a`): b = saturate((saturate(R
+  + offset) x saturate(1 - vertex red) - (0.975 - the burn amount)) x falloff), so the burn shrinks onto the map's highs as
+  it cools; its glow Chorus's Planckian-locus blackbody at b x T x (b T / 2500)^4, scaled so a full burn's brightest
+  channel is `burnColor`'s; the burnt part rough. The cut keeps the value noise (no UVs in the depth passes); the burn's
+  map is the wreck's first material's (the trims' over UV1, Burn_Noise_UseUV1; M_WreckBurn's over UV0).
+- **Chorus flowing lava** (remake, 2026-11-11, Nimika Prime's broken planet's core: M_BrokenPlanet_Core's compiled base
+  pass): a material's `"lava"` block (`ChorusLavaSpec`, `ModMaterials.LavaFlow`) adds GoF2/Hull's `LavaFlow` to the
+  emission of an ordinary hull material (its surface baked as before): two flowmap flows of the flow emissives (each two
+  phases half a cycle apart, a time-offset map, a triangle-wave blend), mixed by the first's ^ 2nd core mask curve, x the
+  part mask twice into a temperature, Chorus's blackbody there x the core mask (`HullWreckBlackbody`); `_LavaA`..`_LavaF`,
+  three packed maps (`_LavaEmit`, `_LavaFlowMaps`, `_LavaMasks`), on when `_LavaE.w` > 0. Unreal's flow offsets turned
+  to the remake's v-up UVs. The flowing normals stay baked. Tests in `ChorusLayersTests`.
+- **Chorus shield shell** (remake, 2026-11-11, the player capital ship's Shield Overcharge: BP_Effect_Auxiliary_Shield_
+  PlayerCapitalShip's P_Buff_Auxiliary_Shield_PlayerCapitalShip, one mesh particle of SM_PlayerControlledLargeShip_01_Shield in
+  MI_Shield_PlayerCapital_Auxiliary on M_Shield, EmitterDelay 0.5, Lifetime 4.8, colour (0.7, 10, 3.025) x alpha 25 and
+  its colour / alpha over life): ships.json `"overcharge"` (`CustomOvercharge`) and a material's `"shield"` block
+  (`ChorusShieldSpec`, `ModMaterials.Shield`, Resources/GoF2Fx/ChorusShield.shader after M_Shield's compiled translucent
+  pass; its formula in the shader's header: the ModulationMask (T_ShieldPattern_M) panned two ways, T_Mosaic_A over UV1
+  turned, the reversed time ^ TimeExponent, the fresnel, a glow and a ring from the model's origin, the facing and
+  backface scales, the camera and depth fades; additive; the flicker below StartFrizzHealthPercentage and CompAmount
+  left out; the shell's distances in object space, the particle's pivot the model's origin). `ModCrates` loads the model
+  with the crates (`overchargeKeys`, the ship's materials; `InstantiateOvercharge` under the hull node, inactive).
+  `Flight.ShieldShell` (plain C#: `Show` / `Wrap`, `Step`, `LifeAt`, `TintAt` through `FxFlash.Sample`) shows it after
+  the delay, sets `_ShieldLife` / `_ShieldTint` per renderer (a property block), and is gone at its end;
+  `PlayerDevices` shows it on overcharge (`model.Find("hull")`), else `EmergencyBubble` as before. Tests
+  `ChorusShieldTests`.
+- **Drift energy field** (remake, 2026-11-19, the user's "did we get forsakens drifting energy field in?" then "yes, write
+  the drift field"): ships.json `"driftFx"` (`CustomDriftFx` / `CustomDriftPart` / `CustomDriftField` / `CustomFxMesh` in
+  Database.cs; `World.ModDriftFx`; Resources/GoF2Fx/ChorusDriftField.shader). Chorus: BP_Player_Ship_Phoenix's "FX Drift
+  Started" activates four Cascade systems and "FX Drift Recovery Started" deactivates them (its graph, the exporter's
+  `CHORUS_SCRIPT=1`): DriftStartParticles_L1 / R1 (P_Drift_L / _R) on the skeleton's SCK_VFX_Drift_L2 / R2 sockets
+  (BONE_SM_Phoenix_wingLow_l1 / r1), P_Drift_L_Top / _R_Top on L4 / R4 (wingBase_Top_l / r), so they ride the wings. Each
+  has a dot (MI_Drift_Dot on M_Pulse_Glow, 1.2-1.3 s, again every 1 s), on the side ones 100 GPU sparks once (MI_Spark_Hit_GPU,
+  a turbulence) and a light pulsing every 1 s (its brightness curve 0 -> peak -> 0: 0.06 on the explosions' scale), a
+  refraction shock wave (left out) and the field: mesh emitters of SM_Drift_HalfSphere on M_Drift_MagnetField ("Bot" and
+  "vertical" on the sides, "Top" on the top ones), emitted again every 0.2 s with a 0.2 s life, so a shell that stays.
+  The Chorus importer (tools/drift.py) puts the four sockets into models/forsaken.glb as nodes on their bones and writes a
+  part per system in that node's frame: the emitters through explosions.py's reader (its `cascade` option: emitters off in
+  the editor left out, Unreal's EmitterLoops 0 as `"loop"`, bUseLocalSpace `"local"`, the Location start `"at"`), each shell's
+  mesh baked into the node's frame (its Size per axis, MeshRotation as FRotator(Y, Z, X) turns, its Location; the mesh's X
+  along the velocity under PSA_Velocity is no turn, the velocity being zero: my reading, unchecked in Chorus) as fx/drift/
+  `*.json`. Its brightness the shield shell's rule (3 / the colour's peak: exposure 3 for (0.4, 1, 0.9)).
+  - **The shader** (M_Drift_MagnetField's compiled translucent base pass, the mesh-particle pixel shader; its uniform slots
+    from the 4.26 preshader bytes: 03 a parameter, 02 a constant, 24 append, 23 a component, 07 multiply; its textures by
+    ReferencedTextures order through the uniform texture list): the formula in the shader's header. Two shock-wave bands
+    (T_ShockWave_Rect_G) panned both ways, an ellipse mask (T_VFX_Masks_Ellipse) distorted by the first, a core line
+    (T_Line_01) racing along u distorted by two fractal noises (T_Noise_Fractal_07), its glow x 26 at the shell's v edges, two
+    background noises (T_Noise_Tiled03), the whole x (N.V)^1.6 (both faces), added. Left out: Exposure Compensation (0.4
+    of the colour made exposure-independent), SelectionColor, the height fog.
+  - **The remake:** `PlayerEngine` starts `ModDriftFx` as `FlightModel.Drifting` turns on and stops it as it turns off (with
+    `ModShipAnimator.SetDrift`). Each part is a root on its node (`SetParent(node, true)`: it rides the animation, its world
+    scale stays 1); emitters through `ModDeathFx.Build` (its new `loop`: Unity's main.loop, the particles still alive from
+    earlier cycles counted; `local`: local simulation; `at`: the shape's position), lights through `FxFlash` (its new loop:
+    a flash every `duration` until `StopLooping`; `at` its position); shells a MeshRenderer of the JSON mesh on the
+    material (cached per mod and values). Stop: emitters stop emitting (their particles live out), lights end with their
+    flash, shells go after 0.2 s, the roots after the longest life. The player's own look only (other players' ships and
+    NPCs don't drift). Tests `ModDriftFxTests`; the importer's `DriftTests`.
+  - **Not checked:** compiled with dotnet against the Library's assemblies (Game, Space, the tests); not run in Unity (the
+    edit-mode tests included) nor seen in Play mode: the shells' brightness, size and place, the dots' camera-facing (Chorus
+    locks them to X), and whether Chorus's shells really turn with the socket under PSA_Velocity. Left out: the refraction
+    shock waves, the hull's own drift glow (the Drift_Emissive_ON / Off timelines on DMI_DriftEmissive's
+    Emissive02_Multiplier), the supercharged Forsaken's drift (its own skeleton clips, not its effects).
+- **Glow waves** (remake, 2026-11-11, Chorus's M_Phoenix glow lines, from its compiled base pass): a material's `"wave"`
+  block (`GlowWaveSpec` in Database.cs, `ModMaterials.GlowWave`, GoF2/Hull's `GlowWave` in HullForwardPass.hlsl, on when
+  `_WaveParams.x` > 0: x multiplier, y tiling, z speed, w the mask's channel; `_WaveMin` / `_WaveMax`; `_WavePattern`,
+  `_WaveMask` linear). The pattern P over UV0 x tiling: phase = frac(P.g - P.b - time x speed), t = 1 - 2|phase - 0.5|,
+  lerp(min, max, t) x t x P.r x mask x multiplier added to `surfaceData.emission` after the layers. M_Phoenix reads
+  Emissive02 Min / Max there (its plain Emissive02 isn't in its uniforms), the Magnetic Plates Pattern
+  (T_HexPatternNoise_01_A) x Magnetic Pattern Tiling, the emissive masks' green x Emissive02_Multiplier; left out: its
+  world-space AFX pattern (scaled by a per-primitive value, 0 at rest). Its hit flash (2026-11-11, MF_HitEffect in the
+  same pass): a material's `"hit"` block (`HitFlashSpec`, `ModMaterials.HitFlash`: `_HitFx` y radius m, z duration, w 1
+  pattern / 2 none; `_HitColor`), HullForwardPass.hlsl `HitFlash`: the ring max(1 - |max(1 - d / (uR), 0) - 0.07| / 0.07, 0)
+  plus (1 - N.V)^7 x saturate(1 - d / R), x (1 - u) x colour x min(((P(2uv) + P(turned 5uv)) / 2)^4, 1), P =
+  T_Lu_Noise_29 (M_Phoenix's referenced texture 1) in `_WavePattern.a` (no 19th texture on the hull shader).
+  `World.HullHitFlash` (PlayerHealth.OnHit on armour / hull hits) puts `_HitPos` on the hull's box toward the shooter
+  (Target.lastHitVector) and ages `_HitFx.x` over the duration; rescans its renderers when the hierarchy changes. Maps preloaded with the ship's (`ModShips`) and stations' (`ModStations`). Tests in
+  `ChorusLayersTests`.
+- **Warp-in** (remake, 2026-11-11, Chorus's Omen tissue: M_JTU_Faceless's Driver, Edge Thickness 0.02, Edge Glow Color
+  50 red): ships.json `"warpIn"` (`CustomWarpIn`); `NpcShip.Setup` starts `World.HullWarpIn` on a flying spawn (not a fixed
+  object, turret or stationary ship) after the level's first 3 s. It runs HullWreck.hlsl's cut backward (`_WreckFx` y =
+  1 - progress, w the edge; `_WreckBurnColor` half the colour, the shader doubling the edge) on renderers whose materials
+  are all GoF2/Hull, rescanning while the hierarchy grows (async mod models), shadows off until whole; then cleared and the
+  component removed. Chorus's WarpStretchFactor (the vertices stretched along the warp) is left out. Tests
+  `HullWarpInTests`.
+- **Wreck burn and disintegration** (remake, 2026-11-11, Chorus's MF_WreckBurn (Burn_Amount, Burn_Temperature 1500,
+  Burn_Tiling 4) and the masters' Dissolve / DissolveWidth / DissolveBoost 2): `HullWreck.hlsl` (GoF2/Hull's
+  `_WreckFx` x burn, y cut away, z pattern cells a unit, w edge width; `_WreckBurnColor`): two octaves of value noise in
+  the piece's object space; the burn glows above smoothstep(0.75 - 0.35 a, 0.95); the cut clips under y in ForwardLit and,
+  through `HullDepthOnlyFragment` / `HullDepthNormalsFragment` (the world position rebuilt from the pixel), the depth
+  passes; its edge glows at 2x. `WreckBreakup.Paint` sets them per piece with a property block (pieces whose materials
+  are all GoF2/Hull; BurnAt: cold by halfway, DissolveAt: from 0.6 of the life), shadows off once cutting (the shadow pass
+  doesn't clip); others still shrink. Tests: WreckBreakupTests (the passes compiled with ShaderUtil.CompilePass).
+- **Death effects** (remake, 2026-11-11, after Chorus's death effect configs and their Cascade explosions): ships.json
+  `"deathFx"` (`CustomShipData.deathFx`, a JSON file: `CustomFxFile` / `CustomFx` / `CustomFxEmitter` in Database.cs).
+  `World.ModDeathFx`: the files read once per mod revision (by ship); `SpawnMain` in place of `Explosion.Spawn` at the
+  NPC's final explosion (`NpcShipDamage.UpdateDying`, not fixed objects; `explosion` left null, which reads as played
+  out) and the player's (`PlayerHealth.UpdateDeath`), with the game's explosion sound (`Sfx.PlayAt`); `SpawnDying`
+  `DyingCount` times at random moments of the tumble (`NpcShip.dyingFxMs`, scheduled in `OnDied` for fighters and
+  freighters) at random points within 0.6 of the hull's bounds. `Build`: one ParticleSystem an emitter (bursts / rate,
+  life, size, speed from a sphere or a zero-angle cone along +Z, Limit Velocity's drag, a custom emitter velocity for the
+  inherited motion, rotation, size and colour over life, the texture sheet, the stretched renderer), on the mods' glow
+  material (`ModMaterials.FromSpec` with an additive entry: the image as its emission map, the colour's brightness its HDR
+  emission, the particles' colours the fade; cached by image and colour). The root destroys itself after its longest
+  emitter. Local only. Tests `ModDeathFxTests`.
+  `"blend": "alpha"` (Chorus's fireball smoke and impostor debris): `ModAssets.fxAlpha` (GoF2/AlphaBlend, the weapon
+  smoke's; `_MainTex`, `_Color` the tint) instead of the additive glow, `sortingFudge` 10 behind the added fire.
+  `"light"` (Chorus's lights-only emitters, ParticleModuleLight): `World.FxFlash`, one point light an emitter (not the
+  particle Lights module: its light template would be a scene object), its range x size over life, colour / alpha over
+  life, from its first burst; `ModDeathFx.Play` spawns it instead of a particle system.
+  `"trail"` (`CustomFxTrail`, Chorus's SpawnPerUnit emitters on another's particles, LocationEmitter): a child system made by
+  `Build(asTrail)` with `rateOverDistance` 1 / every, added as a Birth sub-emitter (InheritNothing); no image: the parent's
+  renderer `None`. `"noise"` (Chorus's VectorFieldLocal turbulence): Unity's noise module, strength x scale, frequency 1 / cell.
+- **Chorus rifts** (remake, 2026-11-11, for the Chorus rift look and Nimika's dormant rift): a material's `"rift"` block
+  (`ChorusRiftSpec` in Database.cs, `ModMaterials.Rift`, GoF2/ChorusRift in Resources/GoF2Fx) after M_PortalRift_2's
+  compiled base pass (MI_PortalRift_2_LocAST_Outside's parameters as the defaults; its uniform slots decoded from the
+  preshaders): two T_HeroRift_Tileable samples (one at v^Acc_pow_Main, one offset ^ pow x mul) and their product x v^9 (the
+  red centre, x mul_RedCenter), T_Cloud_03's R pushed along the view by its G (a bump offset, Height Ratio), an N x N
+  flipbook of T_Lightning_Random over UV0 x T_CloudMask over UV1 pulsed by two T_NoiseStrip_B reads, the obsidian rock as the
+  dark background where the sum is under 1; colour lerp(Color Outer, Color Inner) x the sum plus those, opacity from
+  v^pow_Gradation; additive. The hard-wired textures (T_NoiseStrip_B, T_Cloud_03) come from the material's referenced
+  textures by their slot order. Its vertex shader's world position offset (2026-11-11, decoded from the VS:
+  normalWS x T_Noise_Tiled04.R at UV x (ucoord_WP, Vcoord_WP) + t x (Upannel_WP, Vpannel_WP) x saturate(5 v (1 - v)) x
+  WP_Strenth, in world cm): `wpoMap` / `wpo` (the strength in the model's units: the importer divides by the actor's
+  scale), applied in object space along the normal. `"mode": "bottom"` (2026-11-11): M_PortalRift_BOTTOM's base pass
+  (MI_PortalRift_2_RFA_Outside, LocRFA's vortex: the Rift from inside): the same layers but Emmisive_Color for the blend
+  and the clouds (no g^2), Base_Color for the rock, the bolts and the cloud lightning not x r, translucent (`_SrcBlend` /
+  `_DstBlend`) with its depth fade (Dapthfade, `SampleSceneDepth`; without a depth texture on a non-reversed-Z device
+  none) and camera fade (Fade Offset / Length); its D x cb2[0].x (a parameter collection) taken as 1. Left out: the
+  fog, the pre-exposure (`exposure` instead: the importer's 0.4 puts the vortex's 99th-percentile brightness, about 5 in
+  Chorus's units, near 2). Tests `ChorusRiftTests`.

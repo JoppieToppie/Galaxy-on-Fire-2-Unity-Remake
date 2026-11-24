@@ -65,7 +65,66 @@ namespace GoF2Remake.Modding
             return l;
         }
 
-        public static bool HasScripts(ModInfo mod) => Files(mod).Count > 0;
+        /// <summary>The mod runs Lua: script files, or an event graph / quest with a Lua step (LuaEventFiles).</summary>
+        public static bool HasScripts(ModInfo mod) => Files(mod).Count > 0 || LuaEventFiles(mod).Count > 0;
+
+        static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ModInfo, List<string>> luaEvents =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<ModInfo, List<string>>();
+        static readonly System.Text.RegularExpressions.Regex LuaStep =
+            new System.Text.RegularExpressions.Regex("\"type\"\\s*:\\s*\"lua\"|EventLuaNode", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>The mod's event graphs and quests (events/) that hold a Lua step (the graphs' Lua node, the quests' "lua"
+        /// step): code like the script files, so the player allows them the same way. Read once per scan of the mod.</summary>
+        public static List<string> LuaEventFiles(ModInfo mod)
+        {
+            if (mod?.Source == null) return new List<string>();
+            if (luaEvents.TryGetValue(mod, out var known)) return known;
+            var l = new List<string>();
+            foreach (var f in mod.Source.Files)
+            {
+                if (!f.StartsWith("events/", StringComparison.OrdinalIgnoreCase)) continue;
+                string text;
+                try { text = mod.Source.ReadText(f); }
+                catch (Exception e) when (ModFileException.IsFileError(e)) { continue; }
+                if (text != null && LuaStep.IsMatch(text)) l.Add(f);
+            }
+            l.Sort(StringComparer.OrdinalIgnoreCase);
+            luaEvents.Add(mod, l);
+            return l;
+        }
+
+        /// <summary>What the approval covers: the script files, and for a mod that runs Lua every events/ file that names
+        /// "lua" at all (a Lua step, or a command line typed as one: a later version can't slip code past the question).</summary>
+        static List<string> HashedFiles(ModInfo mod)
+        {
+            var l = Files(mod);
+            if (mod?.Source == null || (l.Count == 0 && LuaEventFiles(mod).Count == 0)) return l;
+            foreach (var f in mod.Source.Files)
+            {
+                if (!f.StartsWith("events/", StringComparison.OrdinalIgnoreCase)) continue;
+                string text;
+                try { text = mod.Source.ReadText(f); }
+                catch (Exception e) when (ModFileException.IsFileError(e)) { text = "lua"; }
+                if (text != null && text.IndexOf("lua", StringComparison.OrdinalIgnoreCase) >= 0) l.Add(f);
+            }
+            l.Sort(StringComparer.OrdinalIgnoreCase);
+            return l;
+        }
+
+        /// <summary>An event's Lua step (EventRunner's "lua" line; the graphs' Lua node, the quests' Lua step): 'code' run in
+        /// the scripts of the mod the event belongs to, with the table "event" as its argument (name, get(expression),
+        /// set(variable, number)). The number or true / false it returns is 'result' (null: nothing). False with 'error'
+        /// when that mod's scripts aren't running (not allowed yet, or no such mod) or the code failed.</summary>
+        public static bool RunCode(string modId, string code, string eventName, Func<string, double> value, Action<string, double> set,
+                                   out double? result, out string error)
+        {
+            result = null;
+            error = null;
+            Sync();
+            var vm = vms.Find(v => string.Equals(v.mod.Id, modId, StringComparison.OrdinalIgnoreCase));
+            if (vm == null) { error = $"a Lua step needs the scripts of the mod \"{modId}\" to be allowed (the Mods screen)"; return false; }
+            return vm.RunCode(code, eventName, value, set, out result, out error);
+        }
 
         /// <summary>The files that run by themselves: those directly in scripts/, main.lua first.</summary>
         public static List<string> StartFiles(ModInfo mod)
@@ -80,7 +139,7 @@ namespace GoF2Remake.Modding
         public static string ScriptHash(ModInfo mod)
         {
             using var sha = SHA256.Create();
-            foreach (var f in Files(mod))
+            foreach (var f in HashedFiles(mod))
             {
                 var p = Encoding.UTF8.GetBytes(f.ToLowerInvariant() + "\n");
                 sha.TransformBlock(p, 0, p.Length, null, 0);

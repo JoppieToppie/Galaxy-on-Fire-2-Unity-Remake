@@ -200,8 +200,11 @@ slots, ship heights, fighters per race, music) are in `StationTables`.
   view the ship shrinks to nothing over the last (grows over the first) 160 m in view (at most 60 % of the lane in
   view), so it never crosses the screen edge at full size (a pad just outside the view, the Midorian hangar's right one,
   isn't such an edge: the ship takes off there at full size and flies into the view; it vanished over the pad and
-  crossed the hangar unseen); the engine loop takes the space engines' rolloff (`EngineVoices.Setup3D`, to 500 m) and
-  fades with the ship's size. Landings and take-offs are always vertical. The camera keeps the original framing (the
+  crossed the hangar unseen). The view is the hangar camera's own (`HangarFlight.View`, recorded by
+  `StationLevel.UpdateCamera` before Inspect ship's orbit moves the camera; `HangarTraffic.View`): measured against the
+  camera as it was, a take-off during Inspect ship shrank to nothing just over its pad (a player's report 2026-11-17, the
+  Vossk hangar; test `HangarPillarTests.TheShrinkFollowsTheViewItIsGiven`); the engine loop takes the space engines'
+  rolloff (`EngineVoices.Setup3D`, to 500 m) and fades with the ship's size. Landings and take-offs are always vertical. The camera keeps the original framing (the
   rooms are only modelled where the 16:9 hangar camera looks). Only the player's own docking flies in
   (`SpaceLevel.Dock(true)`: the autopilot, touching the station, the Dock prompt, `Session.DockedFromSpace`); the
   story's moves into a station (the rescue, arrests, "docked at ...") and loads don't. `Launch` / `Depart` take off

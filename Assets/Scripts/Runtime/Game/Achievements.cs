@@ -44,6 +44,10 @@ namespace GoF2Remake.Data
         /// without medals the main story won (Story.GameWonIndex: a Valkyrie or Supernova start counts it won too).</summary>
         public static bool VoidXUnlocked => Session.NoMedals ? !Session.FreePlay && Story.GameWon : GotAllGoldMedals;
 
+        /// <summary>CLAUDE.md "A game without medals": fan wingmen pay after the main story when medals are off.
+        /// With medals enabled, retain the original all-base-medals condition (any grade, not all gold).</summary>
+        public static bool WingmenPayPlayer => Session.NoMedals ? !Session.FreePlay && Story.GameWon : GotAllMedals;
+
         /// <summary>The fireworks blueprint (232) and Katashán's Specter: every gold and Supernova medal
         /// (gotAllSupernovaMedals); in a game without medals the Supernova story finished (Story.LastIndex).</summary>
         public static bool SupernovaUnlocked => Session.NoMedals ? !Session.FreePlay && Story.Index >= Story.LastIndex : GotAllSupernovaMedals;
@@ -118,7 +122,7 @@ namespace GoF2Remake.Data
         /// ignite, Player::damageEmp): at the gold threshold its Status flag is set; checkForNewMedal awards it on docking.</summary>
         public static void Elite(int medal, int count)
         {
-            if (!Enabled) return;   // no medals in multiplayer or a game without them
+            if (!Enabled || !Modding.ModCampaigns.MedalAllowed(medal)) return;   // no medals in multiplayer or a game without them
             Progress(medal, count);
             if (Grade(medal) == 0 && count >= Thresholds[medal, 0]) Session.EliteFlags.Add(medal);
         }
@@ -194,12 +198,13 @@ namespace GoF2Remake.Data
             return true;
         }
 
-        /// <summary>The medals earned (any grade) and the gold ones, of all 45.</summary>
+        /// <summary>The medals earned (any grade) and the gold ones, of all 45 (a mod campaign's "medals" only).</summary>
         public static (int earned, int gold) Earned()
         {
             int earned = 0, gold = 0;
             for (int i = 0; i < Count; i++)
             {
+                if (!Modding.ModCampaigns.MedalAllowed(i)) continue;
                 int g = Grade(i);
                 if (g != 0) earned++;
                 if (g == 1) gold++;
@@ -221,10 +226,10 @@ namespace GoF2Remake.Data
             if (Session.Medals == null || Session.Medals.Length != Count) Session.Medals = new int[Count];
             var improved = new List<int>();
             if (!Enabled) return improved;   // multiplayer, a game without medals: none (nor their rewards)
-            if (Session.Medals[0] == 0) Session.Medals[0] = 1;   // Veteran: preset gold (Achievements::init)
+            if (Session.Medals[0] == 0 && Modding.ModCampaigns.MedalAllowed(0)) Session.Medals[0] = 1;   // Veteran: preset gold (Achievements::init)
             for (int i = 1; i < Count; i++)
             {
-                if (i == 35) continue;
+                if (i == 35 || !Modding.ModCampaigns.MedalAllowed(i)) continue;   // remake mods: a campaign's own medals only (#313)
                 var c = Counter(db, i);
                 if (c == null) continue;
                 int grade = 0;
@@ -243,7 +248,7 @@ namespace GoF2Remake.Data
             // countMedals: all other base medals earned -> 35 Champion.
             int earned = 0;
             for (int i = 0; i < BaseCount; i++) if (i != 35 && Session.Medals[i] != 0) earned++;
-            if (earned == BaseCount - 1 && Session.Medals[35] == 0) { Session.Medals[35] = 1; improved.Add(35); }
+            if (earned == BaseCount - 1 && Session.Medals[35] == 0 && Modding.ModCampaigns.MedalAllowed(35)) { Session.Medals[35] = 1; improved.Add(35); }
             // Remake mods: the mods' medals (Modding.ModMedals), numbered after the 45.
             improved.AddRange(Modding.ModMedals.Check(db));
             return improved;

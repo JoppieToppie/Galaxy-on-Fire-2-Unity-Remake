@@ -20,7 +20,8 @@
 // Each exhaust blows along its mount's "rotation" (ModHardpoints.MountTurn: GoF3's engine helper turned, the Vossk hulls'
 // engines 8.5-10 deg outward). GoF3's engines stay rigid on the hull (ECS::EngineAttachmentSystem::tryToAttachEngines places
 // each once at its helper; only the trails lag): on the player's ship the remake bends them as EVERSPACE 2 bends its flames
-// (the user's request, 2026-11-04: EngineFlame.SteerBend, the tip against the velocity x the thrust's forward share), each
+// (the user's request, 2026-11-04: EngineFlame.SteerBend, the tip against the velocity x the thrust's forward share) and
+// by the turn itself (2026-11-17: EngineFlame.TurnBend; the original flight has no drift for the first to follow), each
 // exhaust's parts by u^2 along it (GoF2/ModEngineMesh's _SteerBend; u 0 at the nozzle, 1 at the parts' far end). An exhaust style's colours (ModExhausts: the Customize screen's two colour rows) recolour
 // it (GoF2/ModEngineMesh's _Tint: each pixel's hue replaced, its white kept): the first every part but the helix, the second
 // the helix and the particles.
@@ -114,7 +115,9 @@ namespace GoF2Remake.Modding
         float thrust = -1f, boost, level = -1f;
         ShipController ship;
         Vector3 lastPosition, velocity, pilotThrust;   // world m/s; the player's eased input (EngineFlame's)
-        bool hasLast;
+        Vector3 spin;                                  // world rad/s, eased (EngineFlame.TrackSpin)
+        Quaternion lastRotation;
+        bool hasLast, hasLastTurn;
 
         /// <summary>Sets it up on a ship template: the parts under 'glowPart' (the engine glow part: they go with the engines),
         /// one per exhaust mount of 'c'.</summary>
@@ -351,6 +354,7 @@ namespace GoF2Remake.Modding
         {
             drive?.Reset();
             hasLast = false;
+            hasLastTurn = false; spin = Vector3.zero;
             ship = null;
             inStation = EngineDrive.IsStationModel(transform);
         }
@@ -392,7 +396,9 @@ namespace GoF2Remake.Modding
                         t.localPosition = info.pos; t.localRotation = info.rot; t.localScale = info.scale;
                         Tint(r, info.second ? secondTint : mainTint);
                         meshParts.Add((t, r, k, meshHolders.Count));
-                        reach = Mathf.Max(reach, FarEnd(mesh, info));
+                        // (the exhaust's length: its parts along it; a sprite faces the camera at its place, its bounds grown by
+                        //  its corners' reach to keep it from being culled: that isn't how far the exhaust reaches)
+                        if (!info.sprite) reach = Mathf.Max(reach, FarEnd(mesh, info));
                         if (info.anims != null)
                             foreach (var a in info.anims) if (a?.kind == "off") offLength = Mathf.Max(offLength, a.length);
                     }
@@ -403,7 +409,7 @@ namespace GoF2Remake.Modding
                         if (engine == meshHolders.Count - 1 && r != null)
                         {
                             var b = r.localBounds;
-                            b.Expand(2f * EngineFlame.SteerShare * reach / Mathf.Max(1e-4f, MinAbs(t.localScale)));
+                            b.Expand(2f * (EngineFlame.SteerShare + EngineFlame.TurnShare) * reach / Mathf.Max(1e-4f, MinAbs(t.localScale)));
                             r.localBounds = b;
                         }
                 }
@@ -504,6 +510,7 @@ namespace GoF2Remake.Modding
                 if (v.magnitude < FlightModel.BaseSpeed * 1000f * M * 20f) velocity = Vector3.Lerp(velocity, v, 1f - Mathf.Exp(-dt * 20f));
             }
             lastPosition = p; hasLast = true;
+            EngineFlame.TrackSpin(ref spin, ref lastRotation, ref hasLastTurn, transform.rotation, dt);
             if (ship == null) ship = GetComponentInParent<ShipController>();
             var target = Vector3.zero;
             if (ship != null && !inStation)
@@ -615,7 +622,8 @@ namespace GoF2Remake.Modding
             if (igniteMs >= 0f) igniteMs += ms;
             if (offMs >= 0f) { offMs += ms; if (offMs > offLength) offMs = -1f; }
             float lengthScale = Mathf.Lerp(MeshIdleLength, 1f, thrust) * (1f + 0.3f * boost);
-            Vector4 steer = ship != null && !inStation ? (Vector4)EngineFlame.SteerBend(velocity, pilotThrust) : Vector4.zero;
+            Vector4 steer = ship != null && !inStation
+                ? (Vector4)(EngineFlame.SteerBend(velocity, pilotThrust) + EngineFlame.TurnBend(spin, -transform.forward)) : Vector4.zero;
             bends.Clear();
             foreach (var (h, s, length, reach) in meshHolders)
             {

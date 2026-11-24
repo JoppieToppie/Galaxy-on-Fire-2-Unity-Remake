@@ -1,0 +1,16 @@
+{
+    // The card beside the game's three campaigns (no image: the plain card with its name), and a new game from it starts
+    // at the end of the whole story.
+    "name": "Epilogue",
+    "description": "After the supernova: one last job before the galaxy moves on.",
+
+    // The DLC's story: events/epilogue_story.gof2mission. The DLC counts as played once it is done.
+    "quest": "epilogue_story",
+
+    // 1: right after Supernova (before any other DLC that gives a higher number).
+    "index": 1,
+
+    // The call that opens it in a finished game: one page by a story speaker (0 is Keith).
+    "intro": "Keith here. Before we all go our own ways, there's one thing at Maissa I never told you about.",
+    "introSpeaker": 0
+}

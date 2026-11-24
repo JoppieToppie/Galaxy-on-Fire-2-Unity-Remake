@@ -2,19 +2,11 @@
 // Remake mods: ship classes and the equipment that only some classes may mount. Optional everywhere: no original ship has a
 // class and no original item a list, so without a mod using them nothing changes (AI_PROJECT_CONTEXT.md 6.1 / 6.2).
 //   ships.json (a new ship or an "override" of an original one):
-//       "shipClass": "light_fighter"            the ship's class, a free word the mod picks (what a class scanner shows)
-//       "classTags": ["small", "mymod:agile"]   additional free words the ship answers to (a mod's own, or shared with other mods)
-//   The engine's ShipClassCatalog defines fourteen canonical base classes; see Modding/README.md. Defining a class does not
-//   assign it to any ship. Known ids are normalised to lowercase; custom ids remain supported.
+//       "shipClass": "light_fighter"            one of the 16 canonical project classes (what a class scanner shows)
+//       "classTags": ["small", "mymod:agile"]   more free words the ship answers to (a mod's own, or shared with other mods)
 //   items.json (a new item or an "override"):
 //       "allowedClasses":  ["frigate", "capital"]   only a ship whose class or tags name one of these may mount it
 //       "excludedClasses": ["small"]                a ship whose class or tags name one of these may not
-//   Docking role tags (ships.json "classTags"): "fighter", "interceptor" or "bomber" = internal hangar only;
-//       "frigate", "cruiser" or "carrier" = external station attachment only. Mod-specific class ids can keep their own
-//       names and include one of these shared role tags. External docking also requires a slotType 8 ship hardpoint and a
-//       station's manually authored orbit.externalDocks point. Stations may offer both routes: their normal hangar and
-//       externalDocks are independent. Unclassified small ships retain legacy internal docking; unclassified ships cannot
-//       use external docking. A ship with conflicting internal and external role tags is not dockable until corrected.
 //       "className": "Light fighter"            optional display text for the class (a word or { "en": ..., "de": ... }, or the key
 //                                               "shipclass.<id>.name" in text/<lang>.json); without it the id is shown capitalised
 //   A ship without a class or tags is **unclassified** (every original ship unless a mod labels it): it takes every item, even
@@ -35,6 +27,42 @@ namespace GoF2Remake.Modding
 {
     public static class ShipClassRules
     {
+        // Canonical project taxonomy. These are available to every mod, but no original hull is assigned
+        // automatically; a mod explicitly sets shipClass on each hull it wants classified.
+        public const string LightFighter = "light_fighter";
+        public const string HeavyFighter = "heavy_fighter";
+        public const string LightBomber = "light_bomber";
+        public const string HeavyBomber = "heavy_bomber";
+        public const string Interceptor = "interceptor";
+        public const string StealthBomber = "stealth_bomber";
+        public const string StealthFighter = "stealth_fighter";
+        public const string Scout = "scout";
+        public const string Hauler = "hauler";
+        public const string LightPrivateer = "light_privateer";
+        public const string Privateer = "privateer";
+        public const string HeavyPrivateer = "heavy_privateer";
+        public const string Frigate = "frigate";
+        public const string Freighter = "freighter";
+        public const string Cruiser = "cruiser";
+        public const string Carrier = "carrier";
+
+        /// <summary>The 16 canonical project classes, in the agreed taxonomy order.</summary>
+        public static readonly string[] CanonicalClassIds =
+        {
+            LightFighter, HeavyFighter, LightBomber, HeavyBomber, Interceptor, StealthBomber,
+            StealthFighter, Scout, Hauler, LightPrivateer, Privateer, HeavyPrivateer,
+            Frigate, Freighter, Cruiser, Carrier
+        };
+
+        /// <summary>Whether an id is one of the 16 canonical classes. Custom class tags remain valid compatibility labels.</summary>
+        public static bool IsCanonicalClass(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return false;
+            foreach (var known in CanonicalClassIds)
+                if (string.Equals(id, known, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         /// <summary>Item attribute 143 (stats "scanClass"): 1 = a scanner that shows a locked ship's class on the plate.</summary>
         public const int ScanClassAttr = 143;
 
@@ -78,33 +106,6 @@ namespace GoF2Remake.Modding
             return !hasAllow || Matches(ship, allow);
         }
 
-        // Docking roles use the same class ids / tags as equipment restrictions. The class ids are intentionally
-        // free-form; these conventional role tags let modders keep their own class names while declaring the docking role.
-        static readonly string[] InternalDockClasses = { "fighter", "interceptor", "bomber" };
-        static readonly string[] ExternalDockClasses = { "frigate", "cruiser", "carrier" };
-
-        public static bool IsInternalDockClass(ShipData ship) =>
-            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.InternalOnly || Matches(ship, InternalDockClasses);
-
-        public static bool IsExternalDockClass(ShipData ship) =>
-            ShipClassCatalog.DockingRoleOf(ship?.shipClass) == ShipDockingRole.ExternalOnly || Matches(ship, ExternalDockClasses);
-
-        /// <summary>
-        /// Internal hangars accept fighter / interceptor / bomber classes. For backward compatibility, an otherwise
-        /// unclassified or custom small player hull may still use an internal hangar; an external-only class may not.
-        /// Conflicting internal + external role tags are rejected rather than guessing.
-        /// </summary>
-        public static bool CanDockInternally(ShipData ship, bool largeHull)
-        {
-            bool internalRole = IsInternalDockClass(ship), externalRole = IsExternalDockClass(ship);
-            if (internalRole && externalRole) return false;
-            if (externalRole) return false;
-            return !largeHull;
-        }
-
-        /// <summary>External docking is reserved for frigate / cruiser / carrier roles; an unclassified ship cannot use it.</summary>
-        public static bool CanDockExternally(ShipData ship) => IsExternalDockClass(ship) && !IsInternalDockClass(ship);
-
         /// <summary>The ship's class id (the machine identity), null for a ship without one (tags alone are not a class).</summary>
         public static string ClassOf(ShipData ship) => string.IsNullOrEmpty(ship?.shipClass) ? null : ship.shipClass;
 
@@ -114,9 +115,7 @@ namespace GoF2Remake.Modding
         {
             string id = ClassOf(ship);
             if (id == null) return null;
-            return string.IsNullOrEmpty(ship.shipClassLabel)
-                ? ShipClassCatalog.Get(id)?.DisplayName ?? Humanize(id)
-                : ship.shipClassLabel;
+            return string.IsNullOrEmpty(ship.shipClassLabel) ? Humanize(id) : ship.shipClassLabel;
         }
 
         /// <summary>"light_fighter" / "mymod:light-fighter" -> "Light Fighter" (a mod prefix is left off).</summary>
@@ -135,8 +134,12 @@ namespace GoF2Remake.Modding
         /// <summary>ModContent.ParseShips: the fields are readable (errors with file and line).</summary>
         public static void CheckShip(JObject o, string where, ModInfo mod, string file)
         {
-            if (ModJson.Get(o, "shipClass") is JToken c && c.Type != JTokenType.String)
-                throw new ModJsonException($"{ModJson.Where(c, file)}: \"shipClass\" must be a word, e.g. \"light_fighter\"");
+            var classToken = ModJson.Get(o, "shipClass");
+            if (classToken != null && classToken.Type != JTokenType.String)
+                throw new ModJsonException($"{ModJson.Where(classToken, file)}: \"shipClass\" must be one of the 16 canonical class ids, e.g. \"light_fighter\"");
+            if (classToken != null && classToken.Type == JTokenType.String &&
+                !string.IsNullOrWhiteSpace((string)classToken) && !IsCanonicalClass((string)classToken))
+                throw new ModJsonException($"{ModJson.Where(classToken, file)}: unknown ship class \"{(string)classToken}\"; use one of the 16 canonical class ids");
             CheckWords(o, "classTags", where, mod, file);
         }
 
@@ -175,7 +178,7 @@ namespace GoF2Remake.Modding
         {
             if (ModJson.Get(o, "shipClass") is JToken c && c.Type == JTokenType.String)
             {
-                s.shipClass = ShipClassCatalog.CanonicalId(string.IsNullOrWhiteSpace((string)c) ? null : ((string)c).Trim());
+                s.shipClass = string.IsNullOrWhiteSpace((string)c) ? null : ((string)c).Trim();
                 if (s.shipClass == null) s.shipClassLabel = null;
             }
             if (s.shipClass != null && (ModJson.Has(o, "className") || mod != null && ModJson.Has(o, "shipClass")))

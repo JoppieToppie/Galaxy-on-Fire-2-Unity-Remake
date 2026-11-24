@@ -119,6 +119,9 @@ namespace GoF2Remake.World
         readonly Func<int, Vector3, Quaternion, GameObject> spawn;     // (ship, position, rotation) -> the ship
         /// <summary>Remake: an NPC ship (not a guest) was spawned: (its object, its ship), StationLevel adds its turrets.</summary>
         public Action<GameObject, int> NpcSpawned;
+        /// <summary>The hangar camera's own view (not Inspect ship's orbit): where the flights shrink at its edge
+        /// (HangarFlight.View; null = the camera as it is).</summary>
+        public Func<HangarFlight.View?> View;
 
         /// <summary>The guest whose ship 'spawn' is making, or whose pad 'padPosition' is placing, now (multiplayer:
         /// StationLevel shows it in that player's build of a customizable ship, at that build's height), -1 = an NPC ship.</summary>
@@ -298,7 +301,7 @@ namespace GoF2Remake.World
                 flying = new Parked { go = go, slot = slot, ship = ship, guest = id };
                 var engine = HangarFlight.AddEngine(go, false, db, ship, out float volume);
                 var rot = ParkedYaw(slot, ship);
-                flight = HangarFlight.Arrival(go.transform, lane, padPosition(slot, ship, rot), rot, engine, volume);
+                flight = HangarFlight.Arrival(go.transform, lane, padPosition(slot, ship, rot), rot, engine, volume, View?.Invoke());
             }
             finally { SpawningGuest = -1; }
         }
@@ -325,7 +328,7 @@ namespace GoF2Remake.World
             flying = new Parked { go = go, slot = slot, ship = ship, yaw = yaw, key = key };
             var engine = HangarFlight.AddEngine(go, false, db, ship, out float volume);
             var rot = OrbitLayout.RotationToUnity(new Vector3(0f, yaw, 0f));
-            flight = HangarFlight.Arrival(go.transform, lane, padPosition(slot, ship, rot), rot, engine, volume);
+            flight = HangarFlight.Arrival(go.transform, lane, padPosition(slot, ship, rot), rot, engine, volume, View?.Invoke());
             return true;
         }
 
@@ -347,7 +350,7 @@ namespace GoF2Remake.World
             flying = p;
             foreach (var old in p.go.GetComponents<AudioSource>()) Object.Destroy(old);   // a ship that landed earlier
             var engine = HangarFlight.AddEngine(p.go, false, db, p.ship, out float volume);
-            flight = HangarFlight.Departure(p.go.transform, lane, engine, volume);
+            flight = HangarFlight.Departure(p.go.transform, lane, engine, volume, View?.Invoke());
         }
 
         /// <summary>The engine loops pause with their inactive ships in the lounge; start them again.</summary>

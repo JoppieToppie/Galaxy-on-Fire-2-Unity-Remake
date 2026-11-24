@@ -91,7 +91,9 @@ namespace GoF2Remake.Modding
             if (materials.TryGetValue(name, out var mat)) return mat;
             if (!Split(name, out var mod, out var path)) return null;
             var tex = ModMaterials.Texture(mod, path, false);
-            var template = Resources.Load<Material>($"GoF2Backdrop/{(sun ? "sun_000" : "planet_000_big")}");
+            string templateName = sun ? "sun_000" : "planet_000_big";
+            var template = Resources.Load<Material>($"GoF2Backdrop/{templateName}")
+                           ?? GoF2Remake.Data.OriginalRefs.Find<Material>($"Resources/GoF2Backdrop/{templateName}.mat");
             if (tex == null || template == null) return materials[name] = null;
             tex.wrapMode = TextureWrapMode.Clamp;
             mat = new Material(template) { name = name };

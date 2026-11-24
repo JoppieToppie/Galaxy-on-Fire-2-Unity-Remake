@@ -320,6 +320,13 @@ namespace GoF2Remake.World
         /// <summary>The scene's lights as this orbit has them.</summary>
         public void LightFor(OrbitLayout orbit) => OrbitBuilder.SetupLights(orbit, sunLight, planetLight, sunIntensityAt2, planetLightIntensity);
 
+        /// <summary>The take-off's end: continue to a programmed station when travel was queued.</summary>
+        void OnTookOff()
+        {
+            if (Session.ProgrammedStation >= 0 && !Session.InstantJump && !Session.SlipstreamDeparture)
+                Navigation?.ContinueToProgrammedStation();
+        }
+
         void Awake()
         {
             ClearReplaced();
@@ -420,6 +427,7 @@ namespace GoF2Remake.World
             Fog = OrbitBuilder.SpawnDust(Layout);
             var backdrop = OrbitBuilder.SpawnBackdrop(Layout, mainCamera);
             if (!interstellar) SkyLayers.Spawn(Layout, mainCamera);   // ring sky, storms, supernova flares, asteroid belt
+            if (!interstellar) NebulaClouds.Spawn(Layout);   // remake: Options > Graphics "Nebula clouds" (ES2's local nebulae)
             Backdrop = backdrop;
 
             // Locks on the station, the jumpgate and the other stations' planets; autopilot, planet jump, fast-forward.
@@ -441,11 +449,6 @@ namespace GoF2Remake.World
                 var point = md.MakeDockPoint();
                 mobileDockPoints[point] = m;
                 if (Navigation.Targets.Find(x => x.transform == m.transform) is Navigation.Target mt) mt.transform = point;
-            }
-            void OnTookOff()
-            {
-                // the take-off's end, like the launch camera's: on to a programmed station (the map's destination)
-                if (Session.ProgrammedStation >= 0 && !Session.InstantJump && !Session.SlipstreamDeparture) Navigation?.ContinueToProgrammedStation();
             }
             if (Es2 != null) Es2.TookOff += OnTookOff;
             foreach (var md in mobileDocks.Values) md.TookOff += OnTookOff;
@@ -484,7 +487,7 @@ namespace GoF2Remake.World
             // Modified: 42 in the Void (its 0xa0 mission targets this orbit, so it isn't a level mission here) builds its level
             // when the scene loads there (the mission select's 42, a save made in it): MainCampaignLevels.Build42. Reached from
             // 41 the level keeps 41's scene. Without it the arrival's wormhole, held open at 42, drew the player in for good.
-            bool storyOrbit = !interstellar && !Session.FreePlay && (Story.IsLevelMission(station) || (Story.EscapesByWormhole(station) && !CoopCampaign.Active));
+            bool storyOrbit = !interstellar && !Session.FreePlay && (Story.IsLevelMission(station) || (Story.EscapesByWormhole(station) && (!CoopCampaign.Active || CoopCampaign.Guest)));
             IsStoryOrbit = storyOrbit;
             // Status::departStation: the freelance mission's target orbit is built around it (not over a story orbit).
             // Multiplayer: not when a squadmate here already runs this mission (their ships are shown here, NetMissions).
@@ -557,8 +560,8 @@ namespace GoF2Remake.World
             // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
             if (plainOrbit && !prologue && !interstellar && Station != null)
             {
-                SpawnStationPads(station);   // NPC station pads: unchanged
-                SpawnExternalDockPoints(station);   // large-ship exterior attachment transforms
+                SpawnStationPads(station);
+                SpawnExternalDockPoints(station);
             }
             Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active))
                 ? Localization.Get(525) : null;
@@ -828,7 +831,9 @@ namespace GoF2Remake.World
                             || (Campaign != null && Campaign.CollisionOff);   // PlayerEgo+0x144
             Collision.ignoreGate = Navigation.GoingToGate;
             // Hostiles, or a radio line on screen, block fast-forward (MGame::OnUpdate).
-            Navigation.HostilesPresent = (Traffic != null && (Traffic.HostileCount > 0 || Traffic.ChatterVisible != null)) || (Campaign != null && Campaign.Radio != null && Campaign.Radio.Busy);
+            Navigation.FastForwardRadioBlocked = (Traffic != null && Traffic.ChatterVisible != null)
+                || (Campaign != null && Campaign.Radio != null && Campaign.Radio.Busy);
+            Navigation.HostilesPresent = (Traffic != null && Traffic.HostileCount > 0) || Navigation.FastForwardRadioBlocked;
             if (Extender != null && ExtenderCancelled) Extender.Cancel();
             if (Devices != null && ExtenderCancelled) Devices.Cancel();
             if (DockedInOrbit) return;   // docked inside the orbit: no wormhole, no hidden-system leave

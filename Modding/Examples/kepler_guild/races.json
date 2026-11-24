@@ -1,0 +1,40 @@
+[
+    // races.json adds races beside the game's own. This mod has two: one the player can befriend, one that is always
+    // an enemy. systems.json gives the first a system (another mod's), ships.json gives it ships.
+    // Left out here because they need files: "icon" (the race's emblem, a square PNG), "visitor" and "visitorScale"
+    // (its own figure in the Space Lounge, a .glb).
+
+    // The Kepler Guild: a race with a standing of its own.
+    //   look       the game race whose hangars, bars, lounge visitors, music and jumpgate it borrows
+    //   color      its colour, [r, g, b] from 0 to 1
+    //   standing   where the player starts, -100 to 100 (hostile from -71 down, a friend from 71 up); it is shown on
+    //              the Status window under the game's reputation bars, and killing a guild ship costs 5
+    //   relations  whom its ships fight: the game's races by word, mods' races by id. A pair nobody names is neutral,
+    //              unless one of the two is the game's pirates, Void or Specters, or a "hostile" race: then enemies
+    //   gun        what its NPC fighters fire, an item number or "mod_id:item" (24 = the 64MJ Railgun); without it
+    //              the gun of its look race
+    {
+        "id": "guild",
+        "name": "Kepler Guild",
+        "description": "The shipwrights and ice miners of Kepler, who run their system under an old Terran charter and answer to nobody else.",
+        "look": "terran",
+        "color": [0.95, 0.7, 0.25],
+        "standing": 20,
+        "relations": { "terran": "friend", "nivelian": "neutral", "vossk": "enemy", "jumpers": "enemy" },
+        "gun": 24
+    },
+
+    // The Claim Jumpers: "hostile" makes a race the player's enemy whatever the standing, like the game's pirates,
+    // and the enemy of every race it doesn't call a friend. It gets no bar on the Status window and no diplomat in
+    // the lounges ("diplomats" is false for a hostile race, true for any other). Its relations name the guild by
+    // its full key, "mod_id:id", the form another mod would have to use.
+    {
+        "id": "jumpers",
+        "name": "Claim Jumpers",
+        "description": "Crews thrown out of the Kepler Guild, who now take from its ice fields what they used to mine there.",
+        "look": "pirates",
+        "color": [0.8, 0.25, 0.2],
+        "hostile": true,
+        "relations": { "kepler_guild:guild": "enemy", "pirates": "friend" }
+    }
+]

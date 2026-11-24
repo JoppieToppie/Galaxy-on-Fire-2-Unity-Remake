@@ -119,7 +119,7 @@ namespace GoF2Remake.Data
         public List<Modding.SaveScriptData> scriptData;
         // (remake, no version of its own: older saves have none) the repeatable quests finished, "name|playing seconds"
         public List<string> graphQuestRepeats;
-        // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipFeatures)
+        // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipDiscount)
         public bool kaamoVip;
         // version 14: a mod's campaign (Session.ModCampaign, Modding.ModCampaigns)
         public string modCampaign;
@@ -215,6 +215,8 @@ namespace GoF2Remake.Data
             if (NetSession.SessionGame && !HostSaves) return false;
             if (Modding.ModManager.BuilderOpen) return false;   // the Mod Builder's throwaway game
             if (SupernovaChallenge.Active) return false;   // the Supernova Challenge's throwaway game (it never docks)
+            if (Benchmark.Active) return false;   // the benchmark's throwaway game
+            if (Session.MissionSelectGame) return false;   // #308: the Debug mission select's test game
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
             var s = Capture();
@@ -311,7 +313,7 @@ namespace GoF2Remake.Data
             // Multiplayer: a server that keeps profiles gets the docked game instead (NetProfileClient; a no-op without);
             // the co-op campaign's host saves slot 0 as in single player.
             if (NetSession.SessionGame && !HostSaves) { GameHooks.ProfileUpload?.Invoke(); return; }
-            if (Session.PlaySeconds <= 0f || Modding.ModManager.BuilderOpen || SupernovaChallenge.Active) return;
+            if (Session.PlaySeconds <= 0f || Modding.ModManager.BuilderOpen || SupernovaChallenge.Active || Benchmark.Active) return;
             Save(AutoSaveSlot);
         }
 

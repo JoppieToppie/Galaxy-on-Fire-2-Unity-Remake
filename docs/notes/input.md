@@ -13,7 +13,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   release, the camera moves with it; the dodge keeps the touch swipe and the right-stick flick and can be bound), 1 / 3
   roll ("Turn left / right", remake roll: the phone original only auto-levels; touch: the Level button slid sideways), F
   the action prompt (Dock: dock, the autopilot to a locked station, the planet jump; Enter too), Q autopilot (the target
-  list, again = off) and E actions (the quick menu), 1-8 pick a menu entry, Tab fast-forward ("Speed up"), T view, V
+  list, again = off) and E actions (the quick menu), 1-8 pick a menu entry, Tab fast-forward ("Speed up"), F3 view, T manual turrets, V
   wingmen, K Khador Drive, C cloak, M / middle mouse toggle mouse steering, Esc pause. Strafe works on the autopilot too
   (remake). Remake keys: 2 level out, G switch secondary, U unlock target (see "NPCs and combat", Radar), X time
   extender, 4 / 5 / 6 the first three active devices (mod items, see "Combat equipment" Devices; no pad default), Y turret
@@ -276,9 +276,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   off nothing is marked shown.
 - **HUD readout** (`HudReadout`, top right, `GoF2Hud/hud_*`): the level timer, cargo "load / max t", passengers (0xb8,
   the counter against the cabins), goods (0xae), the kill score (Challenge / 36) and the volatile bar.
-- **Camera modes** (`FreeLookCamera`, `MGame::switchCamera`): T / D-pad up / the turret button cycle standard (or
-  cockpit, see below), turret (manual turrets) and free look (217 / 219 / 218 / 220): an orbit around the ship (−0.005
-  rad/px, pitch ±200 px, zoom 1500..20000, middle mouse / right stick / touch drag); no locks or tractor in the turret
+- **Camera modes** (`FreeLookCamera`, `MGame::switchCamera`): F3 / D-pad up cycle standard (or
+  cockpit, see below) and free look; T controls manual turrets. The touch button retains the combined cycle (217 / 219 / 218 / 220): an orbit around the ship (−0.005
+  rad/px, pitch ±200 px, zoom 1500..20000 (`FreeLookCamera.MaxOrbitDistance`, a mod hook; Gameplay "Remake free look"
+  70,000 and the lock on the view's middle, #336 / #302; a mod ship's own orbit distance always reachable), middle
+  mouse / right stick / touch drag); no locks or tractor in the turret
   view.
 - **Cockpit view** (remake, `FreeLookCamera.Mode.FirstPerson` = the original's mode 2,
   `TargetFollowCamera::enableFirstPersonCam`, which `switchCamera` / `nextCamId` always skip; its text 219 "Cockpit" and
@@ -298,7 +300,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   hull shows and the camera starts from behind the ship (`ChaseCamera.OnDisable`, not inside a tumbling bow), and it
   comes back in the cockpit when the chase camera does; the turret view, free look (also the held key) and the Liberator
   leave and return to it. Not in the camera button's cycle (players' feedback, 2026-10-22: its first press went to the
-  cockpit, and they wanted the orbit view at once): holding the camera button 0.5 s (T, D-pad up, the touch camera
+  cockpit, and they wanted the orbit view at once): holding the camera button 0.5 s (F3, D-pad up, the touch camera
   button: `FreeLookCamera.CameraDown` / `CameraUp`, a tap cycles on release) or the "Cockpit view on / off" binding
   (`GameControls.CockpitView`, F2, no controller default) switches between the chase and cockpit view (`ToggleCockpit`),
   and the cycle runs from whichever is the ship view: it -> turrets -> free look -> it; the HUD hints show COCKPIT (F2)
@@ -381,3 +383,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   hint column hides; a click on a button isn't also the mouse's fire / missile binding
   (`WeaponSystem.mouseOverControls`). Handling-dependent camera damping only for keyboard / mouse. Losing focus on
   mobile (or without `runInBackground`) opens the pause menu.
+
+- **Separate turret control**: Camera (F3 / D-pad up, existing binding ID) cycles ship/free-look views, optionally
+  including the cockpit. Turret control (T / D-pad down) is contextual: manual turrets/collectors enter their view,
+  cycle mounts and return to the ship; an auto-only loadout toggles automatic fire. With mixed manual/automatic mod
+  loadouts, the contextual action controls manual mounts and a separate Auto turret binding (Y, pad unassigned) appears.
+  Its visibility follows installed equipment, not a future capability flag. Existing saved overrides retain their IDs.
+  HUD hints follow the appropriate contextual/independent action. Touch retains its existing combined button.

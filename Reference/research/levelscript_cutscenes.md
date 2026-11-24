@@ -45,8 +45,8 @@ invulnerable, no collision; HUD / radar off; pirates (enemies 0-2) asleep and hi
 | 0→1 | msg[2] ends | player to (18000, -12000, -40000); camera to (-12000, 2000, -500), still looking at the player (no setTarget: the pirates talk in the foreground; rechecked at 0x160f0e, the first pass read 0xc63b8000 as -3000); pirates at (-10000, 500, 0), (-10000, -300, -1700), (-10000, -200, 2000) facing +X, visible; while step < 3 they drift `translate(0, getPulseValue(0.0005) - 0.5, 0)` per frame (the pulse = |sin(playing time ms · 0.0005)|) |
 | 1→2 | msg[6] ends | camera targets pirate 0 from (-5000, 300, -5000) |
 | 2 | – | music stop, sound 142 (0x8e); camera dolly (0.2dt, 0, 2.2dt) |
-| 2→3 | msg[7] "attack" ends | pirates: exhaust, visible, active (`+0x124 = 50000`) |
-| 3→4 | msg[8] ends | player control, radar + collision on, `this[0x11] = 0`, `+0x12 = 1`, start sequence off. Fight; msg[9] after 3 kills |
+| 2→3 | msg[7] "attack" ends | pirates: exhaust, visible, active (`+0x124 = 50000`); step 3 keeps the dolly (0.2dt, 0, 2.2dt) (iOS 0x1000b99ec) |
+| 3→4 | msg[8] ends | player control, radar + collision on, `this[0x11] = 0`, `+0x12 = 1`, start sequence off; look-at off and target = player with no setPosition, so the chase camera eases over from the pirates' shot. Fight; msg[9] after 3 kills |
 | 4→5 | msg[10] ends | music stop, sound 143 IntroAtmo; cutscene on, guns removed, player rotation (0, π/2, 0), camera = player + (25000, -200, -1000) |
 | 5 | msg[12] "Activating hyperdrive" ends | once at speed 2.0: sounds 157 + 158 (3D at player), engine stop, 161 (3D); speed ×0.98 per frame; after msg[13] dolly (-0.2dt, 0, 0.3dt) |
 | 5→6 | msg[14] fires | timer reset |
@@ -59,7 +59,7 @@ invulnerable, no collision; HUD / radar off; pirates (enemies 0-2) asleep and hi
 | 11 | 2500 ms | rumble = max(1 - t/2500, 0); then player visible, engine sound 156 (broken), smoke on, exhaust off, speed 2 |
 | 12 | msg[17] ends | player rotate(dt/3000); msg[16] "lost control" at step 12 (trigger 27); then camera = player + (-2000, -2000, -5000) |
 | 13 | 6000 ms | rotate(dt/4000); camera = player + (700, 0, -1700) |
-| 14 | 12000 ms | rotate(dt/5000), dolly (-2dt, …); camera = player + (-3000, 3500, -6700) |
+| 14 | 12000 ms | rotate(dt/5000), dolly (0, 0, -2dt) (iOS 0x1000bf2d0; the Android decompile's (-2dt, …) is scrambled); camera = player + (-3000, 3500, -6700) |
 | 15 | msg[22] "Entering orbit of Var Hastra" ends | fade to black 5000 ms |
 | 16 | fade done | fill black, `nextCampaignMission`, module 2 (new flight level) |
 

@@ -51,6 +51,13 @@ namespace GoF2Remake.World
         public SpaceLevel Level => level;
         public Traffic Traffic => traffic;
         MainCampaignLevels main;
+        /// <summary>Remake co-op, a follower: the main campaign's effects it plays of the leader's level (OnLeaderFx); never
+        /// ticked as a level (main is the leader's / single player's).</summary>
+        MainCampaignLevels coopFx;
+        /// <summary>Remake co-op, a follower: the scenery of the leader's 80 / 81 and 157 (BuildFollowerScenery); never ticked
+        /// as levels.</summary>
+        ValkyrieLevels coopValkyrie;
+        SupernovaLevels coopSupernova;
         ValkyrieLevels valkyrie;
         SupernovaLevels supernova;
         int cratesAtStart;
@@ -276,6 +283,7 @@ namespace GoF2Remake.World
             main?.LateTick(dtMs);
             valkyrie?.LateTick(dtMs);
             supernova?.LateTick(dtMs);
+            coopValkyrie?.FollowLateTick(dtMs);   // remake co-op: a follower's scenery (no camera)
         }
 
         // ---- cutscene helpers ------------------------------------------------------------------------------
@@ -355,7 +363,12 @@ namespace GoF2Remake.World
         public bool ShipInactive(int i) => i >= 0 && i < Ships.Count && Ships[i] != null && (Ships[i].Inactive || Ships[i].Gone);
         public float ShipGameZ(int i) => i >= 0 && i < Ships.Count && Ships[i] != null ? OrbitScale.ToGame(Ships[i].transform.position).z : 0f;   // OrbitScale: the original's z (the radio compares it)
         public int RouteIndex => PlayerRoute != null ? PlayerRoute.index : 0;
-        public int CrateCargoCaptured => Session.CratesSalvaged - cratesAtStart;
+        public int CrateCargoCaptured => Session.CratesSalvaged - cratesAtStart + crewCrateCargo;
+        int crewCrateCargo;
+        /// <summary>Remake co-op: a crew member captured one of this level's crates ('tons' in it): it counts as the player's
+        /// (step 24's 3 t of Void samples open the wormhole; a guest's capture only removed the leader's crate, and with too
+        /// little left for the leader the step could never end).</summary>
+        public void CrewCrateCaptured(int tons) { if (!Follower && tons > 0) crewCrateCargo += tons; }
         public bool StationLocked => level.Navigation != null && level.Navigation.Locked != null && level.Navigation.Locked.kind == Navigation.Kind.Station;
         /// <summary>Radio type 0x1c: Player::getArmorHP &lt; 1 (no armor mounted counts too).</summary>
         public bool PlayerArmorGone => level.Health != null && level.Health.Hp.armor < 1;

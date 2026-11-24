@@ -56,7 +56,8 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1, Read, Write);
         readonly NetworkVariable<byte> place = new NetworkVariable<byte>((byte)Place.None, Read, Write);
         readonly NetworkVariable<bool> authority = new NetworkVariable<bool>(false, Read, Write);   // its game built / runs its orbit's traffic
-        readonly NetworkVariable<int> runsOrbit = new NetworkVariable<int>(-1);   // the server's: the orbit it runs (NetState.UpdateOrbitRunners), -1 = none
+        readonly NetworkVariable<int> runsOrbit = new NetworkVariable<int>(-1);   // the server's: the orbit it runs (NetState.UpdateOrbitRunners)
+        readonly NetworkVariable<bool> runsOrbitActive = new NetworkVariable<bool>(false);   // separate: -1 is also a valid Void orbit id
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
@@ -107,8 +108,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's game says it runs its orbit's traffic (it built it, or was handed it): the server's pick
         /// among the claims is RunsOrbit.</summary>
         public bool OrbitAuthority => authority.Value;
-        /// <summary>The orbit the server made this player run (NetState.UpdateOrbitRunners), -1 = none.</summary>
+        /// <summary>The orbit the server made this player run (NetState.UpdateOrbitRunners).</summary>
         public int RunsOrbit => runsOrbit.Value;
+        /// <summary>Whether the server selected this player as an orbit runner (separate from the orbit id: Void is -1).</summary>
+        public bool RunsOrbitActive => runsOrbitActive.Value;
         public int ShipIndex => ship.Value;
         /// <summary>Server: the ship this player flew before ShipIndex (a dealer trade-in puts it on the dealer's list,
         /// NetState.StockShipRpc: the trade may arrive before or after the new ship), -1 = none.</summary>
@@ -159,6 +162,17 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The mounted primary and secondary weapons, "p,p|s,s" (PackWeapons): a kit ship shows them as models
         /// (Modding.ModHardpoints), on its model in space and in the hangar (NetHangar).</summary>
         public string Weapons => weapons.Value.ToString();
+
+        /// <summary>Server-side validation that a reported weapon belongs to this player's synchronised loadout.</summary>
+        public bool HasWeaponItem(int item)
+        {
+            if (item < 0) return false;
+            foreach (int turret in UnpackTurrets(turretItem.Value)) if (turret == item) return true;
+            // The flyable capital hulls have built-in turrets and the Intelli Jet / S'koonn salvo outside the normal loadout.
+            if (ship.Value == 14 && (item == World.CapitalShips.TerranMissile || item == World.CapitalShips.VosskMissile || item == 48 || item == 49)) return true;
+            foreach (var stack in WeaponStacks(NetGame.Db, weapons.Value.ToString())) if (stack.item == item) return true;
+            return false;
+        }
 
         /// <summary>The build of this player's customizable ship (Modding.ModShipKits: parts, tier, colours, the save's text),
         /// "" = not a kit ship or its default build; the others show their ship so (its parts load on demand).</summary>
@@ -238,8 +252,13 @@ namespace GoF2Remake.Multiplayer
         public void SetStaffRole(int role) { if (IsServer && staffRole.Value != role) staffRole.Value = (byte)Mathf.Clamp(role, 0, 3); }
         /// <summary>Host: into squad 'id' (0 = none).</summary>
         public void SetSquad(int id) { if (IsServer && squad.Value != id) squad.Value = id; }
-        /// <summary>Server: this player runs 'orbit' (-1 = none).</summary>
-        public void SetRunsOrbit(int orbit) { if (IsServer && runsOrbit.Value != orbit) runsOrbit.Value = orbit; }
+        /// <summary>Server: this player runs 'orbit'; active distinguishes the Void's -1 id from no assigned orbit.</summary>
+        public void SetRunsOrbit(int orbit, bool active)
+        {
+            if (!IsServer) return;
+            if (runsOrbit.Value != orbit) runsOrbit.Value = orbit;
+            if (runsOrbitActive.Value != active) runsOrbitActive.Value = active;
+        }
         /// <summary>Another device of this player's profile controls it: this one stays docked (NetProfiles).</summary>
         public bool Observer => observer.Value;
         /// <summary>Server: NetProfiles' role for this device.</summary>
@@ -280,6 +299,11 @@ namespace GoF2Remake.Multiplayer
         NetShotSender sender;
         NetShotMirror mirror;
         bool shown, joinNoticePending, joinAnnounced;
+        const float CollisionModeReportInterval = 2f, CollisionModeReportGrace = 8f, CollisionModeMismatchGrace = 2f;
+        const byte UnknownCollisionMode = byte.MaxValue;
+        byte reportedCollisionMode = UnknownCollisionMode;
+        float nextCollisionModeReport, collisionModeReportDeadline, collisionModeMismatchSince;
+        bool collisionModeWarningSent;
         /// <summary>The chat's join / leave notices (a relog loop flooded the chat): a join is told only once the player has
         /// stayed JoinNoticeSeconds, and not when they left less than QuietRejoinSeconds ago; a leave only when their join
         /// was told (or they were here before this game joined), and once per QuietRejoinSeconds per name.</summary>
@@ -304,6 +328,7 @@ namespace GoF2Remake.Multiplayer
             DontDestroyOnLoad(gameObject);
             All.Add(this);
             name = $"NetPlayer {OwnerClientId}";
+            if (IsServer) collisionModeReportDeadline = Time.unscaledTime + CollisionModeReportGrace;
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
             if (IsServer) SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
             if (IsServer) NetNews.SendAll(OwnerClientId);   // the sector's recent news for their ticker
@@ -315,7 +340,7 @@ namespace GoF2Remake.Multiplayer
                 ship.Value = Session.ShipIndex;
                 pilot.Value = NetGame.Clean(NetGame.PlayerName);
                 NetModRaceStandings.Resend();
-                sender = new NetShotSender(SendShot, BlastUpRpc, () => level != null && level.Weapons != null ? level.Weapons.LockTarget : null);
+                sender = new NetShotSender(SendShot, BlastUpRpc, () => level != null && level.Weapons != null ? level.Weapons.LockTarget : null, () => NetworkObjectId);
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 admin.OnValueChanged += (_, on) => NetChat.Notice(on
                     ? Localization.Extra("mpYouAdmin", "You are now an admin: /kick is available (/help).")
@@ -338,7 +363,9 @@ namespace GoF2Remake.Multiplayer
             target.maxHp = 100f;
             // This player's weapons hitting them count toward them being this player's enemy too (NetAggression, both ways); an NPC's shot
             // relayed by this orbit's authority isn't.
-            target.RemoteDamage = (amount, hitVector, byNpc, shieldFactor) => { if (!byNpc) NetAggression.Hit(OwnerClientId, amount); HitUpRpc(amount, hitVector, byNpc, shieldFactor); };
+            target.RemoteDamage = (amount, hitVector, byNpc, shieldFactor) => { if (!byNpc) NetAggression.Hit(OwnerClientId, amount); HitUpRpc(amount, hitVector, byNpc, shieldFactor, -1, 0, 0); };
+            target.RemoteHit = (amount, hitVector, byNpc, shieldFactor, weaponItem, sourceObjectId, shotId) =>
+            { if (!byNpc) NetAggression.Hit(OwnerClientId, amount); HitUpRpc(amount, hitVector, byNpc, shieldFactor, weaponItem, sourceObjectId, shotId); };
             target.RemoteEmp = emp => { NetAggression.Hit(OwnerClientId, emp); EmpUpRpc(emp); };
             target.RemoteHeal = points => HealUpRpc(points);   // a squadmate's repair beam (NetPlayerEquipment)
             ApplyName();
@@ -359,6 +386,70 @@ namespace GoF2Remake.Multiplayer
             joinNoticePending = Local != null && Time.unscaledTime - Local.spawnedAt > 3f;
             joinAnnounced = !joinNoticePending;   // already here when this game joined: their leave is told
             spawnedAt = Time.unscaledTime;
+        }
+
+        /// <summary>Whether this pilot has confirmed that its weapon hit tests use the server's collision rule.</summary>
+        internal bool CollisionModeCompliant => IsOwner && IsServer
+            ? HullCollision.Mode == NetRules.HostCollision
+            : reportedCollisionMode == (byte)NetRules.HostCollision;
+
+        /// <summary>The owner's effective collision mode, not its saved preference. Repeated reports recover from a lost
+        /// update and let the server block weapon damage from a client that remains on a different mode.</summary>
+        void ReportCollisionModeIfNeeded()
+        {
+            if (!IsOwner || IsServer || !NetGame.Active || !NetRules.TryGetCollision(out _)) return;
+            float now = Time.unscaledTime;
+            byte actual = (byte)HullCollision.Mode;
+            if (actual == lastCollisionModeReported && now < nextCollisionModeReport) return;
+            lastCollisionModeReported = actual;
+            nextCollisionModeReport = now + CollisionModeReportInterval;
+            ReportCollisionModeRpc(actual);
+        }
+
+        byte lastCollisionModeReported = UnknownCollisionMode;
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void ReportCollisionModeRpc(byte mode, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId) return;
+            if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            if (mode > SessionRules.CollisionOriginal)
+            {
+                NetRateLimit.Reject(OwnerClientId, "an invalid collision-mode report");
+                return;
+            }
+
+            reportedCollisionMode = mode;
+            CheckReportedCollisionMode();
+        }
+
+        internal void CheckReportedCollisionMode()
+        {
+            if (!IsServer || IsOwner) return;
+            if (reportedCollisionMode == UnknownCollisionMode && Time.unscaledTime < collisionModeReportDeadline) return;
+            bool matches = reportedCollisionMode == NetRules.HostCollision;
+            if (matches)
+            {
+                collisionModeMismatchSince = 0f;
+                if (collisionModeWarningSent)
+                {
+                    collisionModeWarningSent = false;
+                    NetState.Instance?.NoticeTo(this, Localization.Extra("mpCollisionModeRestored", "Your ship collision mode now matches the server."));
+                }
+                return;
+            }
+
+            if (collisionModeMismatchSince <= 0f) collisionModeMismatchSince = Time.unscaledTime;
+            if (Time.unscaledTime - collisionModeMismatchSince < CollisionModeMismatchGrace) return;
+            if (collisionModeWarningSent) return;
+            collisionModeWarningSent = true;
+            string actual = reportedCollisionMode == UnknownCollisionMode
+                ? Localization.Extra("mpCollisionModeUnknown", "not reported")
+                : SessionRules.CollisionText(reportedCollisionMode);
+            string expected = SessionRules.CollisionText(NetRules.HostCollision);
+            string message = string.Format(Localization.Extra("mpCollisionModeMismatch", "Your ship collision mode ({0}) does not match this server's {1} mode. Weapon damage from your game is disabled until it matches."), actual, expected);
+            NetState.Instance?.NoticeTo(this, message);
+            Debug.LogWarning($"NetPlayer: {DisplayName}'s collision mode is {actual}; server requires {expected}. Weapon damage from this game is blocked.");
         }
 
         public override void OnNetworkDespawn()
@@ -436,23 +527,45 @@ namespace GoF2Remake.Multiplayer
         /// other's line of fire), a finite damage up to NetGuard.MaxDamage, at its rate. (A direct RPC to the owner let a
         /// modified client destroy any player anywhere, or send NaN damage.)</summary>
         [Rpc(SendTo.Server)]
-        void HitUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, RpcParams rpc = default)
+        void HitUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, int weaponItem, ulong sourceObjectId, uint shotId, RpcParams rpc = default)
         {
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
+            if (shotId != 0 && (sourceObjectId == 0 || NetShotRegistry.IsCanceled(sourceObjectId, shotId))) return;
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a hit of {amount}"); return; }
             // a weapon's shield factor (Flight.Gun.ShieldFactor: 0.01 .. 10, or 0 = through the shield); an NPC's shot has none
             shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this)) return;   // gone from the orbit a moment ago, or a hit from elsewhere
+            // "byNpc" is supplied by the caller, so it is not proof of an NPC hit. Only the server-selected
+            // runner of this orbit may relay NPC damage. This closes the easy bypass where any client could
+            // set byNpc=true to ignore PvP and squad protection. The runner still simulates NPC combat locally;
+            // fully proving an individual shot requires authoritative NPC combat, not a client flag.
+            if (byNpc && !NetGuard.NpcDamageFrom(by, Station))
+            {
+                NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit");
+                return;
+            }
+            if (!byNpc && weaponItem >= 0)
+            {
+                var weapon = Database.Shared.Item(weaponItem);
+                if (!by.HasWeaponItem(weaponItem) || weapon == null) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+                shieldFactor = Gun.ShieldFactor(weapon); // typed damage never trusts a client-supplied shield multiplier
+            }
+            if (byNpc && weaponItem >= 0 && (by.RunsOrbit != Station || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             if (!byNpc && NetSquad.Same(by, this)) return;
+            if (!by.CollisionModeCompliant)
+            {
+                by.CheckReportedCollisionMode();
+                return;
+            }
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
-            HitRpc(amount, hitVector, byNpc, shooter, shieldFactor);
+            HitRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
 
         /// <summary>The checked hit (HitUpRpc): this player's own ship takes it; destroyed by a player = a notice for everyone.</summary>
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void HitRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor)
+        void HitRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor, int weaponItem)
         {
             var own = level != null && level.Health != null ? level.Health.Target : null;
             if (own == null) return;
@@ -465,12 +578,15 @@ namespace GoF2Remake.Multiplayer
             }
             bool alive = own.Alive;
             if (alive && !byNpc) NetAggression.Hit(shooter, amount);   // an attack makes them an enemy here (NetAggression)
-            own.Damage(amount, byNpc, hitVector, shieldFactor);
+            var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
+            var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
+            own.lastPlayerWeapon = byNpc ? -1 : weaponItem;
+            own.Damage(amount, byNpc, hitVector, shieldFactor, damageType);
             if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
         }
 
-        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId) =>
-            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId));
+        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>
+            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId, shotId));
 
         /// <summary>The owner's shot, through the server (only the owner sends this player's shots): checked (a weapon item,
         /// finite values) and limited, then drawn by the mirrors of the players in the same orbit (NetInterest). (Unchecked,
@@ -481,14 +597,33 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"a shot of item {shot.item}"); return; }
+            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId, Mathf.Max(0f, shot.lifetimeMs + 2000f));
             if (InSpace && NetInterest.OrbitGroup(this, Station, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
         void ShotRpc(NetShotData shot, RpcParams rpc = default)
         {
-            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId));
+            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId), shot.shotId, NetworkObjectId, true);
         }
+
+        public static void InterceptMirrorShot(ulong sourceObjectId, uint shotId) => Local?.InterceptUpRpc(sourceObjectId, shotId);
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void InterceptUpRpc(ulong sourceObjectId, uint shotId, RpcParams rpc = default)
+        {
+            ulong requester = rpc.Receive.SenderClientId;
+            if (requester != OwnerClientId || !NetRateLimit.Allow(requester, NetRateLimit.Kind.Shot)) return;
+            if (NetworkManager.Singleton == null || !NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(sourceObjectId, out var sourceObject)) return;
+            var source = sourceObject.GetComponent<NetPlayer>();
+            var defender = NetSquad.Find(requester);
+            if (source == null || defender == null || source == this || source.OwnerClientId == requester || source.Station != Station || NetSquad.Same(defender, source)) return;
+            if (!NetShotRegistry.TryCancel(sourceObjectId, shotId, NetworkObjectId)) return;
+            source.CancelShotRpc(shotId);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void CancelShotRpc(uint shotId) => sender?.CancelShot(shotId);
 
         /// <summary>The owner's blast (a bomb's ignition), through the server like a shot.</summary>
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
@@ -600,6 +735,7 @@ namespace GoF2Remake.Multiplayer
             if (emp <= 0 || emp > NetGuard.MaxDamage) { NetRateLimit.Reject(shooter, $"an EMP of {emp}"); return; }
             var by = NetSquad.Find(shooter);
             if (!NetGuard.SameOrbit(by, this) || NetSquad.Same(by, this)) return;
+            if (!by.CollisionModeCompliant) { by.CheckReportedCollisionMode(); return; }
             EmpRpc(emp, shooter);
         }
 
@@ -686,6 +822,7 @@ namespace GoF2Remake.Multiplayer
         void Update()
         {
             if (!IsSpawned) return;
+            if (IsServer) CheckReportedCollisionMode();
             if (!IsOwner)
             {
                 if (joinNoticePending && pilot.Value.Length > 0 && Time.unscaledTime - spawnedAt > JoinNoticeSeconds)
@@ -721,6 +858,7 @@ namespace GoF2Remake.Multiplayer
                 mirror?.Update(Time.deltaTime * 1000f);
                 return;
             }
+            ReportCollisionModeIfNeeded();
             NetProfileClient.Tick();   // the server profile's periodic upload
             WriteEquipment();   // max hull, emergency clock, sentries (NetPlayerEquipment)
             if (tollStation.Value != NetFactionsClient.TollStation) tollStation.Value = NetFactionsClient.TollStation;

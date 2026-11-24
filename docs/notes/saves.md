@@ -127,3 +127,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   on, the new game (after the campaign's first step) gets the old credits added, the unlocked blueprints and the medals
   (the better grade of each), the Kaamo Club owned with the old storage plus the old ship (its mods), its equipment and
   cargo (not the story's unsaleable items) parked in it; story, map, standings and the starting ship are new.
+
+- **Proposed playthrough rules** (#311): complete experience policies are still global preferences, not saved rule
+  snapshots. The current tables, new-game draft proposal and migration/host/import requirements are documented in
+  [options.md](options.md#settings-cleanup-and-final-experience-policy). No save schema is changed by this review.

@@ -42,15 +42,54 @@ namespace GoF2Remake.Tests
         /// <summary>An asset path ("Assets/...") as a file on disk.</summary>
         public static string FullPath(string assetPath) => Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
 
-        public static string ReadAsset(string assetPath) => File.ReadAllText(FullPath(assetPath), Encoding.UTF8);
+        /// <summary>A text asset's contents; in a checkout without the originals (docs/notes/player-assets.md "The test bed")
+        /// the converted copy's version of an original table ($GOF2_ORIGINAL_CACHE: the text tables, the GoF2Data files).</summary>
+        public static string ReadAsset(string assetPath)
+        {
+            string full = FullPath(assetPath);
+            if (File.Exists(full)) return File.ReadAllText(full, Encoding.UTF8);
+            string fromCopy = FromCopy(assetPath);
+            if (fromCopy != null) return fromCopy;
+            return File.ReadAllText(full, Encoding.UTF8);   // (the file's own error)
+        }
+
+        /// <summary>The converted copy's version of an original text asset, null when it has none.</summary>
+        public static string FromCopy(string assetPath)
+        {
+            const string Lang = "Assets/Localization/text_", Data = "Assets/Resources/GoF2Data/";
+            if (assetPath.StartsWith(Lang) && assetPath.EndsWith(".json"))
+                return GameContent.LanguageText(assetPath.Substring(Lang.Length, assetPath.Length - Lang.Length - 5));
+            if (assetPath.StartsWith(Data) && assetPath.EndsWith(".json"))
+                return GameContent.Text("GoF2Data/" + assetPath.Substring(Data.Length, assetPath.Length - Data.Length - 5));
+            return null;
+        }
+
+        /// <summary>Skips the test in a checkout without the originals when it checks one of them (or what the editor
+        /// tools derive from them: the per-mesh prefabs, the imported models, the HD skies), which only the full project has.</summary>
+        public static void NeedsOriginal(string assetPath)
+        {
+            if (!File.Exists(FullPath(assetPath)) && !Directory.Exists(FullPath(assetPath)))
+                Assert.Ignore($"{assetPath}: an original (or made from one), not in this checkout (docs/notes/player-assets.md)");
+        }
 
         public static bool AssetExists(string assetPath) =>
             !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(assetPath, AssetPathToGUIDOptions.OnlyExistingAssets));
 
+        /// <summary>An assembled object's prefab (Resources/Assembled, built by "GoF2 > Build > Assembled Prefabs"), or in a
+        /// checkout without the originals the converted copy's assembly (OriginalAssemblies, what AssembledObject.LoadPrefab
+        /// builds then; PlayerCopyTests builds every one).</summary>
+        public static bool AssembledExists(AssemblyData a) =>
+            a != null && (AssetExists("Assets/Resources/" + Visuals.AssembledObject.PrefabPath(a) + ".prefab") || Visuals.OriginalAssemblies.Has(a.name));
+
         /// <summary>The language codes of Assets/Localization/text_*.json.</summary>
-        public static List<string> TextTableCodes() =>
-            Directory.GetFiles(FullPath("Assets/Localization"), "text_*.json")
+        public static List<string> TextTableCodes()
+        {
+            // (a checkout without the originals: the converted copy's languages)
+            string dir = Directory.Exists(FullPath("Assets/Localization")) ? FullPath("Assets/Localization") : Path.Combine(GameContent.Root, "Localization");
+            if (!Directory.Exists(dir)) return new List<string>();
+            return Directory.GetFiles(dir, "text_*.json")
                 .Select(f => Path.GetFileNameWithoutExtension(f).Substring("text_".Length)).OrderBy(c => c, StringComparer.Ordinal).ToList();
+        }
 
         // ---- text tables ------------------------------------------------------------------------------------------
 
@@ -70,7 +109,8 @@ namespace GoF2Remake.Tests
             public static void Use(string code)
             {
                 var table = AssetDatabase.LoadAssetAtPath<TextAsset>($"Assets/Localization/text_{code}.json");
-                Assert.IsNotNull(table, $"text_{code}.json missing");
+                // (Localization.Load takes the converted copy's table first, a checkout without the originals has only that)
+                Assert.IsTrue(table != null || GameContent.LanguageText(code) != null, $"text_{code}.json missing");
                 Localization.Load(code, table);
             }
 
@@ -88,7 +128,7 @@ namespace GoF2Remake.Tests
         /// <summary>Every Settings key stored as a float (the five reset groups but the voice language, plus the tilt
         /// calibration, which no group resets).</summary>
         public static IEnumerable<string> SettingFloatKeys =>
-            Settings.SoundKeys.Concat(Settings.GraphicsKeys).Concat(Settings.ControlsKeys).Concat(Settings.GameplayKeys).Concat(Settings.AccessibilityKeys)
+            Settings.SoundKeys.Concat(Settings.GraphicsKeys).Concat(Settings.ControlsKeys).Concat(Settings.GameplayKeys).Concat(Settings.CosmeticsKeys).Concat(Settings.AccessibilityKeys)
                 .Concat(new[] { "tiltCalX", "tiltCalZ", "tiltCalibrated" }).Distinct();
 
         /// <summary>The keys in those groups Settings keeps as text (restored as floats they lost their value).</summary>
@@ -114,9 +154,12 @@ namespace GoF2Remake.Tests
                 Keep(SettingsPrefix + "language", true);
                 Keep(SettingsPrefix + "voiceLanguage", true);
                 // The game experience's migration and the welcome screen (Settings.MigrateExperienceDefaults, WelcomeShown).
-                foreach (var k in new[] { "experienceDefaults", "experienceDefaults.played", "welcomeShown" }) Keep(SettingsPrefix + k, false);
-                Keep(ControlsPrefsKey, true);
+                foreach (var k in new[] { "experienceDefaults", "experienceDefaults.played", "welcomeShown", "musicTrackGroups.v1" }) Keep(SettingsPrefix + k, false);
+                // Every flight style's layout (GameControls' "_free" / "_chorus" keys): ResetToDefaults below drops the loaded one.
+                foreach (var k in ControlsLayoutKeys) Keep(k, true);
             }
+
+            static readonly string[] ControlsLayoutKeys = { ControlsPrefsKey, ControlsPrefsKey + "_free", ControlsPrefsKey + "_chorus" };
 
             void Keep(string key, bool text) => saved.Add(new Saved
             {
@@ -136,8 +179,12 @@ namespace GoF2Remake.Tests
                 ClearSettingsCache();
                 // The bindings: no overrides, then the saved ones as GameControls.Start loads them.
                 GameControls.ResetToDefaults();
-                var key = saved.Find(s => s.key == ControlsPrefsKey);
-                if (key.had) { PlayerPrefs.SetString(ControlsPrefsKey, key.str); PlayerPrefs.Save(); }
+                foreach (var k in ControlsLayoutKeys)
+                {
+                    var key = saved.Find(s => s.key == k);
+                    if (key.had) PlayerPrefs.SetString(k, key.str);
+                }
+                PlayerPrefs.Save();
                 ReloadBindings();
             }
         }

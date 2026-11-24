@@ -6,7 +6,9 @@
 //   -web [port]        on, default port DefaultPort (also -webport N)
 //   -webbind ADDRESS   what it listens on, default 127.0.0.1 (this machine only: an SSH tunnel or a reverse proxy reaches
 //                      it); 0.0.0.0 = every adapter. The page is plain HTTP: anything farther than the local network belongs
-//                      behind a TLS reverse proxy.
+//                      behind a TLS reverse proxy. An address other than loopback also needs -webinsecure (the operator
+//                      saying they know the login crosses that network unencrypted; Docker's image binds 0.0.0.0 inside the
+//                      container and publishes the port on the host's 127.0.0.1); without it the web admin stays off.
 // Logging in works like becoming an admin in the game (NetModeration):
 //   the admin token (the one /claimadmin takes: -admintoken, GOF2_ADMIN_TOKEN or admin_token.txt, logged at every start):
 //     the console's rights: every console command (DedicatedServer.Run), "stop" too;
@@ -148,6 +150,14 @@ namespace GoF2Remake.Multiplayer
             if (html == null) { Debug.LogError("Server: the web admin's page (Resources/GoF2Server/WebAdmin.html) is missing."); return; }
             page = html.text;
             if (!IPAddress.TryParse(address, out var ip)) { Debug.LogError($"Server: -webbind {address} isn't an IP address."); return; }
+            // Remake security (Spectre's review, 2026-11-16): a warning didn't stop the admin token crossing a network as plain
+            // HTTP by a typo or a copied command line; a non-loopback address needs the operator's -webinsecure.
+            if (!IPAddress.IsLoopback(ip) && !Array.Exists(Environment.GetCommandLineArgs(), a => string.Equals(a, "-webinsecure", StringComparison.OrdinalIgnoreCase)))
+            {
+                Debug.LogError($"Server: the web admin is plain HTTP and stays off on {address}: bind it to 127.0.0.1 (an SSH tunnel or " +
+                               "a TLS reverse proxy reaches it), or add -webinsecure if this network is trusted.");
+                return;
+            }
             try
             {
                 listener = new TcpListener(ip, listenPort);

@@ -151,7 +151,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: the flight model (NetServerSettings).</summary>
         public static void SetFlight(int style)
         {
-            HostFlight = style == FlightStyles.Free || style == SessionRules.PlayerFlight ? style : FlightStyles.Original;
+            HostFlight = FlightStyles.IsFree(style) || style == SessionRules.PlayerFlight ? style : FlightStyles.Original;
             NetState.Instance?.SetFlightModel(HostFlight);
         }
 
@@ -163,6 +163,18 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The server's ship collision mode (SessionRules.CollisionExact / Mixed / Original), in Host's bits
         /// PreciseShipCollision / OriginalCollision.</summary>
         public static int HostCollision => SessionRules.CollisionOf(Host);
+
+        /// <summary>The collision mode requested by this session (false until a client has received NetState).</summary>
+        public static bool TryGetCollision(out int mode)
+        {
+            mode = SessionRules.DefaultCollision;
+            if (!NetGame.Active) return false;
+            if (NetGame.IsServer) { mode = HostCollision; return true; }
+            var s = NetState.Instance;
+            if (s == null || !s.IsSpawned) return false;
+            mode = SessionRules.CollisionOf(s.Rules);
+            return true;
+        }
 
         /// <summary>Server: the ship collision mode (NetServerSettings, DedicatedServer.Boot).</summary>
         public static void SetCollision(int mode)

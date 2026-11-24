@@ -591,6 +591,15 @@ namespace GoF2Remake.Events
                 string l = (r.step["line"]?.ToString() ?? "").Replace("\r", " ").Replace("\n", " ").Trim().TrimStart('/');
                 return l.Length > 0 ? l : null;
             }, F("line", QuestFieldKind.Text, "Command")),
+            Plain("lua", "other", "Lua", "Code of your own (the mod's scripts must be allowed)", r =>
+            {
+                string code = (r.step["code"]?.ToString() ?? "").Replace("\r", "");
+                if (code.Trim().Length == 0) { r.Problem("write its code."); return null; }
+                string into = (r.step["result"]?.ToString() ?? "").Trim().ToLowerInvariant();
+                if (into.Length > 0 && !QuestFile.IsName(into)) { r.Problem("name the variable (letters, digits, _)."); return null; }
+                return "lua " + (into.Length > 0 ? into : "-") + " " + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(code));
+            }, F("code", QuestFieldKind.LongText, "Lua code", help: "Runs in this mod's scripts (Modding/README.md \"Scripts\"). local event = ... gives event.name, event.get(\"expression\") and event.set(\"variable\", number); return a number or true / false to put it in the variable below."),
+               F("result", QuestFieldKind.Variable, "Result into a variable (optional)", optional: true)),
         };
 
         static QuestSteps()

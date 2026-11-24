@@ -199,6 +199,15 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   in Play mode with a local test campaign (Mods/test_campaign: Kepler, the Jedi Starfighter, the plasma weapons): the entry,
   the start (station, ship, credits, equipment), only Kepler visible, mod-only dealers, Jedi / Banshee traffic, missions
   inside Kepler, the quest running, save / load keeping it.
+  **For whole game modes as mods** (#313, AntonTolochko's Scavenger mode, withdrawn from #285 to be a mod): `BeginGame`
+  sets `Session.ModCampaign` before `Database.Load`, and `Database.Shared` loads again when the campaign changes, so a
+  script's `database` handler can keep its changes to its campaign; `"economy": "original" | "default"` fixes the
+  economy (`PickDifficulty` skips the panel, Back from the game options goes to the difficulty); `"medals": [n | key]`
+  are the only medals awarded and shown (`ModCampaigns.MedalAllowed`: `Achievements.Check` / `Elite` / `Earned`,
+  `ModMedals.Check` / `Shown`, the Status grid keeps a hidden one's number with no button; `[]` none). What shops offer and
+  NPC ships carry: a script patches the methods (`game.patch`, "Patches" under Mod scripts; two hooks made for it,
+  `ModHooks.ItemOffered` / `CargoRolled`, were dropped the same day for that). The save slots stay shared by every campaign (#313's answer, 2026-11-20:
+  the replaced auto-save is kept in Saves/Deleted, #240), and #285's v19 saves aren't read.
 - **Mod DLCs** (remake, 2026-11-01, the user's request: mods that go on after the last DLC; `ModDlcs`, a mod's `dlc.json`:
   name, description, image, imageHover, showTitle, quest (required), index, intro, introSpeaker, startStation, startShip,
   credits, equipment, cargo; the guide's "DLCs"): one play order for the DLCs that are on (`ModDlcs.All`): the player's
@@ -222,7 +231,9 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   with each option's default. Verified in Play mode with 8 options from two mods (with and without images, a missing image
   warned), the arrow-key navigation and the scrolling, and 3 mod campaigns (6 cards).
 - **Flight styles** (`ModFlight`; the guide's "Flight styles"): mods choose per content whether they touch the original
-  flight, free flight or both. Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
+  flight, free flight or both. (2026-11-11: `"chorus"` names a third style, Chorus flight, `FlightStyles.Chorus`; it is a
+  free-flight style, `FlightStyles.IsFree`, so free flight's bonuses, `flightScope` 2 and `freeBoostFactor` apply to it;
+  events read `chorusflight`; the Set Flight Model node's ChorusFlight and `/flightstyle chorus` set it.) Items: attributes 110-121 (`ItemStats`): `flightScope` (110: 0 both, 1 original, 2 free) keeps
   the item's booster / Steering Nozzle attributes 25-28 to one style; % bonuses `topSpeed` / `turnRate` / `strafeSpeed` (both,
   111-113), `original*` (114-116), `free*` + `freeAcceleration` (117-120) and `freeBoostFactor` (121, x100, instead of the
   booster's); `fullStopDamage` / `lowSpeedResistance` (138 / 139, both styles, 2026-11-02: EVERSPACE 2's ship passives from
@@ -379,6 +390,23 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   station's stations.json `materials`, and an interiors.json room's, ignored their `material` filter
   (`ModStations.Build` / `ModInteriors.Build` passed no glTF material name to `ModShipBuilder.MaterialFor`), so such a
   station showed its model's own white materials.
+- **Death throes, blocking fields, part shields** (remake, 2026-11-11, Chorus's warships): ships.json `"deathThroes"`
+  (`CustomDeathThroes`: NpcShipDamage.OnDied's freighter / mod capital branch sets `dyingMs` to its seconds, warns
+  "capitalCritical", schedules `throesBlastMs` hull blasts (ModDeathFx dying, else `Explosion.Spawn` at a quarter of the
+  freighter scale); `ThroesBlast` at the final explosion: every `Target.All` within the radius takes damage x (maxHull +
+  maxShield) x (1 - d / r) as an NPC hit, the camera shakes within 2 r). `"shieldBlocks"`: `CapitalSubsystems.Build`
+  adds the shield field renderers' meshes to the hull (`HullCollision.AddShape`); `HullCollision.Shown` drops them once
+  the fields hide. A subsystem's `"shield"` (`CapitalSubsystem.shield`): the part's `Hitpoints.maxShield` = hull x it
+  (NPC shields don't recharge). Tests in `ModCapitalShipsTests`.
+- **Hurt only through its parts** (remake, 2026-11-11, Chorus's warships: BP_NPC_Warship_Base's DamageReceiverComponent
+  DefaultDamageMultiplier 0, their health from their weakpoints): ships.json `"hullDamage"` (`CustomShipData.hullDamage`,
+  default 1) is `Target.directFactor`, set with the shields (`CapitalSubsystems.ApplyShields`): a direct hit x it before
+  `damageFactor`; a weak spot's passed-on hit and its death bonus go through `Target.PassOn` (`Target.PassingOn` while
+  dealt), which skips it (the shields' `damageFactor` still applies). `OnHostDamaged` no longer warns on a passed-on hit,
+  and with `hullDamage` 0 answers a bare hit "Its armour holds: shoot its weak points!" (Extra `capitalWeakPoints`).
+  A subsystem's `"turretForward"` (`CapitalSubsystem.forward`, game axes) turns a part that isn't a turret fully with its
+  up (`CapitalSubsystems.PartTurn`: LookRotation in the ship's Unity frame, x mirrored), for Chorus's devices on their
+  sockets. Tests `ModCapitalShipsTests` (AHullHurtOnlyThroughItsWeakSpots, the parse test).
 - **NPC ships** (remake, 2026-11-02, the user's request: "just like flyable ships", ships nobody flies, new or replaced, with
   loot, escorts and their strength, hardpoints, spawn rate and places, a capital ship's docking and shop; `npcships.json`,
   Modding/README.md "NPC ships"): `Modding.ModNpcShips` (Game layer; parsed in `ModContent.Parse` into `Parsed.npcShips`,
@@ -561,6 +589,11 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   "turrets" (2026-11-05, the GoF3 bosses' Backfire / Tank Turrets): turret items (category 8 / 35) for its ship's turret
   mounts, `WantedData.turrets` -> `SpawnSpec.turretItems` (`TrafficPlan.AddWanted`; null = the type's `npcTurrets`, [] =
   none; more than the mounts warns), fired by `NpcMountedTurrets` at the item's own damage (no x4 like its gun).
+  "skin" (2026-11-11, the GoF3 bosses' gang paint): a kit skin id of its ship, `WantedData.skin` -> `SpawnSpec.skin`
+  (`TrafficPlan.AddWanted`) -> `Traffic.AssemblyOf` -> `ModTraffic.Assembly(ship, skin)`: `SkinBuild` = the default build
+  with that skin (its colours, livery, decal; `Normalize`d), flown once `ModShips.BuildLoaded`, else warmed and the plain
+  assembly this time; `ModTraffic.Warm` warms every wanted skin build too (`WarmSkins`, within `WarmBuilds`). An unknown
+  skin or one the type doesn't allow flies the plain build. `ModWantedTests.ASkinIsTheKitSkinItsShipWears`.
 - **Mod wingmen** (remake, 2026-11-05, the GoF3 roadmap's G5 after GoF3's wingmen, the user's choice: GoF2's progression
   systems plus what it lacks; Modding/README.md "Wingmen"): ships.json "wingmanDevice" (`CustomShipData.wingmanDevice`,
   checked in `ModWingmen.Apply`) gives a hired wingman flying that hull GoF3's device (`Flight.WingmanDevice`, Core: Hull
@@ -748,11 +781,76 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   ...))`; single player: straight back. *Settings*: `game.config`, JSON in PlayerPrefs `mod_script_config_<id>`,
   written on stop / `game.saveConfig()`. *The scene*: `game.space()` / `station()` / `player()`, `game.myId()`. *More
   events*: `lateUpdate`, `trade` (`Hangar.Shared`), `missionAccepted` / `missionSucceeded` / `missionFailed`
-  (`Freelance`), `storyStep` (`Story.Advance`), `chat` (`NetChat.Added`). Still not possible, by nature: rewriting a
-  method that isn't behind a delegate (no runtime patching under IL2CPP), defining C# classes, anything before the main
-  menu. Verified: `ModScriptMoreTests` (13; 37 with `ModScriptTests`). Not yet: the message RPCs in a real session,
+  (`Freelance`), `storyStep` (`Story.Advance`), `chat` (`NetChat.Added`). Still not possible, by nature: defining C# classes, anything before the main
+  menu (rewriting a method: Patches, below). Verified: `ModScriptMoreTests` (13; 37 with `ModScriptTests`). Not yet: the message RPCs in a real session,
   `game.sound`, a `LuaBehaviour`'s physics messages, the new game events in play.
-- **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss): the list in
+  **Patches** (2026-11-20, the user: "so lua can do anything and we don't have to write hooks for anything anymore";
+  `Core/PatchRuntime.cs`, `Editor/CodeGen/PatchWeaver.cs`, `Modding/ModScriptsPatch.cs`, the guide's "Patching the game's
+  methods"): `game.patch(target, "Method", fn [, "ParamTypes"])` replaces any method of the game's classes. IL2CPP can't
+  rewrite a method at run time (Harmony's way), so the build does the preparing: `PatchWeaver` is an ILPostProcessor
+  (assembly `Unity.GoF2.Patching.CodeGen`: Unity hands the ILPostProcessing API only to assemblies named
+  `Unity.*.CodeGen`; Unity.Pipeline's CodeReload weaver was the model) run on GoF2.Core / Game / Space / Net / App after
+  every compile, the Editor's too. Each method gets `[PatchSite(id)]` and a prologue `h = PatchTable.Table[id]; if (h !=
+  null && !PatchRuntime.Skip(h)) return (T)h(this, args)` (arguments boxed into an object[], ref / out values copied
+  back; `PatchTable` is made per assembly: a readonly array, the `Skipped` count). 13,573 methods woven on 2026-11-20
+  (Core 583, Game 3477, Space 4340, Net 1905, App 3268; the DLLs +15 %), left out: constructors (4160), compiler-made
+  code (lambdas, iterator / async state machines, local functions: 8670), auto-property accessors (1429), RPCs (160)
+  and Netcode's generated `__` members (its ILPP runs first), struct instance methods (36), generics (26), ref-struct /
+  pointer signatures (11), `[AggressiveInlining]` (the way to keep a hot method out), Burst and native callbacks.
+  **Its own code**: `Skip` is true once for the handler being passed by (a thread-static), so the runtime calls the
+  method again by reflection (`MethodInfo.Invoke`, the inner exception rethrown unwrapped); an overridable method gets a
+  private `__patchBase_<Name>` that calls it non-virtually (reflection would run the object's override instead).
+  Patches on one method stack, the newest first (`PatchRuntime.Add`, `PatchBody(original, self, args)`; Dispose takes
+  one out; `RemoveAll` at SubsystemRegistration). **The Lua side** (`Vm.Patch`): `original` first, `self` for an
+  instance method, then the arguments; the result, then the ref / out values (as game.hook); the nearest class up the
+  chain declaring the name, a 4th argument of parameter types for overloads; `ScriptAccess.PatchTarget` refuses classes
+  scripts can't use and a method that takes or returns a path-like text (`HandlesPath`: it could send the game's files
+  elsewhere); a value of a type scripts can't hold is nil in Lua and passes through; off the main thread / stopped /
+  game.off: the method as it was; a Lua error: the method's own behaviour without running it twice, 5 in a row take
+  the patch out. The classes are named `Patch*` so the sandbox's prefix rule denies them to scripts. Cost with no
+  patch: a static array load and a branch per call (edit-mode suite 94 -> 100 s). Tests `ModScriptPatchTests` (16).
+  Checked in a Windows IL2CPP development build (2026-11-20; run headless as `-server -allowmods -noprofiles` with
+  `$GOF2_DATA` naming a scratch data folder holding the Scavenger example and a self-test script mod, results read
+  from the log): static, instance and private methods, out values, two stacked patches, removal, the method's own
+  exception going on to its caller, and the example's recipes, shop stock (664 stacks), cargo (167 kinds) and
+  autocomplete rule, 16 of 16. Not yet: a frame-time measurement in flight, a patch in a real session, the mode
+  played by hand.
+  **The example** `Modding/Examples/scavenger` (2026-11-20, the proof that a game mode needs no code of its own in the
+  game: AntonTolochko's Scavenger mode of #285 as campaign.json + medals.json + 12 patches, tests
+  `ScavengerExampleTests`): `ModCampaigns.Start` (the finished world, `Session.UseCompletedWorld`, set again on
+  `gameLoaded`: a save doesn't keep `CompletedWorld`), the `database` event (every recipe but the Chromo Plasma's
+  cleared, the Fireworks' 42 rows), `ModBlueprints.AutocompleteOverride` / `Available`, `Shop.GenerateItems` (fresh
+  stock only, so sold loot can be bought back), `AgentGenerator.CreateAgent` / `StorySellerAvailable` /
+  `AddStoryBlueprintSellers`, `CapitalShips.ResupplyOffers` / `RollLoot`, `NpcTables.RollLoot`, `NpcShip.AddOwnLoot`
+  (a fixed crate's items rerolled through the private `loot`), `ModMedals.Available`. **Four small ones** from
+  players' requests (2026-11-20, tests `PatchExampleModsTests`, play mode `TurretStatusExampleTests`): `mixed_wings`
+  (#307: `TrafficPlan.AddRaiders`, each raider its own `NpcTables.RandomFighter`), `heavy_ammo` (#323: `Shop.CargoLoad`
+  + half a ton a mounted round), `khador_interference` (#325: `GalaxyMap.HasJumpDrive` false in the systems of its
+  data file), `turret_status` (#314: a Label on `FlightHud.root`, updated by `game.every`). Writing them found three
+  gaps in the bridge, closed the same day: MoonSharp refused any class hiding a base member with `new` ("Multiple
+  members named experimental": TextElement over VisualElement, so Label, Button and every text control;
+  `ScriptAccess.RegisterHidingTypes` describes such classes itself at `Install`, the most derived member winning, on a
+  `StandardUserDataDescriptor` made with `HideMembers` so it fills nothing); a Lua function wasn't a `Predicate` /
+  `Comparison` / `Action` of a game class (`list:Find(fn)`; `RegisterDelegateTypes` adds the three for every game
+  class, not structs: IL2CPP); an element's `style` is Unity's internal `InlineStyleAccess`, which scripts can't hold:
+  `game.style(element, table)` (`ScriptAccess.SetStyle`: IStyle's properties by name, numbers / "50%" / keywords /
+  colours / enum names / a Texture2D). Also learnt: scripts can't call `Database.Load` (one overload takes a path, so
+  the name is trimmed: `Database.Shared`), and a short class name Unity uses twice (`Button`, `Target`) needs its
+  full name. **The examples** (2026-11-21, the user: "make sure the example mods show most of the capabilities of the
+  modding system, each mod focuses on a different part"): 21 in `Modding/Examples`, the guide's "Examples" table maps
+  each to its chapter. New that day: courier_ships, warlord_fleet, hired_guns, tinkerers_bench, kepler_guild,
+  heavy_flight (written by subagents from the loaders' field lists, then checked), lost_shipment (with the event graphs'
+  new Lua step), epilogue, sound_pack (its WAVs generated: a lock chime, a 16 s pad that loops); frontier_systems and
+  plasma_arsenal got a comment on every field. `ExampleModsTests` loads each with its dependencies and fails on any
+  warning or script error and on an example no test names; `ContentExampleModsTests` checks what each JSON example
+  says it shows. Found on the way (not changed): a wanted.json `ship` takes no name (only a number or `mod:id`), a
+  `route` of `[1, 1]` never activates (the second station is always in another system), a race's `description` is
+  read but shown nowhere, the star map's system panel shows no emblem for a mod race without `icon`, ships.json's
+  `skinned` / `overcharge` are documented but warned as unknown, the guide's two `mounts` rows disagree on x. Left out
+  against the prototype:
+  its own save slots and menu tab (campaigns share the slots, #313's answer), localized texts.
+- **Mod browser** (`ModBrowser`, the main menu's Mods button and `modsPanel`; styles `.mods-*` in MainMenu.uss; its Online
+  tab: "Mod catalog" below): the Installed tab's list in
   load order (thumbnail, name, version · author, On / Off / Error / Can't load), a click or keyboard / controller focus
   selecting a row (the mouse's hover focus doesn't: passing over the rows on the way to Turn on changed the mod it acted
   on), the selected mod's preview, name, meta,
@@ -782,6 +880,45 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   warning: runtime Ogg Vorbis works on iOS; the textures cached as ETC2, the simulator offers no DXT) and its Sentinel
   flown; the browser names the folder as the Files app shows it on iOS (`ModBrowser.Shown`: "Files › On My iPhone › GoF2
   Remake › Mods", not the sandbox path); not yet run on an Android phone, Linux, macOS or UWP.
+- **Mod browser layout** (2026-11-19, a player's screenshot: the description got two lines): the detail's picture sits
+  beside the name and meta lines (`.mods-detail-head`, 320x180 at most half the width, never shrunk: the info wraps;
+  TV and handheld (a 1280x720 window too) 256x144, phone 160x90), so the description takes the rest of the column; the note sits under the list
+  and Back shares the footer row with the buttons (`.mods-back`); the panel 88% high with 28 / 36 px padding. The tabs
+  read Installed / Explore Mods (`modsOnlineTab`; "Online" said where, not what).
+- **Mod catalog** (2026-11-19, Discord "Mod browser browsing": players wanted to browse and download mods in the game with
+  pictures and descriptions; ModDB has no API, MediaFire and free Nexus accounts give no direct links, so the catalog is
+  our own on GitHub): the repository **github.com/JoppieToppie/gof2r-mods** (local clone `D:\Projects\gof2r-mods`, its
+  README the authors' guide). A mod is one file, `submissions/<id>.json`: `owner` (GitHub login) and either `download`
+  (a direct https link to the zip; an update is a pull request changing it) or `github` ("user/repo", optional `asset`:
+  the newest release's `<id>.zip` / only .zip, polled hourly, so an author's new release is an update with no pull
+  request). Workflows (`tools/catalog.py`, its tests `tools/test_catalog.py`): **Check submission** (pull requests: only
+  `submissions/*.json` unless a maintainer, `CATALOG_MAINTAINERS`; a submission changed only by its owner; a followed repo
+  must be the owner's; the zip downloaded and checked as `ZipSource` reads it: mod.json at the root or in one top folder,
+  a valid id = the file name, no `..` / absolute paths, no executables (.exe .dll .sh .js .py ...), at most 1 GB / 4 GB
+  unpacked / 20000 files; the same version with other files or a lower version refused), **Publish** (merge, hourly,
+  manual with "force": the zip released here as tag `<id>-v<version>` with `<id>.zip`, `<id>-preview.jpg` 1280x720 and
+  `<id>-thumb.jpg` 320x180 cropped 16:9 like the browser, a card with the name when there's no preview; `catalog.json`
+  written; a followed repo's refused release kept under `rejected` so the hourly run doesn't fail on it again), **Stats**
+  (every 3 h: per mod the summed download counts of its release assets, `<id>.zip` = downloads, `<id>-preview.jpg` =
+  views). The four example mods were published from the `sources` pre-release. The game (`ModCatalog`, GoF2.Game):
+  catalog.json from raw.githubusercontent.com (once per run, the Mods panel's Open; Refresh adds a `?t=` past its 5-minute
+  cache), no GitHub API (no rate limit); entries without a valid id / version / SHA-256 / size or with a download outside
+  `ReleasePrefix` (this repo's releases) dropped, images from elsewhere too; `format` above 1 refused ("update the game").
+  Images: at most 4 at once, kept for the run (a preview fetched once per run and mod = one view). Downloads: one at a
+  time into temporaryCachePath/ModDownload (`DownloadHandlerFile`, no timeout, Cancel aborts), then size + SHA-256 on a
+  worker thread, then the browser's `ModImport.Inspect` (id must be the catalog's) and `Install` (new = off; an update
+  keeps on / off and the load order). The browser (`ModBrowserOnline`, the panel's Installed / Explore Mods tabs beside the
+  title, `.mods-tabs`): search (name, author, id, description), sort (most downloaded, newest, most viewed, name), rows
+  with thumbnail, name, version · author, views · downloads (`.mods-row-stats`), a badge (Installed / On / Update in
+  amber `.mods-badge--update` / the download's %); the details: preview, version · by author · id · website, views · downloads · size ·
+  updated, installed state, needs (installed / installed with it / not installed), the script warning; Install /
+  Update to vX (missing dependencies the catalog has: asked, then installed first, `ModCatalog.Needed`), Turn on / off,
+  Cancel; the progress line `.mods-progress`; the controller's X installs. The Installed tab: "Update: vX" in the row and
+  an Update to vX button (`ModCatalog.UpdateFor`). Verified in Play mode (2026-11-19): the catalog's four mods listed with
+  thumbnails and previews, Pirate Bounty installed from it (Mods/pirate_bounty.zip, off, the row "Installed" and Turn on);
+  `ModCatalogTests` (7); the Stats run counted those views and the download (GitHub's counts lag a few minutes, and
+  each new asset started at 1 before anyone fetched it). Not yet: an update of a real newer version, Cancel, the
+  dependency question, a followed repository's release, a phone.
 - **Mods folder (Android)** (2026-11-12, a player's request: Android/data is out of the file managers' reach): the browser's
   footer "Mods folder" picks a folder through `SaveFolderPicker` (the SAF tree picker, a persistable grant; one in use asks
   to stop using it instead), kept as `ModManager.PickedFolder` (PlayerPrefs `mods_folder`). Mods can't load from a tree

@@ -215,22 +215,30 @@ namespace GoF2Remake.Flight
             transform.position = lastPosition + step / len * Mathf.Max(0f, stop);
         }
 
+        /// <summary>The hulls push the ship out of them: its slice boxes (HullBoxes), else the probe sphere.</summary>
         void CheckHulls(bool landmarks)
         {
             if (!HullCollision.Any) return;
-            var pos = transform.position;
-            float r = ProbeRadius();
-            int n = HullCollision.Overlap(pos, r, overlaps);
+            ProbeRadius();
+            EnsureHullBoxes();
+            if (hullBoxes.Count == 0) PushOutOfHulls(probe, landmarks);
+            else foreach (var box in hullBoxes) PushOutOfHulls(box, landmarks);
+        }
+
+        void PushOutOfHulls(Collider shape, bool landmarks)
+        {
+            var t = shape.transform;
+            int n = shape is BoxCollider b
+                ? HullCollision.OverlapBox(t.TransformPoint(b.center), Abs(Vector3.Scale(b.size * 0.5f, t.lossyScale)), t.rotation, overlaps)
+                : HullCollision.Overlap(t.position, probe.radius, overlaps);
             for (int k = 0; k < n; k++)
             {
                 var c = overlaps[k];
                 var body = HullCollision.BodyOf(c);
                 if (!Solid(body) || body.obstacle.landmark != landmarks || !HullCollision.Shown(c)) continue;
                 var o = body.obstacle;
-                probe.transform.position = pos;
-                if (!Physics.ComputePenetration(probe, pos, Quaternion.identity, c, c.transform.position, c.transform.rotation, out var dir, out float dist)) continue;
-                pos += dir * dist;
-                transform.position = pos;
+                if (!Physics.ComputePenetration(shape, t.position, t.rotation, c, c.transform.position, c.transform.rotation, out var dir, out float dist)) continue;
+                transform.position += dir * dist;   // moves 'shape' with it
                 Ram(dir);
                 if (o.isStation) TouchingStation = true;
                 scraping = true;
@@ -267,6 +275,38 @@ namespace GoF2Remake.Flight
         }
 
         Transform probeModel;
+
+        // Remake (2026-11-20, after SpectreAnims's #364): the ship's own outline against the hulls, so its nose and wings
+        // don't sink into a station where the probe sphere round its centre didn't reach. ModCapitalShips.Measure's
+        // slices along the ship's length (up to 8 boxes round its hull's points), as trigger boxes on the model, turned
+        // with it. Only against hulls (Mixed / Exact): the original's volumes keep testing the ship's centre point.
+        readonly System.Collections.Generic.List<BoxCollider> hullBoxes = new System.Collections.Generic.List<BoxCollider>();
+        Transform hullBoxModel;
+
+        void EnsureHullBoxes()
+        {
+            var model = probeModel;   // ProbeRadius has just read the ship's model
+            if (model == hullBoxModel) return;
+            foreach (var box in hullBoxes) if (box != null) Destroy(box.gameObject);
+            hullBoxes.Clear();
+            hullBoxModel = model;
+            if (model == null) return;
+            var volumes = GoF2Remake.Modding.ModCapitalShips.Measure(model.gameObject, Quaternion.identity);
+            if (volumes == null) return;
+            foreach (var v in volumes)
+            {
+                if (v.sphere) continue;
+                var go = new GameObject("HullBox") { layer = HullCollision.ProbeLayer };
+                go.transform.SetParent(model, false);
+                var box = go.AddComponent<BoxCollider>();
+                box.isTrigger = true;
+                box.center = v.centre;
+                box.size = v.half * 2f;
+                hullBoxes.Add(box);
+            }
+        }
+
+        static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
 
         void CheckWormhole()
         {

@@ -41,22 +41,27 @@ namespace GoF2Remake.Tests
             yield return Load("Splash");
             Assert.IsTrue(StartupSplash.Running, "the logos run");
             var music = GameObject.Find("Splash music")?.GetComponent<AudioSource>();
-            Assert.IsTrue(music != null && music.isPlaying, "the menu theme plays with the first logo");
+            // CLAUDE.md "Startup splash": SplashMusic deliberately does not create a source in batch mode.
+            if (Application.isBatchMode) Assert.IsNull(music, "batch mode has no splash music source");
+            else Assert.IsTrue(music != null && music.isPlaying, "the menu theme plays with the first logo");
             yield return WaitFor(() => SceneManager.GetActiveScene().name == "MainMenu", 30f, "the menu scene");
             Assert.IsTrue(StartupSplash.Running, "the menu came in while a logo was shown");
             yield return null;   // the splash's LateUpdate has seen the menu's sources
-            Assert.IsFalse(music.mute, "the theme is heard under the logos");
+            if (music != null) Assert.IsFalse(music.mute, "the theme is heard under the logos");
+            var menu = Find<MainMenu>();
+            Assert.IsNotNull(menu, "MainMenu");
             foreach (var s in Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
-                if (s != music) Assert.IsTrue(s.mute, $"only the theme is heard under the logos: {s.name}");
+                if (s != music && s != menu.musicSource) Assert.IsTrue(s.mute, $"only the theme is heard under the logos: {s.name}");
             yield return WaitFor(() => !StartupSplash.Running, 30f, "the end of the logos");
             yield return null;
             foreach (var s in Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Exclude))
                 Assert.IsFalse(s.mute, $"unmuted after the logos: {s.name}");
             Assert.GreaterOrEqual(Time.realtimeSinceStartup - start, 5f, "two logos of 3 s each");
-            var menu = Find<MainMenu>();
-            Assert.IsNotNull(menu, "MainMenu");
-            Assert.AreSame(music, menu.musicSource, "the menu took the splash's theme over");
-            Assert.IsTrue(music.isPlaying, "the theme still plays");
+            if (!Application.isBatchMode)
+            {
+                Assert.AreSame(music, menu.musicSource, "the menu took the splash's theme over");
+                Assert.IsTrue(music.isPlaying, "the theme still plays");
+            }
             Assert.AreEqual(1, Object.FindObjectsByType<AudioListener>().Length, "one listener");
         }
 

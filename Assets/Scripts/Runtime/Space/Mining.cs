@@ -39,6 +39,9 @@ namespace GoF2Remake.Flight
     {
         public enum Phase { Idle, Approaching, Landing, Docked, Mining }
 
+        /// <summary>Optional mod rule: why the current ship cannot mine (null = allowed).</summary>
+        public static Func<int, string> MineRefusal = ship => null;
+
         const float M = 0.05f;
         const float CrosshairDistanceMeters = 22000f * M;   // same aim point as the HUD crosshair
 
@@ -48,8 +51,10 @@ namespace GoF2Remake.Flight
         public Target Candidate { get; private set; }
         public Target Locked { get; private set; }
         public Target Target { get; private set; }
-        /// <summary>A scanner with attr 30 = 1 marks the class-A asteroids (Radar::draw 0x1577de).</summary>
-        public bool Ultrascan { get; private set; }
+        /// <summary>A scanner with attr 30 = 1 marks the class-A asteroids (Radar::draw 0x1577de); remake: so does the Rite of the
+        /// Senses while it lasts (RiteSenses).</summary>
+        public bool Ultrascan { get => ultrascan || RiteSenses.Active; private set => ultrascan = value; }
+        bool ultrascan;
         /// <summary>Level::isInAsteroidCenterRange: within 100 000 units of the field's centre.</summary>
         public const float FieldRangeMeters = 100000f * 0.05f;
 
@@ -94,7 +99,7 @@ namespace GoF2Remake.Flight
         ItemData drill;
         int lockTimeMs = 8000;
         float lockTimer;
-        bool wasLocked;
+        bool wasLocked, miningBlockedNoticeShown;
         Target refusedNoDrill;   // remake: its lock ran out without a drill; ignored until it leaves the crosshair box
         float dockDistance, pitchAccumulator;
         bool ready;
@@ -211,6 +216,19 @@ namespace GoF2Remake.Flight
         /// crosshair), lock timer.</summary>
         void UpdateLock(float dtMs)
         {
+            // A class rule blocks both ordinary drilling and the beam: remove the asteroid lock before either can start.
+            string refusal = MineRefusal?.Invoke(Session.ShipIndex);
+            if (!string.IsNullOrEmpty(refusal))
+            {
+                if (!miningBlockedNoticeShown) Say(refusal);
+                miningBlockedNoticeShown = true;
+                Candidate = Locked = refusedNoDrill = null;
+                LockFrame = -1;
+                lockTimer = 0f;
+                wasLocked = false;
+                return;
+            }
+            miningBlockedNoticeShown = false;
             // No mining in an arena match, nor in the Supernova Challenge (remake: the Blue Fyre has no drill, and the
             // asteroid lock's "No drill installed." came up at every rock in the fight).
             if (GoF2Remake.World.SpaceHooks.InArena || SupernovaChallenge.Active) return;
@@ -285,6 +303,11 @@ namespace GoF2Remake.Flight
         /// when nothing happened (no lock, a full hold), so the touch fire button shoots instead.</summary>
         public bool Interact()
         {
+            if (State == Phase.Idle)
+            {
+                string refusal = MineRefusal?.Invoke(Session.ShipIndex);
+                if (!string.IsNullOrEmpty(refusal)) { Say(refusal); return false; }
+            }
             switch (State)
             {
                 case Phase.Idle:
@@ -509,12 +532,13 @@ namespace GoF2Remake.Flight
                 if (free < 1) Say(Localization.Get(322));
                 else
                 {
-                    if (Game.GotCore && core >= 0)
+                    int cores = Mathf.Min(drill?.CoreYield ?? 1, free);
+                    if (Game.GotCore && core >= 0 && cores > 0)
                     {
-                        Shop.AddToCargo(core, 1);
-                        Session.CoresMined++;
+                        Shop.AddToCargo(core, cores);
+                        Session.CoresMined += cores;
                         Session.CoreTypesMined.Add(core);
-                        Say($"1t {GameNames.Item(core)}", HudMessageKind.Gain);
+                        Say($"{cores}t {GameNames.Item(core)}", HudMessageKind.Gain);
                         n = Mathf.Min(n, Shop.FreeCargo(db));
                     }
                     if (n > 0)
@@ -600,7 +624,8 @@ namespace GoF2Remake.Flight
         /// locked asteroid (the nose on it, in reach, room in the hold). Otherwise the press stays the guns': a far or missed
         /// asteroid or a full hold no longer silences them (a locked asteroid behind an enemy did, mid-fight).</summary>
         bool BeamClaimsFire() =>
-            BeamMode && State == Phase.Idle && (beamOn || (Locked != null && Locked.Alive && !beamRefused && StartRefusal(Locked) == null));
+            BeamMode && State == Phase.Idle && string.IsNullOrEmpty(MineRefusal?.Invoke(Session.ShipIndex))
+            && (beamOn || (Locked != null && Locked.Alive && !beamRefused && StartRefusal(Locked) == null));
 
         /// <summary>The radius of the rock's visible surface in metres: about 0.85 of the mesh's bounding radius (the hit radius
         /// is 0.7 of it).</summary>
@@ -625,9 +650,9 @@ namespace GoF2Remake.Flight
             return null;
         }
 
-        /// <summary>Tons the beam may still cut into the hold from 't': a class-A rock keeps one free for its core (the minigame
+        /// <summary>Tons the beam may still cut into the hold from 't': a class-A rock reserves the drill's core yield (the minigame
         /// pays the core first; the beam pays it last).</summary>
-        int BeamRoom(Target t) => Shop.FreeCargo(db) - (t.quality >= 7 && t.CoreItem >= 0 ? 1 : 0);
+        int BeamRoom(Target t) => Shop.FreeCargo(db) - (t.quality >= 7 && t.CoreItem >= 0 ? drill?.CoreYield ?? 1 : 0);
 
         readonly List<Target> deadExtractions = new List<Target>();
 
@@ -712,9 +737,10 @@ namespace GoF2Remake.Flight
             if (!ex.Depleted) return;
 
             // Every layer cut: a class-A asteroid's core comes last (if the hold has room), then the rock goes.
-            if (ex.GotCore && target.CoreItem >= 0 && Shop.FreeCargo(db) >= 1)   // the slot BeamRoom kept free
+            int cores = Mathf.Min(drill?.CoreYield ?? 1, Shop.FreeCargo(db));
+            if (ex.GotCore && target.CoreItem >= 0 && cores > 0)   // the space BeamRoom kept free
             {
-                Launch(target, contact, normal, target.CoreItem, true);
+                for (int i = 0; i < cores; i++) Launch(target, contact, normal, target.CoreItem, true);
                 Session.CoreTypesMined.Add(target.CoreItem);
             }
             extractions.Remove(target);

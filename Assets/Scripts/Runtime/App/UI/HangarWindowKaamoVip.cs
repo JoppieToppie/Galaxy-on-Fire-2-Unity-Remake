@@ -1,9 +1,9 @@
 // HangarWindowKaamoVip.cs
-// HangarWindow: the Kaamo Club VIP Card's tools (part of the partial HangarWindow; its fields are in HangarWindow.cs).
+// HangarWindow: free Kaamo storage tools and paid VIP membership (part of the partial HangarWindow; its fields are in HangarWindow.cs).
 // Remake (players' suggestion, Discord "Kaamo Club features"; KaamoClub.VipFeatures, see docs/notes/kaamo-club.md):
 //   - the card itself is the Store tab's first row while it is for sale (KaamoClub.VipForSale): its perks in the details,
 //     BUY asks and pays KaamoClub.VipPrice;
-//   - with the card, in the club's storage: a search box and a sort button on the header bar (F / R, the controller's
+//   - with the cosmetic option, in the club's storage: a search box and a sort button on the header bar (F / R, the controller's
 //     right / left stick press: the search opens the controller's keyboard), and the stored hulls in a Ships tab of their
 //     own (key 4) between the Store and Blueprints tabs;
 //   - everywhere else: a dealer's ship of a type already parked at the club carries an AT KAAMO badge with the map's house.
@@ -26,14 +26,14 @@ namespace GoF2Remake.UI
         VisualElement vipTools, screenRoot;
         TextField searchField;
         string search = "";
-        bool searchFocused, hintsForVip;
+        bool searchFocused, searchRequested, hintsForVip;
         /// <summary>How the storage's lists are sorted, kept while the game runs (Sort).</summary>
         static int sortMode;
         /// <summary>The club's order, by name (A-Z), by value (highest first), by race (ships) / type (items).</summary>
         enum Sort { Default, Name, Price, Race }
         const int SortModes = 4;
 
-        /// <summary>The VIP Card's tools are shown: the window open on the owned club's storage with the card's perks on.</summary>
+        /// <summary>Free UI tools are shown in the owned club when the cosmetic option is enabled.</summary>
         public bool VipTools => IsOpen && hangar != null && hangar.Storage && KaamoClub.VipFeatures;
 
         /// <summary>The search box and the sort button are shown: the VIP tools on the Store or Ships tab.</summary>
@@ -58,6 +58,12 @@ namespace GoF2Remake.UI
             searchField = new TextField { maxLength = 40 };
             searchField.AddToClassList("gof-field");
             searchField.AddToClassList("hangar-search");
+            searchField.tabIndex = -1;
+            SetSearchFocus(false);
+            searchField.RegisterCallback<PointerDownEvent>(e =>
+            {
+                if (e.button == 0) { EnableSearchEntry(); searchField.Focus(); }
+            }, TrickleDown.TrickleDown);
             searchField.RegisterValueChangedCallback(e =>
             {
                 string q = (e.newValue ?? "").Trim();
@@ -67,7 +73,11 @@ namespace GoF2Remake.UI
             });
             // The game's own keys rest while it is typed into (NetChat.SetTyping, as the multiplayer window's fields do):
             // W A S D, Q / E, the digits and Enter belong to the box then. Enter or Esc gives the keys back.
-            searchField.RegisterCallback<FocusInEvent>(_ => SetSearchFocus(true));
+            searchField.RegisterCallback<FocusInEvent>(_ =>
+            {
+                if (searchRequested) SetSearchFocus(true);
+                else searchField.Blur();
+            });
             searchField.RegisterCallback<FocusOutEvent>(e =>
             {
                 if (e.relatedTarget is VisualElement to && Inside(to, searchField)) return;
@@ -75,9 +85,9 @@ namespace GoF2Remake.UI
             });
             searchField.RegisterCallback<KeyDownEvent>(e =>
             {
-                if (e.keyCode != KeyCode.Return && e.keyCode != KeyCode.KeypadEnter) return;
+                if (e.keyCode != KeyCode.Return && e.keyCode != KeyCode.KeypadEnter && e.keyCode != KeyCode.Escape) return;
                 e.StopPropagation();
-                searchField.Blur();
+                EndSearchEntry();
             }, TrickleDown.TrickleDown);
             TextFieldKeys.Guard(searchField);
             PhoneKeyboard.Attach(searchField);
@@ -88,9 +98,9 @@ namespace GoF2Remake.UI
             sortButton.clicked += CycleSort;
             vipTools.Add(sortButton);
             // A press anywhere else in the window (a row, a tab) ends the typing: the list's rows take no focus of their own.
-            window.RegisterCallback<PointerDownEvent>(e =>
+            root.RegisterCallback<PointerDownEvent>(e =>
             {
-                if (searchFocused && !(e.target is VisualElement v && Inside(v, searchField))) searchField.Blur();
+                if (searchRequested && !(e.target is VisualElement v && Inside(v, searchField))) EndSearchEntry();
             }, TrickleDown.TrickleDown);
             RefreshVipTexts();
         }
@@ -101,8 +111,25 @@ namespace GoF2Remake.UI
             return false;
         }
 
+        void EnableSearchEntry()
+        {
+            searchRequested = true;
+            searchField.isReadOnly = false;
+        }
+
+        void EndSearchEntry()
+        {
+            searchField?.Blur();
+            SetSearchFocus(false);
+        }
+
         void SetSearchFocus(bool on)
         {
+            if (!on)
+            {
+                searchRequested = false;
+                if (searchField != null) searchField.isReadOnly = true;
+            }
             if (searchFocused == on) return;
             searchFocused = on;
             NetChat.SetTyping(on);
@@ -137,8 +164,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        /// <summary>Rebuild: the Ships tab and the tools shown with the card's perks (a card bought just now shows them at
-        /// once); without them the Ships tab falls back to the Store.</summary>
+        /// <summary>Rebuild: the Ships tab and tools follow the free cosmetic option; without them Ships falls back to Store.</summary>
         void UpdateVipTools()
         {
             if (vipTools == null) return;
@@ -149,12 +175,17 @@ namespace GoF2Remake.UI
             bool shown = SearchTab;
             vipTools.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
             if (!shown && searchFocused) searchField.Blur();
+            tabShip.tooltip = "1";
+            tabShop.tooltip = "2";
+            tabShips.tooltip = "3";
+            tabBlueprints.tooltip = on ? "4" : "3";
             RefreshVipTexts();
         }
 
         /// <summary>Open: the search starts empty; the sort stays.</summary>
         void ResetVipTools()
         {
+            EndSearchEntry();
             search = "";
             searchField?.SetValueWithoutNotify("");
             PlaceVipTools();
@@ -166,8 +197,9 @@ namespace GoF2Remake.UI
         {
             if (!SearchTab) return;
             menu.PlayPush();
+            EnableSearchEntry();
             if (pad) { PadKeyboard.Open(screenRoot, searchField); return; }
-            searchField.schedule.Execute(() => { if (SearchTab) searchField.Focus(); });
+            searchField.schedule.Execute(() => { if (SearchTab && searchRequested) searchField.Focus(); });
         }
 
         /// <summary>The sort button / R / the controller's left stick press: the next order.</summary>
@@ -180,10 +212,21 @@ namespace GoF2Remake.UI
             Rebuild();
         }
 
-        /// <summary>The tabs in the order Q / E (LB / RB) walk them: the Ships tab after the Store while the card's on.</summary>
+        /// <summary>The tabs in the order Q / E (LB / RB) walk them: the Ships tab after the Store while the free UI tools are on.</summary>
+        public static Tab[] VisibleTabOrder(bool extraShips) => extraShips
+            ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints }
+            : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
+
+        /// <summary>Numeric shortcuts follow visible order; the ordinary three-tab layout keeps 1/2/3.</summary>
+        public void SelectTabNumber(int number)
+        {
+            var order = VisibleTabOrder(VipTools);
+            if (number >= 1 && number <= order.Length) SetTab(order[number - 1]);
+        }
+
         Tab StepTab(int step)
         {
-            var order = VipTools ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints } : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
+            var order = VisibleTabOrder(VipTools);
             int i = Array.IndexOf(order, tab);
             if (i < 0) i = 1;
             return order[(i + step + order.Length) % order.Length];
@@ -223,7 +266,9 @@ namespace GoF2Remake.UI
                 case Sort.Name: return items.OrderBy(ItemInfo.ItemName, names).ToList();
                 case Sort.Price: return items.OrderByDescending(ItemValue).ThenBy(ItemInfo.ItemName, names).ToList();
                 case Sort.Race:
-                    return items.OrderBy(i => ItemInfo.Category(level.Database.Item(i)), names).ThenBy(ItemInfo.ItemName, names).ToList();
+                    return items.OrderBy(i => ItemInfo.Category(level.Database.Item(i)), names)
+                        .ThenBy(i => Hangar.DisplaySubtype(level.Database.Item(i)))
+                        .ThenBy(i => level.Database.Item(i).techLevel).ThenBy(i => i).ToList();
                 default: return items.ToList();
             }
         }
@@ -245,7 +290,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        /// <summary>The Ships tab: the stored hulls (the Store tab lists only the goods while the card's perks are on).</summary>
+        /// <summary>The Ships tab: the stored hulls (the Store tab lists only the goods while the free UI tools are on).</summary>
         void AddStoredShipsTab()
         {
             AddHeader(Localization.Get(173).UiCaps());
@@ -263,13 +308,11 @@ namespace GoF2Remake.UI
 
         static Texture2D vipIcon, homeIcon;
         static Texture2D VipIcon => vipIcon != null ? vipIcon : vipIcon = Resources.Load<Texture2D>("GoF2Races/kaamo_club_icon");
-        static Texture2D HomeIcon => homeIcon != null ? homeIcon : homeIcon = Resources.Load<Texture2D>("GoF2Hud/map_home");
+        static Texture2D HomeIcon => homeIcon != null ? homeIcon : homeIcon = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/map_home");
 
         static string VipPerks() => Localization.Extra("kaamoVipText",
-            "Become a VIP member of the hottest club in the universe. Your card upgrades the Kaamo Club's storage:\n\n"
-            + "• a search box and sorting by name, value and race or type\n"
-            + "• your stored ships in a Ships tab of their own\n"
-            + "• a Kaamo marker on every ship for sale anywhere that you already keep here");
+            "VIP membership gives 20% off ship upgrades by Kaamo mechanics. Ships and equipment are excluded. "
+            + "Search, sorting, the Ships tab and stored-ship markers are free for club owners through Kaamo special UI features.");
 
         /// <summary>The card's row: the club's icon, its name (80), the perks in a line, the price at the right edge.</summary>
         void FillVipRow(VisualElement e, Label name, Label subText, Label price, out Texture2D tex)
@@ -277,7 +320,7 @@ namespace GoF2Remake.UI
             tex = VipIcon;
             e.AddToClassList("list-row--vip");
             name.text = Localization.Get(80);
-            subText.text = Localization.Extra("kaamoVipRow", "Search, sorting and a Ships tab for your club");
+            subText.text = Localization.Extra("kaamoVipRow", "20% off ship upgrades at Kaamo");
             price.text = ItemInfo.Credits(KaamoClub.VipPrice);
             price.EnableInClassList("row-price--expensive", KaamoClub.VipPrice > Session.Credits);
         }
@@ -309,7 +352,7 @@ namespace GoF2Remake.UI
                 selected = null;
                 Rebuild();
                 menu.ShowDialog(Localization.Extra("kaamoVipBought",
-                    "Welcome to the club, VIP! Your storage now has a search box, sorting and a Ships tab, and ships you already keep here are marked wherever they are sold."), null, true);
+                    "Welcome to the club, VIP! You now receive 20% off ship upgrades by Kaamo mechanics. Ships and equipment are excluded."), null, true);
             });
         }
 
@@ -330,7 +373,7 @@ namespace GoF2Remake.UI
             return b;
         }
 
-        /// <summary>The marker's rule: the card's perks on, a ship of a type the club keeps, not in the club's own storage.</summary>
+        /// <summary>The marker's rule: free UI tools on, a ship of a type the club keeps, not in the club's own storage.</summary>
         bool MarkAtKaamo(int ship) => KaamoClub.VipFeatures && hangar != null && !hangar.Storage && KaamoClub.HasShip(ship);
     }
 }

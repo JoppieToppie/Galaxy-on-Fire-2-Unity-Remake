@@ -99,7 +99,7 @@ namespace GoF2Remake.UI
             if (glyphs == null)
             {
                 glyphs = new Texture2D[26];
-                for (int i = 0; i < 26; i++) glyphs[i] = Resources.Load<Texture2D>("GoF2Hud/alien_" + (char)('A' + i));
+                for (int i = 0; i < 26; i++) glyphs[i] = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/alien_" + (char)('A' + i));
                 if (glyphs[0] == null) Debug.LogWarning("AlienText: no GoF2Hud/alien_* images, run GoF2 > Build > HUD Images");
             }
             return glyphs[0] != null;

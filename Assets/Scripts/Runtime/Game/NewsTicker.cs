@@ -46,8 +46,8 @@ namespace GoF2Remake.Data
             get
             {
                 if (items != null) return items;
-                var ta = Resources.Load<TextAsset>("GoF2Data/ticker");
-                items = ta != null ? JsonUtility.FromJson<Wrapper>("{\"list\":" + ta.text + "}").list : new List<TickerItem>();
+                var ta = GoF2Remake.Data.GameContent.Text("GoF2Data/ticker");
+                items = ta != null ? JsonUtility.FromJson<Wrapper>("{\"list\":" + ta + "}").list : new List<TickerItem>();
                 return items ??= new List<TickerItem>();
             }
         }

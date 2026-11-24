@@ -58,6 +58,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void NoneWithVolatileGoodsAboard()
+        {
+            // #308: step 120's K'mirkk Toad Mutagen (209) forbids shooting and boosting; a boss there ended the mission.
+            Settings.PirateEvents = true;
+            InFreePlay(5);
+            Session.Cargo.Add(new ItemStack(209, 1));
+            Assert.IsFalse(Allowed(20));
+            Assert.IsFalse(Allowed(20, true), "nor a reported sighting");
+            Session.Cargo.Clear();
+            Assert.IsTrue(Allowed(20));
+        }
+
+        [Test]
         public void NotBelowRank2UnlessReported()
         {
             Settings.PirateEvents = true;

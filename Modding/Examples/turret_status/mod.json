@@ -1,0 +1,9 @@
+{
+    "id": "turret_status",
+    "name": "Turret Status (interface example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "A line on the flight HUD that tells whether your automatic turret is switched on or off."
+    }
+}

@@ -116,7 +116,8 @@ namespace GoF2Remake.Tests
             var e = Newtonsoft.Json.Linq.JObject.Parse(json.text)["entries"].First(x => (string)x["name"] == "hangar_terran_bot_e");
             var meshes = e["parts"].Select(p => (int)p["mesh"]).OrderBy(m => m).ToArray();
             Assert.AreEqual(new[] { 99004, 99005 }, meshes);
-            Assert.IsNotNull(Resources.Load<GameObject>("Assembled/main/hangars/hangar_terran_bot_e"));
+            Assert.IsTrue(Resources.Load<GameObject>("Assembled/main/hangars/hangar_terran_bot_e") != null || Visuals.OriginalAssemblies.Has("hangar_terran_bot_e"),
+                "the prefab, or the converted copy's assembly (a checkout without the originals)");
         }
     }
 }

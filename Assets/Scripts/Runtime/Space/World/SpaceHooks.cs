@@ -92,6 +92,7 @@ namespace GoF2Remake.World
     }
 
     public delegate bool PoseQuery(out Vector3 position, out Quaternion rotation);
+    public delegate bool ExternalDockTestTaker(int station, out int point);
     public delegate bool StationPoseQuery(int station, out Vector3 position, out Quaternion rotation);
     public delegate bool StarMapOpener(Database db, StarMapMode mode, bool jumpDrive, Action<StarMapResult> closed, int promptStation, bool askVoid);
 
@@ -105,6 +106,9 @@ namespace GoF2Remake.World
         public static Func<IEnumerable<IOrbitProxy>> ProxiesProvider;
         public static Func<IEnumerable<IOrbitCrate>> CratesProvider;
         public static Func<ISharedOrbit> SharedOrbitProvider;
+        /// <summary>Point defense shot down another game's mirrored shot (source object, shot id): ask the server to cancel it
+        /// (NetPlayer.InterceptMirrorShot), so the shot's later hit counts for nothing.</summary>
+        public static Action<ulong, uint> InterceptMirrorShot;
 
         /// <summary>The players' games in the session (this one's included); none outside one.</summary>
         public static IEnumerable<IOrbitPeer> Peers => PeersProvider != null ? PeersProvider() : Array.Empty<IOrbitPeer>();
@@ -119,6 +123,9 @@ namespace GoF2Remake.World
         public static Action<SpaceLevel> LevelBuilt;
         /// <summary>The station is built: multiplayer adds its NetHangar.</summary>
         public static Action<StationLevel> StationBuilt;
+        /// <summary>The race used to choose a bar visitor's silhouette (agent, station index). Mods may override it
+        /// before the prefab is selected; the default preserves the game's Midorian-with-Nivelian-face exception.</summary>
+        public static Func<Agent, int, int> VisitorRace;
         /// <summary>No other player is in that orbit (NetState.OrbitEmpty): this game builds its traffic.</summary>
         public static Func<int, bool> OrbitEmpty;
         /// <summary>A point out of the other players' sight (NetOrbit.OutOfSight), game units.</summary>
@@ -231,6 +238,8 @@ namespace GoF2Remake.World
         public static Action<int, List<Vector3>> CoopRoute;
         /// <summary>The leader's cutscene camera (station, position, rotation, field of view).</summary>
         public static Action<int, Vector3, Quaternion, float> CoopCamera;
+        /// <summary>The leader's level played a one-off effect (station, CampaignLevel.CoopFx kind, position in Unity metres).</summary>
+        public static Action<int, int, Vector3> CoopFx;
         /// <summary>The leader's level moved it on (station left, station reached, docked, by travel).</summary>
         public static Action<int, int, bool, bool> CoopTravel;
         /// <summary>The leader's level in 'station' failed (or the leader died in it): the crew's failure.</summary>
@@ -257,6 +266,16 @@ namespace GoF2Remake.World
 
         /// <summary>The multiplayer window is open.</summary>
         public static Func<bool> MultiplayerWindowOpen;
+        /// <summary>The Mod Builder's external docking test (UI.ModBuilderPlay): one queued for this station; take it, with
+        /// its dock point (SpaceLevel.StartExternalDockTest).</summary>
+        public static Func<int, bool> ExternalDockTestQueued;
+        public static ExternalDockTestTaker TakeExternalDockTest;
+        public static bool ExternalDockTestQueuedFor(int station) => ExternalDockTestQueued != null && ExternalDockTestQueued(station);
+        public static bool TakeDockTest(int station, out int point)
+        {
+            point = -1;
+            return TakeExternalDockTest != null && TakeExternalDockTest(station, out point);
+        }
         /// <summary>The star map is open; open it (false = it couldn't).</summary>
         public static Func<bool> StarMapOpenProvider;
         public static StarMapOpener OpenStarMap;

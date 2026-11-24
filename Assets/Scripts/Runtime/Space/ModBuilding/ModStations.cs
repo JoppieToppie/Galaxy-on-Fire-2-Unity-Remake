@@ -132,6 +132,15 @@ namespace GoF2Remake.Modding
                 if (!string.IsNullOrEmpty(m.wearNormal)) yield return (m.wearNormal, true, true);
                 if (!string.IsNullOrEmpty(m.wearNoise)) yield return (m.wearNoise, true, false);
                 if (!string.IsNullOrEmpty(m.grunge)) yield return (m.grunge, true, false);
+                // Chorus's layers (ModMaterials.ChorusLayers)
+                if (m.chorus != null)
+                    foreach (var t in m.chorus.Textures()) yield return t;
+                if (m.portal != null)
+                    foreach (var t in m.portal.Textures()) yield return t;
+                if (m.rift != null)
+                    foreach (var t in m.rift.Textures()) yield return t;
+                if (m.wave != null && m.wave.On) { yield return (m.wave.pattern, true, false); yield return (m.wave.mask, true, false); }
+                if (m.lava != null && m.lava.On) { yield return (m.lava.emit, true, false); yield return (m.lava.flow, true, false); yield return (m.lava.masks, true, false); }
             }
             // a mobile station's engine effect (MobileStation)
             if (s.gateSystem < 0)

@@ -86,6 +86,9 @@ generator).
   (`.missions-scroll--fit` / `.missions-footer--under` in Lounge.uss), not in the panel's bottom-right corner; a long
   text still scrolls with the button in view. The Missions tab keeps its buttons bottom-right.
 - **Blueprints** (`Blueprints`, the hangar's Blueprints tab 272): 25 products keyed by item (items.json ingredients),
+  paid autocomplete is opt-in through Options > Gameplay "Blueprint autocomplete" (`Settings.BlueprintAutocomplete`,
+  off by default, reset with the Gameplay tab). `Blueprints.CanAutocomplete` gates its row and activation; a mod's
+  `autocomplete: false` still forbids it even with the option on. Prices and manual ingredient supply use their existing rules.
   per-ingredient progress, production station (first investment; 212), 200 $ per unit shipping from another station
   (288; volatile 204 / 209 refused, 289), 210 / 223 need gate routes (528), Autocomplete `int(qty*maxPrice*1.25)` (iOS 1.1.19, the Default economy: `int(max(remaining value, qty*maxPrice)*1.4)`; 210:
   2 000 000 + the rest's value), a finished run to the hold (211) or waiting at the production station (210, collected
@@ -170,8 +173,8 @@ generator).
   (`Achievements.VoidXUnlocked` / `SupernovaUnlocked`, medals or story by the flag, never in free play): Thynome's VoidX
   (`Shop.GenerateShips`, `Story.OnDocked`) once the main story is won (`Story.GameWon`, so a Valkyrie / Supernova start
   has it at once), the fireworks blueprint 232 and Katashán's Specter (44, hint 0x3a / 3233) once the Supernova story is
-  finished (index 162). `StationMenu.CheckMedalHints` skips 649 (all medals: the wingman fans who pay stay a medal
-  reward) and tells the VoidX and the fireworks in texts of its own without medals (`noMedalsVoidX`,
+  finished (index 162). `StationMenu.CheckMedalHints` skips the medal-specific 649 notification and tells
+  the VoidX and fireworks in texts of its own without medals (`noMedalsVoidX`,
   `noMedalsFireworks`; 650 / 651 congratulate on the medals). The event conditions `medals(allgold | allsupernova)` read
   the same gates, so mod content behind them stays reachable; `medals(gold ...)` counts 0. Save v18 (`noMedals`; older
   saves have medals); the slot rows say NO MEDALS. Tests `NoMedalsTests`.
@@ -182,3 +185,8 @@ generator).
 - **Bonus percentage** (767 "#P %"): `(int)(getMissionBonus x 100f)` (SpaceLounge::startChat 0x19a582,
   Globals::getAgentMissionText 0xfbd62; the decompile drops the x 100), cut, not rounded: standing 53 reads 52 %, 59 reads
   58 % (the only two from 0 to 100 that differ). `LoungeChat` rounded it until 2026-11-15.
+
+- **Fan wingmen without medals**: `Achievements.WingmenPayPlayer` uses main-story completion with medals off,
+  and all base medals at any grade with medals on. Offer text, confirmation and credit transfer share this gate.
+  Before that milestone the player pays the normal fee; afterward the crew pays that same fee to the player.
+  Free play does not gain this story reward merely from its story index. Fireworks still unlocks after Supernova.

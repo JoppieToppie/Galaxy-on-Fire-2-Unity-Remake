@@ -18,7 +18,8 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
 - `Gun` (plain C#): one per equipped weapon on its mount (remake: weapons past the model's mount points, a mod's or a
   Kaamo upgrade's extra slots, reuse the mounts in turn, the centre without any; they were skipped, so an extra
   secondary could be neither selected nor fired); bullet pool; attr 11 reload, attr 9 damage, **attr 13 speed in
-  units/ms, attr 12 "range" = lifetime in ms**; straight along the nose (no convergence/aim assist); axis-aligned cube
+  units/ms, attr 12 "range" = lifetime in ms**; straight along the nose (no convergence/aim assist; modded player secondaries
+  can use their hardpoint's launchRotation and lockDelayMs, while primaries / turrets / NPC weapons retain the default); axis-aligned cube
   hit test (or local boxes for freighters; remake: the hull's meshes, see "Mesh collision"), never hitting its `owner`;
   rockets/missiles coast 2 s past their lifetime; missiles home on `LockTarget` (the radar's ship lock; remake: also
   while it is off screen or the camera is in free look, `WeaponSystem.HomingLock`: `RocketGun::seekEnemy` needs the
@@ -44,7 +45,12 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   while its start rides on the mount, so through a turn it stays where it was shot; re-aimed every frame from 2026-10-01
   until players asked for the original back on 2026-10-11; an aimed beam hits its target even through a gap in the hull,
   `Gun.AimedBeamHit`, #192: its sweep ends at the target's centre, and the Midorian freighter's lies between its four
-  parts, so ~6 % of the angles did nothing, where the original's beam parked at the centre is in the cube), scatter guns
+  parts, so ~6 % of the angles did nothing, where the original's beam parked at the centre is in the cube); remake mods, 2026-11-11, Chorus's PCLS Death Ray:
+  `beamRadius` (172, `Gun.WideBeamHit`: every target BeamSweeps allows within it and its own radius of the line, out to
+  max(its length, `beamReach` 176, default 30000 units, its length with nothing aimed), but the one met; `GunRig.BeamWidthScale` widens the mesh to it) and gun heat
+  (`heatShots` / `heatCoolMs` / `overheatMs`, 173-175, `Gun.AddHeat` / `Cool`: MaxHeat / HeatPerShot, MaxHeat /
+  HeatDissipationRate, OverheatCooldownDuration with bResetHeatAfterCooldown; "{0} overheated" via WeaponSystem.Message;
+  `chargeMs` 177, ChargeDuration: `Gun.Charge` each frame with the trigger, `Charged` gates WeaponSystem's primary fire)), scatter guns
   (burst cube: a target's cube x1.5 / x2 / x3 by the shooter's distance; remake, `Gun.InScatterCube`, 2026-10-30: not a
   big object's, a hit radius past 2000 units, which keeps its plain cube: the pirate outpost's +-7500 grown x3 reached
   1.1 km out, so under Original collision every scatter shot near it burst at the ship's nose, a player's video; the
@@ -75,6 +81,10 @@ is generated from it by `Reference/tools/weapons/build_weapon_fx.py`; **GoF2 > B
   in free flight (a player's report: `ShipController.ReadMouseSteer` centred the mouse whenever the autopilot flew,
   before its steering-locked case, and free flight's `ReadVirtualStick` whenever steering was locked, the Liberator's
   own lock; the turret view the same), the virtual stick centred as it starts and ends.
+- **Turret aim** (2026-11-19): the original's by default (`TurretAim.StepOriginal`: fixed-rate turns outside a 0.05 dead
+  zone; the lead position + heading x 1500; an NPC turret on a fixed target unled). Gameplay > Combat "Turrets lead moving
+  targets" (`Settings.TurretLeadAim`) gives #354's: a turn straight onto the target, aligned within 0.14 deg, and a
+  ballistic lead from the nearest hull point by the target's measured speed (`TurretTargeting.LeadPoint`).
 - **Turrets** (`PlayerTurret`, `TurretAim`): the turret-slot item on the ship's turret mount (in space the
   `*_ship_mounted` assemblies, in the hangar `hangar_turret_item_N`; remake fix: the Archimedes' (182) and the 181's gun
   offsets are written turned with their base in the ship-mounted rules, (-34, 88, -1.6) / (0, 88, 11), since the base

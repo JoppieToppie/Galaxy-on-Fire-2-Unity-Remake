@@ -40,7 +40,7 @@ namespace GoF2Remake.World
 
         public static ShipShadowSet Load()
         {
-            if (loaded == null) loaded = Resources.Load<ShipShadowSet>(ResourcePath);
+            if (loaded == null) loaded = GoF2Remake.Data.OriginalRefs.Load<ShipShadowSet>(ResourcePath);
             return loaded;
         }
 

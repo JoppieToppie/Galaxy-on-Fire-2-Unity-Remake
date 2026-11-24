@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using GoF2Remake.Data;
 
 namespace GoF2Remake.Modding
 {
@@ -48,16 +49,36 @@ namespace GoF2Remake.Modding
             // A weapon's damage to a shield in percent (Flight.Gun.ShieldFactor; default 100, the Disruptor Laser and items
             // based on it 200): the part the shield doesn't absorb hits the armor and hull at its plain value.
             ["shieldDamage"] = 124,
+            // Explicit damage channel: 0 = legacy/none, 1 = energy, 2 = ballistic.
+            ["damageType"] = 190,   // (Flight.Gun.DamageTypeAttr; was 182, the Chorus devices' deviceElementalProof)
+            // per-axis flight bonuses in % (ModFlight, #350; were 170-181, taken by the Chorus stack's stats)
+            ["pitchTurnRate"] = ModFlight.PitchTurnRate, ["yawTurnRate"] = ModFlight.YawTurnRate, ["rollTurnRate"] = ModFlight.RollTurnRate,
+            ["pitchTurnAcceleration"] = ModFlight.PitchTurnAcceleration, ["yawTurnAcceleration"] = ModFlight.YawTurnAcceleration,
+            ["rollTurnAcceleration"] = ModFlight.RollTurnAcceleration, ["strafeAcceleration"] = ModFlight.StrafeAcceleration,
+            ["hoverSpeed"] = ModFlight.HoverSpeed, ["hoverAcceleration"] = ModFlight.HoverAcceleration,
+            ["reverseSpeed"] = ModFlight.ReverseSpeed, ["reverseAcceleration"] = ModFlight.ReverseAcceleration,
+            ["forwardAcceleration"] = ModFlight.ForwardAcceleration,
+            // Optional shield resistances, percentages (0..100).
+            ["energyResistance"] = 183, ["ballisticResistance"] = 184,
             // A weapon's echo (Flight.GunEcho): a second, weaker blast at each hit, echoDelayMs after it (0 = none), at
             // echoPercent of the damage, EMP and size; echoRadius is that blast's reach in game units (0 = blastRadius, 14);
             // echoExplosion is the explosion type it shows (0 ship, 8-10 scatter, 11 shock blast, 13 fireworks; -1 none).
             ["echoDelayMs"] = 127, ["echoPercent"] = 128, ["echoRadius"] = 129, ["echoExplosion"] = 130,
-            // Equipment with missileDefense (a reach in game units) lets the ship's auto turrets shoot down the homing
-            // missiles flying at it within that reach (Flight.PointDefense; EVERSPACE 2's Missile Defense System).
+            // Equipment with missileDefense (a reach in game units) lets the ship's auto turrets shoot down incoming ordnance.
             ["missileDefense"] = 131,
+            // A point-defense item's mode: 0 (default) also resumes ship targeting between threats; 1 reserves auto turrets for ordnance.
+            ["missileDefenseMode"] = 185,
+            // Incoming ordnance covered by point defense: bit 1 homing missiles, bit 2 rockets, bit 4 nukes; 0 (default) means all.
+            ["missileDefenseTargets"] = 186,
+            // Point-defense interception cycle time in milliseconds (0 = destroy on shot arrival).
+            ["missileDefenseCycleMs"] = 187,
+            // Maximum ordnance targets the mounted point-defense equipment can engage at once (0 = unlimited).
+            ["missileDefenseCapacity"] = 188,
             // An ore's mining time in percent of the game's (Flight.MiningGame / MiningBeamExtraction; default 100): 200 takes
             // each layer twice as long for the same ore (EVERSPACE 2's DT_Mining_Yield: its crystals 10 s against the ores' 5 s).
             ["miningTime"] = 132,
+            // Completed class-A asteroid cores, independent of ore yield; omitted = 1 (CLAUDE.md "Mining").
+            ["coreYield"] = ItemData.CoreYieldAttr,
             // A cruise drive (an item based on the Khador Drive 85) with cruiseSpeed > 0: the speed factor x 100, cruiseRange
             // the units flown per leg of energy cells, cruiseChargeMs its charge (attr 37), energyCells (38) the cells a leg
             // costs (Flight.CruiseDrive, Navigation; Modding/README.md "Cruise drives").
@@ -75,6 +96,9 @@ namespace GoF2Remake.Modding
             ["deviceConeDeg"] = 159,
             // Remake (2026-11-02): EVERSPACE 2's consumables as devices (Flight.Device 8-12)
             ["deviceConsumable"] = 164, ["deviceAmmo"] = 165, ["deviceRange2"] = 166,
+            // Remake (2026-11-13): Chorus's Rites (Flight.Device 23): the Void energy pips a use pays (Flight.VoidEnergy)
+            ["deviceVoidCost"] = 178, ["deviceChain"] = 179, ["deviceUpgrade"] = 180, ["deviceVoidPips"] = 181,
+            ["deviceElementalProof"] = 182,
             // A cloak's cooldown in ms in place of the difficulty's 5-12 s (Flight.Cloak; GoF3's Hiroto Cloak 60 s).
             ["cloakCooldownMs"] = 160,
             // A weapon's hits go past the shield to the armor and hull (1; Flight.Gun.ShieldFactor 0, Hitpoints.Damage), or slow
@@ -84,6 +108,10 @@ namespace GoF2Remake.Modding
             // EVERSPACE 2's weapon debuffs (2026-11-02; Flight.Gun, Flight.Debuffs): the slow freezes (no turning), damage over
             // time past the shield, the damage the ship takes raised (stacking)
             ["slowFreeze"] = 167, ["dotDamage"] = 168, ["dotMs"] = 169, ["vulnerablePercent"] = 170, ["vulnerableMs"] = 171,
+            // Chorus's capital ship's Death Ray (2026-11-11; Flight.Gun): a beam that hits everything within beamRadius of its line
+            // out to beamReach (game units), and a gun's heat (shots before it overheats, cooling from full, overheated)
+            ["beamRadius"] = 172, ["heatShots"] = 173, ["heatCoolMs"] = 174, ["overheatMs"] = 175, ["beamReach"] = 176,
+            ["chargeMs"] = 177,
             // A scanner's readout of a locked ship (Flight.CombatRadar, a Discord suggestion 2026-11-14): scanShip 1 names its
             // hull on the lock plate; scanHitpoints / scanWeapons 1 add its shield / armor / hull and its guns to the readout
             // on each new lock (beside radarShowsCargo, 31: 1 the first cargo entry, 2 the whole hold).

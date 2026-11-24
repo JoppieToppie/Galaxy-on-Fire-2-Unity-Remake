@@ -149,6 +149,9 @@ Players on a different game version are turned away with a message saying which 
 |---|---|
 | `-batchmode -nographics` | No window, no rendering, no sound. |
 | `-server` | Run as a dedicated server. |
+| `-convert FILE` | A build without the original game's files (the player-assets builds): convert your copy of Galaxy on Fire 2 HD into the server's data folder first: the Android `.xapk` (or its `.obb`), the iOS `.ipa` or the macOS app's zip. Give it more than once for several files (a later one's files win). Once is enough: the converted copy stays. Without a converted copy such a server says so and quits. |
+| `-pack FILE` | Also keep a `.gof2pack` (what your copy lacks: the common pack, your edition's gap pack) and write it over the copy. Repeatable. |
+| `-convertonly` | Convert (and write the packs), then quit. |
 | `-relay` | Host online with a join code (Unity Relay). Without it, players join on the machine's address. |
 | `-name "..."` | The name in the server browser (online). |
 | `-unlisted` | Keep the game out of the server browser; players join with the join code. |
@@ -173,7 +176,8 @@ Players on a different game version are turned away with a message saying which 
 | `-fps N` | The server's frame rate (default 60). |
 | `-noconsole` | Windows: no console window of its own. |
 | `-web [port]` | Start the [web admin](#the-web-admin) (default port 8080; `-webport N` does the same). |
-| `-webbind ADDRESS` | What the web admin listens on (default `127.0.0.1`, this machine only; `0.0.0.0` for every network adapter). |
+| `-webbind ADDRESS` | What the web admin listens on (default `127.0.0.1`, this machine only; `0.0.0.0` for every network adapter, which also needs `-webinsecure`). |
+| `-webinsecure` | Lets the web admin listen on an address other than this machine's (`-webbind`). It is plain HTTP: the login crosses that network unencrypted, so only on a network you trust. |
 | **Player profiles** | |
 | `-noprofiles` | Don't keep player profiles. Every session starts fresh, and factions, moderation and the leaderboard are off. |
 | `-maxearn N` | Without `-allowdebug`: how much a profile's worth may grow per minute online (default 1 000 000). |
@@ -202,7 +206,7 @@ window, **Admin** tab, **Server settings**. You can also type `/set <key> <value
 | `allowdebug` | Players may use the Debug menu (`on` / `off`) | At once. |
 | `freepvp` | Players may fight anywhere (`on` / `off`) | At once. |
 | `flightmodel` | The flight model above (`gof2`, `es2` or `player`; also `/flightmodel`) | At once. |
-| `shipcollision` | The ship collision mode above (`exact`, `mixed` or `original`) | At once. |
+| `shipcollision` | The ship collision mode above (`exact`, `mixed` or `original`) | At once. Clients that report a different effective mode are warned; weapon damage from their game is refused until it matches. |
 | `cloakhides`, `pirateevents`, `capitalships`, `informeroriginal`, `kaamostacking`, `kaamoequipment`, `cloakbay`, `empcloak`, `smarttargeting` | The gameplay rules above (`on` / `off`; `on` = the option on) | At once (new orbits get the spawns that depend on them). |
 | `kaamomaxlevel` | The Kaamo Club upgrade limit above (2-20) | At once for new upgrades; profiles above a lowered limit are cut back at their next sign-in or upload. |
 | `maxearn` | Worth a profile may gain per minute | At once. |

@@ -227,7 +227,7 @@ namespace GoF2Remake.Modding
         /// <summary>The ship frame's pixels (180 x 88), null when it isn't in the build or isn't readable.</summary>
         static Color32[] LoadFrame()
         {
-            var t = Resources.Load<Texture2D>("GoF2Icons/frame_ship");
+            var t = GoF2Remake.Data.OriginalTextures.Image("GoF2Icons/frame_ship");
             if (t == null || !t.isReadable || t.width != PadW || t.height != PadH) return null;
             return t.GetPixels32();
         }

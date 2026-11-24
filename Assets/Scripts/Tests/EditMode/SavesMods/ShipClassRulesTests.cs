@@ -14,6 +14,16 @@ namespace GoF2Remake.Tests
 {
     public class ShipClassRulesTests
     {
+        [Test]
+        public void CanonicalTaxonomyContainsExactlySixteenClasses()
+        {
+            Assert.AreEqual(16, ShipClassRules.CanonicalClassIds.Length);
+            Assert.IsTrue(ShipClassRules.IsCanonicalClass("stealth_fighter"));
+            Assert.IsTrue(ShipClassRules.IsCanonicalClass("scout"));
+            Assert.IsTrue(ShipClassRules.IsCanonicalClass("cruiser"));
+            Assert.IsFalse(ShipClassRules.IsCanonicalClass("gunship"));
+        }
+
         static ShipData Ship(string cls = null, params string[] tags) =>
             new ShipData { shipClass = cls, classTags = tags.Length > 0 ? tags : null };
 

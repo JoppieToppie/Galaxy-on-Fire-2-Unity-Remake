@@ -287,5 +287,54 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(0, h.hull);
             Assert.AreEqual(50f, h.shield);
         }
+
+        [Test]
+        public void EnergyResistanceReducesShieldDamageAndCarriesOverflow()
+        {
+            var h = new Hitpoints(100, 100) { energyResistance = 0.5f };
+            Assert.IsFalse(h.Damage(100, 1f, DamageType.Energy));
+            Assert.AreEqual(50f, h.shield);
+            Assert.AreEqual(100, h.hull);
+
+            var immune = new Hitpoints(100, 100) { energyResistance = 1f };
+            Assert.IsFalse(immune.Damage(100, 1f, DamageType.Energy));
+            Assert.AreEqual(100f, immune.shield, "full resistance absorbs the hit without spending shield points");
+            Assert.AreEqual(100, immune.hull);
+
+            var overflow = new Hitpoints(100, 25) { energyResistance = 0.5f };
+            Assert.IsFalse(overflow.Damage(100, 1f, DamageType.Energy));
+            Assert.AreEqual(0f, overflow.shield);
+            Assert.AreEqual(50, overflow.hull, "only the damage beyond the shield's effective capacity reaches hull");
+        }
+
+        [Test]
+        public void BallisticDamagePenetratesInProportionToRemainingShield()
+        {
+            var unresisted = new Hitpoints(100, 100);
+            Assert.IsFalse(unresisted.Damage(30, 1f, DamageType.Ballistic));
+            Assert.AreEqual(70f, unresisted.shield);
+            Assert.AreEqual(70, unresisted.hull, "zero resistance means full ballistic penetration");
+
+            var full = new Hitpoints(100, 100) { ballisticResistance = 0.5f };
+            Assert.IsFalse(full.Damage(100, 1f, DamageType.Ballistic));
+            Assert.AreEqual(0f, full.shield);
+            Assert.AreEqual(50, full.hull);
+
+            var half = new Hitpoints(100, 100) { ballisticResistance = 0.5f };
+            half.shield = 50f;
+            Assert.IsFalse(half.Damage(100, 1f, DamageType.Ballistic));
+            Assert.AreEqual(0f, half.shield);
+            Assert.AreEqual(25, half.hull, "P = resistance * shield fraction = 0.25");
+        }
+
+        [Test]
+        public void TypedDamageWithoutResistanceKeepsLegacyPoolBehaviour()
+        {
+            var h = new Hitpoints(100, 50, 20);
+            Assert.IsFalse(h.Damage(30, 1f, DamageType.Energy));
+            Assert.AreEqual(20f, h.shield);
+            Assert.AreEqual(20, h.armor);
+            Assert.AreEqual(100, h.hull);
+        }
     }
 }

@@ -116,6 +116,13 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   password."); the reason is the player's popup. The server checks it: the lobby's join code is public. Builds from
   before the check don't use approval, which is part of Netcode's config hash, so they fail its handshake. Verified with
   a Windows build and the Editor: the version refusal, no / wrong / right password over Relay, the listing and its count.
+  The password never travels as typed (2026-11-19, Spectre's security review): the connection data carries
+  `NetGame.PasswordProof` ("p1:" + base64 of PBKDF2-SHA256, 20 000 iterations, a fixed salt; empty = none), the server
+  works out its own once per password (`ExpectedProof`) and compares in constant time (`SameProof`). Direct-IP sessions
+  have no DTLS (only the Relay's connection type is encrypted), so the typed password was readable on the network; a
+  captured proof still joins that session (a replay), so a password-protected direct-IP game belongs on a trusted LAN /
+  VPN. Unity Transport's DTLS without Relay needs a server certificate the client trusts (`SetServerSecrets` /
+  `SetClientSecrets` with a CA), which a typed address can't carry; its pre-shared-key mode is only reachable through Relay.
 - **NetPlayer** (one per player): the owner writes where they are (station; `Place` Space / Hangar / Departing, from the
   scene it is in and `StationLevel.PlayerDeparting`), ship and name; in space its pose, hull and look go in the pose
   stream to the players in that orbit and the server only (`NetPoses`, docs/notes/multiplayer-sync.md "Bandwidth"). The others in the same
@@ -191,7 +198,9 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   (`-cloakhides`, `-capitalships`, `-informeroriginal`, `-nopirateevents`, `-nokaamostacking`, `-nokaamoequipment`,
   `-nocloakbay`, `-noempcloak`, `-smarttargeting`, `-es2aiming`, `-es2flight`, `-derelicts`) turns
   one the other way (the ship collision mode is `-shipcollision exact|mixed|original`, two bits set as one setting,
-  `NetRules.SetCollision`), and the server settings (`cloakhides` ...) change them while running. The Kaamo Club upgrade
+  `NetRules.SetCollision`), and the server settings (`cloakhides` ...) change them while running. Clients report their
+  effective ship collision mode to the server; a mismatch is reported privately and weapon damage from that game is
+  refused until it matches (`NetPlayer.ReportCollisionModeRpc`, `CollisionModeCompliant`). The Kaamo Club upgrade
   limit
   is a number beside the bits (`NetRules.HostKaamoLevel`, `NetState.KaamoLevel`, `GameHooks.SessionKaamoLevel`;
   `-kaamomaxlevel N`, `/set kaamomaxlevel`, 2..20, default 5). So is the flight model (2026-10-16; players flying free

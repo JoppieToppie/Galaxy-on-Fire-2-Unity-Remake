@@ -243,6 +243,13 @@ namespace GoF2Remake.Multiplayer
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
         void RemoveRpc()
         {
+            // Remake co-op: another player captured it: a story level's own counts it (CampaignLevel.CrewCrateCaptured).
+            if (crate != null && !crate.jettisoned && CoopCampaign.Active && GoF2Remake.World.CampaignLevel.Current != null)
+            {
+                int tons = 0;
+                foreach (var s in crate.loot) if (s != null && s.amount > 0) tons += s.amount;
+                GoF2Remake.World.CampaignLevel.Current.CrewCrateCaptured(tons);
+            }
             if (crate != null) Destroy(crate.gameObject);
         }
 

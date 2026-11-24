@@ -28,6 +28,8 @@ namespace GoF2Remake.Flight
         public AudioClip[] explosionSounds;
         /// <summary>Remake mods (items.json fx "trail", ModWeapons): the smoke trail behind each shot; null = the game's.</summary>
         [System.NonSerialized] public TrailLook trail;
+        /// <summary>Remake mods (items.json fx "rite", ModWeapons): a Rite's particles and sounds; null = none.</summary>
+        [System.NonSerialized] public RiteLook rite;
         /// <summary>Remake mods (a modder's wish, 2026-10-18): the mod gave "impact" itself (ModWeapons), so it also shows
         /// where a missile hits and where a bomb goes off, in place of the game's burst / explosion (GunRig.ShowBlast).</summary>
         [System.NonSerialized] public bool modImpact;
@@ -52,9 +54,31 @@ namespace GoF2Remake.Flight
             list != null && list.Length > 0 ? list[Random.Range(0, list.Length)] : fallback;
 
         /// <summary>The item's fx: a mod item's own (items.json "fx", Modding.ModWeapons), else its base item's
-        /// (Modding.ModContent.ItemLook).</summary>
+        /// (Modding.ModContent.ItemLook), its prefabs and sounds filled from the player's converted copy in a build without
+        /// the originals (OriginalRefs).</summary>
         public static WeaponFx Load(int item) =>
-            Modding.ModWeapons.Fx(item) ?? Resources.Load<WeaponFx>($"{ResourcesFolder}/item_{Modding.ModContent.ItemLook(item):000}");
+            Modding.ModWeapons.Fx(item) ?? Data.OriginalRefs.Load<WeaponFx>($"{ResourcesFolder}/item_{Modding.ModContent.ItemLook(item):000}");
+    }
+
+    /// <summary>Remake mods, items.json fx "rite" (ModWeapons, Data.CustomRiteFx): a Rite's looks, its mod's effects and its
+    /// sounds loaded.</summary>
+    public sealed class RiteLook
+    {
+        public Modding.ModInfo mod;
+        public Data.CustomRiteFx spec;
+        public AudioClip[] vanish, appear, hit, loop, end, fury, absorb, heal;
+
+        /// <summary>One of its effects at 'at' (under 'follow' when given: it moves with it); null when it has none.</summary>
+        public GameObject Play(Data.CustomFx part, Vector3 at, Quaternion rotation, Vector3 velocity, Transform follow = null, float scale = 1f)
+        {
+            if (part?.emitters == null || part.emitters.Length == 0) return null;
+            var root = World.ModDeathFx.Play(mod, part, at, rotation, follow != null ? Vector3.zero : velocity, scale);
+            if (follow != null) root.transform.SetParent(follow, true);
+            root.name = "Rite effect";
+            return root;
+        }
+
+        public static AudioClip Pick(AudioClip[] list) => list != null && list.Length > 0 ? list[Random.Range(0, list.Length)] : null;
     }
 
     /// <summary>Remake mods, items.json fx "trail" (ModWeapons): the smoke trail behind a weapon's shots, over the game's

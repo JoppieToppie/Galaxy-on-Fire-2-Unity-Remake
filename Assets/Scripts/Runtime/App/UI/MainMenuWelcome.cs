@@ -50,7 +50,7 @@ namespace GoF2Remake.UI
             ShowNotice(X("welcomeTitle", "Welcome, pilot"), text);
             InputGlyph.SetText(root.Q<Button>("dialogYes"), X("welcomeNext", "Next").UiCaps());
             dialogYes = ShowExperienceChoice;
-            dialogNo = () => Settings.WelcomeShown = true;   // Back / Esc skips it: the Original, the default, stays
+            dialogNo = () => Settings.WelcomeShown = true;   // Back / Esc skips it: the current presets stay
         }
 
         /// <summary>The second step: three answers. Back / B / Esc answer No, so No is the Original (the default, nothing

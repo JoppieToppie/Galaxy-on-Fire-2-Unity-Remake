@@ -1,0 +1,9 @@
+{
+    "id": "heavy_flight",
+    "name": "Heavy Flight (flight rules example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "An example mod: every ship flies heavier (slower turns that swing on, a long coast, a lazier dodge) in both the original flight and free flight, and the Rhino freighter always flies the original way. Shows flight.json's flight rules and a ship's own \"flightStyle\" and \"rules\", with no model, texture or sound file."
+    }
+}

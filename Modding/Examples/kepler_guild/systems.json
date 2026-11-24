@@ -1,0 +1,15 @@
+[
+    // Another mod's system, changed by its key "<mod id>:<id>": Kepler comes from frontier_systems, which mod.json
+    // lists in "dependencies" so that it is on and loaded before this mod. An override names only what it changes;
+    // the name, the position, the gates and the sky stay as that mod made them.
+    //   race      the new owner, a race of this mod by its id ("kepler_guild:guild" works too). Stations have no
+    //             race of their own: Kepler Prime and the Rho Freeport follow their system to the guild
+    //   locals    the sides the system's local fighters fly for, picked at random (default: the owner alone)
+    //   raiders   who raids the system, picked at random (default: the owner's hostile enemies, else the pirates)
+    {
+        "override": "frontier_systems:kepler",
+        "race": "guild",
+        "locals": ["guild", "terran"],
+        "raiders": ["jumpers", "pirates"]
+    }
+]

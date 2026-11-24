@@ -33,7 +33,7 @@ namespace GoF2Remake.Flight
     public class Gun
     {
         /// <summary>The beam lasers (BeamGun: 9-11, 228; a mod's item by its look): one beam mesh scaled along the shot.</summary>
-        public static bool IsBeamLook(int look) => look == 9 || look == 10 || look == 11 || look == 228;
+        public static bool IsBeamLook(int look) => ItemData.IsBeamLook(look);
 
         public enum Kind
         {
@@ -50,6 +50,9 @@ namespace GoF2Remake.Flight
             public Vector3 aim;        // remake: where on its lock target it homes, in the target's own frame (SetAim) ...
             public bool aimed;         // ... else on the target's centre
             public Target target;      // remake: its own target instead of the gun's lock (SetTarget), null = the lock
+            public uint networkShotId, shotGeneration;
+            public ulong networkSourceObjectId;
+            public bool networkPlayerShot;
             public bool Active(float limit) => timer > limit;
         }
 
@@ -82,6 +85,8 @@ namespace GoF2Remake.Flight
         public Target owner;
         public float reloadAcc;               // ms since the last shot
         public float spreadError;             // Gun+0xe0: 2 auto-cannon/scatter, 20 thermo, 0 otherwise
+        /// <summary>Hardpoint-relative launch turn; assigned only to player secondary guns by WeaponSystem.</summary>
+        [System.NonSerialized] public Quaternion launchTurn = Quaternion.identity;
         /// <summary>RocketGun::update: homing only once the bullet is this old (NPC rockets 1000 ms, the player's at once).</summary>
         public float homingDelayMs;
         /// <summary>Remake (mods, ItemStats 127-130): a second, weaker blast at each hit, a little later. Null = none.</summary>
@@ -91,11 +96,14 @@ namespace GoF2Remake.Flight
         /// <summary>Attr 105 = 1: the shots are homing missiles (they home on the lock / the turret's target, keep their size,
         /// trail smoke and burst like a rocket on a hit), whatever the item's category.</summary>
         public readonly bool missiles;
+        /// <summary>Explicit mod-defined damage channel (item attribute 182); never inferred from weapon category.</summary>
+        public readonly DamageType damageType;
         /// <summary>Attr 106: shots side by side per trigger; attr 107: salvos per magazine, attr 108 ms apart (the reload,
         /// attr 11, comes after the last).</summary>
         public readonly int salvoShots = 1, salvoCount = 1;
         public readonly float salvoGapMs;
         int salvoIndex;
+        uint shotGeneration;
         const float SalvoSpreadUnits = 120f;   // sideways between the shots of one salvo
 
         /// <summary>Multiplayer: targets this gun's bullets pass straight through (a squadmate of the shooter), null = none.</summary>
@@ -157,7 +165,7 @@ namespace GoF2Remake.Flight
         float FreeLimit => Coasts ? -CoastMs : 0f;
         /// <summary>The wait before the next shot: the reload, or inside a magazine the gap between its salvos.</summary>
         public float WaitMs => salvoCount > 1 && salvoIndex > 0 ? salvoGapMs : reloadMs;
-        public bool Ready => reloadAcc > WaitMs && (!isBeam || bullets[0].timer <= 0f);
+        public bool Ready => reloadAcc > WaitMs && (!isBeam || bullets[0].timer <= 0f) && overheatLeftMs <= 0f;
         /// <summary>Remake (CooldownView's secondary icon): the reload so far, 0 right after a shot .. 1 ready.</summary>
         public float ReloadRate => Ready ? 1f : Mathf.Clamp01(reloadAcc / Mathf.Max(1f, WaitMs));
         /// <summary>The shortest reload the bullet pool sustains: a bullet frees up just as the next shot needs it (the
@@ -185,6 +193,7 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public float shieldFactor = 1f;
 
         public const int ShieldDamageAttr = 124, DisruptorShieldPercent = 200;
+        public const int DamageTypeAttr = 190;   // (was 182: Core.Device.ElementalAttr's)
         /// <summary>Remake mods (GoF3's abilities): 161 shieldBypass (its hits go past the shield), 162 slowMs / 163 slowPercent
         /// (a hit slows the ship to that share of its speed for that long, turning still allowed: AbilitySlowdown).</summary>
         public const int ShieldBypassAttr = 161, SlowMsAttr = 162, SlowPercentAttr = 163;
@@ -196,6 +205,40 @@ namespace GoF2Remake.Flight
         /// for that long, stacking: Destabilized).</summary>
         public const int SlowFreezeAttr = 167, DotDamageAttr = 168, DotMsAttr = 169, VulnerablePercentAttr = 170, VulnerableMsAttr = 171;
         [System.NonSerialized] public bool slowFreeze;
+        /// <summary>Remake mods (2026-11-11, Chorus's PCLS Death Ray, BP_Player_Weapon_DeathRay_PlayerCapitalShip): 172 beamRadius
+        /// (a beam that also hits every hostile within that many game units of its line, out to its reach: its HitScanRadius),
+        /// 173 heatShots (shots before it overheats: MaxHeat / HeatPerShot), 174 heatCoolMs (cooling from full, not firing:
+        /// MaxHeat / HeatDissipationRate), 175 overheatMs (overheated: no shots for that long, then cool: OverheatCooldownDuration,
+        /// bResetHeatAfterCooldown).</summary>
+        public const int BeamRadiusAttr = 172, HeatShotsAttr = 173, HeatCoolMsAttr = 174, OverheatMsAttr = 175, BeamReachAttr = 176;
+        /// <summary>177 chargeMs: the trigger held this long before the gun fires (Chorus's Death Ray's ChargeDuration 1 s);
+        /// letting go starts it over.</summary>
+        public const int ChargeMsAttr = 177;
+        public readonly float chargeMs;
+        float chargedMs;
+        /// <summary>It may fire: no charge-up, or the trigger held through it.</summary>
+        public bool Charged => chargeMs <= 0f || chargedMs >= chargeMs;
+        /// <summary>The charge-up's share done (0..1; 1 without one).</summary>
+        public float Charge01 => chargeMs <= 0f ? 1f : Mathf.Clamp01(chargedMs / chargeMs);
+        /// <summary>'dtMs' on with the trigger 'held' (or not: it starts over).</summary>
+        public void Charge(float dtMs, bool held) => chargedMs = held ? chargedMs + dtMs : 0f;
+        /// <summary>Game units around a beam's line it hits (0 = only what it meets, the original's).</summary>
+        public readonly float beamRadius;
+        /// <summary>A wide beam's length with nothing aimed, and how far past its target it sweeps (176 beamReach, game units;
+        /// default the beams' 30 000; Chorus's ProjectileRange).</summary>
+        public readonly float beamReach = BeamRangeUnits;
+        public readonly int heatShots;
+        public readonly float heatCoolMs, overheatMs;
+        float heat, overheatLeftMs;
+        /// <summary>The heat as a share of heatShots (0 without heat); 1 while overheated.</summary>
+        public float Heat01 => heatShots <= 0 ? 0f : overheatLeftMs > 0f ? 1f : Mathf.Clamp01(heat / heatShots);
+        public bool Overheated => overheatLeftMs > 0f;
+        /// <summary>The gun just overheated (WeaponSystem's HUD message).</summary>
+        public event Action<Gun> OverheatStarted;
+        /// <summary>Wide beams (beamRadius): which targets near the line it may hit besides the one it met (null = all; the
+        /// player's: the hostile ships and the lock, never asteroids, so a friendly beside the line doesn't turn).</summary>
+        public Func<Target, bool> BeamSweeps;
+        Target lastStruck;   // the shot's hit this pass (Strike), which the wide beam's sweep leaves out
         [System.NonSerialized] public float dotDamage, dotMs, vulnerablePercent, vulnerableMs;
 
         public static float ShieldFactor(ItemData item)
@@ -217,6 +260,7 @@ namespace GoF2Remake.Flight
             int look = item.Look;   // a mod's item works like its base (Modding.ModContent)
             isBeam = IsBeamLook(look);
             damage = item.Attr(9);
+            damageType = (DamageType)Mathf.Clamp(item.Attr(DamageTypeAttr), 0, 2);
             shieldFactor = ShieldFactor(item);
             slowMs = Mathf.Max(0, item.Attr(SlowMsAttr));
             slowFactor = Mathf.Clamp01(item.Attr(SlowPercentAttr, 50) / 100f);
@@ -226,6 +270,12 @@ namespace GoF2Remake.Flight
             vulnerablePercent = Mathf.Max(0, item.Attr(VulnerablePercentAttr));
             vulnerableMs = Mathf.Max(0, item.Attr(VulnerableMsAttr));
             echo = GunEcho.From(item);
+            beamRadius = isBeam ? Mathf.Max(0, item.Attr(BeamRadiusAttr)) : 0f;
+            if (beamRadius > 0f) beamReach = Mathf.Max(1, item.Attr(BeamReachAttr, (int)BeamRangeUnits));
+            heatShots = Mathf.Max(0, item.Attr(HeatShotsAttr));
+            chargeMs = Mathf.Max(0, item.Attr(ChargeMsAttr));
+            heatCoolMs = Mathf.Max(1, item.Attr(HeatCoolMsAttr, 10000));
+            overheatMs = Mathf.Max(0, item.Attr(OverheatMsAttr, 5000));
             emp = item.Attr(10);
             reloadMs = Mathf.Max(1, item.Attr(11, 500));
             lifetimeMs = kind == Kind.ShockBlast ? 1f : item.Attr(12, 2000);
@@ -268,6 +318,7 @@ namespace GoF2Remake.Flight
             kind = (Kind)visualItem.categoryId;
             echo = GunEcho.From(visualItem);
             this.damage = damage;
+            damageType = (DamageType)Mathf.Clamp(visualItem.Attr(DamageTypeAttr), 0, 2);
             this.reloadMs = Mathf.Max(1f, reloadMs);
             this.lifetimeMs = lifetimeMs;
             this.speedUnitsPerMs = speedUnitsPerMs;
@@ -296,6 +347,37 @@ namespace GoF2Remake.Flight
         /// <summary>Gun::shootAt from an arbitrary pose (turrets fire from the turret gun's matrix).</summary>
         public int TryFire(Vector3 origin, Quaternion rotation, bool addForwardOffset = true)
         {
+            int shot = Shoot(origin, rotation, addForwardOffset);
+            if (shot >= 0 && heatShots > 0) AddHeat();
+            return shot;
+        }
+
+        /// <summary>Remake mods (heatShots): a shot's heat; at heatShots the gun overheats for overheatMs.</summary>
+        void AddHeat()
+        {
+            heat += 1f;
+            if (heat < heatShots) return;
+            heat = heatShots;
+            overheatLeftMs = Mathf.Max(1f, overheatMs);
+            OverheatStarted?.Invoke(this);
+        }
+
+        /// <summary>'dtMs' on: an overheated gun waits out overheatMs and is cool again; else its heat falls, full to none
+        /// over heatCoolMs.</summary>
+        public void Cool(float dtMs)
+        {
+            if (heatShots <= 0) return;
+            if (overheatLeftMs > 0f)
+            {
+                overheatLeftMs -= dtMs;
+                if (overheatLeftMs <= 0f) { overheatLeftMs = 0f; heat = 0f; }
+                return;
+            }
+            heat = Mathf.Max(0f, heat - dtMs * heatShots / heatCoolMs);
+        }
+
+        int Shoot(Vector3 origin, Quaternion rotation, bool addForwardOffset)
+        {
             if (!Ready) return -1;
             int free = -1;
             for (int i = 0; i < bullets.Length; i++) if (bullets[i].timer <= FreeLimit) { free = i; break; }
@@ -303,6 +385,7 @@ namespace GoF2Remake.Flight
 
             var fwd = rotation * Vector3.forward;
             var up = rotation * Vector3.up;
+            var shotFwd = rotation * (launchTurn * Vector3.forward);
             Vector3 Spawn() => origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
                 ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
 
@@ -324,16 +407,17 @@ namespace GoF2Remake.Flight
                 else
                 {
                     BeamDir = fwd;
-                    BeamLengthUnits = BeamRangeUnits;
+                    BeamLengthUnits = beamReach;   // (BeamRangeUnits but for a wide beam's own reach)
                     BeamTarget = null;
                     beamAim = null;
-                    bb.position = from + fwd * BeamRangeUnits * MetersPerUnit;
+                    bb.position = from + fwd * beamReach * MetersPerUnit;
                 }
                 bb.velocity = fwd * MetersPerUnit;   // a unit vector (1 u/ms): hits the target centre on the next pass
                 bb.up = up;
                 bb.timer = lifetimeMs;
                 bb.age = 0f;
                 bb.lockLost = false; bb.aimed = false; bb.target = null;
+                TagNewShot(ref bb);
                 reloadAcc = 0f;
                 Fired?.Invoke(this, 0);
                 return 0;
@@ -347,11 +431,12 @@ namespace GoF2Remake.Flight
                     if (bullets[i].timer > FreeLimit) continue;
                     ref var c = ref bullets[i];
                     c.position = Spawn();
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
                     c.lockLost = false; c.aimed = false; c.target = null;
+                    TagNewShot(ref c);
                 }
                 reloadAcc = 0f;
                 Fired?.Invoke(this, free);
@@ -368,11 +453,12 @@ namespace GoF2Remake.Flight
                     ref var c = ref bullets[i];
                     float side = (made - (salvoShots - 1) * 0.5f) * SalvoSpreadUnits * MetersPerUnit;
                     c.position = Spawn() + rotation * Vector3.right * side;
-                    c.velocity = fwd * speedUnitsPerMs * MetersPerUnit;
+                    c.velocity = shotFwd * speedUnitsPerMs * MetersPerUnit;
                     c.up = up;
                     c.timer = lifetimeMs;
                     c.age = 0f;
                     c.lockLost = false; c.aimed = false; c.target = null;
+                    TagNewShot(ref c);
                     made++;
                     Fired?.Invoke(this, i);
                 }
@@ -391,11 +477,12 @@ namespace GoF2Remake.Flight
             ref var b = ref bullets[free];
             b.position = Spawn();
             b.velocity = kind == Kind.Mine ? (fwd + up).normalized * MineSpeedUnits * MetersPerUnit
-                                           : rotation * dir.normalized * speedUnitsPerMs * MetersPerUnit;
+                                           : rotation * (launchTurn * dir.normalized) * speedUnitsPerMs * MetersPerUnit;
             b.up = up;
             b.timer = lifetimeMs;
             b.age = 0f;
             b.lockLost = false; b.aimed = false; b.target = null;
+            TagNewShot(ref b);
             NextSalvo();
             Fired?.Invoke(this, free);
             return free;
@@ -411,6 +498,9 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: another player's shot drawn by this (visual-only) gun (NetShotMirror): a free bullet at
         /// that pose with the sender's life left; false when the pool is full.</summary>
         public bool Inject(Vector3 position, Vector3 velocity, Vector3 up, float lifeMs)
+            => Inject(position, velocity, up, lifeMs, 0, 0, false, out _);
+
+        public bool Inject(Vector3 position, Vector3 velocity, Vector3 up, float lifeMs, uint shotId, ulong sourceObjectId, bool playerSource, out int index)
         {
             for (int i = 0; i < bullets.Length; i++)
             {
@@ -422,9 +512,31 @@ namespace GoF2Remake.Flight
                 b.timer = lifeMs;
                 b.age = 0f;
                 b.lockLost = false; b.aimed = false; b.target = null;
+                TagNewShot(ref b);
+                b.networkShotId = shotId;
+                b.networkSourceObjectId = sourceObjectId;
+                b.networkPlayerShot = playerSource;
+                index = i;
                 return true;
             }
+            index = -1;
             return false;
+        }
+
+        void TagNewShot(ref Bullet bullet)
+        {
+            bullet.shotGeneration = ++shotGeneration;
+            bullet.networkShotId = 0;
+            bullet.networkSourceObjectId = 0;
+            bullet.networkPlayerShot = false;
+        }
+
+        public void TagNetworkShot(int index, uint shotId, ulong sourceObjectId, bool playerSource = false)
+        {
+            if (index < 0 || index >= bullets.Length) return;
+            bullets[index].networkShotId = shotId;
+            bullets[index].networkSourceObjectId = sourceObjectId;
+            bullets[index].networkPlayerShot = playerSource;
         }
 
         /// <summary>Remake (the capital ships' salvos, CapitalShips.SpreadAim): bullet 'i' homes on 'local', a point in the
@@ -448,6 +560,7 @@ namespace GoF2Remake.Flight
         public void Update(float dtMs, IReadOnlyList<Target> targets, Target lockTarget)
         {
             reloadAcc += dtMs;
+            Cool(dtMs);
             // Remake: a lock that went away because its ship cloaked (the radar drops it, an NPC stops homing on a cloaked
             // target) shakes off the missiles too, so they don't home again on the next lock or when the cloak ends.
             var previousLock = LastLock;
@@ -471,7 +584,9 @@ namespace GoF2Remake.Flight
                 // evasion.
                 if (dropShaken && !b.lockLost && (object)b.target == null) { b.lockLost = true; shaken = true; }
                 if (steer > 0f && !b.lockLost && homeOn.ShakesMissiles) { b.lockLost = true; shaken = true; }
-                if (steer > 0f && !b.lockLost && homeOn.isPlayer) IncomingMissiles.Report(this, i, b.position, b.velocity);
+                if (homeOn != null && homeOn.Alive && !b.lockLost && homeOn.isPlayer &&
+                    (steer > 0f || kind == Kind.Rocket || kind == Kind.Nuke))
+                    IncomingMissiles.Report(this, i, b.position, b.velocity);
                 bool homing = steer > 0f && !b.lockLost && b.age >= homingDelayMs;
                 var goal = homing ? (b.aimed ? homeOn.transform.TransformPoint(b.aim) : homeOn.transform.position) : Vector3.zero;
                 if (homing)
@@ -513,9 +628,11 @@ namespace GoF2Remake.Flight
                 }
                 if (targets != null)
                 {
+                    lastStruck = null;
                     if (kind == Kind.Mine) TestMine(i, ref b, targets, dtMs);
                     else TestHits(i, ref b, targets, from);
                     if (isBeam && fresh && b.timer > limit && (object)beamAim != null) AimedBeamHit(i, ref b, targets, from);
+                    if (isBeam && fresh && beamRadius > 0f) WideBeamHit(i, from, targets);
                 }
             }
             if (shaken) LockShaken?.Invoke(this, dropShaken ? previousLock : lockTarget);
@@ -592,24 +709,45 @@ namespace GoF2Remake.Flight
             var dir = d / len;
             Target first = null;
             float best = len;
-            var all = Target.All;
+            var all = Rocks();
             for (int k = 0; k < all.Count; k++)
             {
-                var t = all[k];
-                if ((object)t == null || !t.isAsteroid || !t.Alive) continue;
-                float r = t.radius;
-                var m = from - t.transform.position;
+                var rock = all[k];
+                float r = rock.radius;
+                var m = from - rock.centre;
                 float bd = Vector3.Dot(m, dir), c = m.sqrMagnitude - r * r;
                 if (c > 0f && bd > 0f) continue;   // outside it and heading away
                 float disc = bd * bd - c;
                 if (disc < 0f) continue;
                 float at = Mathf.Max(0f, -bd - Mathf.Sqrt(disc));
-                if (at >= best) continue;
+                if (at >= best || !rock.target.Alive) continue;   // (alive: one shot down earlier this frame)
                 best = at;
-                first = t;
+                first = rock.target;
             }
             if ((object)first != null) point = from + dir * best;
             return first;
+        }
+
+        // The alive asteroids' hit spheres as of this frame (FirstAsteroid): every NPC shot in flight asks, and walking
+        // all the orbit's targets and reading each rock's transform for each shot was most of a fleet battle's gun time.
+        struct Rock { public Target target; public Vector3 centre; public float radius; }
+        static readonly List<Rock> rocks = new List<Rock>();
+        static int rocksFrame = -1;
+
+        static List<Rock> Rocks()
+        {
+            int frame = Time.frameCount;
+            if (frame == rocksFrame && Application.isPlaying) return rocks;   // (an edit-mode test's frame never ends)
+            rocksFrame = frame;
+            rocks.Clear();
+            var all = Target.All;
+            for (int k = 0; k < all.Count; k++)
+            {
+                var t = all[k];
+                if ((object)t == null || !t.isAsteroid || !t.Alive) continue;
+                rocks.Add(new Rock { target = t, centre = t.transform.position, radius = t.radius });
+            }
+            return rocks;
         }
 
         void TestTargets(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
@@ -722,10 +860,32 @@ namespace GoF2Remake.Flight
             if (Strike(i, aimed, at)) Struck(at);
         }
 
+        /// <summary>Remake mods (beamRadius, Chorus's Death Ray): the beam's pass also hits every target within beamRadius (and
+        /// its own size) of its line from the muzzle 'from', out to its reach (its target or beamReach, the further), but the one it met (lastStruck); asteroids and what BeamSweeps refuses stay out.</summary>
+        void WideBeamHit(int i, Vector3 from, IReadOnlyList<Target> targets)
+        {
+            var met = lastStruck;
+            var to = from + BeamDir * Mathf.Max(BeamLengthUnits, beamReach) * MetersPerUnit;
+            float r = beamRadius * MetersPerUnit;
+            for (int k = 0; k < targets.Count; k++)
+            {
+                var t = targets[k];
+                if ((object)t == null || t == met || t == owner || t.isAsteroid || !t.Alive || t.phased) continue;
+                if (Ignores != null && Ignores(t)) continue;
+                if (BeamSweeps != null && !BeamSweeps(t)) continue;
+                var p = t.transform.position;
+                if (WithinBeam(p, from, to, r + t.radius) && Strike(i, t, p)) Struck(p);
+            }
+        }
+
+        /// <summary>Whether 'p' lies within 'radius' metres of the beam a..b.</summary>
+        public static bool WithinBeam(Vector3 p, Vector3 a, Vector3 b, float radius) => DistanceToSegment(p, a, b) <= radius;
+
         /// <summary>A shot's hit on 'target': Hit, unless the target turns it back (Target.Deflects, the Carom Deflector's
         /// PlayerDevices: the shot is gone and does nothing here). False = turned back.</summary>
         bool Strike(int i, Target target, Vector3 at)
         {
+            lastStruck = target;
             if ((object)target.Deflects != null && target.Deflects(this, i)) return false;
             Hit?.Invoke(i, target, at);
             return true;

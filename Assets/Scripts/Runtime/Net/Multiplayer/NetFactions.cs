@@ -196,7 +196,7 @@ namespace GoF2Remake.Multiplayer
         [Serializable] public class Lapsed { public int station; public long until; }
 
         // Deposits waiting for the player's game to pay: by a token the server made (the amount is the server's own).
-        static readonly Dictionary<int, (string account, string faction, int amount, float until)> charges = new Dictionary<int, (string, string, int, float)>();
+        static readonly Dictionary<int, (string account, string faction, long amount, float until)> charges = new Dictionary<int, (string, string, long, float)>();
         static int nextCharge = 1;
         static float claimTimer, siegeTimer;
 

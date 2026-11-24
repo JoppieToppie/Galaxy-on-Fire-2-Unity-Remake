@@ -59,8 +59,8 @@ namespace GoF2Remake.Flight
         /// <summary>How far an auto turret looks for a target (units) unless the item's attr 109 says otherwise (mods).</summary>
         public const float AutoRangeUnits = 60000f;
 
-        // The controls are GameControls' (rebindable): Camera (the turret view, T / D-pad up), AutoTurret (Y / D-pad down).
-        static InputAction viewAction => GameControls.Camera;
+        // The controls are GameControls' (rebindable): TurretView (F3; controller binding available), AutoTurret (Y / D-pad down).
+        static InputAction viewAction => GameControls.TurretView;
         static InputAction autoAction => GameControls.AutoTurret;
 
         /// <summary>180-182: aims and fires by itself.</summary>
@@ -75,7 +75,9 @@ namespace GoF2Remake.Flight
         /// <summary>The turret's aim (world), for the collector's scope.</summary>
         public Vector3 AimForward => core != null && core.Valid ? core.BarrelForward : transform.forward;
         public bool AutoEnabled { get; private set; } = true;
-        float defenseReachMeters;   // PointDefense: the mounted missile defense's reach, 0 = none
+        float defenseReachMeters;   // PointDefense: the mounted defense's reach, 0 = none
+        int defenseTargets;            // homing missiles, rockets and nukes covered by mounted defense equipment
+        bool missileOnlyDefense;     // mode 1 holds automatic turrets for incoming missiles between threats
         bool defending;             // this frame's aim is at a missile ...
         IncomingMissiles.Missile missile;   // ... this one
         float missileFlightMs;      // ... its shot's flight time
@@ -170,6 +172,20 @@ namespace GoF2Remake.Flight
             return -1;
         }
 
+        /// <summary>Only mixed mod loadouts need a separate auto-fire binding; collectors count as manual turrets.</summary>
+        public static bool MixedLoadout(Database db, IList<ItemStack> equipment)
+        {
+            bool manual = false, automatic = false;
+            if (db == null || equipment == null) return false;
+            foreach (var stack in equipment)
+            {
+                var item = stack != null && stack.amount > 0 ? db.Item(stack.item) : null;
+                if (item == null || (item.categoryId != 8 && item.categoryId != 35)) continue;
+                if (item.Attr(16) == 1) automatic = true; else manual = true;
+            }
+            return manual && automatic;
+        }
+
         /// <summary>Every turret-slot item (category 8 / 35) of this equipment in mount order: the n-th entry is the turret on
         /// the n-th slot-2 mount, -1 for an empty slot between two turrets (Hangar.MountOrder, as the guns: each on the mount
         /// of its slot, so a turret moved to another slot moves to that mount, #230). A turret stack without a slot follows.</summary>
@@ -245,6 +261,8 @@ namespace GoF2Remake.Flight
             Hangs = mount.TurretHangs;
             IsAuto = item.Attr(16) == 1;
             defenseReachMeters = PointDefense.ReachUnits(Database.Shared) * Gun.MetersPerUnit;
+            defenseTargets = PointDefense.TargetMask(Database.Shared);
+            missileOnlyDefense = PointDefense.Mode(Database.Shared) == 1;
             IsCollector = item.categoryId == 35;
             PullSpeed = item.Attr(49);
             CollectRange = item.Attr(51);
@@ -370,11 +388,11 @@ namespace GoF2Remake.Flight
         /// <summary>The touch turret button: toggles auto-fire, or the turret view for a manual turret. Remake, with several
         /// turrets: any auto turret on the ship -> auto fire for all of them; else the view steps to the next manual turret
         /// and then back out.</summary>
-        public void Toggle()
+        public void Toggle(bool manualFirst = false)
         {
             var group = On(gameObject);
             var firstAuto = group.Find(t => t.IsAuto);
-            if (firstAuto != null) { firstAuto.SetAuto(!firstAuto.AutoEnabled); return; }
+            if (firstAuto != null && (!manualFirst || !group.Exists(t => !t.IsAuto))) { firstAuto.SetAuto(!firstAuto.AutoEnabled); return; }
             var manual = group.FindAll(t => !t.IsAuto);
             int at = manual.FindIndex(t => t.InTurretView);
             if (at < 0) { if (manual.Count > 0) manual[0].SetTurretView(true); }
@@ -472,11 +490,12 @@ namespace GoF2Remake.Flight
                 // The view key (V / D-pad up) is the camera button now: FreeLookCamera cycles standard / turret / free look.
                 // With several turrets the first manual / auto one answers the keys for all of them (Toggle / SetAuto).
                 var group = On(gameObject);
-                if (viewAction.WasPressedThisFrame() && !IsAuto && GetComponent<FreeLookCamera>() == null && group.Find(t => !t.IsAuto) == this)
+                if (viewAction.WasPressedThisFrame() && GetComponent<FreeLookCamera>() == null && group[0] == this)
                 {
-                    if (group.FindAll(t => !t.IsAuto).Count > 1) Toggle(); else SetTurretView(!InTurretView);
+                    Toggle(true);
                 }
-                if (autoAction.WasPressedThisFrame() && IsAuto && group.Find(t => t.IsAuto) == this) SetAuto(!AutoEnabled);
+                if (autoAction.WasPressedThisFrame() && IsAuto && group.Exists(t => !t.IsAuto)
+                    && group.Find(t => t.IsAuto) == this) SetAuto(!AutoEnabled);
             }
             bool dead = GetComponent<Target>() is Target me && !me.Alive;
             if (InTurretView && (GunsBlocked || dead)) SetTurretView(false);
@@ -524,11 +543,13 @@ namespace GoF2Remake.Flight
         bool? DefenseAim(float dtMs)
         {
             defending = false;
-            if (defenseReachMeters <= 0f || !PointDefense.Pick(GunPosition, defenseReachMeters, out missile)) return null;
+            if (defenseReachMeters <= 0f) return null;
+            if (!PointDefense.Pick(GunPosition, defenseReachMeters, defenseTargets, out missile))
+                return missileOnlyDefense ? false : (bool?)null;
             float shotSpeed = gun.speedUnitsPerMs * Gun.MetersPerUnit;
             var at = PointDefense.Lead(missile, GunPosition, shotSpeed, out missileFlightMs);
             bool aligned = core.StepToward(at, dtMs);
-            if (aim.LimitHit || aligned && core.Blocked) return null;   // out of its arc or behind its own hull: the ship target
+            if (aim.LimitHit || aligned && core.Blocked) return missileOnlyDefense ? false : (bool?)null;
             defending = true;
             return aligned;
         }
@@ -546,7 +567,7 @@ namespace GoF2Remake.Flight
         {
             var t = picking.Update(dtMs, Target.All, transform.position);
             if (t == null) return false;
-            bool aligned = core.StepToward(TurretTargeting.LeadPoint(t), dtMs);
+            bool aligned = core.StepToward(picking.LeadPoint(t, GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs), dtMs);
             if (aim.LimitHit || aligned && core.Blocked) { picking.LimitHit(dtMs); return false; }   // (its own hull in the way: another target)
             return aligned;
         }

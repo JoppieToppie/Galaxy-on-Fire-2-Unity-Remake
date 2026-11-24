@@ -1,10 +1,15 @@
 // ModFlight.cs
+// (2026-11-11: a third style, "chorus", Chorus's flight, FlightModel.StepChorus: a free-flight style, so free flight's
+// bonuses and flightScope 2 apply to it too.)
 // Remake mods and the two flight styles (Settings.FlightStyle: the original, or free flight after EVERSPACE 2;
 // FlightModel.Step / StepFree). A mod decides for itself whether its content touches one style, the other or both:
 //   items.json "stats":  flightScope 0 both (default) | 1 the original only | 2 free flight only: the item's booster /
 //                        Steering Nozzle attributes (boostSpeed, boostRechargeMs, boostDurationMs, agility) count only in
 //                        that style;
 //                        topSpeed / turnRate / strafeSpeed: percentages for both styles (20 = +20 %, -10 = 10 % less);
+//                        pitchTurnRate / yawTurnRate / rollTurnRate and pitchTurnAcceleration / yawTurnAcceleration /
+//                        rollTurnAcceleration: independent turn-axis rate and response; strafeAcceleration, hoverSpeed /
+//                        hoverAcceleration, reverseSpeed / reverseAcceleration, forwardAcceleration: movement axes;
 //                        originalTopSpeed / originalTurnRate / originalStrafeSpeed: the original only;
 //                        freeTopSpeed / freeTurnRate / freeStrafeSpeed / freeAcceleration: free flight only;
 //                        freeBoostFactor: free flight's boost top speed in hundredths of the top speed (350 = x3.5)
@@ -13,18 +18,20 @@
 //                        primary guns' damage in % more while the ship stands still, and damage taken in % less once it
 //                        has flown slower than 30 m/s for a second (FlightBonus, FlightModel.WeaponDamageFactor /
 //                        DamageTakenFactor).
-//   ships.json:          "flightStyle": "free" | "original" (this ship always flies so; default the player's), and
+//   ships.json:          "flightStyle": "free" | "chorus" | "original" (this ship always flies so; default the player's), and
 //                        "flight": { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage",
 //                                    "lowSpeedResistance" (both styles), "original": { ... }, "free": { ... } } with the same
 //                                    meanings (new ships and overrides).
 //                        "rules": { "turnRampBase": 2.5, ... } (any FlightRules field by name: this ship's numbers, over
 //                        the mods' flight.json).
 //   flight.json:         { "baseSpeed": 3, "freeTurnRateDeg": 160, ... }: any FlightRules field by name, for every ship the
-//                        player flies (later mods win per field; a ship's "rules" win over them). Unknown names warn, a
+//                        player flies (later mods win per field; a ship's "rules" win over them). Free flight has independent
+//                        pitch / yaw / roll rates and ramp times, plus forward / reverse / strafe / hover acceleration.
+//                        Zero per-axis values fall back to the shared legacy rules. Unknown names warn, a
 //                        value outside the field's range is clamped with a warning.
 //   campaign.json:       "flightStyle": the mod campaign's games fly so.
 //   gameoptions.json:    "flightStyle": a new-game option that, while on, sets the style.
-//   event graphs:        /flightstyle [players] <free | original | player> (the Set Flight Model node; undone when the event
+//   event graphs:        /flightstyle [players] <free | chorus | original | player> (the Set Flight Model node; undone when the event
 //                        ends), and the expression "freeflight" (1 in free flight).
 // Who decides, first match: an event, the ship flown, the mod campaign, a new-game option, then the player's option.
 // The bonuses add up (the ship's, then every mounted item's; a total never below -90 %); an item's freeBoostFactor wins over
@@ -45,13 +52,20 @@ namespace GoF2Remake.Modding
     public static class ModFlight
     {
         public const int ScopeAttr = 110, ScopeBoth = 0, ScopeOriginal = 1, ScopeFree = 2;
+        // (2026-11-19: the per-axis ones were 170-181, which the Chorus stack's weapon and device stats already had; 191-202)
         const int TopSpeed = 111, TurnRate = 112, StrafeSpeed = 113, OrigTopSpeed = 114, OrigTurnRate = 115, OrigStrafeSpeed = 116,
                   FreeTopSpeed = 117, FreeTurnRate = 118, FreeStrafeSpeed = 119, FreeAcceleration = 120, FreeBoostFactor = 121,
                   FullStopDamage = 138, LowSpeedResistance = 139;
+        public const int PitchTurnRate = 191, YawTurnRate = 192, RollTurnRate = 193,
+                  PitchTurnAcceleration = 194, YawTurnAcceleration = 195, RollTurnAcceleration = 196,
+                  StrafeAcceleration = 197, HoverSpeed = 198, HoverAcceleration = 199,
+                  ReverseSpeed = 200, ReverseAcceleration = 201, ForwardAcceleration = 202;
 
         /// <summary>ships.json's "flight" fields (also inside its "original" / "free" objects).</summary>
         static readonly HashSet<string> BonusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage", "lowSpeedResistance" };
+            { "topSpeed", "turnRate", "strafeSpeed", "acceleration", "boostFactor", "fullStopDamage", "lowSpeedResistance",
+              "pitchTurnRate", "yawTurnRate", "rollTurnRate", "pitchTurnAcceleration", "yawTurnAcceleration", "rollTurnAcceleration",
+              "strafeAcceleration", "hoverSpeed", "hoverAcceleration", "reverseSpeed", "reverseAcceleration", "forwardAcceleration" };
 
         public const string File = "flight.json";
 
@@ -98,7 +112,7 @@ namespace GoF2Remake.Modding
             return -1;
         }
 
-        /// <summary>"free" / "original" / "player" (also "" and "any": the player's) -> FlightStyles, -1; false = unknown.</summary>
+        /// <summary>"free" / "chorus" / "original" / "player" (also "" and "any": the player's) -> FlightStyles, -1; false = unknown.</summary>
         public static bool TryParseStyle(string text, out int style)
         {
             style = -1;
@@ -107,6 +121,7 @@ namespace GoF2Remake.Modding
                 case "": case "player": case "any": case "default": return true;
                 case "free": case "freeflight": case "free flight": case "everspace": case "es2": style = FlightStyles.Free; return true;
                 case "original": case "classic": case "gof2": style = FlightStyles.Original; return true;
+                case "chorus": style = FlightStyles.Chorus; return true;   // remake, 2026-11-11 (FlightModel.StepChorus)
             }
             return false;
         }
@@ -117,7 +132,7 @@ namespace GoF2Remake.Modding
             if (!ModJson.Has(o, "flightStyle")) return -1;
             string text = ModJson.Str(o, "flightStyle");
             if (!TryParseStyle(text, out int style))
-                throw new ModJsonException($"{where}: \"flightStyle\": \"{text}\" is no flight style (\"free\", \"original\" or \"player\")");
+                throw new ModJsonException($"{where}: \"flightStyle\": \"{text}\" is no flight style (\"free\", \"chorus\", \"original\" or \"player\")");
             return style;
         }
 
@@ -128,12 +143,24 @@ namespace GoF2Remake.Modding
         {
             if (item?.attrKeys == null || item.attrKeys.Length == 0) return;
             float both = item.Attr(TopSpeed), turn = item.Attr(TurnRate), strafe = item.Attr(StrafeSpeed);
+            float pitch = item.Attr(PitchTurnRate), yaw = item.Attr(YawTurnRate), roll = item.Attr(RollTurnRate);
+            float pitchAccel = item.Attr(PitchTurnAcceleration), yawAccel = item.Attr(YawTurnAcceleration), rollAccel = item.Attr(RollTurnAcceleration);
+            float strafeAccel = item.Attr(StrafeAcceleration), hover = item.Attr(HoverSpeed), hoverAccel = item.Attr(HoverAcceleration);
+            float reverse = item.Attr(ReverseSpeed), reverseAccel = item.Attr(ReverseAcceleration), forwardAccel = item.Attr(ForwardAcceleration);
             original.topSpeed += both + item.Attr(OrigTopSpeed);
             original.turnRate += turn + item.Attr(OrigTurnRate);
             original.strafeSpeed += strafe + item.Attr(OrigStrafeSpeed);
             free.topSpeed += both + item.Attr(FreeTopSpeed);
             free.turnRate += turn + item.Attr(FreeTurnRate);
             free.strafeSpeed += strafe + item.Attr(FreeStrafeSpeed);
+            original.pitchTurnRate += pitch; original.yawTurnRate += yaw; original.rollTurnRate += roll;
+            free.pitchTurnRate += pitch; free.yawTurnRate += yaw; free.rollTurnRate += roll;
+            original.pitchTurnAcceleration += pitchAccel; original.yawTurnAcceleration += yawAccel; original.rollTurnAcceleration += rollAccel;
+            free.pitchTurnAcceleration += pitchAccel; free.yawTurnAcceleration += yawAccel; free.rollTurnAcceleration += rollAccel;
+            original.strafeAcceleration += strafeAccel; free.strafeAcceleration += strafeAccel;
+            original.hoverSpeed += hover; free.hoverSpeed += hover; original.hoverAcceleration += hoverAccel; free.hoverAcceleration += hoverAccel;
+            original.reverseSpeed += reverse; free.reverseSpeed += reverse; original.reverseAcceleration += reverseAccel; free.reverseAcceleration += reverseAccel;
+            original.forwardAcceleration += forwardAccel; free.forwardAcceleration += forwardAccel;
             free.acceleration += item.Attr(FreeAcceleration);
             int boost = item.Attr(FreeBoostFactor);
             if (boost > 0) free.boostFactor = boost;
@@ -249,6 +276,10 @@ namespace GoF2Remake.Modding
             topSpeed = Num(f, "topSpeed"), turnRate = Num(f, "turnRate"), strafeSpeed = Num(f, "strafeSpeed"),
             acceleration = Num(f, "acceleration"), boostFactor = Mathf.Max(0, Mathf.RoundToInt(Num(f, "boostFactor"))),
             fullStopDamage = Num(f, "fullStopDamage"), lowSpeedResistance = Num(f, "lowSpeedResistance"),
+            pitchTurnRate = Num(f, "pitchTurnRate"), yawTurnRate = Num(f, "yawTurnRate"), rollTurnRate = Num(f, "rollTurnRate"),
+            pitchTurnAcceleration = Num(f, "pitchTurnAcceleration"), yawTurnAcceleration = Num(f, "yawTurnAcceleration"), rollTurnAcceleration = Num(f, "rollTurnAcceleration"),
+            strafeAcceleration = Num(f, "strafeAcceleration"), hoverSpeed = Num(f, "hoverSpeed"), hoverAcceleration = Num(f, "hoverAcceleration"),
+            reverseSpeed = Num(f, "reverseSpeed"), reverseAcceleration = Num(f, "reverseAcceleration"), forwardAcceleration = Num(f, "forwardAcceleration"),
         };
 
         static float Num(JObject f, string key) => ModJson.Get(f, key) is JToken v && (v.Type == JTokenType.Integer || v.Type == JTokenType.Float) ? (float)v : 0f;

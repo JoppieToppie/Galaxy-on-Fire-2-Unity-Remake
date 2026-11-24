@@ -295,6 +295,9 @@ namespace GoF2Remake.Flight
         public static float CruiseFactor { get; private set; } = 1f;
         /// <summary>The cruise is held and allowed now, or the cruise drive runs (its boost look, FlightModel.CruiseVisual, follows this).</summary>
         public static bool Cruising { get; private set; }
+        /// <summary>Remake (2026-11-11): Chorus flight's travel boost may run (FlightModel.TravelBoostAllowed): no hostiles, not
+        /// jumping, not in interstellar space, no time extender: where the fast-forward's own rules don't forbid it.</summary>
+        public static bool TravelBoostAllowed { get; private set; }
         const float CruiseRampUpMs = 3000f, CruiseRampDownMs = 1200f;
         float cruiseLevel;
         /// <summary>Lock ring frame 0..23 (no 500 ms delay for landmarks and planets), -1 = none.</summary>
@@ -317,6 +320,8 @@ namespace GoF2Remake.Flight
         [NonSerialized] public Transform ShipLocked;
         /// <summary>Radar+0x54: hostile ships around (Traffic): no fast-forward.</summary>
         [NonSerialized] public bool HostilesPresent;
+        /// <summary>Radio/chatter is also part of the legacy HostilesPresent gate; the hostile-contact option never waives it.</summary>
+        [NonSerialized] public bool FastForwardRadioBlocked;
         public bool AboutToReach { get; private set; }
         public event Action<string, HudMessageKind> Message;
 
@@ -393,7 +398,7 @@ namespace GoF2Remake.Flight
             MenuOpen = false;
             paused = false;
             SetFastForward(false);
-            cruiseLevel = 0f; CruiseFactor = 1f; Cruising = false;
+            cruiseLevel = 0f; CruiseFactor = 1f; Cruising = false; TravelBoostAllowed = false;
             ApplyTimeScale();
         }
 
@@ -454,7 +459,7 @@ namespace GoF2Remake.Flight
                 for (int i = 0; i < Devices.Devices.Count; i++)
                 {
                     var d = Devices.Devices[i];
-                    list.Add(new Target { kind = Kind.Device, device = i, name = d.name, disabled = !d.rules.Available });
+                    list.Add(new Target { kind = Kind.Device, device = i, name = d.name, disabled = !Devices.Ready(d) });
                 }
             // Multiplayer (remake): Help for every squadmate calling for help (NetDistress). The pilot's own call isn't here
             // (a menu key picked it by accident): the flight HUD's Distress call button or its own binding.
@@ -572,7 +577,11 @@ namespace GoF2Remake.Flight
         {
             get
             {
-                if (Interstellar || Jumping || HostilesPresent || TimeExtender.Active) return false;   // (the drive has the button there)
+                if (Interstellar || Jumping || TimeExtender.Active) return false;   // (the drive has the button there)
+                // Only waive the radar-contact restriction, not arrival/jump/device restrictions or session authority.
+                if (FastForwardRadioBlocked) return false;
+                if (HostilesPresent && !(Autopilot && !NetSession.Active && !Settings.FastForwardCruise
+                    && Settings.HostileAutopilotFastForward)) return false;
                 if (Autopilot) return !AboutToReach;
                 if (mining != null && mining.Target != null && mining.State == Mining.Phase.Approaching)
                     return (mining.Target.transform.position - ship.transform.position).magnitude / M >= AboutToReachUnits;
@@ -638,6 +647,7 @@ namespace GoF2Remake.Flight
                 playerRoute?.Update(at);
                 eventRoute?.Update(at);
             }
+            TravelBoostAllowed = false;   // set again at the end, when nothing below returned early
             if (Jumping) { UpdateJump(dtMs); return; }
             if (paused || pauseMenuOpen) return;
             if (Autopilot) AboutToReach = RunPlanet == null && ReachUnits(AutopilotTarget, (AutopilotTarget.Position - ship.transform.position).magnitude / M) < AboutToReachUnits;
@@ -647,6 +657,7 @@ namespace GoF2Remake.Flight
             UpdateInterstellar();
             UpdatePlanetRun();
             SetFastForward(fastForwardHeld && CanFastForward);
+            TravelBoostAllowed = !Interstellar && !Jumping && !HostilesPresent && !TimeExtender.Active && !Autopilot;
         }
 
         void LateUpdate()
@@ -896,7 +907,8 @@ namespace GoF2Remake.Flight
         /// a menu, conversation or map is open (the world goes on there).</summary>
         public static bool InputHalted => Time.timeScale <= 0f || ConversationRuns || (GoF2Remake.Data.NetSession.Active && (halted || GoF2Remake.World.SpaceHooks.MultiplayerWindowIsOpen))
                                           || GoF2Remake.World.SpaceHooks.QuestionOpen   // an event's question (multiplayer)
-                                          || GoF2Remake.World.SpaceHooks.DockedInOrbit;  // remake mods: docked inside the orbit
+                                          || GoF2Remake.World.SpaceHooks.DockedInOrbit   // remake mods: docked inside the orbit
+                                          || GoF2Remake.Data.Benchmark.Active;           // a benchmark run flies itself (UI.BenchmarkRunner)
 
         /// <summary>Remake (#85): the flight controls' presses wait while a menu, conversation or map halts them and for the frame
         /// after it closes: the press that closed it (A on Resume, a menu entry) went on to boost, as the ship's controls run
@@ -904,7 +916,7 @@ namespace GoF2Remake.Flight
         public static bool PressesBlocked => InputHalted || Time.frameCount - lastHaltedFrame <= 1;
         static int lastHaltedFrame = -10;
 
-        void OnDestroy() { halted = ConversationRuns = false; CruiseFactor = 1f; Cruising = false; MusicPaused = false; if (!GoF2Remake.Data.NetSession.Active) AudioListener.pause = false; }
+        void OnDestroy() { halted = ConversationRuns = false; CruiseFactor = 1f; Cruising = false; TravelBoostAllowed = false; MusicPaused = false; if (!GoF2Remake.Data.NetSession.Active) AudioListener.pause = false; }
 
         /// <summary>MGame::pauseSounds 0x1a8304: a conversation, hint or map pauses only the sound effects and the engines
         /// (FModSound::pauseAllPlayingSoundFXEvents: the events of the effects category); only the pause menu stops

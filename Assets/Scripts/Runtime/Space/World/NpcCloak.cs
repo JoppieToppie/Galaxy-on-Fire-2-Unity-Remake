@@ -58,6 +58,17 @@ namespace GoF2Remake.World
         }
         bool swapped;
 
+        /// <summary>Modified: under an engine transform (`*_engine*`), as CloakGlow tells the engine glow.</summary>
+        static bool UnderEngine(Transform t, Transform root)
+        {
+            for (; t != null; t = t.parent)
+            {
+                if (t.name.Contains("_engine")) return true;
+                if (t == root) break;
+            }
+            return false;
+        }
+
         /// <param name="keepEngine">another player's ship: its engine glow stays on like the local player's (#85)</param>
         /// <summary>'anySurface' (remake: a cloaked container, World.LootContainer): every renderer but particles takes the cloak,
         /// whatever its shader, its texture from _BaseMap or _MainTex.</summary>
@@ -72,6 +83,10 @@ namespace GoF2Remake.World
                 if (r is ParticleSystemRenderer) continue;
                 var mats = r.sharedMaterials;
                 bool lit = anySurface || mats.Length > 0 && mats[0] != null && mats[0].shader != null && (mats[0].shader.name.Contains("Lit") || mats[0].shader.name == "GoF2/Hull");   // the hull (GoF2/Hull: URP Lit + the original's reflection)
+                // Modified: the hull's opaque unlit / alpha-tested parts cloak too (PlayerCloak, the user's report, 2026-11-17).
+                if (!lit && mats.Length > 0 && mats[0] != null && mats[0].shader != null
+                    && (mats[0].shader.name == "GoF2/Unlit" || mats[0].shader.name == "GoF2/AlphaTest") && !UnderEngine(r.transform, model))
+                    lit = true;
                 if (!lit) { glow.Add(r, model); continue; }
                 if (shader == null) continue;
                 var cloak = new Material[mats.Length];
@@ -81,8 +96,15 @@ namespace GoF2Remake.World
                     if (mats[i] != null)
                     {
                         if (mats[i].HasProperty("_BaseMap")) m.SetTexture("_BaseMap", mats[i].GetTexture("_BaseMap"));
-                        else if (anySurface && mats[i].HasProperty("_MainTex")) m.SetTexture("_BaseMap", mats[i].GetTexture("_MainTex"));
+                        else if (mats[i].HasProperty("_MainTex")) m.SetTexture("_BaseMap", mats[i].GetTexture("_MainTex"));   // Modified: also the unlit hull parts'
                         if (mats[i].HasProperty("_BumpMap")) m.SetTexture("_BumpMap", mats[i].GetTexture("_BumpMap"));
+                        // Modified: the hull's specular map and glowing panels, for its look while still there (GoF2/Cloak)
+                        if (mats[i].HasProperty("_MetallicGlossMap")) m.SetTexture("_MetallicGlossMap", mats[i].GetTexture("_MetallicGlossMap"));
+                        if (mats[i].IsKeywordEnabled("_EMISSION") && mats[i].HasProperty("_EmissionMap"))
+                        {
+                            m.SetTexture("_EmissionMap", mats[i].GetTexture("_EmissionMap"));
+                            m.SetColor("_EmissionColor", mats[i].GetColor("_EmissionColor"));
+                        }
                     }
                     if (assets.cloakMap != null) m.SetTexture("_CloakMap", assets.cloakMap);
                     cloak[i] = m;
@@ -150,6 +172,7 @@ namespace GoF2Remake.World
             swapped = on;
             foreach (var h in hull) if (h.r != null) h.r.sharedMaterials = on ? h.cloak : h.original;
             if (!on) glow.Restore();
+            glow.Defer(owner, on);   // Modified: its lights drawn after the hull, so its depth hides those behind it
             GoF2Remake.Visuals.CloakPass.Request(owner, on);
         }
 

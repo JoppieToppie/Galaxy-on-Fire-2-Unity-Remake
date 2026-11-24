@@ -742,6 +742,7 @@
 /* Remake (a player's feedback 2026-11-03, the original's "Actions" rows): the selected row's Mount / Demount / Move (or
    Edit...) right under it in the list (HangarWindow.PlaceRowActions), side by side, as wide as the row. */
 .row-actions {
+    --row-action-width: 12.5%; /* One eighth of the row; the two-column reorder area uses one quarter. */
     flex-direction: row;
     margin: 0 8px 6px 8px;
     padding: 4px 0 0 0;
@@ -762,13 +763,12 @@
     -unity-text-align: middle-center;
 }
 
-/* Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows (up / down), or a hold item's
-   amount over MOUNT, inside the selected row at its right end (HangarWindow.PlaceRowActions); the row's own amount hides. */
+/* Selected equipment actions reserve the row's right-hand area (CLAUDE.md "Row actions"). */
 .row-actions--inline {
     flex-direction: column;
     flex-shrink: 0;
     justify-content: center;
-    width: 280px;
+    width: var(--row-action-width);
     margin: 0 0 0 var(--space-m);
     padding: 0;
     border-left-width: 0;
@@ -782,33 +782,63 @@
     padding: 0 var(--space-m);
 }
 
-.row-actions--sub {
-    /* out of the flow, at the row's right end level with the sub-line: the name and the bar stay where they are */
-    position: absolute;
-    right: 16px;
-    bottom: 10px;
-    margin: 0;
+/* Blueprint actions reserve their width instead of overlaying the lower text line. */
+.row-actions--blueprint {
+    flex-shrink: 0;
+    align-self: stretch;
+    width: var(--row-action-width);
+    margin: 8px 0 8px var(--space-m);
     padding: 0;
     border-left-width: 0;
 }
-
-.row-actions--sub .detail-action--row {
-    flex-grow: 0;
-    flex-basis: auto;
-    width: 280px;
-    height: 34px;
+.row-actions--blueprint .detail-action--row {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: auto;
     margin: 0;
-    padding: 0 var(--space-m);
+    padding: 0;
 }
-
+.row-actions--equipment {
+    flex-direction: row;
+    align-self: stretch;
+    align-items: stretch;
+    justify-content: flex-end;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+.row-actions--equipment .detail-action--row {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: auto;
+    padding: 0;
+}
+.row-actions--reorder { width: 25%; }
+.row-actions--equipment .row-move {
+    flex-direction: column;
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-shrink: 0;
+    width: 0;
+    margin: 0 6px 0 0;
+}
+.row-actions--equipment .row-move-button { height: auto; min-height: 0; }
+.row-actions--reorder > .detail-action--row,
+.row-actions--reorder > .row-move {
+    width: 50%;
+    flex-basis: auto;
+    flex-grow: 0;
+    flex-shrink: 1;
+}
+.row-actions--equipment .row-move-button--down { margin-left: 0; margin-top: 6px; }
 .list-row--actions .row-qty--ship {
     display: none;
 }
 
 .row-actions-qty {
-    width: auto;
-    align-self: flex-end;
-    margin: 0 0 4px 0;
+    min-width: 40px;
+    flex-shrink: 0;
+    align-self: center;
+    margin: 0 0 0 12px;
     -unity-text-align: middle-right;
 }
 
@@ -844,11 +874,11 @@
 }
 
 .row-move-arrow {
-    font-size: var(--text-heading);
-    color: #FFFFFF;
+    width: var(--text-caption);
+    height: var(--text-caption);
+    flex-shrink: 0;
     margin: 0;
     padding: 0;
-    -unity-text-align: middle-center;
 }
 
 .detail-scroll {

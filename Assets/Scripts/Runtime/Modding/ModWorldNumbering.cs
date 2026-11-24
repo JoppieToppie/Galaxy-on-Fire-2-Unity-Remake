@@ -115,7 +115,7 @@ namespace GoF2Remake.Modding
         public static OrbitSpec OrbitOf(int station) => orbits.TryGetValue(station, out var o) ? o : null;
         /// <summary>A station's docking pads outside (stations.json "orbit.pads"), empty = none.</summary>
         public static List<SpacePoints.Point> StationPads(int station) => OrbitOf(station)?.pads ?? new List<SpacePoints.Point>();
-        /// <summary>A station's manually placed large-ship external docking points; never inferred from NPC pads.</summary>
+        /// <summary>A station's manually placed large-ship external docking points from stations.json orbit.externalDocks.</summary>
         public static List<ExternalDockPointSpec> ExternalDockPoints(int station) => OrbitOf(station)?.externalDocks ?? new List<ExternalDockPointSpec>();
         /// <summary>Pirates hold 'station' of 'system' (stations.json "orbit.pirateHeld", else systems.json "pirateHeld").</summary>
         public static bool PirateHeld(int station, int system) => OrbitOf(station)?.pirateHeld ?? systemPirateHeld.Contains(system);
@@ -632,12 +632,16 @@ namespace GoF2Remake.Modding
         {
             Database.Load();
             var sky = skyboxes.Values.Concat(orbits.Values.Select(o => o.skybox).Where(b => b != null))
-                .SelectMany(s => new[] { s.nebula, s.stars }).Where(n => n != null);
+                .SelectMany(s => new[] { s.nebula, s.stars, s.chorus?.stars }.Concat(s.chorus?.layers.Select(l => l.image) ?? Enumerable.Empty<string>()))
+                .Where(n => n != null && !n.StartsWith("gof2:", StringComparison.OrdinalIgnoreCase));   // (the game's own: Resources)
             return planetTextures.Values.Concat(sunTextures.Values).Concat(mapTextures.Values).Concat(sky).Distinct().ToList();
         }
         public static Skybox SkyOf(int system) => skyboxes.TryGetValue(system, out var s) ? s : null;
         /// <summary>"skybox": { "nebula": "sky/x.png", "stars": "sky/s.png" | 0-2 | "none", "nebulaBrightness", "starsBrightness",
         /// "rotation": [x, y, z], "sunAligned": true }.</summary>
+        /// <summary>A "skybox" block outside systems.json (a rift look's, ModEncounters): the same fields, its images in 'mod'.</summary>
+        public static Skybox ParseSkyboxOf(ModInfo mod, JToken t, string where) => ParseSkybox(mod, t, where);
+
         static Skybox ParseSkybox(ModInfo mod, JToken t, string where)
         {
             if (!(t is JObject o)) throw new ModJsonException($"{where}: \"skybox\" must be an object {{ \"nebula\": \"sky/....png\", ... }}");
@@ -672,7 +676,162 @@ namespace GoF2Remake.Modding
                 if (!(r is JArray a) || a.Count != 3) throw new ModJsonException($"{where}: skybox \"rotation\" must be [x, y, z] degrees");
                 s.rotation = new Vector3((float)a[0], (float)a[1], (float)a[2]);
             }
+            if (ModJson.Get(o, "chorus") is JToken c) s.chorus = ParseChorusSky(mod, c, where + " skybox chorus");
             return s;
+        }
+
+        static readonly HashSet<string> ChorusSkyFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "gradient", "stars", "layers", "emissive", "base" };
+        static readonly HashSet<string> ChorusGradientFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "up", "bias", "gamma", "colorA", "colorB", "opacity" };
+        static readonly HashSet<string> ChorusStarsFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "image", "tiling", "offset", "brightness", "exponent", "curve", "channels", "noise" };
+        static readonly HashSet<string> ChorusLayerFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "type", "image", "heading", "elevation", "scale", "rotation", "emissive", "exponent", "opacity",
+              "color", "intensity", "channel", "tiling", "offset", "falloff", "sunScatter",
+              "up", "min", "max", "bias", "power", "absolute", "invert", "additive" };
+
+        /// <summary>skybox "chorus", the layered sky: { "gradient": { "up", "bias", "gamma", "colorA", "colorB", "opacity" }, "stars": {
+        /// "image", "tiling": t | [u, v], "offset": [u, v], "brightness", "exponent", "curve": [[time, r, g, b], [time, r, g, b]],
+        /// "channels": [r, g, b], "noise": { "scale", "exponent" } }, "layers": [ ... ] (up to 6), "emissive", "base": true }. A
+        /// layer: "type": "image" (Chorus's patch: "image", "heading", "elevation", "scale", "rotation", "emissive", "exponent",
+        /// "opacity"), "mask" (ES2's tinted mask, placed as a patch: "image" (none: a glow), "channel" 0-3, "color", "intensity",
+        /// "exponent", "tiling", "offset", "falloff" (degrees), "sunScatter") or "gradient" (ES2's: "up", "offset", "absolute",
+        /// "invert", "min", "max", "bias", "power", "color", "opacity").</summary>
+        static ModWorld.ChorusSky ParseChorusSky(ModInfo mod, JToken t, string where)
+        {
+            if (!(t is JObject o)) throw new ModJsonException($"{where} must be an object");
+            Unknown(mod, o, ChorusSkyFields, where);
+            var c = new ModWorld.ChorusSky
+            {
+                emissive = Mathf.Max(0f, ModJson.Float(o, "emissive", 1f, SystemsFile)),
+                keepBase = ModJson.Bool(o, "base", false, SystemsFile),
+            };
+            if (ModJson.Get(o, "gradient") is JObject g)
+            {
+                Unknown(mod, g, ChorusGradientFields, where + " gradient");
+                var up = Floats(ModJson.Get(g, "up"), 3, where + " gradient \"up\"") ?? new[] { 0f, 0f, 1f };
+                var v = new Vector3(up[0], up[1], up[2]);
+                c.gradientUp = v.sqrMagnitude > 1e-12f ? v.normalized : Vector3.forward;
+                c.gradientBias = ModJson.Float(g, "bias", 0f, SystemsFile);
+                c.gradientGamma = ModJson.Float(g, "gamma", 1f, SystemsFile);
+                c.gradientOpacity = Mathf.Max(0f, ModJson.Float(g, "opacity", 1f, SystemsFile));
+                c.gradientA = Rgb(Floats(ModJson.Get(g, "colorA"), 3, where + " gradient \"colorA\""));
+                c.gradientB = Rgb(Floats(ModJson.Get(g, "colorB"), 3, where + " gradient \"colorB\""));
+            }
+            if (ModJson.Get(o, "stars") is JObject st)
+            {
+                Unknown(mod, st, ChorusStarsFields, where + " stars");
+                c.stars = Image(mod, ModJson.Str(st, "image"), where + " stars");
+                if (ModJson.Get(st, "tiling") is JArray ta)
+                {
+                    var tv = Floats(ta, 2, where + " stars \"tiling\"");
+                    c.starsTiling = tv[0]; c.starsTilingV = tv[1];
+                }
+                else c.starsTiling = ModJson.Float(st, "tiling", 1f, SystemsFile);
+                c.starsBrightness = Mathf.Max(0f, ModJson.Float(st, "brightness", 1f, SystemsFile));
+                c.starsExponent = Mathf.Max(0f, ModJson.Float(st, "exponent", 1f, SystemsFile));
+                var off = Floats(ModJson.Get(st, "offset"), 2, where + " stars \"offset\"");
+                if (off != null) c.starsOffset = new Vector2(off[0], off[1]);
+                var ch = Floats(ModJson.Get(st, "channels"), 3, where + " stars \"channels\"");
+                if (ch != null) c.starsChannels = new Vector3(ch[0], ch[1], ch[2]);
+                if (ModJson.Get(st, "noise") is JObject nz)
+                {
+                    c.starsNoiseScale = Mathf.Max(0f, ModJson.Float(nz, "scale", 2f, SystemsFile));
+                    c.starsNoiseExponent = Mathf.Max(0f, ModJson.Float(nz, "exponent", 2.5f, SystemsFile));
+                }
+                if (ModJson.Get(st, "curve") is JToken k)
+                {
+                    if (!(k is JArray keys) || keys.Count != 2) throw new ModJsonException($"{where} stars \"curve\" is two keys [[time, r, g, b], [time, r, g, b]]");
+                    var a = Floats(keys[0], 4, where + " stars \"curve\""); var b = Floats(keys[1], 4, where + " stars \"curve\"");
+                    c.curve0 = new Vector4(a[1], a[2], a[3], a[0]);
+                    c.curve1 = new Vector4(b[1], b[2], b[3], b[0]);
+                }
+            }
+            if (ModJson.Get(o, "layers") is JToken ls)
+            {
+                if (!(ls is JArray arr)) throw new ModJsonException($"{where} \"layers\" must be a list");
+                int max = ModWorld.ChorusSky.MaxLayers;
+                if (arr.Count > max) Report(mod, $"{where}: {arr.Count} layers, the first {max} are drawn");
+                foreach (var l in arr.Take(max))
+                {
+                    if (!(l is JObject lo)) throw new ModJsonException($"{where}: a layer must be an object");
+                    Unknown(mod, lo, ChorusLayerFields, where + " layer");
+                    string type = ModJson.Str(lo, "type") ?? "image";
+                    int kind = type.Equals("image", StringComparison.OrdinalIgnoreCase) ? ModWorld.ChorusLayer.Image
+                             : type.Equals("mask", StringComparison.OrdinalIgnoreCase) ? ModWorld.ChorusLayer.Mask
+                             : type.Equals("gradient", StringComparison.OrdinalIgnoreCase) ? ModWorld.ChorusLayer.Gradient
+                             : throw new ModJsonException($"{where}: a layer's \"type\" is \"image\", \"mask\" or \"gradient\", not \"{type}\"");
+                    var layer = new ModWorld.ChorusLayer
+                    {
+                        kind = kind,
+                        heading = ModJson.Float(lo, "heading", 0f, SystemsFile),
+                        elevation = ModJson.Float(lo, "elevation", 0f, SystemsFile),
+                        scale = ModJson.Float(lo, "scale", kind == ModWorld.ChorusLayer.Mask ? 2f : 1f, SystemsFile),
+                        rotation = ModJson.Float(lo, "rotation", 0f, SystemsFile),
+                        emissive = ModJson.Float(lo, "emissive", 1f, SystemsFile),
+                        exponent = ModJson.Float(lo, "exponent", kind == ModWorld.ChorusLayer.Mask ? 1f : 2f, SystemsFile),
+                        opacity = ModJson.Float(lo, "opacity", 1f, SystemsFile),
+                        intensity = Mathf.Max(0f, ModJson.Float(lo, "intensity", 1f, SystemsFile)),
+                        channel = Mathf.Clamp((int)ModJson.Float(lo, "channel", 0f, SystemsFile), 0, 3),
+                        falloff = Mathf.Max(0f, ModJson.Float(lo, "falloff", 0f, SystemsFile)),
+                        sunScatter = Mathf.Max(0f, ModJson.Float(lo, "sunScatter", 0f, SystemsFile)),
+                        gradientOffset = kind == ModWorld.ChorusLayer.Gradient ? ModJson.Float(lo, "offset", 0f, SystemsFile) : 0f,   // (a mask's: [u, v])
+                        min = ModJson.Float(lo, "min", 0f, SystemsFile),
+                        max = ModJson.Float(lo, "max", 1f, SystemsFile),
+                        bias = Mathf.Clamp(ModJson.Float(lo, "bias", 0.5f, SystemsFile), 1e-4f, 1f),
+                        power = Mathf.Max(0f, ModJson.Float(lo, "power", 1f, SystemsFile)),
+                        absolute = ModJson.Bool(lo, "absolute", false, SystemsFile),
+                        invert = ModJson.Bool(lo, "invert", false, SystemsFile),
+                        additive = ModJson.Bool(lo, "additive", false, SystemsFile),
+                    };
+                    if (kind != ModWorld.ChorusLayer.Gradient)
+                    {
+                        string image = ModJson.Str(lo, "image");
+                        if (image != null || kind == ModWorld.ChorusLayer.Image) layer.image = Image(mod, image, where + " layer");
+                        var tl = Floats(ModJson.Get(lo, "tiling"), 2, where + " layer \"tiling\"");
+                        if (tl != null) layer.tiling = new Vector2(tl[0], tl[1]);
+                        if (kind == ModWorld.ChorusLayer.Mask)
+                        {
+                            var of = Floats(ModJson.Get(lo, "offset"), 2, where + " layer \"offset\"");
+                            if (of != null) layer.offset = new Vector2(of[0], of[1]);
+                        }
+                    }
+                    else
+                    {
+                        var up = Floats(ModJson.Get(lo, "up"), 3, where + " layer \"up\"");
+                        if (up != null && new Vector3(up[0], up[1], up[2]).sqrMagnitude > 1e-12f) layer.up = new Vector3(up[0], up[1], up[2]).normalized;
+                    }
+                    var col = Floats(ModJson.Get(lo, "color"), 3, where + " layer \"color\"");
+                    if (col != null) layer.color = new Color(col[0], col[1], col[2], 1f);
+                    c.layers.Add(layer);
+                }
+            }
+            return c;
+
+            static Color Rgb(float[] v) => v == null ? Color.black : new Color(v[0], v[1], v[2], 1f);
+        }
+
+        static void Unknown(ModInfo mod, JObject o, HashSet<string> known, string where)
+        {
+            foreach (var p in o.Properties())
+                if (!known.Contains(p.Name)) Report(mod, $"{where}: unknown field \"{p.Name}\" (ignored)");
+        }
+
+        /// <summary>A Backdrop "mod:" name of an image in the mod (null: none given).</summary>
+        static string Image(ModInfo mod, string path, string where)
+        {
+            if (path == null) return null;
+            if (path.StartsWith("gof2:", StringComparison.OrdinalIgnoreCase)) return path;   // the game's own (Resources/GoF2SkyLayers)
+            if (!mod.Source.Exists(path)) throw new ModJsonException($"{where}: the image {path} isn't in the mod");
+            return BackdropName(mod, path);
+        }
+
+        /// <summary>A list of n numbers (null: none given).</summary>
+        static float[] Floats(JToken t, int n, string where)
+        {
+            if (t == null) return null;
+            if (!(t is JArray a) || a.Count != n || a.Any(x => x.Type != JTokenType.Float && x.Type != JTokenType.Integer))
+                throw new ModJsonException($"{where} must be {n} numbers");
+            return a.Select(x => (float)x).ToArray();
         }
         static int InteriorOf(JObject o) => RaceToken(ModJson.Get(o, "interior"));
         /// <summary>A system's "race": 0-3, or a mod race ("mod_id:id", the mod's own id) by its race number.</summary>
@@ -780,7 +939,8 @@ namespace GoF2Remake.Modding
         {
             if (!(t is JObject o)) throw new ModJsonException($"{where}: \"planetSphere\" must be {{ \"look\", \"maps\", \"atmosphere\" }}");
             foreach (var p in o.Properties())
-                if (p.Name != "look" && p.Name != "maps" && p.Name != "atmosphere" && p.Name != "colors" && p.Name != "variation") Report(mod, $"{where}: unknown planetSphere field \"{p.Name}\" (ignored)");
+                if (p.Name != "look" && p.Name != "maps" && p.Name != "atmosphere" && p.Name != "colors" && p.Name != "variation" && p.Name != "chorus" && p.Name != "chorusAtmosphere")
+                    Report(mod, $"{where}: unknown planetSphere field \"{p.Name}\" (ignored)");
             var spec = new PlanetSphereSpec { mod = mod, look = ModJson.Str(o, "look") };
             if (Array.IndexOf(PlanetSphereLooks, spec.look) < 0)
                 throw new ModJsonException($"{where}: planetSphere \"look\" is one of {string.Join(", ", PlanetSphereLooks)}");
@@ -799,7 +959,43 @@ namespace GoF2Remake.Modding
                 spec.color2 = new Vector3((float)c2[0], (float)c2[1], (float)c2[2]);
             }
             if (ModJson.Has(o, "variation")) spec.variation = Mathf.Repeat(ModJson.Float(o, "variation", 0f, StationsFile), 1f);
+            if (ModJson.Get(o, "chorus") is JToken c) spec.chorus = ParseChorusPlanet(mod, c, where + " planetSphere chorus");
+            else if (spec.look == "chorus") throw new ModJsonException($"{where}: planetSphere \"look\": \"chorus\" needs its \"chorus\" block");
+            if (ModJson.Get(o, "chorusAtmosphere") is JToken ca) spec.chorusAtmosphere = ParseChorusPlanet(mod, ca, where + " planetSphere chorusAtmosphere");
             return spec;
+        }
+
+        static readonly HashSet<string> ChorusPlanetFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "kind", "water", "clouds", "macroNormal", "macroThreshold", "roughnessConstant", "shadedSpecular", "simple", "values", "srgb" };
+
+        /// <summary>planetSphere "chorus": { "kind": "surface" | "cheap", the switches, "values": { Chorus's parameter: number |
+        /// [r, g, b] } }; "chorusAtmosphere" the same with its values only.</summary>
+        static ChorusPlanetSpec ParseChorusPlanet(ModInfo mod, JToken t, string where)
+        {
+            if (!(t is JObject o)) throw new ModJsonException($"{where} must be an object");
+            Unknown(mod, o, ChorusPlanetFields, where);
+            var c = new ChorusPlanetSpec
+            {
+                kind = ModJson.Str(o, "kind", "surface"),
+                water = ModJson.Bool(o, "water", false, StationsFile),
+                clouds = ModJson.Bool(o, "clouds", true, StationsFile),
+                macroNormal = ModJson.Bool(o, "macroNormal", false, StationsFile),
+                macroThreshold = ModJson.Bool(o, "macroThreshold", false, StationsFile),
+                roughnessConstant = ModJson.Bool(o, "roughnessConstant", true, StationsFile),
+                shadedSpecular = ModJson.Bool(o, "shadedSpecular", false, StationsFile),
+                simple = ModJson.Bool(o, "simple", false, StationsFile),
+            };
+            if (c.kind != "surface" && c.kind != "cheap") throw new ModJsonException($"{where}: \"kind\" is surface or cheap");
+            foreach (var r in ModJson.Strings(o, "srgb") ?? new List<string>()) c.srgb.Add(r);
+            if (ModJson.Get(o, "values") is JObject vs)
+                foreach (var p in vs.Properties())
+                {
+                    if (p.Value.Type == JTokenType.Float || p.Value.Type == JTokenType.Integer) c.values[p.Name] = new[] { (float)p.Value };
+                    else if (p.Value is JArray a && a.Count >= 3 && a.All(x => x.Type == JTokenType.Float || x.Type == JTokenType.Integer))
+                        c.values[p.Name] = a.Select(x => (float)x).ToArray();
+                    else Report(mod, $"{where}: value \"{p.Name}\" is a number or [r, g, b] (ignored)");
+                }
+            return c;
         }
         /// <summary>A mod's PNG as Backdrop's texture name.</summary>
         static string BackdropName(ModInfo mod, string path) => "mod:" + mod.Id + "|" + path;
@@ -824,6 +1020,11 @@ namespace GoF2Remake.Modding
                 if (o.asteroidModels != null) foreach (var p in o.asteroidModels) l.Add((o.owner, p, o.asteroidMaterials));   // (and its asteroids')
                 if (o.wreckModels != null) foreach (var p in o.wreckModels) l.Add((o.owner, p, o.wreckMaterials));   // (and its wrecks')
                 if (o.props != null) foreach (var p in o.props) l.Add((o.owner, p.model, o.propMaterials));   // (and its props)
+            }
+            foreach (var look in ModEncounters.RiftLooks())   // (the rifts' looks: their rift and portal models)
+            {
+                if (look.rift != null) l.Add((look.mod, look.rift, look.materials));
+                if (look.portal != null) l.Add((look.mod, look.portal, look.materials));
             }
             return l;
         }

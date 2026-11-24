@@ -38,19 +38,22 @@ namespace GoF2Remake.Flight
 
         /// <summary>Free flight is in use for this ship now: the style (the option, or a mod's / an event's), the player's own input (keyboard / mouse, a
         /// controller or, remake, the touch controls' free-flight layout; tilt and VR keep the original style).</summary>
-        public bool FreeFlightActive => Data.FlightStyles.Current == Data.FlightStyles.Free && useBuiltInInput && !tiltMode
+        public bool FreeFlightActive => Data.FlightStyles.IsFree(Data.FlightStyles.Current) && useBuiltInInput && !tiltMode
                                         && !Data.VrFlags.Enabled;
+        /// <summary>Remake (2026-11-11): Chorus flight (FlightStyles.Chorus) is in use: free flight's path, FlightModel.StepChorus.</summary>
+        public bool ChorusFlightActive => FreeFlightActive && Data.FlightStyles.Current == Data.FlightStyles.Chorus;
         /// <summary>Free flight on the touch controls (TouchControlsFreeFlight): the stick moves, a drag aims, no roll input, so
         /// EVERSPACE 2's auto-roll is on (ES2 turns it on per device, a controller yes).</summary>
         public bool TouchFree => FreeFlightActive && UI.InputMode.Current == UI.InputKind.Touch;
 
         Vector2 touchMove;
         float touchHover;
-        bool touchBoost, touchBoostWas;
+        bool touchBoost, touchBoostWas, touchDrift;
         /// <summary>The touch controls' free-flight input (FlightHud): the stick's thrust (y) and strafe (x), up / down, the boost
         /// button held. Added to the bindings' axes in StepFree; zero when touch isn't in use.</summary>
-        public void SetTouchFree(Vector2 move, float hover, bool boost)
+        public void SetTouchFree(Vector2 move, float hover, bool boost, bool drift = false)
         {
+            touchDrift = drift;   // Chorus flight: the touch column's drift pill
             touchMove = Vector2.ClampMagnitude(move, 1f);
             touchHover = Mathf.Clamp(hover, -1f, 1f);
             touchBoost = boost;
@@ -163,10 +166,26 @@ namespace GoF2Remake.Flight
         {
             if (inputLocked || externalControl || steeringLocked || Navigation.InputHalted) return false;
             DodgeRequested?.Invoke();
+            // Chorus flight: Chorus's dash (FlightModel.ChorusDash) instead of the original's manoeuvre.
+            if (Model.ChorusFlight) return Model.ChorusDash(type == 1 ? -1 : 1);
             return Maneuver.Start(type);
         }
         public void SetThrottle(float t) => Model.SetThrottle(t);
         public void Boost() => Model.Boost();
+
+        /// <summary>Remake (Chorus's Rite of the Star, PlayerDevices): while above 0 the ship flies straight on at this speed
+        /// (m/s) whatever its throttle, boost or drift, turning at most DriveTurnDegS (both flight styles); its own speed is
+        /// left as it was for after.</summary>
+        [System.NonSerialized] public float DriveMs, DriveTurnDegS;
+
+        /// <summary>A turn of 'pitch' / 'yaw' degrees this frame held to 'maxDeg' (their combined size, the direction kept).</summary>
+        public static void CapTurn(ref float pitch, ref float yaw, float maxDeg)
+        {
+            float m = Mathf.Sqrt(pitch * pitch + yaw * yaw);
+            if (m <= maxDeg || m < 1e-6f) return;
+            float k = maxDeg / m;
+            pitch *= k; yaw *= k;
+        }
 
         float webMs, webFactor = 1f;
         System.Func<bool> webbed;
@@ -334,7 +353,10 @@ namespace GoF2Remake.Flight
                     SteerInput = turretSteer;
                 }
                 Model.FreeFlight = FreeFlightActive;
+                Model.ChorusFlight = ChorusFlightActive;
                 Model.BoostHeld = Model.FreeFlight && BoostInput(useBuiltInInput && !inputLocked && !Navigation.InputHalted);
+                Model.DriftHeld = false;
+                Model.TravelBoostAllowed = false;
                 Model.TickBoost(dtMs);   // PlayerEgo::update: the boost and its recharge run on (the mining approach boosts)
                 SpeedMetersPerSecond = ExternalSpeedMetersPerSecond;
                 Model.SyncFree(transform.forward, ExternalSpeedMetersPerSecond / 1000f / metersPerUnit);
@@ -358,6 +380,7 @@ namespace GoF2Remake.Flight
                 return;
             }
             Model.FreeFlight = FreeFlightActive;
+            Model.ChorusFlight = ChorusFlightActive;
             if (useBuiltInInput && !inputLocked) ReadDodgeInput();
             if (Maneuver.Active && (inputLocked || steeringLocked)) Maneuver.Cancel();
             ManeuverSlide = Vector3.zero;
@@ -405,6 +428,12 @@ namespace GoF2Remake.Flight
             var model = new Vector2(invertYaw ? steer.x : -steer.x, invertPitch ? steer.y : -steer.y);
 
             Model.BoostHeld = Model.FreeFlight && BoostInput(live);
+            // Chorus flight's drift is held (Drift binding; GameControls' Chorus layout); not while a mode or menu holds the ship.
+            Model.DriftHeld = Model.ChorusFlight && live && autopilotTarget == null && !steeringLocked && !Navigation.PressesBlocked
+                              && (GameControls.Drift.IsPressed() || touchDrift);
+            // Chorus flight's travel boost: toggled by its key (GameControls' Chorus layout), allowed where Navigation says so.
+            Model.TravelBoostAllowed = Model.ChorusFlight && Navigation.TravelBoostAllowed && autopilotTarget == null && !steeringLocked;
+            if (Model.ChorusFlight && live && !Navigation.PressesBlocked && GameControls.TravelBoost.WasPressedThisFrame()) Model.ToggleTravelBoost();
             if (Model.FreeFlight && autopilotTarget == null && !inputLocked && !steeringLocked)
             {
                 // In free look the stick (the right one in this layout) and the mouse turn the camera: the ship flies on.
@@ -416,6 +445,11 @@ namespace GoF2Remake.Flight
 
             var r = Model.Step(model, dtMs, transform.up, transform.right);
             r.forwardUnits *= Navigation.CruiseFactor;   // remake, multiplayer: the held fast-forward is a cruise mode
+            if (DriveMs > 0f)   // remake: the Rite of the Star's drive
+            {
+                r.forwardUnits = DriveMs / metersPerUnit * dtMs / 1000f;
+                CapTurn(ref r.pitchDeg, ref r.yawDeg, DriveTurnDegS * dtMs / 1000f);
+            }
 
             if (autopilotTarget != null)
             {
@@ -472,7 +506,7 @@ namespace GoF2Remake.Flight
         void StepFree(Vector2 aim, float dtMs)
         {
             bool live = useBuiltInInput && !Navigation.InputHalted;
-            if (live && GameControls.Dampeners.WasPressedThisFrame()) ToggleDampeners();
+            if (live && !Model.ChorusFlight && GameControls.Dampeners.WasPressedThisFrame()) ToggleDampeners();   // Chorus has none
             var input = new FlightModel.FreeInput
             {
                 thrust = live ? Mathf.Clamp(GameControls.Thrust.ReadValue<float>() + touchMove.y, -1f, 1f) : 0f,
@@ -490,13 +524,15 @@ namespace GoF2Remake.Flight
                 else input.dampeners = true;
             }
             var r = Model.StepFree(input, dtMs, transform.rotation, transform.up, transform.right);
+            if (DriveMs > 0f) CapTurn(ref r.pitchDeg, ref r.yawDeg, DriveTurnDegS * dtMs / 1000f);   // remake: the Star's drive
             transform.Rotate(r.pitchDeg, -r.yawDeg, r.rollDeg, Space.Self);
             var move = (r.move * metersPerUnit + transform.right * (r.sidePushUnits * metersPerUnit)) * WebFactor;
+            if (DriveMs > 0f) move = transform.forward * (DriveMs * dtMs / 1000f);
             transform.position += move;
             // The chase camera keeps the sideways part of the move (TargetFollowCamera::translateNoUpdate, as for the
             // strafe): it trails the ship's forward motion and stays square behind it while it slides.
             StrafeSlide = move - transform.forward * Vector3.Dot(move, transform.forward);
-            SpeedMetersPerSecond = dtMs > 0f ? r.move.magnitude * metersPerUnit / (dtMs / 1000f) : 0f;
+            SpeedMetersPerSecond = DriveMs > 0f ? DriveMs : dtMs > 0f ? r.move.magnitude * metersPerUnit / (dtMs / 1000f) : 0f;
             UpdateVisualBank();
         }
 

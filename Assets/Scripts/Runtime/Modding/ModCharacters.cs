@@ -3,8 +3,9 @@
 // characters.json): a name (per language), a portrait PNG drawn in the game's 160 x 200 portrait box (4:5; 320 x 400
 // stays sharp in HD, scaled to cover the box, its top kept), over the game's portrait backdrop (a dark, half-transparent
 // fill: only through the PNG's transparent parts) and under its "frame" (in fact a faint scanline overlay, alpha <= 27)
-// (both optional), mirrored on request, and a race / gender for what the game draws or plays by race: the bar figure of
-// a bar mission's client, the name's colour in the dialogue. "replaces": a story character (by name or number) whose
+// (both optional), mirrored on request, and a race / gender for dialogue identity and the default bar-visitor figure.
+// "silhouette" can independently choose a built-in visitor mesh; a custom race's own races.json "visitor" GLB is used when
+// silhouette is omitted. "replaces": a story character (by name or number) whose
 // portrait, and name when it has one (StoryTable.SpeakerName), it takes everywhere, the game's own story included.
 // A speaker names one by "mod_id:character_id", by its id or by its name (NetAdmin.ResolveSpeaker; "vega as Bob" renames
 // it like a story speaker); it travels to every game as the speaker spec "-3 US rename US key" (SpeakerSpec), and each game
@@ -30,7 +31,10 @@ namespace GoF2Remake.Modding
             public ModInfo mod;
             public string id, key, portrait;
             public Dictionary<string, string> name;
-            public int race;            // 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian, 8 pirate, 9 Void...
+            public int race;            // game race or ModRaces number
+            public bool hasRace;      // false: inherit the event client's race
+            public bool hasGender;    // false: inherit the event client's gender
+            public string silhouette; // optional lounge visitor mesh, independent of race/name colour
             public bool male = true, mirrored, frame = true, background = true;
             public string replaces;     // a story speaker's name or number
             public int replacesSpeaker = -2;   // resolved on first use (-1 none)
@@ -50,7 +54,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "id", "name", "portrait", "race", "gender", "mirrored", "frame", "background", "replaces" };
+            { "id", "name", "portrait", "race", "gender", "silhouette", "mirrored", "frame", "background", "replaces" };
 
         static readonly Dictionary<string, Def> defs = new Dictionary<string, Def>(StringComparer.OrdinalIgnoreCase);
         static int parsedRevision = -1, loading;
@@ -96,18 +100,27 @@ namespace GoF2Remake.Modding
                     frame = ModJson.Bool(o, "frame", true, File),
                     background = ModJson.Bool(o, "background", true, File),
                     replaces = ModJson.Str(o, "replaces"),
+                    silhouette = ModJson.Str(o, "silhouette"),
                 };
                 string race = ModJson.Str(o, "race");
                 if (race != null)
                 {
-                    d.race = Flight.Standing.RaceWord(race);
-                    if (d.race < 0) throw new ModJsonException($"{where}: \"race\" {race} isn't a race (terran, vossk, nivelian, midorian, pirate, void)");
+                    if (!ModRaces.TryResolve(race, mod, out d.race))
+                        throw new ModJsonException($"{where}: \"race\" {race} isn't a game or mod race");
+                    d.hasRace = true;
+                }
+                if (d.silhouette != null)
+                {
+                    d.silhouette = d.silhouette.Trim().ToLowerInvariant();
+                    if (!new[] { "terran", "vossk", "nivelian", "midorian", "void", "cyborg", "octopod", "bobolian", "grey" }.Contains(d.silhouette))
+                        throw new ModJsonException($"{where}: \"silhouette\" must be terran, vossk, nivelian, midorian, void, cyborg, octopod, bobolian or grey");
                 }
                 string gender = ModJson.Str(o, "gender");
                 if (gender != null)
                 {
                     if (!gender.Equals("male", StringComparison.OrdinalIgnoreCase) && !gender.Equals("female", StringComparison.OrdinalIgnoreCase))
                         throw new ModJsonException($"{where}: \"gender\" is male or female");
+                    d.hasGender = true;
                     d.male = gender.Equals("male", StringComparison.OrdinalIgnoreCase);
                 }
                 if (defs.ContainsKey(d.key)) throw new ModJsonException($"{where}: the id \"{id}\" is used twice");

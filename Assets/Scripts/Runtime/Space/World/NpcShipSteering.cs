@@ -60,17 +60,18 @@ namespace GoF2Remake.World
             var shotAt = aimPos;
             // remake options: GoF3's attack runs, veer-offs, tease and chase, its led aim (NpcShipDogfight); EVERSPACE 2's runs
             // past the target, gaining distance, tailed evasion and flight (NpcShipEs2)
-            bool dog = Dogfighting, es2 = Es2Fighting, dogHold = false;
+            bool dog = Dogfighting, es2 = Es2Fighting, chorusF = ChorusFighting, dogHold = false;
             if (dog) aimPos = DogfightAim(aimPos, out dogHold, es2Aimed);
             else if (es2) aimPos = Es2FightGoal(aimPos, dtMs, out dogHold);
+            else if (chorusF) aimPos = ChorusFightGoal(aimPos, out dogHold);   // (remake mods: Chorus's way, NpcShipChorus)
             float formationSpeed = 1f;
-            if (!dog && !es2 && FormationSlot(dtMs, out var slot, out formationSpeed)) aimPos = slot;   // (GoF3's V formations)
+            if (!dog && !es2 && !chorusF && FormationSlot(dtMs, out var slot, out formationSpeed)) aimPos = slot;   // (GoF3's V formations)
             var dir = aimPos - transform.position;
             if (RoleFlees) dir = transform.position - FleeFrom.transform.position;   // (remake: a loot drone runs, NpcShipRoles)
             // PlayerFighter::update's fly state: the player docked at an object (PlayerEgo::isDockedToDockingPoint) is circled
             // at +-12000 instead of +-8000, and not fired at while it is above the ship (0xf2cfa).
             bool dockedPlayer = target != null && target.isPlayer && ObjectDocking.PlayerDocked;
-            if (target != null && !followingWaypoint && RoleBreaksOff && !dog && !es2)   // (remake: a detonator flies into it, NpcShipRoles; GoF3's veer off, ES2's runs)
+            if (target != null && !followingWaypoint && RoleBreaksOff && !dog && !es2 && !chorusF)   // (remake: a detonator flies into it, NpcShipRoles; GoF3's veer off, ES2's runs)
             {
                 float r = (dockedPlayer ? 12000f : NpcTables.BreakOffRange) * M;
                 var toCentre = targetPos - transform.position;
@@ -114,8 +115,8 @@ namespace GoF2Remake.World
             // LevelScript::process: during the launch / arrival camera every wingman drifts (KIPlayer+0x129, no steering).
             bool noSteer = drift || (IsWingman && traffic != null && traffic.LaunchCameraRunning != null && traffic.LaunchCameraRunning())
                            || !slow.CanTurn;   // remake: an EMP device's slow
-            float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : formationSpeed;   // (GoF3's Easy: slower in your sights)
-            float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed;   // units a ms (remake: a rift's)
+            float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : chorusF ? chorusFight.SpeedFactor : formationSpeed;   // (GoF3's Easy: slower in your sights)
+            float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
             if (!noSteer && !Hp.empDisabled)
             {
                 Vector3 h;

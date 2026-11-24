@@ -127,7 +127,15 @@ namespace GoF2Remake.UI
             elapsed += Time.unscaledDeltaTime;
             if (elapsed < WindowSeconds) return;
             float fps = frames / elapsed;
-            label.text = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0} FPS  {1:0.0} ms", fps, 1000f / Mathf.Max(fps, 0.001f));
+            // With frame generation the frames on the screen, then the rendered ones and how many are shown for each.
+            float shown = FrameGeneration.PresentedPerFrame;
+            string text = shown > 1.05f
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0} FPS ({1:0} × {2:0.#})  {3:0.0} ms", fps * shown, fps, shown, 1000f / Mathf.Max(fps, 0.001f))
+                : string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0} FPS  {1:0.0} ms", fps, 1000f / Mathf.Max(fps, 0.001f));
+            // And the PC latency Reflex measures (simulation start to the end of the GPU's work), where it reports one.
+            float latency = FrameGeneration.LatencyMs;
+            if (latency > 0.05f) text += string.Format(System.Globalization.CultureInfo.InvariantCulture, "  PCL {0:0} ms", latency);
+            label.text = text;
             frames = 0;
             elapsed = 0f;
         }

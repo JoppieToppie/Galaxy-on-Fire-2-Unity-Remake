@@ -227,7 +227,20 @@ namespace GoF2Remake.World
         const int FlameCopyFrom80 = 4, FlameCopyTo80 = 2, FlameCopyTwin80 = 7;   // part 2 gets part 4's flame (part 3's is smaller), placed by part 7's
         const float FlameReach80 = 300f;   // metres: how far from an engine glow its flame may reach
         // part 2's flame: local position / rotation (degrees) / scale under v_station_deep_science_explosion_anim_add_part2
-        static readonly Vector3 FlameCopyPos80 = new Vector3(2099.4f, 1.6f, 28f), FlameCopyRot80 = new Vector3(0f, 119f, 0f), FlameCopyScale80 = Vector3.one;   // Inspector values
+        static readonly Vector3 FlameCopyPos80 = new Vector3(2024.8f, 1.6f, 23.1f), FlameCopyRot80 = new Vector3(0f, 119f, 0f), FlameCopyScale80 = Vector3.one;   // Inspector values
+        // Modified: the battlestation laser's parts moved where the user placed them in the Inspector (local positions,
+        // Unity metres; 2026-11-16); the others stay at the model's.
+        static readonly Dictionary<string, Vector3> LaserPartPos80 = new Dictionary<string, Vector3>
+        {
+            { "v_station_battlestation_laser_anim_add_part0", new Vector3(-1.3f, 0f, -43.7f) },
+            { "v_station_battlestation_laser_anim_add_part1", new Vector3(-12.8f, 0f, -7.4f) },
+            { "v_station_battlestation_laser_anim_add_part6", new Vector3(-2f, 0f, -45f) },
+            { "v_station_battlestation_laser_anim_add_part8", new Vector3(-11f, 0f, -12f) },
+            // part 4 (the main beam's flash) moves with its keys: (-2.4, -19.5, -2222.3) in the Inspector at its load pose,
+            // less its keyed offset there (0, -1.445, -2210.87)
+            { "v_station_battlestation_laser_anim_add_part4", new Vector3(-2.4f, -18.055f, -11.43f) },
+            { "v_station_battlestation_laser_anim_add_part5", new Vector3(-2f, 8.2f, 2.2f) },
+        };
         readonly List<(Renderer piece, Renderer glow)> flamePieces80 = new List<(Renderer, Renderer)>();
         Renderer flameSource80;
         MaterialPropertyBlock flameBlock80, glowBlock80;
@@ -238,12 +251,11 @@ namespace GoF2Remake.World
         static readonly Vector3 HyperDriveRot80 = new Vector3(0f, 0f, 0f);
         const float HyperDriveScale80 = 8f;
 
-        // Modified: the hit's explosion (step 8) lands ExplosionAt80 ms after the cutscene's start, when the explosion is
-        // heard in DeepScienceAttacked (played at the start); the first shot is shortened to fit: step 1 (LaserDelay80) +
-        // step 2 (LaserWindow80) + step 7 (HitWait80) + step 8 (HitWait80) = ExplosionAt80.
-        const float ExplosionAt80 = 6900f;
-        const float HitWait80 = 800f;        // steps 7 and 8 (unchanged from the original)
-        const float LaserDelay80 = ExplosionAt80 - LaserWindow80 - 2f * HitWait80;   // Modified: ms until the laser fires (3600 now; was step 1's 3000)
+        // The first shot as the original's (the user's request, 2026-11-16): step 1 waits 3000 ms, step 2 plays the laser's
+        // animation for 2000 ms, then the cut to the hit; steps 7 and 8 wait 800 ms each (the explosion at 6600 ms).
+        const float LaserDelay80 = 3000f;
+        const float LaserWindow80 = 2000f;
+        const float HitWait80 = 800f;
 
         static readonly Dictionary<int, (Vector3 pos, Vector3 rot)> TurretPoses80 = new Dictionary<int, (Vector3 pos, Vector3 rot)>
         {
@@ -257,17 +269,15 @@ namespace GoF2Remake.World
             { 11, (new Vector3(1485f, 225f, -191f), new Vector3(0f, -180f, 0f)) },
         };
 
-        const float LaserChargeMs80 = 1500f; // Modified: ms the laser's charge-up animation takes; then it stays on until the cut
-        bool laserLooping80;   // the laser is held at its LaserHoldAt80 pose
-        // Modified: where in its animation the laser is held after the charge-up (0 = its start, 1 = its last frame, where
-        // it has already faded out): the charge plays up to there in LaserChargeMs80.
-        const float LaserHoldAt80 = 0.85f;
         // Modified: the hit's blast from the hit point, game units (Unity (740, -550, -370), set in the Inspector).
         static readonly Vector3 HitBlastOffset80 = new Vector3(2313f, 451f, 1442f);
-        PartAnimation[] laserAnims80;
-        float[] laserFullOn80;
+        // Modified: the hit's blast scale (was 3, LevelScript ctor's Explosion::setScaling): it was a small glow next to the
+        // original's flash that covers Kothar (the user's frames, 2026-11-16).
+        const float HitBlastScale80 = 12f;
+        // Modified: both lasers' (the battlestation's and Kothar's hit) glow, their materials' _Glow 2.5 through a property
+        // block: the bloom made them thick beams, the original's are thin lines (the user's frames, 2026-11-16).
+        const float LaserGlow80 = 1f;
 
-        const float LaserWindow80 = 1700f;   // Modified: ms from the laser appearing to the camera cut (step 2; was 2000): it fires 0.3 s later, the cut stays put
         const float CamPullBack80 = 3250f;   // Modified: Unity metres along +Z over the shot (from Z -6250 to -3000; X and Y stay put)
         float camStartZ80, camEndZ80;
 

@@ -717,13 +717,13 @@ namespace GoF2Remake.UI
                     Play(buttonPush);
                     hangarWindow.NextTab();
                 }
-                // 1 / 2 / 3 = Ship / Shop (the Kaamo Club's Store) / Blueprints (#30, the PC version's menu buttons).
-                else if (kb != null && kb.digit1Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SetTab(HangarWindow.Tab.Ship); }
-                else if (kb != null && kb.digit2Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SetTab(HangarWindow.Tab.Shop); }
-                else if (kb != null && kb.digit3Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SetTab(HangarWindow.Tab.Blueprints); }
-                // Remake, the Kaamo Club VIP Card (HangarWindowKaamoVip): 4 = its Ships tab, F / the right stick press = search
-                // (a controller's keyboard), R / the left stick press = the next sort order. Nothing without the card's perks.
-                else if (kb != null && kb.digit4Key.wasPressedThisFrame && hangarWindow.VipTools) { Play(buttonPush); hangarWindow.SetTab(HangarWindow.Tab.Ships); }
+                // Ordinary hangars keep 1/2/3. With the extra Kaamo Ships tab, 1/2/3/4 follow visible order.
+                else if (kb != null && kb.digit1Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(1); }
+                else if (kb != null && kb.digit2Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(2); }
+                else if (kb != null && kb.digit3Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(3); }
+                // Kaamo storage tools (HangarWindowKaamoVip): 4 = the last visible tab, F / the right stick press = search
+                // (a controller's keyboard), R / the left stick press = the next sort order.
+                else if (kb != null && kb.digit4Key.wasPressedThisFrame && hangarWindow.VipTools) { Play(buttonPush); hangarWindow.SelectTabNumber(4); }
                 else if (kb != null && kb.fKey.wasPressedThisFrame) hangarWindow.FocusSearch(false);
                 else if (pad != null && pad.rightStickButton.wasPressedThisFrame) hangarWindow.FocusSearch(true);
                 else if ((kb != null && kb.rKey.wasPressedThisFrame) || (pad != null && pad.leftStickButton.wasPressedThisFrame))

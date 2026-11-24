@@ -22,5 +22,20 @@ namespace GoF2Remake.World
         /// <summary>The leader's latest radio line shown (-1 = none): a prologue / rescue follower that missed lines (it loaded
         /// later, an RPC before its level was up) catches up to it (Radio.CatchUp), else its cutscene waited for them for good.</summary>
         public int radioLine;
+        /// <summary>The level's wormhole (SpaceLevel.Wormhole): shown, its place (the original's coordinates), its timer (ms).
+        /// The follower's shows it so (Wormhole.Mirror); its own opened, closed and moved by its own rules (a Discord report
+        /// 2026-11-17: the second pilot saw no wormhole at step 40 and the wrong one at 42).</summary>
+        public bool holeVisible;
+        public Vector3 holePosition;
+        public int holeTimer;
+        /// <summary>The level's kill count (CampaignLevel.PlayerKills / NpcKills): step 36's wager with Errkt on the follower's
+        /// HUD too (a Discord report 2026-11-17: it stayed 0 : 0 for the second pilot).</summary>
+        public int playerKills, npcKills;
+        /// <summary>The level script's step (CampaignLevel.Event): a follower's scenery plays its moments as the leader's script
+        /// reaches them (80 / 81's battlestation, 157's Valkyrie), and the rules that read it (40's wormhole) agree.</summary>
+        public int scriptEvent;
+        /// <summary>The level's moving scenery (157: the Valkyrie's place, the original's coordinates), if it has one.</summary>
+        public bool hasScenery;
+        public Vector3 sceneryAt;
     }
 }

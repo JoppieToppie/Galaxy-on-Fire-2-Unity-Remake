@@ -67,7 +67,11 @@ namespace GoF2Remake.World
         /// <summary>The Khador Drive's refusal at 42 in the Void (Story.EscapesByWormhole): the way out instead of 525.</summary>
         static string WormholeEscapeHint => Localization.Extra("khadorWormholeEscape",
             "The Khador Drive won't work here. Destroy the freighter, then escape through the wormhole.");
-        bool WormholeNoPull => WormholeKills && Story.Index == 40;
+        bool WormholeNoPull => (WormholeKills && Story.Index == 40) || FollowsLeadersHole;
+        /// <summary>Remake co-op: a follower in a story orbit the leader runs: the wormhole is the leader's (mirrored), and the
+        /// leader's ride takes the crew (CoopTravel). Its own ride ran Story.Advance and rode alone (24: the leader then
+        /// followed the guest's advance inside 24's level), and at 40 it killed: a follower's script event stays 0.</summary>
+        bool FollowsLeadersHole => Campaign != null && Campaign.Follower && !Campaign.LeaderAway;
         /// <summary>MGame::OnUpdate, PlayerEgo::isInWormhole (see the header).</summary>
         void UpdateWormholeRide()
         {
@@ -77,11 +81,14 @@ namespace GoF2Remake.World
                 return;
             }
             if (riding || Collision == null || !Collision.InWormhole || Health == null || Health.Dead) return;
+            if (FollowsLeadersHole) return;   // remake co-op: the leader's ride takes it along
             int index = Story.Index;
             bool active = !Session.FreePlay && Campaign != null && Story.IsLevelMission(Layout.stationIndex);
             if (index == 42)
             {
-                if (Layout.alienOrbit) return;   // the mother ship's explosion: the level script rides out itself
+                // the mother ship's explosion: the level script rides out itself (remake co-op: a follower whose leader has
+                // gone rides out on its own, else the held-open wormhole kept it for good)
+                if (Layout.alienOrbit && !(Campaign != null && Campaign.Follower)) return;
                 RideWormhole();
                 return;
             }
@@ -254,6 +261,7 @@ namespace GoF2Remake.World
             Session.ShipIndex = shipIndex;
             var prefab = AssembledObject.LoadPrefab(PlayerHull.Assembly(db, shipIndex));
             if (prefab == null) { Session.ShipIndex = before; return; }
+            FreeLook?.SetDefaultOrbitDistance(Modding.ModShipView.OrbitDistance(db.Ship(shipIndex)));
             Hangar.SyncBuiltIn(db);   // the new hull's built-in items, the old one's gone
             var root = ctrl.gameObject;
             PlayerHull.RemoveTurrets(this);   // before the old model goes (they ride on it)
@@ -423,7 +431,7 @@ namespace GoF2Remake.World
             turrets.AddRange(PlayerTurret.AttachAll(root, db, Session.ShipIndex, Session.Equipment, chase));
             hardpoints = Modding.ModHardpoints.AttachWeapons(db, Session.ShipIndex, Session.Equipment, ctrl.visualModel);   // a kit ship's weapon models
             // MGame::switchCamera: the camera button's modes (standard / turret / free look).
-            FreeLook = FreeLookCamera.Attach(root, chase, Turret);
+            FreeLook = FreeLookCamera.Attach(root, chase, Turret, Modding.ModShipView.OrbitDistance(db.Ship(Session.ShipIndex)));
             // Level::createGasClouds: the Supernova plasma clouds (a spectral filter mounted).
             if (!Layout.interstellar) GasClouds = GasCloudField.Spawn(db, Layout, ctrl, Turret);
             if (!Layout.interstellar && !Layout.alienOrbit) WreckField.Spawn(db, Layout);   // remake mods: the orbit's wreck field

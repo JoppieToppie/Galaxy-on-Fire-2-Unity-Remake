@@ -1,0 +1,29 @@
+[
+    // What a mod race flies: every ship of the mods whose "race" it is. A race with such ships flies nothing else;
+    // one without any (the Claim Jumpers here) flies the fighters of its look race.
+    // These two are game ships under new names: "gof2:<model>" takes a model of the game, with its textures and
+    // hardpoints, so the mod needs no 3D file. Without "dealer" or "lounge" nobody sells them: they are NPC hulls.
+
+    // The Groza's model and numbers. "traffic.weight": three of every four guild fighters fly this one.
+    {
+        "id": "guild_warden",
+        "name": "Guild Warden",
+        "description": "A Groza refitted in the Kepler yards: the guild's patrol ship.",
+        "model": "gof2:ship_022_terran",
+        "race": "guild",
+        "armor": 160, "cargo": 130, "handling": 118, "price": 201280,
+        "slots": { "primary": 3, "secondary": 3, "turret": 0, "equipment": 8 },
+        "traffic": { "weight": 3 }
+    },
+
+    // The Salvéhn's model and numbers, with the race by its full key. No "traffic": a weight of 1.
+    {
+        "id": "guild_prospector",
+        "name": "Guild Prospector",
+        "description": "A Salvéhn bought in Nesla and armed by the guild to guard its ice fields.",
+        "model": "gof2:ship_031_nivelian",
+        "race": "kepler_guild:guild",
+        "armor": 156, "cargo": 110, "handling": 102, "price": 75600,
+        "slots": { "primary": 2, "secondary": 1, "turret": 1, "equipment": 6 }
+    }
+]

@@ -73,6 +73,7 @@ namespace GoF2Remake.UI
             public bool cinematic;               // a cutscene / launch camera / jump scene: the pause button nearly invisible
             public bool freeFlight;              // remake: free flight's touch layout (move stick, aim drag, up / down, dampeners)
             public bool dampeners;               // free flight's inertial dampeners are on (the button lit)
+            public bool chorus;                  // remake: Chorus flight's touch layout (the pill holds the drift; no up / down)
         }
 
         /// <summary>The pause button's opacity during a cutscene (remake: the original draws it opaque; lit while held).</summary>
@@ -107,7 +108,9 @@ namespace GoF2Remake.UI
         /// whichever is further out (TouchControlsFreeFlight).</summary>
         public Vector2 Aim => gestureAim.sqrMagnitude >= fireAim.sqrMagnitude ? gestureAim : fireAim;
         /// <summary>Free flight: the up / down buttons held, +1 up, -1 down.</summary>
-        public float UpDown => frame.freeFlight && frame.mode == Mode.Full ? (held.Contains(upButton) ? 1f : 0f) - (held.Contains(downButton) ? 1f : 0f) : 0f;
+        public float UpDown => frame.freeFlight && !frame.chorus && frame.mode == Mode.Full ? (held.Contains(upButton) ? 1f : 0f) - (held.Contains(downButton) ? 1f : 0f) : 0f;
+        /// <summary>Chorus flight: the drift held (the column's pill, which is the dampeners' in free flight).</summary>
+        public bool DriftHeld => frame.freeFlight && frame.chorus && frame.mode == Mode.Full && held.Contains(dampButton);
         /// <summary>Free flight: the boost button is held (the boost is held in free flight, not a press).</summary>
         public bool BoostHeld => frame.freeFlight && frame.mode == Mode.Full && held.Contains(boost);
 
@@ -156,7 +159,7 @@ namespace GoF2Remake.UI
         int aimPointer = -1;
         Vector2 aimStart, fireStart, gestureAim, fireAim;
 
-        static Texture2D Tex(string name) => Resources.Load<Texture2D>("GoF2Hud/" + name);
+        static Texture2D Tex(string name) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
 
         /// <param name="layer">the touch layer inside the safe area</param>
         /// <param name="pauseHost">where the pause button goes (the HUD root, so it shows during cutscenes)</param>

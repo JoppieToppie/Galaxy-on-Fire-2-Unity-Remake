@@ -11,9 +11,10 @@
 // never takes it from another row.
 // Remake: two key layouts, one per flight style (Settings.FlightStyle): the original's defaults above, and the free flight's
 // (FreeFlightDefaults: EVERSPACE 2's layout, W / S thrust, A / D strafe, Space / L-Ctrl up / down, Q / E roll, L-Shift
-// boost, the mouse aims and fires, the menus moved off Q / E). Each layout keeps its own overrides ("controls_bindings" /
-// "controls_bindings_free"); switching the style reloads them (ApplyStyle). Rows only one style reads are hidden in the
-// other's bindings list (ControlRow.visible).
+// boost, the mouse aims and fires, the menus moved off Q / E), and (2026-11-11) Chorus flight's (ChorusDefaults over the
+// free ones: A / D dash, Space drift, no strafe / up-down / dampeners). Each layout keeps its own overrides
+// ("controls_bindings" / "_free" / "_chorus"); switching the style reloads them (ApplyStyle). Rows only one style reads are
+// hidden in the others' bindings lists (ControlRow.visible).
 
 using System;
 using System.Collections.Generic;
@@ -61,9 +62,9 @@ namespace GoF2Remake.Flight
 
         public static readonly InputAction Steer, Throttle, Brake, Boost, LevelOut, Roll, StrafeLeft, StrafeRight, DodgeLeft, DodgeRight, Drill,
             FirePrimary, FireSecondary, SwitchSecondary, UnlockTarget, Action, AutopilotMenu, ActionsMenu, Wingmen, KhadorDrive, FastForward,
-            Camera, CockpitView, AutoTurret, Cloak, TimeExtender, MouseSteering, Chat, ChatSend, ChatChannel, Screenshot,
+            Camera, CockpitView, TurretView, AutoTurret, Cloak, TimeExtender, MouseSteering, Chat, ChatSend, ChatChannel, Screenshot,
             HudToggle, MultiplayerWindow, DistressCall,
-            Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold,
+            Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold, Drift, TravelBoost,
             Device1, Device2, Device3,
             Headlights;
 
@@ -109,11 +110,12 @@ namespace GoF2Remake.Flight
             FirePrimary = Button("firePrimary", () => X("ctlFirePrimary", "Fire"), "<Keyboard>/space", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
             FireSecondary = Button("fireSecondary", () => X("ctlFireSecondary", "Fire secondary"), "<Keyboard>/r", "<Mouse>/rightButton", "<Gamepad>/leftTrigger");
             SwitchSecondary = Button("switchSecondary", () => X("ctlSwitchSecondary", "Switch secondary"), "<Keyboard>/g", null, "<Gamepad>/dpad/right");
-            Camera = Button("camera", () => X("ctlCamera", "Camera / turret view"), "<Keyboard>/t", null, "<Gamepad>/dpad/up");
+            Camera = Button("camera", () => X("ctlCycleView", "Cycle camera view"), "<Keyboard>/f3", null, "<Gamepad>/dpad/up");
             // Remake (players' feedback, 2026-10-22): the cockpit view on its own (FreeLookCamera.ToggleCockpit), out of the
             // camera cycle; holding the camera button does the same. No controller default: D-pad up held.
             CockpitView = Button("cockpitView", () => X("ctlCockpitView", "Cockpit view on / off"), "<Keyboard>/f2", null, null);
-            AutoTurret = Button("autoTurret", () => X("ctlAutoTurret", "Auto turret on / off"), "<Keyboard>/y", null, "<Gamepad>/dpad/down");
+            TurretView = Button("turretView", () => X("ctlTurretView", "Turret control"), "<Keyboard>/t", null, "<Gamepad>/dpad/down");
+            AutoTurret = Button("autoTurret", () => X("ctlAutoTurret", "Auto turret on / off"), "<Keyboard>/y", null, null);
             // Remake: drops the ship lock (CombatRadar.Unlock; the original has none). U, and B: in flight B is only the
             // menus' back, and the flight's presses wait while a menu is open (Navigation.PressesBlocked).
             UnlockTarget = Button("unlockTarget", () => X("ctlUnlockTarget", "Unlock target"), "<Keyboard>/u", null, "<Gamepad>/buttonEast");
@@ -156,6 +158,9 @@ namespace GoF2Remake.Flight
                 new Func<string>[] { () => X("ctlUp", "up"), () => X("ctlDown", "down") },
                 new string[] { null, null }, padParts: new string[] { null, null });
             Dampeners = Button("dampeners", () => X("ctlDampeners", "Inertial dampeners on / off"), null, null, null);
+            // Remake (2026-11-11): Chorus flight's drift, held (FlightModel.DriftHeld); bound only in its layout.
+            Drift = Button("drift", () => X("ctlDrift", "Drift (hold)"), null, null, null);
+            TravelBoost = Button("travelBoost", () => X("ctlTravelBoost", "Travel boost on / off"), null, null, null);
             FreeLookHold = Button("freeLookHold", () => X("ctlFreeLookHold", "Free look (hold)"), null, null, null);
             // Remake: the first three active devices (PlayerDevices, mod items; Flight.Device) on 4 / 5 / 6, free in both layouts
             // (1-3 roll and level out). No controller default (every button is taken): the quick menu (D-pad left) has them.
@@ -165,12 +170,17 @@ namespace GoF2Remake.Flight
             // Remake: the headlights on / off (EVERSPACE 2's; Flight.Headlights), the same key in both layouts.
             Headlights = Button("headlights", () => X("ctlHeadlights", "Headlights on / off"), "<Keyboard>/l", null, null);
 
-            bool Free() => loadedStyle == FlightStyles.Free;
+            bool Free() => FlightStyles.IsFree(loadedStyle);
+            bool Es2() => loadedStyle == FlightStyles.Free;
+            bool Chorus() => loadedStyle == FlightStyles.Chorus;
             foreach (var r in rows)
                 switch (r.id)
                 {
                     case "throttle": case "brake": case "strafeLeft": case "strafeRight": r.visible = () => !Free(); break;
-                    case "thrust": case "strafe": case "hover": case "dampeners": r.visible = Free; break;
+                    case "thrust": r.visible = Free; break;
+                    case "strafe": case "hover": case "dampeners": r.visible = Es2; break;
+                    case "drift": case "travelBoost": r.visible = Chorus; break;
+                    case "autoTurret": r.visible = () => PlayerTurret.MixedLoadout(Database.Shared, Session.Equipment); break;
                 }
         }
 
@@ -220,11 +230,35 @@ namespace GoF2Remake.Flight
             ["mouseSteering"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key2] = new[] { "" } },
         };
 
+        // ---- Chorus flight's key layout (FlightStyles.Chorus): free flight's, changed where Chorus differs ---------------
+
+        /// <summary>Per row id and slot, over FreeFlightDefaults: Chorus's PC defaults (its DefaultInput.ini: W / S thrust,
+        /// A / D dash, L-Shift boost) with the drift on Space (Chorus's right mouse button fires the secondary here) and the
+        /// controller's left shoulder (Chorus's), the travel boost on L-Ctrl (Chorus's); no strafe, up / down or dampeners
+        /// (Chorus has none), no roll on the controller (its shoulder drifts).</summary>
+        static readonly Dictionary<string, Dictionary<BindSlot, string[]>> ChorusDefaults = new Dictionary<string, Dictionary<BindSlot, string[]>>
+        {
+            ["strafe"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key1] = new[] { "", "" }, [BindSlot.Pad] = new[] { "", "" } },
+            ["hover"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key1] = new[] { "", "" } },
+            ["dampeners"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key1] = new[] { "" } },
+            ["drift"] = new Dictionary<BindSlot, string[]>
+            {
+                [BindSlot.Key1] = new[] { "<Keyboard>/space" },
+                [BindSlot.Pad] = new[] { "<Gamepad>/leftShoulder" },
+            },
+            ["roll"] = new Dictionary<BindSlot, string[]> { [BindSlot.Pad] = new[] { "", "" } },
+            // Chorus's TravelBoost key (L-Ctrl); no controller default (its stick press and Y are taken here).
+            ["travelBoost"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key1] = new[] { "<Keyboard>/leftCtrl" } },
+            ["dodgeLeft"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key1] = new[] { "<Keyboard>/a" } },
+            ["dodgeRight"] = new Dictionary<BindSlot, string[]> { [BindSlot.Key1] = new[] { "<Keyboard>/d" } },
+        };
+
         /// <summary>The style whose layout is loaded (FlightStyles.Current when it was last applied).</summary>
         static int loadedStyle = -1;
         /// <summary>The flight style whose key layout is loaded (FlightStyles).</summary>
         public static int LoadedStyle => loadedStyle;
-        static string StylePrefsKey => loadedStyle == FlightStyles.Free ? PrefsKey + "_free" : PrefsKey;
+        static string StylePrefsKey => loadedStyle == FlightStyles.Free ? PrefsKey + "_free"
+                                     : loadedStyle == FlightStyles.Chorus ? PrefsKey + "_chorus" : PrefsKey;
 
         /// <summary>The layout of the flight style now in use (FlightStyles.Current: the option, or a mod's / an event's):
         /// its defaults and its own overrides. Called when the option changes and every frame by the flight (ShipController)
@@ -240,9 +274,17 @@ namespace GoF2Remake.Flight
         /// <summary>A binding's default in the loaded style (null = the action's own path).</summary>
         static string StyleDefault(InputAction action, int index)
         {
-            if (loadedStyle != FlightStyles.Free) return null;
+            if (!FlightStyles.IsFree(loadedStyle)) return null;
             var row = RowOf(action);
-            if (row == null || !FreeFlightDefaults.TryGetValue(row.id, out var slots)) return null;
+            if (row == null) return null;
+            if (loadedStyle == FlightStyles.Chorus && SlotDefault(ChorusDefaults, row, index) is string c) return c;
+            return SlotDefault(FreeFlightDefaults, row, index);
+        }
+
+        /// <summary>A layout table's default for one binding of a row (null = the table doesn't set it).</summary>
+        static string SlotDefault(Dictionary<string, Dictionary<BindSlot, string[]>> table, ControlRow row, int index)
+        {
+            if (!table.TryGetValue(row.id, out var slots)) return null;
             foreach (var kv in slots)
             {
                 var idx = row.slots[(int)kv.Key];

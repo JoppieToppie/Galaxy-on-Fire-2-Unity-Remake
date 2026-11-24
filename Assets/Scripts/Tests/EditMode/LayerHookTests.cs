@@ -19,8 +19,9 @@ namespace GoF2Remake.Tests
             typeof(GoF2Remake.World.SpaceHooks), typeof(GoF2Remake.UI.UiHooks),
         };
 
-        /// <summary>Set by the level while it runs, not by an installer: FreelanceOrbit's follower view.</summary>
-        static readonly HashSet<string> SetAtRuntime = new HashSet<string> { "SpaceHooks.MissionResultView" };
+        /// <summary>Set while the game runs, not by an installer: FreelanceOrbit's follower view; a mod's (or a server's)
+        /// rule for who may accept an event graph bar mission (EventMissions.RequirementsRefusal, null = everyone may).</summary>
+        static readonly HashSet<string> SetAtRuntime = new HashSet<string> { "SpaceHooks.MissionResultView", "GameHooks.EventMissionAcceptRefusal" };
 
         [Test]
         public void EveryHookIsInstalled()

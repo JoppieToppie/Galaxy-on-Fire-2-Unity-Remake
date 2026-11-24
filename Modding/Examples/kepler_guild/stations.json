@@ -1,0 +1,9 @@
+[
+    // Another mod's station by its key: the star map now says under Kepler Prime's name who runs it. The station's
+    // model, hangar, bar and tech level stay frontier_systems' own.
+    {
+        "override": "frontier_systems:kepler_prime",
+        "subtitle": "Kepler Guild shipyards",
+        "description": "The yards where the Kepler Guild refits the hulls it buys from its neighbours."
+    }
+]

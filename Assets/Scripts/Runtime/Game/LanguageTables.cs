@@ -13,7 +13,7 @@ namespace GoF2Remake.Data
         public string[] codes;
         public TextAsset[] tables;
 
-        public static LanguageTables Load() => Resources.Load<LanguageTables>(ResourceName);
+        public static LanguageTables Load() => GoF2Remake.Data.OriginalRefs.Load<LanguageTables>(ResourceName);
 
         /// <summary>Modified: the languages the menus offer, in their order (every table the asset above references); the
         /// main menu's scene builder writes its language buttons from this list and Options reads its language row from it,

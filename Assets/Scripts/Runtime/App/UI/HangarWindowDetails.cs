@@ -17,6 +17,30 @@ namespace GoF2Remake.UI
         {
             FillDetails();
             PlaceRowActions();
+            rowActions.schedule.Execute(FitRowActionMinimum);
+        }
+        // CLAUDE.md "Row actions": keep proportional columns readable on narrow screens and in longer translations.
+        void FitRowActionMinimum()
+        {
+            bool equipment = rowActions.ClassListContains("row-actions--equipment");
+            bool blueprint = rowActions.ClassListContains("row-actions--blueprint");
+            if (!equipment && !blueprint)
+            {
+                rowActions.style.minWidth = StyleKeyword.Null;
+                actionButton.style.minWidth = StyleKeyword.Null;
+                return;
+            }
+            if (actionButton.panel == null) return;
+            float textWidth = 0f;
+            foreach (int id in new[] { 281, 282, 283 })
+                textWidth = Mathf.Max(textWidth, actionButton.MeasureTextSize(Localization.Get(id).UiCaps(), 0f,
+                    VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x);
+            var style = actionButton.resolvedStyle;
+            float minimum = Mathf.Ceil(textWidth + style.borderLeftWidth + style.borderRightWidth + style.fontSize * 0.7f);
+            if (!(minimum > 0f) || float.IsNaN(minimum)) return;
+            actionButton.style.minWidth = minimum;
+            rowMove.style.minWidth = minimum;
+            rowActions.style.minWidth = rowActions.ClassListContains("row-actions--reorder") ? minimum * 2f + 6f : minimum;
         }
         /// <summary>Remake (a player's feedback 2026-11-03: the Mount / Demount buttons "way off to the right of the slots"):
         /// the selected row's actions in a row of their own right under it in the list, as the original lists "Actions" (278)
@@ -32,33 +56,37 @@ namespace GoF2Remake.UI
             rowActionsHost?.RemoveFromClassList("list-row--actions");
             rowActionsHost = null;
             rowActions.RemoveFromClassList("row-actions--inline");
-            rowActions.RemoveFromClassList("row-actions--sub");
+            rowActions.RemoveFromClassList("row-actions--blueprint");
+            rowActions.RemoveFromClassList("row-actions--equipment");
+            rowActions.RemoveFromClassList("row-actions--reorder");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
-            // Modified (a player's sketch 2026-11-09): a mounted item's DEMOUNT over its slot arrows, or a hold item's amount
-            // over MOUNT, inside the row at its right end; the other rows' actions stay in a row of their own under it.
+            // CLAUDE.md "Row actions": full-height actions; stacked slot arrows or a separate amount on the right.
             bool mounted = selected.kind == RowKind.Slot && selected.equipment >= 0, hold = selected.kind == RowKind.CargoItem;
             if (mounted || hold)
             {
                 rowActions.AddToClassList("row-actions--inline");
+                rowActions.AddToClassList("row-actions--equipment");
                 rowActions.RemoveFromClassList("row-actions--mounted");
                 actionButton2?.AddToClassList("detail-action--hidden");   // MOVE: the arrows (X still moves it to the next slot)
                 if (hold)
                 {
                     rowQty.text = $"{hangar.CargoOf(selected.item)}t";
-                    rowActions.Insert(0, rowQty);
                 }
-                else if (hangar.NextSlot(selected.equipment) >= 0) rowActions.Add(rowMove);
+                else if (hangar.NextSlot(selected.equipment) >= 0)
+                {
+                    rowActions.AddToClassList("row-actions--reorder");
+                    rowActions.Insert(0, rowMove);
+                }
                 e.Add(rowActions);
+                if (hold) e.Add(rowQty);   // its own column, outside the proportional button area
                 e.AddToClassList("list-row--actions");   // its own amount hidden (USS)
                 rowActionsHost = e;
                 return;
             }
-            // Modified (the user's sketch 2026-11-09): a blueprint's EDIT at the right end of its sub-line, under the progress
-            // bar's end, beside the percentage.
-            // (On the row itself, placed over its sub-line's end: inside the texts its clip cut the button's bottom off.)
+            // Keep Edit in the row's flow: it reserves its width and fills the same action height as Demount.
             if (selected.kind == RowKind.Blueprint)
             {
-                rowActions.AddToClassList("row-actions--sub");
+                rowActions.AddToClassList("row-actions--blueprint");
                 rowActions.RemoveFromClassList("row-actions--mounted");
                 e.Add(rowActions);
                 rowActionsHost = e;
@@ -151,7 +179,7 @@ namespace GoF2Remake.UI
                     var r = hangar.CanMount(item, out _);
                     // Modified: a jump drive on a ship with one built in stays pressable: it says why (HangarWindowActions).
                     bool driveBuiltIn = r == Hangar.Result.NotMountable && GalaxyMap.IsKhadorDrive(item) && GalaxyMap.HasIntegratedDrive(Session.ShipIndex);
-                    ShowAction(T(281).UiCaps(), r == Hangar.Result.Ok || r == Hangar.Result.Swap || driveBuiltIn || r == Hangar.Result.WrongShipClass);   // a class misfit stays pressable: it says why
+                    ShowAction(T(281).UiCaps(), r == Hangar.Result.Ok || r == Hangar.Result.Swap || driveBuiltIn);
                 }
             }
             else if (selected.ship >= 0)
@@ -523,7 +551,7 @@ namespace GoF2Remake.UI
                 right.AddToClassList("stat-compare");
                 var a = new VisualElement { pickingMode = PickingMode.Ignore };
                 a.AddToClassList("stat-arrow");
-                var tex = Resources.Load<Texture2D>("GoF2Hud/" + (compare < 0 ? "compare_worse" : compare > 0 ? "compare_better" : "compare_equal"));
+                var tex = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + (compare < 0 ? "compare_worse" : compare > 0 ? "compare_better" : "compare_equal"));
                 if (tex != null) a.style.backgroundImage = new StyleBackground(tex);
                 right.Add(v);
                 right.Add(a);

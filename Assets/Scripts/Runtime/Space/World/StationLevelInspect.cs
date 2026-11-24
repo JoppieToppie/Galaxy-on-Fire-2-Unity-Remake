@@ -193,7 +193,7 @@ namespace GoF2Remake.World
             flingVelocity = 0f;
             afterDeparture = then;
             var engine = HangarFlight.AddEngine(playerShip.gameObject, true, db, shipIndex, out float volume);
-            playerFlight = HangarFlight.Departure(playerShip, lane, engine, volume);
+            playerFlight = HangarFlight.Departure(playerShip, lane, engine, volume, hangarView);
             playerFlightStart = Time.unscaledTime;
             playerFlight.Hold = traffic != null && traffic.Busy;
         }

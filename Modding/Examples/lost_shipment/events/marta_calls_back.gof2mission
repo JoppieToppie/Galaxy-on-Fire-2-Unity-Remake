@@ -1,0 +1,17 @@
+{
+    "format": "gof2mission",
+    "kind": "quest",
+    "title": "A Second Look",
+    "startsWhen": "quest(lost_container) == 2 and docked(21) + docked(70) == 0",
+    "reward": 4000,
+    "steps": [
+        { "type": "note", "text": "A quest: no one offers it. It starts by itself as soon as its condition holds: the bar mission done (2), and the player not docked at Marta's stations." },
+        { "type": "wait", "seconds": 5 },
+        { "type": "radio", "speaker": "terran female Marta Ossery", "text": "It's Marta. The container held more than its manifest said. Meet me at Dekato and keep it quiet." },
+        { "type": "goto", "station": 22, "dock": true, "objective": "Meet Marta at Dekato" },
+        { "type": "dialog", "pages": [
+            { "speaker": "terran female Marta Ossery", "text": "You didn't ask what was inside. I like that. Take this, and forget my name." }
+        ] },
+        { "type": "complete" }
+    ]
+}

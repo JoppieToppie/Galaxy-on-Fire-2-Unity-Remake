@@ -63,11 +63,11 @@ namespace GoF2Remake.Data
         [Tooltip("UI/Ending/Ending.uxml: the ending's overlay (EndingCredits, shown by the main menu).")]
         public VisualTreeAsset endingUxml;
 
-        Dictionary<string, AudioClip> eng, deu;
-        Dictionary<string, (Texture2D tex, int height)> parts;
+        Dictionary<string, int> eng, deu;   // a line's name -> its index in voiceClipsEng / Deu
+        Dictionary<string, int> partIndex;
 
         static StoryAssets instance;
-        public static StoryAssets Load() => instance != null ? instance : instance = Resources.Load<StoryAssets>("GoF2Story/StoryAssets");
+        public static StoryAssets Load() => instance != null ? instance : instance = GoF2Remake.Data.OriginalRefs.Load<StoryAssets>("GoF2Story/StoryAssets");
 
         /// <summary>A voice line by its event name; German when the voices are German (Settings.GermanVoices: the voice
         /// language option, by default the text language) and the line was recorded, else English (FMOD's language banks).</summary>
@@ -80,11 +80,10 @@ namespace GoF2Remake.Data
             // Remake mods: a mod's file named like the line replaces it (Modding.ModVoices.Replacement).
             var replaced = Modding.ModVoices.Replacement(name);
             if (replaced != null) return replaced;
-            eng ??= Map(voiceNamesEng, voiceClipsEng);
-            deu ??= Map(voiceNamesDeu, voiceClipsDeu);
-            if (Settings.GermanVoices && (deu.TryGetValue(name, out var d) || deu.TryGetValue(name + AltSuffix, out d))) return d;
+            Maps();
+            if (Settings.GermanVoices && Find(deu, name, out int d)) return DeuAt(d);
             // Remake mods: a mod's own clip (Modding.ModVoices, loaded when its page arrived).
-            return eng.TryGetValue(name, out var e) || eng.TryGetValue(name + AltSuffix, out e) ? e : Modding.ModVoices.Get(name);
+            return Find(eng, name, out int e) ? EngAt(e) : Modding.ModVoices.Get(name);
         }
 
         /// <summary>The game's own recording of a line in one language (German, else English), not a mod's: the Mod Builder
@@ -92,19 +91,44 @@ namespace GoF2Remake.Data
         public AudioClip OriginalVoice(string name, bool german)
         {
             if (string.IsNullOrEmpty(name)) return null;
-            eng ??= Map(voiceNamesEng, voiceClipsEng);
-            deu ??= Map(voiceNamesDeu, voiceClipsDeu);
-            var table = german ? deu : eng;
-            return table.TryGetValue(name, out var c) || table.TryGetValue(name + AltSuffix, out c) ? c : null;
+            Maps();
+            return german ? (Find(deu, name, out int d) ? DeuAt(d) : null) : (Find(eng, name, out int e) ? EngAt(e) : null);
         }
 
         /// <summary>The game's own voice line of that event name (English or German; not a mod's).</summary>
         public bool IsVoice(string name)
         {
             if (string.IsNullOrEmpty(name)) return false;
-            eng ??= Map(voiceNamesEng, voiceClipsEng);
-            deu ??= Map(voiceNamesDeu, voiceClipsDeu);
-            return eng.ContainsKey(name) || eng.ContainsKey(name + AltSuffix) || deu.ContainsKey(name) || deu.ContainsKey(name + AltSuffix);
+            Maps();
+            return Find(eng, name, out _) || Find(deu, name, out _);
+        }
+
+        /// <summary>Whether the game has its own English recording of the line (the build's or the converted copy's), without
+        /// loading the clip.</summary>
+        public bool HasEnglishVoice(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            Maps();
+            return Find(eng, name, out int e) && GoF2Remake.Data.OriginalRefs.Has(this, nameof(voiceClipsEng), voiceClipsEng, e);
+        }
+
+        void Maps()
+        {
+            eng ??= Index(voiceNamesEng, voiceClipsEng.Count);
+            deu ??= Index(voiceNamesDeu, voiceClipsDeu.Count);
+        }
+
+        static bool Find(Dictionary<string, int> map, string name, out int i) => map.TryGetValue(name, out i) || map.TryGetValue(name + AltSuffix, out i);
+
+        // a line's clip: from the converted copy the first time it is asked for in a build without the originals (OriginalRefs)
+        AudioClip EngAt(int i) => GoF2Remake.Data.OriginalRefs.Entry(this, nameof(voiceClipsEng), voiceClipsEng, i);
+        AudioClip DeuAt(int i) => GoF2Remake.Data.OriginalRefs.Entry(this, nameof(voiceClipsDeu), voiceClipsDeu, i);
+
+        static Dictionary<string, int> Index(List<string> names, int count)
+        {
+            var d = new Dictionary<string, int>();
+            for (int i = 0; i < names.Count && i < count; i++) d[names[i]] = i;
+            return d;
         }
 
         /// <summary>The game's voice lines by event name (a re-recorded "_Alt2" wave by its event's), sorted: the Mod
@@ -124,13 +148,15 @@ namespace GoF2Remake.Data
 
         public (Texture2D tex, int height) Part(string key)
         {
-            if (parts == null)
+            if (partIndex == null)
             {
-                parts = new Dictionary<string, (Texture2D, int)>();
-                for (int i = 0; i < partNames.Count && i < partTextures.Count; i++)
-                    parts[partNames[i]] = (partTextures[i], i < partHeights.Count ? partHeights[i] : partTextures[i] != null ? partTextures[i].height : 0);
+                partIndex = new Dictionary<string, int>();
+                for (int i = 0; i < partNames.Count && i < partTextures.Count; i++) partIndex[partNames[i]] = i;
             }
-            return parts.TryGetValue(key, out var t) ? t : (null, 0);
+            if (!partIndex.TryGetValue(key, out int at)) return (null, 0);
+            // (the converted copy's part when the build has none: OriginalRefs fills this long list entry by entry)
+            var tex = GoF2Remake.Data.OriginalRefs.Entry(this, nameof(partTextures), partTextures, at);
+            return (tex, at < partHeights.Count ? partHeights[at] : tex != null ? tex.height : 0);
         }
 
         static Dictionary<string, T> Map<T>(List<string> names, List<T> values)

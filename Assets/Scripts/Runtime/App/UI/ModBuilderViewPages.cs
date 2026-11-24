@@ -78,7 +78,7 @@ namespace GoF2Remake.UI
             var s = Current;
             if (s == null) { Note(ship, T("mbPickShip", "Add a ship on the left to start.")); return; }
             JsonButton(ship, s.Json, () => { s.ReadMounts(); SaveNow(); RequestReload(false); RebuildShips(); BuildShipPage(); BuildHardpointsPage(); },
-                       T("mbJsonShipNote", "Also in ships.json: materials, glows, dealer, lounge, npcTurrets, available."));
+                       T("mbJsonShipNote", "Also in ships.json: shipClass, classTags, materials, glows, dealer, lounge, npcTurrets, available."));
             var db = Database.Shared;
             var original = s.IsOverride ? db.Ship(s.OverrideIndex) : null;
             Heading(ship, s.IsOverride ? string.Format(T("mbChanges", "Changes {0}"), GameNames.Ship(s.OverrideIndex)) : T("mbNewShipSub", "New ship"));
@@ -425,6 +425,12 @@ namespace GoF2Remake.UI
             }
             if (type == 2)
             {
+                Int(selectedBox, T("mbTurretMountScale", "Turret size (%)"), Mathf.RoundToInt(m.TurretScale * 100f), 1, 100000, v =>
+                {
+                    m.turretScale = v / 100f;
+                    OnMountEdited(2);
+                });
+                Note(selectedBox, T("mbTurretMountScaleNote", "Multiplies this mount's turret size on this ship only. 100% is normal; maximum 100000% (1000x)."));
                 // The way the turret's base faces (WeaponMount.turretUp): a preset, or the hull's surface at the point.
                 Add(selectedBox, new Label(T("mbTurretFaces", "Turret faces")), "mbv-inline-label");
                 var faces = Add(selectedBox, new VisualElement(), "mbv-row", "mbv-add-row");

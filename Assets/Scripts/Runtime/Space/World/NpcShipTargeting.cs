@@ -140,6 +140,12 @@ namespace GoF2Remake.World
         /// <summary>§5.3 target selection.</summary>
         void UpdateTargeting()
         {
+            // remake mods: a pursuer (Chorus's Guilt) always has the player (BTService_SelectTarget: bPreferPlayer)
+            if (Role == NpcRoles.Role.Pursuer && traffic != null && traffic.Player != null && traffic.Player.Alive)
+            {
+                target = traffic.Player; targetPos = target.transform.position; attacking = true; followingWaypoint = false;
+                return;
+            }
             if (attacking && target != null && LostToCloak(target)) { lastSeen = target.transform.position; searchMs = SearchMs; }
             if (searchMs > 0f)
             {

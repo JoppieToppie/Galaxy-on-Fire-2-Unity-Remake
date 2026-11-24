@@ -1,20 +1,48 @@
 [
+    // A station with everything of its own: a 3D model, a hangar and a bar (interiors.json), its planet's picture and its
+    // star map globe.
     {
-        "id": "kepler_prime", "system": "frontier_systems:kepler", "name": "Kepler Prime", "techLevel": 7, "planet": 12,
+        "id": "kepler_prime",
+        "system": "frontier_systems:kepler",     // its system, by key
+        "name": "Kepler Prime",
+        "techLevel": 7,                           // 0-10: what its shop sells
+        "planet": 12,                             // the game's planet picture it orbits (replaced by planetTexture below)
+
+        // The original station whose docking shape it borrows, and what stands in while the model loads.
         "looksLike": 40,
+        // Its own model (glTF / GLB), 50000 game units (2.5 km) across; ships bump into its real shape, NPCs steer
+        // round its box.
         "model": "models/kepler_station.glb", "modelSize": 50000, "collision": "box",
+
+        // Its own rooms, from interiors.json.
         "hangar": "kepler_hangar", "bar": "kepler_bar",
+
+        // Its planet seen from the orbit (a round picture on transparency), and on the star map (a 2:1 world map wrapped
+        // round the globe), with the game's planet ring there.
         "planetTexture": "textures/kepler_prime_planet.png",
         "mapTexture": "textures/kepler_prime_map.png", "mapRing": true
     },
+
+    // A station built from the game's own parts: an original model and a Nivelian interior, with its orbit laid out by
+    // hand (where the jumpgate stands, an ice field to mine, the sun and planet in the sky).
     {
-        "id": "rho_freeport", "system": "frontier_systems:kepler", "name": { "en": "Rho Freeport", "de": "Freihafen Rho" }, "techLevel": 4, "planet": 6,
-        "looksLike": 41, "interior": "nivelian",
+        "id": "rho_freeport",
+        "system": "frontier_systems:kepler",
+        "name": { "en": "Rho Freeport", "de": "Freihafen Rho" },   // a text in several languages
+        "techLevel": 4,
+        "planet": 6,
+        "looksLike": 41,                          // no model of its own: this original station is what it looks like
+        "interior": "nivelian",                   // the hangar and bar of the Nivelian stations
+
+        // Where its planet sits in the star map's system view: round the sun in degrees, and how far out.
         "mapPlace": { "angle": 200, "distance": 26000 },
+
+        // The orbit level (Modding/README.md "Orbit layouts"), in game units around the station.
         "orbit": {
             "jumpgatePosition": [-60000, 8000, 70000],
+            // 90 ice asteroids to mine: Gold (154) and Sodil (159), and now and then (2 %) Cesogen (161).
             "asteroids": { "count": 90, "centre": [40000, -6000, 50000], "spread": 140000, "type": "ice", "ores": [154, 159, { "item": 161, "chance": 2 }] },
-            "sun": [120, 20],
+            "sun": [120, 20],                     // the sun's direction: yaw and pitch in degrees
             "planet": { "size": 1.4, "yaw": -25, "pitch": 8 }
         }
     }

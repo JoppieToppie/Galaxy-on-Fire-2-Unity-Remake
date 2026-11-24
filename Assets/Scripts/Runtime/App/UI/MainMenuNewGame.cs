@@ -212,6 +212,8 @@ namespace GoF2Remake.UI
             noMedalsNext = false;   // likewise
             RefreshHardcoreToggle();
             RefreshMedalsToggle();
+            // Remake mods (#313): a campaign with its own economy ("economy" in campaign.json) doesn't ask for one.
+            if (pendingModCampaign?.economy is Economy fixedEconomy) { PickEconomy(fixedEconomy); return; }
             OpenPanel("economyPanel");
         }
 
@@ -255,7 +257,7 @@ namespace GoF2Remake.UI
             var desc = root.Q<Label>("medalsDesc");
             if (desc != null)
                 desc.text = Localization.Extra("medalsDesc",
-                    "Off: no medals in this game. The VoidX then comes with winning the main story, the Specter and the fireworks with finishing Supernova.");
+                    "Off: no medals in this game. The VoidX and wingmen who pay you to hire them become available after winning the main story; the Specter and fireworks after finishing Supernova.");
         }
 
         /// <summary>The Supernova Challenge's entry under the campaign cards (the remake's: the original offered it nowhere,
@@ -351,6 +353,8 @@ namespace GoF2Remake.UI
             Session.Economy = economy;   // before the Database: it loads that economy's tables
             if (KaamoFromStart) Session.KaamoState = 3;   // resetGame with the expansion bought: the club owned, its storage empty
             Modding.ModGameOptions.ApplyChoices();   // remake mods: the options picked in the Game options panel
+            // Remake mods (#313): the campaign is known before its database loads, so a script's "database" handler can tell.
+            if (pendingModCampaign != null) Session.ModCampaign = pendingModCampaign.Id;
             var db = Database.Load();
             // Remake mods: a mod's campaign (Modding.ModCampaigns): its start, docked at its station; no GoF2 story.
             // Remake mods: a DLC (Modding.ModDlcs): the end of the whole story, then its quest.

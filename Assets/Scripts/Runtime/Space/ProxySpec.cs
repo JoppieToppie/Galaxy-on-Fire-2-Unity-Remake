@@ -41,7 +41,7 @@ namespace GoF2Remake.Flight
         public int capitalLaunched;
         public bool capitalProvoked;
 
-        const byte Version = 1;
+        const byte Version = 2;
 
         public string Encode()
         {
@@ -75,7 +75,8 @@ namespace GoF2Remake.Flight
             try { bytes = Convert.FromBase64String(text); }
             catch (FormatException) { return null; }
             var r = new WireReader(bytes);
-            if (r.Byte() != Version) return null;
+            byte version = r.Byte();
+            if (version < 1 || version > Version) return null;
             var p = new ProxySpec
             {
                 model = r.Text(),
@@ -98,7 +99,7 @@ namespace GoF2Remake.Flight
             p.capitalLaunched = r.VarInt();
             p.capitalProvoked = r.Bool();
             if ((flags & 16) != 0) p.cargo = ReadStacks(r);
-            if ((flags & 8) != 0) p.spec = ReadSpec(r);
+            if ((flags & 8) != 0) p.spec = ReadSpec(r, version);
             return r.Ok ? p : null;
         }
 
@@ -188,6 +189,10 @@ namespace GoF2Remake.Flight
             w.VarInt(s.capital);
             w.Float(s.deathMs);
             w.VarInt(s.empPoints);
+            w.VarInt(s.shield);
+            w.VarInt(s.shieldRechargeMs);
+            w.Float(s.energyResistance);
+            w.Float(s.ballisticResistance);
             if (s.route != null)
             {
                 int n = Math.Min(s.route.points.Count, MaxRoutePoints);
@@ -202,7 +207,7 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>WriteSpec's spec; wreckPrefab, when it had one, is the outpost wreck (the only one specs use).</summary>
-        public static SpawnSpec ReadSpec(WireReader r)
+        public static SpawnSpec ReadSpec(WireReader r, int version = Version)
         {
             var s = new SpawnSpec { group = (NpcGroup)r.VarInt(), race = r.VarInt(), ship = r.VarInt(), position = V3(r) };
             uint bits = r.UInt();
@@ -246,6 +251,13 @@ namespace GoF2Remake.Flight
             s.capital = r.VarInt();
             s.deathMs = r.Float();
             s.empPoints = r.VarInt();
+            if (version >= 2)
+            {
+                s.shield = r.VarInt();
+                s.shieldRechargeMs = r.VarInt();
+                s.energyResistance = r.Float();
+                s.ballisticResistance = r.Float();
+            }
             if (Bit(18))
             {
                 int n = (int)Math.Min(r.VarULong(), MaxRoutePoints);

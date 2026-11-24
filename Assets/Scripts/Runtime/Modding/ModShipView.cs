@@ -26,6 +26,7 @@ namespace GoF2Remake.Modding
     {
         public const int MaxSmokePoints = 4;
         public const float MinExplosion = 0.25f, MaxExplosion = 20f;
+        public const float DefaultOrbitDistance = 3800f, MinOrbitDistance = 1500f, MaxOrbitDistance = 70000f;
 
         /// <summary>The original's chase camera (TargetFollowCamera): distance, height, look height, look ahead.</summary>
         public static readonly float[] DefaultCamera = { 1338f, 600f, 600f, -650f };
@@ -40,7 +41,8 @@ namespace GoF2Remake.Modding
                 if (!(c is JObject co)) throw new ModJsonException($"{where}: \"camera\" must be an object {{ \"distance\": 2400, \"height\": 900 }}");
                 foreach (var prop in co.Properties())
                 {
-                    if (Array.FindIndex(CameraFields, f => string.Equals(f, prop.Name, StringComparison.OrdinalIgnoreCase)) < 0)
+                    if (Array.FindIndex(CameraFields, f => string.Equals(f, prop.Name, StringComparison.OrdinalIgnoreCase)) < 0
+                        && !string.Equals(prop.Name, "orbitDistance", StringComparison.OrdinalIgnoreCase))
                     {
                         string warning = $"{ModJson.Where(prop, file)}: unknown camera field \"{prop.Name}\" (ignored)";
                         if (!mod.Warnings.Contains(warning)) mod.Warnings.Add(warning);
@@ -50,6 +52,12 @@ namespace GoF2Remake.Modding
                 }
                 if (ModJson.Get(co, "distance") is JToken d && IsNumber(d) && (float)d <= 0f)
                     throw new ModJsonException($"{ModJson.Where(d, file)}: \"distance\" must be above 0");
+                if (ModJson.Get(co, "orbitDistance") is JToken od && IsNumber(od))
+                {
+                    if ((float)od <= 0f) throw new ModJsonException($"{ModJson.Where(od, file)}: \"orbitDistance\" must be above 0");
+                    if ((float)od < MinOrbitDistance || (float)od > MaxOrbitDistance)
+                        mod.Warnings.Add($"{ModJson.Where(od, file)}: \"orbitDistance\" {(float)od} is outside {MinOrbitDistance}..{MaxOrbitDistance} (clamped)");
+                }
             }
             if (ModJson.Get(o, "cockpit") is JToken k && !TryPoint(k, out _))
                 throw new ModJsonException($"{ModJson.Where(k, file)}: \"cockpit\" must be a point [x, y, z]");
@@ -80,6 +88,8 @@ namespace GoF2Remake.Modding
                     if (ModJson.Get(c, CameraFields[i]) is JToken v && IsNumber(v)) cam[i] = (float)v;
                 if (cam[0] <= 0f) cam[0] = DefaultCamera[0];
                 s.chaseCamera = cam;
+                if (ModJson.Get(c, "orbitDistance") is JToken od && IsNumber(od))
+                    s.orbitCameraDistance = Mathf.Clamp((float)od, MinOrbitDistance, MaxOrbitDistance);
             }
             if (ModJson.Get(o, "cockpit") is JToken k && TryPoint(k, out var seat)) s.cockpit = seat;
             if (ModJson.Get(o, "smoke") is JArray list)
@@ -91,6 +101,9 @@ namespace GoF2Remake.Modding
             }
             if (ModJson.Get(o, "explosionScale") is JToken e && IsNumber(e)) s.explosionScale = Mathf.Clamp((float)e, MinExplosion, MaxExplosion);
         }
+
+        /// <summary>The free-look orbit's default radius in game units; absent = the original's 3800.</summary>
+        public static float OrbitDistance(ShipData s) => s?.orbitCameraDistance ?? DefaultOrbitDistance;
 
         /// <summary>The chase camera's offsets in the ship's frame (metres; game units x 'metersPerUnit'): the ship's own
         /// "camera", else the original's.</summary>

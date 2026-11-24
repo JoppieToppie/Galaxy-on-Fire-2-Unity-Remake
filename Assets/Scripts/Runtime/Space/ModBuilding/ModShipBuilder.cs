@@ -52,8 +52,10 @@ namespace GoF2Remake.Modding
             model.transform.SetParent(root.transform, false);
             model.transform.localPosition = Vector3.zero;
             model.transform.localRotation = kitScale > 0f ? Quaternion.Euler(0f, kitYaw, 0f) : Quaternion.Euler(c.modelPitch, c.modelYaw, c.modelRoll);
-            FlattenSkinned(model);
+            if (c.skinned) KeepSkinned(model);   // (ships.json "skinned": its clips bend the mesh)
+            else FlattenSkinned(model);
             ModGltf.LoopAnimations(model);   // its glTF node animations (moving parts) play on a loop, a kit's parts' too
+            ModShipAnimator.Attach(root, c.animations);   // or by what the ship does: idle, the drift (ships.json "animations")
             var renderers = model.GetComponentsInChildren<Renderer>(true);
             var specs = c.materials ?? new List<CustomShipMaterial>();
             var mats = new Material[specs.Count];
@@ -253,6 +255,14 @@ namespace GoF2Remake.Modding
             for (int i = 0; i < GameNames.OriginalShips; i++)
                 if (i != 13 && i != 14 && i != 15 && Shop.RaceOfShip(i) == c.race && Of(i) is Material m) return m;
             return null;
+        }
+
+        /// <summary>A ship that keeps its skinned meshes (ships.json "skinned"): drawn wherever its bones bend them, its bounds
+        /// followed every frame (a creature's arms swing well past its bind pose), not culled while off screen.</summary>
+        internal static void KeepSkinned(GameObject model)
+        {
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                smr.updateWhenOffscreen = true;
         }
 
         /// <summary>Skinned meshes (a GLB whose hull is bound to a skeleton, common in exported game models) baked into plain

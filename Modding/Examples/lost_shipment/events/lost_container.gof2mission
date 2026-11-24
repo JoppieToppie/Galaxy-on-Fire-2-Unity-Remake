@@ -1,0 +1,42 @@
+{
+    "format": "gof2mission",
+    "kind": "mission",
+    "title": "The Lost Container",
+    "client": "Marta Ossery",
+    "offer": "One of my containers went over the side near Psa Tori when pirates jumped us. Bring it back to me here and I'll pay you well, and more for every pirate who doesn't come home.",
+    "stations": [ 21, 70 ],
+    "players": [ 1, 4 ],
+    "reward": 12000,
+    "startsWhen": "rank >= 2",
+    "once": true,
+    "variables": [ { "name": "bonus", "value": 0 } ],
+    "steps": [
+        { "type": "note", "text": "A bar mission: offered by a visitor in the lounges of Euclades (21) and Dis (70), once, from rank 2 on." },
+        { "type": "dialog", "pages": [
+            { "speaker": "terran female Marta Ossery", "text": "The container's beacon is still on. The pirates who took a shot at us are sitting right on top of it." },
+            { "speaker": "player", "text": "Then they won't be for long." }
+        ] },
+
+        { "type": "note", "text": "Places: fly to an orbit (dock false: arriving there is enough), with the Missions window's line." },
+        { "type": "goto", "station": 23, "dock": false, "objective": "Find the container at Psa Tori" },
+
+        { "type": "note", "text": "Ships: a fight in that orbit; the step waits until every one of them is destroyed." },
+        { "type": "radio", "speaker": "pirate", "text": "That box is ours now. Turn around." },
+        { "type": "fight", "station": 23, "name": "Scavenger", "ships": [ { "ship": 32, "count": 3, "race": "pirate", "behaviour": "attack" } ] },
+
+        { "type": "note", "text": "The player: the container goes into the hold." },
+        { "type": "give", "item": 116, "amount": 1 },
+        { "type": "title", "title": "Container recovered", "subtitle": "Bring it back to Marta", "seconds": 4 },
+
+        { "type": "note", "text": "Lua: code of the mod's own for what no step does. 'event.get' reads a value of the mission (here the kills), 'event.set' writes a variable, and what the code returns goes into the 'result' variable." },
+        { "type": "lua", "result": "bonus", "code": "local event = ...\nlocal kills = event.get(\"kills\")\nlocal bonus = math.min(kills, 10) * 500\nSession.AddCredits(bonus)\nreturn bonus" },
+
+        { "type": "note", "text": "Waits until the player is docked where the mission was taken and hands the container in (take: it leaves the hold)." },
+        { "type": "goto", "station": "{missionstation}", "dock": true, "objective": "Bring the container to Marta" },
+        { "type": "cargo", "item": 116, "amount": 1, "take": true },
+        { "type": "dialog", "pages": [
+            { "speaker": "terran female Marta Ossery", "text": "Still sealed. Good. Here's your pay, and {bonus} credits on top for the pirates." }
+        ] },
+        { "type": "complete" }
+    ]
+}

@@ -6,6 +6,9 @@
 // path), Import mod (Android, the Editor: the system's file picker, ModImport; players couldn't reach the Android Mods
 // folder) and Refresh. Mods are turned on and off only here, in the menu: the game's tables are rebuilt when a game
 // starts or loads.
+// The Explore Mods tab (ModBrowserOnline, 2026-11-19): the community catalog's mods (ModCatalog, github.com/JoppieToppie/gof2r-mods)
+// with their author, views and downloads, installed or updated with one press; the Installed tab marks mods it has a
+// newer version of.
 // Plain C#: MainMenu creates it in its panel host and hands it its sound, focus and dialog hooks.
 
 using System;
@@ -18,7 +21,7 @@ using UnityEngine.UIElements;
 
 namespace GoF2Remake.UI
 {
-    public class ModBrowser
+    public partial class ModBrowser
     {
         public VisualElement Panel { get; }
 
@@ -39,6 +42,21 @@ namespace GoF2Remake.UI
         bool importing;
         readonly Dictionary<string, Button> rows = new Dictionary<string, Button>();
         string selected;
+
+        // The Explore Mods tab (ModBrowserOnline): the community catalog (ModCatalog).
+        bool online;
+        readonly Button installedTab, onlineTab, sortButton, installButton, onlineToggle, cancelButton, submitButton, updateButton;
+        readonly VisualElement onlineBar, installedActions, onlineActions;
+        readonly TextField search;
+        readonly Label progress;
+        readonly List<VisualElement> installedFooter = new List<VisualElement>();
+        readonly Dictionary<string, Button> onlineRows = new Dictionary<string, Button>();
+        /// <summary>Why a mod's last download or install failed (by id), shown in its details until it is tried again.</summary>
+        readonly Dictionary<string, string> failures = new Dictionary<string, string>();
+        /// <summary>The mods still to install after the one downloading now (its dependencies first).</summary>
+        readonly Queue<ModCatalog.Entry> installQueue = new Queue<ModCatalog.Entry>();
+        string onlineSelected, justInstalled;
+        int sortMode;
 
         static string T(string key, string english) => Localization.Extra(key, english);
 
@@ -72,12 +90,22 @@ namespace GoF2Remake.UI
 
             var titleRow = Add(Panel, new VisualElement(), "mods-title-row");
             Add(titleRow, new Label(T("modBrowser", "Mod Browser").UiCaps()), "panel-title", "gof-semibold");
+            // The Installed / Explore Mods tabs beside the title (a row of their own squeezed the details at 720p).
+            var tabs = Add(titleRow, new VisualElement(), "tab-row", "mods-tabs");
+            installedTab = TabButton(tabs, T("modsInstalledTab", "Installed"), false);
+            onlineTab = TabButton(tabs, T("modsOnlineTab", "Explore Mods"), true);
             Add(titleRow, new VisualElement(), "mp-title-spacer");
             count = Add(titleRow, new Label(), "mods-count");
             Add(Panel, new VisualElement(), "panel-accent");
 
             var body = Add(Panel, new VisualElement(), "mods-body");
             var left = Add(body, new VisualElement(), "mods-left");
+            onlineBar = Add(left, new VisualElement(), "mods-online-bar");
+            search = Add(onlineBar, new TextField { label = "" }, "mods-search", "gof-field");
+            search.textEdition.placeholder = T("modsSearch", "Search mods, authors…");
+            search.RegisterValueChangedCallback(_ => { if (online) Rebuild(); });
+            hookFocus(search);
+            sortButton = ActionButton(onlineBar, "", CycleSort, "mods-sort");
             list = Add(left, new ScrollView(ScrollViewMode.Vertical), "mods-list");
             list.verticalScrollerVisibility = ScrollerVisibility.Hidden;
             list.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
@@ -85,19 +113,26 @@ namespace GoF2Remake.UI
             empty = Add(left, new Label(), "mods-empty");
 
             detail = Add(body, new VisualElement(), "mods-detail");
-            preview = Add(detail, new VisualElement { pickingMode = PickingMode.Ignore }, "mods-preview");
-            name = Add(detail, new Label(), "mods-name", "gof-semibold");
-            meta = Add(detail, new Label(), "mods-meta");
+            // The picture beside the name and the meta lines, so the description below gets the column's height (the picture
+            // on top of everything left it two lines, 2026-11-19).
+            var head = Add(detail, new VisualElement(), "mods-detail-head");
+            preview = Add(head, new VisualElement { pickingMode = PickingMode.Ignore }, "mods-preview");
+            var info = Add(head, new VisualElement(), "mods-detail-info");
+            name = Add(info, new Label(), "mods-name", "gof-semibold");
+            meta = Add(info, new Label(), "mods-meta");
             var descScroll = Add(detail, new ScrollView(ScrollViewMode.Vertical), "mods-desc-scroll");
             descScroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
             descScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             description = Add(descScroll, new Label(), "mods-desc");
             problems = Add(descScroll, new Label(), "mods-problems");
-            var actions = Add(detail, new VisualElement(), "mods-actions");
+            progress = Add(detail, new Label(), "mods-progress");
+            var actions = installedActions = Add(detail, new VisualElement(), "mods-actions");
             toggle = ActionButton(actions, "", Toggle, "mods-toggle");
             // The controller's X toggles the selected mod from anywhere in the panel (MainMenu: ToggleSelected); its
             // glyph on the button shows while a controller is in use (.input-gamepad).
             Add(toggle, InputGlyph.Pad(PadButton.X), "mods-pad-x");   // X / square, in the style of the controller in use
+            // The catalog has a newer version of the selected mod: updated in place (ModBrowserOnline).
+            updateButton = ActionButton(actions, "", UpdateSelected, "mods-update");
             earlier = ActionButton(actions, T("modsEarlier", "Earlier"), () => Move(-1));
             later = ActionButton(actions, T("modsLater", "Later"), () => Move(1));
             edit = ActionButton(actions, T("modsEditInBuilder", "Edit in Mod Builder"), () =>
@@ -111,21 +146,44 @@ namespace GoF2Remake.UI
             // Delete (its own row would push the detail into the footer on a TV or a phone). The place is in the meta lines.
             dlcEarlier = ActionButton(actions, T("modsDlcEarlier", "Play earlier"), () => MoveDlc(-1));
             dlcLater = ActionButton(actions, T("modsDlcLater", "Play later"), () => MoveDlc(1));
+            // The Explore Mods tab's: Install / Update (a download of the catalog's zip), Turn on / off once installed, Cancel.
+            onlineActions = Add(detail, new VisualElement(), "mods-actions");
+            installButton = ActionButton(onlineActions, "", InstallSelected, "mods-toggle");
+            Add(installButton, InputGlyph.Pad(PadButton.X), "mods-pad-x");
+            onlineToggle = ActionButton(onlineActions, "", () => { if (onlineSelected != null) ToggleMod(onlineSelected); });
+            cancelButton = ActionButton(onlineActions, T("modsCancelDownload", "Cancel"), CancelDownload, "mods-delete");
 
+            // The note under the list; the footer one row: Back, then the panel's buttons (Back had a row of its own).
+            note = Add(left, new Label(), "mods-note");
             var footer = Add(Panel, new VisualElement(), "mods-footer");
-            note = Add(footer, new Label(), "mods-note");
-            if (!Application.isMobilePlatform) ActionButton(footer, T("modsOpenFolder", "Open mods folder"),
-                () => ModManager.OpenFolder(selected != null ? ModManager.Find(selected) : null), "mods-footer-button");   // the selected mod's folder
-            if (ModImport.Available) ActionButton(footer, T("modsImport", "Import mod"), Import, "mods-footer-button").AddToClassList("mods-import");
+            var backButton = Add(footer, new Button(back) { text = "‹  " + Localization.Get(170).UiCaps() }, "menu-button", "back-button", "mods-back", "gof-semibold");
+            hookFocus(backButton);
+            Add(footer, new VisualElement(), "mods-footer-spacer");
+            if (!Application.isMobilePlatform) installedFooter.Add(ActionButton(footer, T("modsOpenFolder", "Open mods folder"),
+                () => ModManager.OpenFolder(selected != null ? ModManager.Find(selected) : null), "mods-footer-button"));   // the selected mod's folder
+            if (ModImport.Available)
+            {
+                var import = ActionButton(footer, T("modsImport", "Import mod"), Import, "mods-footer-button");
+                import.AddToClassList("mods-import");
+                installedFooter.Add(import);
+            }
             // Android: a folder of the player's (Documents...): its Mods copied in on every refresh, its ModProjects synced with
             // the Mod Builder's (ModManager.PickedFolder).
-            if (Application.platform == RuntimePlatform.Android) ActionButton(footer, T("modsPickFolder", "Mods folder"), PickFolder, "mods-footer-button");
-            ActionButton(footer, T("modsRefresh", "Refresh"), () => { ModManager.Scan(); Rebuild(); }, "mods-footer-button");
+            if (Application.platform == RuntimePlatform.Android) installedFooter.Add(ActionButton(footer, T("modsPickFolder", "Mods folder"), PickFolder, "mods-footer-button"));
+            // Online: the catalog's page, where a mod is shared (a pull request with its download link).
+            submitButton = ActionButton(footer, T("modsShare", "Share your mod"), () => Application.OpenURL(ModCatalog.Page), "mods-footer-button");
+            ActionButton(footer, T("modsRefresh", "Refresh"), () =>
+            {
+                if (online) { ModCatalog.Fetch(true); Rebuild(); }
+                else { ModManager.Scan(); Rebuild(); }
+            }, "mods-footer-button");
             // When something looks wrong after a mod changed: the cached textures, hangar shadows and unpacked zips are made again.
-            if (rebuildCache != null) ActionButton(footer, T("modsRebuildCache", "Rebuild cache"), rebuildCache, "mods-footer-button");
-            var backButton = Add(Panel, new Button(back) { text = "‹  " + Localization.Get(170).UiCaps() }, "menu-button", "back-button", "gof-semibold");
-            hookFocus(backButton);
+            if (rebuildCache != null) installedFooter.Add(ActionButton(footer, T("modsRebuildCache", "Rebuild cache"), rebuildCache, "mods-footer-button"));
 
+            // The catalog's answer (or failure) shows while the panel is up.
+            Panel.RegisterCallback<AttachToPanelEvent>(_ => ModCatalog.Changed += CatalogChanged);
+            Panel.RegisterCallback<DetachFromPanelEvent>(_ => ModCatalog.Changed -= CatalogChanged);
+            ApplyMode();
             host.Add(Panel);
         }
 
@@ -150,12 +208,14 @@ namespace GoF2Remake.UI
         public void Open()
         {
             ModManager.Scan();
+            ModCatalog.Fetch();   // once per run: the Explore Mods tab, and the Installed tab's updates
             Rebuild();
         }
 
         /// <summary>The list and the details again (after a rescan).</summary>
         public void Rebuild()
         {
+            if (online) { RebuildOnline(); return; }
             list.Clear();
             rows.Clear();
             var mods = ModManager.Installed;
@@ -194,6 +254,7 @@ namespace GoF2Remake.UI
             var parts = new List<string> { "v" + m.Version };
             if (!string.IsNullOrEmpty(m.Manifest?.author)) parts.Add(m.Manifest.author);
             if (ModScripts.HasScripts(m)) parts.Add(T("modsScripts", "Scripts"));   // (the warning is in its details)
+            if (ModCatalog.UpdateFor(m) is ModCatalog.Entry u) parts.Add(string.Format(T("modsUpdateTag", "Update: v{0}"), u.version));
             return string.Join("  ·  ", parts);
         }
 
@@ -207,6 +268,8 @@ namespace GoF2Remake.UI
         /// <summary>The badges, the selection and the detail side for what is selected now.</summary>
         void Refresh()
         {
+            RefreshProgress();
+            if (online) { RefreshOnline(); return; }
             var active = ModManager.Active;
             foreach (var m in ModManager.Installed)
             {
@@ -264,6 +327,9 @@ namespace GoF2Remake.UI
                 lines.Add(isOn && !ModScripts.IsApproved(mod)
                     ? "× " + T("modsScriptsBlocked", "Its scripts are new or changed and don't run yet. Turn the mod off and on again to allow them.")
                     : "! " + string.Format(T("modsScriptsNote", "Runs scripts ({0}): they can change anything in the game, your saves included. Only use script mods from authors you trust."), ModScripts.Files(mod).Count));
+            var update = ModCatalog.UpdateFor(mod);
+            if (update != null) lines.Add("↑ " + string.Format(T("modsUpdateLine", "Version {0} is in the online catalog."), update.version));
+            if (failures.TryGetValue(mod.Id, out string failed)) lines.Add("× " + string.Format(T("modsDownloadFailed", "The download failed: {0}"), failed));
             lines.AddRange(mod.Warnings.Take(8).Select(w => "! " + w));
             if (mod.Warnings.Count > 8) lines.Add($"! … {mod.Warnings.Count - 8} more (see the log)");
             problems.text = string.Join("\n", lines);
@@ -274,6 +340,9 @@ namespace GoF2Remake.UI
             edit.style.display = EditInBuilder != null ? DisplayStyle.Flex : DisplayStyle.None;
             edit.SetEnabled(mod.Manifest != null && mod.Source != null);
             toggle.EnableInClassList("mods-toggle--on", isOn);
+            updateButton.style.display = update != null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (update != null) updateButton.text = string.Format(T("modsUpdateTo", "Update to v{0}"), update.version).UiCaps();
+            updateButton.SetEnabled(!ModCatalog.Busy);
             var ids = ModManager.Installed.Where(m => ModManager.IsEnabled(m.Id)).Select(m => m.Id).ToList();
             int i = ids.IndexOf(mod.Id);
             earlier.SetEnabled(i > 0);
@@ -406,6 +475,7 @@ namespace GoF2Remake.UI
         /// that is off).</summary>
         public void ToggleSelected()
         {
+            if (online) { if (installButton.enabledSelf && installButton.resolvedStyle.display == DisplayStyle.Flex) { click(); InstallSelected(); } return; }
             if (selected == null || !toggle.enabledSelf) return;
             click();
             Toggle();
@@ -413,8 +483,12 @@ namespace GoF2Remake.UI
 
         void Toggle()
         {
-            if (selected == null) return;
-            string id = selected;
+            if (selected != null) ToggleMod(selected);
+        }
+
+        /// <summary>Turns the mod 'id' on (asking first for scripts) or off; the Installed tab's Turn on / off and the Explore Mods tab's.</summary>
+        void ToggleMod(string id)
+        {
             if (ModManager.IsEnabled(id)) { ModManager.SetEnabled(id, false); ReorderRows(); return; }
             // Turning on a mod with scripts (its own or a dependency's that comes on with it) asks first: scripts reach
             // the whole game, and run only once allowed (ModScripts.IsApproved; changed script files ask again).
@@ -456,6 +530,7 @@ namespace GoF2Remake.UI
         /// <summary>The rows in the new load order, keeping the elements (and so the focus).</summary>
         void ReorderRows()
         {
+            if (online) { Refresh(); return; }   // the Explore Mods tab's Turn on / off: the installed rows aren't shown
             foreach (var m in ModManager.Installed) if (rows.TryGetValue(m.Id, out var r)) r.BringToFront();
             Refresh();
         }

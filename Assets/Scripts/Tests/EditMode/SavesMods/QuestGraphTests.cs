@@ -60,6 +60,7 @@ namespace GoF2Remake.Tests
                     case "ship": case "lend": st["hull"] = 10; break;
                     case "set": st["variable"] = "x"; break;
                     case "command": st["line"] = "heal @a"; break;
+                    case "lua": st["code"] = "return 1"; break;
                     case "note": st["text"] = "a note"; break;
                     case "title": st["title"] = "Hi"; break;
                     case "waituntil": case "if": case "while": st["condition"] = "1"; break;

@@ -30,6 +30,6 @@ namespace GoF2Remake.UI
         public AudioClip mapClick;   // 102 Map_Whoosh's only wave, Map_Click_01 (StarMap.AddWhoosh)
 
         static StarMapAssets cached;
-        public static StarMapAssets Load() => cached != null ? cached : cached = Resources.Load<StarMapAssets>(ResourcePath);
+        public static StarMapAssets Load() => cached != null ? cached : cached = GoF2Remake.Data.OriginalRefs.Load<StarMapAssets>(ResourcePath);
     }
 }

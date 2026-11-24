@@ -55,6 +55,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   (`ModImport.Pick`), `SaveFolderPicker.mm` (the save folder). Local network adapters by iOS name (`NetGame.AdapterName`:
   en0 Wi-Fi, bridge Hotspot, utun VPN; mobile data and AirDrop left out). Switching the active target to iOS adds a default
   iOS entry to every texture .meta (like UWP's): harmless, revert them before committing.
+  **Foldables, the iPhone Duo** (2026-11-14, the user's request; Apple's spec page: an A20 Pro, a 7.6" 1878 x 2670 inner
+  and a 5.4" 1398 x 2034 outer OLED, both ProMotion up to 120 Hz with a Dynamic Island; iOS 27; its RAM, ProMotion's
+  minimum and the app's life over a fold aren't published): both screens are about 1.42-1.46:1 in landscape, so the UI
+  takes `layout-narrow` (not `-square`) and the cameras' Hor+ keeps the 16:9 width; folding or unfolding changes the
+  screen size and safe area while running, which every screen already follows (`lastScreen` / `lastSafeArea` /
+  `UiLayout.Revision` re-layout, `SafeArea` on GeometryChanged). Changes: a mobile screen under `UiLayout.PhoneMaxInches`
+  (8.1", was 7.5") stays a phone, so the inner screen's 7.6" doesn't switch the UI to the desktop's size on unfolding
+  (tablets, the iPad mini's 8.3" up, stay desktop); iOS defaults to 60 fps and the Medium preset, its upscaler MetalFX
+  Spatial (options.md "Graphics preset"). Not done: a thermal-state response (ProcessInfo.thermalState needs a native plugin), anything Duo-specific by
+  model (its identifier isn't known). Not run on the device or a simulator of it.
 - **Android Vulkan pre-transform** (Player settings > Android > "Apply display rotation during rendering",
   `PlayerSettings.vulkanEnablePreTransform`): on, with `PreTransformGuard` (Space, installed by `Bootstrap`): while it is in
   use (`PreTransformGuard.Active`: Vulkan, `SystemInfo.supportsSwapChainPreTransform`, not
@@ -238,6 +248,17 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
     1,170 MB APK (manifest 6.6 MB). Packs: 3,448 chunks in 24 requests. End to end through GamePatcher against a local
     range server: Windows staged 26 files, the apply script (started as the game starts it) swapped them in under a second,
     and the 10.24 folder hashed identical to 11.02 (104 files); a cancelled download resumed with its chunks kept.
+  - Checked before the release after 2026.11.15, the first one players update to in place (2026-11-20, the user's
+    request; Windows): the patcher's code is the same in the 2026.11.15 tag and now (`git diff 2026.11.15..HEAD` over
+    Core's Patch*, GamePatcher, MainMenuUpdate, UpdateCheck: nothing), so the Editor run is what that build runs. The
+    release zip unpacked, the new build published with `PatchPublish.Run` into a test folder with a copy of the
+    history (the real `Library/GoF2PatchHistory` not written), served by a range-aware local server (the manifest's
+    packBase pointed at it): 47 of 123 files change, 6,020 chunks in 67 range requests, all from the new pack, 1,058 MB
+    instead of the 1,571 MB zip (765 MB of resources.assets.resS, which Unity a16 -> a20 rewrote, 105 MB
+    nvngx_dlssnr.dll, 57 MB libxess.dll, 35 MB GameAssembly.dll), prepared in 8 s, staged in 57 s; apply.cmd swapped
+    the files in and the folder hashed identical to the new build (123 files, none left over), which starts. Not
+    covered: the 2026.11.15 player's own button against GitHub (the release's files have to be there for it), Linux,
+    Android, UWP. A shell standing in `_update` keeps the script from removing that (then empty) folder.
 - **Hitch logger** (`HitchLogger`, development builds only; in the Editor with PlayerPrefs `debug_hitchlog` = 1): frames
   over 33 ms on the real clock to `persistentDataPath/hitches.log` (scene, seconds since its load, campaign step /
   station, tags load / GC / focus, a summary per scene) and `GraphicsSettings.logWhenShaderIsCompiled` on, so logcat

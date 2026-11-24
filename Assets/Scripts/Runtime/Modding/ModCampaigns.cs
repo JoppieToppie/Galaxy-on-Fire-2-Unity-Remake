@@ -17,6 +17,9 @@
 //     "trafficShips": { "terran": [ship, ...], "vossk": [...], "nivelian": [...], "midorian": [...], "pirate": [...] }
 //                              (the ships NPC fighters of that race fly; default the game's)
 //     "flightStyle": "free" | "original"  (the campaign's games always fly so, ModFlight; default the player's option)
+//     "economy": "original" | "default"  (the campaign's economy: the menu doesn't ask; default the player picks)
+//     "medals": [12, "champion", "other_mod:medal"]  (the only medals its games award and show: the game's by number 0-44,
+//                              mods' by key, a bare id this mod's; default all)
 //   }
 // The game runs as a free-play game (Session.FreePlay: the GoF2 story is off) with Session.ModCampaign = the mod's id (saved);
 // a save of it needs the mod (ModSaves warns). Starting: Status::resetGame's state, then the campaign's start, docked at its
@@ -39,7 +42,7 @@ namespace GoF2Remake.Modding
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "name", "description", "image", "imageHover", "showTitle", "startStation", "startShip", "credits", "equipment", "cargo", "standing", "quest",
-            "galaxy", "items", "ships", "trafficShips", "flightStyle", "raceStanding",
+            "galaxy", "items", "ships", "trafficShips", "flightStyle", "raceStanding", "economy", "medals",
         };
 
         public class Def
@@ -54,6 +57,11 @@ namespace GoF2Remake.Modding
             public readonly Dictionary<string, int> raceStanding = new Dictionary<string, int>(StringComparer.Ordinal);   // mod race reference -> -100..100
             public bool modGalaxy, modItems, modShips;
             public int flightStyle = -1;   // "flightStyle": the campaign's games fly so (ModFlight), -1 = the player's option
+            /// <summary>"economy": "original" (the Android tables) / "default": the campaign's own, the menu doesn't ask (#313).</summary>
+            public Economy? economy;
+            /// <summary>"medals": the only medals its games award and show (the game's 0-44 by number, mods' by key; a bare id
+            /// is this mod's); null: all (#313).</summary>
+            public List<string> medals;
             public readonly Dictionary<int, List<string>> trafficShips = new Dictionary<int, List<string>>();
             public string Id => mod.Id;
             public string Name => ModManifest.Pick(name) ?? mod.Name;
@@ -102,8 +110,21 @@ namespace GoF2Remake.Modding
                 modShips = string.Equals(ModJson.Str(o, "ships", "all"), "mod", StringComparison.OrdinalIgnoreCase),
             };
             d.flightStyle = ModFlight.ReadStyle(o, File);
+            switch (ModJson.Str(o, "economy")?.Trim().ToLowerInvariant())
+            {
+                case null: case "": break;
+                case "original": case "android": d.economy = Economy.Android; break;
+                case "default": case "remake": d.economy = Economy.Default; break;
+                default: Warn(mod, $"{File}: economy \"{ModJson.Str(o, "economy")}\" is none of \"original\" / \"default\" (the player picks)"); break;
+            }
             if (string.IsNullOrEmpty(d.startStation)) throw new ModJsonException($"{File}: \"startStation\" is missing (where the game begins)");
             if (string.IsNullOrEmpty(d.startShip)) throw new ModJsonException($"{File}: \"startShip\" is missing (the ship the player begins with)");
+            if (ModJson.Get(o, "medals") is JToken md)
+            {
+                if (!(md is JArray ma)) throw new ModJsonException($"{File}: \"medals\" must be a list [0, \"champion\", \"mod_id:medal\"]");
+                d.medals = ma.Select(x => ((string)x)?.Trim()).Where(x => !string.IsNullOrEmpty(x))
+                             .Select(x => int.TryParse(x, out _) || x.Contains(':') ? x : mod.Id + ":" + x).ToList();
+            }
             if (ModJson.Get(o, "equipment") is JArray eq)
                 foreach (var t in eq) d.equipment.Add(t is JObject e ? ((string)e["item"], e["amount"] != null ? (int)e["amount"] : 1) : ((string)t, 1));
             if (ModJson.Get(o, "cargo") is JArray ca)
@@ -151,6 +172,17 @@ namespace GoF2Remake.Modding
 
         /// <summary>The campaign this game is (Session.ModCampaign; null: a GoF2 game, or its mod is off).</summary>
         public static Def Current => string.IsNullOrEmpty(Session.ModCampaign) ? null : All().Find(c => string.Equals(c.Id, Session.ModCampaign, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>The medal (a combined number: the game's 0-44, then the mods', ModMedals.At) is awarded and shown in this
+        /// game: always, unless the campaign names its "medals" (#313).</summary>
+        public static bool MedalAllowed(int medal)
+        {
+            var list = Current?.medals;
+            if (list == null) return true;
+            if (medal < Achievements.Count) return list.Contains(medal.ToString());
+            var m = ModMedals.At(medal);
+            return m != null && list.Exists(k => string.Equals(k, m.key, StringComparison.OrdinalIgnoreCase));
+        }
 
         /// <summary>The campaign's own galaxy only ("galaxy": "mod").</summary>
         public static bool ModGalaxy => Current?.modGalaxy == true;

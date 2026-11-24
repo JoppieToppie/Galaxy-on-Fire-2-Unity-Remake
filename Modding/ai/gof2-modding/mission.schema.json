@@ -3053,6 +3053,31 @@
           "required": [
             "type"
           ]
+        },
+        {
+          "type": "object",
+          "title": "Lua",
+          "description": "Code of your own (the mod's scripts must be allowed)",
+          "properties": {
+            "type": {
+              "const": "lua"
+            },
+            "code": {
+              "$ref": "#/$defs/text",
+              "description": "Lua code (Runs in this mod's scripts (Modding/README.md \"Scripts\"). local event = ... gives event.name, event.get(\"expression\") and event.set(\"variable\", number); return a number or true / false to put it in the variable below.)"
+            },
+            "result": {
+              "type": "string",
+              "description": "Result into a variable (optional); a variable's name (letters, digits, _)"
+            },
+            "pos": {
+              "type": "array",
+              "description": "the node's place in the builder's graph view [x, y] (optional)"
+            }
+          },
+          "required": [
+            "type"
+          ]
         }
       ]
     },

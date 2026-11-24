@@ -1,8 +1,12 @@
 // HullLitForwardPass.hlsl
 // GoF2: URP's Shaders/LitForwardPass.hlsl (com.unity.render-pipelines.universal 17.7), copied for GoF2/Hull's ForwardLit pass
-// with one change: the mesh's vertex colour reaches the fragment (Attributes / Varyings .color, LitPassVertex), for EVERSPACE 2's
-// structure layers (HullForwardPass.hlsl Es2StructureLayers: its alpha the ambient occlusion and wear mask). When URP is
-// updated, copy it again and repeat the lines marked GoF2.
+// with two changes: the mesh's vertex colour reaches the fragment (Attributes / Varyings .color, LitPassVertex), for EVERSPACE 2's
+// structure layers (HullForwardPass.hlsl Es2StructureLayers: its alpha the ambient occlusion and wear mask) and Chorus's dirt;
+// and UV sets 1 and 3 (Varyings .chorusUV) for Chorus's tiling layer and palette (HullForwardPass.hlsl ChorusLayers); and Chorus's
+// shell push in LitPassVertex (HullInput.hlsl ChorusShellPush). When URP is
+// updated, copy it again and repeat the lines marked GoF2. (Last brought in step: Unity 7000.0.0a20, 2026-11-20: the
+// geometric normal moved from UniversalFragmentPBR's last argument into InputData. Without the old Editor to compare,
+// `diff` this file against the package's: everything not marked GoF2 is URP's.)
 #ifndef UNIVERSAL_FORWARD_LIT_PASS_INCLUDED
 #define UNIVERSAL_FORWARD_LIT_PASS_INCLUDED
 
@@ -38,6 +42,7 @@ struct Attributes
     float2 staticLightmapUV   : TEXCOORD1;
     float2 dynamicLightmapUV  : TEXCOORD2;
     half4 color               : COLOR;   // GoF2
+    float2 chorusUV3          : TEXCOORD3;   // GoF2: Chorus's palette UVs (staticLightmapUV is its UV1: mod hulls have no lightmaps)
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
@@ -86,6 +91,7 @@ struct Varyings
 #endif
 
     half4 color                     : COLOR;   // GoF2
+    float4 chorusUV                 : CHORUSUV;   // GoF2: Chorus's layers, xy UV1, zw UV3 (HullForwardPass.hlsl ChorusLayers)
     float4 positionCS               : SV_POSITION;
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -119,6 +125,7 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 #endif
 
     inputData.normalWS = NormalizeNormalPerPixel(inputData.normalWS, UseNormalMap());
+    inputData.geometricNormalWS = input.normalWS.xyz;
     inputData.viewDirectionWS = viewDirWS;
 
 #if USE_VERTEX_SHADOW_COORD_INTERPOLATOR
@@ -189,6 +196,7 @@ Varyings LitPassVertex(Attributes input)
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+    if (ChorusIsShell()) input.positionOS.xyz += input.normalOS * ChorusShellPush(input.texcoord);   // GoF2: Chorus's shell push
     VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
 
     // normalWS and tangentWS already normalize.
@@ -202,6 +210,7 @@ Varyings LitPassVertex(Attributes input)
 
     output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
     output.color = input.color;   // GoF2
+    output.chorusUV = float4(input.staticLightmapUV, input.chorusUV3);   // GoF2
 
     // already normalized from normal transform to WS.
     output.normalWS = normalInput.normalWS;
@@ -299,7 +308,7 @@ void LitPassFragment(
 
     URP_LIGHT_ACCUM4 color = UniversalFragmentPBR(inputData, surfaceData,
         IsSpecularSetup(), UseSpecularHighlights(), UseAlphaPremultiply(),
-        UseClearCoat() || UseClearCoatMap(), ReceiveShadows(), IsSurfaceTypeTransparent(), UseEnvironmentReflections(), input.normalWS.xyz);
+        UseClearCoat() || UseClearCoatMap(), ReceiveShadows(), IsSurfaceTypeTransparent(), UseEnvironmentReflections());
     color.rgb = ClampExposed(inputData.preExposureMultiplier * BlendDistanceFog(color.rgb, input.positionCS));
 #if defined(_TRANSPARENT_RECEIVE_FOG)
     if (IsSurfaceTypeTransparent())

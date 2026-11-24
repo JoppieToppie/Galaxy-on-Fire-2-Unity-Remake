@@ -524,12 +524,12 @@ namespace GoF2Remake.Multiplayer
             if (flags != 0) EventRunner.NoteRulesSet();
             return "";
         });
-        /// <summary>/flightstyle [players] &lt;free | original | player&gt;: the flight style their games fly with (Events.EventFlight,
+        /// <summary>/flightstyle [players] &lt;free | chorus | original | player&gt;: the flight style their games fly with (Events.EventFlight,
         /// before the ship's, the mod campaign's and their own option: Modding.ModFlight); "player" gives it back.</summary>
         public static string FlightStyle(string args, IPilot by) => ForTargets(args, by, true, (t, rest) =>
         {
             if (!Modding.ModFlight.TryParseStyle(rest, out int style) || string.IsNullOrWhiteSpace(rest)) return Usage("flightstyle");
-            Send(t, Order.Flight, style, 0, 0, by, $"flight style {(style < 0 ? "player" : style == FlightStyles.Free ? "free" : "original")}");
+            Send(t, Order.Flight, style, 0, 0, by, $"flight style {(style < 0 ? "player" : style == FlightStyles.Free ? "free" : style == FlightStyles.Chorus ? "chorus" : "original")}");
             if (style >= 0) EventRunner.NoteFlightSet();
             return "";
         });

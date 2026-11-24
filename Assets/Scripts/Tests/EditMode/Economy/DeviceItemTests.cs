@@ -42,6 +42,11 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(Device.ConsumableAttr, ItemStats.IdOf("deviceConsumable"));
             Assert.AreEqual(Device.AmmoAttr, ItemStats.IdOf("deviceAmmo"));
             Assert.AreEqual(Device.Range2Attr, ItemStats.IdOf("deviceRange2"));
+            Assert.AreEqual(Device.VoidCostAttr, ItemStats.IdOf("deviceVoidCost"));
+            Assert.AreEqual(Device.ChainAttr, ItemStats.IdOf("deviceChain"));
+            Assert.AreEqual(Device.UpgradeAttr, ItemStats.IdOf("deviceUpgrade"));
+            Assert.AreEqual(Device.VoidPipsAttr, ItemStats.IdOf("deviceVoidPips"));
+            Assert.AreEqual(Device.ElementalAttr, ItemStats.IdOf("deviceElementalProof"));
             Assert.AreEqual(Cloak.CooldownAttr, ItemStats.IdOf("cloakCooldownMs"));
             Assert.AreEqual(Gun.ShieldBypassAttr, ItemStats.IdOf("shieldBypass"));
             Assert.AreEqual(Gun.SlowMsAttr, ItemStats.IdOf("slowMs"));

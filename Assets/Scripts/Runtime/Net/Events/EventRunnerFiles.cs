@@ -219,6 +219,8 @@ namespace GoF2Remake.Events
             var info = Info(compiled);
             info.name = name;
             var run = new EventRun(name, compiled, info, team, station, by, given) { record = record };
+            // (Load's 'from' is the mod's id for a mod's event, else a file's path or "built in")
+            run.mod = System.Linq.Enumerable.FirstOrDefault(Modding.ModManager.Active, m => m.Manifest != null && string.Equals(m.Manifest.id, from, StringComparison.Ordinal))?.Id;
             if (record != null && record.kind == GraphQuestState.KindQuest) run.SetVar("autostop", 0);   // a quest lasts
             if (resumeAt != null) run.Resume(resumeAt);
             runs.Add(run);

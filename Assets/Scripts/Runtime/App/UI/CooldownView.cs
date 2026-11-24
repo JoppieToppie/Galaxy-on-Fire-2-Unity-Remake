@@ -9,6 +9,9 @@
 // over the right), the whole icon opaque when ready; while the device runs (boosting, cloaked, the time extender slowing
 // the world) the lit part drains with what is left, with a cyan edge. The time extender (category 26) has its slot too,
 // and each active device (PlayerDevices: GoF3's, mod items) its own after it (the strike charge lights up as it charges).
+// Remake (2026-11-13, Chorus's Rites): a Rite's slot sweeps with the Void energy toward its cost (PlayerDevices.Charge), and
+// the pool itself follows the slots as pips (Chorus's PlayerEnergyWidget segments): the regular ones amber, the one growing
+// back filled from the left, the bonus ones cyan; then the Void Crystals aboard that feed the regrowth (red with none).
 // Remake (a player's wish, 2026-10-18): the first slot is the selected secondary weapon's icon, lit as it reloads
 // (WeaponSystem.SecondaryReload); shown as its plate is (ammo left, not in the turret view).
 
@@ -37,6 +40,9 @@ namespace GoF2Remake.UI
         readonly VisualElement row;
         readonly Slot secondary, boost, cloak, extender;
         readonly List<Slot> devices = new List<Slot>();
+        VisualElement rite;
+        Label fuel;
+        readonly List<VisualElement> pips = new List<VisualElement>();
 
         public CooldownView(VisualElement parent)
         {
@@ -87,9 +93,50 @@ namespace GoF2Remake.UI
             {
                 if (i >= n) { Set(devices[i], -1, 1f, true, -1f); continue; }
                 var d = list[i].rules;
-                Set(devices[i], d.item, d.RechargeRate, d.Available, d.Active ? d.ActiveLeft : -1f);
+                Set(devices[i], d.item, playerDevices.Charge(list[i]), playerDevices.Ready(list[i]), d.Active ? d.ActiveLeft : -1f);
             }
+            ShowVoid(n > 0 ? playerDevices.VoidPool : null);
             row.style.display = armed || booster != null || rules != null || slowItem != null || n > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <summary>The Void energy as pips after the slots (none without a Rite).</summary>
+        void ShowVoid(VoidEnergy pool)
+        {
+            if (pool == null) { if (rite != null) rite.style.display = DisplayStyle.None; return; }
+            if (rite == null)
+            {
+                rite = new VisualElement { name = "void-energy", pickingMode = PickingMode.Ignore };
+                rite.AddToClassList("void-energy");
+                row.Add(rite);
+                fuel = new Label { pickingMode = PickingMode.Ignore };
+                fuel.AddToClassList("void-fuel");
+                rite.Add(fuel);
+            }
+            fuel.text = Shop.CargoOf(VoidEnergy.VoidCrystalItem) + " t";
+            fuel.EnableInClassList("void-fuel--empty", pool.Starved);
+            rite.style.display = DisplayStyle.Flex;
+            rite.BringToFront();
+            int count = pool.maxRegular + pool.Bonus;
+            while (pips.Count < count)
+            {
+                var pip = new VisualElement { pickingMode = PickingMode.Ignore };
+                pip.AddToClassList("void-pip");
+                var fill = new VisualElement { pickingMode = PickingMode.Ignore };
+                fill.AddToClassList("void-pip-fill");
+                pip.Add(fill);
+                rite.Insert(rite.childCount - 1, pip);   // (before the crystals)
+                pips.Add(pip);
+            }
+            for (int i = 0; i < pips.Count; i++)
+            {
+                var pip = pips[i];
+                pip.style.display = i < count ? DisplayStyle.Flex : DisplayStyle.None;
+                if (i >= count) continue;
+                bool bonus = i >= pool.maxRegular;
+                float fill = bonus || i < pool.Regular ? 1f : i == pool.Regular ? pool.Progress : 0f;
+                pip.EnableInClassList("void-pip--bonus", bonus);
+                pip[0].style.width = Length.Percent(fill * 100f);
+            }
         }
 
         /// <summary>'charge' 0..1 recharging (1 = ready); 'left' 0..1 what is left while the device runs, -1 = not running.</summary>

@@ -258,6 +258,8 @@ namespace GoF2Remake.UI
             itemRow.Add(itemRight);
             rowActions = new VisualElement { pickingMode = PickingMode.Ignore };
             rowActions.AddToClassList("row-actions");
+            rowActions.RegisterCallback<GeometryChangedEvent>(_ => FitRowActionMinimum());
+            actionButton.RegisterCallback<GeometryChangedEvent>(_ => FitRowActionMinimum());
             // Modified (a player's sketch 2026-11-09): a mounted item's or a hold item's actions inside its row, at its right
             // end: DEMOUNT over the two arrows that move it a slot up / down, or the hold's amount over MOUNT (PlaceRowActions).
             rowMove = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -304,15 +306,31 @@ namespace GoF2Remake.UI
         VisualElement rowActionsHost;
 
         /// <summary>Modified: an arrow button moving the selected mounted item to the previous (-1) or next (1) slot of its
-        /// type; the arrow is the drawer's chevron turned (no text to translate).</summary>
+        /// type. Mirrored vector strokes share a center instead of rotating a font glyph and its baseline.</summary>
         Button MoveArrow(int step)
         {
             var b = new Button { focusable = false };
             b.AddToClassList("row-move-button");
             if (step > 0) b.AddToClassList("row-move-button--down");
-            var chevron = new Label("\u2039") { pickingMode = PickingMode.Ignore };
+            var chevron = new VisualElement { pickingMode = PickingMode.Ignore };
             chevron.AddToClassList("row-move-arrow");
-            chevron.style.rotate = new Rotate(step < 0 ? 90f : -90f);
+            chevron.generateVisualContent += context =>
+            {
+                var r = chevron.contentRect;
+                if (r.width <= 0f || r.height <= 0f) return;
+                float wing = step < 0 ? 0.65f : 0.35f;
+                float tip = 1f - wing;
+                var painter = context.painter2D;
+                painter.strokeColor = Color.white;
+                painter.lineWidth = r.width * 0.1f;
+                painter.lineCap = LineCap.Round;
+                painter.lineJoin = LineJoin.Round;
+                painter.BeginPath();
+                painter.MoveTo(new Vector2(r.x + r.width * 0.2f, r.y + r.height * wing));
+                painter.LineTo(new Vector2(r.center.x, r.y + r.height * tip));
+                painter.LineTo(new Vector2(r.x + r.width * 0.8f, r.y + r.height * wing));
+                painter.Stroke();
+            };
             b.Add(chevron);
             b.clicked += () =>
             {
@@ -506,7 +524,7 @@ namespace GoF2Remake.UI
             if (!IsOpen) return;
             AutoEquip();
             if (HasPending) Revert();
-            if (searchFocused) { searchField.Blur(); SetSearchFocus(false); }
+            EndSearchEntry();
             IsOpen = false;
             ClearBlueprintShopHighlight();
             editing = -1;
@@ -545,7 +563,8 @@ namespace GoF2Remake.UI
 
         public void SetTab(Tab t)
         {
-            if (t == Tab.Ships && !VipTools) return;   // the VIP Card's tab, only with its perks at the club
+            EndSearchEntry();
+            if (t == Tab.Ships && !VipTools) return;   // the extra tab, only with the free UI tools at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();
             // Confirm freight for the entire pending shipment before leaving the recipe.

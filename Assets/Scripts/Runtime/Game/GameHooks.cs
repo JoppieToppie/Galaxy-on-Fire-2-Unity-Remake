@@ -13,6 +13,11 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class GameHooks
     {
+        // ---- the player's converted copy (OriginalRefs) ----------------------------------------------------------------
+        /// <summary>An original's material or prefab by its project path ("Materials/mat_20099_....mat", "Prefabs/....prefab"),
+        /// made from the converted copy (OriginalContent.Resolve, GoF2.Space); unset: none.</summary>
+        public static Func<Type, string, object> ResolveOriginal;
+
         // ---- squad missions (NetMissions) ---------------------------------------------------------------------------
 
         /// <summary>Why the squad can't take a mission now (the whole squad docked here), null = it can.</summary>
@@ -33,6 +38,8 @@ namespace GoF2Remake.Data
 
         // ---- event graphs (EventMissions, EventRunner) --------------------------------------------------------------
 
+        /// <summary>Why a player or squad cannot accept an event graph bar mission (mission name, station); null = allowed.</summary>
+        public static Func<string, int, string> EventMissionAcceptRefusal;
         /// <summary>The title of the event graph bar mission this player is on, null = none.</summary>
         public static Func<string> ActiveEventMissionTitle;
 

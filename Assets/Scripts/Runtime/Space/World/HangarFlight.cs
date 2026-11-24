@@ -76,16 +76,38 @@ namespace GoF2Remake.World
 
         /// <summary>From space onto the pad at 'padPosition' (the ship's pivot), ending at 'finalRotation' (null = the
         /// heading it arrives with).</summary>
+        /// 'view': the hangar camera's own view, which the shrink at its edge is measured against (null = Camera.main as it is).
         public static HangarFlight Arrival(Transform ship, StationTables.HangarLane lane, Vector3 padPosition, Quaternion? finalRotation,
-                                           AudioSource engine, float engineVolume) =>
-            new HangarFlight(ship, true, lane, padPosition, finalRotation, engine, engineVolume);
+                                           AudioSource engine, float engineVolume, View? view = null) =>
+            new HangarFlight(ship, true, lane, padPosition, finalRotation, engine, engineVolume, view);
 
         /// <summary>From the pad the ship is parked on out into space.</summary>
-        public static HangarFlight Departure(Transform ship, StationTables.HangarLane lane, AudioSource engine, float engineVolume) =>
-            new HangarFlight(ship, false, lane, ship.position, null, engine, engineVolume);
+        public static HangarFlight Departure(Transform ship, StationTables.HangarLane lane, AudioSource engine, float engineVolume,
+                                             View? view = null) =>
+            new HangarFlight(ship, false, lane, ship.position, null, engine, engineVolume, view);
+
+        /// <summary>A camera's pose and lens, for the edge of its view (ViewEdge).</summary>
+        public struct View
+        {
+            public Vector3 position;
+            public Quaternion rotation;
+            public float verticalFovDeg, aspect;
+
+            public static View? Of(Camera cam) => cam == null ? (View?)null
+                : new View { position = cam.transform.position, rotation = cam.transform.rotation, verticalFovDeg = cam.fieldOfView, aspect = cam.aspect };
+
+            /// <summary>Camera.WorldToViewportPoint's x / y (0..1 across the view) and the depth along the view.</summary>
+            public Vector3 Viewport(Vector3 p)
+            {
+                var d = Quaternion.Inverse(rotation) * (p - position);
+                if (d.z <= 1e-4f) return new Vector3(0.5f, 0.5f, d.z);
+                float tanY = Mathf.Tan(verticalFovDeg * 0.5f * Mathf.Deg2Rad), tanX = tanY * aspect;
+                return new Vector3(0.5f + 0.5f * d.x / (d.z * tanX), 0.5f + 0.5f * d.y / (d.z * tanY), d.z);
+            }
+        }
 
         HangarFlight(Transform ship, bool arriving, StationTables.HangarLane lane, Vector3 padPosition, Quaternion? finalRotation,
-                     AudioSource engine, float engineVolume)
+                     AudioSource engine, float engineVolume, View? view)
         {
             this.ship = ship;
             this.arriving = arriving;
@@ -174,7 +196,9 @@ namespace GoF2Remake.World
             sLane = length[laneEnd];
             sVertical = length[verticalStart];
 
-            sViewEdge = ViewEdge(Camera.main);
+            // Remake (2026-11-17, a player's report): measured against the hangar camera's own view, not the camera as it
+            // is: during Inspect ship it is the close-up orbit, so a departing NPC shrank to nothing just over its pad.
+            sViewEdge = ViewEdge(view ?? View.Of(Camera.main));
             if (sViewEdge >= 0f)
             {
                 float inView = arriving ? sLane - sViewEdge : sViewEdge - sLane;   // the lane's part in view
@@ -351,17 +375,18 @@ namespace GoF2Remake.World
             return (a + ab * t - p).magnitude;
         }
 
-        /// <summary>Where the sampled path crosses the edge of 'cam''s view: a departure's first point out of it after
+        /// <summary>Where the sampled path crosses the edge of the view 'cam': a departure's first point out of it after
         /// having been in it (after the climb), an arrival's first point of the stretch that stays in it; -1 when it
         /// never leaves / is never out. A pad just outside the view (the Midorian hangar's right pad) isn't an edge: the
         /// ship takes off there at full size and flies into the view (it vanished over its pad and crossed the hangar
         /// unseen), like a landing there, which comes into the view at full size.</summary>
-        float ViewEdge(Camera cam)
+        float ViewEdge(View? cam)
         {
             if (cam == null) return -1f;
+            var c = cam.Value;
             bool InView(Vector3 p)
             {
-                var q = cam.WorldToViewportPoint(p);
+                var q = c.Viewport(p);
                 return q.z > 0f && q.x > -ViewMargin && q.x < 1f + ViewMargin && q.y > -ViewMargin && q.y < 1f + ViewMargin;
             }
             if (arriving)

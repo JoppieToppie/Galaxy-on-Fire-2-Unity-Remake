@@ -143,8 +143,10 @@ namespace GoF2Remake.UI
             var field = Field(Localization.Extra("mpPanelAmount", "Amount"), draft.credits > 0 ? draft.credits.ToString() : "", 10, 150, value =>
             {
                 long n = 0;
-                foreach (char c in value) if (c >= '0' && c <= '9' && n < int.MaxValue) n = n * 10 + (c - '0');
-                NetTradeClient.SetCredits((int)Math.Min(int.MaxValue, n));
+                // 64-bit credits: saturating at the top (more digits than that keep the top).
+                foreach (char c in value)
+                    if (c >= '0' && c <= '9') n = n > (long.MaxValue - (c - '0')) / 10 ? long.MaxValue : n * 10 + (c - '0');
+                NetTradeClient.SetCredits(n);
             }, TouchScreenKeyboardType.NumberPad);
             field.SetEnabled(open);
             credits.Add(field);

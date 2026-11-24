@@ -668,6 +668,53 @@
     background-color: rgba(4, 10, 18, 0.72);
 }
 
+/* Remake: Chorus's Void energy after the cooldown slots (CooldownView.ShowVoid): a pip each, filled from the left as it
+   grows back; the bonus pips (past the maximum) cyan; then the Void Crystals aboard. */
+.void-energy {
+    flex-direction: row;
+    align-self: center;
+    margin-left: var(--space-s);
+}
+
+.void-pip {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    background-color: rgba(4, 10, 18, 0.55);
+    border-width: 1px;
+    border-color: var(--gof-amber);
+    overflow: hidden;
+}
+
+.void-pip-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    background-color: var(--gof-amber);
+}
+
+.void-pip--bonus {
+    border-color: rgb(110, 220, 255);
+}
+
+.void-pip--bonus .void-pip-fill {
+    background-color: rgb(110, 220, 255);
+}
+
+/* The Void Crystals aboard (their fuel), red when the regrowth has none. */
+.void-fuel {
+    margin-left: 2px;
+    font-size: var(--text-caption);
+    color: var(--gof-text-dim);
+    -unity-text-align: middle-left;
+}
+
+.void-fuel--empty {
+    color: rgb(255, 90, 70);
+}
+
 /* ---- keyboard / controller hints -------------------------------------------------------- */
 
 .hints {

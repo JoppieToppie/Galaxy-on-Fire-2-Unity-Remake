@@ -58,7 +58,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1f, Settings.MouseSensitivity, "the mouse's own movement, as before the option");
             Assert.AreEqual(0.125f, Settings.StickDeadzone, 1e-6f, "the Input System's defaultDeadzoneMin");
             Assert.IsFalse(Settings.TutorialHints, "tutorials off by default");
-            Assert.IsTrue(Settings.ShowStoryStep, "on by default since 2026-10-11");
+            Assert.IsFalse(Settings.ShowStoryStep, "diagnostic tools are off by default");
             Assert.IsTrue(Settings.AutoAdvanceDialogue, "AUTO on by default");
             Assert.IsTrue(Settings.NpcPlayerEngines, "other ships' engines like yours: on");
             Assert.IsTrue(Settings.DyingCargoMarkers, "salvage markers: on");
@@ -93,6 +93,394 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(rows.All(o => o.page == GoF2Remake.UI.OptionPage.Graphics && o.kind == GoF2Remake.UI.OptionKind.Toggle));
         }
 
+        /// <summary>FSR 4 Lite (2026-11-16): off by default, stored, reset with the Graphics tab; its row is a Graphics toggle
+        /// in builds with the upscaler framework, hidden where FSR 4 doesn't run through ffx-vk-linux (the Editor's tests).</summary>
+        [Test]
+        public void Fsr4LiteOption()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.Fsr4Lite, "the GPU's own FSR 4 model by default");
+            Settings.Fsr4Lite = true;
+            Assert.IsTrue(Settings.Fsr4Lite);
+            CollectionAssert.Contains(Settings.GraphicsKeys, "fsr4Lite", "Default settings resets it with the Graphics tab");
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.IsFalse(Settings.Fsr4Lite, "off again after Default settings");
+            var row = GoF2Remake.UI.OptionsCatalog.All().FirstOrDefault(o => o.id == "fsr4Lite");
+            if (!UpscalerFramework.Compiled) { Assert.IsNull(row, "no row without the upscaler framework"); return; }
+            Assert.IsNotNull(row);
+            Assert.IsTrue(row.page == GoF2Remake.UI.OptionPage.Graphics && row.kind == GoF2Remake.UI.OptionKind.Toggle);
+            Settings.Upscaler = Settings.UpscalerOff;
+            Assert.IsFalse(row.visible(), "hidden while FSR 4 isn't the upscaler");
+        }
+
+        /// <summary>Frame generation and Reflex (2026-11-20): both off by default, stored within their ranges, reset with the
+        /// Graphics tab; their rows are Graphics choices, hidden where the plugin isn't (the Editor). The Frame generation
+        /// row offers Off and 2x until Streamline names more, keeps a stored multiplier on show, and has Dynamic only while it
+        /// is the stored choice or the driver runs it.</summary>
+        [Test]
+        public void FrameGenerationAndReflexOptions()
+        {
+            AllDefaults();
+            Assert.AreEqual(0, Settings.FrameGeneration, "off by default");
+            Assert.AreEqual(0, Settings.Reflex, "off by default");
+            Settings.FrameGeneration = 99; Assert.AreEqual(Settings.FrameGenerationDynamic, Settings.FrameGeneration);
+            Settings.FrameGeneration = -3; Assert.AreEqual(0, Settings.FrameGeneration);
+            Settings.Reflex = 9; Assert.AreEqual(2, Settings.Reflex);
+            CollectionAssert.IsSubsetOf(new[] { "frameGeneration", "reflex" }, Settings.GraphicsKeys, "Default settings resets them with the Graphics tab");
+            Settings.FrameGeneration = 3;
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.AreEqual(0, Settings.FrameGeneration);
+            Assert.AreEqual(0, Settings.Reflex);
+
+            var rows = GoF2Remake.UI.OptionsCatalog.All();
+            var frames = rows.FirstOrDefault(o => o.id == "frameGeneration");
+            var reflex = rows.FirstOrDefault(o => o.id == "reflex");
+            Assert.IsNotNull(frames);
+            Assert.IsNotNull(reflex);
+            Assert.IsTrue(frames.page == GoF2Remake.UI.OptionPage.Graphics && frames.kind == GoF2Remake.UI.OptionKind.Choice);
+            Assert.IsFalse(frames.visible(), "no plugin in the Editor: the row is hidden");
+            Assert.IsFalse(reflex.visible());
+            Assert.IsFalse(FrameGeneration.Running);
+            Assert.AreEqual(1f, FrameGeneration.PresentedPerFrame, "the frame rate counter shows the rendered frames alone");
+
+            Assert.AreEqual(2, FrameGeneration.Choices().Length, "Off and 2x until Streamline says what the GPU runs");
+            FrameGeneration.SetChoice(1);
+            Assert.AreEqual(1, Settings.FrameGeneration);
+            Assert.AreEqual(1, FrameGeneration.ChoiceIndex());
+            Settings.FrameGeneration = 3;
+            Assert.AreEqual(4, FrameGeneration.Choices().Length, "a stored 4x stays on show");
+            Assert.AreEqual("4×", FrameGeneration.Choices()[3]);
+            Assert.AreEqual(3, FrameGeneration.ChoiceIndex());
+            Settings.FrameGeneration = Settings.FrameGenerationDynamic;
+            Assert.AreEqual(FrameGeneration.Choices().Length - 1, FrameGeneration.ChoiceIndex(), "Dynamic is the last choice while stored");
+            FrameGeneration.SetChoice(0);
+            Assert.AreEqual(0, Settings.FrameGeneration);
+            Assert.AreEqual(2, FrameGeneration.Choices().Length);
+            Assert.IsFalse(string.IsNullOrEmpty(FrameGeneration.Help()));
+            Assert.IsFalse(string.IsNullOrEmpty(FrameGeneration.ReflexHelp()));
+        }
+
+        /// <summary>The Graphics tab's categories (2026-11-20): every Graphics row has a place of its own choosing
+        /// (OptionsCatalog.HasGraphicsPlace), the preset row and the benchmark's stay above them, and a category's rows are together in the
+        /// list, the categories in their order (the keys walk the rows in list order). The DLSS preset, neural rendering
+        /// and HDR options: off / default by default, stored within their ranges, reset with the tab.</summary>
+        [Test]
+        public void GraphicsCategoriesAndNewOptions()
+        {
+            AllDefaults();
+            var rows = GoF2Remake.UI.OptionsCatalog.All().Where(o => o.page == GoF2Remake.UI.OptionPage.Graphics).ToList();
+            Assert.AreEqual("graphicsPreset", rows[0].id, "the preset above the categories");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.None, rows[0].section);
+            Assert.AreEqual("benchmark", rows[1].id, "the benchmark under the preset, above the categories");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.None, rows[1].section);
+            foreach (var row in rows) Assert.IsTrue(GoF2Remake.UI.OptionsCatalog.HasGraphicsPlace(row.id), row.id + " has no category of its own");
+            var seen = new System.Collections.Generic.List<GoF2Remake.UI.OptionSection>();
+            foreach (var row in rows.Skip(2))
+            {
+                Assert.AreNotEqual(GoF2Remake.UI.OptionSection.None, row.section, row.id);
+                if (seen.Count == 0 || seen[seen.Count - 1] != row.section)
+                {
+                    Assert.IsFalse(seen.Contains(row.section), row.section + " is split in the list");
+                    seen.Add(row.section);
+                }
+            }
+            CollectionAssert.AreEqual(seen.OrderBy(s => (int)s).ToList(), seen, "the categories in their order");
+            Assert.IsFalse(string.IsNullOrEmpty(GoF2Remake.UI.OptionsCatalog.SectionTitle(GoF2Remake.UI.OptionSection.GraphicsUpscaling)));
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsFrames, rows.First(o => o.id == "frameGeneration").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsFrames, rows.First(o => o.id == "reflex").section, "the latency options beside it");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsUpscaling, rows.First(o => o.id == "upscaler").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsQuality, rows.First(o => o.id == "nisSharpness").section, "sharpening is image quality");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsEffects, rows.First(o => o.id == "neuralRendering").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsStations, rows.First(o => o.id == "hangarShadows").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsPacks, rows.First(o => o.id == "hdResources").section);
+            foreach (GoF2Remake.UI.OptionSection section in System.Enum.GetValues(typeof(GoF2Remake.UI.OptionSection)))
+                if (section != GoF2Remake.UI.OptionSection.None && section != GoF2Remake.UI.OptionSection.Convenience
+                    && section != GoF2Remake.UI.OptionSection.Storage)
+                    Assert.IsFalse(string.IsNullOrEmpty(GoF2Remake.UI.OptionsCatalog.SectionTitle(section)), section + " has no title");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.GraphicsDisplay, rows.First(o => o.id == "frameRate").section);
+
+            Assert.AreEqual(0, Settings.DlssPreset);
+            Settings.DlssPreset = -4; Assert.AreEqual(0, Settings.DlssPreset);
+            CollectionAssert.Contains(UpscalerFramework.DlssPresets(Settings.UpscalerQuality), 0, "the default is always offered");
+            Assert.IsFalse(Settings.NeuralRendering);
+            Assert.IsFalse(FrameGeneration.NeuralSupported, "no plugin in the Editor");
+            Assert.IsFalse(FrameGeneration.WantsNeural);
+            Settings.NeuralRenderingIntensity = 3f; Assert.AreEqual(1f, Settings.NeuralRenderingIntensity);
+            Settings.NeuralRenderingQuality = 9; Assert.AreEqual(2, Settings.NeuralRenderingQuality);
+            Assert.IsFalse(Settings.Hdr);
+            Assert.IsFalse(Bootstrap.HdrAvailable, "not in the Editor");
+            Settings.HdrPaperWhite = 5000f; Assert.AreEqual(400f, Settings.HdrPaperWhite);
+            Settings.HdrPeak = 1f; Assert.AreEqual(400f, Settings.HdrPeak);
+            Settings.HdrTonemapping = 7; Assert.AreEqual(2, Settings.HdrTonemapping);
+            CollectionAssert.IsSubsetOf(new[] { "dlssPreset", "neuralRendering", "neuralRenderingIntensity", "hdr", "hdrPaperWhite", "hdrPeak", "hdrTonemapping" },
+                Settings.GraphicsKeys);
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.AreEqual(200f, Settings.HdrPaperWhite);
+            Assert.AreEqual(1, Settings.HdrTonemapping);
+            Assert.AreEqual(2, Settings.NeuralRenderingQuality);
+        }
+
+        /// <summary>The other tabs' categories (2026-11-20): every row of Sound, Controls, Accessibility and Key bindings
+        /// has a category of its own choosing (or stands above them), a tab's categories are whole and in their order,
+        /// each has a title, and no category is shared between tabs (the main menu finds a block by its section alone).</summary>
+        [Test]
+        public void OtherTabsHaveCategories()
+        {
+            AllDefaults();
+            var all = GoF2Remake.UI.OptionsCatalog.All();
+            var owner = new System.Collections.Generic.Dictionary<GoF2Remake.UI.OptionSection, GoF2Remake.UI.OptionPage>();
+            foreach (var row in all.Where(o => o.section != GoF2Remake.UI.OptionSection.None))
+            {
+                if (owner.TryGetValue(row.section, out var page)) Assert.AreEqual(page, row.page, row.section + " is on two tabs (" + row.id + ")");
+                else owner.Add(row.section, row.page);
+            }
+            foreach (var page in new[] { GoF2Remake.UI.OptionPage.Sound, GoF2Remake.UI.OptionPage.Controls, GoF2Remake.UI.OptionPage.Accessibility,
+                                         GoF2Remake.UI.OptionPage.Bindings })
+            {
+                Assert.IsTrue(GoF2Remake.UI.OptionsCatalog.HasCategories(page));
+                var rows = all.Where(o => o.page == page).ToList();
+                Assert.Greater(rows.Count, 3, page.ToString());
+                var seen = new System.Collections.Generic.List<GoF2Remake.UI.OptionSection>();
+                bool headings = false;
+                foreach (var row in rows)
+                {
+                    Assert.IsTrue(GoF2Remake.UI.OptionsCatalog.HasPagePlace(page, row.id), row.id + " has no category of its own on " + page);
+                    if (row.section == GoF2Remake.UI.OptionSection.None)
+                    {
+                        Assert.IsFalse(headings, row.id + " without a category below the first heading");
+                        continue;
+                    }
+                    headings = true;
+                    if (seen.Count == 0 || seen[seen.Count - 1] != row.section)
+                    {
+                        Assert.IsFalse(seen.Contains(row.section), row.section + " is split in the list");
+                        seen.Add(row.section);
+                        Assert.IsFalse(string.IsNullOrEmpty(GoF2Remake.UI.OptionsCatalog.SectionTitle(row.section)), row.section + " has no title");
+                    }
+                }
+                Assert.Greater(seen.Count, 2, page + " has its categories");
+                CollectionAssert.AreEqual(seen.OrderBy(s => (int)s).ToList(), seen, page + ": the categories in their order");
+            }
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.SoundVolume, all.First(o => o.id == "master").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.ControlsInvert, all.First(o => o.id == "invert").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.AccessPrivacy, all.First(o => o.id == "discordPresence").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.BindWeapons, all.First(o => o.id == "bind_firePrimary").section);
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.None, all.First(o => o.id == "resetBindings").section, "the reset button above the headings");
+            Assert.AreEqual(GoF2Remake.UI.OptionSection.ControlsController, all.First(o => o.id == "haptics").section, "the vibration with the controller (desktop)");
+            // Inside the Cosmetics / Gameplay groups the rows stand in the organization table's order
+            var hud = all.Where(o => o.section == GoF2Remake.UI.OptionSection.Hud).Select(o => o.id).ToList();
+            Assert.AreEqual("hudMode", hud[0]);
+            Assert.Less(hud.IndexOf("hudOpacity"), hud.IndexOf("farShipMarkers"));
+            var combat = all.Where(o => o.group == GoF2Remake.UI.OptionGroup.Combat).Select(o => o.id).ToList();
+            Assert.AreEqual("flightStyle", combat[0]);
+            Assert.Less(combat.IndexOf("targetLock"), combat.IndexOf("smarterNpcTargeting"), "your own aiming before the NPCs'");
+            var progression = all.Where(o => o.group == GoF2Remake.UI.OptionGroup.Progression).Select(o => o.id).ToList();
+            Assert.AreEqual(progression.IndexOf("kaamoStacking") + 1, progression.IndexOf("kaamoMaxLevel"), "the limit under the option it belongs to");
+            Assert.AreEqual("resetBindings", all.First(o => o.page == GoF2Remake.UI.OptionPage.Bindings).id);
+            Assert.IsFalse(GoF2Remake.UI.OptionsCatalog.HasCategories(GoF2Remake.UI.OptionPage.Language), "two rows: no headings");
+            foreach (var row in all.Where(o => o.page == GoF2Remake.UI.OptionPage.Language))
+                Assert.AreEqual(GoF2Remake.UI.OptionSection.None, row.section);
+        }
+
+        /// <summary>The later additions of 2026-11-20: the frame rate limits (the first five keep their stored numbers, the
+        /// option shows them all in order), Anti-Lag 2, Image Scaling's sharpening and Dynamic Vibrance, XeSS, FSR frame
+        /// generation's provider: their defaults, ranges, keys and rows (hidden in the Editor: no plugin).</summary>
+        [Test]
+        public void FrameRateLimitsAndVendorOptions()
+        {
+            AllDefaults();
+            Assert.AreEqual(0, (int)FrameRate.Fps30); Assert.AreEqual(1, (int)FrameRate.Fps60); Assert.AreEqual(2, (int)FrameRate.Fps120);
+            Assert.AreEqual(3, (int)FrameRate.Uncapped); Assert.AreEqual(4, (int)FrameRate.VSync);
+            CollectionAssert.AllItemsAreUnique(Settings.FrameRateChoices);
+            Assert.AreEqual(System.Enum.GetValues(typeof(FrameRate)).Length, Settings.FrameRateChoices.Length, "every frame rate is offered");
+            int before = 0;
+            foreach (var rate in Settings.FrameRateChoices)
+            {
+                int limit = Settings.FrameRateLimit(rate);
+                if (rate == FrameRate.Uncapped || rate == FrameRate.VSync) { Assert.AreEqual(0, limit); continue; }
+                Assert.Greater(limit, before, rate + " in rising order");
+                before = limit;
+            }
+            Assert.AreEqual(144, Settings.FrameRateLimit(FrameRate.Fps144));
+            Settings.FrameRate = FrameRate.Fps165;
+            Assert.AreEqual(FrameRate.Fps165, Settings.FrameRate);
+            Assert.AreEqual(165, Bootstrap.FrameRateCap);
+            var all = GoF2Remake.UI.OptionsCatalog.All();
+            var frameRate = all.First(o => o.id == "frameRate");
+            var choices = frameRate.choices();
+            Assert.AreEqual("165", choices[frameRate.getIndex()]);
+            frameRate.setIndex(System.Array.IndexOf(choices, "40"));
+            Assert.AreEqual(FrameRate.Fps40, Settings.FrameRate);
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.AreEqual(FrameRate.VSync, Settings.FrameRate);
+
+            Assert.IsFalse(Settings.AntiLag);
+            Assert.AreEqual(0f, Settings.NisSharpness);
+            Assert.IsFalse(Settings.DynamicVibrance);
+            Assert.AreEqual(0.5f, Settings.DynamicVibranceIntensity, 1e-4f);
+            Assert.AreEqual(0.25f, Settings.DynamicVibranceSaturation, 1e-4f);
+            Assert.AreEqual(Settings.FrameGenerationDlss, Settings.FrameGenerationProvider);
+            Assert.AreEqual(0, Settings.FrameGenerationTarget);
+            Settings.NisSharpness = 4f; Assert.AreEqual(1f, Settings.NisSharpness);
+            Settings.DynamicVibranceIntensity = -1f; Assert.AreEqual(0f, Settings.DynamicVibranceIntensity);
+            Settings.FrameGenerationProvider = 9; Assert.AreEqual(Settings.FrameGenerationFsr, Settings.FrameGenerationProvider);
+            CollectionAssert.IsSubsetOf(new[] { "antiLag", "nisSharpness", "dynamicVibrance", "dynamicVibranceIntensity", "dynamicVibranceSaturation",
+                                                "frameGenerationProvider", "frameGenerationTarget" }, Settings.GraphicsKeys);
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.AreEqual(0f, Settings.NisSharpness);
+            Assert.AreEqual(Settings.FrameGenerationDlss, Settings.FrameGenerationProvider);
+
+            foreach (string id in new[] { "antiLag", "nisSharpness", "dynamicVibrance", "dynamicVibranceIntensity", "frameGenerationProvider", "frameGenerationTarget" })
+            {
+                var row = all.FirstOrDefault(o => o.id == id);
+                Assert.IsNotNull(row, id);
+                Assert.IsFalse(row.visible(), id + ": no plugin in the Editor, the row is hidden");
+            }
+            Assert.IsFalse(FrameGeneration.AntiLagOffered);
+            Assert.IsFalse(FrameGeneration.FsrOffered);
+            Assert.IsFalse(FrameGeneration.UsesFsr);
+            Assert.IsFalse(FrameGeneration.WantsPicture);
+            FrameGeneration.SetMenu("test", true);
+            Assert.IsTrue(FrameGeneration.MenuOpen);
+            FrameGeneration.SetMenu("test", false);
+            Assert.IsFalse(FrameGeneration.StreamlineDlss, "no Streamline in the Editor: Unity's own DLSS is the one offered");
+            Assert.AreEqual(UpscalerFramework.Dlss, UpscalerFramework.DlssId);
+            Assert.AreEqual(0f, FrameGeneration.LatencyMs);
+
+            // XeSS: an upscaler choice of its own; a device without it gets a temporal upscaler it has, or none
+            Settings.Upscaler = Settings.UpscalerXess;
+            Assert.AreEqual(Settings.UpscalerXess, Settings.Upscaler);
+            Assert.IsTrue(Bootstrap.IsTemporal(Settings.UpscalerXess));
+            if (!Bootstrap.XessSupported) Assert.AreNotEqual(Settings.UpscalerXess, Bootstrap.ActiveUpscaler, "not offered: not active");
+            Settings.Reset(Settings.GraphicsKeys);
+        }
+
+        /// <summary>The Graphics tab's Apply (2026-11-20): while an options screen is open its Graphics rows stage their changes
+        /// (the row shows what was picked, the game keeps the applied value, nothing is told to the appliers), Apply writes
+        /// them with one Changed, Discard and a closed screen drop them, a default restored is not left waiting; the other
+        /// tabs' rows, and every row without an open screen, apply at once.</summary>
+        [Test]
+        public void GraphicsOptionsWaitForApply()
+        {
+            AllDefaults();
+            var rows = GoF2Remake.UI.OptionsCatalog.All();
+            var lensFlare = rows.First(o => o.id == "lensFlare");
+            var bloom = rows.First(o => o.id == "bloom");
+            var music = rows.First(o => o.id == "music");
+            Assert.IsTrue(lensFlare.staged && bloom.staged, "the Graphics tab's rows");
+            Assert.IsFalse(music.staged, "the Sound tab applies as you drag");
+            int changes = 0;
+            System.Action count = () => changes++;
+            Settings.Changed += count;
+            try
+            {
+                // No options screen open: at once, as before.
+                bool was = Settings.LensFlare;
+                lensFlare.setBool(!was);
+                Assert.AreEqual(!was, Settings.LensFlare);
+                Assert.IsFalse(Settings.HasStaged);
+                lensFlare.setBool(was);
+
+                Settings.BeginStaging();
+                changes = 0;
+                lensFlare.setBool(!was);
+                Assert.AreEqual(was, Settings.LensFlare, "the game keeps the applied value");
+                Assert.AreEqual(!was, lensFlare.getBool(), "the row shows what was picked");
+                Assert.IsTrue(Settings.HasStaged);
+                Assert.AreEqual(0, changes, "nothing applied yet");
+                lensFlare.setBool(was);
+                Assert.IsFalse(Settings.HasStaged, "back at the applied value: nothing to apply");
+
+                int bloomWas = Settings.BloomStyle, bloomNew = bloomWas == 0 ? 1 : 0;
+                lensFlare.setBool(!was);
+                bloom.setIndex(bloomNew);
+                float volume = Settings.MusicVolume > 0.5f ? 0.25f : 0.75f;
+                music.set(volume);
+                Assert.AreEqual(volume, Settings.MusicVolume, 1e-4f, "another tab's row applies at once");
+                changes = 0;
+                Settings.ApplyStaged();
+                Assert.AreEqual(!was, Settings.LensFlare);
+                Assert.AreEqual(bloomNew, Settings.BloomStyle);
+                Assert.IsFalse(Settings.HasStaged);
+                Assert.AreEqual(1, changes, "one Changed for the lot");
+
+                lensFlare.setBool(was);
+                Settings.DiscardStaged();
+                Assert.AreEqual(!was, Settings.LensFlare, "discarded: the applied value stays");
+                Assert.AreEqual(!was, lensFlare.getBool());
+
+                bloom.setIndex(bloomWas);
+                Settings.Reset(Settings.GraphicsKeys);
+                Assert.IsFalse(Settings.HasStaged, "Default settings leaves nothing waiting");
+
+                // A preset stages every option it sets.
+                var preset = rows.First(o => o.id == "graphicsPreset");
+                int presetWas = preset.getIndex();
+                preset.setIndex(presetWas == Settings.PresetLow ? Settings.PresetHigh : Settings.PresetLow);
+                Assert.IsTrue(Settings.HasStaged);
+                Assert.AreNotEqual(presetWas, preset.getIndex(), "the row shows the picked preset");
+                using (Settings.ViewApplied()) Assert.AreEqual(presetWas, preset.getIndex(), "the applied one is unchanged");
+
+                Settings.EndStaging();
+                Assert.IsFalse(Settings.HasStaged, "the screen closed: dropped");
+                Assert.IsFalse(Settings.Staging);
+                Assert.AreEqual(presetWas, preset.getIndex());
+            }
+            finally
+            {
+                Settings.Changed -= count;
+                Settings.EndStaging();
+            }
+        }
+
+        /// <summary>The in-game Options page's Apply (2026-11-20): a stop for the keys only while a Graphics change waits; it
+        /// applies and the page stays; Back with a change waiting asks first (Back again = Cancel), Discard leaves without it.</summary>
+        [Test]
+        public void OptionsPageApplyAndLeavePrompt()
+        {
+            AllDefaults();
+            int backs = 0;
+            try
+            {
+                Settings.BeginStaging();
+                var view = new GoF2Remake.UI.OptionsView(() => backs++, false);
+                view.StepTab(1);   // Graphics
+                Assert.IsFalse(view.FooterButtons.Contains(view.ApplyButton), "nothing waits: Apply is skipped");
+                var row = view.NavItems().Select(view.RowOf).First(r => r != null && r.def.id == "lensFlare");
+                bool was = Settings.LensFlare;
+                row.def.setBool(!was);
+                Assert.IsTrue(view.FooterButtons.Contains(view.ApplyButton));
+
+                Assert.IsTrue(view.CloseResetPrompt(), "Back: the question first");
+                Assert.IsTrue(view.LeavePromptOpen);
+                Assert.AreEqual(0, backs);
+                Assert.AreEqual(3, view.FooterButtons.Count, "Cancel, Discard, Apply");
+                Assert.IsTrue(view.CloseResetPrompt(), "Back again: Cancel");
+                Assert.IsFalse(view.LeavePromptOpen);
+                Assert.IsTrue(Settings.HasStaged, "the change still waits");
+
+                view.Activate(view.ApplyButton);
+                Assert.AreEqual(!was, Settings.LensFlare, "applied");
+                Assert.AreEqual(0, backs, "the page stays open");
+                Assert.IsFalse(view.CloseResetPrompt(), "nothing waits: the host leaves the page");
+
+                row.def.setBool(was);
+                view.Activate(view.BackButton);
+                Assert.IsTrue(view.LeavePromptOpen);
+                view.Activate(view.LeaveDiscardButton);
+                Assert.AreEqual(1, backs, "left");
+                Assert.AreEqual(!was, Settings.LensFlare, "without the discarded change");
+                Assert.IsFalse(Settings.HasStaged);
+
+                row.def.setBool(was);
+                view.Activate(view.BackButton);
+                view.Activate(view.LeaveApplyButton);
+                Assert.AreEqual(2, backs);
+                Assert.AreEqual(was, Settings.LensFlare, "applied on the way out");
+            }
+            finally { Settings.EndStaging(); }
+        }
+
         /// <summary>Autopilot takes jumpgates (Discord, 2026-11-04): on by default, reset with the Gameplay tab, a row there; the
         /// gate jumps on toward a destination elsewhere unasked while it is on (SystemJump.GateJumpsUnasked), and off only on
         /// a route under way, as before.</summary>
@@ -101,6 +489,7 @@ namespace GoF2Remake.Tests
         {
             AllDefaults();
             Assert.IsTrue(Settings.AutoJumpgate, "on by default");
+            Assert.IsFalse(Settings.KaamoKeepsEquipment, "stored equipment is opt-in");
             Settings.AutoJumpgate = false;
             Assert.IsFalse(Settings.AutoJumpgate);
             CollectionAssert.Contains(Settings.GameplayKeys, "autoJumpgate");
@@ -290,7 +679,7 @@ namespace GoF2Remake.Tests
             Settings.Brightness = 9; Assert.AreEqual(2, Settings.Brightness);
             Settings.HangarShadows = 9; Assert.AreEqual(2, Settings.HangarShadows);
             Settings.HangarShadows = -1; Assert.AreEqual(0, Settings.HangarShadows);
-            Settings.Upscaler = 99; Assert.AreEqual(Settings.UpscalerMetalFxTemporal, Settings.Upscaler);
+            Settings.Upscaler = 99; Assert.AreEqual(Settings.UpscalerXess, Settings.Upscaler);
             Settings.Upscaler = -2; Assert.AreEqual(Settings.UpscalerOff, Settings.Upscaler);
             Settings.UpscalerQuality = 9; Assert.AreEqual(4, Settings.UpscalerQuality);
         }
@@ -312,8 +701,8 @@ namespace GoF2Remake.Tests
             Settings.HintScalePercent = 60;
             Settings.ChallengeComboSounds = false;
             Settings.MedalSound = Settings.MedalSoundOriginal;
-            Settings.Reset(Settings.GameplayKeys);
-            Assert.AreEqual(100, Settings.HintScalePercent, "Gameplay's Default settings");
+            Settings.Reset(Settings.CosmeticsKeys);
+            Assert.AreEqual(100, Settings.HintScalePercent, "Cosmetics' Default settings");
             Settings.Reset(Settings.SoundKeys);
             Assert.IsTrue(Settings.ChallengeComboSounds, "Sound's Default settings");
             Assert.AreEqual(Settings.MedalSoundChime, Settings.MedalSound);
@@ -491,7 +880,7 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(2, Settings.DetailDistance);
                 Assert.AreEqual(fps, Settings.ShowFps);
                 Assert.IsFalse(Settings.InvertYaw);
-                Assert.AreEqual(flights, Settings.HangarFlights);
+                Assert.IsTrue(Settings.HangarFlights, "Default settings selects Remake presentation");
                 Assert.AreEqual("auto", Settings.VoiceLanguage);
                 Assert.AreEqual(sfx, Settings.SfxVolume, 1e-6f);
                 Assert.AreEqual("nl", Settings.Language, "the text language is kept");
@@ -502,7 +891,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void TheResetGroupsDontOverlap()
         {
-            var groups = new[] { Settings.SoundKeys, Settings.GraphicsKeys, Settings.ControlsKeys, Settings.GameplayKeys, Settings.LanguageKeys };
+            var groups = new[] { Settings.SoundKeys, Settings.GraphicsKeys, Settings.ControlsKeys, Settings.GameplayKeys, Settings.CosmeticsKeys, Settings.LanguageKeys };
             var all = groups.SelectMany(g => g).ToList();
             Assert.AreEqual(all.Count, all.Distinct().Count(), "a key in two tabs: " + string.Join(", ", all.GroupBy(k => k).Where(g => g.Count() > 1).Select(g => g.Key)));
             CollectionAssert.DoesNotContain(all, "language", "the text language isn't reset");
@@ -556,5 +945,49 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(row.IsDefault());
             Assert.AreEqual(70f, Settings.FieldOfView, 1e-4f);
         }
+        [Test]
+        public void CameraShakeDefaultsToTheOriginalsAndTheRemakeLooksSoftenIt()
+        {
+            AllDefaults();
+            Assert.AreEqual(1f, Settings.CameraShake, 1e-6f, "the ported shakes at full strength (2026-11-19)");
+            Settings.CameraShake = 0.75f;
+            DataUiTestKit.ClearSettingsCache();
+            Assert.AreEqual(0.75f, Settings.CameraShake, 1e-6f, "existing choices are kept");
+            Settings.Reset(Settings.GraphicsKeys);
+            Assert.AreEqual(1f, Settings.CameraShake, 1e-6f, "Graphics reset: the default");
+            Settings.ApplyScopedExperience(true, 1);
+            Assert.AreEqual(0.3f, Settings.CameraShake, 1e-6f, "Cosmetic Experience Remake: #342's 30 %");
+            Settings.ApplyScopedExperience(true, 0);
+            Assert.AreEqual(1f, Settings.CameraShake, 1e-6f, "Cosmetic Experience Original");
+        }
+
+        [Test]
+        public void RawFallbacksAndOriginalPolicyDisableUpstreamAdditions()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.RebuiltPlanets);
+            Assert.IsFalse(Settings.RemasteredEffects);
+            Assert.IsFalse(Settings.TurretLeadAim);
+            Assert.IsFalse(Settings.RemakeFreeLook);
+            Assert.IsFalse(Settings.BlueprintAutocomplete);
+            Assert.IsFalse(Settings.HostileAutopilotFastForward);
+            Settings.ApplyExperience(Settings.ExperienceOriginal);
+            Assert.AreEqual(Settings.ExperienceOriginal, Settings.CurrentExperience(), "explicit Original selection");
+
+            Settings.ApplyExperience(Settings.ExperienceRemake);
+            Assert.IsTrue(Settings.RebuiltPlanets && Settings.RemasteredEffects && Settings.TurretLeadAim && Settings.RemakeFreeLook,
+                          "Remake retains main's presentation and combat additions");
+            Assert.IsFalse(Settings.BlueprintAutocomplete || Settings.HostileAutopilotFastForward,
+                           "the complete policy explicitly disables these options");
+            Settings.ApplyScopedExperience(false, 0);
+            Assert.IsFalse(Settings.TurretLeadAim || Settings.RemakeFreeLook || Settings.BlueprintAutocomplete || Settings.HostileAutopilotFastForward,
+                           "Gameplay Experience Original");
+            Assert.IsTrue(Settings.RebuiltPlanets && Settings.RemasteredEffects, "the gameplay preset leaves the looks");
+            Settings.ApplyScopedExperience(true, 0);
+            Assert.IsFalse(Settings.RebuiltPlanets || Settings.RemasteredEffects, "Cosmetic Experience Original: the graphics page's looks too");
+            Assert.AreEqual(0, Settings.CurrentScopedExperience(true));
+            Assert.AreEqual(0, Settings.CurrentScopedExperience(false));
+        }
+
     }
 }

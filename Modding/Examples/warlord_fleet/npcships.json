@@ -1,0 +1,65 @@
+[
+    // npcships.json: the ships nobody flies. Each entry is one TYPE of NPC ship ("id": new, its key "warlord_fleet:<id>");
+    // "spawn" says in which orbits it comes and how often. To see one at once: the Debug page's "Spawn mod NPC ship".
+
+    // A capital ship ("kind": "capital"): it parks in the orbit, its turrets armed, and can be destroyed.
+    {
+        "id": "iron_tithe",
+        "kind": "capital",
+        // Its hull is one of the game's NPC hulls: "battleship", "carrier", "vossk_battleship" or "freighter".
+        // (A hull of your own would be "ship": "warlord_fleet:<a ships.json id>" instead.)
+        "looksLike": "battleship",
+        // The name on its lock plate; its side. "hostile": it attacks the player whatever their standing.
+        "name": "Iron Tithe",
+        "race": "pirates",
+        "hostile": true,
+        // A new capital ship has 5 x the Terran battleship's hull: this one a little less, its guns a little more.
+        "hullFactor": 0.8,
+        "gunFactor": 1.2,
+        // Its turrets, in game units in the ship's frame (y up, z ahead; 20 units = 1 m). They replace the hull's
+        // own seven; these are three of the battleship's own places. Each is a part that can be shot off.
+        "hardpoints": [
+            // "item": a turret item of the game (48 = Hammerhead D2A2), here on top, ahead of the middle.
+            { "position": [0, 2855, 4161], "item": 48 },
+            // "upsideDown": under the belly, hanging down (47 = Hammerhead D1).
+            { "position": [0, -4261, 4876], "item": 47, "upsideDown": true },
+            // Without an "item" it is the game's Terran turret, here on top at the stern; "hull": this part's own
+            // hit points (x the difficulty).
+            { "position": [0, 5669, -13872], "hull": 1200 }
+        ],
+        // The fighters looping round it: three or four, each a Wasp (32) or an Azov (23), hull and guns x 1.5.
+        "escorts": { "count": [3, 4], "ships": [32, 23], "strength": 1.5 },
+        // What its crate holds when it is destroyed: always 6-10 Explosives (114), half the time 2-4 Luxury (104),
+        // now and then one of its turrets (48), and one or two rolls of a freighter's cargo.
+        "loot": {
+            "items": [
+                { "item": 114, "amount": [6, 10] },
+                { "item": 104, "amount": [2, 4], "chance": 50 },
+                { "item": 48, "chance": 15 }
+            ],
+            "cargoRolls": [1, 2]
+        },
+        // Where: in 15 % of the orbits of the Dangerous (0) and Risky (1) systems, from rank 4 on, 6 to 9 km in front
+        // of the station. Without "chance" it never comes by itself (a mission or the Debug page brings it).
+        "spawn": { "chance": 15, "security": [0, 1], "minRank": 4, "distance": [6, 9] }
+    },
+
+    // A boss ("kind": "boss"): a named fighter that comes for the player with its escorts, out where the game's pirate
+    // boss comes. Hostile without being told so; its hull and gun grow with the player's rank.
+    {
+        "id": "tithe_collector",
+        "kind": "boss",
+        // "ship": the hull is a ship of the ships table, by number (11 = Hernstein) or "mod:id".
+        "ship": 11,
+        "name": "Tithe Collector",
+        // Without "race" it would fly for the system's race.
+        "race": "pirates",
+        "hullFactor": 0.75,
+        // Two Wasps (32) fly with it.
+        "escorts": { "count": 2, "ships": [32] },
+        // "keep": the game's own drop stays, and 3-6 Energy Cells (122) come on top.
+        "loot": { "keep": true, "items": [ { "item": 122, "amount": [3, 6] } ] },
+        // In a quarter of the orbits of every system but the Secure ones, in free play and the story alike.
+        "spawn": { "chance": 25, "security": [0, 1, 2] }
+    }
+]

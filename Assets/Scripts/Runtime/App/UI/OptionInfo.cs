@@ -39,7 +39,7 @@ namespace GoF2Remake.UI
 
         static VisualElement Icon(Func<string> text, Func<VisualElement> content, Texture2D texture)
         {
-            if (iconTexture == null) iconTexture = Resources.Load<Texture2D>("GoF2Hud/option_info");
+            if (iconTexture == null) iconTexture = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/option_info");
             var icon = new VisualElement { pickingMode = PickingMode.Position, focusable = false };
             icon.AddToClassList("option-info");
             icon.style.position = Position.Absolute;

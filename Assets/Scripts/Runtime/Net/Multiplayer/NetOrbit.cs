@@ -669,15 +669,18 @@ namespace GoF2Remake.Multiplayer
         /// (ObjectDocking), so each open one (NetProxy.OpenDerelict) gets a hidden stand-in of this game at its copy's pose,
         /// like a follower's mining plant (FreelanceOrbit). Hacked here (Traffic.OnHackWon: this player's crate), the owner's
         /// wreck closes for everyone (NetProxy.ReportHacked); once it is closed, gone or handed to this game the stand-in
-        /// goes, after the player has undocked.</summary>
+        /// goes, after the player has undocked. A blueprint wreck (NetProxy.OpenBlueprintWreck) likewise, but each player's
+        /// own: open here while this player hasn't its blueprint, whatever its owner did, and no word to the owner.</summary>
         void UpdateDerelictStandIns()
         {
             if (level == null || level.Traffic == null || (derelictTimer -= Time.unscaledDeltaTime) > 0f) return;
             derelictTimer = ScanSeconds;
             foreach (var proxy in FindObjectsByType<NetProxy>())
             {
-                if (!proxy.OpenDerelict || proxy.Station != Station || derelictStandIns.ContainsKey(proxy)) continue;
-                var standIn = level.Traffic.Adopt(proxy.AdoptSpec(GamePosition(proxy.ShownPosition)), proxy.ShownRotation, 1f);
+                if (!OpenWreck(proxy) || proxy.Station != Station || derelictStandIns.ContainsKey(proxy)) continue;
+                var spec = proxy.AdoptSpec(GamePosition(proxy.ShownPosition));
+                spec.dockingType = ObjectDocking.Hackable;   // (a blueprint wreck its owner had found is closed there)
+                var standIn = level.Traffic.Adopt(spec, proxy.ShownRotation, 1f);
                 standIn.LocalOnly = true;   // never a proxy of its own
                 foreach (var r in standIn.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
                 derelictStandIns[proxy] = standIn;
@@ -688,8 +691,8 @@ namespace GoF2Remake.Multiplayer
             {
                 NetProxy proxy = pair.Key;
                 NpcShip standIn = pair.Value;
-                bool open = proxy != null && proxy.OpenDerelict;
-                if (standIn != null && open && standIn.DockingType == 0 && derelictReported.Add(proxy)) proxy.ReportHacked();
+                bool open = OpenWreck(proxy);
+                if (standIn != null && open && standIn.DockingType == 0 && proxy.OpenDerelict && derelictReported.Add(proxy)) proxy.ReportHacked();
                 if (standIn != null && open) continue;   // (hacked here: until the owner's word arrives)
                 if (standIn != null && level.Docking != null && level.Docking.Target == standIn) continue;
                 if (standIn != null && !standIn.Gone) { standIn.Vanish(); standIn.gameObject.SetActive(false); }
@@ -697,6 +700,8 @@ namespace GoF2Remake.Multiplayer
             }
             foreach (var proxy in derelictDone) { derelictStandIns.Remove(proxy); derelictReported.Remove(proxy); }
         }
+
+        static bool OpenWreck(NetProxy proxy) => proxy != null && (proxy.OpenDerelict || proxy.OpenBlueprintWreck);
 
         // ---- junk and crates taken over ---------------------------------------------------------------------------
 

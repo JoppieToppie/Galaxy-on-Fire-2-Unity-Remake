@@ -1,7 +1,7 @@
 // The original's bloom (AbyssEngine::BloomShader, libgof2hdaa.so 0x942fc / RenderEffect 0x94740), in the remake's
 // "Original" bloom option (ClassicBloomPass). The scene is sampled into 256 x 256 (fboLuma) through the bright pass,
-// blurred 6 times by the "horizontal" pass (its offsets are vec2(offset[i]), so it blurs diagonally) and the vertical
-// pass (fboBlurH / fboBlurV, texSize 256), then added onto the scene (Engine::switchBloom = 3: base + blurV). The original
+// blurred 6 times by the horizontal pass (the phone's offsets are vec2(offset[i]), a diagonal blur; Modified: horizontal
+// as the PC version's) and the vertical pass (fboBlurH / fboBlurV, texSize 256), then added onto the scene (Engine::switchBloom = 3: base + blurV). The original
 // works on gamma-space LDR colours, so the passes convert from / to the linear camera colour.
 Shader "Hidden/GoF2/ClassicBloom"
 {
@@ -61,7 +61,9 @@ Shader "Hidden/GoF2/ClassicBloom"
             return tc;
         }
 
-        float4 FragBlurH(Varyings input) : SV_Target { return float4(Blur(input.texcoord, float2(1.0, 1.0)), 1.0); }
+        // Modified: truly horizontal, as the PC version's BloomShader.fx (float2(offset / texSize, 0); the user's files,
+        // 2026-11-17); the phone's vec2(offset[i]) blurred diagonally.
+        float4 FragBlurH(Varyings input) : SV_Target { return float4(Blur(input.texcoord, float2(1.0, 0.0)), 1.0); }
         float4 FragBlurV(Varyings input) : SV_Target { return float4(Blur(input.texcoord, float2(0.0, 1.0)), 1.0); }
 
         // clamp(bloom + base) (the original's luminance mix of that value with itself changes nothing).

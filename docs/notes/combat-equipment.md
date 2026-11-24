@@ -29,7 +29,8 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   route flies straight on instead of circling the cloaked player. In a session it is the session's rule (see
   "Multiplayer", Gameplay rules). Remake: the homing missiles locked on the ship lose their lock like on a boost (see
   "Missile warning and evasion"); in multiplayer the other players lose the ship's marker and lock (a held lock too,
-  `CombatRadar`) from the moment it engages. Look: the hull switches to `GoF2/Cloak` (BumpShaderCloak's fragment shader
+  `CombatRadar`) from the moment it engages. Look: the hull switches to `GoF2/Cloak` (the PC version's vertex shimmer, BumpShaderCloak.fx's
+  simplex-noise push of up to 4 units as the cloak starts, was tried and left out, 2026-11-17; its fragment shader
   as it is: dissolve by `cloak_map.png`'s veins into the refracted screen with a light-blue band along the front, over
   the lit hull up to 0.5 and into pure refraction by 0.75, so the pattern shows through most of each 2 s fade; #47: it
   ran at twice the speed; drawn by `CloakPass` after URP's transparents from a copy of the frame, like the original's
@@ -39,7 +40,10 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   the stars too; the hull's depth goes in before the transparents, `CloakPass.DepthPass`, but only where the hull
   hasn't dissolved yet, clipped by the dissolve map against `_AnimValue` like the colour: the ship's own lights behind
   the solid hull stay hidden, and a fully cloaked ship writes none, so the shots, explosions, smoke and flames behind it
-  still show through it instead of a hole in its shape), the lights keep glowing and
+  still show through it instead of a hole in its shape; Modified 2026-11-17: the ship's own lights, glow and engine
+  (`CloakGlow.Defer`) are taken out of URP's transparents while cloaked and drawn by `CloakPass` after them against the
+  hull's whole depth (pass `GoF2CloakDepthAll`) before its copy of the frame: those on its far side stay hidden behind
+  the invisible hull, the near ones go into the copy and are refracted and wobbled with it), the lights keep glowing and
   animating (the original's white at alpha max(50, ...) leaves its additive layers at full brightness; #47: the remake
   hid them), the NPC Specters' engine glow hides from 25 % (`CloakGlow`, `NpcCloak`; the code hides the ship group's
   last child), the players' ships keep theirs (`CloakGlow.KeepEngine`, #85: the reporter's screenshots of the original
@@ -53,7 +57,11 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   (attr 41) in the `v_shield` bubble (`GoF2/ShieldBubble`, a port of `AbyssEngine::EnergyShield` 0x9519c: material
   27150 is type 0x22, which `PaintCanvas::End3d` draws with flag 0x200000 after `Engine::CopyFBO`; the screen behind it
   bent by `v_shield_normal` and the clip-space normal, (nt.xy * 0.4 + n.xy * rim) * 150 px, plus a blue rim
-  smoothstep(1 - dot(e, n * nt)) * (0, 0.6, 1); the noise texture unused. #251: it was drawn with
+  smoothstep(1 - dot(e, n * nt)) * (0, 0.6, 1); the noise texture unused on the phone. Modified 2026-11-17 (the PC
+  version's EnergyShield.fx, the user's files): pushed 250 px across / 200 up, and two blue energy bands, iso-lines of
+  `v_shield_noise` at levels sweeping 0.1-0.9 (2.5 s), shown in a 9 s cycle (in 0-3 s, out 4-8 s), on `_Anim`. Since
+  2026-11-19 only with Options > Graphics "Remastered shield and cloak" (`_GoF2RemasteredFx`; it also halves the cloak's
+  bend); off by default: the phone's 150 px and no bands. #251: it was drawn with
   `SimpleRefractionShader`'s formula, no colour, hard to see. Drawn by `CloakPass` from its copy of the frame after the
   transparents so the ship's lights and exhaust show through it; the normal map sampled by three planar projections, as
   the mesh's UVs cut it where they wrap; the scene clamped to LDR (#45: the HDR sun core smeared over it bloomed the
@@ -182,6 +190,144 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   blasts and mines applying them (direct hits only). Not yet: the shots / beams / waves seen by the
   other players, the deflector against other players, NPC devices (GoF3's bosses), translations of the texts.
   `cloakCooldownMs` (attr 160) gives a cloak its own cooldown (`Cloak` constructor; GoF3's Hiroto Cloak 60 s, no cells).
+  Shield Overcharge (22, remake 2026-11-11, Chorus's player capital ship: BP_Player_Auxiliary_ShieldOvercharge_PlayerCapitalShip,
+  Duration 5, Cooldown 10; its native AAuxiliaryShieldOvercharge::OnActivation isn't readable, so the effect is the name's
+  and the HUD's overcharge bar's): the shield filled, then `Hitpoints.shieldLocked` until its end (`Damage` stops every hit
+  at the shield, `shieldHit` for the hit feedback, nothing taken off); its look the ship's own shell where ships.json has
+  an `"overcharge"` (`ShieldShell`, Chorus's BP_Effect_Auxiliary_Shield_PlayerCapitalShip on M_Shield: mods-models.md
+  "Chorus shield shell"), else the emergency system's `EmergencyBubble` while it runs.
+- **Rites** (remake 2026-11-13, the user's request "start the rites": Chorus's powers as devices that also pay Rite
+  energy; Rite of the Hunt first). Read from Chorus's BP_PowersMasterData, the BP_ActivePower_* defaults and the decompiled
+  UEnergyComponent (AddRegularEnergy / AddBonusEnergy / RemoveEnergy / CanPayEnergy) and ABlinkActivePower
+  (GetCurrentTarget, UpdateTargetTransform):
+  - **Void energy** (`Flight.VoidEnergy`, one per ship in `PlayerDevices.VoidPool` once a device with `deviceVoidCost` (178)
+    is mounted): BP_Player_Ship_Base's EnergyComponent, MaxRegularEnergy 3, RegenRate 0.22 a second (4.5 s a pip),
+    RegenDelay 0; bonus pips past the maximum (AddBonusEnergy, Blink's upgrade A; each may time out) are paid first, the
+    oldest first, then the regular ones; a cost above the total refuses the Rite ("{0}: not enough Void energy",
+    `deviceNoVoidEnergy`). Full at the start. `PlayerDevices.Ready` / `Charge` add the pool to a Rite's readiness (the
+    quick menu's half-transparency, "{0} ready", CooldownView's sweep toward the cost); CooldownView shows the pool as
+    pips after the slots (`.void-energy`, Chorus's PlayerEnergyWidget segments). Cheats.NoEquipmentCooldown also
+    waives the cost (Chorus's InfiniteVoidEnergy debug pref). Renamed from "Rite energy" the same day (the user's
+    request; Chorus's own debug name), its cost stat `deviceVoidCost`. **Fuel** (the user's choice of three, over Void
+    Crystals as the pool itself or as an instant refill): the regrowth burns Void Crystals (item 164, the Khador blueprint's
+    ore) from the hold, `VoidEnergy.CrystalsPerPip` (1 t) a pip finished (`Burn`); with none aboard (`HasFuel`) the next pip
+    doesn't grow and its progress is dropped (`Starved`: "No Void Crystals aboard: the Void energy can't grow back",
+    `voidNoCrystals`, once each time); CooldownView shows the crystals aboard after the pips (`.void-fuel`, red starved).
+    The debug's free equipment needs no crystals.
+  - **Rite of the Hunt** (`Device.Type.RiteHunt` 23, Chorus's Blink: Range 100000 cm, BlinkLocationOffset -18000 cm,
+    EnergyCost 2, Cooldown 0.5): the target is the lock if huntable and within reach, else the nearest huntable ship within
+    `HuntAimDot` (10 deg) of the nose (TargetableRadius 0.1 is a screen share in UpdateActivePowerTargets, not decompiled:
+    read as that cone). Huntable = `Affects`, not a capital ship's part, not a weak spot (`forwardTo`), not invulnerable,
+    not the pursuer (ValidTargetsBlacklist: BP_NPC_Ship_Fortress and BP_NPC_Guilt). The landing is the offset back along
+    the target's forward, facing its way (UpdateTargetTransform takes the target's rotation), swept back from the target
+    with the teleporter's `BlinkDistance` (its own hull left out) and refused with no room ("no room behind the target");
+    the speed is kept along the new nose (RestorePlayerSpeed), the chase camera snapped behind. Distances left at 0 are
+    seconds of the ship's top speed as Chorus flight's (`HuntRangeTops` 7.14, `HuntBehindTops` 1.29 of 140 m/s);
+    `deviceRadius` / `deviceRange2` set them in game units. Its timelines (later the same day, the user's "both"): the
+    model shrinks away over Blink_Disappear (0.067 s, `Device.HuntVanish` ~ u^3 from its keys), the leap, the model grows
+    back over Blink_Reappear (0.33 s, `HuntAppear`), both at BlinkPlayRateCurve's rate (1.5x for a leap of nothing to 1x at
+    the full reach, `HuntPlayRate`); the chase camera glides from where it was over Timeline_1's 1 s on real time
+    (`ChaseCamera.Glide` after `Snap`, read as an ease-out 1 - (1 - t)^3: the curves' tangents in the dump don't agree
+    with their Auto mode). The ship's model is scaled (Chorus's Transition drives its material, not read); a death, a
+    cutscene or a jump puts it back (`PlayerDevices.Cancel` -> `EndHunt`); a target gone meanwhile: no leap. Not ported
+    yet: the HUD's target highlight, BlinkTargets (interactables), upgrade A (bonus energy after the leap), upgrade B
+    (+50 % damage for 5 s, BP_Player_Buff_Blink_UpgradeB), the supercharged version's 2200 m final blow.
+  - **Rite of the Storm** (`Device.Type.RiteStorm` 24, Chorus's Pulse Zap: BP_ActivePower_Pulse_Zap Range 100000 cm,
+    ShieldDamage 300, ChainRange 10000, ChainInterval 0.25, EnergyCost 2, Cooldown 0.5, Duration 0; BP_Buff_Pulse Duration 4
+    with JamTarget / JamWeakpoint / JamMissile): the target as the Hunt's (`RiteTarget`) but `Stormable` (turrets and weak
+    spots allowed, a capital ship's hull, the invulnerable and the pursuer not: its whitelist SpaceNPC / turrets / weak
+    points, its blacklist the Fortress, Guilt, the Disruptor and the bosses' weak points); `ShieldHit` (the shield
+    disruptor's rule, factored out) with 'damage', `empDamage` too; jammed for deviceDurationMs (`Entry.jamMs`; the device
+    itself instant): `Target.SlowBy` (deviceSlowPercent, default 0, no turning) and `Target.jammedUntil` (NpcShip.HoldFire:
+    no guns, missiles or turrets); a beam from the ship (`ShowBeam(t, from)`: a beam may start at another ship now); with
+    `deviceChain` (179; upgrade A's ChainLimit 2 at 50000 cm) the nearest other stormable ship within deviceRange2 (default
+    0.71 s of the top speed) of the last one every deviceGrowMs (default 250), beamed from it. Not ported: the occlusion
+    trace (OcclusionCollisionChannel), the 1000 collision damage of a jammed ship, missiles destroyed, upgrade B's shield
+    steal (0.25 for 0.5 s), the Faceless corruption clusters (no such objects in the remake); a jam on another game's NPC
+    only slows it (the slow goes over the network, the jam doesn't).
+  - **Looks** (items.json fx `"rite"`, `Data.CustomRiteFx` read by `ModWeapons.ParseRite` into `WeaponFx.rite`, a
+    `RiteLook`): a JSON file of `start` / `vanish` / `appear` / `hit` effects (`ModDeathFx.Play`'s emitters; `hit` parented
+    to the struck ship) with `vanishSound` / `appearSound` / `hitSound` (loaded with the item's other sounds); the start's
+    sound is the fx's "shot". The Chorus importer writes them from the blueprints' Cascade systems and FMOD events.
+  - **Rite of the Star** (`Device.Type.RiteStar` 25, Chorus's Drill: ADrillActivePower's constructor 0x140a4fd40, found
+    through its GetPrivateStaticClassBody call's InternalConstructor (FUN_1408e1260 -> 0x140be1780 -> jne 0x140a4fd40),
+    its fields named by the Dumper-7 SDK: RotationSpeed 50, CheckForCollisionsInterval 0.33, PostDeactivation 0.4,
+    CollisionDamage 500, MinDurationTime 0.5, MaxDurationTime 3, CooldownTime 0.5, DrillForwardVelocity 42000 cm/s,
+    MaxAngularVelocity 72 deg/s, the Suspended slow motion 0.5 / 0.1 / 0.2; BP_ActivePower_Drill overrides EnergyCost 3,
+    the interval 0.2, the tail 0.3, the damage 750 and the sphere trace (10000 cm round 2500 cm ahead);
+    ApplyOrRestoreSpeedFromDrillValues sets the LinearSpeedX and MaxAngularSpeed modifiers to DrillForwardVelocity / the
+    top speed and the turn / the steering's). Here: deviceDurationMs (default 3000, the device's run), a second press
+    after `StarMinMs` ends it (`PlayerDevices.Use`; Min / MaxDurationTime read as that); `ShipController.DriveMs` /
+    `DriveTurnDegS` (both flight styles: the forward move replaced, the turn held to 72 deg/s by `CapTurn`; the speed it
+    had kept for after, as Chorus restores it) at `StarSpeedTops` 3 of the top speed; the model shrunk away over 0.15 s
+    and back (the Hunt's scaling, `ApplyModelShare` taking the smaller of the two; Drill_Activate's timeline not read);
+    `Target.invulnerable` while it runs (EnableOrDisablePlayerShip, its partial collisions; the previous value restored:
+    the Supernova Challenge sets it too); every deviceGrowMs (200) and `StarTailMs` 300 past its end each `Affects` ship
+    within deviceRange2 (default `StarRadiusTops`) plus its radius of the point `StarAheadTops` ahead takes 'damage' / its
+    EMP (`Device.InStar`), with the look's `hit`. Looks: `loop` on the ship (removed at the end) with `loopSound` looping,
+    `end` and `endSound` where it ends. Not ported: the StartDrillMovementSpeeCurve ramp, the slow motion when suspended
+    (OnDriftStarted / OnSuspended), the hit sounds' kill and lock variants, upgrade A's four side stars (RotationSpeed 100)
+    and B's 25 % heal a kill.
+  - **Rite of Control** (`Device.Type.RiteControl` 26, Chorus's Telekinesis: BP_ActivePower_Telekinesis GrabRange 70000,
+    TossRange 80000, TossSpeed 56000 cm/s, EnergyCost 3 (the powers screen says 4), OffsetLocations (5000, +-2500, +-2500);
+    BP_Telekinesis_Debuff CollisionDamageOtherTargets 500, from geometry / another target 500000, Duration 1e6; the native
+    GrabTargets / CollectTossToTarget take the targeting component's current targets): `Controllable` (the Hunt's
+    `Huntable`, a ship, not another game's: `RemoteDamage` null); held at OffsetLocations[0] (`ControlHoldTops`, eased
+    there each frame), jammed (`Target.jammedUntil` and a 0 slow without turning), beamed; a second press (`Use`) throws it
+    (`Toss`) at `RiteTarget` within `ControlTossTops` of it, else ahead, at `ControlSpeedTops`, homing; each frame the
+    first `Affects` ship along its step takes 'damage' and the thrown one dies (`DeviceHit` 1e7 past the shield, the
+    player's kill), a hull / landmark / asteroid on its way (`BlinkDistance` with it left out) kills it; nothing met in
+    `ControlFlightMs` (the toss's reach at its speed + 0.5 s): let go (`Unjam`: the jam ended, `Target.ClearSlow`, NpcShip's
+    slow cleared). The hold's end (deviceDurationMs, default 8 s: Chorus holds for good) lets it go too. Not ported: more
+    than one ship at a time (the debuff's MaxNumberOfStacks 2, four offsets), turrets, mines and missiles grabbed, the
+    connection's spline mesh (the device beam stands in), the toss sounds' variants.
+  - **Rite of the Senses** (`Device.Type.RiteSenses` 27, Chorus's Scan / SeventhSense: BP_ActivePower_Scan
+    ShortRangeScanDistance 600000 cm, ShortRangeScanDuration 3 s, Cooldown 0, the powers screen's cost 1): instant; a wave
+    (`Device.WaveRadius` over `SensesWaveMs`) out to deviceRadius (default `SensesTops`) uncovers every hostile NpcShip it
+    reaches that is `RadarHidden` by its cloak (`NpcShip.Uncloak`: the cloak broken whatever `Settings.EmpBreaksCloak`; a
+    script's radar-hidden ship is left so), with the look's `hit`; and for deviceDurationMs (default 20 s, the remake's:
+    Chorus's short scan shows its finds 3 s) `RiteSenses.Until` gives the ship the Hiroto Ultrascan's sight
+    (`Mining.Ultrascan`: the class-A asteroids' letters) and the cargo scanners' readout on a new lock (`CombatRadar`,
+    attr 31's `ReadCargo`) — what the remake hides that a scan can show. Its wave also reveals the orbits' cloaked
+    containers (`LootContainer.Reveal`, as `CloakedContainers` does within 144 m; "{0}: {1} hidden container(s) found",
+    `riteSensesFound`). The long range (the same day, the user's "continue": AScanActivePower's constructor 0x140c3df70
+    gives LongRangeChargeDuration 1, LongRangeScanDuration 3, ShortRangeChargeDuration 0.5, ShortRangeScanDuration 2,
+    ShortRangeScanDistance 180000, LongRangeScanDistance 1e8, EnergyCost 1; the blueprint's 0.001 / 3 / 600000 / 2e7):
+    the Senses' key (`GameControls.Device1-3`) held `SensesChargeMs` fires it with `Use(slot, true)`, a wave to
+    `SensesLongTops` (the whole orbit) over `SensesLongWaveMs`; let go sooner, the short scan; the quick menu and touch
+    always the short one. Chorus's long range marks its finds on the star map; here the finds are the orbit's own (the
+    containers' markers, the ships uncovered). Not ported: the charge's look and sound, the post-process pulse,
+    P_Sphere_Expansion (a mesh sphere).
+  - **Upgrades** (`deviceUpgrade` 180, bits `Device.UpgradeA` / `UpgradeB`; `Entry.A` / `B`), read from their blueprints'
+    graphs: the exporter's `CHORUS_SCRIPT=1` turns on CUE4Parse's ReadScriptData, so the JSON carries each function's
+    Kismet bytecode (the scratch kis.py lists its calls). Hunt A: `VoidEnergy.AddBonus(1)` after the leap (AddBonusEnergy(1);
+    a bonus pip lives BonusEnergyLifetime 10 s, UEnergyComponent's constructor 0x140be1d60, which also has RegenDelay 5 and
+    RegenRate 0.5 the blueprint overrides). Hunt B: `StartFury`, `WeaponSystem.DamageBoost` 1.5 and the Rites' damage x
+    `RiteFury` for 5 s (BP_Player_Buff_Blink_UpgradeB; back to 1 at its end unless the strike charge runs). Storm A:
+    `deviceChain` 2 and the jump `StormChainTopsA` (500 m) by default. Storm B: `ShieldHit` returns what it took (a ship
+    without a shield: what it dealt), a quarter onto the ship's own shield up to its maximum (`GainShield`; Chorus
+    IncreaseShield's overcharge past it not taken). Star A: four more spheres (`Device.StarSide`: (10000, +-6000, +-6000)
+    cm, RotationSpeed 100 deg/s about the nose), a ship hit once a tick whichever it is in. Star B: a ship the Star
+    destroys repairs 25 % of the maximum hull (`HealShare`, past `Repair`'s nanobot count). Their looks: the rite file's
+    `fury` (on the ship while it lasts, `furySound` looping; `StartFury` / `EndFuryLook`), `absorb` and `heal` (one-offs
+    on the ship, `PlayOnShip`); the Chorus importer writes each upgraded item its own file (its UPGRADE_LOOKS: the
+    upgrade blueprints' particles and Start / Appear / Muzzle / Duration / Re-Appear events; Pulse B's
+    P_Pulse_UpgrB_ShieldAbsorb is a mesh particle, so only its Shield_Stolen sound). Not taken: Blink AB's
+    energy for a kill within 5 s (BP_Buff_GiveEnergyForKillAfterBlink: its EnergyAmount unset), the upgrades' own looks.
+  - **Passive** (`Device.Type.RitePassive` 28; Chorus's BP_PassivePower_ElementalShield: BonusEnergy 2,
+    VoidEnergyIncreaseEffect, "Prevents all elemental damage"): not one of `PlayerDevices.Devices` (no key, quick menu
+    entry or HUD slot); `deviceVoidPips` (181) adds to the pool's maximum (`VoidEnergy(ChorusMax + pips)`, made once all are
+    read), `deviceElementalProof` (182) sets `Hazards.ElementalProof` (HazardZones skips heat, frost and corrosion
+    volumes; radiation and plain damage fields still harm). HavocCore and SacredMark have no numbers: not made.
+  - Not taken: BP_Buff_GiveEnergyForKillAfterBlink (the base Blink's: a kill within 5 s refunds EnergyAmount, floor of
+    a mastery value: Chorus's mastery levels, which the remake hasn't).
+  Tests `VoidEnergyTests` (the regrowth, refusals, bonus pips, the delay, Blink's numbers, landing and timelines, the
+  camera's glide, Pulse Zap's numbers, the jam, the Drill's numbers, the star's reach, the turn cap, Telekinesis's numbers, Scan's numbers and the sight, the passive's pips, the bonus pip's life, the
+  fury, the Star's side spheres),
+  `ModWeaponsTests.ARitesLooksAreAFileOfEffectsAndSounds`.
+- **Hull regeneration** (remake 2026-11-11, for mods): ships.json `"hullRegen"` (points a second; Chorus's PCLS
+  PlayerHealthComponent HealthRegenRate 250 of its 5000) -> `PlayerHealth` (`Hitpoints.RegenerateHull`, fractions carried,
+  nothing at 0 or full), beside a repair bot.
 - **Shield injector** (227): an empty shield takes 30 t Blue Plasma (202, "-30t Blue Plasma") and refills at 0.15 per ms; sounds 2258 / 2257 / 2259.
 - **Gamma** (supernova stations 109-113, `PlayerHealth`): a 0..100 pool drains at the station's rate by campaign
   progress (gamma shields 205 / 206 cut it by attr 52 %), "Warning: Gamma shield low" (3201) below 15, death at 0,

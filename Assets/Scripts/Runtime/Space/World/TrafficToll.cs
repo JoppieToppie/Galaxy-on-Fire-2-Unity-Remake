@@ -233,10 +233,13 @@ namespace GoF2Remake.World
             // PlayerFighter::update's death: a Most Wanted criminal pays its bounty whoever killed it; no standing hit.
             if (ship.Spec.wantedIndex >= 0) { WantedKilled(ship); if (byPlayer && ship.Target.hostileToPlayer) CountKill(ship); return; }
             if (ship.Spec.pirateEvent == SpawnSpec.EventOutpost || ship.Spec.pirateEvent == SpawnSpec.EventBoss) PirateEventDone(ship);   // remake: the event's bounty, whoever killed it
-            if (!byPlayer) return;
             // Player::damage: the convoy freighter ("Arms delivery") destroyed by the Liberator (0xb3) -> step 59's bonus.
-            if (ship.Spec.convoyRole == SpawnSpec.ConvoyFreighter && ship.Target.lastPlayerWeapon == 179 && Session.StoryMission != null)
+            // Remake co-op: a crew member's Liberator on a freighter this game runs counts too (it reaches the leader as
+            // this game's Progress); only this game's own kills counted.
+            if ((byPlayer || ship.Target.killedByRemote) && ship.Spec.convoyRole == SpawnSpec.ConvoyFreighter
+                && ship.Target.lastPlayerWeapon == 179 && Session.StoryMission != null)
                 Session.StoryMission.value++;
+            if (!byPlayer) return;
             // Player::damage: no standing change for a kill in the black market (Loma); the kill still counts
             // (Level::enemyDied's incKills, PlayerFighter::update's incPirateKills).
             if (!blackMarket) Standing.ApplyKill(ship.Race, SystemRace);

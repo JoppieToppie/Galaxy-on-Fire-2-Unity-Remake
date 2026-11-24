@@ -289,8 +289,30 @@ namespace GoF2Remake.UI
 
         static long FreeSpace(string dir)
         {
-            try { return new DriveInfo(Path.GetPathRoot(Path.GetFullPath(dir))).AvailableFreeSpace; }
+            // The mount holding dir, not its path root: on Android / Linux the root is "/" (Android's small system
+            // partition said "not enough space" with 30 GB free in /data, 2026-11-21).
+            try
+            {
+                string full = Path.GetFullPath(dir);
+                DriveInfo best = null;
+                foreach (var d in DriveInfo.GetDrives())
+                {
+                    string root = d.RootDirectory.FullName;
+                    if (!InMount(full, root) || (best != null && root.Length <= best.RootDirectory.FullName.Length)) continue;
+                    try { if (d.IsReady) best = d; } catch (Exception) { }
+                }
+                return best != null ? best.AvailableFreeSpace : -1;
+            }
             catch (Exception) { return -1; }
+        }
+
+        /// <summary>Whether path lies under the mount point root ("/data" holds "/data/user", not "/database").</summary>
+        public static bool InMount(string path, string root)
+        {
+            var cmp = Path.DirectorySeparatorChar == '\\' ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            string r = root.TrimEnd('/', '\\');
+            return r.Length == 0 || path.Equals(r, cmp) ||
+                   (path.StartsWith(r, cmp) && (path[r.Length] == '/' || path[r.Length] == '\\'));
         }
 
         /// <summary>Downloads the chunks and assembles the files; ends Staged or Failed (or Ready, cancelled).</summary>

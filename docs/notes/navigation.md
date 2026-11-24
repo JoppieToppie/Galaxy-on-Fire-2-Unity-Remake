@@ -13,6 +13,9 @@ the player ship) and `NavigationView` (flight HUD).
   planets beat asteroids (`Mining` asks `BlocksAsteroidLock`). HUD: bracket + name + "Tech level" + distance
   (`Radar::calcDistance`, the original's own "m/km") near the centre, jumpgate icon elsewhere (off screen on the radar
   ellipse), planet names only while in the lock box, top plate with the system's race icon.
+  Distance checked against iOS 1.1.19 `Radar::calcDistance` 0x100114c98 (2026-11-09): from the camera (`Radar::draw`
+  copies the camera matrix's translation to +0x2cc), half the per-axis differences truncated, `8 * (int)(sqrt(sum) / 64)`
+  "m" (units / 16), "x.ykm" from 1000 m: what `Navigation.FormatDistance` does with the camera (0.05 m a unit in Unity).
 - **Crosshair on the autopilot** (`PlayerEgo::draw` 0xae4d0, #85): not drawn while the autopilot flies (+0x158), outside the turret
   view; the remake makes it transparent (`.crosshair--autopilot`) so the throttle gauge and lock rings keep its place.
 - **Menu presses** (remake, #85): `Navigation.PressesBlocked`, true while a menu, conversation or map halts the controls and for
@@ -214,6 +217,14 @@ the player ship) and `NavigationView` (flight HUD).
   mastered share, after GetLootQuantityFactor) and `BattlePay`. Not done: Mines on Death (2-3 mines, 40 + 40, 100 m), Overheated
   Systems, Corrosive Death, Burst Bulbs, Phase Barrier, Stasis Snares, Apocalypse; the portals' choice; ES2's lunacy,
   nightmare mode and loot quality.
+  **Rift looks** (2026-11-11, the user: Chorus's rifts in the Chorus systems): a mod rift entry's `"look"`
+  (`Modding.ModEncounters.RiftLook`, pooled with the table; `RiftLookFor(system)`: one naming the system, else one with
+  no `systems`) dresses a run: its `rift` model at the run's centre (`ModCrates.InstantiateFitted`, the look's models
+  loaded with the orbits' through `ModWorld.ContainerModels`, facing the camera), its `skybox` in place of the orbit's
+  (`OrbitBuilder.SetupSky(..., skyOverride)`, back by `SpaceLevel.RestoreOrbitSky` when the run is gone), and at each
+  stage's end its `portal` where the stage's survivors were (`World.RiftPortal`: grows OpenS 0.6 s, holds HoldS 1.8 s,
+  closes CloseS 0.8 s) as they vanish (ES2's portal to the next location). A Chorus portal material on either gets its
+  refraction (`PortalRefraction.AttachIfPortal`). Tests `RiftLookTests`.
 - **Containers** (remake 2026-11-03, for mods; stations.json `orbit.containers` -> `ModWorld.OrbitSpec.containerCount /
   containerCentre / containerSpread / containerBulletproof`, `World.LootContainer.SpawnOrbit` with the wreck field): after
   EVERSPACE 2's BP_ItemContainer (EContainerType OpenOnHit: ReceiveAnyDamage by the player or within 2 km ->
@@ -266,6 +277,20 @@ the player ship) and `NavigationView` (flight HUD).
   along the nose); DROP lets it go with its velocity; loose, it drifts on with `Portable.Damping` 0.2 (the rift mines' UE
   damping), and a socket takes it in passing. Not on touch (the fire button is SetPrimaryHeld). Test
   `AThrownSphereKeepsItsMomentumAndFliesOn`.
+  Rotation (2026-11-07, the user asked whether ES2 turns carried things: `UPortableComponent::Attach` / `Detach`
+  decompiled, the flag offsets from the `NewProp_*_SetBit` setters, 0x55c / 0x55d / 0x55e, the values from the blueprints):
+  ES2 holds a carried thing on a physics constraint whose linear drive pulls its centre of mass, so the pull never turns it;
+  `bLockObjectRotation` locks the three angular axes (it turns with the ship, keeping the turn it had when grabbed:
+  BP_Portable_EnergyCoil and its Unstable kin, the detonator, the reflector debris), else they are free and it keeps its spin
+  (the sphere, the conductors, rocks, the other orbs; the mining-cable coil sets it false). `bSameOrientationAsActor` (+
+  `bAlsoSameUpAsActor`) would face it the ship's way on the grab and the snap: only the reflector debris sets it. A drop or
+  throw keeps the spin (`Detach` bKeepMomentum zeroes it only when not kept), slowing with AngularDamping 0.1 (the coil's
+  and BP_Conductor_Portable's BodyInstance). ES2 has no control to turn a carried thing and its sockets keep the turn a
+  thing arrives with (BP_PortableSnap_Base only moves it). The remake: `Portable.LockRotation` (the coil) turns with the ship
+  (`HeldTurn` at the grab, the spin measured each frame, `SpinBetween`), the rest keep their spin (`Turned`), loose ones slow
+  by `AngularDamping` (`Damped`), a socket stops it. The remake has no collisions to start a free one spinning, so only a
+  coil let go mid-turn tumbles. Tests `ALockedCoilTurnsWithTheShipAndTumblesOnWhenLetGo`,
+  `ALooseSpinSlowsWithTheCoilsAngularDamping`.
   Conductors (2026-11-06, ES2's ConductorReceiverRequired, UConductorComponent in ES2_classes.hpp, BP_Conductor_Source /
   _Static / _Portable / _Receiver): a secure container's `conductors` (`ConductorSpec`: `sources`, `statics`, `portables`,
   `receivers`, at most 12 each, `[x, y, z]` or `[x, y, z, radius]`; `radius` 4000 / `receiverRadius` 40 game units, the
@@ -386,3 +411,13 @@ the player ship) and `NavigationView` (flight HUD).
   Supernova Challenge, see "Supernova add-on").
   Remake: where the menu would be empty (the alien orbit: no docking target there, `Navigation.MenuEmpty`) the autopilot
   button is dimmed (`nav-button--dim`) and Q / the button don't open it; it still turns a running autopilot off.
+
+- **Time speedup near hostiles** (Gameplay, off by default): in single player with time compression,
+  `Settings.HostileAutopilotFastForward` waives hostile radar contacts only while autopilot is active.
+  The option is unavailable with Ship cruise (including single-player cruise), multiplayer and co-op.
+  Manual locked-object flight, mining/docking approaches without autopilot, jump/drive/device and
+  near-arrival restrictions retain their existing behavior. This does not grant invulnerability or change radar hostility.
+
+- **Time speedup near hostiles (UI)**: the stored choice stays editable in either single-player fast-forward mode.
+  Ship cruise makes it ineffective; selecting cruise does not clear or disable the preference. Multiplayer/co-op
+  still disables the control and rejects the simulation override.

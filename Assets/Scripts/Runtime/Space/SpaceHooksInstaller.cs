@@ -15,6 +15,7 @@ namespace GoF2Remake.Flight
         public static void Install()
         {
             GameHooks.RepairLiveShip = PlayerHealth.RepairLive;
+            GameHooks.ResolveOriginal = Visuals.OriginalContent.Resolve;
             GameHooks.ResetControls = GameControls.ResetToDefaults;
             GameHooks.ModsScanned = ids => { ShipShadowBaker.PruneCache(ids); Visuals.ModLodCache.PruneCache(ids); };
             GameHooks.FlightMessage = text => UI.UiHooks.FlightMessage?.Invoke(text);
@@ -27,6 +28,9 @@ namespace GoF2Remake.Flight
             GameHooks.KitBuildText = o => Modding.ModShipKits.Build.FromJson(o).ToString();
             // Remake mods: a mod capital ship's / freighter's boxes from its own model.
             CollisionVolume.ShipVolumes = Modding.ModCapitalShips.HullVolumes;
+            // The original visitor mesh selection, exposed so mods can choose a station-specific silhouette.
+            SpaceHooks.VisitorRace = (agent, station) => agent.modRace >= Modding.ModRaces.FirstRace ? agent.modRace
+                : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
         }
     }
 }

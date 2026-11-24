@@ -72,13 +72,15 @@ namespace GoF2Remake.Flight
         public FlightBonus bonus = new FlightBonus();
     }
 
-    /// <summary>Remake, for mods: per-style flight bonuses (Modding.ModFlight: items' stats 111-121, ships.json "flight").
+    /// <summary>Remake, for mods: per-style flight bonuses (Modding.ModFlight: items' stats 111-121 and 170-181, ships.json "flight").
     /// Percentages add up (20 = +20 %, -10 = 10 % less; the total never below -90 %); boostFactor is free flight's boost top
     /// speed in hundredths of the top speed (350 = x3.5), 0 = the booster's own.</summary>
     [Serializable]
     public class FlightBonus
     {
         public float topSpeed, turnRate, strafeSpeed, acceleration;
+        public float pitchTurnRate, yawTurnRate, rollTurnRate, pitchTurnAcceleration, yawTurnAcceleration, rollTurnAcceleration;
+        public float strafeAcceleration, hoverSpeed, hoverAcceleration, reverseSpeed, reverseAcceleration, forwardAcceleration;
         public int boostFactor;
         /// <summary>Remake, after EVERSPACE 2's ship passives (BP_Ship_Player's TickItemEffects): fullStopDamage = the primary
         /// guns' damage in % more while the ship stands still (FullStopWeaponDamageIncrease: its WeaponBoost condition while
@@ -91,12 +93,17 @@ namespace GoF2Remake.Flight
         {
             if (o == null) return this;
             topSpeed += o.topSpeed; turnRate += o.turnRate; strafeSpeed += o.strafeSpeed; acceleration += o.acceleration;
+            pitchTurnRate += o.pitchTurnRate; yawTurnRate += o.yawTurnRate; rollTurnRate += o.rollTurnRate;
+            pitchTurnAcceleration += o.pitchTurnAcceleration; yawTurnAcceleration += o.yawTurnAcceleration; rollTurnAcceleration += o.rollTurnAcceleration;
+            strafeAcceleration += o.strafeAcceleration; hoverSpeed += o.hoverSpeed; hoverAcceleration += o.hoverAcceleration; reverseSpeed += o.reverseSpeed; reverseAcceleration += o.reverseAcceleration; forwardAcceleration += o.forwardAcceleration;
             fullStopDamage += o.fullStopDamage; lowSpeedResistance += o.lowSpeedResistance;
             if (o.boostFactor > 0) boostFactor = o.boostFactor;
             return this;
         }
 
         public bool IsEmpty => topSpeed == 0f && turnRate == 0f && strafeSpeed == 0f && acceleration == 0f && boostFactor == 0
+                               && pitchTurnRate == 0f && yawTurnRate == 0f && rollTurnRate == 0f && pitchTurnAcceleration == 0f && yawTurnAcceleration == 0f && rollTurnAcceleration == 0f
+                               && strafeAcceleration == 0f && hoverSpeed == 0f && hoverAcceleration == 0f && reverseSpeed == 0f && reverseAcceleration == 0f && forwardAcceleration == 0f
                                && fullStopDamage == 0f && lowSpeedResistance == 0f;
 
         public static float Scale(float percent) => Mathf.Max(0.1f, 1f + percent / 100f);
@@ -212,6 +219,8 @@ namespace GoF2Remake.Flight
             public int boostDurationMs = 5000, boostRechargeMs = 20000;
             public bool hasBooster;
             public float speedScale = 1f, turnScale = 1f, strafeScale = 1f, accelScale = 1f;
+            public float pitchTurnScale = 1f, yawTurnScale = 1f, rollTurnScale = 1f, pitchAccelScale = 1f, yawAccelScale = 1f, rollAccelScale = 1f;
+            public float strafeAccelScale = 1f, hoverScale = 1f, hoverAccelScale = 1f, reverseScale = 1f, reverseAccelScale = 1f, forwardAccelScale = 1f;
             public int boostFactor;   // free flight's boost x100 (0 = the booster's)
             public float fullStopDamage, lowSpeedResistance;   // % (FlightBonus)
         }
@@ -234,6 +243,9 @@ namespace GoF2Remake.Flight
         public float Throttle { get; private set; } = 1f;      // 0xbc, 0..1
         public float CurrentSpeed { get; private set; } = BaseSpeed; // 0xb8, units per ms
         public float YawRate { get; private set; }             // 0x27c
+        /// <summary>Remake: the stick's turn this frame, -1 (full left) .. 1 (full right), in free and Chorus flight (a mod
+        /// ship's steering pose, ModShipAnimator).</summary>
+        public float YawInput { get; private set; }
         public float PitchRate { get; private set; }           // 0x278
         public bool IsBoosting { get; private set; }
         public bool IsLeveling { get; private set; }
@@ -377,12 +389,21 @@ namespace GoF2Remake.Flight
         /// scaled by (H / 20)^0.75, softly capped there (a tenth of what lies above, FreeTurnAboveShare), then the
         /// steering sensitivity option x0.6..1.6 (1 at its default). The option itself, not Sensitivity: that one is the
         /// original's ramp setting, a fixed 2.7 under mouse steering.</summary>
-        float FreeTopTurnRate(float he)
+        float FreeTopTurnRate(float he, float rateDeg)
         {
             float f = Mathf.Pow(Mathf.Max(1f, he) / 20f, R.freeTurnExponent);
             if (f > 1f) f = 1f + (f - 1f) * R.freeTurnAboveShare;
-            return (R.freeTurnRateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
+            return (rateDeg * Mathf.Deg2Rad / 1000f) * f * Style.turnScale * TurnScale * Mathf.Clamp(0.5f + 0.5f * Data.Settings.Sensitivity, 0.6f, 1.6f);
         }
+
+        // Zero per-axis rates/ramp times preserve the shared settings for existing mods.
+        float FreeTopTurnRate(float he) => FreeTopTurnRate(he, R.freeTurnRateDeg);
+        float FreeTopPitchRate(float he) => FreeTopTurnRate(he, R.freePitchRateDeg > 0f ? R.freePitchRateDeg : R.freeTurnRateDeg) * Style.pitchTurnScale;
+        float FreeTopYawRate(float he) => FreeTopTurnRate(he, R.freeYawRateDeg > 0f ? R.freeYawRateDeg : R.freeTurnRateDeg) * Style.yawTurnScale;
+        float FreeTopRollRate(float he) => FreeTopTurnRate(he, R.freeRollRateDeg > 0f ? R.freeRollRateDeg : R.freeTurnRateDeg * R.freeRollShare) * Style.rollTurnScale;
+        float FreePitchRamp => (R.freePitchRampMs > 0f ? R.freePitchRampMs : R.freeTurnRampMs) / (Mathf.Max(0.05f, Inertia) * Style.pitchAccelScale);
+        float FreeYawRamp => (R.freeYawRampMs > 0f ? R.freeYawRampMs : R.freeTurnRampMs) / (Mathf.Max(0.05f, Inertia) * Style.yawAccelScale);
+        float FreeRollRamp => (R.freeRollRampMs > 0f ? R.freeRollRampMs : R.freeTurnRampMs) / (Mathf.Max(0.05f, Inertia) * Style.rollAccelScale);
 
         /// <summary>Free flight: how many times faster than the original this ship turns at full input (its top turn rate over
         /// the original's full-stick 750 H / 63 units); 1 in the original flight. The chase camera follows that much faster
@@ -393,7 +414,8 @@ namespace GoF2Remake.Flight
             {
                 if (!FreeFlight) return 1f;
                 float he = EffectiveHandling, original = R.turnRateScale * Mathf.Max(1f, he) / R.turnRateDivisor * RateToRadiansPerMs;
-                return Mathf.Max(1f, FreeTopTurnRate(he) / original);
+                float fastest = Mathf.Max(FreeTopRollRate(he), Mathf.Max(FreeTopPitchRate(he), FreeTopYawRate(he)));
+                return Mathf.Max(1f, fastest / original);
             }
         }
 
@@ -401,14 +423,17 @@ namespace GoF2Remake.Flight
         /// (FrameResult.move) and the collision push.</summary>
         public FrameResult StepFree(FreeInput input, float dtMs, Quaternion rotation, Vector3 shipUp, Vector3 shipRight)
         {
+            if (ChorusFlight) return StepChorus(input, dtMs, rotation, shipUp, shipRight);
             float he = EffectiveHandling;
             UpdateBoost(dtMs);
 
             // ---- turning: the rates ramp toward the aim (the stick's or the virtual joystick's deflection x the top rate)
-            float maxRate = FreeTopTurnRate(he) * (IsBoosting ? R.freeBoostTurnShare : 1f);
-            float step = maxRate / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs;
-            freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
-            freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
+            float boostTurn = IsBoosting ? R.freeBoostTurnShare : 1f;
+            float maxYawRate = FreeTopYawRate(he) * boostTurn;
+            float maxPitchRate = FreeTopPitchRate(he) * boostTurn;
+            freeYaw = Mathf.MoveTowards(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxYawRate, maxYawRate / FreeYawRamp * dtMs);
+            YawInput = Mathf.Clamp(input.aim.x, -1f, 1f);
+            freePitch = Mathf.MoveTowards(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxPitchRate, maxPitchRate / FreePitchRamp * dtMs);
             float roll = Mathf.Clamp(input.roll, -1f, 1f);
             if (Mathf.Abs(roll) > 0.01f) StopLeveling();
             UpdateLevelRequest(input.aim, dtMs);
@@ -416,8 +441,8 @@ namespace GoF2Remake.Flight
             // EVERSPACE 2's auto-roll (AutoRollInput): only with no roll held and no level-out running
             if (Mathf.Abs(roll) <= 0.01f && !IsLeveling) roll = AutoRollInput(dtMs, rotation * Vector3.forward, shipUp, shipRight, input.aim.y);
             else autoRolling = false;
-            float rollTop = FreeTopTurnRate(he) * RollScale * R.freeRollShare;   // EVERSPACE 2 rolls as fast as it turns
-            freeRoll = Mathf.MoveTowards(freeRoll, roll * rollTop, rollTop / (R.freeTurnRampMs / Mathf.Max(0.05f, Inertia)) * dtMs);
+            float rollTop = FreeTopRollRate(he) * RollScale;   // independently tunable; zero rate falls back to turn rate x roll share
+            freeRoll = Mathf.MoveTowards(freeRoll, roll * rollTop, rollTop / FreeRollRamp * dtMs);
             float rollRad = -freeRoll * dtMs;
             rollLevelled = false;
             if (IsLeveling) { rollRad += AutoLevelRoll(dtMs, shipUp, shipRight) * RollScale; if (rollLevelled) IsLeveling = false; }
@@ -429,20 +454,22 @@ namespace GoF2Remake.Flight
             // y up / down, z thrust; units / ms)
             float top = TopSpeed;
             float fwdTop = IsBoosting ? top * FreeBoostFactor : top;   // the boost's speed modifier on MaxSpeedForward
-            float otherTop = fwdTop * Style.strafeScale;               // strafe and up / down follow the forward top speed
+            float strafeTop = fwdTop * Style.strafeScale;
+            float hoverTop = fwdTop * Style.strafeScale * Style.hoverScale;
+            float reverseTop = fwdTop * R.freeReverseShare * Style.reverseScale;
             float handlingScale = Mathf.Pow(20f / Mathf.Max(5f, he), R.freeAccelHandlingExponent) / Style.accelScale;   // a mod's acceleration bonus
             float fwdShare = FreeEaseFwdMs / (FreeEaseFwdMs * handlingScale + AccelMs);     // a heavy hull accelerates slower
             float sideShare = FreeEaseSideMs / (FreeEaseSideMs * handlingScale + AccelMs);
-            float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare;   // unboosted: the braking and turning boost derive from it
+            float accelFwd = (R.freeAccelForward / 1000f) * top * fwdShare * Style.forwardAccelScale;   // unboosted: the braking and turning boost derive from it
             float thrust = Mathf.Clamp(input.thrust, -1f, 1f), strafe = Mathf.Clamp(input.strafe, -1f, 1f), hover = Mathf.Clamp(input.hover, -1f, 1f);
             ThrustInput = new Vector3(strafe, hover, thrust);
-            if (IsBoosting) thrust = 1f;   // the boost drives forward whatever is held
+            // Boost amplifies the requested translation; it never supplies its own forward input.
             var fwd = rotation * Vector3.forward;
             var v = Quaternion.Inverse(rotation) * FreeVelocity;
             var inp = new Vector3(strafe, hover, thrust);
             if (inp.sqrMagnitude > 1f) inp.Normalize();   // the input vector is clamped to length 1
             float inpMag = inp.magnitude;
-            var tops = new Vector3(otherTop * R.freeStrafeShare, otherTop * R.freeHoverShare, thrust < 0f ? fwdTop * R.freeReverseShare : fwdTop);
+            var tops = new Vector3(strafeTop * R.freeStrafeShare, hoverTop * R.freeHoverShare, thrust < 0f ? reverseTop : fwdTop);
             var target = Vector3.Scale(inp, tops);   // GetTargetVelocityFromInput
             float targetSpeed = target.magnitude;
             var targetDir = targetSpeed > 1e-9f ? target / targetSpeed : Vector3.zero;
@@ -474,11 +501,17 @@ namespace GoF2Remake.Flight
             // within what it was when already faster (the thrust only steers it there).
             if (inpMag > 0f && targetSpeed > 0f)
             {
-                // (the accelerations are attributes of their own: the boost raises only the forward one)
+                // Each translation axis has its own acceleration. Boost amplifies whichever axes are requested,
+                // rather than injecting forward thrust. Zero preserves the legacy shared side acceleration.
                 float sideTop = top * Style.strafeScale;
-                var accels = new Vector3((R.freeAccelSide / 1000f) * sideTop * R.freeStrafeShare * sideShare, (R.freeAccelSide / 1000f) * sideTop * R.freeHoverShare * sideShare,
-                                         thrust < 0f ? (R.freeAccelSide / 1000f) * top * R.freeReverseShare * sideShare
-                                                     : accelFwd * (IsBoosting ? R.freeBoostAccel : 1f));
+                float hoverTopAccel = top * Style.strafeScale * Style.hoverScale;
+                float reverseAccel = (R.freeAccelReverse > 0f ? R.freeAccelReverse : R.freeAccelSide) * Style.reverseAccelScale;
+                float strafeAccel = (R.freeAccelStrafe > 0f ? R.freeAccelStrafe : R.freeAccelSide) * Style.strafeAccelScale;
+                float hoverAccel = (R.freeAccelHover > 0f ? R.freeAccelHover : R.freeAccelSide) * Style.hoverAccelScale;
+                float boostAccel = IsBoosting ? R.freeBoostAccel : 1f;
+                var accels = new Vector3((strafeAccel / 1000f) * sideTop * R.freeStrafeShare * sideShare * boostAccel,
+                                         (hoverAccel / 1000f) * hoverTopAccel * R.freeHoverShare * sideShare * boostAccel,
+                                         (thrust < 0f ? (reverseAccel / 1000f) * top * R.freeReverseShare * Style.reverseScale * sideShare : accelFwd) * boostAccel);
                 float accel = inpMag * Vector3.Scale(accels, targetDir).magnitude;
                 float ease = 1f;
                 if (damp)
@@ -528,6 +561,9 @@ namespace GoF2Remake.Flight
             EnginesOff = false;   // another mode flies the ship: its engines run
             FreeVelocity = forward * unitsPerMs;
             freeYaw = freePitch = freeRoll = 0f;
+            chorusDrift = 0;      // Chorus flight: a drift ends where another mode takes over, the travel boost and a dash too
+            chorusTravel = false;
+            chorusDashMs = chorusDashBufferMs = -1f;
         }
 
         /// <summary>The held boost on its energy pool: drains in the booster's duration (FreeBoostDurationMs without one),
@@ -554,6 +590,295 @@ namespace GoF2Remake.Flight
             }
             CurrentSpeed = IsBoosting ? TopSpeed * FreeBoostFactor : TopSpeed;
             freeBoostVisual = Mathf.MoveTowards(freeBoostVisual, IsBoosting ? 1f : 0f, dtMs / 200f);
+        }
+
+        // ---- remake: Chorus flight (FlightStyles.Chorus, 2026-11-11) ------------------------------------------------
+        // After Chorus (Deep Silver FISHLABS, 2021), decompiled from the player's own installation: USteeringComponent's
+        // UpdateLinearVelocity / UpdateAngularVelocity / ApplyAngularRotation / TickComponent, its constructor's defaults, the
+        // player ship blueprints' curves (BP_Player_Ship_Base / _Phoenix) and UBoostComponent's tick
+        // (Reference/research/chorus_flight.md). An arcade model: forward-only thrust along speed-dependent acceleration
+        // curves, the turn rate set by the speed and stopping dead on release, a held boost (x2, no energy), a held drift (no
+        // thrust, the velocity keeps its world direction while the nose turns) with a recovery after it. Chorus's speeds are
+        // kept as shares of its top speed (140 m/s), so here they scale with the ship's own top speed and every timing stays
+        // Chorus's: standstill to top speed in 1.0 s, a coast to rest in 2.0 s, the brake in 1.0 s, a boost to x2 in 0.5 s.
+
+        /// <summary>Chorus flight is the style in use (ShipController, with FreeFlight): StepFree runs StepChorus.</summary>
+        public bool ChorusFlight;
+        /// <summary>Chorus flight: the drift key is held (ShipController).</summary>
+        public bool DriftHeld;
+        /// <summary>Chorus flight: drifting now (the drift key held: no thrust, the velocity keeps its direction).</summary>
+        public bool Drifting => ChorusFlight && chorusDrift == 1;
+        /// <summary>Chorus flight: the recovery after a drift (the forward speed pulled back up, the slide fading).</summary>
+        public bool DriftRecovering => ChorusFlight && chorusDrift == 2;
+
+        /// <summary>Chorus flight: the travel boost may run now (ShipController: no hostiles, not jumping or in interstellar
+        /// space, as the remake's fast-forward); while false it ends and doesn't start.</summary>
+        public bool TravelBoostAllowed;
+        /// <summary>Chorus flight: the travel boost runs (x5.5, ToggleTravelBoost).</summary>
+        public bool TravelBoosting => ChorusFlight && chorusTravel;
+
+        /// <summary>Chorus flight: a dash runs (ChorusDash).</summary>
+        public bool Dashing => ChorusFlight && chorusDashMs >= 0f;
+        /// <summary>The dash's way: -1 left, +1 right (while Dashing).</summary>
+        public int DashDirection => chorusDashDir;
+
+        int chorusDrift;          // EDriftState: 0 inactive, 1 drifting, 2 recovery (USteeringComponent+0xB38)
+        float chorusDashMs = -1f; // the dash's time, -1 = none
+        int chorusDashDir;        // -1 left, +1 right
+        float chorusDashBufferMs = -1f;   // a press buffered for the end of the running dash (BufferTimeWindow)
+        int chorusDashBufferDir;
+        bool chorusTravel;        // UBoostComponent's travel boost (+0x2AD)
+        bool chorusTravelReached; // it has reached TravelBoostBreakSpeedMultiplierThreshold
+        float chorusRecovery;     // DriftRecoverySpeed (+0xB3C), units / ms
+        float chorusBoostMs;      // how long the boost has run (MinBoostDuration)
+        bool chorusBoostWas, chorusDriftWas;
+
+        // The curves, keyed by a speed in shares of the top speed (Chorus's 14000 cm/s), giving shares of the top speed per
+        // second (an acceleration) or a factor: (key, value) pairs, linear between, clamped outside (FRichCurve::Eval).
+        static readonly float[] ChorusAccelCurve = { 0f, 0.5f, 0.5f, 1.25f, 1f, 1.25f };          // AccelerationCurve: 0 -> 7000, 7000 -> 17500 cm/s^2
+        static readonly float[] ChorusBoostCurve = { 0f, 24000f / 14000f, 180000f / 14000f, 77000f / 14000f };   // BoostAccelerationCurve
+        static readonly float[] ChorusDecelCurve = { 0f, 0.5f, 1.5f, 0.5f, 5.5f, 1.5f };          // DecelerationCurve: 7000 to 21000 cm/s, 21000 at 77000
+        static readonly float[] ChorusBrakeCurve = { 0f, 0.9375f, 0.5f, 0.9375f, 2f, 1.5f };      // BrakingCurve: 13125 to 7000 cm/s, 21000 at 28000
+        const float ChorusRecoveryAccel = 22000f / 14000f;                                         // DriftRecoveryAccelerationCurve, flat
+        static readonly float[] ChorusLateralCurve = { 0f, 0.75f, 1f, 0.75f, 2f, 1.25f };         // LateralVerticalDecelerationCurve, by |V|
+        static readonly float[] ChorusDriftDecelCurve = { 0f, 0.2f, 2f, 0.2f, 3f, 1.5f };         // DriftDecelerationCurve, by |V|, above the top speed
+        static readonly float[] ChorusTurnBySpeed = { 0.01f / 14000f, 0.5f, 0.5f, 1f, 1f, 1f, 1.5f, 0.7f, 2f, 0.35f, 8f, 0.3f };   // MaxAngularFromLinearSpeedCurve
+        static readonly float[] ChorusDriftTurn = { 0f, 0.5f, 0.5f, 1.2f };                       // DriftMaxAngularSpeedFromLinearSpeedCurve, by |V|
+        const float ChorusTurnShare = 108f / 125f;   // MaxAngularVelocity 108 deg/s against free flight's 125 (the handling scales both)
+        const float ChorusTurnRampMs = 200f;         // AngularAcceleration = MaxAngularVelocity / SteerAccelerationTime (the setting's 0.2 s)
+        const float ChorusBoostTurnAccel = 0.66f;    // RegularBoostConfig.AngularAccelModifier
+        const float ChorusBoostFactor = 2f;          // RegularBoostConfig.SpeedMultiplier
+        const float ChorusMinBoostMs = 600f;         // RegularBoostConfig.MinBoostDuration
+        const float ChorusBrakeAxis = -0.05f;        // a thrust axis below this holds the brake (the over-speed latch's test)
+        // UDashComponent's DashNormalConfig (BP_Player_Ship_Base) with FDashCfg's constructor speed (7000 cm/s): sideways at
+        // half the top speed, reached in AccelerationDuration, held until MinimumDuration, eased out over DecelerationDuration.
+        const float ChorusDashSpeed = 7000f / 14000f;
+        const float ChorusDashAccelMs = 150f, ChorusDashHoldMs = 250f, ChorusDashDecelMs = 750f;
+        const float ChorusDashBufferMs = 200f;       // RetriggerCondition BufferTriggerWhenIdle, BufferTimeWindow 0.2 s
+        const float ChorusTravelFactor = 5.5f;       // TravelBoostConfig.SpeedMultiplier
+        const float ChorusTravelTurnAccel = 0.5f;    // TravelBoostConfig.AngularAccelModifier
+        const float ChorusTravelReached = 5f;        // TravelBoostBreakSpeedMultiplierThreshold
+        const float ChorusTravelCancel = 4.4f;       // TravelBoostCancelSpeedMultiplier: slowed below it once reached, it ends
+
+        static float ChorusCurve(float[] keys, float x)
+        {
+            if (x <= keys[0]) return keys[1];
+            for (int i = 2; i < keys.Length; i += 2)
+                if (x <= keys[i]) return Mathf.Lerp(keys[i - 1], keys[i + 1], (x - keys[i - 2]) / Mathf.Max(1e-9f, keys[i] - keys[i - 2]));
+            return keys[keys.Length - 1];
+        }
+
+        /// <summary>Chorus flight: the boost's top speed, of the forward one: the travel boost's x5.5, else a mod's (ModFlight
+        /// boostFactor) or Chorus's x2.</summary>
+        float ChorusBoostTop => chorusTravel ? ChorusTravelFactor : OverheatedBoost(Style.boostFactor > 0 ? Style.boostFactor / 100f : ChorusBoostFactor);
+
+        /// <summary>Chorus flight: the travel boost key (TravelBoostConfig: Mode AfterBurner, no ChargeDuration, bHoldButton
+        /// false, so a press switches it on or off at once). Only while TravelBoostAllowed, and not while drifting.</summary>
+        public void ToggleTravelBoost()
+        {
+            if (!ChorusFlight) return;
+            if (chorusTravel) { EndTravelBoost(); return; }
+            if (!TravelBoostAllowed || chorusDrift == 1) return;
+            chorusTravel = true;
+            chorusTravelReached = false;
+        }
+
+        void EndTravelBoost() { chorusTravel = false; chorusTravelReached = false; }
+
+        /// <summary>Chorus flight's dash (UDashComponent, the dodge keys): -1 left, +1 right. A press while one runs is kept
+        /// for its end when it comes within the last BufferTimeWindow; true = started or buffered.</summary>
+        public bool ChorusDash(int dir)
+        {
+            if (!ChorusFlight || dir == 0) return false;
+            dir = dir < 0 ? -1 : 1;
+            if (chorusDashMs < 0f) { chorusDashMs = 0f; chorusDashDir = dir; return true; }
+            if (ChorusDashHoldMs + ChorusDashDecelMs - chorusDashMs <= ChorusDashBufferMs) { chorusDashBufferMs = 0f; chorusDashBufferDir = dir; return true; }
+            return false;
+        }
+
+        /// <summary>The dash's sideways speed now, in shares of the top speed (0 without one).</summary>
+        static float ChorusDashShare(float ms) =>
+            ms < 0f ? 0f
+            : ms < ChorusDashAccelMs ? ChorusDashSpeed * ms / ChorusDashAccelMs
+            : ms < ChorusDashHoldMs ? ChorusDashSpeed
+            : ms < ChorusDashHoldMs + ChorusDashDecelMs ? ChorusDashSpeed * (1f - (ms - ChorusDashHoldMs) / ChorusDashDecelMs)
+            : 0f;
+
+        /// <summary>Chorus flight's buttons and boost, each frame (UpdateBoost): ASpacePlayerController's OnDriftPressed (the
+        /// boost stops, the drift starts), OnDriftReleased / OnBoostPressed (the drift goes into its recovery), and
+        /// UBoostComponent's tick (held, at least MinBoostDuration, no energy, never while drifting). A ship needs a booster
+        /// to boost, as in the rest of the game.</summary>
+        void UpdateChorusBoost(float dtMs)
+        {
+            BoostRanDry = false;
+            bool boostPress = BoostHeld && !chorusBoostWas, driftPress = DriftHeld && !chorusDriftWas;
+            chorusBoostWas = BoostHeld;
+            chorusDriftWas = DriftHeld;
+            if (driftPress && chorusDrift != 1) { chorusDrift = 1; IsBoosting = false; EndTravelBoost(); }
+            else if (chorusDrift == 1 && (!DriftHeld || boostPress)) StopChorusDrift();
+            // The travel boost ends where it isn't allowed (hostiles), for the regular boost's key (inferred: Chorus's
+            // boost component runs one boost at a time), and when it has slowed below x4.4 after reaching x5.
+            if (chorusTravel && (!TravelBoostAllowed || boostPress)) EndTravelBoost();
+            bool boost = chorusTravel || (hasBooster && chorusDrift != 1 && (BoostHeld || (IsBoosting && chorusBoostMs < ChorusMinBoostMs)));
+            if (boost && !IsBoosting) chorusBoostMs = 0f;
+            IsBoosting = boost;
+            if (boost) chorusBoostMs += dtMs;
+            CurrentSpeed = IsBoosting ? TopSpeed * ChorusBoostTop : TopSpeed;
+            freeBoostVisual = Mathf.MoveTowards(freeBoostVisual, IsBoosting ? 1f : 0f, dtMs / 200f);
+        }
+
+        /// <summary>USteeringComponent::StopDrift: into the recovery, toward the speed it had (at most the top speed).</summary>
+        void StopChorusDrift()
+        {
+            chorusRecovery = Mathf.Min(FreeVelocity.magnitude, TopSpeed);
+            chorusDrift = 2;
+        }
+
+        /// <summary>Chorus flight: one frame (StepFree's contract). input.thrust: forward asks for the top speed, back brakes;
+        /// strafe and up / down aren't read (Chorus's player ship has no strafe: its sideways moves are the dodge).</summary>
+        FrameResult StepChorus(FreeInput input, float dtMs, Quaternion rotation, Vector3 shipUp, Vector3 shipRight)
+        {
+            float he = EffectiveHandling;
+            UpdateBoost(dtMs);
+            float top = Mathf.Max(1e-6f, TopSpeed);
+            float perMs = top / 1000f;   // one share of the top speed per second, in units / ms per ms
+            var v = Quaternion.Inverse(rotation) * FreeVelocity;   // ship frame: x right, y up, z forward
+            float speedShare = v.magnitude / top;
+
+            // ---- turning (UpdateAngularVelocity): the top rate by the forward speed (the drift's by the whole speed), reached
+            // at the angular acceleration (the top rate in 0.2 s, x0.66 boosting); bHasAngularDeceleration is false, so a
+            // released or reversed input stops the rate at once (a smaller one too: no deceleration to ease it down).
+            float baseRate = FreeTopTurnRate(he) * ChorusTurnShare;
+            float factor = chorusDrift == 1 ? ChorusCurve(ChorusDriftTurn, speedShare) : ChorusCurve(ChorusTurnBySpeed, Mathf.Max(0f, v.z) / top);
+            float maxRate = baseRate * factor;
+            float step = baseRate / (ChorusTurnRampMs / Mathf.Max(0.05f, Inertia))
+                         * (chorusTravel ? ChorusTravelTurnAccel : IsBoosting ? ChorusBoostTurnAccel : 1f) * dtMs;
+            freeYaw = ChorusRate(freeYaw, Mathf.Clamp(input.aim.x, -1f, 1f) * maxRate, step);
+            YawInput = Mathf.Clamp(input.aim.x, -1f, 1f);
+            freePitch = ChorusRate(freePitch, Mathf.Clamp(input.aim.y, -1f, 1f) * maxRate, step);
+            float roll = Mathf.Clamp(input.roll, -1f, 1f);
+            if (Mathf.Abs(roll) > 0.01f) StopLeveling();
+            UpdateLevelRequest(input.aim, dtMs);
+            SteeringEndsLevelOut(input.aim, dtMs);
+            if (Mathf.Abs(roll) <= 0.01f && !IsLeveling) roll = AutoRollInput(dtMs, rotation * Vector3.forward, shipUp, shipRight, input.aim.y);
+            else autoRolling = false;
+            freeRoll = roll * baseRate * RollScale;   // the roll isn't accelerated: AngularVelocity.Z = input x max
+            float rollRad = -freeRoll * dtMs;
+            rollLevelled = false;
+            if (IsLeveling) { rollRad += AutoLevelRoll(dtMs, shipUp, shipRight) * RollScale; if (rollLevelled) IsLeveling = false; }
+            YawRate = freeYaw / RateToRadiansPerMs;
+            PitchRate = freePitch / RateToRadiansPerMs;
+
+            // ---- moving (UpdateLinearVelocity)
+            float thrust = Mathf.Clamp(input.thrust, -1f, 1f);
+            if (chorusTravel && thrust < ChorusBrakeAxis) EndTravelBoost();   // the brake ends it
+            if (chorusTravel) thrust = 1f;   // ApplyThrustInput: the throttle is held full while it runs
+            ThrustInput = new Vector3(0f, 0f, thrust);
+            float accelScale = Style.accelScale * FreeEaseFwdMs / (FreeEaseFwdMs + AccelMs);   // a mod's bonus, a heavy hull
+            if (chorusDrift == 1)
+            {
+                // Drifting: no thrust and no lateral damping; the world-space velocity keeps its direction while the nose turns
+                // (Chorus counter-rotates its ship-frame velocity). Above the top speed it bleeds off (DriftDecelerationCurve).
+                float s = FreeVelocity.magnitude;
+                if (s > top)
+                {
+                    float drop = ChorusCurve(ChorusDriftDecelCurve, s / top) * perMs * dtMs;
+                    FreeVelocity *= Mathf.Max(0f, s - drop) / s;
+                }
+            }
+            else
+            {
+                float max = IsBoosting ? top * ChorusBoostTop : top;
+                float fwd = v.z;
+                if (chorusDrift == 2 && thrust < 0f) chorusDrift = 0;   // reverse input ends the recovery
+                float target;
+                if (chorusDrift == 2)
+                {
+                    // The recovery speed: raised to the boost's top while boosting, never above the top speed otherwise.
+                    chorusRecovery = IsBoosting ? Mathf.Max(chorusRecovery, max) : Mathf.Min(chorusRecovery, max);
+                    target = chorusRecovery;
+                }
+                else if (thrust > 0f) target = max;                     // JetModeLinearSpeedModifier.Upper (1)
+                else if (thrust < 0f) target = 0f;                      // .Lower (0): no reverse flight
+                else target = fwd > max ? max : 0f;                     // no input: back to the top speed, then on to rest
+                float[] curve = null;
+                float rate;
+                if (target < fwd) curve = thrust < ChorusBrakeAxis ? ChorusBrakeCurve : ChorusDecelCurve;   // BRAKING / DECELERATING
+                else if (IsBoosting) curve = ChorusBoostCurve;                                                 // BOOSTING
+                else if (chorusDrift != 2) curve = ChorusAccelCurve;                                           // ACCELERATING
+                rate = curve != null ? ChorusCurve(curve, fwd / top) : ChorusRecoveryAccel;                    // DRIFT RECOVERING
+                // The input's size scales the rate, not the target (1 with no input); LinearAccelX on every state.
+                rate *= perMs * accelScale * (thrust == 0f ? 1f : Mathf.Abs(thrust));
+                fwd = Mathf.MoveTowards(fwd, target, rate * dtMs);
+                // Sideways and up / down (a drift's slide, a hit) fade together, by the whole speed's curve.
+                var side = new Vector2(v.x, v.y);
+                float sm = side.magnitude;
+                if (sm > 0f)
+                {
+                    float drop = ChorusCurve(ChorusLateralCurve, v.magnitude / top) * perMs * dtMs;
+                    side *= Mathf.Max(0f, sm - drop) / sm;
+                }
+                v = new Vector3(side.x, side.y, fwd);
+                if (chorusDrift == 2 && fwd >= chorusRecovery) chorusDrift = 0;
+                if (chorusTravel)
+                {
+                    if (fwd >= ChorusTravelReached * top) chorusTravelReached = true;
+                    else if (chorusTravelReached && fwd < ChorusTravelCancel * top) EndTravelBoost();
+                }
+                FreeVelocity = rotation * v;
+            }
+
+            // The dash: a sideways move of its own on top of the velocity (it leaves the ship's momentum as it was).
+            var dashMove = Vector3.zero;
+            if (chorusDashMs >= 0f)
+            {
+                dashMove = rotation * Vector3.right * (chorusDashDir * ChorusDashShare(chorusDashMs) * top * dtMs);
+                chorusDashMs += dtMs;
+                if (chorusDashBufferMs >= 0f) chorusDashBufferMs += dtMs;
+                if (chorusDashMs >= ChorusDashHoldMs + ChorusDashDecelMs)
+                {
+                    chorusDashMs = chorusDashBufferMs >= 0f ? 0f : -1f;   // a buffered press starts the next at once
+                    chorusDashDir = chorusDashBufferDir;
+                    chorusDashBufferMs = -1f;
+                }
+            }
+
+            var fwdDir = rotation * Vector3.forward;
+            float forwardSpeed = Vector3.Dot(FreeVelocity, fwdDir);
+            MoveSpeed = Mathf.Max(0f, forwardSpeed);
+            UpdateSpeedBonuses(dtMs, FreeVelocity.magnitude);
+            Throttle = IsBoosting ? 1f : Mathf.Clamp01(thrust);
+            EnginesOff = chorusDrift == 1 || (thrust <= 0f && !IsBoosting && chorusDrift != 2);
+            Braking = false;
+
+            // Cosmetic: the model banks into turns and with the sideways speed (Chorus's RollByLinearLateralSpeed: 45 deg at
+            // twice the top speed sideways), tilts with the nose.
+            float lateral = Vector3.Dot(FreeVelocity, rotation * Vector3.right) / top;
+            VisualYawBank = Mathf.Clamp(input.aim.x * 0.8f - lateral * 0.5f, -1f, 1f) * he;
+            VisualPitchBank = Mathf.Clamp(input.aim.y * 0.8f, -1f, 1f) * he;
+
+            float pushUnits = 0f;
+            if (Mathf.Abs(collisionPush) > CollisionPushCutoff) { pushUnits = collisionPush * dtMs; collisionPush *= CollisionPushDecay; }
+            else collisionPush = 0f;
+
+            return new FrameResult
+            {
+                pitchDeg = freePitch * dtMs * Mathf.Rad2Deg,
+                yawDeg = freeYaw * dtMs * Mathf.Rad2Deg,
+                rollDeg = rollRad * Mathf.Rad2Deg,
+                move = FreeVelocity * dtMs + dashMove,
+                forwardUnits = forwardSpeed * dtMs,
+                sidePushUnits = pushUnits,
+            };
+        }
+
+        /// <summary>One turn axis in Chorus flight: toward the target at 'step', but straight to 0 (or to a smaller target) when
+        /// the input is let go, eased off or reversed (bHasAngularDeceleration false).</summary>
+        static float ChorusRate(float rate, float target, float step)
+        {
+            if (rate != 0f && (target == 0f || Mathf.Sign(target) != Mathf.Sign(rate))) rate = 0f;
+            else if (Mathf.Abs(target) < Mathf.Abs(rate)) return target;
+            return Mathf.MoveTowards(rate, target, step);
         }
 
         public void Configure(FlightStats s)
@@ -595,6 +920,10 @@ namespace GoF2Remake.Flight
             st.turnScale = FlightBonus.Scale(b.turnRate);
             st.strafeScale = FlightBonus.Scale(b.strafeSpeed);
             st.accelScale = FlightBonus.Scale(b.acceleration);
+            st.pitchTurnScale = FlightBonus.Scale(b.pitchTurnRate); st.yawTurnScale = FlightBonus.Scale(b.yawTurnRate); st.rollTurnScale = FlightBonus.Scale(b.rollTurnRate);
+            st.pitchAccelScale = FlightBonus.Scale(b.pitchTurnAcceleration); st.yawAccelScale = FlightBonus.Scale(b.yawTurnAcceleration); st.rollAccelScale = FlightBonus.Scale(b.rollTurnAcceleration);
+            st.strafeAccelScale = FlightBonus.Scale(b.strafeAcceleration); st.hoverScale = FlightBonus.Scale(b.hoverSpeed); st.hoverAccelScale = FlightBonus.Scale(b.hoverAcceleration);
+            st.reverseScale = FlightBonus.Scale(b.reverseSpeed); st.reverseAccelScale = FlightBonus.Scale(b.reverseAcceleration); st.forwardAccelScale = FlightBonus.Scale(b.forwardAcceleration);
             st.boostFactor = Mathf.Max(0, b.boostFactor);
             st.fullStopDamage = b.fullStopDamage;
             st.lowSpeedResistance = b.lowSpeedResistance;
@@ -799,10 +1128,10 @@ namespace GoF2Remake.Flight
             VisualYawBank = !yawInput ? 0f : (TrackAnalogInput ? Mathf.Clamp(steer.x, -1f, 1f) : Mathf.Sign(steer.x)) * he;
             VisualPitchBank = !pitchInput ? 0f : (TrackAnalogInput ? Mathf.Clamp(steer.y, -1f, 1f) : Mathf.Sign(steer.y)) * he;
 
-            if (yawInput) YawRate = RampToward(YawRate, steer.x, he, dtMs, 1f);
+            if (yawInput) YawRate = RampToward(YawRate, steer.x, he, dtMs, 1f, Style.yawTurnScale, Style.yawAccelScale);
             if (pitchInput)
                 PitchRate = RampToward(PitchRate, steer.y, he, dtMs,
-                    !TiltMode ? 1f : steer.y > 0 ? R.tiltPitchDownScale : R.tiltPitchUpScale);
+                    !TiltMode ? 1f : steer.y > 0 ? R.tiltPitchDownScale : R.tiltPitchUpScale, Style.pitchTurnScale, Style.pitchAccelScale);
 
             // The original (PlayerEgo::roll, from PlayerEgo::update while +0x2f4 is set) keeps rolling under the stick until
             // level; only alignToHorizon (the stick's double tap) starts it. Remake: steering ends it, as it fought the
@@ -848,8 +1177,8 @@ namespace GoF2Remake.Flight
             }
 
             // ---- no input: rates drain linearly back to zero (uses base H, not the cargo-reduced one)
-            if (!yawInput) YawRate = Mathf.MoveTowards(YawRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale);
-            if (!pitchInput) PitchRate = Mathf.MoveTowards(PitchRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale);
+            if (!yawInput) YawRate = Mathf.MoveTowards(YawRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale * Style.yawAccelScale);
+            if (!pitchInput) PitchRate = Mathf.MoveTowards(PitchRate, 0f, dtMs * Handling / R.turnDecayDivisor * Inertia * Style.turnScale * Style.pitchAccelScale);
 
             // ---- movement -------------------------------------------------------------------------
             float forward = dtMs * StepMoveSpeed(dtMs);
@@ -933,14 +1262,14 @@ namespace GoF2Remake.Flight
             return new FrameResult { forwardUnits = forward };
         }
 
-        float RampToward(float rate, float input, float he, float dtMs, float sensitivityScale)
+        float RampToward(float rate, float input, float he, float dtMs, float sensitivityScale, float axisRateScale = 1f, float axisAccelScale = 1f)
         {
             // target = trunc(input * 750 * H) / 63 (integer division, like the original)
             int raw = (int)(input * R.turnRateScale * he);
-            float target = (int)(raw / R.turnRateDivisor) * TurnScale * Style.turnScale;   // remake debug: a heavy hull's lower top rate (Mass); a mod's turn bonus
+            float target = (int)(raw / R.turnRateDivisor) * TurnScale * Style.turnScale * axisRateScale;   // remake debug: a heavy hull's lower top rate (Mass); a mod's turn bonus
             float denom = (R.turnRampBase - Sensitivity * sensitivityScale) * R.turnRampScale;
             if (denom < 1f) denom = 1f; // guard against extreme sensitivity values
-            float step = dtMs * he / denom * Inertia * Style.turnScale;   // the same time to the (scaled) top rate
+            float step = dtMs * he / denom * Inertia * Style.turnScale * axisAccelScale;   // the same time to the (scaled) top rate
 
             // The original only accelerates toward the target in the input's direction and never slows an
             // over-target rate while the direction is held. That was fine for its digital input (the target is
@@ -986,7 +1315,7 @@ namespace GoF2Remake.Flight
             levelSide = side;
 
             float dir = lean > 0f ? 1f : -1f; // roll so that the lean shrinks
-            return dir * rate * Mathf.Min(dtMs, LevelMaxDtMs);
+            return dir * rate * Style.rollTurnScale * Mathf.Min(dtMs, LevelMaxDtMs);
         }
 
         /// <summary>The boost timer alone, for frames another component moves the ship (ShipController.externalControl).</summary>
@@ -994,7 +1323,7 @@ namespace GoF2Remake.Flight
 
         void UpdateBoost(float dtMs)
         {
-            if (FreeFlight) { UpdateFreeBoost(dtMs); return; }
+            if (FreeFlight) { if (ChorusFlight) UpdateChorusBoost(dtMs); else UpdateFreeBoost(dtMs); return; }
             if (!IsBoosting) CurrentSpeed = TopSpeed;   // the style's (a mod's top speed bonus; switched in flight)
             // Timer counts up every frame; negative values mean "recharging" (PlayerEgo::update).
             // Remake: the frame's own dt, unrounded. The original's dt is a whole ms for both the timer and the move

@@ -1,0 +1,9 @@
+{
+    "id": "mixed_wings",
+    "name": "Mixed Wings (patch example)",
+    "version": "1.0",
+    "author": "JoppieToppie",
+    "description": {
+        "en": "Every pirate in a group flies its own ship. The game, like the original, gives a whole raider group one ship model; six lines of script change that."
+    }
+}

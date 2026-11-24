@@ -7,6 +7,7 @@
 // the screen, and a safe area under half the screen either way is taken for nonsense and ignored.
 
 using System;
+using GoF2Remake.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -24,14 +25,22 @@ namespace GoF2Remake.UI
             return UiLayout.OptionInsets(w, h, Device(w, h));
         }
 
-        /// <summary>The device's own insets alone (the notch, the home indicator, punch holes).</summary>
-        public static Vector4 Device(float w, float h)
+        /// <summary>The device's own insets alone (the notch, the home indicator, punch holes), as Options > Graphics
+        /// "Camera cutout" (Settings.ScreenCutout) asks.</summary>
+        public static Vector4 Device(float w, float h) => Device(Screen.safeArea, w, h, Settings.ScreenCutout);
+
+        /// <summary>The insets of the safe area 'raw' (pixels, y up) on a w x h screen for a Settings.ScreenCutout value:
+        /// kept clear (as reported), mirrored (left and right both the larger: Android insets only the camera hole's side,
+        /// which put the HUD's left half off centre), or none (the whole screen).</summary>
+        public static Vector4 Device(Rect raw, float w, float h, int cutout)
         {
-            var raw = Screen.safeArea;
+            if (cutout == Settings.ScreenCutoutFull) return Vector4.zero;
             var sa = Rect.MinMaxRect(Mathf.Clamp(raw.xMin, 0f, w), Mathf.Clamp(raw.yMin, 0f, h),
                                      Mathf.Clamp(raw.xMax, 0f, w), Mathf.Clamp(raw.yMax, 0f, h));
             if (sa.width < w * 0.5f || sa.height < h * 0.5f) return Vector4.zero;   // nonsense: ignore
-            return new Vector4(sa.xMin, w - sa.xMax, h - sa.yMax, sa.yMin);
+            var p = new Vector4(sa.xMin, w - sa.xMax, h - sa.yMax, sa.yMin);
+            if (cutout == Settings.ScreenCutoutBothSides) p.x = p.y = Mathf.Max(p.x, p.y);
+            return p;
         }
 
         /// <summary>The insets in 'root''s panel units (root laid out over the whole w-pixel-wide screen); zero while it has

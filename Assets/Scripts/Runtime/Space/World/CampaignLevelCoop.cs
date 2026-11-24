@@ -143,11 +143,17 @@ namespace GoF2Remake.World
                 if (traffic != null)
                     foreach (var s in traffic.Ships)
                         if (s != null && !s.StoryShip && !s.IsWingman && !s.MissionShip && !s.Gone) MarkStoryShip(s);
+                Vector3 sceneryAt = Vector3.zero;
                 SpaceHooks.CoopLevelState?.Invoke(new CoopLevelState
                 {
                     station = CoopStation, index = BuiltIndex, cutscene = Cutscene, invulnerable = PlayerInvulnerable, hold = Held,
                     missionMs = MissionMs, timeLimitMs = TimeLimitMs, routeIndex = PlayerRoute != null ? PlayerRoute.index : 0,
                     fadeAlpha = FadeAlpha, fadeColor = FadeColor, radioLine = coopRadioLine,
+                    holeVisible = level.Wormhole != null && level.Wormhole.Visible,
+                    holePosition = level.Wormhole != null ? level.Wormhole.GamePosition : Vector3.zero,
+                    holeTimer = level.Wormhole != null ? level.Wormhole.Timer : 0,
+                    playerKills = PlayerKills, npcKills = NpcKills, scriptEvent = Event,
+                    hasScenery = supernova != null && supernova.CoopSceneryAt(out sceneryAt), sceneryAt = sceneryAt,
                 });
                 // The route when it changes, and every 2 s for a crew member arriving later.
                 if (PlayerRoute != coopRouteSent || ++coopRouteIndexSent >= 8)
@@ -198,10 +204,11 @@ namespace GoF2Remake.World
             music = gameObject.AddComponent<AudioSource>();
             music.playOnAwake = false;
             music.spatialBlend = 0f;
-            Radio = new Radio(Story.Step?.radio) { Remote = true };
+            Radio = new Radio(FollowerRadio(BuiltIndex)) { Remote = true };
             gameObject.AddComponent<CoopCameraMirror>().Setup(this);
             // The prologue and the rescue (0 / 1): this game plays their cutscenes around its own Phantom, paced by the
             // leader's radio lines; the pirates and Gunant's salvager are the leader's (IntroCutscenes' follower).
+            BuildFollowerScenery(BuiltIndex);
             if (BuiltIndex == 0 || BuiltIndex == 1)
             {
                 intro = new IntroCutscenes(this, level, BuiltIndex, true);
@@ -234,6 +241,7 @@ namespace GoF2Remake.World
                 // The leader isn't running it here (not arrived yet, left, docked): nothing held, a note now and then.
                 if (Cutscene) EndFollowedCutscene();
                 PlayerInvulnerable = Held = false;
+                if (level.Wormhole != null && level.Wormhole.Mirrored) level.Wormhole.StopMirroring();
                 FadeAlpha = 0f;
                 bool leaderHere = SpaceHooks.CoopLeaderHere != null && SpaceHooks.CoopLeaderHere(CoopStation);
                 if (!leaderHere && level.LaunchCameraOver && (coopWaitNoticeMs -= dtMs) <= 0f)
@@ -243,7 +251,24 @@ namespace GoF2Remake.World
                 }
             }
             if (!level.Dialogue && level.LaunchCameraOver) Radio?.Update(dtMs, this);
+            coopFx?.FollowTick(dtMs);
+            coopValkyrie?.FollowTick(dtMs, leaderSeen);
+            coopSupernova?.FollowTick(dtMs, leaderSeen);
         }
+
+        /// <summary>The leader's level's scenery here too (80 / 81's battlestation, 157's Valkyrie: not ships, so no copies of
+        /// them reached the crew), played as the leader's script goes (Event).</summary>
+        void BuildFollowerScenery(int index)
+        {
+            coopValkyrie = new ValkyrieLevels(this, level);
+            if (!coopValkyrie.BuildFollower(index)) coopValkyrie = null;
+            coopSupernova = new SupernovaLevels(this, level);
+            if (!coopSupernova.BuildFollower(index)) coopSupernova = null;
+        }
+
+        /// <summary>The radio the leader's level of step 'index' plays: 42's is 41's (built at 42 or reached from 41; Setup), so
+        /// a follower's 42 had no lines and dropped every one the leader showed.</summary>
+        static List<RadioLine> FollowerRadio(int index) => StoryTable.Step(index == 42 ? 41 : index)?.radio;
 
         /// <summary>NetCoop: the leader's level state for this orbit.</summary>
         public void OnLeaderState(CoopLevelState s)
@@ -255,7 +280,7 @@ namespace GoF2Remake.World
             {
                 // The leader's level went on to the next step on the same ships (4 -> 5): that step's radio.
                 BuiltIndex = s.index;
-                Radio = new Radio(StoryTable.Step(s.index)?.radio) { Remote = true };
+                Radio = new Radio(FollowerRadio(s.index)) { Remote = true };
             }
             bool wasCutscene = Cutscene;
             Cutscene = s.cutscene;
@@ -267,6 +292,41 @@ namespace GoF2Remake.World
             if (PlayerRoute != null && PlayerRoute.points.Count > 0) PlayerRoute.index = Mathf.Clamp(s.routeIndex, 0, PlayerRoute.points.Count);
             FadeAlpha = s.fadeAlpha;
             FadeColor = s.fadeColor;
+            // The wormhole as the leader's (2026-11-17: the second pilot saw none at step 40, and at 42 the arrival's).
+            if (level != null && level.Wormhole != null) level.Wormhole.Mirror(s.holeVisible, s.holePosition, s.holeTimer);
+            // The kill count (step 36's wager on the HUD): the leader's, which counts the crew's kills as the player's.
+            PlayerKills = s.playerKills;
+            NpcKills = s.npcKills;
+            Event = s.scriptEvent;   // the script's step (the scenery's moments, 40's wormhole rule)
+            if (s.hasScenery) coopSupernova?.LeaderSceneryAt(s.sceneryAt);
+        }
+
+        // ---- the leader's one-off effects --------------------------------------------------------------------------
+
+        /// <summary>The kinds of SpaceHooks.CoopFx: what a follower plays of the leader's level besides its ships (their fires
+        /// go with them, NpcShip.StoryBurns) and its wormhole (CoopLevelState).</summary>
+        public static class CoopFx
+        {
+            /// <summary>Step 42: the Void mother ship blows up (MainCampaignLevels.SpawnExplosion, its sound and the shrink).</summary>
+            public const int VoidStationExplosion = 1;
+        }
+
+        /// <summary>The leader: its level played a one-off effect at 'position' (Unity metres); the crew there plays it too.</summary>
+        public void SendFx(int kind, Vector3 position)
+        {
+            if (CoopCampaign.Leader) SpaceHooks.CoopFx?.Invoke(CoopStation, kind, position);
+        }
+
+        /// <summary>NetCoop: the leader's level played a one-off effect here (a Discord report 2026-11-17: the second pilot
+        /// saw the mother ship stand through the leader's cutscene of its explosion).</summary>
+        public void OnLeaderFx(int station, int kind, Vector3 position)
+        {
+            if (!Follower || station != CoopStation || level == null) return;
+            if (kind == CoopFx.VoidStationExplosion)
+            {
+                coopFx ??= new MainCampaignLevels(this, level);
+                coopFx.FollowBlast(position);
+            }
         }
 
         /// <summary>NetCoop: the leader's route (game units) for this orbit.</summary>
@@ -311,6 +371,7 @@ namespace GoF2Remake.World
         {
             if (!Follower || from != CoopStation || level == null || level.Leaving) return;
             Debug.Log($"CampaignLevel: following the leader from {from} to {to}{(dock ? " (docked)" : "")}");
+            level.StorySpace?.SettleCutOffSuccess();   // a success the move cuts off: its reward
             if (dock) { Session.StationIndex = to; level.Dock(); }
             else level.TravelTo(to, streamOut);
         }

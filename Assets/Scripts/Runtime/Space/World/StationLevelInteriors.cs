@@ -161,6 +161,7 @@ namespace GoF2Remake.World
                                                                           traffic != null && traffic.SpawningGuest >= 0 ? SpaceHooks.GuestAssembly?.Invoke((ulong)traffic.SpawningGuest, ship) : null),
                                             npcTraffic, Settings.HangarFlights, FitParkingYaw);
             if (traffic != null) traffic.NpcSpawned = (go, ship) => AddNpcTurrets(go, ship, null);
+            if (traffic != null) traffic.View = () => hangarView;   // not Inspect ship's close-up (a player's report, 2026-11-17)
             if (traffic != null && GoF2Remake.Data.NetSession.Active)
             {
                 traffic.KeepOneFree = true;          // a pad for another player docking
@@ -471,8 +472,17 @@ namespace GoF2Remake.World
             slotTaken[slot] = true;
             int i = visitors.Count;
             {
-                int race = agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
+                int race = SpaceHooks.VisitorRace != null ? SpaceHooks.VisitorRace(agent, Layout.stationIndex)
+                          : agent.race == 3 && agent.portrait != null && agent.portrait[0] == 2 ? 2 : agent.race;
                 var prefab = VisitorPrefab(StationTables.VisitorFor(race, !agent.male));
+                var character = Modding.ModCharacters.Find(agent.character);
+                // Explicit character race takes precedence over station weighting; mod-race diplomats keep their actual side.
+                if (character != null && character.hasRace) race = character.race;
+                else if (agent.modRace >= Modding.ModRaces.FirstRace) race = agent.modRace;
+                var silhouette = character?.silhouette;
+                // A custom race supplies its own GLB visitor unless the character explicitly selects a built-in silhouette.
+                var customVisitor = string.IsNullOrEmpty(silhouette) && Modding.ModRaces.Is(race) ? Modding.ModRaceVisitors.Prefab(race) : null;
+                prefab = customVisitor ?? VisitorPrefab(StationTables.VisitorForSilhouette(silhouette, Modding.ModRaces.Look(race), !agent.male));
                 if (prefab == null) return false;
                 var feet = SlotFeet(slot);
                 var v = new Visitor { feet = feet, agent = agent };
@@ -507,18 +517,24 @@ namespace GoF2Remake.World
         static bool VisitorMeshBounds(Transform root, Matrix4x4 toSpace, out Bounds b)
         {
             bool any = false;
-            b = new Bounds();
-            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+            var all = new Bounds();
+            void Add(Bounds lb, Transform meshTransform, Renderer renderer)
             {
-                if (mf.sharedMesh == null || !mf.gameObject.activeSelf || !mf.TryGetComponent<Renderer>(out var r) || !r.enabled) continue;
-                var lb = mf.sharedMesh.bounds;
-                var m = toSpace * mf.transform.localToWorldMatrix;
+                if (!meshTransform.gameObject.activeSelf || !renderer.enabled) return;
+                var m = toSpace * meshTransform.localToWorldMatrix;
                 for (int i = 0; i < 8; i++)
                 {
                     var p = m.MultiplyPoint3x4(lb.center + Vector3.Scale(lb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1)));
-                    if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
+                    if (!any) { all = new Bounds(p, Vector3.zero); any = true; } else all.Encapsulate(p);
                 }
             }
+            foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
+                if (mf.sharedMesh != null && mf.TryGetComponent<Renderer>(out var renderer)) Add(mf.sharedMesh.bounds, mf.transform, renderer);
+            // Custom character GLBs are commonly skinned; include their mesh bounds so the lounge billboard is sized
+            // and centred from the actual model rather than the generic fallback height.
+            foreach (var skinned in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                if (skinned.sharedMesh != null) Add(skinned.localBounds, skinned.transform, skinned);
+            b = all;
             return any;
         }
         GameObject VisitorPrefab(StationTables.Visitor v) => v switch

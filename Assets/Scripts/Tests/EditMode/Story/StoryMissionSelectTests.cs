@@ -63,6 +63,17 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AMissionSelectGameNeverSaves()
+        {
+            // #308: the test game wrote the auto-save on docking, and Resume then loaded it instead of the player's game.
+            Story.StartAtMission(Db, 120);
+            Assert.IsFalse(SaveGame.Save(SaveGame.AutoSaveSlot));
+            Assert.IsFalse(SaveGame.Exists(SaveGame.AutoSaveSlot));
+            Session.ResetNewGame();
+            Assert.IsFalse(Session.MissionSelectGame, "a new game or a loaded one saves again");
+        }
+
+        [Test]
         public void ThePrologueStartsInFlightAtVarHastra()
         {
             Assert.AreEqual("Space", Story.StartAtMission(Db, 0));

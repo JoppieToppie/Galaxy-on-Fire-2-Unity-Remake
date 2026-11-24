@@ -289,7 +289,7 @@ namespace GoF2Remake.World
                     if (stepMs < 5000f) break;
                     Explosion.Spawn(0, At(arrayPos), Vector3.forward, 6f * OrbitScale.Factor, CombatAssets.Pick(combat?.explosionBig), true);   // OrbitScale: the grown array's
                     // Level+0x54 (record 23 SET_EXPLOSION_BATTLESHIP) on the array's matrix, emitting until the aftermath ends.
-                    if (S(14) != null) { arrayBurn = new WreckBurn(S(14).transform, true); arrayBurn.SetEmitting(true); }
+                    if (S(14) != null) arrayBurn = S(14).StoryBurn(WreckBurn.Battleship);   // remake co-op: on the crew's copy too
                     Step = 4;
                     break;
                 case 4:
@@ -316,7 +316,7 @@ namespace GoF2Remake.World
                         s.scriptedSpeed = 2f + stepMs * 0.001f;
                     }
                     if (stepMs < 10000f) break;
-                    arrayBurn?.SetEmitting(false);
+                    S(14)?.StopStoryBurn(WreckBurn.Battleship);
                     for (int i = 0; i <= 12; i++) { if (S(i) != null) S(i).scriptedFire = false; Remove(S(i)); }
                     if (helper != null) { Object.Destroy(helper); helper = null; }
                     LeaveCutscene();

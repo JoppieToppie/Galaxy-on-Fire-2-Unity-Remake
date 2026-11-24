@@ -129,7 +129,7 @@ screen is drawn at one scale **S**, the largest of these:
 | Desktop | 1 | the design's own size: body text 20 px on a 1080p monitor (XAG's PC minimum is 18 px) |
 | Handheld (Steam Deck: `SteamDeck=1`; a small Linux screen) | 1.25 | 30 cm away: the caption reaches Steam Deck's recommended 12 px |
 | TV (an Xbox, `UwpDisplay`) | 1.3 | 3 m away: the body text comes out at 26 px, XAG's console minimum |
-| Phone (`UnityEngine.Device.Application.isMobilePlatform`, < 7.5″) | 1.2 | the body text at about 1.6 mm on a 20:9 phone, a 900-unit panel (1.5 until 2026-10-23: a 720-unit panel read too big and the main menu's nine rows ran off it) |
+| Phone (`UnityEngine.Device.Application.isMobilePlatform`, < 8.1″: foldables' inner screens too, `UiLayout.PhoneMaxInches`) | 1.2 | the body text at about 1.6 mm on a 20:9 phone, a 900-unit panel (1.5 until 2026-10-23: a 720-unit panel read too big and the main menu's nine rows ran off it) |
 | Pixel floor | 11 px ÷ caption | the 16-unit caption is never drawn smaller than 11 screen pixels (a 720p or 540p screen) |
 
 Options > Graphics **Interface size** (80–150 %) multiplies S (XAG 101 asks for user-adjustable text size).

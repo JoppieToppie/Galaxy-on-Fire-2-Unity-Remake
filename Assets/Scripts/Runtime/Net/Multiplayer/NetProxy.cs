@@ -49,7 +49,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<ulong> creator = new NetworkVariable<ulong>(ulong.MaxValue);  // server-written at spawn: whose ship
         readonly NetworkVariable<bool> handedOver = new NetworkVariable<bool>(false);   // server-written: handed to an orbit's runner (NetState.HandOver)
         readonly NetworkVariable<FixedString4096Bytes> spec = new NetworkVariable<FixedString4096Bytes>(default, Read, Owner);   // ProxySpec, base64
-        readonly NetworkVariable<NetProxyStatus> status = new NetworkVariable<NetProxyStatus>(new NetProxyStatus { race = -1, relation = Neutral, hull = 65535, radius = 50f, stealItem = -1, killer = ulong.MaxValue }, Read, Owner);
+        readonly NetworkVariable<NetProxyStatus> status = new NetworkVariable<NetProxyStatus>(new NetProxyStatus { race = -1, relation = Neutral, hull = 65535, shield = 65535, radius = 50f, stealItem = -1, killer = ulong.MaxValue }, Read, Owner);
         // Hostility toward the other players (NpcShip.aggressors, client ids), for their markers and a takeover.
         readonly NetworkVariable<FixedString128Bytes> aggressors = new NetworkVariable<FixedString128Bytes>(default, Read, Owner);
         const int FreighterVolumes = 100000;
@@ -107,6 +107,9 @@ namespace GoF2Remake.Multiplayer
         public const int StoryRole = 1 << 24;
         /// <summary>A co-op story level's ship of the leader's: it goes when the leader leaves its orbit (never handed over).</summary>
         public bool IsStoryShip => (RoleFlags & StoryRole) != 0;
+        /// <summary>RoleFlags' bits above StoryRole: the story level's fires on the ship (NpcShip.StoryBurns), its copies burn too.</summary>
+        public const int StoryBurnShift = 25;
+        public int StoryBurns => (RoleFlags >> StoryBurnShift) & 31;
         public bool IsFlying => St.life == Flying;
         public byte Life => St.life;
         public string Label => Spec?.label ?? "";
@@ -161,6 +164,11 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Remake (Settings.DerelictWrecks): another game's derelict freighter nobody has hacked yet: this player
         /// docks at a stand-in of it (NetOrbit.UpdateDerelictStandIns).</summary>
         public bool OpenDerelict => IsSpawned && !IsOwner && St.life == Flying && St.Has(NetProxyStatus.Hackable) && (Spec?.spec?.derelict ?? false);
+        /// <summary>Another game's wreck holding a blueprint this player hasn't recovered yet (a Supernova hidden blueprint,
+        /// TrafficPlan.HiddenBlueprints; a mod blueprint's derelict): each player hacks it for their own, at a stand-in of it
+        /// (NetOrbit.UpdateDerelictStandIns), whatever the owner did (a Discord report 2026-11-17: only the pilot who
+        /// entered the orbit first could dock at it).</summary>
+        public bool OpenBlueprintWreck => IsSpawned && !IsOwner && St.life == Flying && TrafficPlan.BlueprintLeft(Spec?.spec);
         /// <summary>This player hacked the derelict (their stand-in): the owner's wreck closes, for everyone.</summary>
         public void ReportHacked() { if (IsSpawned && !IsOwner) HackedUpRpc(); }
 
@@ -254,7 +262,7 @@ namespace GoF2Remake.Multiplayer
                 orbit.Register(this, ship);
                 WriteSpec();
                 SendState();
-                sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
+                sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
                 sender.Hook(ship.Guns);
                 return;
             }
@@ -332,7 +340,9 @@ namespace GoF2Remake.Multiplayer
             target.isShip = true;
             target.customDeath = true;
             target.maxHp = 100f;
-            target.RemoteDamage = (amount, hitVector, byNpc, _) => DamageUpRpc(amount, hitVector, byNpc);   // NPCs have no shield
+            target.RemoteDamage = (amount, hitVector, byNpc, shieldFactor) => DamageUpRpc(amount, hitVector, byNpc, shieldFactor, -1, 0, 0);
+            target.RemoteHit = (amount, hitVector, byNpc, shieldFactor, weaponItem, sourceObjectId, shotId) =>
+                DamageUpRpc(amount, hitVector, byNpc, shieldFactor, weaponItem, sourceObjectId, shotId);
             target.RemoteEmp = emp => EmpUpRpc(emp);
             target.SlowBy = (ms, factor, noTurn) => SlowUpRpc(ms, factor, noTurn);   // remake: an EMP device (Flight.Device), a slowing weapon
             target.RemoteSteal = (item, amount) => StealUpRpc(item, amount);
@@ -402,7 +412,7 @@ namespace GoF2Remake.Multiplayer
             ship = rebuilt;
             NetOrbit.Current?.Register(this, rebuilt);
             lastAggressors = -1;   // written again from the new ship
-            sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null);
+            sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
             sender.Hook(rebuilt.Guns);
         }
 
@@ -463,8 +473,8 @@ namespace GoF2Remake.Multiplayer
 
         // ---- shots and hits -------------------------------------------------------------------------------------------
 
-        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId) =>
-            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId));
+        void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>
+            ShotUpRpc(new NetShotData(item, position, velocity, up, lifetimeMs, homingDelayMs, targetId, shotId));
 
         /// <summary>The owner's NPC shot, through the server (only the ship's game sends its shots): checked and limited like
         /// a player's (NetPlayer.ShotUpRpc), then to the players in its orbit.</summary>
@@ -473,14 +483,18 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"an NPC shot of item {shot.item}"); return; }
+            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId, Mathf.Max(0f, shot.lifetimeMs + 2000f));
             if (NetInterest.OrbitGroup(this, station.Value, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
         [Rpc(SendTo.SpecifiedInParams, Delivery = RpcDelivery.Unreliable, InvokePermission = RpcInvokePermission.Server)]
         void ShotRpc(NetShotData shot, RpcParams rpc = default)
         {
-            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId));
+            if (shown) mirror?.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs, NetShots.Resolve(shot.targetId), shot.shotId, NetworkObjectId, false);
         }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void CancelShotRpc(uint shotId) => sender?.CancelShot(shotId);
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         void BlastUpRpc(int item, Vector3 point)
@@ -500,32 +514,54 @@ namespace GoF2Remake.Multiplayer
         /// damage up to NetGuard.MaxDamage, at its rate. (A direct RPC to the owner let a modified client destroy every NPC
         /// of any orbit from anywhere.)</summary>
         [Rpc(SendTo.Server)]
-        void DamageUpRpc(float amount, Vector3 hitVector, bool byNpc, RpcParams rpc = default)
+        void DamageUpRpc(float amount, Vector3 hitVector, bool byNpc, float shieldFactor, int weaponItem, ulong sourceObjectId, uint shotId, RpcParams rpc = default)
         {
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
+            if (shotId != 0 && (sourceObjectId == 0 || NetShotRegistry.IsCanceled(sourceObjectId, shotId))) return;
             if (!NetGuard.Damage(amount) || !NetGuard.Finite(hitVector)) { NetRateLimit.Reject(shooter, $"a hit of {amount}"); return; }
+            shieldFactor = byNpc || float.IsNaN(shieldFactor) ? 1f : shieldFactor <= 0f ? 0f : Mathf.Clamp(shieldFactor, 0.01f, 10f);
             if (!NetGuard.InOrbit(shooter, station.Value)) return;
+            var by = NetSquad.Find(shooter);
+            if (byNpc && !NetGuard.NpcDamageFrom(by, station.Value))
+            { NetRateLimit.Reject(shooter, "NPC damage from a client that does not run this orbit"); return; }
+            if (!byNpc && weaponItem >= 0)
+            {
+                var weapon = Database.Shared.Item(weaponItem);
+                if (by == null || !by.HasWeaponItem(weaponItem) || weapon == null) { NetRateLimit.Reject(shooter, $"a hit from unmounted weapon {weaponItem}"); return; }
+                shieldFactor = Gun.ShieldFactor(weapon); // typed damage never trusts a client-supplied shield multiplier
+            }
+            if (byNpc && weaponItem >= 0 && (by == null || by.RunsOrbit != station.Value || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
+            if (by == null || !by.CollisionModeCompliant) { by?.CheckReportedCollisionMode(); return; }
             NetState.Instance?.NoteHit(NetworkObjectId, shooter);
-            DamageRpc(amount, hitVector, byNpc, shooter);
+            DamageRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
 
         /// <summary>The checked hit (DamageUpRpc): the owner's ship takes it, and turns on that player's squad (not on its own
         /// player: taken as an NPC's hit, so no standing change or kill credit for the owner).</summary>
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void DamageRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter)
+        void DamageRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor, int weaponItem)
         {
             if (junk != null) { if (junk.Alive) junk.Damage(amount, true, hitVector); return; }   // counts for the mission (all junk)
             if (ship == null || ship.Target == null || !ship.Target.Alive) return;
             // Another game's NPC (its shot at this player's wingman): an NPC's hit, nobody's kill.
-            if (byNpc) { ship.Target.Damage(amount, true, hitVector); return; }
+            if (byNpc)
+            {
+                var npcItem = weaponItem >= 0 ? Database.Shared.Item(weaponItem) : null;
+                var npcDamageType = npcItem != null ? (DamageType)Mathf.Clamp(npcItem.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
+                ship.Target.Damage(amount, true, hitVector, shieldFactor, npcDamageType);
+                return;
+            }
             var by = NetSquad.Find(shooter);
             // Whether it was after them (their kill counts only then, like the player's own: Traffic.OnShipDied).
             bool hostile = by != null && World.NpcShip.HostileToRemote != null && World.NpcShip.HostileToRemote(ship, by.LocalTarget);
             ship.OnRemoteHit(shooter, (int)amount);
             ship.Target.killedByRemote = true;   // a freelance mission counts another player's kill as its player's
             ship.Target.remoteKiller = shooter;  // and the raid news names them (NetOrbit)
-            ship.Target.Damage(amount, true, hitVector);
+            ship.Target.lastPlayerWeapon = weaponItem;   // its weapon (step 59: a convoy freighter the Liberator killed)
+            var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
+            var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
+            ship.Target.Damage(amount, true, hitVector, shieldFactor, damageType);
             if (ship.Target.Alive) { ship.Target.killedByRemote = false; ship.Target.remoteKiller = ulong.MaxValue; }
             if (!ship.Target.Alive) { var s = St; s.killer = shooter; status.Value = s; }
             if (!ship.Target.Alive && NetOrbit.Current != null) KillCreditUpRpc(shooter, ship.Race, NetOrbit.Current.SystemRace, hostile);
@@ -538,7 +574,10 @@ namespace GoF2Remake.Multiplayer
             ulong shooter = rpc.Receive.SenderClientId;
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
             if (emp <= 0 || emp > NetGuard.MaxDamage) { NetRateLimit.Reject(shooter, $"an EMP of {emp}"); return; }
-            if (NetGuard.InOrbit(shooter, station.Value)) EmpRpc(emp, shooter);
+            if (!NetGuard.InOrbit(shooter, station.Value)) return;
+            var by = NetSquad.Find(shooter);
+            if (by == null || !by.CollisionModeCompliant) { by?.CheckReportedCollisionMode(); return; }
+            EmpRpc(emp, shooter);
         }
 
         /// <summary>The checked EMP: the owner's ship takes it (it may turn on them).</summary>
@@ -678,6 +717,7 @@ namespace GoF2Remake.Multiplayer
             s.race = (short)t.race;
             s.relation = t.hostileToPlayer ? Hostile : t.friendToPlayer ? Friend : Neutral;
             s.hull = NetProxyStatus.Hull(t.HullFraction);
+            s.shield = NetProxyStatus.Shield(ship.Hp != null && ship.Hp.maxShield > 0 ? ship.Hp.shield / ship.Hp.maxShield : -1f);
             s.radius = t.radius;
             byte l = ship.Current == NpcShip.State.Dying ? Dying : ship.Current == NpcShip.State.Dead || ship.Gone ? Dead : Flying;
             // Destroyed by this game's own player (not an NPC's shot, not another player's: DamageRpc wrote that one).
@@ -697,7 +737,7 @@ namespace GoF2Remake.Multiplayer
             if (ship.Spec != null && ship.Spec.derelict && ship.DockingType == ObjectDocking.Hackable) f |= NetProxyStatus.Hackable;
             s.flags = f;
             s.cloak = (byte)Mathf.Clamp(Mathf.RoundToInt(ship.CloakPercent), 0, 100);
-            s.roleFlags = (ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0) | (ship.StoryShip ? StoryRole : 0);
+            s.roleFlags = (ship.MissionShip && NetOrbit.Current != null ? NetOrbit.Current.MissionRole(ship) : 0) | (ship.StoryShip ? StoryRole | (ship.StoryBurns & 31) << StoryBurnShift : 0);
             int si = -1, sa = 0;
             if (emp && ship.HasCargo)
                 foreach (var c in ship.CargoList)
@@ -787,6 +827,24 @@ namespace GoF2Remake.Multiplayer
             else { smoothing.Snap(); shownLife = St.life; }   // no explosion for a ship that died before we came
         }
 
+        int shownBurns;
+        readonly WreckBurn[] burns = new WreckBurn[5];
+
+        /// <summary>A co-op story ship's fires (its owner's NpcShip.StoryBurns): lit and put out on this copy as there (a Discord
+        /// report 2026-11-17: Errkt's freighter didn't burn for the second pilot).</summary>
+        void ShowStoryBurns(int bits)
+        {
+            if (bits == shownBurns) return;
+            for (int i = 0; i < burns.Length && i < NpcShip.BurnRecords.Length; i++)
+            {
+                bool on = (bits & (1 << i)) != 0;
+                if (on == ((shownBurns & (1 << i)) != 0)) continue;
+                if (on && burns[i] == null) burns[i] = new WreckBurn(transform, NpcShip.BurnRecords[i]);
+                burns[i]?.SetEmitting(on);
+            }
+            shownBurns = bits;
+        }
+
         void ApplyTarget()
         {
             var st = St;
@@ -813,6 +871,9 @@ namespace GoF2Remake.Multiplayer
             // Dying / dead (a tumble, a wreck, destroyed junk): not alive here either, so shots pass it like on the owner's.
             target.hp = st.life == Flying ? Mathf.Max(0.001f, st.HullFraction) * target.maxHp : 0f;
             target.netMaxHull = p != null ? p.maxHull : -1;   // the repair / transfusion beams' pick (RepairBeam)
+            target.netShipIndex = p?.spec != null ? p.spec.ship : -1;   // the class scanner's (CombatRadar.ReadShip)
+            target.netShield = st.ShieldFraction;              // remote NPC shield bar; -1 when this NPC has no shield
+            target.netArmor = -1f;                             // NPCs have no separate armor pool
             target.radius = st.radius;
             int volume = p != null ? p.hitVolume : -1;
             if (boxesFor != volume)
@@ -833,6 +894,7 @@ namespace GoF2Remake.Multiplayer
             bool fighterTurret = st.radius <= 0f && !IsJunk;
             if (fighterTurret && !turretHullDetached) { HullCollision.Detach(target); turretHullDetached = true; }
             bool hidden = st.Has(NetProxyStatus.Hidden);
+            ShowStoryBurns(hidden ? 0 : StoryBurns);
             target.untargetable = hidden || st.life != Flying || cloaked >= 25f || fighterTurret;
             // A mission ship's name only for the mission's team (its owner and their squad).
             bool team = !IsMissionShip || NetSquad.SameClient(OwnerClientId, NetPlayer.Local);

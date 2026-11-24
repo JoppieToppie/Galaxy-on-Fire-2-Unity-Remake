@@ -54,7 +54,7 @@ namespace GoF2Remake.World
         public ModInteriors.Room Room => room;
         /// <summary>The station this dock is (the orbit's, or a mobile station's).</summary>
         public int StationIndex { get; private set; }
-        /// <summary>This is a manually authored large-ship exterior attachment, not an EVERSPACE 2 hangar pad.</summary>
+        /// <summary>This is a manually authored exterior attachment for a large ship.</summary>
         public bool IsExternal { get; private set; }
         public Vector3 DockedPosition => DockedPos;
         public Quaternion DockedRotation => DockedRot;
@@ -107,7 +107,7 @@ namespace GoF2Remake.World
                                              Transform point, WeaponMount mount)
         {
             if (station == null || point == null || ship == null || chase == null || mount == null) return null;
-            // The external point is authored in the station root's orbit frame, not the NPC pad or interior hull frame.
+            // The external point is authored in the station root's orbit frame.
             var hull = station.transform;
             Es2Dock d = null;
             foreach (var existing in ship.GetComponents<Es2Dock>())
@@ -284,7 +284,7 @@ namespace GoF2Remake.World
             if (!external || State != Phase.Docked) return;
             startPos = DockedPos;
             startRot = DockedRot;
-            externalTakeOffPosition = startPos + externalPoint.forward * 5000f * 0.05f;
+            externalTakeOffPosition = startPos + (DockedRot * Vector3.forward) * 5000f * 0.05f;
             State = Phase.TakeOff;
             t = 0f;
             released = false;

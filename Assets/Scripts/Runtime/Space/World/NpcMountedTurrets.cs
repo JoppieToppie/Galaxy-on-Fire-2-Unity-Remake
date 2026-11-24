@@ -64,7 +64,7 @@ namespace GoF2Remake.World
                 var rig = core.Rig;
                 gun.owner = ship.Target;
                 gun.Hit += (b, hit, point) => onHit(gun, rig, b, hit, point);
-                if (gun.echo != null) gun.AreaHit += ship.HitByBlast;   // an echo's blasts (Gun.EchoBlast)
+                if (gun.echo != null) gun.AreaHit += (target, dmg, emp, center) => ship.HitByBlast(gun, target, dmg, emp, center);   // an echo's blasts (Gun.EchoBlast)
                 ship.ExtraGuns.Add(gun);   // multiplayer: the other players see its shots
                 t.picking = new TurretTargeting(TurretTargeting.Rule.Timed, item.Attr(109) > 0 ? item.Attr(109) : RangeUnits)
                 {
@@ -89,7 +89,7 @@ namespace GoF2Remake.World
                     target = t.picking.Update(dtMs, enemies, ship.transform.position);
                     if (target != null && !target.cloaked)
                     {
-                        bool aligned = core.StepToward(TurretTargeting.LeadPoint(target), dtMs);
+                        bool aligned = core.StepToward(t.picking.LeadPoint(target, core.GunPosition, core.Gun.speedUnitsPerMs, core.Gun.lifetimeMs), dtMs);
                         if (core.Aim.LimitHit) t.picking.LimitHit(dtMs);
                         else if (aligned && core.Fire() >= 0) Sfx.PlayAt(t.shot, core.GunPosition, 0.6f);
                         else if (aligned && core.Blocked) t.picking.LimitHit(dtMs);   // its own hull in the way: another target

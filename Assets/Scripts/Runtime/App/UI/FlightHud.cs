@@ -281,8 +281,8 @@ namespace GoF2Remake.UI
             jumpChargeLabel = root.Q<Label>("jumpChargeLabel");
             jumpChargeLabel.text = Localization.Get(318).UiCaps();   // Drive charging
             jumpChargeStripes = root.Q("jumpChargeStripes");
-            var chargeFrame = Resources.Load<Texture2D>("GoF2Hud/charge_frame");
-            var chargeFill = Resources.Load<Texture2D>("GoF2Hud/charge_fill");
+            var chargeFrame = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/charge_frame");
+            var chargeFill = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/charge_fill");
             if (chargeFrame != null) jumpCharge.style.backgroundImage = new StyleBackground(chargeFrame);
             if (chargeFill != null) jumpChargeStripes.style.backgroundImage = new StyleBackground(chargeFill);
             orbitInfoFilled = false;
@@ -389,7 +389,7 @@ namespace GoF2Remake.UI
             autopilotMenu.parent?.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());
             autopilotMenuItems.RegisterCallback<GeometryChangedEvent>(_ => FitAutopilotMenu());   // entries added / removed
             root.Q<Label>("autopilotMenuTitle").text = Localization.Get(571).UiCaps();   // Autopilot
-            var menuIcon = Resources.Load<Texture2D>("GoF2Hud/autopilot_title");
+            var menuIcon = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/autopilot_title");
             if (menuIcon != null) root.Q("autopilotMenuIcon").style.backgroundImage = new StyleBackground(menuIcon);
             BuildTouchControls();
 
@@ -418,7 +418,7 @@ namespace GoF2Remake.UI
         /// Off-screen markers and the hit arcs sit on it (CombatView / NavigationView EllipseX / Y).</summary>
         static void BuildRadarEllipse(VisualElement host)
         {
-            var tex = Resources.Load<Texture2D>("GoF2Hud/radar_ellipse");
+            var tex = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/radar_ellipse");
             if (host == null || tex == null) return;
             host.Clear();
             for (int q = 0; q < 4; q++)
@@ -667,6 +667,7 @@ namespace GoF2Remake.UI
                 if (ship == null) return;
                 weapons = level.Weapons;
                 if (weapons != null) weapons.mouseOverControls = MouseOverControls;
+                if (weapons != null) weapons.Message += OnMiningMessage;   // remake: a weapon overheated
                 if (level.FreeLook != null) level.FreeLook.pointerOverHud = PointerOverHud;   // Modified: the docked left drag
                 mining = level.Mining;
                 if (mining != null) mining.Message += OnKindMessage;
@@ -848,7 +849,7 @@ namespace GoF2Remake.UI
             if (Vr.VrControls.Steer.HasValue) touchStick = Vr.VrControls.Steer.Value;   // VR: the cockpit's stick, held
             // Remake: free flight on touch (TouchControlsFreeFlight): the stick thrusts and strafes (linear), the drag aims.
             bool touchFree = touchMode && touch != null && ship.TouchFree;
-            ship.SetTouchFree(touchFree ? raw : Vector2.zero, touchFree ? touch.UpDown : 0f, touchFree && touch.BoostHeld);
+            ship.SetTouchFree(touchFree ? raw : Vector2.zero, touchFree ? touch.UpDown : 0f, touchFree && touch.BoostHeld, touchFree && touch.DriftHeld);
             ship.SetSteer(touchFree ? touch.Aim : touchStick);
             mining?.SetTouchInput(touchStick);
 

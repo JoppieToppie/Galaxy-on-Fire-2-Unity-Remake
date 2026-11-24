@@ -95,9 +95,11 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   mounted type join the mounted stack. Remaining missiles are written back to `Equipment` when docking. Remake: the Ship
   tab tints mounted rows with a cyan edge and badges the hold's candidates IN CARGO under an amber "Available in cargo"
   header; a a passenger cabin can't be demounted while the other cabins couldn't seat the passengers aboard (323,
-  `HangarWindow::selectItem` 0x178e20); a double click / double tap mounts or demounts (the Mount / Demount button's
-  action; a controller's confirm button does the same).
+  `HangarWindow::selectItem` 0x178e20); a double click / double tap or Shift + primary click mounts or demounts
+  (the Mount / Demount button's action; a controller's confirm button does the same).
 - **Row actions** (a player's feedback 2026-11-03: the Mount / Demount buttons sat "way off to the right of the slots"):
+  Reorder arrows use mirrored vector strokes in equal centered boxes, rather than rotated text glyphs whose font
+  bearings can offset Up and Down in opposite directions. This applies to both interface styles.
   the original turns a tapped slot into its own little list (`HangarList::fillBuyList` 0x14348c: 277 Selected, the row,
   278 Actions with 279 Sell this item and 282 Demount as style-7 button rows drawn at the rows' place by
   `HangarWindow::render`, then 284 Available in cargo). The remake keeps its list and puts the selected row's actions
@@ -105,10 +107,23 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   `PlaceRowActions` after every `ShowDetails`; `.row-actions`, `.detail-action--row`; the Original style's `og_action`
   bars at the list's width); they sat under the item's description in the details panel until 2026-11-05. A ship's
   Buy / Use / Sell stay under its turning view. Since 2026-11-09 (the user's sketch) a mounted item's and a hold item's
-  sit inside the row at its right end (`.row-actions--inline`): Demount over two arrow buttons (a slot up / down,
-  `Hangar.PrevSlot` / `NextSlot`, no text, the MOVE button hidden), or the hold's amount over Mount (the row's own
-  amount hidden, `.list-row--actions`); a blueprint's Edit at the right end of its sub-line, under the progress bar
-  (`.row-actions--sub`); buttons in a row keep their press from the row (`KeepInButton`: the slot drag).
+  sit inside the row at its right end (`.row-actions--inline`). Mounted equipment now stacks Up / Down arrows
+  on the left of a full-height Demount button (`.row-actions--equipment`, #305). The agreed Demount proportions are
+  shared by Mount and Edit: `--row-action-width` is one eighth of the row, and the reorder area is one quarter,
+  split equally between arrows and Demount after its gap. These are proportions, not physical pixel widths; UI
+  scaling and the available row width determine their rendered size. Slots without arrows reserve only one button.
+  `FitRowActionMinimum` measures the longest localized Mount / Demount / Edit label in the active font, adding
+  its borders and 0.7 font-size units of breathing room. This shared minimum prevents broken words on narrow
+  viewports; the two-column area needs twice that minimum plus its gap. It is a text-derived floor, not a fixed
+  physical-pixel button width.
+  Cargo has a full-height Mount with
+  the amount in a separate column to its right (the row's own amount hidden, `.list-row--actions`).
+  A blueprint's full-height Edit reserves its width
+  in the row flow (`.row-actions--blueprint`), so it cannot overlap the name or progress bar. Both UI styles keep
+  even vertical insets. Shift + primary click uses the same Mount / Demount action and validation as the existing
+  buttons and double click: built-in items, occupied slots, passengers and swaps retain their rules. Secondary
+  clicks and embedded action / arrow / information buttons cannot also trigger the row shortcut. Buttons in a row
+  keep their press from the row (`KeepInButton`: the slot drag). `HangarRowActionTests` checks both UI styles.
 - **Slot positions** (players' feedback 2026-11: the gear "snapped" to the next free slot, the original's didn't):
   `Ship+0x6c` is one place per slot, null when empty. `Ship::removeEquipment` 0x1a3e4c empties the slot and leaves
   the others where they are; `Ship::addEquipment` 0x1a4088 fills the type's first empty one; `Level::createPlayer` puts
@@ -147,8 +162,14 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   int, the cheats capped at 999 999 999). Overflow: `Session.Credits` is a property whose setter keeps long.MaxValue when
   a sum wraps (positive credits set to below long.MinValue / 2), so any `Credits += x` saturates; `Session.AddCredits` /
   `SaturatingAdd` clamp explicitly (cheats, admin gifts, trades, profile moves). `GameNames.Credits(long)` formats the
-  whole range. Prices, rewards and the multiplayer trade offers stay ints; an original-format export clamps to int.MaxValue
-  (`OriginalSaveConvert`); medal 25 reads the highest credits clamped to an int. Tests `CheatsTests`.
+  whole range. Prices and rewards stay ints; an original-format export clamps to int.MaxValue (`OriginalSaveConvert`);
+  medal 25 reads the highest credits clamped to an int; an admin's `/credits` gives at most 999 999 999 a command.
+  2026-11-19 (a Discord report from a pre-11.15 build: one credit past 2 147 483 647 reset the wallet): the amounts
+  that were still ints move 64-bit too: the Kaamo Club's stacked upgrade price (`LoungeChat.ModPrice` doubles on past
+  2 147 483 647, where every level cost the same), the squad trades' credits (`NetTrade.Offer.credits`, packed as two
+  ints, low then high), the faction bank's `/faction deposit` / `withdraw` (`ChargeRpc` / `GrantRpc` longs), and
+  `Hangar.ChangeCredits` no longer drops a change over 1 000 000 000 as absurd (Status::changeCredits' guard let a
+  mod ship priced over that be bought for nothing). Tests `CheatsTests`, `NetTradeTests`.
 - **New game:** 0 credits, like the original (sell starting gear to get money). `Session.CampaignMission` is a free-play
   20 (past the tutorial locks) until there is a campaign. Var Hastra always stocks a drill and energy cells then
   (remake-only, see "Mining" and "Star map and system travel").
@@ -165,7 +186,7 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   profiles back to it, `NetProfiles.ClampMods`; levels fitted before a lower limit stay in single player; at the top the
   mechanic says so, `kaamoModMaxed`), a level = how many times it is in `Session.ShipMods` (`Session.ModLevel`; every
   effect is per level: hull, cargo, slots, `BuildFlightStats`' handling upgrades), the price x2 per level fitted
-  (`LoungeChat.ModPrice`, capped at int.MaxValue; a ship without a price, the Cronus (37, Khador's gift at step 77), is
+  (`LoungeChat.ModPrice`, capped at the 64-bit top; a ship without a price, the Cronus (37, Khador's gift at step 77), is
   valued at 2 500 000 between its sister ships the Typhon and the Nemesis, `UnpricedShipValue`; in multiplayer the
   Cronus itself costs 1 150 000, `Database.CronusSessionPrice`: its upgrades cost 0 at every level; the offer adds
   "(Upgrade level N.)"), the lines show the total and "level N"; off = the original's one of each
@@ -208,6 +229,8 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   `statLoadingTime` "Loading time" (`ItemInfo.LoadingTime`); most languages' 149 says speed too.
 
 - **Item details numbers** (2026-11-15, from the disassembly: the decompile drops these multiplies): `ItemInfo` shows
+  shield regeneration and hull/armor repair rates rounded to two decimal places. Shield rate is capacity x 1000 /
+  full recharge milliseconds; repair rates are 1000 / hull interval and 2000 / armor interval. Only formatting changes.
   attr 14 x 0.5 (missiles', mines' and flak's magnitude), attrs 51 / 53 x 0.1 (collectors', repair and transfusion
   beams' reach), each cut to an int; a gun's range ending in exactly 50 goes up to the next hundred (Ridil Blaster 1250
   reads 1300); the DPS row and the Status window's fire power (StatusWindow::draw 0x1840e2) use the original's decimals,
@@ -222,3 +245,9 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   game's: the Particle Shield 225) come after everything else. On, `Hangar.ShopItems` orders by category, then tech
   level, then index; the stock and the hold keep their own order, and the VIP Card's sort still applies on top. Tests
   `HangarTradeTests` (`ShopListIsByItemIndexAsTheOriginal`, `DlcShieldStaysWithShieldsInShopAndStorage`).
+
+- **Display subtypes** (#303): the category option and its off-by-default behavior remain unchanged. When enabled,
+  order by category, subtype, tech level and item ID. Ordinary lasers precede a contiguous M6 hitscan-beam group;
+  manual turrets precede automatic ones. `ItemData.IsBeamLook` is shared with `Gun.IsBeamLook`, so mod-derived beam
+  looks follow the same rule as firing. Turrets use attr 16 == 1. The Kaamo Type sort uses these subgroups too;
+  explicit Name/Price sorts retain their own meaning. Stock, cargo, prices and item definitions are not reordered.

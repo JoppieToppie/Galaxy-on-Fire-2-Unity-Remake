@@ -112,6 +112,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ProxyShieldFractionsPreserveNoShieldAndCurrentCapacity()
+        {
+            Assert.AreEqual(-1f, new NetProxyStatus { shield = NetProxyStatus.Shield(-1f) }.ShieldFraction, "no shield is distinct from an empty shield");
+            Assert.AreEqual(0f, new NetProxyStatus { shield = NetProxyStatus.Shield(0f) }.ShieldFraction);
+            Assert.AreEqual(0.5f, new NetProxyStatus { shield = NetProxyStatus.Shield(0.5f) }.ShieldFraction, 2e-5f);
+            Assert.AreEqual(1f, new NetProxyStatus { shield = NetProxyStatus.Shield(1f) }.ShieldFraction);
+        }
+
+        [Test]
         public void Fractions()
         {
             Assert.AreEqual(-1f, WireQuant.Fraction(WireQuant.Fraction(-1f)), "none");
@@ -211,12 +220,13 @@ namespace GoF2Remake.Tests
         [Test]
         public void AShotRoundTripsInAbout27Bytes()
         {
-            var shot = new NetShotData(41, new Vector3(120.5f, -3f, 999f), new Vector3(300f, -2.5f, 1200f), new Vector3(0f, 0.8f, 0.6f), -1200f, 350f, 1234UL);
+            var shot = new NetShotData(41, new Vector3(120.5f, -3f, 999f), new Vector3(300f, -2.5f, 1200f), new Vector3(0f, 0.8f, 0.6f), -1200f, 350f, 1234UL, 777);
             var w = new WireWriter();
             shot.Write(w);
-            Assert.LessOrEqual(w.Length, 30, "56 bytes of parameters before");
+            Assert.LessOrEqual(w.Length, 32, "56 bytes of parameters before; the shot id (point defense, #354) is 2 more");
             var back = NetShotData.Read(new WireReader(w.ToArray()));
             Assert.AreEqual(41, back.item);
+            Assert.AreEqual(777u, back.shotId, "the id point defense cancels the shot by (NetShotRegistry)");
             Assert.Less((back.position - shot.position).magnitude, 0.05f);
             Assert.Less((back.velocity - shot.velocity).magnitude, shot.velocity.magnitude * 0.002f);
             Assert.Less(Vector3.Angle(back.up, shot.up), 0.1f);
@@ -249,6 +259,7 @@ namespace GoF2Remake.Tests
                 secondaryItem = 48, secondaryFactor = 4f, hiddenBlueprint = 2, modBlueprint = 300, pirateEvent = SpawnSpec.EventBoss,
                 eventTier = 5, sightingId = 9, capital = SpawnSpec.CapitalCarrier, capitalPart = true, capitalEnhanced = true,
                 fleetBattle = true, turretHunter = true, deathMs = 12000f, empPoints = 900, modCapital = true,
+                shield = 180, shieldRechargeMs = 30000, energyResistance = 0.25f, ballisticResistance = 0.65f,
             };
         }
 

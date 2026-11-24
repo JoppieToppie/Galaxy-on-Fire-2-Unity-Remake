@@ -43,17 +43,16 @@ namespace GoF2Remake.UI
             aboutButton.style.display = DisplayStyle.None;
             var menuPanel0 = root.Q(className: "system-menu");
             if (menuPanel0 != null && systemClose != null) { menuPanel0.Add(systemClose); systemClose.AddToClassList("system-menu-close"); }
-            // Remake: the Debug page once the main menu's Debug panel has been opened (Cheats); in multiplayer whenever the
-            // session allows it (made in every session: a server's admin may switch it on or off meanwhile, ShowSystemPage).
-            if (Cheats.PageShown || GoF2Remake.Multiplayer.NetGame.Active)
-                debugButton = SystemButton(Localization.Extra("debugTitle", "Debug"), 5, () => ShowSystemPage(SysPage.Debug), systemMain);
+            // Settings can enable Debug after this scene loads. Keep the entry and refresh its visibility on return.
+            debugButton = SystemButton(Localization.Extra("debugTitle", "Debug"), 5, () => ShowSystemPage(SysPage.Debug), systemMain);
+            debugButton.style.display = Cheats.PageShown ? StyleKeyword.Null : DisplayStyle.None;
             // Multiplayer: a session's game is never saved, and no single-player save is loaded into it; the co-op
             // campaign's host saves its own game into the slots (SaveGame.HostSaves).
             if (GoF2Remake.Multiplayer.NetGame.Active)
                 foreach (var b in new[] { loadGameButton, saveGameButton })
                     if (b != null && !(b == saveGameButton && SaveGame.HostSaves)) b.style.display = DisplayStyle.None;
-            // Hardcore: the game saves itself when docking (the auto-save) and nowhere else.
-            if (Session.Hardcore && saveGameButton != null) saveGameButton.style.display = DisplayStyle.None;
+            // Hardcore: the game saves itself when docking (the auto-save) and nowhere else; a mission select game never (#308).
+            if ((Session.Hardcore || Session.MissionSelectGame) && saveGameButton != null) saveGameButton.style.display = DisplayStyle.None;
             // The Debug page's scroll list (Options is an OptionsView, BuildOptionsView).
             systemOptions = new VisualElement();
             systemOptions.AddToClassList("system-menu-page");
@@ -211,6 +210,7 @@ namespace GoF2Remake.UI
         void OpenSystemMenu()
         {
             if (SystemMenuOpen || level == null || ArrivalPending) return;
+            FrameGeneration.SetMenu("station", true);   // no generated frames behind a menu
             CloseHangar();
             focusBeforeSystemMenu = root.focusController?.focusedElement as VisualElement;
             systemMenu.AddToClassList("station-dialog-backdrop--shown");
@@ -220,6 +220,7 @@ namespace GoF2Remake.UI
         void CloseSystemMenu()
         {
             if (!SystemMenuOpen) return;
+            FrameGeneration.SetMenu("station", false);
             systemMenu.RemoveFromClassList("station-dialog-backdrop--shown");
             if (root.focusController?.focusedElement is VisualElement f) f.Blur();
             // Rework (docs/UI-DESIGN.md "Focus"): back where it was before the menu opened, else the view's button. It went to

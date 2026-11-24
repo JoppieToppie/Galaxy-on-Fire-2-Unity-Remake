@@ -46,6 +46,8 @@ namespace GoF2Remake.Flight
         public bool alwaysNeutral; // remake (/spawn, the debug spawner): neither hostile nor friendly, whatever the standing
         public int eventTag;       // remake multiplayer: the event batch that spawned it (EventRunner counts them), 0 = none
         public int hitpoints = -1; // Player::setHitpoints / setMaxHitpoints override (-1 = the createShip formula)
+        public int shield, shieldRechargeMs;
+        public float energyResistance, ballisticResistance;
         public bool noLoot;        // KIPlayer+0x4c / +0x48 = 0: no cargo, no crate
         public string role;        // remake: its role in a fight (Flight.NpcRoles), null = its ship's (ships.json "traffic": { "role" })
         public int nameText = -1;  // KIPlayer+0x18: the name the lock plate shows (text id)
@@ -75,6 +77,7 @@ namespace GoF2Remake.Flight
         // Remake (generic turrets, Flight.TurretCore): any turret item on an NPC.
         public int turretItem = -1;    // a turret object built from this turret item: its model, aim and gun (-1 = turretAssembly's)
         public List<int> turretItems;  // turret items on the ship's turret mounts (null = its type's, Database.NpcTurrets; empty = none)
+        public string skin;            // remake mods: a kit ship's skin it flies in (a Most Wanted criminal's "skin"; ModTraffic.Assembly)
         public bool guard;             // PlayerFighter+0x12b: waking calls Level::pirateStationAction(true)
         public int lootItem = -1, lootAmount;   // a fixed crate (the pirate outposts, DAT_002543e0)
         public List<ItemStack> extraLoot;       // remake: more stacks in that crate (a pirate outpost by tier)
@@ -143,6 +146,16 @@ namespace GoF2Remake.Flight
             (134, 223, 2, new Vector3(-80000, 80000, -90000), 12), (129, 225, 0, new Vector3(40000, 20000, 140000), 13),
             (123, 227, 2, new Vector3(40000, 20000, 140000), 12),
         };
+
+        /// <summary>Remake multiplayer: 's' is a blueprint wreck (a hidden blueprint's, a mod blueprint's derelict) whose
+        /// blueprint this player hasn't got yet: another game's is open to them (NetProxy.OpenBlueprintWreck).</summary>
+        public static bool BlueprintLeft(SpawnSpec s)
+        {
+            if (s == null) return false;
+            int k = s.hiddenBlueprint;
+            if (k >= 0 && k < HiddenBlueprints.Length) return (Session.HiddenBlueprintsFound & (1 << k)) == 0;
+            return s.modBlueprint >= 0 && !Blueprints.IsUnlocked(s.modBlueprint);
+        }
 
         static Vector3 Jitter() => new Vector3(Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000, Random.Range(0, 40000) - 20000);
 

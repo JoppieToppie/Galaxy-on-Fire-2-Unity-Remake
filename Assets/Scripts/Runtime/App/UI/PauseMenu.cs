@@ -377,6 +377,7 @@ namespace GoF2Remake.UI
             if (IsOpen) return;
             level = spaceLevel;
             IsOpen = true;
+            FrameGeneration.SetMenu("pause", true);   // no generated frames behind a menu
             openedFrame = Time.frameCount;
             previousTimeScale = Time.timeScale;
             if (!GoF2Remake.Multiplayer.NetGame.Active) Time.timeScale = 0f;   // multiplayer: the world keeps running
@@ -420,6 +421,7 @@ namespace GoF2Remake.UI
             if (Photo != null && Photo.Active) Photo.Exit();
             LeaveReport();
             IsOpen = false;
+            FrameGeneration.SetMenu("pause", false);
             inspectOnly = false;
             sorting = null;
             choiceEntries = null;
@@ -436,6 +438,11 @@ namespace GoF2Remake.UI
 
         void Show(Page p)
         {
+            if (p == Page.Debug && !Cheats.PageShown)
+            {
+                Show(Page.Main);
+                return;
+            }
             if (p != Page.Report && p != Page.ReportBusy && p != Page.ReportDone) LeaveReport();
             else StopReportTyping();   // the form's field goes with the page
             page = p;
@@ -916,7 +923,7 @@ namespace GoF2Remake.UI
             if (pointerDriven && pointerItem == null) { KeysTakeOver(); HighlightOptions(); return; }   // Modified: nothing marked yet
             ButtonSound?.Invoke(false);   // Modified: the entry's sound (a click has its own)
             if (row != null) { row.Activate(); KeepOptionSelected(current); }
-            else if (options.IsFooter(current)) options.Activate(current);   // Back, Default settings, the defaults prompt
+            else options.Activate(current);   // footer buttons and the guarded Game Rules subsection
         }
 
         // ---- the Debug page ----------------------------------------------------------------------------------

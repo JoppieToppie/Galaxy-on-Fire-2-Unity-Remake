@@ -11,8 +11,14 @@ using R = GoF2Remake.Data.SessionRules;
 
 namespace GoF2Remake.Data
 {
-    /// <summary>Frame rate option (remake only; the original ran at the device's fixed rate).</summary>
-    public enum FrameRate { Fps30, Fps60, Fps120, Uncapped, VSync }
+    /// <summary>Frame rate option (remake only; the original ran at the device's fixed rate).
+    /// The first five are stored by their number since the option exists; the limits added later (2026-11-20, the user's
+    /// "add more FrameRate limit options") follow them, and Settings.FrameRateChoices has the order the option shows.</summary>
+    public enum FrameRate
+    {
+        Fps30, Fps60, Fps120, Uncapped, VSync,
+        Fps40, Fps45, Fps50, Fps72, Fps75, Fps90, Fps100, Fps144, Fps165, Fps180, Fps200, Fps240, Fps300, Fps360,
+    }
 
     /// <summary>Window mode option (desktop only).</summary>
     public enum DisplayMode { Borderless, Fullscreen, Windowed }
@@ -21,7 +27,12 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class FlightStyles
     {
-        public const int Original = 0, Free = 1;
+        public const int Original = 0, Free = 1, Chorus = 2;
+        public const int Count = 3;
+
+        /// <summary>A free-flight style: no throttle, the keys held (Free after EVERSPACE 2, Chorus after Chorus; both fly
+        /// through FlightModel.StepFree and share free flight's tuning, mods' "free" bonuses included).</summary>
+        public static bool IsFree(int style) => style == Free || style == Chorus;
 
         /// <summary>The style the game flies with now: what a mod or an event sets (Modding.ModFlight: an event, the ship
         /// flown, the mod campaign, a new-game option), else the player's option (Settings.FlightStyle).</summary>
@@ -65,12 +76,32 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Frame rate limit, applied by Bootstrap. V-Sync (display refresh rate) by default; 60 on Android (the user's
-        /// choice, 2026-10-22: a 120 Hz phone rendering at 120 heats up and throttles).</summary>
+        /// choice, 2026-10-22: a 120 Hz phone rendering at 120 heats up and throttles) and on iOS (2026-11-14, the user's
+        /// "optimize the game for the iPhone Duo": its two ProMotion screens are 120 Hz).</summary>
         public static FrameRate FrameRate
         {
-            get => (FrameRate)Mathf.Clamp(Mathf.RoundToInt(Get("frameRate", (float)(AndroidDefaults ? FrameRate.Fps60 : FrameRate.VSync))), 0, (int)FrameRate.VSync);
+            get => (FrameRate)Mathf.Clamp(Mathf.RoundToInt(Get("frameRate", (float)(AndroidDefaults || IosDefaults ? FrameRate.Fps60 : FrameRate.VSync))), 0, (int)FrameRate.Fps360);
             set => Set("frameRate", (float)value);
         }
+
+        /// <summary>The frame rate option's choices in the order it shows them: the limits from low to high, then
+        /// Uncapped and V-Sync.</summary>
+        public static readonly FrameRate[] FrameRateChoices =
+        {
+            FrameRate.Fps30, FrameRate.Fps40, FrameRate.Fps45, FrameRate.Fps50, FrameRate.Fps60, FrameRate.Fps72, FrameRate.Fps75,
+            FrameRate.Fps90, FrameRate.Fps100, FrameRate.Fps120, FrameRate.Fps144, FrameRate.Fps165, FrameRate.Fps180, FrameRate.Fps200,
+            FrameRate.Fps240, FrameRate.Fps300, FrameRate.Fps360, FrameRate.Uncapped, FrameRate.VSync,
+        };
+
+        /// <summary>A frame rate choice's limit in frames a second; 0 for Uncapped and V-Sync.</summary>
+        public static int FrameRateLimit(FrameRate rate) => rate switch
+        {
+            FrameRate.Fps30 => 30, FrameRate.Fps40 => 40, FrameRate.Fps45 => 45, FrameRate.Fps50 => 50, FrameRate.Fps60 => 60,
+            FrameRate.Fps72 => 72, FrameRate.Fps75 => 75, FrameRate.Fps90 => 90, FrameRate.Fps100 => 100, FrameRate.Fps120 => 120,
+            FrameRate.Fps144 => 144, FrameRate.Fps165 => 165, FrameRate.Fps180 => 180, FrameRate.Fps200 => 200, FrameRate.Fps240 => 240,
+            FrameRate.Fps300 => 300, FrameRate.Fps360 => 360,
+            _ => 0,
+        };
 
         /// <summary>URP render scale; 0 = the platform's render pipeline asset (1 on PC, 0.8 on mobile).</summary>
         public static float RenderScale { get => Get("renderScale", Default("renderScale", 0f)); set => Set("renderScale", value <= 0f ? 0f : Mathf.Clamp(value, 0.5f, 2f)); }
@@ -78,14 +109,87 @@ namespace GoF2Remake.Data
         /// <summary>Upscaler: 0 off (URP's automatic bilinear / point), 1 AMD FSR 1 (sharpening, also at 100 %), 2 Unity STP
         /// (temporal: anti-aliasing and upscaling, replaces MSAA), 3 NVIDIA DLSS and 4 AMD FSR 2 / 3 / 4 (temporal, the render
         /// resolution by UpscalerQuality; desktop builds with the upscaler framework only, UpscalerFramework), 5 Apple MetalFX
-        /// Spatial and 6 MetalFX Temporal (macOS / iOS on Metal, from the render scale; 6 temporal like STP).</summary>
-        public static int Upscaler { get => Mathf.RoundToInt(Get("upscaler", Default("upscaler", 0f))); set => Set("upscaler", Mathf.Clamp(value, 0, 6)); }
+        /// Spatial and 6 MetalFX Temporal (macOS / iOS on Metal, from the render scale; 6 temporal like STP), 7 Intel XeSS
+        /// (2026-11-20: temporal like DLSS, on any recent GPU; Windows Direct3D 12 builds with its plugin, XessUpscaler).</summary>
+        public static int Upscaler { get => Mathf.RoundToInt(Get("upscaler", Default("upscaler", 0f))); set => Set("upscaler", Mathf.Clamp(value, 0, 7)); }
         public const int UpscalerOff = 0, UpscalerFsr = 1, UpscalerStp = 2, UpscalerDlss = 3, UpscalerFsrTemporal = 4,
-            UpscalerMetalFxSpatial = 5, UpscalerMetalFxTemporal = 6;
+            UpscalerMetalFxSpatial = 5, UpscalerMetalFxTemporal = 6, UpscalerXess = 7;
 
         /// <summary>DLSS / FSR 2+ quality mode (UpscalerFramework.Quality*): 0 native (DLAA / native AA), 1 quality (default),
         /// 2 balanced, 3 performance, 4 ultra performance.</summary>
         public static int UpscalerQuality { get => Mathf.RoundToInt(Get("upscalerQuality", 1f)); set => Set("upscalerQuality", Mathf.Clamp(value, 0, 4)); }
+
+        // Remake (2026-11-20, the user's request): HDR display output (desktop; Bootstrap.ApplyHdr, docs/notes/options.md
+        // "HDR"): off by default. The rest are URP's HDR tonemapping parameters (its Tonemapping override).
+        public static bool Hdr { get => GetBool("hdr", false); set => SetBool("hdr", value); }
+        /// <summary>The brightness of white (the interface, a white wall) in nits.</summary>
+        public static float HdrPaperWhite { get => Get("hdrPaperWhite", 200f); set => Set("hdrPaperWhite", Mathf.Clamp(value, 80f, 400f)); }
+        /// <summary>The display's own brightness limits (what it reports) in place of HdrPeak / HdrBlack.</summary>
+        public static bool HdrDetectLimits { get => GetBool("hdrDetectLimits", true); set => SetBool("hdrDetectLimits", value); }
+        public static float HdrPeak { get => Get("hdrPeak", 1000f); set => Set("hdrPeak", Mathf.Clamp(value, 400f, 4000f)); }
+        public static float HdrBlack { get => Get("hdrBlack", 0.005f); set => Set("hdrBlack", Mathf.Clamp(value, 0f, 0.5f)); }
+        /// <summary>0 none (the picture as the game makes it, its highlights past white), 1 Neutral (default), 2 ACES.</summary>
+        public static int HdrTonemapping { get => Mathf.RoundToInt(Get("hdrTonemapping", 1f)); set => Set("hdrTonemapping", Mathf.Clamp(value, 0, 2)); }
+        /// <summary>ACES: the display preset, 0 1000 nits, 1 2000, 2 4000.</summary>
+        public static int HdrAcesPreset { get => Mathf.RoundToInt(Get("hdrAcesPreset", 0f)); set => Set("hdrAcesPreset", Mathf.Clamp(value, 0, 2)); }
+        /// <summary>Neutral: how the range is reduced to the display's, 0 BT.2390 (default), 1 Reinhard; and how far bright
+        /// colours may shift in hue toward white (0 keeps the hue).</summary>
+        public static int HdrRangeReduction { get => Mathf.RoundToInt(Get("hdrRangeReduction", 0f)); set => Set("hdrRangeReduction", Mathf.Clamp(value, 0, 1)); }
+        public static float HdrHueShift { get => Get("hdrHueShift", 0f); set => Set("hdrHueShift", Mathf.Clamp01(value)); }
+
+        /// <summary>Remake (2026-11-20, the user's request): the DLSS model ("render preset") in place of NVIDIA's pick for the
+        /// quality mode: 0 default, else the NVIDIA module's DLSSPreset value (a bit: F, J, K, L, M ...; a preset the
+        /// quality mode doesn't offer falls back to the default, UpscalerFramework.DlssPresets).</summary>
+        public static int DlssPreset { get => Mathf.RoundToInt(Get("dlssPreset", 0f)); set => Set("dlssPreset", Mathf.Max(0, value)); }
+
+        /// <summary>FSR 4 Lite (remake, 2026-11-16, the user's request): AMD's smaller FSR 4 model in place of the GPU's own,
+        /// where FSR 4 runs through ffx-vk-linux (Linux; docs/notes/options.md "FSR on Linux"). Off by default.</summary>
+        public static bool Fsr4Lite { get => GetBool("fsr4Lite", false); set => SetBool("fsr4Lite", value); }
+
+        /// <summary>Remake (2026-11-20, the user's request): NVIDIA DLSS Frame Generation, the frames made between two
+        /// rendered ones: 0 off (default), 1..5 that many generated frames per rendered one (2x .. 6x; what the GPU runs,
+        /// FrameGeneration.MaxFrames), 6 dynamic (the driver picks the multiplier for the display's refresh rate, where
+        /// it can). Windows D3D12 players on RTX cards with Streamline's DLLs in the build; Streamline is started at the
+        /// next start of the game (docs/notes/options.md "Frame generation").</summary>
+        public static int FrameGeneration { get => Mathf.RoundToInt(Get("frameGeneration", 0f)); set => Set("frameGeneration", Mathf.Clamp(value, 0, FrameGenerationDynamic)); }
+        public const int FrameGenerationDynamic = 6;
+        /// <summary>Remake (2026-11-20): who makes the generated frames where both can: 0 NVIDIA DLSS (default), 1 AMD FSR
+        /// (FrameGeneration.UsesFsr; a start's choice, like turning frame generation on).</summary>
+        public static int FrameGenerationProvider { get => Mathf.RoundToInt(Get("frameGenerationProvider", 0f)); set => Set("frameGenerationProvider", Mathf.Clamp(value, 0, 1)); }
+        public const int FrameGenerationDlss = 0, FrameGenerationFsr = 1;
+
+        /// <summary>Dynamic frame generation's target frame rate: 0 the display's refresh rate (default), else frames a second.</summary>
+        public static int FrameGenerationTarget { get => Mathf.RoundToInt(Get("frameGenerationTarget", 0f)); set => Set("frameGenerationTarget", Mathf.Clamp(value, 0, 1000)); }
+
+        /// <summary>Remake (2026-11-20, the user's request): DLSS neural rendering ("DLSS 5") on the finished picture, where
+        /// the GPU runs it (RTX 50 and up, by NVIDIA's own check) and its two DLLs are beside the plugin: off by default; its
+        /// intensity 0..1 (docs/notes/options.md "Neural rendering").</summary>
+        public static bool NeuralRendering { get => GetBool("neuralRendering", false); set => SetBool("neuralRendering", value); }
+        public static float NeuralRenderingIntensity { get => Get("neuralRenderingIntensity", 1f); set => Set("neuralRenderingIntensity", Mathf.Clamp01(value)); }
+        /// <summary>DLSS-NR's other strengths (0..1, the plugin's defaults 1): how far it changes the lighting's tones, the
+        /// fine structure, and the structure of skin; and its quality mode (0 performance, 1 balanced, 2 quality: default).</summary>
+        public static float NeuralRenderingTone { get => Get("neuralRenderingTone", 1f); set => Set("neuralRenderingTone", Mathf.Clamp01(value)); }
+        public static float NeuralRenderingStructure { get => Get("neuralRenderingStructure", 1f); set => Set("neuralRenderingStructure", Mathf.Clamp01(value)); }
+        public static float NeuralRenderingSkin { get => Get("neuralRenderingSkin", 1f); set => Set("neuralRenderingSkin", Mathf.Clamp01(value)); }
+        public static int NeuralRenderingQuality { get => Mathf.RoundToInt(Get("neuralRenderingQuality", 2f)); set => Set("neuralRenderingQuality", Mathf.Clamp(value, 0, 2)); }
+
+        /// <summary>Remake (2026-11-20): NVIDIA Reflex Low Latency through the same Streamline: 0 off (default), 1 on,
+        /// 2 on + boost. Frame generation runs with at least "on" (DLSS-G needs it).</summary>
+        public static int Reflex { get => Mathf.RoundToInt(Get("reflex", 0f)); set => Set("reflex", Mathf.Clamp(value, 0, 2)); }
+
+        /// <summary>Remake (2026-11-20): NVIDIA Image Scaling's sharpening of the finished picture (Streamline's sl.nis,
+        /// PictureFiltersPass): 0 off (default) .. 1.</summary>
+        public static float NisSharpness { get => Get("nisSharpness", 0f); set => Set("nisSharpness", Mathf.Clamp01(value)); }
+
+        /// <summary>Remake (2026-11-20): RTX Dynamic Vibrance (Streamline's sl.deepdvc: AI-driven colour vibrance on the
+        /// finished picture), off by default, with NVIDIA's defaults for its two strengths.</summary>
+        public static bool DynamicVibrance { get => GetBool("dynamicVibrance", false); set => SetBool("dynamicVibrance", value); }
+        public static float DynamicVibranceIntensity { get => Get("dynamicVibranceIntensity", 0.5f); set => Set("dynamicVibranceIntensity", Mathf.Clamp01(value)); }
+        public static float DynamicVibranceSaturation { get => Get("dynamicVibranceSaturation", 0.25f); set => Set("dynamicVibranceSaturation", Mathf.Clamp01(value)); }
+
+        /// <summary>Remake (2026-11-20): AMD Anti-Lag 2 (the driver's low-latency pacing, Radeon cards under D3D12; the
+        /// plugin's Gof2Sl_AntiLag). Off by default; changes at once.</summary>
+        public static bool AntiLag { get => GetBool("antiLag", false); set => SetBool("antiLag", value); }
 
         /// <summary>MSAA samples (1 = off, 2, 4, 8); 0 = the platform's render pipeline asset.</summary>
         public static int Msaa { get => Mathf.RoundToInt(Get("msaa", Default("msaa", 0f))); set => Set("msaa", value); }
@@ -165,6 +269,34 @@ namespace GoF2Remake.Data
         /// <summary>The sun's lens flare in flight (LensFlareView).</summary>
         public static bool LensFlare { get => GetBool("lensFlare", Default("lensFlare", 1f) > 0.5f); set => SetBool("lensFlare", value); }
 
+        /// <summary>Remake: a mod sky's live shader where it has one (systems.json skybox "chorus": Chorus's sky drawn as its
+        /// game draws it, OrbitBuilder.SetChorusSky), else its baked panorama ("nebula"); from the next orbit. On from Medium up.
+        /// Unset, it follows the detail distance (off at Low's), so a desktop player on Low still matches the Low preset.</summary>
+        public static bool LiveSkies
+        {
+            // (unset: worked out on each read, not cached, as the detail distance can change after it)
+            get => defaultReads < 0 && PlayerPrefs.HasKey(Prefix + "liveSkies") ? GetBool("liveSkies", true) : Default("liveSkies", DetailDistance > 0 ? 1f : 0f) > 0.5f;
+            set => SetBool("liveSkies", value);
+        }
+
+        /// <summary>Remake (2026-11-14, the user: "4 options. chorus enhanced on its own which is only a slight improvement whereas
+        /// es2 is es2 styled then chorus and es2 combined should be the best of both worlds"): how the game's own skies are drawn
+        /// (OrbitBuilder.MakeSky, World.GoF2SkyLayers). Original; Enhanced (Chorus's way: the point stars sharp at any
+        /// resolution, the nebulae upscaled by Real-ESRGAN's anime model, the brightest part again as a sharper image patch);
+        /// EVERSPACE 2 style (rebuilt from tinted greyscale masks where the nebulae are, clustered stars, a band along their
+        /// plane, brighter toward the sun; no painted nebula); Combined (Enhanced with the EVERSPACE 2 layers over it). The
+        /// layers need "Live mod skies" (Low: Enhanced's stars and nebulae only). Original by default: the rest invent detail
+        /// the original art doesn't have. From the next orbit.</summary>
+        public static int SkyStyle { get => Mathf.Clamp(Mathf.RoundToInt(Get("skyStyle", 0f)), 0, 3); set => Set("skyStyle", Mathf.Clamp(value, 0, 3)); }
+        public const int SkyOriginal = 0, SkyEnhanced = 1, SkyEs2 = 2, SkyCombined = 3;
+        /// <summary>Enhanced and Combined: GoF2SkyHd's upscaled layers and sharp stars (OrbitBuilder.Enhance).</summary>
+        public static bool EnhancedSkies => SkyStyle == SkyEnhanced || SkyStyle == SkyCombined;
+
+        /// <summary>Remake (2026-11-14, the user: EVERSPACE 2's sky methods in the base game): clouds of gas round the orbit in its
+        /// sky's colours, flown through with parallax (World.NebulaClouds, as ES2's local nebulae). Off by default: the original
+        /// has none. From the next orbit.</summary>
+        public static bool NebulaClouds { get => GetBool("nebulaClouds", false); set => SetBool("nebulaClouds", value); }
+
         /// <summary>Remake: the hangar ships' contact shadows (HangarShipShadow): 0 off, 1 only the player's own ship, 2 every
         /// ship (default). Off also drops the station camera's depth texture they read.</summary>
         public static int HangarShadows { get => Mathf.Clamp(Mathf.RoundToInt(Get("hangarShadows", Default("hangarShadows", HangarShadowsPlayer))), 0, 2); set => Set("hangarShadows", Mathf.Clamp(value, 0, 2)); }
@@ -180,6 +312,14 @@ namespace GoF2Remake.Data
         /// (LOD 0, as the original binary's AEGeometry::updateLod). On by default on every platform (the user's choice,
         /// 2026-10-22; it was phones only).</summary>
         public static bool Lods { get => GetBool("lods", Default("lods", 1f) > 0.5f); set => SetBool("lods", value); }
+        /// <summary>Remake (the user's request 2026-11-06): the planets drawn as lit 3D spheres rebuilt from their pngs
+        /// (World.RebuiltPlanets) in orbit, on the star map and between the systems; off: the original's flat images. Off by
+        /// default (2026-11-19: every remake look starts off; the Cosmetic and Remake experiences turn it on); from the next
+        /// orbit or star map view.</summary>
+        public static bool RebuiltPlanets { get => GetBool("rebuiltPlanets", false); set => SetBool("rebuiltPlanets", value); }
+        /// <summary>Remake (docs/notes/player-assets.md "HD resources"): the HD folder's files are read before the copy's
+        /// (GameContent.HdActive reads this key itself, "gof2.hdResources": from the next start); on by default.</summary>
+        public static bool HdResources { get => GetBool("hdResources", true); set => SetBool("hdResources", value); }
         /// <summary>Remake: the hangar view's depth of field on the player's ship (StationLevel); off by default on phones.</summary>
         public static bool HangarDepthOfField { get => GetBool("hangarDof", Default("hangarDof", 0f) > 0.5f); set => SetBool("hangarDof", value); }   // off by default (2026-10)
 
@@ -200,7 +340,7 @@ namespace GoF2Remake.Data
         public static readonly string[] PresetKeys =
         {
             "renderScale", "upscaler", "msaa", "postAa", "bloomStyle", "hangarShadows", "hangarDof", "lensFlare", "npcPlayerEngines", "lods",
-            "textureQuality", "fireSmoke", "fog", "detailDistance", "textureFiltering",
+            "textureQuality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "liveSkies",
         };
 
         // One row per preset, in PresetKeys' order. Low / Medium as the original's Quality Low / Medium (fire, smoke and fog
@@ -211,23 +351,36 @@ namespace GoF2Remake.Data
         // field, no made levels of detail, detail distance x2, 16x filtering.
         static readonly float[][] Presets =
         {
-            //      scale  upscaler     msaa post aa     bloom        hangar shadows       dof lens npcEng lods textures fire fog detail filter
-            new[] { 0.67f, UpscalerFsr, 1f, PostAaFxaa, BloomOff,    HangarShadowsOff,    0f, 0f, 0f, 1f, 1f, 0f, 0f, 0f, 1f },
-            new[] { 0.8f,  UpscalerFsr, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f, 1f },
-            new[] { 1f,    UpscalerOff, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 2f, 2f },
-            new[] { 1.5f,  UpscalerOff, 8f, PostAaSmaa, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f },
+            //      scale  upscaler     msaa post aa     bloom        hangar shadows       dof lens npcEng lods textures fire fog detail filter skies
+            new[] { 0.67f, UpscalerFsr, 1f, PostAaFxaa, BloomOff,    HangarShadowsOff,    0f, 0f, 0f, 1f, 1f, 0f, 0f, 0f, 1f, 0f },
+            new[] { 0.8f,  UpscalerFsr, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f, 1f, 1f },
+            new[] { 1f,    UpscalerOff, 1f, PostAaSmaa, BloomRemake, HangarShadowsPlayer, 0f, 1f, 1f, 1f, 0f, 1f, 1f, 2f, 2f, 1f },
+            new[] { 1.5f,  UpscalerOff, 8f, PostAaSmaa, BloomRemake, HangarShadowsAll,    1f, 1f, 1f, 0f, 0f, 1f, 1f, 3f, 3f, 1f },
         };
 
-        /// <summary>'key''s value in 'preset' (PresetLow..PresetUltra).</summary>
-        public static float PresetValue(int preset, string key) => Presets[Mathf.Clamp(preset, 0, Presets.Length - 1)][Array.IndexOf(PresetKeys, key)];
+        /// <summary>'key''s value in 'preset' (PresetLow..PresetUltra). On Apple's devices (AppleUpscaler) the presets' FSR 1
+        /// is MetalFX Spatial, Apple's own spatial upscaler, like for like (2026-11-14, the user: "why fsr when metalfx is a
+        /// thing"; not Temporal: the temporal paths ghost on fast flight, and neither is yet seen on a device).</summary>
+        public static float PresetValue(int preset, string key)
+        {
+            float v = Presets[Mathf.Clamp(preset, 0, Presets.Length - 1)][Array.IndexOf(PresetKeys, key)];
+            if (key == "upscaler" && Mathf.Approximately(v, UpscalerFsr) && AppleUpscaler) return UpscalerMetalFxSpatial;
+            // iOS's Medium (its default): FXAA, one pass, for SMAA's three; MetalFX takes the edges on again as it upscales,
+            // and the phones' screens are 430 - 460 ppi (2026-11-14, the user's "what can we do to improve performance for ios")
+            if (key == "postAa" && preset == PresetMedium && IosDefaults) return PostAaFxaa;
+            return v;
+        }
+
+        /// <summary>The presets take MetalFX in FSR 1's place: iOS (IosDefaults, its tests' override too) and macOS players.</summary>
+        public static bool AppleUpscaler => IosDefaults || Application.platform == RuntimePlatform.OSXPlayer;
 
         /// <summary>Sets every option of 'preset' (PresetLow..PresetUltra; anything else does nothing), one Changed.</summary>
         public static void ApplyPreset(int preset)
         {
             if (preset < 0 || preset >= Presets.Length) return;
-            for (int i = 0; i < PresetKeys.Length; i++) SetQuiet(PresetKeys[i], Presets[preset][i]);
+            for (int i = 0; i < PresetKeys.Length; i++) SetQuiet(PresetKeys[i], PresetValue(preset, PresetKeys[i]));   // (Apple's MetalFX swap too)
             PlayerPrefs.Save();
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
         /// <summary>The Android defaults: the Low preset and 60 fps (the user's choice, 2026-10-22). Tests set the override.</summary>
@@ -235,18 +388,32 @@ namespace GoF2Remake.Data
         static bool? androidDefaultsOverride;
         public static void OverrideAndroidDefaults(bool? android) { androidDefaultsOverride = android; cache.Clear(); }
 
-        /// <summary>A preset option's default: the Low preset's value on Android, else 'other'.</summary>
-        static float Default(string key, float other) => AndroidDefaults ? PresetValue(PresetLow, key) : other;
+        /// <summary>The iOS defaults: the Medium preset and 60 fps (2026-11-14, the user's "optimize the game for the iPhone
+        /// Duo": High's 100 % render scale at 120 Hz on its 1878 x 2670 inner screen is five megapixels 120 times a second,
+        /// heat and throttling; Apple's chips carry Medium's 80 % upscaled by MetalFX easily, so not Android's Low). Tests set the override.</summary>
+        public static bool IosDefaults => iosDefaultsOverride ?? Application.platform == RuntimePlatform.IPhonePlayer;
+        static bool? iosDefaultsOverride;
+        public static void OverrideIosDefaults(bool? ios) { iosDefaultsOverride = ios; cache.Clear(); }
+
+        /// <summary>A preset option's default: the Low preset's value on Android, Medium's on iOS, else 'other'.</summary>
+        static float Default(string key, float other) =>
+            AndroidDefaults ? PresetValue(PresetLow, key) : IosDefaults ? PresetValue(PresetMedium, key) : other;
 
         /// <summary>The chase camera's vertical field of view in degrees (at 16:9; the original's is OriginalFov).</summary>
         public static float FieldOfView { get => Get("fov", OriginalFov); set => Set("fov", Mathf.Clamp(value, 55f, 95f)); }
 
-        /// <summary>Camera shake and rumble strength, 0..1 (hits, collisions, explosions, cutscenes).</summary>
+        /// <summary>Camera shake and rumble strength, 0..1 (hits, collisions, explosions, cutscenes): 1 = the original's (the
+        /// ported shakes unscaled), the default; the Cosmetic and Remake experiences set 30 % (#342).</summary>
         public static float CameraShake { get => Get("cameraShake", 1f); set => Set("cameraShake", Mathf.Clamp01(value)); }
 
         /// <summary>The chase camera follows at the original's damping and looks at its eased point (#114, ChaseCamera); off
         /// (default) = the remake's tighter follow (2026.10.09's: twice the rate, a slerped rotation).</summary>
         public static bool OriginalChaseCamera { get => GetBool("originalChaseCamera", false); set => SetBool("originalChaseCamera", value); }
+        /// <summary>Remake (the user's request 2026-11-10): in free flight the chase camera is EVERSPACE 2's (Flight.Es2ChaseRig:
+        /// a pivot ahead of the ship its rotation lags, the camera rolling with the ship and trailing its velocity, the boost's
+        /// wider view); off: the chase camera above (OriginalChaseCamera's follow). On by default; the original flight style
+        /// keeps the chase camera either way.</summary>
+        public static bool Es2FreeFlightCamera { get => GetBool("es2FreeFlightCamera", true); set => SetBool("es2FreeFlightCamera", value); }
 
         // ---- controls ----------------------------------------------------------------------------------------
 
@@ -294,8 +461,10 @@ namespace GoF2Remake.Data
         public static Vector2 MouseMove(Vector2 delta) => delta * MouseSensitivity;
         /// <summary>Remake: how the player's ship flies (FlightStyles): the original's (a throttle, the ship always flying
         /// forward) or free flight after EVERSPACE 2 (thrust, strafe and up / down held, inertial dampeners, the mouse aiming
-        /// through a virtual joystick; Flight.FlightModel's free mode). It also switches the key layout (GameControls).</summary>
-        public static int FlightStyle { get => Mathf.Clamp(Mathf.RoundToInt(Get("flightStyle", FlightStyles.Original)), 0, 1); set => Set("flightStyle", Mathf.Clamp(value, 0, 1)); }
+        /// through a virtual joystick; Flight.FlightModel's free mode). It also switches the key layout (GameControls).
+        /// Remake (2026-11-11): or Chorus's (FlightStyles.Chorus, FlightModel.StepChorus: forward-only thrust, a held boost and
+        /// a held drift), with its own key layout.</summary>
+        public static int FlightStyle { get => Mathf.Clamp(Mathf.RoundToInt(Get("flightStyle", FlightStyles.Original)), 0, FlightStyles.Count - 1); set => Set("flightStyle", Mathf.Clamp(value, 0, FlightStyles.Count - 1)); }
         /// <summary>Remake: EVERSPACE 2's auto-roll in free flight (FlightModel.AutoRoll): the ship rolls itself level with the
         /// horizon, gently, once it leans past 15 degrees; off by default (EVERSPACE 2 turns it on for a controller only).</summary>
         public static bool AutoRoll { get => GetBool("autoRoll", false); set => SetBool("autoRoll", value); }
@@ -534,6 +703,9 @@ namespace GoF2Remake.Data
         /// <summary>DialogueWindow::update: with voice, turn the page once the line has ended.</summary>
         public static bool AutoAdvanceDialogue { get => GetBool("autoAdvanceDialogue", true); set => SetBool("autoAdvanceDialogue", value); }
 
+        /// <summary>CLAUDE.md "Blueprints": paid ingredient completion is an explicit opt-in.</summary>
+        public static bool BlueprintAutocomplete { get => GetBool("blueprintAutocomplete", false); set => SetBool("blueprintAutocomplete", value); }
+
         /// <summary>Remake: a conversation in flight leaves the game running (Navigation.ConversationRuns: the controls stop,
         /// nothing fires, the story level holds); off = the original's pause (MGame::OnUpdate halts for the dialogue window).</summary>
         public static bool PlayOnInConversations { get => GetBool("playOnInConversations", false); set => SetBool("playOnInConversations", value); }
@@ -541,6 +713,23 @@ namespace GoF2Remake.Data
         /// <summary>Remake: single player's held fast-forward as multiplayer's cruise (Navigation.Cruise: only the player's ship
         /// flies 5x, the world keeps its pace); off = the original's time speedup (the whole game 5x). Multiplayer always cruises.</summary>
         public static bool FastForwardCruise { get => GetBool("fastForwardCruise", false); set => SetBool("fastForwardCruise", value); }
+
+        public static bool HostileAutopilotFastForward { get => GetBool("hostileAutopilotFastForward", false); set => SetBool("hostileAutopilotFastForward", value); }
+
+        /// <summary>Remake (#354's turret aiming, behind a switch 2026-11-19): turrets turn straight onto the target at their
+        /// rates, fire within 0.14 deg and lead where it will be when the shot arrives (its measured speed, the nearest point
+        /// of its hull; TurretTargeting.LeadPoint); off = the original's (TurretAim.Step's fixed-rate steps and 0.05 dead
+        /// zone, the position + heading x 1500 lead; PlayerTurret::handleRotation).</summary>
+        public static bool TurretLeadAim { get => GetBool("turretLeadAim", false); set => SetBool("turretLeadAim", value); }
+
+        /// <summary>Remake (#336 / #302, behind a switch 2026-11-19): free look zooms out to 70,000 units (the original's 20,000)
+        /// and the lock picks the ship nearest the middle of the view instead of the ship's own crosshair.</summary>
+        public static bool RemakeFreeLook { get => GetBool("remakeFreeLook", false); set => SetBool("remakeFreeLook", value); }
+
+        /// <summary>Remake (#340, behind a switch 2026-11-19): the emergency shield's PC version look (EnergyShield.fx: two
+        /// energy bands, the screen pushed 250 / 200 px) and the cloak's refraction bent half as far (finer at today's
+        /// resolutions); off = the phone original's (150 px, no bands; the cloak's 100 / 75 px). Shader global _GoF2RemasteredFx.</summary>
+        public static bool RemasteredEffects { get => GetBool("remasteredEffects", false); set => SetBool("remasteredEffects", value); }
 
         /// <summary>Remake (Discord, BlackSrarzOP, 2026-11-04: "remove the prompt when auto traveling past a jumpgate"): the
         /// autopilot reaching the gate with a destination set (Session.ProgrammedStation elsewhere) jumps on toward it
@@ -560,19 +749,20 @@ namespace GoF2Remake.Data
 
         // ---- game experience (remake, the user's request 2026-11-04) --------------------------------------------------
 
-        /// <summary>Options > Gameplay "Game experience" (and the welcome screen's choice): Original = the game as it was,
-        /// every remake feature off (every option's default, so a fresh install plays the original); Cosmetic = that plus the
-        /// remake's presentation (hangar flights, animated dialogue); Remake = every addition on. The row shows the preset the
-        /// options match, else Custom (picking it sets nothing), so changing one option makes it Custom, like the graphics
-        /// preset. Off / the first choice is always the original's.</summary>
+        /// <summary>Legacy combined experience IDs and historical values for migration. Active policies and scoped
+        /// selectors use ExperiencePresets; manual changes retain Custom until a named policy is explicitly selected.</summary>
         public const int ExperienceOriginal = 0, ExperienceCosmetic = 1, ExperienceRemake = 2, ExperienceCustom = 3;
 
+        // Historical columns for migration only. Active named policies live in ExperiencePresets.
         public static readonly string[] ExperienceKeys =
         {
             "launchCamera", "dyingCargoMarkers", "hangarFlights", "animatedDialogue", "pirateEvents", "capitalShips",
             "kaamoStacking", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule", "originalTargetLock", "keepEnemyLock",
             "cloakLosesPursuers", "empBreaksCloak", "smarterNpcTargeting", "shipCollision", "playOnInConversations", "fastForwardCruise",
             "khadorSlipstream", "markerDistance", "bombArming", "derelictWrecks",
+            "rebuiltPlanets", "cameraShake", "remasteredEffects", "blueprintAutocomplete", "hostileAutopilotFastForward",
+            "turretLeadAim", "remakeFreeLook",
+            "kaamoSpecialUiFeatures",
         };
 
         // One row per preset, in ExperienceKeys' order. The first two are the original's own features (on everywhere; turned
@@ -580,41 +770,88 @@ namespace GoF2Remake.Data
         static readonly float[][] Experiences =
         {
             //      launch cargo hangar anim pirate capital stack keep vip     bay informerO lockO keepLock cloakLoses emp smartNpc collision  conv cruise slip distance bombArming derelicts
-            new[] { 1f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f },
-            new[] { 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f },
-            new[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 1f, 1f, 1f, R.CollisionMixed,    1f, 1f, 1f, 1f, 1f, 1f },
+            //      planets3D shake remasteredFx autocomplete hostileSpeedup turretLead freeLook kaamoUi
+            new[] { 1f, 1f, 0f, 0f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f,
+                    0f, 1f, 0f, 0f, 0f, 0f, 0f, 0f },
+            new[] { 1f, 1f, 1f, 1f, 0f, 0f, 0f, 0f, KaamoVipOff,  0f, 1f, 1f, 1f, 0f, 0f, 0f, R.CollisionOriginal, 0f, 0f, 0f, 0f, 0f, 0f,
+                    1f, 0.3f, 1f, 0f, 0f, 0f, 0f, 1f },
+            new[] { 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 1f, 1f, 1f, R.CollisionMixed,    1f, 1f, 1f, 1f, 1f, 1f,
+                    1f, 0.3f, 1f, 1f, 1f, 1f, 1f, 1f },
         };
 
         /// <summary>'key''s value in 'experience' (ExperienceOriginal..ExperienceRemake).</summary>
         public static float ExperienceValue(int experience, string key) =>
             Experiences[Mathf.Clamp(experience, 0, Experiences.Length - 1)][Array.IndexOf(ExperienceKeys, key)];
 
-        /// <summary>Sets every option of 'experience' (ExperienceOriginal..ExperienceRemake; Custom does nothing), one Changed.
-        /// The session rules among them go through their setters, so a player host's session follows.</summary>
+        /// <summary>Independent complete policies: 0 Original, 1 Remake, 2 Custom. Tools and save difficulty are separate.</summary>
+        public static bool CustomGameplayExperience => GetBool("gameplayExperienceCustom", true);
+        public static bool CustomCosmeticExperience => GetBool("cosmeticExperienceCustom", true);
+        public static void SelectCustomExperience(bool cosmetics) => SetBool(cosmetics ? "cosmeticExperienceCustom" : "gameplayExperienceCustom", true);
+        public static void SelectCustomGameplayExperience() => SelectCustomExperience(false);
+
+        public static int CurrentScopedExperience(bool cosmetics)
+        {
+            if (cosmetics ? CustomCosmeticExperience : CustomGameplayExperience) return 2;
+            for (int choice = 0; choice < 2; choice++)
+            {
+                bool matches = true;
+                foreach (var value in ExperiencePresets.ForScope(cosmetics))
+                    if (!Mathf.Approximately(StoredScopedValue(value), value.ForChoice(choice)))
+                    { matches = false; break; }
+                if (matches) return choice;
+            }
+            return 2;
+        }
+
+        static float StoredScopedValue(ExperiencePresets.Value value) => value.Key switch
+        {
+            "shipCollision" => LocalCollision,
+            "npcDogfight" => LocalDogfight,
+            "kaamoMaxLevel" => LocalKaamoLevel(),
+            _ => Get(value.Key, value.Original),
+        };
+
+        public static void ApplyScopedExperience(bool cosmetics, int choice)
+        {
+            if (choice == 2) { SelectCustomExperience(cosmetics); return; }
+            if (choice < 0 || choice > 1) return;
+            SetQuiet(cosmetics ? "cosmeticExperienceCustom" : "gameplayExperienceCustom", 0f);
+            foreach (var value in ExperiencePresets.ForScope(cosmetics)) SetQuiet(value.Key, value.ForChoice(choice));
+            if (!cosmetics) Modding.ModGameOptions.ResetSettings();
+            PlayerPrefs.Save();
+            if (!cosmetics) NotifyExperienceRules();
+            RaiseChanged();
+        }
+
+        /// <summary>The welcome screen's combined choice, using the same complete policies as the scoped selectors.
+        /// Cosmetic means Remake presentation with Original gameplay. Custom leaves both scopes unchanged.</summary>
         public static void ApplyExperience(int experience)
         {
             if (experience < 0 || experience >= Experiences.Length) return;
-            for (int i = 0; i < ExperienceKeys.Length; i++) SetQuiet(ExperienceKeys[i], Experiences[experience][i]);
-            PlayerPrefs.Save();
+            ApplyScopedExperience(true, experience == ExperienceOriginal ? 0 : 1);
+            ApplyScopedExperience(false, experience == ExperienceRemake ? 1 : 0);
+        }
+
+        static void NotifyExperienceRules()
+        {
             int rules = LocalRules();
             foreach (int bit in new[] { R.CloakLosesPursuers, R.PirateEvents, R.CapitalShips, R.InformerOriginalRule, R.KaamoStacking,
-                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks })
+                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks,
+                                        R.Es2Aiming, R.Es2NpcFlight, R.DogfightOriginal, R.DogfightEvery, R.DogfightEs2 })
                 GameHooks.RuleChangedByHost?.Invoke(bit, (rules & bit) != 0);
             int collision = LocalCollision;
             GameHooks.RuleChangedByHost?.Invoke(R.PreciseShipCollision, collision == R.CollisionExact);
             GameHooks.RuleChangedByHost?.Invoke(R.OriginalCollision, collision == R.CollisionOriginal);
-            Changed?.Invoke();
+            GameHooks.KaamoLevelChangedByHost?.Invoke(LocalKaamoLevel());
         }
 
-        /// <summary>The preset the player's own options match, else ExperienceCustom (the stored values, not a session's).</summary>
+        /// <summary>The combined explicitly selected policies, or Custom after manual scoped changes.</summary>
         public static int CurrentExperience()
         {
-            for (int e = 0; e < Experiences.Length; e++)
-            {
-                bool all = true;
-                for (int i = 0; i < ExperienceKeys.Length && all; i++) all = Mathf.Approximately(StoredExperienceValue(ExperienceKeys[i]), Experiences[e][i]);
-                if (all) return e;
-            }
+            int cosmetics = CurrentScopedExperience(true), gameplay = CurrentScopedExperience(false);
+            if (cosmetics == 0 && gameplay == 0) return ExperienceOriginal;
+            if (cosmetics == 1 && gameplay == 0) return ExperienceCosmetic;
+            if (cosmetics == 1 && gameplay == 1) return ExperienceRemake;
             return ExperienceCustom;
         }
 
@@ -629,17 +866,24 @@ namespace GoF2Remake.Data
         /// <summary>The defaults before 2026-11-04 (the remake's, before the Original experience became the default), in
         /// ExperienceKeys' order: MigrateExperienceDefaults keeps them for a player who played before.</summary>
         static readonly float[] DefaultsBefore =
-            { 1f, 1f, 1f, 1f, 1f, 0f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 0f, 1f, 0f, R.CollisionMixed, 0f, 0f, 1f, 0f, 0f, 0f };
+            { 1f, 1f, 1f, 1f, 1f, 0f, 1f, 1f, KaamoVipCard, 1f, 0f, 0f, 1f, 0f, 1f, 0f, R.CollisionMixed, 0f, 0f, 1f, 0f, 0f, 0f,
+              0f, 1f, 0f, 1f, 0f, 0f, 0f, 1f };   // (blueprint autocomplete was always on then)
         const string ExperienceVersionKey = "experienceDefaults";
         /// <summary>The migration's version: 2 = the experience options added after the presets (AddedExperienceKeys), one
         /// more for each of them after the first.</summary>
-        const float ExperienceVersion = 3f;
+        const float ExperienceVersion = 11f;
         /// <summary>Experience options added after 2026-11-04's presets, oldest first.</summary>
-        static readonly string[] AddedExperienceKeys = { "bombArming", "derelictWrecks" };
+        static readonly string[] AddedExperienceKeys =
+        {
+            "bombArming", "derelictWrecks",
+            "rebuiltPlanets", "cameraShake", "remasteredEffects", "blueprintAutocomplete", "hostileAutopilotFastForward",
+            "turretLeadAim", "remakeFreeLook",
+            "kaamoSpecialUiFeatures",
+        };
 
         /// <summary>Once (Bootstrap, before any option is read): an install that was played before the Original experience
         /// became the default keeps what it played with: every experience option it never set is stored at its old default
-        /// (Android's collision stays Original). A fresh install stores nothing and so plays the original.</summary>
+        /// (Android's collision stays Original). This PR proposes Remake for both scopes on a fresh install.</summary>
         public static void MigrateExperienceDefaults()
         {
             if (PlayerPrefs.HasKey(Prefix + ExperienceVersionKey))
@@ -663,6 +907,11 @@ namespace GoF2Remake.Data
                             : AndroidDefaults ? R.CollisionOriginal : old;
                     SetQuiet(key, old);
                 }
+            }
+            else
+            {
+                ApplyScopedExperience(true, 1);
+                ApplyScopedExperience(false, 1);
             }
             PlayerPrefs.SetFloat(Prefix + ExperienceVersionKey, ExperienceVersion);
             PlayerPrefs.Save();
@@ -689,13 +938,34 @@ namespace GoF2Remake.Data
                     if (!PlayerPrefs.HasKey(Prefix + key)) SetQuiet(key, Experiences[e][Array.IndexOf(ExperienceKeys, key)]);
                 return;
             }
+
+            // A profile selected under the complete policy can also need an added preference. Keep historical
+            // matching above for old releases; never rewrite their stored rules to match today's policy.
+            foreach (bool cosmetics in new[] { true, false })
+            {
+                if (cosmetics ? CustomCosmeticExperience : CustomGameplayExperience) continue;
+                for (int choice = 0; choice < 2; choice++)
+                {
+                    bool matches = true;
+                    foreach (var value in ExperiencePresets.ForScope(cosmetics))
+                    {
+                        if (Array.IndexOf(AddedExperienceKeys, value.Key) >= 0 && !PlayerPrefs.HasKey(Prefix + value.Key)) continue;
+                        if (!Mathf.Approximately(StoredScopedValue(value), value.ForChoice(choice))) { matches = false; break; }
+                    }
+                    if (!matches) continue;
+                    foreach (var value in ExperiencePresets.ForScope(cosmetics))
+                        if (Array.IndexOf(AddedExperienceKeys, value.Key) >= 0 && !PlayerPrefs.HasKey(Prefix + value.Key))
+                            SetQuiet(value.Key, value.ForChoice(choice));
+                    break;
+                }
+            }
         }
 
         /// <summary>Any option set or any game saved: the install was played before.</summary>
         static bool PlayedBefore()
         {
             if (PlayerPrefs.HasKey(Prefix + "language")) return true;
-            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, AccessibilityKeys, LanguageKeys })
+            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, CosmeticsKeys, AccessibilityKeys, LanguageKeys })
                 foreach (var key in group)
                     if (PlayerPrefs.HasKey(Prefix + key)) return true;
             for (int i = 0; i < SaveGame.SlotCount; i++)
@@ -711,10 +981,10 @@ namespace GoF2Remake.Data
         public static bool FreshInstall => !PlayerPrefs.HasKey(Prefix + PlayedKey);
         const string PlayedKey = "experienceDefaults.played";
 
-        /// <summary>Remake (players' suggestion): the Kaamo Club VIP Card's shop tools (KaamoClub.VipFeatures): KaamoVipCard =
-        /// the card is bought in the club's Store tab (the Remake experience), KaamoVipAlways = on without it, KaamoVipOff = never (default, the
-        /// original's club).</summary>
+        /// <summary>The VIP membership mode controls the upgrade discount only.</summary>
         public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
+        /// <summary>Free Kaamo storage tools, enabled by default and independent of membership.</summary>
+        public static bool KaamoSpecialUiFeatures { get => GetBool("kaamoSpecialUiFeatures", true); set => SetBool("kaamoSpecialUiFeatures", value); }
         public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
         /// <summary>Remake (PR #282): the shop and storage list items by category, then tech level (Hangar.ShopItems); off
         /// (default) by item index, as the original's Item::mixItems.</summary>
@@ -767,8 +1037,26 @@ namespace GoF2Remake.Data
         public static int MedalSound { get => Mathf.Clamp(Mathf.RoundToInt(Get("medalSound", MedalSoundChime)), MedalSoundChime, MedalSoundOff); set => Set("medalSound", Mathf.Clamp(value, MedalSoundChime, MedalSoundOff)); }
         /// <summary>Remake (a player's request, 2026-11-04): a flight music track plays (default) or is skipped (MusicTracks:
         /// a battle track off leaves the calm track playing).</summary>
-        public static bool MusicTrackOn(string track) => GetBool(MusicTracks.Key(track), true);
-        public static void SetMusicTrackOn(string track, bool on) => SetBool(MusicTracks.Key(track), on);
+        public static bool MusicTrackOn(string track)
+        {
+            MigrateMusicTrackGroups();
+            foreach (var member in MusicTracks.Group(track)) if (!GetBool(MusicTracks.Key(member), true)) return false;
+            return true;
+        }
+        public static void SetMusicTrackOn(string track, bool on)
+        {
+            MigrateMusicTrackGroups();
+            foreach (var member in MusicTracks.Group(track)) SetBool(MusicTracks.Key(member), on);
+        }
+
+        /// <summary>CLAUDE.md "Music tracks off": enable every group once on upgrade, then keep the player's choices.</summary>
+        static void MigrateMusicTrackGroups()
+        {
+            if (defaultReads >= 0 || GetBool("musicTrackGroups.v1", false)) return;
+            foreach (var member in MusicTracks.All) SetQuiet(MusicTracks.Key(member), 1f);
+            SetQuiet("musicTrackGroups.v1", 1f);
+            PlayerPrefs.Save();
+        }
         /// <summary>Remake: the touch fire button's double-press autofire latch on the keyboard / mouse / controller fire
         /// binding (the PC version had none).</summary>
         public static bool KeyAutofire { get => GetBool("keyAutofire", false); set => SetBool("keyAutofire", value); }
@@ -811,7 +1099,7 @@ namespace GoF2Remake.Data
         /// <summary>Remake: Options > Accessibility "High contrast": opaque panels, brighter secondary text and lines
         /// (GoF2Common.uss .ui-high-contrast).</summary>
         public static bool HighContrast { get => GetBool("highContrast", false); set => SetBool("highContrast", value); }
-        /// <summary>Remake (players' wish): Options > Graphics "Interface style" Original: the menus drawn with the original game's
+        /// <summary>Remake (players' wish): Options > Cosmetics > UI "Interface style" Original: the menus drawn with the original game's
         /// panels, buttons and colours (UiLayout's root class ui-style-original, GoF2Original.uss); the layouts and the remake's
         /// screens and features stay. Off (default) = the remake's look.</summary>
         public static bool OriginalUi { get => GetBool("originalUi", false); set => SetBool("originalUi", value); }
@@ -828,7 +1116,7 @@ namespace GoF2Remake.Data
         /// stand apart from the red hostile ones for red-green colour blindness (CombatView).</summary>
         public static bool ColorblindMarkers { get => GetBool("colorblindMarkers", false); set => SetBool("colorblindMarkers", value); }
 
-        /// <summary>Remake: Options > Accessibility "Interface font" (UiFont): "" the theme's Klavika, "file:<name>" a font file
+        /// <summary>Options > Accessibility "Interface font" (UiFont): "" automatic Klavika / Calibri / Inter, "file:<name>" a font file
         /// imported into the Fonts folder, "system:<family> - <style>" an installed one.</summary>
         public static string UiFont
         {
@@ -840,7 +1128,7 @@ namespace GoF2Remake.Data
                 uiFont = value;
                 PlayerPrefs.SetString(Prefix + "uiFont", value);
                 PlayerPrefs.Save();
-                Changed?.Invoke();
+                RaiseChanged();
             }
         }
         static string uiFont;
@@ -854,8 +1142,22 @@ namespace GoF2Remake.Data
         /// that cuts its edges off); -1 = automatic, 5 % on a TV and none elsewhere (UiLayout.OptionInsets).</summary>
         public static float UiMarginPercent { get => Mathf.Clamp(Get("uiMargin", -1f), -1f, 10f); set => Set("uiMargin", Mathf.Clamp(value, -1f, 10f)); }
 
+        /// <summary>Remake (2026-11-19, the user's request): Options > Graphics "Camera cutout", phones only: the device's
+        /// own safe-area insets (the camera hole / notch / Dynamic Island, the home indicator) kept clear (the default,
+        /// the behaviour since the iOS work), mirrored to the other side as well (Android insets only the cutout's side, so
+        /// the HUD sat off centre), or ignored for the whole screen (SafeArea.Device). The edge margin and interface width
+        /// options apply either way.</summary>
+        public const int ScreenCutoutClear = 0, ScreenCutoutBothSides = 1, ScreenCutoutFull = 2;
+        public static int ScreenCutout { get => Mathf.Clamp(Mathf.RoundToInt(Get("screenCutout", ScreenCutoutClear)), ScreenCutoutClear, ScreenCutoutFull); set => Set("screenCutout", Mathf.Clamp(value, ScreenCutoutClear, ScreenCutoutFull)); }
+
         /// <summary>Remake (#40): the story step at the bottom right (StoryStepLabel), for bug reports; off by default.</summary>
-        public static bool ShowStoryStep { get => GetBool("showStoryStep", true); set => SetBool("showStoryStep", value); }
+        public static bool ShowStoryStep { get => GetBool("showStoryStep", false); set => SetBool("showStoryStep", value); }
+
+        public static int SystemMapAnimationSpeed
+        {
+            get { int speed = Mathf.RoundToInt(Get("systemMapAnimationSpeed", 1f)); return speed == 2 || speed == 4 ? speed : 1; }
+            set => Set("systemMapAnimationSpeed", value == 2 || value == 4 ? value : 1);
+        }
 
         /// <summary>Remake (players' request): the speedrun timer with splits (Speedrun, SpeedrunOverlay); a new game starts a run.</summary>
         public static bool SpeedrunTimer { get => GetBool("speedrunTimer", false); set => SetBool("speedrunTimer", value); }
@@ -876,7 +1178,7 @@ namespace GoF2Remake.Data
                 if (value == SpeedrunCompare) return;
                 PlayerPrefs.SetString(Prefix + "speedrunCompare", value);
                 PlayerPrefs.Save();
-                Changed?.Invoke();
+                RaiseChanged();
             }
         }
         /// <summary>Remake: where the speedrun timer sits (FpsPosition's places), the top left by default.</summary>
@@ -888,7 +1190,7 @@ namespace GoF2Remake.Data
         public static string Language
         {
             get => PlayerPrefs.GetString(Prefix + "language", "en");
-            set { PlayerPrefs.SetString(Prefix + "language", value); PlayerPrefs.Save(); Changed?.Invoke(); }
+            set { PlayerPrefs.SetString(Prefix + "language", value); PlayerPrefs.Save(); RaiseChanged(); }
         }
 
         /// <summary>Remake: the voice language apart from the text: "auto" = German voices with the German text (the
@@ -896,7 +1198,7 @@ namespace GoF2Remake.Data
         public static string VoiceLanguage
         {
             get => PlayerPrefs.GetString(Prefix + "voiceLanguage", "auto");
-            set { PlayerPrefs.SetString(Prefix + "voiceLanguage", value); PlayerPrefs.Save(); Changed?.Invoke(); }
+            set { PlayerPrefs.SetString(Prefix + "voiceLanguage", value); PlayerPrefs.Save(); RaiseChanged(); }
         }
 
         /// <summary>Whether the German voice lines play (VoiceLanguage, "auto" follows the text language).</summary>
@@ -911,29 +1213,32 @@ namespace GoF2Remake.Data
             "musicTrack.specters2", "musicTrack.wanted" };
         public static readonly string[] GraphicsKeys =
         {
-            "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality",
-            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "npcPlayerEngines", "fov",
-            "cameraShake", "originalChaseCamera", "originalUi", "uiWidth", "uiMargin", "showFps", "fpsPosition", "gameCursor",
+            "displayMode", "resolutionWidth", "resolutionHeight", "frameRate", "quality", "fireSmoke", "fog", "detailDistance", "textureFiltering", "renderScale", "upscaler", "upscalerQuality", "dlssPreset", "fsr4Lite", "frameGeneration", "frameGenerationProvider", "frameGenerationTarget", "reflex", "antiLag", "neuralRendering", "neuralRenderingIntensity", "neuralRenderingTone", "neuralRenderingStructure", "neuralRenderingSkin", "neuralRenderingQuality", "nisSharpness", "dynamicVibrance", "dynamicVibranceIntensity", "dynamicVibranceSaturation",
+            "hdr", "hdrPaperWhite", "hdrDetectLimits", "hdrPeak", "hdrBlack", "hdrTonemapping", "hdrAcesPreset", "hdrRangeReduction", "hdrHueShift",
+            "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "liveSkies", "skyStyle", "nebulaClouds", "npcPlayerEngines", "rebuiltPlanets", "hdResources", "remasteredEffects", "fov",
+            "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor",
         };
         public static readonly string[] ControlsKeys =
         {
-            "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "autoRoll", "boostToggle", "invertPitch", "invertYaw", "invertDrillY",
-            "invertDrillX", "invertOrbitY", "invertOrbitX", "cockpitInCycle", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone",
-            "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "touchOpacity", "flightStyle", "padGlyphs", "nintendoLayout",
+            "tiltSteering", "tiltSensitivity", "sensitivity", "keyAutofire", "levelPitch", "autoRoll", "boostToggle", "invertPitch", "invertYaw", "invertDrillY", "invertDrillX", "invertOrbitY", "invertOrbitX", "cockpitInCycle", "gyroSteering", "gyroSensitivity", "mouseSteering", "mouseDeadzone", "mouseSensitivity", "vrGrabControls", "haptics", "stickDeadzone", "touchLeftHeight", "touchRightHeight", "floatingTouchStick", "touchOpacity", "padGlyphs", "nintendoLayout",
+        };
+        public static readonly string[] CosmeticsKeys =
+        {
+            "cosmeticExperienceCustom", "launchCamera", "hangarFlights", "tutorialHints", "shopByCategory", "kaamoSpecialUiFeatures", "originalUi", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "interstellarDistance", "systemMapAnimationSpeed",
         };
         public static readonly string[] GameplayKeys =
         {
-            "launchCamera", "stationScale", "hangarFlights", "tutorialHints", "showStoryStep", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "shopByCategory", "cloakBay", "informerOriginalRule",
-            "originalTargetLock", "keepEnemyLock", "modShipTraffic", "dyingCargoMarkers", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "autoAdvanceDialogue", "animatedDialogue", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "discordPresence",
-            "farShipMarkers", "markerDistance", "interstellarDistance", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
-            "speedrunPosition", "speedrunLiveSplit",
+            "gameplayExperienceCustom", "stationScale", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule", "originalTargetLock", "keepEnemyLock", "modShipTraffic", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "blueprintAutocomplete", "hostileAutopilotFastForward", "turretLeadAim", "remakeFreeLook", "flightStyle", "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare", "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
-        public static readonly string[] AccessibilityKeys = { "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };
+        public static readonly string[] AccessibilityKeys = { "discordPresence", "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };
 
         /// <summary>These options back to their defaults.</summary>
         public static void Reset(IEnumerable<string> keys)
         {
+            bool hadStaged = false;
+            foreach (var key in keys) hadStaged |= staged.Remove(key);   // a default restored is not waiting for Apply
+            if (hadStaged) StagedChanged?.Invoke();
             foreach (var key in keys)
             {
                 PlayerPrefs.DeleteKey(Prefix + key);
@@ -941,18 +1246,35 @@ namespace GoF2Remake.Data
                 if (key == "uiFont") uiFont = null;
             }
             PlayerPrefs.Save();
-            Changed?.Invoke();
+            RaiseChanged();
         }
 
-        /// <summary>"Default settings" (497), every tab: every option back to its default and the key bindings, the language
-        /// kept. (Before, a list from the early options: 19 later ones, animated dialogue, hangar flights and shadows, mouse
-        /// steering, Show FPS, the target lock... were never reset.)</summary>
+        /// <summary>Reset one experience scope and explicitly select its current Remake preset.</summary>
+        public static void ResetExperienceToRemake(bool cosmetics)
+        {
+            Reset(cosmetics ? CosmeticsKeys : GameplayKeys);
+            if (!cosmetics) DisableDefaultTools();
+            ApplyScopedExperience(cosmetics, 1);
+        }
+
+        static void DisableDefaultTools()
+        {
+            SetQuiet("showStoryStep", 0f);
+            SetQuiet("speedrunTimer", 0f);
+            SetQuiet("speedrunLiveSplit", 0f);
+            Cheats.Unlocked = false;
+            Speedrun.Reset();
+        }
+
         public static void ResetToDefaults()
         {
             GameHooks.ResetControls?.Invoke();
             var all = new List<string>();
-            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, AccessibilityKeys, LanguageKeys }) all.AddRange(group);
+            foreach (var group in new[] { SoundKeys, GraphicsKeys, ControlsKeys, GameplayKeys, CosmeticsKeys, AccessibilityKeys, LanguageKeys }) all.AddRange(group);
             Reset(all);
+            DisableDefaultTools();
+            ApplyScopedExperience(true, 1);
+            ApplyScopedExperience(false, 1);
             Modding.ModGameOptions.ResetSettings();   // the mods' gameplay settings (gameoptions.json "setting")
         }
 
@@ -973,9 +1295,110 @@ namespace GoF2Remake.Data
         }
         static int defaultReads = -1;   // >= 0 while TryDefault reads: the options read meanwhile
 
+        // ---- staged options (the Graphics tab's Apply) ---------------------------------------------------------------
+        // Remake (2026-11-20, the user's request): the Graphics tab's options wait for Apply. While an options screen is
+        // open (BeginStaging) its Graphics rows read and write through ViewStaged (OptionsCatalog wraps their delegates):
+        // inside it a Set goes to 'staged' and a Get answers from it, so the rows show what was picked and follow each
+        // other (the upscaler's quality row with the upscaler), while everything else, the game and Bootstrap's appliers,
+        // keeps reading the applied values. ApplyStaged writes them at once (one Changed); DiscardStaged drops them.
+        // Changed's listeners always see the applied values, also when it is raised inside the view.
+        static readonly Dictionary<string, float> staged = new Dictionary<string, float>();
+        static int stagedView, appliedView;
+
+        /// <summary>An options screen is open: its Graphics rows stage their changes.</summary>
+        public static bool Staging { get; private set; }
+        /// <summary>Changes wait for Apply.</summary>
+        public static bool HasStaged => staged.Count > 0;
+        /// <summary>The staged changes changed (a row, Apply, Discard).</summary>
+        public static event Action StagedChanged;
+
+        static bool StagedNow => stagedView > 0 && appliedView == 0;
+
+        public static void BeginStaging() => Staging = true;
+
+        /// <summary>The options screen closed: what was not applied is dropped.</summary>
+        public static void EndStaging()
+        {
+            Staging = false;
+            stagedView = 0;
+            DiscardStaged();
+        }
+
+        /// <summary>These options are no longer waiting for Apply (something else set them for good meanwhile).</summary>
+        public static void Unstage(params string[] keys)
+        {
+            bool had = false;
+            foreach (var key in keys) had |= staged.Remove(key);
+            if (had) StagedChanged?.Invoke();
+        }
+
+        public static void DiscardStaged()
+        {
+            if (staged.Count == 0) return;
+            staged.Clear();
+            StagedChanged?.Invoke();
+        }
+
+        /// <summary>Writes the staged changes, with one Changed.</summary>
+        public static void ApplyStaged()
+        {
+            if (staged.Count == 0) return;
+            var values = new List<KeyValuePair<string, float>>(staged);
+            staged.Clear();
+            foreach (var kv in values)
+            {
+                WriteQuiet(kv.Key, kv.Value);
+                if (kv.Key != "cosmeticExperienceCustom" && Array.IndexOf(CosmeticsKeys, kv.Key) >= 0) WriteQuiet("cosmeticExperienceCustom", 1f);
+                if (kv.Key != "gameplayExperienceCustom" && Array.IndexOf(GameplayKeys, kv.Key) >= 0) WriteQuiet("gameplayExperienceCustom", 1f);
+            }
+            PlayerPrefs.Save();
+            StagedChanged?.Invoke();
+            RaiseChanged();
+        }
+
+        /// <summary>Until disposed, options are read and written as staged (nothing without an open options screen).</summary>
+        public static StagedScope ViewStaged() => new StagedScope(Staging, false);
+        /// <summary>Until disposed, options are read as applied, inside ViewStaged too.</summary>
+        public static StagedScope ViewApplied() => new StagedScope(true, true);
+
+        public readonly struct StagedScope : IDisposable
+        {
+            readonly bool on, applied;
+            public StagedScope(bool on, bool applied)
+            {
+                this.on = on;
+                this.applied = applied;
+                if (!on) return;
+                if (applied) appliedView++; else stagedView++;
+            }
+            public void Dispose()
+            {
+                if (!on) return;
+                if (applied) appliedView = Mathf.Max(0, appliedView - 1); else stagedView = Mathf.Max(0, stagedView - 1);
+            }
+        }
+
+        static void Stage(string key, float value)
+        {
+            // Back at the applied value: nothing to apply for it (the cache holds what the rows read before the change).
+            float applied = cache.TryGetValue(key, out var c) ? c : PlayerPrefs.GetFloat(Prefix + key, float.NaN);
+            if (Mathf.Approximately(applied, value)) { if (!staged.Remove(key)) return; }
+            else if (staged.TryGetValue(key, out var was) && Mathf.Approximately(was, value)) return;
+            else staged[key] = value;
+            StagedChanged?.Invoke();
+        }
+
+        static void RaiseChanged()
+        {
+            appliedView++;
+            try { Changed?.Invoke(); }
+            finally { appliedView--; }
+        }
+
         static float Get(string key, float fallback)
         {
             if (defaultReads >= 0) { defaultReads++; return fallback; }
+            if (stagedView > 0 && appliedView == 0 && staged.TryGetValue(key, out var pending)) return pending;
             if (cache.TryGetValue(key, out var v)) return v;
             v = PlayerPrefs.GetFloat(Prefix + key, fallback);
             cache[key] = v;
@@ -987,16 +1410,25 @@ namespace GoF2Remake.Data
 
         static void SetQuiet(string key, float value)
         {
+            if (StagedNow) { Stage(key, value); return; }
+            WriteQuiet(key, value);
+        }
+
+        static void WriteQuiet(string key, float value)
+        {
             PlayerPrefs.SetFloat(Prefix + key, value);
             cache[key] = value;
         }
 
         static void Set(string key, float value, bool force = false)
         {
+            if (StagedNow) { Stage(key, value); return; }
             if (!force && Mathf.Approximately(PlayerPrefs.GetFloat(Prefix + key, float.NaN), value)) return;
             SetQuiet(key, value);
+            if (ExperiencePresets.Contains(true, key)) SetQuiet("cosmeticExperienceCustom", 1f);
+            if (ExperiencePresets.Contains(false, key)) SetQuiet("gameplayExperienceCustom", 1f);
             PlayerPrefs.Save();
-            Changed?.Invoke();
+            RaiseChanged();
         }
     }
 }

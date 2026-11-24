@@ -44,6 +44,26 @@ namespace GoF2Remake.Flight
         static readonly List<Renderer> lowLods = new List<Renderer>();
         static SphereCollider avoidanceProbe;
         static int syncedFrame = -1;
+
+        // The last sweep in 'hits' (ShotSweep): a shot asks twice along the same path, CastScenery for the station and
+        // then Cast for the ships, and the second physics query found the same hulls again (half a fleet battle's casts).
+        static Vector3 sweptFrom, sweptTo;
+        static float sweptRadius;
+        static int sweptCount, sweptFrame = -1;
+
+        /// <summary>The hulls a sphere of 'radius' swept 'from' -> 'to' meets, in 'hits': the last query's when it was this
+        /// very sweep in this frame (Play mode only: an edit-mode test's frame never ends).</summary>
+        static int ShotSweep(Vector3 from, Vector3 to, float radius, Vector3 dir, float len)
+        {
+            int frame = Time.frameCount;
+            if (frame == sweptFrame && radius == sweptRadius && from.Equals(sweptFrom) && to.Equals(sweptTo)) return sweptCount;
+            sweptCount = Physics.SphereCastNonAlloc(from, radius, dir, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            sweptFrame = Application.isPlaying ? frame : -1;
+            sweptFrom = from;
+            sweptTo = to;
+            sweptRadius = radius;
+            return sweptCount;
+        }
         static readonly MaterialPropertyBlock shownBlock = new MaterialPropertyBlock();
         static readonly int FadeId = Shader.PropertyToID("_Fade"), ColorId = Shader.PropertyToID("_Color"), BaseColorId = Shader.PropertyToID("_BaseColor");
 
@@ -208,6 +228,22 @@ namespace GoF2Remake.Flight
             if (b.obstacle != null && b.obstacle.hull == b) b.obstacle.hull = null;
         }
 
+        /// <summary>One more mesh of the model shaping its hull (a capital ship's shield fields that block the way while they
+        /// stand: CapitalSubsystems, ships.json "shieldBlocks"); it collides only while its renderer shows (Shown).</summary>
+        public static void AddShape(HullBody body, MeshFilter mf)
+        {
+            if (body == null || mf == null || mf.sharedMesh == null || !mf.sharedMesh.isReadable || mf.sharedMesh.vertexCount == 0) return;
+            foreach (var existing in body.colliders) if (existing != null && existing.sharedMesh == mf.sharedMesh && existing.transform.parent == mf.transform) return;
+            var mesh = mf.sharedMesh;
+            if (baked.Add(mesh)) Physics.BakeMesh(mesh.GetEntityId(), false);
+            var go = new GameObject("Hull") { layer = HullLayer };
+            go.transform.SetParent(mf.transform, false);
+            var c = go.AddComponent<MeshCollider>();
+            c.sharedMesh = mesh;
+            body.colliders.Add(c);
+            bodies[c] = body;
+        }
+
         public static HullBody BodyOf(Collider c) => c != null && bodies.TryGetValue(c, out var b) ? b : null;
 
         /// <summary>The part this collider shapes can be seen: its renderer (on the collider's parent, the mesh's object)
@@ -250,7 +286,7 @@ namespace GoF2Remake.Flight
             float len = d.magnitude;
             if (len < 1e-5f) return false;
             Sync();
-            int n = Physics.SphereCastNonAlloc(from, radius, d / len, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            int n = ShotSweep(from, to, radius, d / len, len);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
@@ -273,7 +309,7 @@ namespace GoF2Remake.Flight
             float len = d.magnitude;
             if (len < 1e-5f) return false;
             Sync();
-            int n = Physics.SphereCastNonAlloc(from, radius, d / len, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            int n = ShotSweep(from, to, radius, d / len, len);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
@@ -295,6 +331,7 @@ namespace GoF2Remake.Flight
             float len = d.magnitude;
             if (len < 1e-4f) return false;
             Sync();
+            sweptFrame = -1;   // (the shared buffer is written)
             int n = Physics.SphereCastNonAlloc(from, radius, d / len, hits, len, HullMask, QueryTriggerInteraction.Ignore);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
@@ -337,6 +374,7 @@ namespace GoF2Remake.Flight
         {
             if (bodies.Count == 0 || reach <= 0f) return float.MaxValue;
             Sync();
+            sweptFrame = -1;   // (the shared buffer is written)
             int n = Physics.SphereCastNonAlloc(from, radius, dir, hits, reach, HullMask, QueryTriggerInteraction.Ignore);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
@@ -402,6 +440,13 @@ namespace GoF2Remake.Flight
         {
             Sync();
             return Physics.OverlapSphereNonAlloc(centre, radius, buffer, HullMask, QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>The hull colliders touching the box ('halfExtents' world, turned by 'rotation') into 'buffer'; their count.</summary>
+        public static int OverlapBox(Vector3 centre, Vector3 halfExtents, Quaternion rotation, Collider[] buffer)
+        {
+            Sync();
+            return Physics.OverlapBoxNonAlloc(centre, halfExtents, buffer, rotation, HullMask, QueryTriggerInteraction.Ignore);
         }
     }
 }

@@ -64,7 +64,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   height above the key hints (`#campaignPanel`, its content past 80 % with New Game+); the Mods browser's picture shrinks
   to nothing on a TV so Delete stays above the footer.
   The safe area (`SafeArea.Pixels` = `UiLayout.OptionInsets`) adds Options > Graphics "Screen edge margin" (automatic: 5 %
-  on a TV) and "Interface width" (16:9 / 21:9 by default / full: side bands on wider screens) to the device's cutouts.
+  on a TV) and "Interface width" (16:9 / 21:9 by default / full: side bands on wider screens) to the device's cutouts,
+  which Options > Graphics "Camera cutout" keeps clear, mirrors to both sides or ignores (docs/notes/options.md).
   Button prompts are visible (no "i" popups any more): `MenuKeys.Bar` rows in menus and windows, the hint rows of the HUD,
   hangar, star map and orbit views, B / A glyphs inside Back and dialog buttons (`InputGlyph.PadPrompt`, text through
   `InputGlyph.SetText`).
@@ -74,7 +75,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   menu animations), Colour-blind markers (friends blue, `CombatView.MarkerTex`), Dialogue highlights (2026-11-09, the
   user's wish; off by default: the animated dialogue's coloured names and icons, `Settings.DialogueHighlights`,
   `TextReveal.Parse`). **Interface font** (2026-10-24, the
-  user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" Klavika, "file:<name>" a file imported into
+  user's request; `UiFont`, Space/UI; `Settings.UiFont`: "" automatically tries installed Klavika (Medium, then Regular),
+  installed Calibri, then bundled Inter. An unreadable preferred face falls through; the default label names the resolved
+  family. System fonts are loaded at runtime without copying or bundling them. Manual selections are preserved.
+  "file:<name>" is a file imported into
   persistentDataPath/Fonts, "system:<family> - <style>" an installed font, `FontEngine.GetSystemFontNames`, each
   family's Regular listed): the row, "Import font file…" (`ModImport.Pick`, checked with `FontEngine.LoadFontFace`,
   copied in and chosen) and "Remove this font file" (a file the font engine holds open is deleted at the next start,
@@ -84,9 +88,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Font object (`new Font(path)` loads the file): `FontAsset.CreateFontAsset(path, ...)` makes an asset the text
   generator refuses ("FontAsset is invalid", every text blank), and DynamicOS looks the family up among the installed
   fonts. Bold / italic: the family's other imported files (the same family, or one named after it plus the style,
-  "LDFComicSansBold") or its installed styles, through the asset's weight table, else faux bold; Klavika is the fallback
+  "LDFComicSansBold") or its installed styles, through the asset's weight table, else faux bold; Inter is the fallback
   (found by name among the loaded assets). Checked in Play mode with Arial and an imported LDF Comic Sans (regular +
-  bold); not yet on Android / iOS (their pickers, their system fonts). Symbols neither Klavika nor Inter has show as
+  bold); not yet on Android / iOS (their pickers, their system fonts). Symbols Inter hasn't show as
   boxes where the system has no fallback (phones): ▾ ✕ ✖ ➔ were replaced by ▼ × × → (2026-10-24, the host card's "More
   options" on a phone); check a new symbol against both fonts. **Controller keyboard** (`PadKeyboard`,
   `Attach(root)` per screen): A on a text field with a controller where there's no system keyboard opens a key grid;
@@ -108,3 +112,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `Aspect.VerticalFovKeepWidth` (wider screens keep the 16:9 width and lose a little top and bottom: the bars are only
   modelled as far as the original's camera sees); the hangars are back on Hor+ (`StationLevel.SetLens(..., keepWidth: false)`):
   a new hangar model is being made, so their cut-off edges on 21:9 / 32:9 are left for it.
+
+- **Drag test timing** (`MouseDragInputTests`): batch frames can complete a whole drag inside the 30 ms
+  `MouseButtonDebounce` window. Model the held gesture for 50 ms before the final movement; wait up to 250 ms for
+  release delivery instead of assuming two rendered frames exceed the debounce interval. Keep the pointer-clear and
+  deliberate-fling assertions. Separate quick-release cases check that both map and turntable release without a
+  subsequent mouse report. This changes test timing only; the production debounce and gesture handlers are unchanged.

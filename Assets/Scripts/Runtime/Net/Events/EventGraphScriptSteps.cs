@@ -400,7 +400,8 @@ namespace GoF2Remake.Events
                     case "EventFlightModelNode":
                     {
                         var model = (EventFlightModel)Int(n, "Model");
-                        Line(Join("flightstyle", Text(n, "Players"), model == EventFlightModel.FreeFlight ? "free" : model == EventFlightModel.Original ? "original" : "player"));
+                        Line(Join("flightstyle", Text(n, "Players"), model == EventFlightModel.FreeFlight ? "free" : model == EventFlightModel.Original ? "original"
+                                                                    : model == EventFlightModel.ChorusFlight ? "chorus" : "player"));
                         break;
                     }
                     case "EventRestrictTravelNode":
@@ -558,6 +559,16 @@ namespace GoF2Remake.Events
                         if (line.StartsWith("/")) line = line.Substring(1);
                         if (line.Length == 0) Warning(n, "An empty command does nothing.");
                         else Line(line);
+                        break;
+                    }
+                    case "EventLuaNode":
+                    {
+                        // The code travels as one word (base64): it has line breaks, braces and "#", which the line form
+                        // reads as its own. "-": no variable for what it returns.
+                        string code = Get(n, "Code").Replace("\r", "");
+                        if (code.Trim().Length == 0) { Warning(n, "An empty Lua node does nothing."); break; }
+                        string into = Get(n, "Result", false).Trim();
+                        Line("lua " + (into.Length > 0 ? VariableName(into, n) : "-") + " " + Convert.ToBase64String(Encoding.UTF8.GetBytes(code)));
                         break;
                     }
                     case "EventStartNode":

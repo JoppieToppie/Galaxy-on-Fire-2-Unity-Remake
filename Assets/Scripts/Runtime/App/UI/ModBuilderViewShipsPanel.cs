@@ -152,7 +152,7 @@ namespace GoF2Remake.UI
                 var st = db.Stations[station];
                 int race = db.Systems.ElementAtOrDefault(st.system)?.raceId ?? 0;
                 string label = $"{T("mbRoom" + room, name)}\n{st.name}" + (room == current ? " ✓" : "");
-                var emblem = Resources.Load<Texture2D>("GoF2Hud/race_" + (race >= 0 && race < 4 ? race : 0));
+                var emblem = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/race_" + (race >= 0 && race < 4 ? race : 0));
                 int r = room, s = station;
                 choices.Add((label, emblem, () =>
                 {

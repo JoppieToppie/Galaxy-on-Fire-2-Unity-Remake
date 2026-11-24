@@ -398,6 +398,7 @@ remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only
 | 140 | scanShip |  |
 | 141 | scanHitpoints |  |
 | 142 | scanWeapons |  |
+| 143 | scanClass |  |
 | 150 | device |  |
 | 151 | deviceCooldownMs |  |
 | 152 | deviceDurationMs |  |
@@ -420,6 +421,37 @@ remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only
 | 169 | dotMs |  |
 | 170 | vulnerablePercent |  |
 | 171 | vulnerableMs |  |
+| 172 | beamRadius |  |
+| 173 | heatShots |  |
+| 174 | heatCoolMs |  |
+| 175 | overheatMs |  |
+| 176 | beamReach |  |
+| 177 | chargeMs |  |
+| 178 | deviceVoidCost |  |
+| 179 | deviceChain |  |
+| 180 | deviceUpgrade |  |
+| 181 | deviceVoidPips |  |
+| 182 | deviceElementalProof |  |
+| 183 | energyResistance |  |
+| 184 | ballisticResistance |  |
+| 185 | missileDefenseMode |  |
+| 186 | missileDefenseTargets |  |
+| 187 | missileDefenseCycleMs |  |
+| 188 | missileDefenseCapacity |  |
+| 189 | coreYield |  |
+| 190 | damageType |  |
+| 191 | pitchTurnRate |  |
+| 192 | yawTurnRate |  |
+| 193 | rollTurnRate |  |
+| 194 | pitchTurnAcceleration |  |
+| 195 | yawTurnAcceleration |  |
+| 196 | rollTurnAcceleration |  |
+| 197 | strafeAcceleration |  |
+| 198 | hoverSpeed |  |
+| 199 | hoverAcceleration |  |
+| 200 | reverseSpeed |  |
+| 201 | reverseAcceleration |  |
+| 202 | forwardAcceleration |  |
 
 ## Blueprints
 

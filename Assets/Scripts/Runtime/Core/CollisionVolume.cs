@@ -138,9 +138,9 @@ namespace GoF2Remake.Flight
         static Dictionary<int, int[]> Load(string name)
         {
             var map = new Dictionary<int, int[]>();
-            var text = Resources.Load<TextAsset>("GoF2Data/" + name);
+            var text = GoF2Remake.Data.GameContent.Text("GoF2Data/" + name);
             if (text == null) { Debug.LogWarning($"CollisionVolume: GoF2Data/{name} missing"); return map; }
-            var list = JsonUtility.FromJson<EntryList>("{\"items\":" + text.text + "}");
+            var list = JsonUtility.FromJson<EntryList>("{\"items\":" + text + "}");
             if (list?.items != null) foreach (var e in list.items) map[e.id] = e.values;
             return map;
         }
@@ -174,8 +174,8 @@ namespace GoF2Remake.Flight
         {
             if (voidExtras != null) return voidExtras;
             voidExtras = new List<CollisionVolume>();
-            var text = Resources.Load<TextAsset>("GoF2Data/void_station_extra");
-            var e = text != null ? JsonUtility.FromJson<Extras>(text.text) : null;
+            var text = GoF2Remake.Data.GameContent.Text("GoF2Data/void_station_extra");
+            var e = text != null ? JsonUtility.FromJson<Extras>(text) : null;
             if (e?.boxes == null) return voidExtras;
             for (int i = 0; i + 5 < e.boxes.Length; i += 6)
                 voidExtras.Add(Box(new Vector3(e.boxes[i], e.boxes[i + 1], e.boxes[i + 2]), new Vector3(e.boxes[i + 3], e.boxes[i + 4], e.boxes[i + 5])));

@@ -17,6 +17,10 @@
 // cut, and everything else draws over it as ever. It takes after the Khador Drive's animation between the systems only
 // (_WarpKhador): the sky leans to that fx's ice blue, and that fx's vein web is GoF2/WarpWeb, over the planets. A cruise in an
 // orbit is the plain stretch.
+// Remake mods: a skybox's "chorus" block (_CHORUS_SKY, OrbitBuilder.SetChorusSky, Options > Graphics "Live mod skies"): the
+// layered sky, Chorus's own sky shader with EVERSPACE 2's sky methods (SpaceSkyCore.hlsl ChorusSky) in place of the two layers
+// (or over them, "base"); its baked panorama stays in _NebulaMap for the
+// crossfade between systems and for Low.
 // _SkyBlend: another system's sky over this one (World.InterstellarField, approaching it), its layers set as globals with
 // runtime modes in place of the keywords, so an arrival finds the sky it was already flying in.
 Shader "GoF2/SpaceSky"
@@ -30,6 +34,57 @@ Shader "GoF2/SpaceSky"
         _StarsGain ("Stars brightness", Float) = 1
         _NebulaGain ("Nebula brightness", Float) = 1
         _Exposure ("Exposure", Float) = 1
+        [NoScaleOffset] _ChorusStarsMap ("Chorus star mask", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer1 ("Chorus layer 1", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer2 ("Chorus layer 2", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer3 ("Chorus layer 3", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer4 ("Chorus layer 4", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer5 ("Chorus layer 5", 2D) = "black" {}
+        [NoScaleOffset] _ChorusLayer6 ("Chorus layer 6", 2D) = "black" {}
+        [HideInInspector] _ChorusGradUp ("_ChorusGradUp", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusGradA ("_ChorusGradA", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusGradB ("_ChorusGradB", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusStars ("_ChorusStars", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusCurve0 ("_ChorusCurve0", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusCurve1 ("_ChorusCurve1", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusMisc ("_ChorusMisc", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusStarsB ("_ChorusStarsB", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusStarsW ("_ChorusStarsW", Vector) = (1, 0, 0, 0)
+        [HideInInspector] _ChorusSun ("_ChorusSun", Vector) = (0, 0, 1, 0)
+        [HideInInspector] _ChorusSunColor ("_ChorusSunColor", Vector) = (1, 1, 1, 0)
+        [HideInInspector] _ChorusL1A ("_ChorusL1A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1B ("_ChorusL1B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1C ("_ChorusL1C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1D ("_ChorusL1D", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL1E ("_ChorusL1E", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2A ("_ChorusL2A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2B ("_ChorusL2B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2C ("_ChorusL2C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2D ("_ChorusL2D", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL2E ("_ChorusL2E", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3A ("_ChorusL3A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3B ("_ChorusL3B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3C ("_ChorusL3C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3D ("_ChorusL3D", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL3E ("_ChorusL3E", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4A ("_ChorusL4A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4B ("_ChorusL4B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4C ("_ChorusL4C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4D ("_ChorusL4D", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL4E ("_ChorusL4E", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL5A ("_ChorusL5A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL5B ("_ChorusL5B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL5C ("_ChorusL5C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL5D ("_ChorusL5D", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL5E ("_ChorusL5E", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL6A ("_ChorusL6A", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL6B ("_ChorusL6B", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL6C ("_ChorusL6C", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL6D ("_ChorusL6D", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _ChorusL6E ("_ChorusL6E", Vector) = (0, 0, 0, 0)
+        [NoScaleOffset] _StarIndex ("Enhanced stars: grid", 2D) = "black" {}
+        [NoScaleOffset] _StarData ("Enhanced stars: data", 2D) = "black" {}
+        [HideInInspector] _StarGrid ("_StarGrid", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
@@ -44,6 +99,7 @@ Shader "GoF2/SpaceSky"
             #pragma multi_compile_instancing
             #pragma multi_compile_local _ _NEBULA_PANORAMA _NEBULA_STRIP
             #pragma multi_compile_local _ _STARS_PANORAMA _STARS_STRIP
+            #pragma multi_compile_local _ _CHORUS_SKY
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             #include "Assets/Shaders/SpaceSkyCore.hlsl"

@@ -1,17 +1,25 @@
 [
-    // A new blaster, made from the N'saan (item 12): its icon, shots and sound, with its own numbers.
+    // A new blaster, made from the N'saan (item 12): it starts as a copy of that item (its type, slot, icon, shots and
+    // sound), then everything below changes the copy.
     {
-        "id": "plasma_lance",
+        "id": "plasma_lance",                     // other mods and missions name it "plasma_arsenal:plasma_lance"
         "base": 12,
+        // Texts per language. The German could also go in text/de.json, as its description does.
         "name": { "en": "Plasma Lance", "de": "Plasmalanze" },
         "description": "A Terran rebuild of the Vossk blaster: a hotter plasma charge that hits harder and flies further, at the cost of a slower reload.",
+
+        // Where it is sold: shops of tech level 3 and up stock it at a 40 % chance, Var Hastra (78) always.
         "techLevel": 3,
         "occurrence": 40,
-        "price": [24000, 26500],
-        "vosskOnly": false,
         "alwaysSoldAt": 78,
+        "price": [24000, 26500],                  // the cheapest and dearest price (the original economy)
+        "vosskOnly": false,                       // the N'saan is sold only in Vossk systems; this copy everywhere
+
+        // Its numbers, by name (Modding/README.md "Stats" lists them all).
         "stats": { "damage": 14, "reloadMs": 700, "lifetimeMs": 1800, "speed": 16 },
-        // Its own look and sound: violet bolts stretched along their flight, a flash at the gun, a ring where they hit.
+
+        // Its own look and sound: violet bolts stretched along their flight, a flash at the gun, a ring where they hit,
+        // and a shot sound. Pictures are PNGs drawn additively (black is see-through).
         "fx": {
             "projectile": { "sprite": "fx/lance_bolt.png", "size": 450, "stretch": 4, "alongFlight": true, "color": [0.75, 0.45, 1.0], "glow": 3 },
             "muzzle": { "sprite": "fx/lance_flash.png", "size": 500, "lifetime": 90, "grow": 1.4, "color": [0.8, 0.6, 1.0], "glow": 3 },
@@ -19,7 +27,8 @@
             "shot": "fx/lance_shot.wav"
         }
     },
-    // A new missile, made from the Edo (item 36).
+
+    // A new missile, made from the Edo (item 36): only numbers and texts of its own, so it looks and sounds like the Edo.
     {
         "id": "hornet_swarm",
         "base": 36,
@@ -27,12 +36,15 @@
         "description": { "en": "A light homing missile that reloads quickly. Sold in packs like any missile." },
         "techLevel": 4,
         "occurrence": 30,
-        "price": [260, 300],
+        "price": [260, 300],                      // a missile's price is per round
         "alwaysSoldAt": 78,
         "stats": { "damage": 95, "reloadMs": 1400 },
+        // What changes in a game with the Default Economy (the remake's own prices): here, twice the price.
         "defaultEconomy": { "price": [520, 600] }
     },
-    // A change to an original item: the Targe Shield (item 50) holds more.
+
+    // A change to an original item: the Targe Shield (item 50) holds more and costs a little more. Only the fields named
+    // change; everything else stays the game's.
     {
         "override": 50,
         "stats": { "shieldCapacity": 65 },

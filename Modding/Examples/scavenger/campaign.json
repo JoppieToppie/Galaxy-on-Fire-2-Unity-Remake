@@ -1,0 +1,12 @@
+{
+    "name": "Scavenger",
+    "description": {
+        "en": "No story, no credits: a Betty at Dis in the finished galaxy. Shops sell weapons and equipment only up to tech level 5; the rest is in other ships' holds. Build the Fireworks from one of everything to become Champion."
+    },
+    "startStation": 70,
+    "startShip": 0,
+    "credits": 0,
+    "equipment": [16, 68, 82, { "item": 41, "amount": 10 }],
+    "economy": "default",
+    "medals": ["champion"]
+}

@@ -272,7 +272,11 @@ namespace GoF2Remake.Data
                     return Mounted(db, it => it.TypeId == 0) && Mounted(db, it => it.categoryId == 10);
                 // 0xa0: docked anywhere, or 10 s in space at another orbit than the target (-1 = the alien orbit: index 42
                 // completes once out of the Void).
-                case StoryType.DelayedCall: return c.docked || (c.levelMs >= 10000f && !atTarget);
+                case StoryType.DelayedCall:
+                    // Remake co-op: 42 is the leader's ride out of the Void (a guest docked elsewhere won it for the crew, its
+                    // conversation opening in the Void before the blast); the crew's win reaches the guest (RemoteWon).
+                    if (Index == 42 && CoopCampaign.Guest) return false;
+                    return c.docked || (c.levelMs >= 10000f && !atTarget);
                 case StoryType.CallAfterLaunch: return !c.docked && c.levelMs > 10000f;
                 case StoryType.InOrbit: return !c.docked && atTarget;   // 79 / 152: the alien orbit (-1)
                 case StoryType.DeliverOrMount:
@@ -382,6 +386,9 @@ namespace GoF2Remake.Data
         {
             if (Session.FreePlay) return null;
             if (Index == 78 && station != Session.VoidOrbit) return Session.VoidOrbit;
+            // Remake co-op: a crew member's misjump at 78 moved everyone to 79 (79 is the Void's orbit): the others, still at the
+            // Valkyrie, jump there likewise (the leader had no way into the Void left, and played 80 from the wrong orbit).
+            if (Index == 79 && CoopCampaign.Active && station != Session.VoidOrbit) return Session.VoidOrbit;
             if (Index == 80 && station == Session.VoidOrbit) return 100;
             return null;
         }
@@ -411,6 +418,7 @@ namespace GoF2Remake.Data
             // (Mission(), hidden).
             if (step != null && step.type != -1 || next == GameWonIndex || next == Dlc1WonIndex || next == 128 || next == 130 || next >= LastIndex)
                 Session.StoryMission = StoryMission.From(step);
+            if (CoopCampaign.Active) CrewStepEffects(db, from);   // remake co-op: what the step gives every crew member
             ApplyStepEffects(db, next, previous);
             CoopCampaign.OnAdvanced(from, next, previous != null && previous.won);   // remake co-op
             Speedrun.Reached(next);   // remake: the speedrun timer's splits
@@ -533,6 +541,9 @@ namespace GoF2Remake.Data
         /// <summary>Status+0x8c = the current ship (its equipment, cargo, mods and damage go with it).</summary>
         static void ParkOwnShip()
         {
+            // Remake: one already parked is the own ship (a co-op guest set back a step and caught up again, an event's
+            // loaner): parking the loaner over it lost the own ship for good at 55 / 58.
+            if (Session.ParkedShip != null) return;
             Session.ParkedShip = new ParkedShip
             {
                 ship = Session.ShipIndex, equipment = Session.Equipment, cargo = Session.Cargo, mods = Session.ShipMods,
@@ -737,6 +748,10 @@ namespace GoF2Remake.Data
         public static int RequirementRefusal(Database db, int station)
         {
             if (Session.FreePlay || Mission == null || station != Mission.station) return -1;
+            // Remake co-op: the gear a level asks of the player is the leader's to bring (the leader runs the level; a guest
+            // only joins it), save 139's Vossk ship: the guests fly into that system too. A guest without a Gamma Shield II
+            // couldn't join 105 once another crew member's delivered the one 104 asked for.
+            if (CoopCampaign.Guest && Index != 139) return -1;
             switch (Index)
             {
                 // Modified: 91 seats all ten survivors (MGame::OnTouchBegin / StarMap::OnTouchEnd for 0x5b: getMaxPassengers

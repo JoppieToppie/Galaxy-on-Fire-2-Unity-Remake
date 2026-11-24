@@ -30,6 +30,8 @@ namespace GoF2Remake.World
         {
             dogfight = null;
             es2Fight = null;
+            chorusFight = null;
+            chorusTarget = null;
             dogTarget = null;
             SetupEs2Aim(spec);   // remake option: EVERSPACE 2's aim, apart from the way of fighting (NpcShipEs2)
             SetupEs2Flight(spec);   // remake option: EVERSPACE 2's physics flight (NpcShipEs2Flight)
@@ -39,6 +41,7 @@ namespace GoF2Remake.World
             string ai = mode == SessionRules.DogfightAll ? "gof3" : mode == SessionRules.DogfightEs2All ? "es2"
                       : (db?.Ship(spec.ship) as CustomShipData)?.traffic?.ai;
             if (string.Equals(ai, "es2", System.StringComparison.OrdinalIgnoreCase)) { SetupEs2Fight(); return; }   // (NpcShipEs2)
+            if (ChorusDogfight.KindOf(ai) is ChorusDogfight.Kind ck) { chorusFight = new ChorusDogfight(() => Random.value, ck); return; }   // (NpcShipChorus)
             if (!string.Equals(ai, "gof3", System.StringComparison.OrdinalIgnoreCase)) return;
             bool boss = spec.wantedIndex >= 0 || spec.pirateEvent == SpawnSpec.EventBoss;
             float evadeBase = (db?.Ship(spec.ship) as CustomShipData)?.traffic?.evade ?? -1f;   // (GoF3's evadeChanceBase by class and tier)
@@ -52,6 +55,7 @@ namespace GoF2Remake.World
         void UpdateDogfight(float dtMs)
         {
             UpdateEs2(dtMs);   // remake options: EVERSPACE 2's aim and way of fighting (NpcShipEs2)
+            UpdateChorus(dtMs);   // remake mods: Chorus's way of fighting (NpcShipChorus)
             if (dogfight == null) return;
             dogfight.Tick(dtMs);
             if (target != dogTarget)

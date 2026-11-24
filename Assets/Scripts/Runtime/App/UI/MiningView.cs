@@ -40,7 +40,7 @@ namespace GoF2Remake.UI
         float frameAcc, redOffset, orangeOffset, depthOffset, oreAlpha = 1f;
         int drillFrame;
 
-        static Texture2D Tex(string name) => Resources.Load<Texture2D>("GoF2Hud/" + name);
+        static Texture2D Tex(string name) => GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
 
         public MiningView(VisualElement root)
         {

@@ -27,6 +27,8 @@ namespace GoF2Remake.Flight
         readonly Transform[] projectiles;
         readonly Transform ship;
         float beamMs, beamLength;
+        /// <summary>Remake mods (Gun.beamRadius): the beam mesh's width x this, so it is as wide as what it hits (1 = its own).</summary>
+        float beamWidth = 1f;
         Vector3[] spin;
         bool[] wasActive;
         // What each projectile object was last set to (SetActive) and its last scale: asking the engine every frame for every
@@ -107,6 +109,7 @@ namespace GoF2Remake.Flight
             {
                 beamLength = Mathf.Max(200f, MaxLength(projectiles[0].gameObject));
                 beamParts = Parts(projectiles[0].gameObject);
+                if (gun.beamRadius > 0f) beamWidth = BeamWidthScale(projectiles[0].gameObject, gun.beamRadius * Gun.MetersPerUnit);
             }
             if (fx != null && fx.impact != null && impactPool > 0 && gun.kind != Gun.Kind.ScatterGun)
             {
@@ -198,6 +201,26 @@ namespace GoF2Remake.Flight
                 }
             }
             return any && b.size.z > 2f * Mathf.Max(b.size.x, b.size.y);
+        }
+
+        /// <summary>The scale that makes the beam mesh 'go' (at scale 1) 'radiusMetres' wide either side of its line: its
+        /// meshes' widest extent across the beam (x / y in its own frame), 1 without one.</summary>
+        public static float BeamWidthScale(GameObject go, float radiusMetres)
+        {
+            float half = 0f;
+            var root = go.transform;
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                var b = mf.sharedMesh.bounds;
+                for (int c = 0; c < 8; c++)
+                {
+                    var corner = b.center + Vector3.Scale(b.extents, new Vector3((c & 1) != 0 ? 1 : -1, (c & 2) != 0 ? 1 : -1, (c & 4) != 0 ? 1 : -1));
+                    var local = root.InverseTransformPoint(mf.transform.TransformPoint(corner));
+                    half = Mathf.Max(half, Mathf.Abs(local.x), Mathf.Abs(local.y));
+                }
+            }
+            return half > 1e-6f ? Mathf.Max(1f, radiusMetres / half) : 1f;
         }
 
         public static float MaxLength(GameObject go)
@@ -399,7 +422,7 @@ namespace GoF2Remake.Flight
             // straight up / down takes the ship's up instead.
             var up = Mathf.Abs(Vector3.Dot(dir, Vector3.up)) > 0.999f && ship != null ? ship.up : Vector3.up;
             t.SetPositionAndRotation(from, Quaternion.LookRotation(dir, up));
-            t.localScale = new Vector3(1f, 1f, length);
+            t.localScale = new Vector3(beamWidth, beamWidth, length);
             if (beamMs <= 0f) t.gameObject.SetActive(false);
         }
 

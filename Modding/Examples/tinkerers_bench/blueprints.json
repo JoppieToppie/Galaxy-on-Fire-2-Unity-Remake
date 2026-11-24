@@ -1,0 +1,65 @@
+[
+    // Three blueprints, built in the hangar's Blueprints tab. Between them: the four ways to come by a blueprint
+    // ("unlocked", "lounge", "derelict", "drops"), the three forms of "autocomplete" (false, a price, true) and
+    // "available" conditions that begin with the new-game option of gameoptions.json. With the option off nothing
+    // below is ever offered.
+    //
+    // Ingredients are item numbers of the game (156 Iron, 125 Mechanical Supplies...): the list is in
+    // Modding/ai/gof2-modding/reference.md.
+
+    // 1. Known without finding it. "unlocked": true teaches the blueprint at the next docking once "available" holds:
+    //    here in any game started with the option on.
+    //    "autocomplete": false: no paying to finish it, every ingredient has to be brought.
+    {
+        "id": "patchwork_plating",
+        "item": "tinkerers_bench:patchwork_plating",
+        "ingredients": [
+            { "item": 156, "amount": 40 },   // Iron
+            { "item": 125, "amount": 10 },   // Mechanical Supplies
+            { "item": 120, "amount": 5 }     // Plastics
+        ],
+        "autocomplete": false,
+        "unlocked": true,
+        "available": "option(tinkerers_bench:workbench)"
+    },
+
+    // 2. Bought in a Space Lounge. "lounge": each time a bar fills with new visitors there is a "chance" (%) that one
+    //    of them sells the blueprint for "price" credits, in systems of "systemRace" (0 Terran, 1 Vossk, 2 Nivelian,
+    //    3 Midorian, -1 any).
+    //    "available" chains it to the first blueprint: no seller turns up before the player has built the plating once.
+    //    "autocomplete": a number is the price of finishing it without the ingredients.
+    {
+        "id": "hand_tuned_thruster",
+        "item": "tinkerers_bench:hand_tuned_thruster",
+        "ingredients": [
+            { "item": 155, "amount": 20 },   // Titanium
+            { "item": 130, "amount": 8 },    // Hydraulics
+            { "item": 126, "amount": 4 }     // Noble Gas
+        ],
+        "autocomplete": 8000,
+        "available": "option(tinkerers_bench:workbench) and produced(tinkerers_bench:patchwork_plating) > 0",
+        "lounge": { "chance": 40, "price": 2500, "systemRace": -1 }
+    },
+
+    // 3. Found in space, two ways on one blueprint (whichever comes first; a blueprint is learnt once).
+    //    "derelict": "chance" % of the orbits the player enters hold a derelict freighter of "race" to dock at and hack.
+    //    "drops": a destroyed ship may leave the blueprint in a data container, "chance" % per kill (decimals allowed)
+    //    for ships of "race": often from pirates, rarely from anyone else.
+    //    "available": only once the player has docked in a second star system.
+    //    "autocomplete": true (the default, written out here): the game's price, 1.25 x the product's.
+    //    An ingredient can be a weapon or a piece of equipment too: the Micro Gun MKII the repeater is rebuilt from.
+    {
+        "id": "scrapyard_repeater",
+        "item": "tinkerers_bench:scrapyard_repeater",
+        "ingredients": [
+            { "item": 23, "amount": 1 },     // Micro Gun MKII (demount it first)
+            { "item": 125, "amount": 15 },   // Mechanical Supplies
+            { "item": 118, "amount": 6 },    // Electronics
+            { "item": 167, "amount": 2 }     // Iron Core
+        ],
+        "autocomplete": true,
+        "available": "option(tinkerers_bench:workbench) and systemsvisited >= 2",
+        "derelict": { "chance": 15, "race": "terran" },
+        "drops": [ { "race": "pirate", "chance": 4 }, { "race": "any", "chance": 0.5 } ]
+    }
+]

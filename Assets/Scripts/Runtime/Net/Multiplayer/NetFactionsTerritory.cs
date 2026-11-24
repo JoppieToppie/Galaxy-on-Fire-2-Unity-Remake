@@ -13,12 +13,12 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetFactions
     {
         // ---- the bank ---------------------------------------------------------------------------------------
-        static bool TryAmount(string arg, out int amount) => int.TryParse(arg.Replace(",", "").Replace(".", "").Replace(" ", ""), out amount) && amount > 0;
+        static bool TryAmount(string arg, out long amount) => long.TryParse(arg.Replace(",", "").Replace(".", "").Replace(" ", ""), out amount) && amount > 0;
         static string Deposit(ulong client, string me, string arg)
         {
             var faction = Of(me);
             if (faction == null) return Localization.Extra("mpFactionNone", "You aren't in a faction.");
-            if (!TryAmount(arg, out int amount)) return "/faction deposit N";
+            if (!TryAmount(arg, out long amount)) return "/faction deposit N";
             if (!NetProfiles.Controls(client)) return Localization.Extra("mpFactionController", "Do that on the device that controls your profile.");
             long saved = NetProfiles.SpendableCredits(client, me);
             if (amount > saved)
@@ -58,7 +58,7 @@ namespace GoF2Remake.Multiplayer
         {
             var faction = Of(me);
             if (faction == null || !IsOfficer(faction, me)) return Localization.Extra("mpFactionNotOfficer", "Only a faction's leader and officers can do that.");
-            if (!TryAmount(arg, out int amount)) return "/faction withdraw N";
+            if (!TryAmount(arg, out long amount)) return "/faction withdraw N";
             if (!NetProfiles.Controls(client)) return Localization.Extra("mpFactionController", "Do that on the device that controls your profile.");
             if (faction.bank < amount) return string.Format(Localization.Extra("mpFactionBankShort", "The bank has {0:N0} credits."), faction.bank);
             faction.bank -= amount;
@@ -69,7 +69,7 @@ namespace GoF2Remake.Multiplayer
             return "";
         }
         /// <summary>Credits to the player's game; their profile's worth moves with it (the upload check).</summary>
-        static void Grant(ulong client, string account, int amount)
+        static void Grant(ulong client, string account, long amount)
         {
             NetProfiles.MoveCredits(client, account, amount);
             NetState.Instance?.Grant(client, amount);

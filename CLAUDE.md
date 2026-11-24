@@ -32,10 +32,10 @@ This file holds only what every task needs. Everything about one area of the gam
 | [sound.md](docs/notes/sound.md) | FMOD data, volumes, engine loops, cycle events, volatile goods, shot voices |
 | [ui.md](docs/notes/ui.md) | UI Toolkit, the design document, scaling, accessibility, aspect ratios |
 | [input.md](docs/notes/input.md) | Keyboard, key bindings, controllers, input modes, pause menu, Action Freeze and photo tools, touch controls, hints, cameras, cockpit view, gyro, haptics, mouse steering |
-| [free-flight.md](docs/notes/free-flight.md) | The EVERSPACE 2-style flight option and its key layout |
+| [free-flight.md](docs/notes/free-flight.md) | The EVERSPACE 2-style and Chorus-style flight options and their key layouts |
 | [speedrun.md](docs/notes/speedrun.md) | The speedrun timer, splits, routes, the runs folder (.lss), comparisons, the LiveSplit link |
 | [saves.md](docs/notes/saves.md) | Difficulty, save slots, original-game saves, deleting, export / import, save folder, Hardcore, New Game+ |
-| [options.md](docs/notes/options.md) | Text tables and languages, the story step label, every option, bloom, frame rate, graphics presets, texture quality, upscalers |
+| [options.md](docs/notes/options.md) | Text tables and languages, the story step label, every option, bloom, frame rate, graphics presets, texture quality, upscalers (XeSS), DLSS presets, frame generation (DLSS and FSR), Reflex, Anti-Lag 2, Image Scaling / Dynamic Vibrance, neural rendering, HDR, the Graphics tab's Apply and categories, the benchmark |
 | [platforms.md](docs/notes/platforms.md) | Discord, app icon, Android, iOS, UWP, Vulkan pre-transform, version, update check, hitch logger, issue reports |
 | [debug-tools.md](docs/notes/debug-tools.md) | The Debug panel and in-game Debug pages: missions, cheats, give items, spawn, presets, ships |
 | [multiplayer.md](docs/notes/multiplayer.md) | Session model, menu, Relay / Lobby, version check, players, PvP, leaving, rules, testing |
@@ -55,15 +55,25 @@ This file holds only what every task needs. Everything about one area of the gam
 | [mod-builder-mcp.md](docs/notes/mod-builder-mcp.md) | The builder's MCP server for AI assistants |
 | [vr.md](docs/notes/vr.md) | OpenXR VR mode, rig, panels, cockpit, controls |
 | [flight-model.md](docs/notes/flight-model.md) | Recovered flight constants, chase camera, bank, dodge, field offsets |
+| [player-assets.md](docs/notes/player-assets.md) | Shipping without the original's assets: the inventory, the player's copy, the in-game conversion |
 | [open-items.md](docs/notes/open-items.md) | Open issues and the suggested order of work |
 
 ## Environment
 
-- Unity **7000.0** (alpha 7000.0.0a16, from 6000.7.0b3 on 2026-10-06, a8 on 2026-10-10, a9 on 2026-10-14, a10 on 2026-10-16, a12 on 2026-10-23, a16 on 2026-11-06; .NET CoreCLR instead of Mono), **URP 17.7**, Windows.
+- Unity **7000.0** (alpha 7000.0.0a20, from 6000.7.0b3 on 2026-10-06, a8 on 2026-10-10, a9 on 2026-10-14, a10 on 2026-10-16, a12 on 2026-10-23, a16 on 2026-11-06, a20 on 2026-11-20; .NET CoreCLR instead of Mono), **URP 17.7**, Windows.
 - **Embedded `Packages/com.unity.netcode`** (Netcode for Entities 7.1.0, which Netcode for GameObjects 3.1 pulls in; copied
   without its docs and tests): a9's built-in Entities 6.7 dropped the DOTS Hierarchy window, so the registry package's
   `Editor/Authoring/HierarchyDrawers.cs` didn't compile; its `DotsHierarchyItemDecorator` is removed there. Delete the folder
   once a newer Netcode for Entities compiles on the Editor in use.
+- **After a Unity update** (a20, 2026-11-20): URP comes with the Editor, and `GoF2/Hull` is a marked-up copy of URP's
+  Lit shader (`Assets/Shaders/Hull.shader`, `HullLitForwardPass.hlsl`, `HullInput.hlsl`): when URP changes under it the
+  hulls stop compiling (a20: `UniversalFragmentPBR` lost its last argument, the geometric normal moved into
+  `InputData`; two new shadow keywords and the shadow caster's `ZClip`). `diff` each copy against the package's file in
+  `Library/PackageCache/com.unity.render-pipelines.universal@*/Shaders` (`Lit.shader`, `LitForwardPass.hlsl`,
+  `LitInput.hlsl`): every line of URP's the copy lacks, other than those a `GoF2` line replaces, is to bring over. The
+  native plugins' `CMakeLists.txt` name the Editor's `PluginAPI` folder by version. From a20 the Editor validates a
+  material when it imports it: URP's Lit editor keeps `_EMISSION` only with `globalIlluminationFlags`
+  `RealtimeDirectEmission` (the mod templates, `ModAssetsBuilder` / `ModAssetsGuard`).
 - **Scripting backend:** IL2CPP for Windows / Linux (Standalone; the Editor modules "Windows / Linux Build Support (IL2CPP)";
   Linux builds from Windows use `com.unity.toolchain.win-x86_64-linux` + `com.unity.sdk.linux-x86_64`, which the first Linux
   IL2CPP build added) and Android; native callbacks must be static `[AOT.MonoPInvokeCallback]` methods (`WinConsole`). A
@@ -82,6 +92,13 @@ This file holds only what every task needs. Everything about one area of the gam
   `UiPanelHangGuard` (Editor) takes the half-inserted element out again when an exception is logged and rebuilds that
   renderer's root; it logs a warning when it did. Not seen again since (12 reloads), so the guard has only run on a
   made-up half-insert (`IssueReportTests`). A hung Editor's managed stacks: `dotnet-stack report -p <pid>`.
+  It can also crash outright (2026-11-19: an access violation reading 0xffffffff in `VisualElement.SetPanelBatched` under
+  the same `Hierarchy.Insert`, from `PanelRenderer.AddRootVisualElementToTree` in `PreparePanelRenderers`, a while after
+  a successful reload; earlier crash dumps 2026-11-15). Ruled out with `unity command eval` over forced reloads (`touch`
+  doesn't reload: change a file's content): Unity already drops the renderer's root and gives every PanelSettings a new
+  panel at each reload, so detaching roots / disposing panels before it changes nothing, and building the root from
+  `afterAssemblyReload` crashed in Unity's own rebuild (`InitRootVisualElement`). No project-side fix: report it to Unity
+  with the dump (`%TEMP%/Unity/Editor/Crashes`), and reopen the Editor with `unity open .`.
 - `Assets/Plugins/MoonSharp/MoonSharp.Interpreter.dll` (MoonSharp 3.0.0-beta.1 from NuGet, netstandard2.0, BSD): the Lua
   interpreter of the mods' scripts (`ModScripts`, "Mod scripts" in docs/notes/mods.md). A plain precompiled DLL every
   assembly sees; only GoF2.Game's `ModScripts*` files use it. `Assets/link.xml` keeps it and the game's assemblies from
@@ -128,7 +145,7 @@ Assets/
                      HangarShadow (the hangar ships' contact shadows, projected from the camera depth texture), Hull (URP Lit + the
                      original's hull reflection and rim, see "Space scene")
   UI/                UI Toolkit: GoF2Theme.tss + GoF2Common.uss (tokens, control styles), GoF2InputGlyphs.uss (hint rows,
-                     keycaps, Xbox buttons), GoF2PanelSettings, fonts: Klavika (the original HD versions' interface typeface, 2026-10-24, the user's files: Medium the default, as the font has no upright Regular; Bold through the Medium asset's weight table (`.gof-semibold` is `-unity-font-style: bold`), italic likewise; Options > Accessibility "Interface font" replaces it, see "UI and platforms") falling back to Inter (OFL) for Cyrillic and the like, MainMenu/ (UXML, USS, cut images,
+                     keycaps, Xbox buttons), GoF2PanelSettings, fonts: Inter (OFL; Regular the body, SemiBold through its asset's weight table: `.gof-semibold` is `-unity-font-style: bold`). Klavika (the original HD versions' interface typeface, 2026-10-24) is no longer the theme's font (2026-11-15): a commercial typeface the project has no licence to ship and the player's copy doesn't contain, left out of builds without the originals; players who own it import it in Options > Accessibility "Interface font" (UiFont), see "UI and platforms", MainMenu/ (UXML, USS, cut images,
                      menu post-processing profile), Flight/ (HUD), Station/ (station menu), StarMap/ (star map overlay)
   Skyboxes/          skybox_0XX.png (6-face strip -> Cubemap) + .mat, old combined bakes (only the Flight Test scene uses one)
   Materials/, Prefabs/ generated by the "GoF2 > Build > Materials And Prefabs" menu item (one prefab per game mesh)
@@ -172,6 +189,12 @@ The full list with what each item makes and writes: [docs/notes/editor-tools.md]
   moves their methods and properties into `<Class><Area>.cs` (a dry run with sizes; `--write` writes, then compile).
 - Gameplay logic is a clean C# reimplementation of the behaviour in the decompiled code, not a line-by-line transliteration. Comment the original function names and constants you based it on.
 - Keep game-logic classes plain C# where possible (like `FlightModel`) so they can be unit-tested. MonoBehaviours adapt them to Unity.
+- **Every method of the runtime assemblies is patchable by mods** (`game.patch`, "Patches" in docs/notes/mods.md): the
+  build step `Scripts/Editor/CodeGen/PatchWeaver.cs` weaves a check into the start of each one (a static array load and a
+  branch), so no hook has to be written for a mod to change something. Mark a tiny method called many thousands of times a
+  frame `[MethodImpl(MethodImplOptions.AggressiveInlining)]` to keep it out. After a Unity update: if the game's classes
+  stop being patchable (`ModScriptPatchTests.EveryGameAssemblyIsWoven`), the ILPostProcessor wasn't run or failed (a
+  "PatchWeaver:" warning in the Console).
 - A type with static fields, auto-properties or events carries `[Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]`
   (Unity 6.7's UAL0010 / UAL0013 analyzer): Play mode runs without a domain reload and the code resets what it needs itself
   (`RuntimeInitializeOnLoadMethod(SubsystemRegistration)`). Use `FindObjectsByType<T>()` / `(FindObjectsInactive)`, never the

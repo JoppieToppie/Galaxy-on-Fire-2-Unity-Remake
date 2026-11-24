@@ -23,9 +23,13 @@ namespace GoF2Remake.World
                     if (Over(0))
                     {
                         EnterCutscene();
-                        // Modified: the shot is on the battlestation itself (the laser only appears LaserDelay80 ms in, step 1).
+                        // Modified: the shot is on the battlestation itself (the laser fires LaserDelay80 ms in, step 1).
                         var shot = new Vector3(-20000, 5000, -35000);
                         cam.LookAtUnity(host + ToUnity(shot) * k, battlestation != null ? battlestation.transform : battleLaser?.transform);
+                        // Modified: the laser shows from the shot's start, held at its load pose until it fires (the original's
+                        // +0xbc is visible from the ctor, its animation advanced only in step 2; the user's request, 2026-11-16,
+                        // with the laser's animation reworked).
+                        ShowLaser80();
                         camStartZ80 = cam.Camera != null ? cam.Camera.position.z : 0f;
                         // OrbitScale: the pull back ends where the scaled orbit has the original's end (toward Kothar), at least
                         // CamPullBack80 on (at 1x: exactly that).
@@ -40,39 +44,14 @@ namespace GoF2Remake.World
                     PullBack80(stepMs);
                     if (stepMs >= LaserDelay80)
                     {
-                        // Modified: the laser starts LaserDelay80 ms into the shot (it played from the level's start), its
-                        // firing animation from the beginning.
-                        if (battleLaser != null)
-                        {
-                            battleLaser.SetActive(true);
-                            // the charge-up lives in the parts' material channels (like 89's supernova front)
-                            laserAnims80 = battleLaser.GetComponentsInChildren<PartAnimation>(true);
-                            laserFullOn80 = new float[laserAnims80.Length];
-                            foreach (var a in laserAnims80) { a.applyMaterialChannels = true; a.speed = 1f; }
-                            PartAnimation.PlayOnce(battleLaser);
-                            // Modified: each part plays from its start to LaserHoldAt80 of its length in LaserChargeMs80, then is
-                            // held there (step 2) until the cut: its tail (fading out) no longer shows, nor a second hit.
-                            for (int i = 0; i < laserAnims80.Length; i++)
-                            {
-                                var a = laserAnims80[i];
-                                float start = Mathf.Clamp(a.loopStartMs, 0f, a.LengthMs);
-                                laserFullOn80[i] = Mathf.Lerp(start, a.LengthMs, Mathf.Clamp01(LaserHoldAt80));
-                                a.speed = Mathf.Max(0.01f, (laserFullOn80[i] - start) / LaserChargeMs80);
-                            }
-                        }
-                        laserLooping80 = false;
+                        // The laser's animation runs from its load pose at its own speed (LevelScript step 2's
+                        // Transform::Update); its material channels (the fades) too.
+                        FireLaser80();
                         Step = 2;
                     }
                     break;
                 case 2:
                     PullBack80(LaserDelay80 + stepMs);   // Modified: still pulling back
-                    // Modified: once charged the laser stays fully on (held at its LaserHoldAt80 pose) until the
-                    // camera cuts to the Void.
-                    if (!laserLooping80 && stepMs >= LaserChargeMs80 && laserAnims80 != null)
-                    {
-                        for (int i = 0; i < laserAnims80.Length; i++) laserAnims80[i].Hold(laserFullOn80[i]);
-                        laserLooping80 = true;
-                    }
                     if (stepMs >= LaserWindow80)
                     {
                         if (battleLaser != null) battleLaser.SetActive(false);
@@ -84,17 +63,7 @@ namespace GoF2Remake.World
                     // The hit: the camera on the impact point, the station's laser visible.
                     var hit = new Vector3(12487, -11451, 5958);
                     cam.LookAtUnity(At(new Vector3(-16974, -17691, 37541)), null, At(hit));   // OrbitScale: absolute (by Kothar's hull)
-                    if (stationLaser != null)
-                    {
-                        stationLaser.SetActive(true);
-                        // Modified: held at its first frame until step 7 fires it (it looped on its own for these 800 ms, then
-                        // PlayOnce started it over: it vanished and fired again).
-                        foreach (var a in stationLaser.GetComponentsInChildren<PartAnimation>(true))
-                        {
-                            a.applyMaterialChannels = true;
-                            a.Hold(Mathf.Clamp(a.loopStartMs, 0f, a.LengthMs));
-                        }
-                    }
+                    ShowStationLaser80();
                     Step = 7;
                     break;
                 }
@@ -104,46 +73,19 @@ namespace GoF2Remake.World
                     cam.SetDolly(new Vector3(0.5f, 0.2f, -0.3f));
                     if (stepMs >= HitWait80)
                     {
-                        if (stationLaser != null)
-                        {
-                            foreach (var a in stationLaser.GetComponentsInChildren<PartAnimation>(true)) a.applyMaterialChannels = true;   // Modified: its fades
-                            PartAnimation.PlayOnce(stationLaser);
-                        }
-                        if (level.Station != null)
-                        {
-                            PartAnimation.PlayOnce(level.Station);   // the station's explosion animation
-                            LoopEmitters80(level.Station);   // Modified: not the flames, they go on looping
-                        }
+                        FireStationLaser80();
                         Step = 8;
                     }
                     break;
                 case 8:
                     if (stepMs >= HitWait80)
                     {
-                        var hitPoint = new Vector3(12487, -11451, 5958);
-                        // Modified: the blast HitBlastOffset80 from the hit point (was the hit point itself).
-                        // OrbitScale: the hit point where the scaled orbit has it, the offsets on Kothar's hull grown with it.
-                        Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18
-                        // Level+0x58 at the hit point and Level+0x5c at hit + (4500, 0, 1000) (record 24, both emitting for
-                        // the rest of the level; the second point drifts +2 u/ms along x in state 9).
-                        burnA = new GameObject("Deep science burn A").transform;
-                        burnA.position = At(hitPoint);
-                        new WreckBurn(burnA, WreckBurn.DeepScience).SetEmitting(true);
-                        burnB = new GameObject("Deep science burn B").transform;
-                        burnB.position = At(hitPoint) + ToUnity(new Vector3(4500, 0, 1000)) * k;
-                        new WreckBurn(burnB, WreckBurn.DeepScience).SetEmitting(true);
-                        // Modified: the fires' own pose under each burn point, matched to the original (Inspector values).
-                        PlaceBurn80(burnA, BurnPosA80 * k, BurnRotA80);
-                        PlaceBurn80(burnB, BurnPosB80 * k, BurnRotB80);
-                        // Modified: fire B rides the blown-off part 4 of the station (it drifted +2 u/ms along x on its own).
-                        var part4 = FindStationPart80(BurnBFollows80);
-                        if (part4 != null) burnB.SetParent(part4, true);
-                        else Debug.LogWarning($"[80] {BurnBFollows80} not found: fire B drifts on its own");
+                        HitBlast80();
                         Step = 9;
                     }
                     break;
                 case 9:
-                    if (burnB != null && burnB.parent == null) burnB.position += ToUnity(new Vector3(2f * dtMs, 0, 0)) - ToUnity(Vector3.zero);   // Modified: only without part 4
+                    TickBurnB80(dtMs);
                     if (stepMs >= 8000f)
                     {
                         LeaveCutscene();
@@ -171,7 +113,7 @@ namespace GoF2Remake.World
                     JumpShot80(dtMs);
                     if (stepMs >= 4000f)
                     {
-                        Explosion.Spawn(0, host + ToUnity(new Vector3(-4000, 5000, -6000)) * k, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);
+                        JumpBlast80();
                         Step = 12;
                     }
                     break;
@@ -180,15 +122,7 @@ namespace GoF2Remake.World
                     cam.Rumble = Mathf.Clamp01(stepMs / 8000f);
                     if (stepMs >= 8000f)
                     {
-                        // Modified: like 78's jump: aligned with the battlestation instead of facing the camera, and 78's custom
-                        // texture (Resources/GoF2Custom/hyperdrive_78) when there is one.
-                        SpawnHyperDrive(ToGame(host) + new Vector3(0, 0, -10000), 20f, texture78: true);
-                        if (fx != null)
-                        {
-                            fx.transform.SetPositionAndRotation(host + HyperDrivePos80 * k, Quaternion.Euler(HyperDriveRot80));   // OrbitScale
-                            fx.transform.localScale = Vector3.one * (HyperDriveScale80 * k);
-                            fxFixed = true;
-                        }
+                        JumpFx80();
                         Step = 13;
                     }
                     break;
@@ -198,6 +132,103 @@ namespace GoF2Remake.World
                     if (stepMs >= 2151f && battlestation != null && battlestation.activeSelf) battlestation.SetActive(false);
                     if (stepMs >= 10001f) { LeaveCutscene(); Step = 14; }
                     break;
+            }
+        }
+
+        // ---- 80's scenery moments (the leader's script, and remake co-op: a follower's as the leader's script reaches them) ----
+
+        /// <summary>The battlestation's laser shown, held at its load pose until it fires (step 0 -> 1).</summary>
+        void ShowLaser80()
+        {
+            if (battleLaser == null) return;
+            battleLaser.SetActive(true);
+            foreach (var a in battleLaser.GetComponentsInChildren<PartAnimation>(true))
+            {
+                a.applyMaterialChannels = true;
+                a.Hold();
+            }
+        }
+        /// <summary>The laser's animation runs from its load pose at its own speed (LevelScript step 2's Transform::Update);
+        /// its material channels (the fades) too.</summary>
+        void FireLaser80()
+        {
+            if (battleLaser == null) return;
+            foreach (var a in battleLaser.GetComponentsInChildren<PartAnimation>(true)) { a.applyMaterialChannels = true; a.speed = 1f; }
+            PartAnimation.PlayOnce(battleLaser);
+        }
+        /// <summary>Kothar's laser visible, held at its first frame until step 7 fires it (Modified: it looped on its own for
+        /// these 800 ms, then PlayOnce started it over: it vanished and fired again).</summary>
+        void ShowStationLaser80()
+        {
+            if (stationLaser == null) return;
+            stationLaser.SetActive(true);
+            foreach (var a in stationLaser.GetComponentsInChildren<PartAnimation>(true))
+            {
+                a.applyMaterialChannels = true;
+                a.Hold(Mathf.Clamp(a.loopStartMs, 0f, a.LengthMs));
+            }
+        }
+        /// <summary>The hit: Kothar's laser fires and the station's explosion animation plays.</summary>
+        void FireStationLaser80()
+        {
+            if (stationLaser != null)
+            {
+                foreach (var a in stationLaser.GetComponentsInChildren<PartAnimation>(true)) a.applyMaterialChannels = true;   // Modified: its fades
+                PartAnimation.PlayOnce(stationLaser);
+            }
+            if (level.Station != null)
+            {
+                PartAnimation.PlayOnce(level.Station);   // the station's explosion animation
+                LoopEmitters80(level.Station);   // Modified: not the flames, they go on looping
+            }
+        }
+        /// <summary>Fire B drifts +2 u/ms along x when it has no blown-off part to ride.</summary>
+        void TickBurnB80(float dtMs)
+        {
+            if (burnB != null && burnB.parent == null) burnB.position += ToUnity(new Vector3(2f * dtMs, 0, 0)) - ToUnity(Vector3.zero);   // Modified: only without part 4
+        }
+        /// <summary>The station's blast at the hit and its two fires (step 8 -> 9).</summary>
+        void HitBlast80()
+        {
+            float k = StructureScale;
+            var hitPoint = new Vector3(12487, -11451, 5958);
+            // Modified: the blast HitBlastOffset80 from the hit point (was the hit point itself).
+            // OrbitScale: the hit point where the scaled orbit has it, the offsets on Kothar's hull grown with it.
+            Explosion.Spawn(0, At(hitPoint) + ToUnity(HitBlastOffset80) * k, Vector3.forward, HitBlastScale80, CombatAssets.Pick(combat?.explosionBig), true);   // sound 18; Modified: HitBlastScale80 (was 3)
+            // Level+0x58 at the hit point and Level+0x5c at hit + (4500, 0, 1000) (record 24, both emitting for
+            // the rest of the level; the second point drifts +2 u/ms along x in state 9).
+            burnA = new GameObject("Deep science burn A").transform;
+            burnA.position = At(hitPoint);
+            new WreckBurn(burnA, WreckBurn.DeepScience).SetEmitting(true);
+            burnB = new GameObject("Deep science burn B").transform;
+            burnB.position = At(hitPoint) + ToUnity(new Vector3(4500, 0, 1000)) * k;
+            new WreckBurn(burnB, WreckBurn.DeepScience).SetEmitting(true);
+            // Modified: the fires' own pose under each burn point, matched to the original (Inspector values).
+            PlaceBurn80(burnA, BurnPosA80 * k, BurnRotA80);
+            PlaceBurn80(burnB, BurnPosB80 * k, BurnRotB80);
+            // Modified: fire B rides the blown-off part 4 of the station (it drifted +2 u/ms along x on its own).
+            var part4 = FindStationPart80(BurnBFollows80);
+            if (part4 != null) burnB.SetParent(part4, true);
+            else Debug.LogWarning($"[80] {BurnBFollows80} not found: fire B drifts on its own");
+        }
+        Vector3 Host80Unity => battlestation != null ? battlestation.transform.position : At(Host80);
+        /// <summary>The blast on the battlestation as its hyperdrive spins up (step 11 -> 12).</summary>
+        void JumpBlast80()
+        {
+            Explosion.Spawn(0, Host80Unity + ToUnity(new Vector3(-4000, 5000, -6000)) * StructureScale, Vector3.forward, 3f, CombatAssets.Pick(combat?.explosionBig), true);
+        }
+        /// <summary>The hyperdrive fx: like 78's jump, aligned with the battlestation instead of facing the camera, and 78's
+        /// custom texture (Resources/GoF2Custom/hyperdrive_78) when there is one (step 12 -> 13).</summary>
+        void JumpFx80()
+        {
+            var host = Host80Unity;
+            float k = StructureScale;
+            SpawnHyperDrive(ToGame(host) + new Vector3(0, 0, -10000), 20f, texture78: true);
+            if (fx != null)
+            {
+                fx.transform.SetPositionAndRotation(host + HyperDrivePos80 * k, Quaternion.Euler(HyperDriveRot80));   // OrbitScale
+                fx.transform.localScale = Vector3.one * (HyperDriveScale80 * k);
+                fxFixed = true;
             }
         }
         void JumpShot80(float dtMs)

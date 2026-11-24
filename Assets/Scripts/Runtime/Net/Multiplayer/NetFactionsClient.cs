@@ -197,7 +197,7 @@ namespace GoF2Remake.Multiplayer
         public static int Home => NetPlayer.Local != null ? NetPlayer.Local.FactionHome : -1;
 
         /// <summary>The server asks for a faction deposit: paid from the credits if there are enough; the answer either way.</summary>
-        internal static void OnCharge(int token, int amount)
+        internal static void OnCharge(int token, long amount)
         {
             bool paid = amount > 0 && Session.Credits >= amount;
             if (paid) Session.Credits -= amount;
@@ -220,10 +220,10 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Credits from the faction bank.</summary>
-        internal static void OnGrant(int amount)
+        internal static void OnGrant(long amount)
         {
             if (amount <= 0) return;
-            Session.Credits += amount;
+            Session.AddCredits(amount);   // saturating at the 64-bit top
             NetChat.Notice(string.Format(Localization.Extra("mpFactionGranted", "+{0:N0} credits from the faction bank."), amount));
             NetProfileClient.Upload();
             RefreshStationCredits();

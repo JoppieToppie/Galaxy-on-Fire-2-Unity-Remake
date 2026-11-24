@@ -19,6 +19,19 @@ namespace GoF2Remake.Tests
         [SetUp] public void Save() => prefs = new DataUiTestKit.PrefsSnapshot();
         [TearDown] public void Restore() => prefs?.Dispose();
 
+        [Test]
+        public void GroupUpgradeEnablesAllTracksOnceThenKeepsNewChoices()
+        {
+            UnityEngine.PlayerPrefs.DeleteKey("gof2.musicTrackGroups.v1");
+            foreach (var track in C.All) UnityEngine.PlayerPrefs.SetFloat("gof2." + C.Key(track), 0f);
+            DataUiTestKit.ClearSettingsCache();
+            foreach (var track in C.All) Assert.IsTrue(C.On(track), "upgrade: " + track);
+            Settings.SetMusicTrackOn(C.Specters1, false);
+            DataUiTestKit.ClearSettingsCache();
+            Assert.IsFalse(C.On(C.Specters2), "the migration must not repeat");
+            Assert.IsTrue(C.On(C.BattleLow));
+        }
+
         static System.Func<string, bool> AllBut(params string[] off) => t => !off.Contains(t);
 
         static int Pick(int hostiles, int playing = -1, bool wanted = false, bool specters = false, bool voidBattle = false,
@@ -89,7 +102,17 @@ namespace GoF2Remake.Tests
             }
             Settings.SetMusicTrackOn(C.BattleLow, false);
             Assert.IsFalse(C.On(C.BattleLow));
+            Assert.IsFalse(C.On(C.BattleMedium));
+            Assert.IsFalse(C.On(C.BattleFull));
+            Assert.IsTrue(C.On(C.VoidBattle));
+            Assert.IsTrue(C.On(C.Specters1));
+            Settings.SetMusicTrackOn(C.BattleFull, true);
+            Assert.IsTrue(C.On(C.BattleLow));
             Assert.IsTrue(C.On(C.BattleMedium));
+            Settings.SetMusicTrackOn(C.Specters2, false);
+            Assert.IsFalse(C.On(C.Specters1));
+            Assert.IsFalse(C.On(C.Specters2));
+            Assert.IsTrue(C.On(C.Wanted));
             Settings.Reset(Settings.SoundKeys);
             Assert.IsTrue(C.On(C.BattleLow));
             Assert.AreEqual(C.All.Length, C.All.Distinct().Count());

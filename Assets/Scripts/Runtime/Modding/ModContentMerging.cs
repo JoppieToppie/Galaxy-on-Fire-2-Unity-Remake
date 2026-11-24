@@ -151,6 +151,7 @@ namespace GoF2Remake.Modding
                                 };
                             ModFlight.ApplyShip(s, o, d.where);
                             ModShipView.ApplyShip(s, o);
+                            ExternalDockingRules.ApplyShip(s, o);
                             ShipClassRules.ApplyShip(s, o, d.mod);
                             if (s is CustomShipData cs)
                             {
@@ -200,6 +201,7 @@ namespace GoF2Remake.Modding
                         if (dflt && c.priceDefault > 0) c.price = c.priceDefault;
                         ModFlight.ApplyShip(c, d.json, d.where);
                         ModShipView.ApplyShip(c, d.json);
+                        ExternalDockingRules.ApplyShip(c, d.json);
                         ShipClassRules.ApplyShip(c, d.json, d.mod);
                         db.Ships.Add(c);
                         if (GameModels.Is(c.model, out string shipModel))
@@ -249,7 +251,7 @@ namespace GoF2Remake.Modding
             db.NpcTurrets[ship] = items;
         }
         /// <summary>Remake mods: ships.json "subsystems", a capital ship's parts on its hull (World.CapitalSubsystems): each
-        /// { "kind": "turret" | "object" | "hangar", "name", "position_engine": [x, y, z], "turretUp" / "upsideDown", "item"
+        /// { "kind": "turret" | "object" | "hangar", "name", "position_engine": [x, y, z], "turretUp" / "upsideDown", "turretForward", "item"
         /// (a turret's turret item), "model" ("gof2:<assembly>" or a ship), "hull", "scale", "radius", "shields", "weakspot",
         /// "bonus", "stage", and for a hangar "ships", "every" (seconds), "perWave", "maxAlive", "total" }. A turret without a
         /// turret item, an unknown kind or a wrong shape is reported and left out.</summary>
@@ -275,6 +277,7 @@ namespace GoF2Remake.Modding
                 if (ModJson.Get(o, "turretUp") is JArray up && up.Count >= 3) p.up = new Vector3((float)up[0], (float)up[1], (float)up[2]);
                 else if (ModJson.Get(o, "upsideDown") is JValue ud && ud.Type == JTokenType.Boolean && (bool)ud) p.up = Vector3.down;
                 if (p.up.sqrMagnitude < 1e-6f) p.up = Vector3.up;
+                if (ModJson.Get(o, "turretForward") is JArray fw && fw.Count >= 3) p.forward = new Vector3((float)fw[0], (float)fw[1], (float)fw[2]);
                 if (ModJson.Get(o, "item") is JToken it)
                 {
                     string reference = it.Type == JTokenType.Integer ? ((int)it).ToString() : it.Type == JTokenType.String ? (string)it : null;
@@ -287,7 +290,7 @@ namespace GoF2Remake.Modding
                 p.stage = ModJson.Int(o, "stage", 0, file);
                 p.shields = ModJson.Get(o, "shields") is JValue sh && sh.Type == JTokenType.Boolean && (bool)sh;
                 float F(string k, float def) => ModJson.Get(o, k) is JValue v && (v.Type == JTokenType.Float || v.Type == JTokenType.Integer) ? (float)v : def;
-                p.weakspot = F("weakspot", 0f); p.bonus = F("bonus", 0f); p.scale = F("scale", 1f); p.radius = F("radius", -1f);
+                p.weakspot = F("weakspot", 0f); p.bonus = F("bonus", 0f); p.shield = Mathf.Max(0f, F("shield", 0f)); p.scale = F("scale", 1f); p.radius = F("radius", -1f);
                 p.everyMs = Mathf.Max(3f, F("every", 25f)) * 1000f;
                 p.perWave = Mathf.Max(1, ModJson.Int(o, "perWave", 2, file));
                 p.maxAlive = Mathf.Max(1, ModJson.Int(o, "maxAlive", 6, file));

@@ -85,7 +85,7 @@ namespace GoF2Remake.Tests
             var p = ModProject.Create("Side turret", "tests");
             var s = p.AddOverride(Database.Shared, 28);
             s.Mounts.Clear();
-            var side = new WeaponMount { slotType = 2, position_engine = new[] { 100, 0, 0 } };
+            var side = new WeaponMount { slotType = 2, position_engine = new[] { 100, 0, 0 }, turretScale = 2.5f };
             side.SetTurretUp(new UnityEngine.Vector3(1f, 0f, 0f));
             var under = new WeaponMount { slotType = 2, position_engine = new[] { 0, -50, 0 } };
             under.SetTurretUp(new UnityEngine.Vector3(0f, -1f, 0f));
@@ -95,10 +95,12 @@ namespace GoF2Remake.Tests
             p.Save();
             string json = new string(File.ReadAllText(Path.Combine(p.Folder, ModContent.ShipsFile)).Where(c => !char.IsWhiteSpace(c)).ToArray());
             StringAssert.Contains("\"turretUp\":[1.0,0.0,0.0]", json);
+            StringAssert.Contains("\"turretScale\":2.5", json, "the per-mount scale is exported");
             StringAssert.Contains("\"position_engine\":[0,-50,0],\"upsideDown\":true", json, "straight down as before");
             StringAssert.DoesNotContain("\"position_engine\":[0,50,0],\"turretUp\"", json, "straight up needs nothing");
             var back = ModProject.Load(p.Folder).Ships.Single().Mounts;
             CollectionAssert.AreEqual(new[] { 1f, 0f, 0f }, back[0].turretUp);
+            Assert.AreEqual(2.5f, back[0].TurretScale, "the scale survives a project save and reload");
             Assert.IsTrue(back[1].TurretHangs);
         }
 

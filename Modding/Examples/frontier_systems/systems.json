@@ -1,27 +1,35 @@
 [
+    // A new star system. Other mods (and this mod's stations) name it by its key: "frontier_systems:kepler".
     {
         "id": "kepler",
         "name": "Kepler",
+
+        // Who owns it: 0 Terran, 1 Vossk, 2 Nivelian, 3 Midorian (or a mod's race, see Modding/Examples/kepler_guild,
+        // which gives this very system to its own race). It picks the hangars, bars, music, traffic and shops.
         "race": 0,
+
+        // 0 (lawless) to 3 (secure): how many raiders show up.
         "security": 2,
+
+        // On the star map from the start. false: hidden until a mission, a bought chart or a script reveals it.
         "visible": true,
-        "position": [
-            8,
-            27,
-            83
-        ],
+
+        // [x, y, z] on the star map (the original systems lie between 15 and 94, 2 and 96, 10 and 90).
+        "position": [8, 27, 83],
+
+        // One of the original skies (0-18) for whatever the fields below don't replace.
         "sky": 4,
-        "gates": [
-            4,
-            17
-        ],
+
+        // The jumpgate's routes: Eanya (4) and Nesla (17). Routes work both ways, those systems get one back.
+        "gates": [4, 17],
+        // The orbit the jumpgate stands in (default: the system's first station).
         "gateStation": "frontier_systems:rho_freeport",
+
+        // Its own sun (a 512 x 512 PNG, bright core and glow on black) and the colour of its light on ships and stations.
         "sunTexture": "textures/kepler_sun.png",
-        "sunColor": [
-            1.0,
-            0.8,
-            0.55
-        ],
+        "sunColor": [1.0, 0.8, 0.55],
+
+        // Its own sky: a nebula picture over one of the game's star fields.
         "skybox": {
             "nebula": "sky/kepler_nebula.png",
             "stars": 1,

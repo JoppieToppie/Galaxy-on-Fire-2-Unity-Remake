@@ -3,9 +3,13 @@
 // npc_combat_specials.md 1): a turret turns toward a point in steps, never snaps. The aim direction is taken in the gun's
 // own frame: |x| > 0.05 -> yaw the base by yawRate * dt toward it, |y| > 0.05 -> pitch the gun by pitchRate * dt, limited
 // to [pitchMin, pitchMax] (a turret that hits a limit can't reach the target: the owner picks another). Aligned (both
-// within +-0.05, target in front) -> fire. Plain C#: the owner hands in the yaw node (base pivot) and the gun node (its
-// barrel along its local +Z) and gets the local rotations back.
+// within +-0.05, target in front) -> fire.
+// Remake (#354, Options > Gameplay "Turrets lead moving targets", Settings.TurretLeadAim, off by default): the turret
+// turns straight onto the target at its rates (no overshoot) and reports aligned within 0.14 deg of the updated pose.
+// Plain C#: the owner hands in the yaw node (base pivot) and the gun node (its barrel along its local +Z) and gets the
+// local rotations back.
 
+using GoF2Remake.Data;
 using UnityEngine;
 
 namespace GoF2Remake.Flight
@@ -15,6 +19,7 @@ namespace GoF2Remake.Flight
         /// <summary>2 pi / 4096 rad per ms (87.9 deg/s): the base unit of every turret rate.</summary>
         public const float RadPerMs = 2f * Mathf.PI / 4096f;
         const float DeadZone = 0.05f;
+        const float AlignmentToleranceRad = 0.0025f; // about 0.14 degrees (Settings.TurretLeadAim)
 
         public float yawRatePerMs = RadPerMs, pitchRatePerMs = RadPerMs;
         /// <summary>Pitch limits in radians (up positive); NaN = unlimited (sentry guns).</summary>
@@ -42,6 +47,29 @@ namespace GoF2Remake.Flight
 
         /// <summary>One step toward 'world'; true when aligned (the owner may fire).</summary>
         public bool Step(Vector3 world, float dtMs)
+        {
+            if (!Settings.TurretLeadAim) return StepOriginal(world, dtMs);
+            var d = (world - gunNode.position).normalized;
+            var local = gunNode.InverseTransformDirection(d);
+            float yawError = Mathf.Atan2(local.x, local.z);
+            float pitchError = Mathf.Atan2(local.y, Mathf.Sqrt(local.x * local.x + local.z * local.z));
+            LimitHit = false;
+            Yaw += Mathf.Clamp(yawError, -yawRatePerMs * dtMs, yawRatePerMs * dtMs);
+            Turn(0f, Mathf.Clamp(pitchError, -pitchRatePerMs * dtMs, pitchRatePerMs * dtMs));
+            Apply();
+
+            // Check the updated pose. The old dot-product dead zone was roughly 2.9 degrees wide and used stale angles,
+            // so turrets could report alignment and fire after crossing that wide zone while still substantially off target.
+            local = gunNode.InverseTransformDirection((world - gunNode.position).normalized);
+            float remainingYaw = Mathf.Atan2(local.x, local.z);
+            float remainingPitch = Mathf.Atan2(local.y, Mathf.Sqrt(local.x * local.x + local.z * local.z));
+            return local.z > 0f && Mathf.Abs(remainingYaw) <= AlignmentToleranceRad &&
+                   Mathf.Abs(remainingPitch) <= AlignmentToleranceRad;
+        }
+
+        /// <summary>The original's step (PlayerTurret::handleRotation): a fixed-rate turn while the aim is outside the 0.05
+        /// dead zone (or behind), aligned inside it.</summary>
+        bool StepOriginal(Vector3 world, float dtMs)
         {
             var d = (world - gunNode.position).normalized;
             float x = Vector3.Dot(d, gunNode.right), y = Vector3.Dot(d, gunNode.up), z = Vector3.Dot(d, gunNode.forward);

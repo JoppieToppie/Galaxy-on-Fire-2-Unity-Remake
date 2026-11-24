@@ -164,6 +164,68 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   in every orbit so its +Y points at that orbit's sun (`OrbitBuilder.SunAlignedSky`, the supernova system's R_sky; a sun on
   game x takes game z for its side axis instead of a zero vector), a `rotation` with it applied to the image first; the
   builder's Systems page has it. Test `ModWorldTests.ASkyFollowsTheSun`.
+- **A gate's own centre** (remake, 2026-11-11, for Chorus's jumpgate, a ring tunnel at one end of a 9.7 km frame):
+  systems.json `"jumpgate"` `"centre": false` keeps the model's origin as the gate's middle (`StationModel.centre`, as a
+  station's `modelCentre`; `ModStations.Build` skips its bounds-centring), so the jump sphere and the arrivals sit in
+  the ring, not halfway down the frame. Test `ModWorldTests.ASystemsOwnJumpgate`.
+- **Chorus planets** (remake, 2026-11-11, the user's request for Chorus's planets in the Chorus systems): planetSphere
+  `"look": "chorus"` (`ModWorld.ChorusPlanetSpec`, `ParseChorusPlanet`; `Backdrop.ChorusPlanetMaterial`, GoF2/ChorusPlanet in
+  Resources/GoF2Sky) from the compiled shaders of Chorus's two planet masters: **M_Planet03** (`kind` surface;
+  MI_Planet_LocTRN's base pass, MI_Planet03c's with water and clouds): terrain / macro normal maps blended by the macro
+  height over a threshold, the height (threshold blend, or the two by Terrain Macro Height Strength) into the CA_Planets
+  elevation curve plus grunge, water under Water Level (exp(-depth x density) between its deep and shallow colours, the
+  normal flattened by Underwater Normal Intensity), clouds advected by a flow map in two phases half a cycle apart
+  (Unreal's flowmap blend), toward the rim (fresnel, or the clouds' cover) the normal flattened and the colour turned to the
+  atmosphere's fresnel curve, an emissive atmosphere term (directional curve + fresnel curve + the clouds' glow, by the
+  terminator (N.L x Terminator Tightness + 1)^2.2, dimmed toward the night side), then Unreal's default lit under the orbit's
+  sun (Lambert, GGX, Schlick, Smith; `SampleSH` for the sky light); its switches (Has Water, Has Clouds?, Enable Macro
+  Normalmap, Macro As Height Treshold, Roughness | Use Constant, Modify Shaded Specular) as flags, their defaults the
+  master's (read off MI_Planet03c's compiled shader); its normal jitter (a 0.003 screen dither) left out. **M_Planet_
+  SurfaceCheap** (`kind` cheap, unlit): diffuse and night maps and clouds blended by the sun on the normal-mapped surface,
+  a rim and a "blue rim", InsideColor on the lit side; "Use Simple" its colours alone. The planet's UVs as Chorus's
+  SM_Planet_Surface maps them (lon / lat about its pole: u = 0.75 - atan2(y, x) / 2π, v = 0.5 - asin(z) / π in Unreal's
+  axes, the backdrop sphere's +Y), the tangent along u, the bitangent along v. The colour curves come as an image of rows
+  (the importer evaluates the atlas's rich curves; clamped sampling); maps the spec lists in `"srgb"` are read as colour,
+  the rest linear (Chorus's texture flags). **The atmosphere shell** (`"chorusAtmosphere"`, `Backdrop.ChorusAtmosphereShell`,
+  GoF2/ChorusAtmosphere, the "Is Atmosphere Shell?" translucent pass): its glow comes from the view ray's closest pass by
+  the planet's centre, from the surface out to AtmosphereHeightUU / PlanetRadiusUU of the radius, (1 - h / H)^exponent,
+  none in front of the disc; coloured by the directional and fresnel curves by the sun's angle on the shell, added; the
+  shell (scale 1 + 1.05 x that height) drawn from inside (Cull Front, Chorus's inward normals). Check: PlayMode
+  `ChorusWorldCheck` (Temp/chorus_world_mod.txt names the built mod). Tests `ChorusPlanetTests`.
+- **Chorus skies** (remake, 2026-11-11, the user: rebuild Chorus's skies "exactly as chorus does", then "do both": live and
+  baked): a skybox's `"chorus"` block (`ModWorld.ChorusSky`, `ParseChorusSky`) is Chorus's M_Skybox_MASTER, decoded from its
+  compiled pixel shader (MI_Skybox_LocRSA's and the variants with a fourth layer / without the gradient) and its preshader
+  (each constant's parameter): gradient along an up vector, a star mask over Chorus's sky sphere (SM_Sphere, a UV sphere
+  about Unreal's y: u = 0.75 - atan2(z, x) / 2π wrapped, v = 0.5 + asin(y) / π) through the CA_Skybox star curve, then up
+  to four image patches placed by heading / elevation / scale / rotation, colour + (colour x emissive)^exponent laid over
+  by alpha x opacity inside the patch's square (layers 1 and 2 both read Layer2_EmissiveExponent, as Chorus does), x
+  OverallEmissive; its exposure compensation only cancels Chorus's auto exposure (left out). Worked in Unreal's axes
+  (Unity's z, x, y, no mirror); the gradient and the layers read the sphere's inward normal (-view). GoF2/SpaceSky draws it
+  under `_CHORUS_SKY` (`SpaceSkyCore.hlsl` `ChorusSky`, inside `Sky()`, so the slipstream's warp, the Khador rift (its
+  shader has the keyword and the properties, `CopyMatchingPropertiesFromMaterial`) and the per-station turn work on it
+  unchanged); `OrbitBuilder.SetChorusSky` fills it (the angles' sines / cosines: heading x 2π, elevation x -π / 2, rotation
+  x 2π) where **Options > Graphics "Live mod skies"** (`Settings.LiveSkies`, preset key `liveSkies`: off on Low, on from
+  Medium; unset it follows the detail distance, uncached, so a desktop player on Low still matches Low) is on. The
+  skybox's `nebula` panorama is set as ever beside it: Low's sky and the one `InterstellarField` / `PlanetApproach` crossfade
+  (they read `_NebulaMap`). Cost (estimated, not measured): about 6 texture reads and 150-200 ALU per sky pixel against
+  the image skies' 2 reads: ~0.1 ms on a desktop GPU, twice that in the warp, ~0.5-1 ms on a mid phone (hence off on Low).
+  The importer's `tools/sky.py` writes both (the panorama by the same formula in numpy). Tests `ChorusSkyTests`.
+- **Layered skies** (remake, 2026-11-14, the user: "combine es2s methods with chorus methods for the skies", "one layered
+  sky for all"; built from what EVERSPACE 2's compiled materials and scripts do, no ES2 file needed): the `"chorus"` block
+  takes EVERSPACE 2's methods too. Stars: the mask's `channels` weighted (M_Skybox_Stars: r + g / 2 + b / 4, three star
+  layers), `tiling` [u, v] (its sky sphere tiles 2 x 1) and `noise` (thinned by a 3D gradient noise over the sky, ^2.5:
+  clusters; `SpaceSkyCore` `GradientNoise`). Layers (6 now, 5 vectors each, `_ChorusL{n}A..E`; D.x the kind): kind 0
+  Chorus's image patch as before; kind 1 a tinted mask (M_Nebula_Hemisphere_Parent / M_Nebula_Local_Parent: a greyscale
+  mask's channel x colour, added, brighter toward the sun by pow((dot + 1) / 2, 32) x `sunScatter` x the sun's colour,
+  `_ChorusSun` / `_ChorusSunColor` from `OrbitBuilder.SetChorusSun`: the orbit's sun in the sky's frame, Unreal axes), placed
+  as a patch (scale 2 = the whole sky), tiled / offset in it, with a gaussian `falloff` round its middle (q = (0, -1, 0));
+  kind 2 ES2's gradient (M_Skybox_Gradient: saturate((dot(view, up) + 1) / 2 + Offset), Absolute folds it
+  (1 - |2g - 1|), Invert flips it, smoothstep(GradientMin, GradientMax), Schlick's bias g / ((1 / bias - 2)(1 - g) + 1) as
+  its preshader passes it, ^Power, colour over by it x opacity). `"base": true` (`_ChorusStarsB.w`) keeps the skybox's own
+  layers under it (`BaseSky`: the game's cubes or the images, the Enhanced stars) instead of black. ES2's levels hold only
+  the background in their sky level (Map_Skybox_S0XX: stars sphere, matte, a sky-wide nebula in some at intensity 0.2); its
+  local nebulae are 3D actors in the location levels (221 in all, most levels two): see space-scene.md "Nebula clouds".
+  Tests `ChorusSkyTests` (`Es2LayersAreReadAndPacked`; the compile test now also builds the plain sky).
 - **Characters** (`ModCharacters`, a mod's `characters.json`: id, name (per language), portrait PNG, race, gender, mirrored,
   background, frame, replaces): `NetAdmin.ResolveSpeaker` takes a character by key "mod_id:id" (before the story speakers),
   else after them by id or name (any language), "x as Name" renaming; the spec is "-3 US rename US key" (`Events.SpeakerSpec`,

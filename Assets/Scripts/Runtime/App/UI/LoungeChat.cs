@@ -307,7 +307,7 @@ namespace GoF2Remake.Data
                 }
                 case AgentOffer.Wingmen:
                     // With all medals the "fans" pay the player (782-784).
-                    return T((Achievements.GotAllMedals ? 782 : 779) + a.wingmen.Count).Replace("#C", C(a.costs)).Replace("#W", a.wingmen.Count > 0 ? a.wingmen[0] : "");
+                    return T((Achievements.WingmenPayPlayer ? 782 : 779) + a.wingmen.Count).Replace("#C", C(a.costs)).Replace("#W", a.wingmen.Count > 0 ? a.wingmen[0] : "");
                 case AgentOffer.Diplomat:
                 {
                     if (!Standing.IsEnemy(a.Side)) return T(883);
@@ -329,7 +329,7 @@ namespace GoF2Remake.Data
                                                                .Replace("#C", C(ModPrice(a)));
                     int level = Session.ModLevel(a.sellMod);
                     // Remake: a stacked upgrade says which level it would be.
-                    return level > 0 ? offer + " " + string.Format(Localization.Extra("kaamoModNextLevel", "(Upgrade level {0}.)"), level + 1) : offer;
+                    return (level > 0 ? offer + " " + string.Format(Localization.Extra("kaamoModNextLevel", "(Upgrade level {0}.)"), level + 1) : offer) + VipPriceDetails(a);
                 }
                 case AgentOffer.SellShip:
                 {
@@ -378,16 +378,27 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Agent::getModPricePercentage 0x1a698c: the ship's price x 20 / 30 / 40 / 20 % (mods 0..3); remake
-        /// (Settings.KaamoStacking): x2 for every level already fitted, capped at int.MaxValue. A ship without a price is
-        /// valued at UnpricedShipValue.</summary>
-        int ModPrice(Agent a)
+        /// (Settings.KaamoStacking): x2 for every level already fitted, up to the 64-bit credits' top (Session.MaxCredits;
+        /// it stopped at 2 147 483 647, every level past it the same price). A ship without a price is valued at
+        /// UnpricedShipValue.</summary>
+        long BaseModPrice(Agent a)
         {
             int[] pct = { 20, 30, 40, 20 };
             int ship = db.Ship(Session.ShipIndex)?.price ?? 0;
             if (ship <= 0) ship = UnpricedShipValue;
             if (a.sellMod < 0 || a.sellMod >= pct.Length) return a.sellPrice;
             double price = (double)ship * pct[a.sellMod] / 100 * System.Math.Pow(2, Session.ModLevel(a.sellMod));
-            return price >= int.MaxValue ? int.MaxValue : (int)price;
+            return price >= 9.2e18 ? Session.MaxCredits : (long)price;
+        }
+
+        long ModPrice(Agent a) => KaamoClub.UpgradePrice(BaseModPrice(a), station);
+
+        string VipPriceDetails(Agent a)
+        {
+            long original = BaseModPrice(a), price = ModPrice(a);
+            if (price == original) return "";
+            return "\n" + string.Format(Localization.Extra("kaamoVipUpgradePrice", "Regular price: {0}. VIP discount: 20% ({1}). You pay: {2}."),
+                C(original), C(original - price), C(price));
         }
 
         /// <summary>Remake (players' feedback, 2026-10): the Cronus (37), Khador's gift at step 77, has no price, so its upgrades
@@ -507,7 +518,7 @@ namespace GoF2Remake.Data
                 }
                 case AgentOffer.Wingmen:
                     if (Session.Wingmen.Count > 0) return Refuse(T(785));
-                    if (Achievements.GotAllMedals) { ConfirmText = T(867).Replace("#C", C(a.costs)); return Outcome.Confirm; }
+                    if (Achievements.WingmenPayPlayer) { ConfirmText = T(867).Replace("#C", C(a.costs)); return Outcome.Confirm; }
                     if (a.costs > Session.Credits) return Refuse(T(203).Replace("#C", C(a.costs - Session.Credits)));
                     ConfirmText = T(866).Replace("#Q", (a.wingmen.Count + 1).ToString()).Replace("#C", C(a.costs));
                     return Outcome.Confirm;
@@ -519,44 +530,48 @@ namespace GoF2Remake.Data
                 {
                     // Remake: the dealer's checks (336 / 329 / 203) at the trade-in price; 873 "Buy ship for #C?".
                     var r = TradeHangar().CanBuyShipFor(a.sellShip, a.sellPrice, out int need);
-                    if (r == Hangar.Result.Passengers) return Refuse(T(336));
-                    if (r == Hangar.Result.SameShip) return Refuse(T(329));
-                    if (r == Hangar.Result.NoCredits) return Refuse(T(203).Replace("#C", C(need)));
+                    bool delivery = KaamoClub.Owned && !NetSession.Active && TradeHangar().CanBuyShipToKaamoFor(a.sellShip, a.sellPrice, out _) == Hangar.Result.Ok;
+                    if (!delivery && r == Hangar.Result.Passengers) return Refuse(T(336));
+                    if (!delivery && r == Hangar.Result.SameShip) return Refuse(T(329));
+                    if (!delivery && r == Hangar.Result.NoCredits) return Refuse(T(203).Replace("#C", C(need)));
                     ConfirmText = T(873).Replace("#C", C(a.sellPrice));
                     return Outcome.ConfirmShip;
                 }
             }
-            int price = Price(a);
+            long price = Price(a);
             if (price > Session.Credits) return Refuse(T(203).Replace("#C", C(price - Session.Credits)));
             ConfirmText = a.offer switch
             {
                 AgentOffer.SellBlueprint => T(869).Replace("#P", BlueprintName(a.sellBlueprint)).Replace("#C", C(price)),
                 AgentOffer.SellSystem => T(870).Replace("#S", SystemName(a.sellSystem)).Replace("#C", C(price)),
-                AgentOffer.SellMod => T(871).Replace("#C", C(price)),
+                AgentOffer.SellMod => T(871).Replace("#C", C(price)) + VipPriceDetails(a),
                 AgentOffer.ShipDealer => T(873).Replace("#C", C(price)),
                 _ => T(868).Replace("#Q", a.sellQuantity.ToString()).Replace("#P", ItemInfo.ItemName(a.sellItem)).Replace("#C", C(price)),
             };
             return Outcome.Confirm;
         }
 
-        int Price(Agent a) => a.offer == AgentOffer.SellMod ? ModPrice(a) : a.sellPrice;
+        long Price(Agent a) => a.offer == AgentOffer.SellMod ? ModPrice(a) : a.sellPrice;
 
         /// <summary>The trades of this station (Hangar, as the hangar window opens it).</summary>
         Hangar TradeHangar() => new Hangar(db, Session.RecentStations.Find(s => s.station == station) ?? new StationStock { station = station });
 
         /// <summary>Remake, AgentOffer.SellShip after the confirmation: 'keep' = 331 (the old hull to the Kaamo Club, the full
         /// price), else the trade-in (the seller takes the old hull). Null when bought, else the refusal (328 / 203 / 336).</summary>
-        public string ConfirmShipTrade(bool keep, bool moveEquipment = false)
+        public string ConfirmShipTrade(bool keep, bool moveEquipment = false, bool toKaamo = false)
         {
             var a = Agent;
+            if (a.accepted) return T(858);
             var h = TradeHangar();
             int need;
-            var r = keep ? h.CanKeepAndBuyShipFor(a.sellShip, a.sellPrice, out need) : h.CanBuyShipFor(a.sellShip, a.sellPrice, out need);
+            var r = toKaamo ? h.CanBuyShipToKaamoFor(a.sellShip, a.sellPrice, out need)
+                : keep ? h.CanKeepAndBuyShipFor(a.sellShip, a.sellPrice, out need) : h.CanBuyShipFor(a.sellShip, a.sellPrice, out need);
             if (r == Hangar.Result.AlreadyStored) return T(328);
             if (r == Hangar.Result.Passengers) return T(336);
             if (r == Hangar.Result.SameShip) return T(329);
             if (r == Hangar.Result.NoCredits) return T(203).Replace("#C", C(need));
-            if (!(keep ? h.KeepAndBuyShipFor(a.sellShip, a.sellPrice, moveEquipment) : h.BuyShipFor(a.sellShip, a.sellPrice))) return T(858);
+            if (!(toKaamo ? h.BuyShipToKaamoFor(a.sellShip, a.sellPrice)
+                : keep ? h.KeepAndBuyShipFor(a.sellShip, a.sellPrice, moveEquipment) : h.BuyShipFor(a.sellShip, a.sellPrice))) return T(858);
             a.accepted = true;
             BoughtShip = true;
             Text = T(850 + Random.Range(0, 3));
@@ -584,7 +599,7 @@ namespace GoF2Remake.Data
                     thanks += " " + (a.mission.type == MissionType.Challenge ? T(856) : T(853 + Random.Range(0, 3)));
                     break;
                 case AgentOffer.Wingmen:
-                    Session.Credits += Achievements.GotAllMedals ? a.costs : -a.costs;
+                    Session.Credits += Achievements.WingmenPayPlayer ? a.costs : -a.costs;
                     Wingmen.Hire(a);
                     a.accepted = true;
                     break;

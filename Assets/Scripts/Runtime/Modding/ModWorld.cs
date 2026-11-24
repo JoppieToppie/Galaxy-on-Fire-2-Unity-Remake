@@ -248,8 +248,26 @@ namespace GoF2Remake.Modding
             /// Color / Color2, Gas's SecondaryColor / BaseColor) and the planet's Variation (0..1: its hue turned by x 2 pi).</summary>
             public Vector3? color1, color2;
             public float variation;
+            /// <summary>2026-11-11, "look": "chorus": Chorus's planet masters (GoF2/ChorusPlanet), its switches and values.</summary>
+            public ChorusPlanetSpec chorus;
+            /// <summary>"chorusAtmosphere": Chorus's atmosphere shell (GoF2/ChorusAtmosphere), in place of "atmosphere".</summary>
+            public ChorusPlanetSpec chorusAtmosphere;
         }
-        public static readonly string[] PlanetSphereLooks = { "es2Desert", "es2GasSmooth", "es2Gas", "es2Cratered", "es2Volcanic", "es2Ice", "es2Water", "es2Earthlike" };
+        /// <summary>A planetSphere's "chorus" / "chorusAtmosphere" block: Chorus's material values by their parameter names
+        /// (a number or [r, g, b]) and its static switches; the maps in the spec's "maps" (Backdrop.ChorusPlanetMaterial).</summary>
+        public sealed class ChorusPlanetSpec
+        {
+            /// <summary>"surface" (M_Planet03) or "cheap" (M_Planet_SurfaceCheap).</summary>
+            public string kind = "surface";
+            /// <summary>M_Planet03's static switches, their defaults the master's.</summary>
+            public bool water, clouds = true, macroNormal, macroThreshold, roughnessConstant = true, shadedSpecular, simple;
+            public readonly Dictionary<string, float[]> values = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>"srgb": the maps (by role) that are colour (sRGB) images; the others are read linear (Chorus's flags).</summary>
+            public readonly HashSet<string> srgb = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public float Value(string name, float fallback) => values.TryGetValue(name, out var v) && v.Length > 0 ? v[0] : fallback;
+            public Vector4 Colour(string name, Vector4 fallback) => values.TryGetValue(name, out var v) && v.Length >= 3 ? new Vector4(v[0], v[1], v[2], 0f) : fallback;
+        }
+        public static readonly string[] PlanetSphereLooks = { "es2Desert", "es2GasSmooth", "es2Gas", "es2Cratered", "es2Volcanic", "es2Ice", "es2Water", "es2Earthlike", "chorus" };
         static readonly Dictionary<int, PlanetSphereSpec> planetSpheres = new Dictionary<int, PlanetSphereSpec>();
 
         static readonly Dictionary<int, string> planetTextures = new Dictionary<int, string>(), sunTextures = new Dictionary<int, string>(),
@@ -529,12 +547,69 @@ namespace GoF2Remake.Modding
             /// <summary>The sky's +Y toward each orbit's sun (OrbitBuilder.SunAlignedSky, the supernova system's rule), so a
             /// painted sky's bright side lies behind the sun whatever the orbit.</summary>
             public bool sunAligned;
+            /// <summary>"chorus": the sky drawn live by Chorus's own formula (OrbitBuilder.SetChorusSky) where Options > Graphics
+            /// "Live mod skies" is on; the "nebula" image (its bake) otherwise and wherever the game reads the sky as an image
+            /// (the crossfade between systems). Null: none.</summary>
+            public ChorusSky chorus;
+        }
+
+        /// <summary>A skybox's "chorus" block, the layered sky (GoF2/SpaceSky ChorusSky): Chorus's M_Skybox_MASTER with EVERSPACE 2's
+        /// sky methods (2026-11-14: ES2's clustered stars, tinted masks and gradients). Directions are Unreal's (x forward, y right,
+        /// z up), angles in turns as Chorus's; images are Backdrop "mod:" names (sRGB, the star mask too: stored sRGB-encoded).</summary>
+        public sealed class ChorusSky
+        {
+            /// <summary>The gradient (null: none): along 'up', (dot + bias)^gamma, colour A to B, times opacity.</summary>
+            public Vector3? gradientUp;
+            public float gradientBias, gradientGamma = 1f, gradientOpacity = 1f;
+            public Color gradientA = Color.black, gradientB = Color.black;
+            /// <summary>The star mask, tiled over Chorus's sky sphere, through a two-key curve (rgb, time), then exponent and
+            /// brightness.</summary>
+            public string stars;
+            public float starsTiling = 1f, starsBrightness = 1f, starsExponent = 1f;
+            /// <summary>Its v tiling (0: as u; ES2's sky sphere tiles its star mask 2 x 1).</summary>
+            public float starsTilingV;
+            public Vector2 starsOffset;
+            public Vector4 curve0 = new Vector4(0f, 0f, 0f, 0.1821f), curve1 = new Vector4(1f, 1f, 1f, 0.5361f);
+            /// <summary>The mask's channel weights: Chorus's red (1, 0, 0); ES2's three star layers (1, 0.5, 0.25).</summary>
+            public Vector3 starsChannels = new Vector3(1f, 0f, 0f);
+            /// <summary>ES2's clustering: the stars thinned by a 3D noise over the sky at this scale (0: none), ^exponent.</summary>
+            public float starsNoiseScale, starsNoiseExponent = 2.5f;
+            /// <summary>"base": the skybox's own layers (the game's, or its "nebula" / "stars" images) drawn under it all.</summary>
+            public bool keepBase;
+            /// <summary>Its layers, in order (at most MaxLayers).</summary>
+            public readonly List<ChorusLayer> layers = new List<ChorusLayer>();
+            public const int MaxLayers = 6;
+            /// <summary>OverallEmissive: the whole sky's multiplier.</summary>
+            public float emissive = 1f;
+        }
+
+        /// <summary>A layered sky's layer: Chorus's image patch ("image"), ES2's tinted mask ("mask") or ES2's gradient ("gradient").</summary>
+        public sealed class ChorusLayer
+        {
+            public const int Image = 0, Mask = 1, Gradient = 2;
+            public int kind = Image;
+            /// <summary>Image and mask: the image (a mask without one is 1 everywhere: a glow), placed as a patch.</summary>
+            public string image;
+            public float heading, elevation, scale = 1f, rotation, emissive = 1f, exponent = 2f, opacity = 1f;
+            /// <summary>Mask: its colour times intensity; its channel 0-3 (r g b a); tiling and offset in the patch; a falloff
+            /// round the patch's middle (degrees, 0: none); how much brighter toward the sun.</summary>
+            public Color color = Color.white;
+            public float intensity = 1f, falloff, sunScatter;
+            public int channel;
+            public Vector2 tiling = Vector2.one, offset;
+            /// <summary>Gradient: along 'up' (as the sky is seen), offset, folded / flipped, smoothstep min..max, Schlick's bias,
+            /// power; 'color' over what is under it by that times 'opacity'.</summary>
+            public Vector3 up = new Vector3(0f, 0f, 1f);
+            public float gradientOffset, min, max = 1f, bias = 0.5f, power = 1f;
+            public bool absolute, invert;
+            /// <summary>Gradient: added to what is under it (a glowing band) instead of laid over it.</summary>
+            public bool additive;
         }
 
         static readonly Dictionary<int, Skybox> skyboxes = new Dictionary<int, Skybox>();
 
         static readonly HashSet<string> SkyFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "nebula", "stars", "nebulaBrightness", "starsBrightness", "rotation", "sunAligned" };
+            { "nebula", "stars", "nebulaBrightness", "starsBrightness", "rotation", "sunAligned", "chorus" };
 
         static readonly Dictionary<int, string> systemSpaceMusic = new Dictionary<int, string>(), systemStationMusic = new Dictionary<int, string>(),
                                                 stationMusic = new Dictionary<int, string>(), stationSpaceMusic = new Dictionary<int, string>();

@@ -97,6 +97,63 @@ namespace GoF2Remake.Modding
             Script.GlobalOptions.Platform = new LimitedPlatformAccessor();
             Script.GlobalOptions.RethrowExceptionNested = false;
             RegisterDelegateTypes();   // Lua functions as the delegates the game's classes take (ModScriptsReflection.cs)
+            RegisterHidingTypes();
+        }
+
+        /// <summary>MoonSharp refuses a class that has two members of one name that can't be overloads: a property, field or
+        /// event that hides a base class's with "new" (UI Toolkit's TextElement.experimental over VisualElement's, so Label,
+        /// Button and every text control: "Multiple members named experimental are being added"). Such classes are described
+        /// here instead, the most derived member standing for the name.</summary>
+        static void RegisterHidingTypes()
+        {
+            foreach (var t in AllowedTypes())
+            {
+                if (t.IsEnum || t.IsInterface || t.IsGenericTypeDefinition || typeof(Delegate).IsAssignableFrom(t)) continue;
+                try { if (Hides(t)) UserData.RegisterType(Describe(t)); }
+                catch (Exception) { }   // (a class that can't be read: MoonSharp's own attempt reports it when a script asks)
+            }
+        }
+
+        const BindingFlags Declared = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+
+        /// <summary>The class's property / field / event names up its chain, the most derived first.</summary>
+        static IEnumerable<MemberInfo> ValueMembers(Type t)
+        {
+            for (var c = t; c != null && c != typeof(object); c = c.BaseType)
+            {
+                foreach (var p in c.GetProperties(Declared)) if (!p.IsSpecialName && p.GetIndexParameters().Length == 0) yield return p;
+                foreach (var f in c.GetFields(Declared)) if (!f.IsSpecialName) yield return f;
+                foreach (var e in c.GetEvents(Declared)) yield return e;
+            }
+        }
+
+        static bool Hides(Type t)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var m in ValueMembers(t)) if (!names.Add(m.Name)) return true;
+            return false;
+        }
+
+        /// <summary>What StandardUserDataDescriptor's own filling does, one member a name for what can't be overloaded.</summary>
+        static IUserDataDescriptor Describe(Type t)
+        {
+            const InteropAccessMode Mode = InteropAccessMode.Reflection;
+            var d = new StandardUserDataDescriptor(t, InteropAccessMode.HideMembers);   // (HideMembers: it fills nothing itself)
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var m in ValueMembers(t))
+            {
+                if (!names.Add(m.Name)) continue;
+                if (m is PropertyInfo p) d.AddMember(p.Name, PropertyMemberDescriptor.TryCreateIfVisible(p, Mode));
+                else if (m is FieldInfo f) d.AddMember(f.Name, FieldMemberDescriptor.TryCreateIfVisible(f, Mode));
+                else if (m is EventInfo e) d.AddMember(e.Name, EventMemberDescriptor.TryCreateIfVisible(e, Mode));
+            }
+            foreach (var c in t.GetConstructors()) d.AddMember("__new", MethodMemberDescriptor.TryCreateIfVisible(c, Mode));
+            foreach (var m in t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy))
+            {
+                if (names.Contains(m.Name) || !MethodMemberDescriptor.CheckMethodIsCompatible(m, false)) continue;
+                d.AddMember(m.Name, MethodMemberDescriptor.TryCreateIfVisible(m, Mode));
+            }
+            return d;
         }
 
         sealed class Policy : IRegistrationPolicy

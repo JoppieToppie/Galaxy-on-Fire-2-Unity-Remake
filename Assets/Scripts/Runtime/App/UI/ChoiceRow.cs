@@ -26,6 +26,8 @@ namespace GoF2Remake.UI
 
         /// <summary>The player picked another value (not raised by SetWithoutNotify).</summary>
         public event Action<int> Changed;
+        /// <summary>A command choice may handle a pick without changing the stored selection.</summary>
+        public Func<int, bool> InterceptPick;
 
         public bool Segmented { get; }
         public int Index => index;
@@ -105,6 +107,7 @@ namespace GoF2Remake.UI
         {
             if (choices.Length == 0) return;
             i = Math.Clamp(i, 0, choices.Length - 1);
+            if (InterceptPick?.Invoke(i) == true) return;
             if (i == index) return;
             index = i;
             UpdateView();

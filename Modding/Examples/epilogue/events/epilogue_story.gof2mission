@@ -1,0 +1,16 @@
+{
+    "format": "gof2mission",
+    "kind": "quest",
+    "title": "Loose Ends",
+    "reward": 25000,
+    "steps": [
+        { "type": "note", "text": "The DLC's story, started by dlc.json once the intro call has played." },
+        { "type": "goto", "station": 93, "dock": true, "objective": "Meet Keith at Maissa" },
+        { "type": "dialog", "pages": [
+            { "speaker": "Keith", "text": "Glad you came. Everything we did out there, someone should write it down. I'd like that to be you." },
+            { "speaker": "player", "text": "Then I'd better get the details right." }
+        ] },
+        { "type": "title", "title": "Epilogue", "subtitle": "The end, for now", "seconds": 5 },
+        { "type": "complete" }
+    ]
+}

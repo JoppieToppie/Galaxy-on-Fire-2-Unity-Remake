@@ -102,6 +102,7 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.GuestBuild = NetHangar.GuestBuild;
             SpaceHooks.PeersProvider = () => NetPlayer.All;
             SpaceHooks.LocalPeerProvider = () => NetPlayer.Local;
+            SpaceHooks.InterceptMirrorShot = NetPlayer.InterceptMirrorShot;   // point defense (PointDefense)
             SpaceHooks.ProxiesProvider = () => Object.FindObjectsByType<NetProxy>();
             SpaceHooks.CratesProvider = () => Object.FindObjectsByType<NetCrate>();
             SpaceHooks.SharedOrbitProvider = () => NetGame.Active ? NetOrbit.Current : null;
@@ -167,6 +168,7 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.CoopRadioShown = NetCoop.Radio;
             SpaceHooks.CoopRoute = NetCoop.Route;
             SpaceHooks.CoopCamera = NetCoop.Camera;
+            SpaceHooks.CoopFx = NetCoop.Fx;
             SpaceHooks.CoopTravel = NetCoop.Travel;
             SpaceHooks.CoopLevelFailed = NetCoop.LevelFailed;
             SpaceHooks.CoopDialog = NetCoop.Dialog;

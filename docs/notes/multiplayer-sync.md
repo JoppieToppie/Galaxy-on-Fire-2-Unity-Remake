@@ -76,7 +76,11 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   follower's mining plant. One hack a wreck: the loot goes into the hacker's hold (a crate only for what found no room,
   shared like any crate; the blueprint is the hacker's), and their game tells the owner through the server (`NetProxy.ReportHacked`: from that orbit, while open), whose wreck closes; the
   stand-ins go once it is closed or gone. Two players finishing the minigame at once both get the loot. A handover keeps
-  a hacked wreck closed (`NetOrbit.Restore`).
+  a hacked wreck closed (`NetOrbit.Restore`). **Blueprint wrecks** (a Supernova hidden blueprint, a mod blueprint's
+  derelict; a Discord report 2026-11-17: only the pilot who entered the orbit first could dock at one) get the same
+  stand-in, but each player's own: open while this player hasn't that blueprint (`NetProxy.OpenBlueprintWreck`,
+  `TrafficPlan.BlueprintLeft`), whatever the owner did, the stand-in docking type 3 even where the owner's is closed; no word to
+  the owner. Tests `CoopLevelMirrorTests`.
 - **NetProxy**: the ship's model by its Resources path (`NpcShip.ModelPath`), its description (`ProxySpec`, written once and
   again when its cargo or a reference changes), status (`NetProxyStatus`: race, standing, hull, hit radius, hidden, life,
   cloak, EMP, stealable cargo, mission role, killer, waypoint) and aggressors: four owner-written NetworkVariables where
@@ -92,9 +96,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 - **Shots** (every gun, the turret, rockets / missiles / bombs / mines / beams): `Gun.Fired` / `Gun.Ignited` ->
   `NetShotSender` (a NetProxy's owner, the owner's NetPlayer) -> an RPC to the server and from it to the players in that
   orbit only (`NetInterest.OrbitGroup`; shots unreliable, blasts reliable), sent once, when fired: every game flies its
-  own copy (`NetShotData`: about 27 bytes, the parameters were 56) -> `NetShotMirror` (only where the shooter is shown): a Gun per weapon item with its GunRig and shot sound, the bullet
+  own copy (`NetShotData`: about 29 bytes, the parameters were 56) -> `NetShotMirror` (only where the shooter is shown): a Gun per weapon item with its GunRig and shot sound and a compact shot id, the bullet
   injected at the sender's pose and life left (`Gun.Inject`), beams through the gun's beam path at the same target,
-  homing toward the sender's lock (ids: `NetShots`), blasts as the fx's explosion. The mirrors stop on what they hit here
+  homing toward the sender's lock (ids: `NetShots`); point defense uses the shot id for server-confirmed cancellation of a PvP projectile. Blasts show as the fx's explosion. The mirrors stop on what they hit here
   and show the impact, but deal no damage (no handler on their Hit): the shooter's own game applies the hits. Their pools
   live in the scene: after a scene change the mirrors start over (`NetShotMirror.Refresh`). Deployed sentry guns' shots
   are mirrored too; a beam's auto-aim never picks a squadmate.

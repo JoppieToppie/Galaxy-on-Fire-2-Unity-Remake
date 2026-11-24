@@ -90,12 +90,12 @@ namespace GoF2Remake.Multiplayer
             NetProfileClient.Upload();
         }
         /// <summary>Server: credits from the faction bank to the player's game.</summary>
-        internal void Grant(ulong client, int amount)
+        internal void Grant(ulong client, long amount)
         {
             if (IsServer) GrantRpc(amount, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void GrantRpc(int amount, RpcParams rpc = default) => NetFactionsClient.OnGrant(amount);
+        void GrantRpc(long amount, RpcParams rpc = default) => NetFactionsClient.OnGrant(amount);
         /// <summary>Server: the toll the player's game paid at 'station' wasn't taken (its profile's saved game hasn't the
         /// credits): 'amount' back to the game, and the toll unpaid.</summary>
         internal void TollRefused(ulong client, int station, int amount)

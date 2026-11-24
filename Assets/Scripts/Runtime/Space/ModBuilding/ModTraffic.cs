@@ -123,6 +123,7 @@ namespace GoF2Remake.Modding
                 if (boss != (key == BossKey)) continue;   // (a boss hull is never a fighter)
                 if (!string.IsNullOrEmpty(c.traffic?.capital)) continue;   // a capital ship or freighter (ModCapitalShips)
                 if (IsLootDrone(c)) continue;   // (PickLootDrone)
+                if (Flight.NpcRoles.Parse(c.traffic?.role) == Flight.NpcRoles.Role.Pursuer) continue;   // (a pursuer comes by npcships.json or a story, never as traffic)
                 bool flies = boss || (c.traffic?.races != null && c.traffic.races.Length > 0 ? c.traffic.races.Any(r => Key(r) == key) : Key(c.race) == key);
                 if (!flies || !ModUnlocks.ShipAvailable(c.index)) continue;
                 float length = Length(c.index);
@@ -138,6 +139,49 @@ namespace GoF2Remake.Modding
         /// no more of it are (the parts stay loaded for the run).</summary>
         static int WarmBuilds => Application.isMobilePlatform ? 1 : 3;
         static int WarmCap => Application.isMobilePlatform ? 40 : 150;
+
+        /// <summary>Traffic.Create: a kit ship in a given skin (a Most Wanted criminal's "skin", WantedData.skin): its default
+        /// build in that skin (the skin's colours, livery and decal with it, as when the player picks it), once the skin's
+        /// textures are loaded (WarmSkins, docked); until then, or for a skin the kit doesn't have, as Assembly(ship).</summary>
+        public static AssemblyData Assembly(int ship, string skin)
+        {
+            if (string.IsNullOrEmpty(skin)) return Assembly(ship);
+            var build = SkinBuild(ship, skin);
+            if (build == null) return Assembly(ship);
+            if (ModShips.BuildLoaded(ship, build)) return ModShipKits.VariantAssembly(ship, build);
+            ModShips.Warm(ship, build);   // (the next time this criminal shows up)
+            return Assembly(ship);
+        }
+
+        /// <summary>The kit ship's default build in 'skin' (null: not a kit ship, or no such skin for its type).</summary>
+        public static ModShipKits.Build SkinBuild(int ship, string skin)
+        {
+            var c = ModShipKits.KitShip(ship);
+            var kit = ModShipKits.KitOf(c);
+            if (kit == null || !(kit.FindSkin(skin) is ModShipKits.Skin picked) || !picked.Allows(c.kitType)) return null;
+            var fallback = ModShipKits.DefaultBuild(c, kit);
+            var b = ModShipKits.Build.Parse(c.defaultBuild);
+            b.skin = picked.id;
+            foreach (var kv in picked.colors) b.colors[kv.Key] = kv.Value;
+            if (picked.livery != null) b.livery = picked.livery;
+            if (picked.decal != null) b.decal = picked.decal;
+            return ModShipKits.Normalize(kit, c.kitType, b, fallback);
+        }
+
+        /// <summary>Docked (Warm): the Most Wanted criminals' skins start loading, a few a docking, so they fly in them.</summary>
+        static void WarmSkins()
+        {
+            var db = Database.Shared;
+            if (db?.Wanted == null) return;
+            int started = 0;
+            foreach (var w in db.Wanted)
+            {
+                if (started >= WarmBuilds) break;
+                if (string.IsNullOrEmpty(w.skin) || !(SkinBuild(w.ship, w.skin) is ModShipKits.Build b) || ModShips.BuildLoaded(w.ship, b)) continue;
+                ModShips.Warm(w.ship, b);
+                started++;
+            }
+        }
 
         /// <summary>Traffic.Create: the assembly an NPC of a kit ship flies, a random build of it (RandomBuild) when its
         /// "traffic" allows; null = the ship's own (not a kit ship).</summary>
@@ -206,6 +250,7 @@ namespace GoF2Remake.Modding
         public static void Warm()
         {
             if (!ModShips.Ready) return;
+            WarmSkins();
             var ships = CustomShips.All.Where(c => !string.IsNullOrEmpty(c.kit) && c.traffic?.randomBuild != false
                                                    && (c.traffic == null || c.traffic.weight > 0f) && CustomShips.Offered(c.index)
                                                    && ModShipKits.KitOf(c) is ModShipKits.Kit k && ModShips.LoadedParts(k) < WarmCap).ToList();

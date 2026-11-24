@@ -33,6 +33,17 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void FreeSpaceIsMeasuredOnTheMountHoldingTheUpdate()
+        {
+            Assert.IsTrue(GamePatcher.InMount("/data/user/0/app/files", "/"));
+            Assert.IsTrue(GamePatcher.InMount("/data/user/0/app/files", "/data"));
+            Assert.IsTrue(GamePatcher.InMount("/data", "/data/"));
+            Assert.IsFalse(GamePatcher.InMount("/database/x", "/data"));
+            Assert.IsFalse(GamePatcher.InMount("/data", "/data/user"));
+            Assert.IsTrue(GamePatcher.InMount(@"C:\Games\GoF2", @"C:\"));
+        }
+
+        [Test]
         public void ChunksCoverTheFileWithinTheirLimits()
         {
             var data = RandomBytes(9_000_000, 1);

@@ -156,7 +156,7 @@ namespace GoF2Remake.Modding
 
         public static WeaponMount Copy(WeaponMount m) => new WeaponMount
         {
-            slotType = m.slotType, upsideDown = m.upsideDown,
+            slotType = m.slotType, upsideDown = m.upsideDown, turretScale = m.turretScale,
             position_engine = m.position_engine != null ? (int[])m.position_engine.Clone() : new int[3],
             turretAngles = m.turretAngles != null ? (float[])m.turretAngles.Clone() : null,
             glowColor = m.glowColor != null ? (float[])m.glowColor.Clone() : null,
@@ -165,6 +165,8 @@ namespace GoF2Remake.Modding
             outline = m.outline != null ? (float[])m.outline.Clone() : null, builtIn = m.builtIn,
             direction = m.direction != null ? (float[])m.direction.Clone() : null,
             rotation = m.rotation != null ? (float[])m.rotation.Clone() : null,
+            launchRotation = m.launchRotation != null ? (float[])m.launchRotation.Clone() : null,
+            lockDelayMs = m.lockDelayMs,
             nodes = m.nodes != null ? (string[])m.nodes.Clone() : null, fxScale = m.fxScale, socketScale = m.socketScale,
         };
 
@@ -414,8 +416,12 @@ namespace GoF2Remake.Modding
             if (m.slotType == 3 && EngineGlowShape.Normalize(m.glowShape) != "round") e["glowShape"] = EngineGlowShape.Normalize(m.glowShape);
             if (m.outline != null && m.outline.Length >= 6) e["outline"] = Floats(m.outline, 1);
             if (m.builtIn) e["builtIn"] = true;
+            if (m.slotType == 2 && !Mathf.Approximately(m.TurretScale, 1f)) e["turretScale"] = (float)Math.Round(m.TurretScale, 4);
             if (m.direction != null && m.direction.Length >= 3) e["direction"] = Floats(m.direction, 3);
             if (m.rotation != null && m.rotation.Length >= 3) e["rotation"] = Floats(m.rotation, 3);
+            if (m.launchRotation != null && m.launchRotation.Length >= 4) e["launchRotation"] = Floats(m.launchRotation, 4);
+            else if (m.launchRotation != null && m.launchRotation.Length >= 3) e["launchRotation"] = Floats(m.launchRotation, 3);
+            if (m.lockDelayMs > 0) e["lockDelayMs"] = m.lockDelayMs;
             if (m.nodes != null && m.nodes.Length > 0) e["nodes"] = new JArray(m.nodes);
             if (m.fxScale > 0f) e["fxScale"] = (float)Math.Round(m.fxScale, 3);
             if (m.socketScale > 0f) e["socketScale"] = (float)Math.Round(m.socketScale, 3);

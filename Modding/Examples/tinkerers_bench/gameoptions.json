@@ -1,0 +1,14 @@
+[
+    // One card in Start new game > Game options. The game it starts remembers the switch in its saves, and the blueprints
+    // (blueprints.json) ask for it with option(tinkerers_bench:workbench) in their "available". A game started before the
+    // mod was installed has the option off: start a new game to see the mod.
+    {
+        "id": "workbench",
+        "name": "Tinkerer's Bench",
+        "description": "Home-made plating, thrusters and guns to build from blueprints you find along the way.",
+        // No "image": the card is plain, with its name. For a card with art add a PNG (290 x 448) and "image": "card.png".
+        // "default": the switch's position the first time (afterwards the player's last choice), and what a multiplayer
+        // session plays with.
+        "default": true
+    }
+]

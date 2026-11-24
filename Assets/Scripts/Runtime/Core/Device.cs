@@ -84,9 +84,47 @@ namespace GoF2Remake.Flight
             /// the nearest hostile ship within deviceRadius of an infected one, up to VirusMaxTargets; after deviceDurationMs every
             /// infected ship takes deviceDamagePercent % of a pirate raider's hull (ES2: 95 + 60 against its raider's 310).</summary>
             Virus = 21,
+            // Remake (2026-11-11): Chorus's player capital ship (BP_Player_Auxiliary_ShieldOvercharge_PlayerCapitalShip,
+            // AAuxiliaryShieldOvercharge: Duration 5, Cooldown 10).
+            /// <summary>Shield Overcharge: the shield full at once, and for deviceDurationMs every hit stops at it (nothing
+            /// reaches the armour or hull, the shield doesn't drop; Hitpoints.shieldLocked).</summary>
+            ShieldOvercharge = 22,
+            // Remake (2026-11-13): Chorus's Rites (its BP_ActivePower_* blueprints), paid from the ship's Void energy
+            // (Flight.VoidEnergy) by deviceVoidCost pips besides their own short cooldown.
+            /// <summary>Rite of the Hunt (Chorus's Blink, BP_ActivePower_Blink): a leap onto the tail of the hostile ship in the
+            /// sights (the lock first) within deviceRadius (default HuntRangeTops of the top speed), deviceRange2 behind it
+            /// (default HuntBehindTops), facing its way at the ship's own speed; not at capital ships or the pursuer.</summary>
+            RiteHunt = 23,
+            /// <summary>Rite of the Storm (Chorus's Pulse Zap, BP_ActivePower_Pulse_Zap + BP_Buff_Pulse): the hostile ship in the
+            /// sights (the lock first) within deviceRadius takes 'empDamage' on its shield and is jammed for deviceDurationMs
+            /// (default 4 s): no fire, slowed to deviceSlowPercent (default 0) and unable to turn; every deviceGrowMs (default
+            /// 0.25 s) it jumps to the nearest other such ship within deviceRange2 of the last, deviceChain times (default 0;
+            /// Chorus's upgrade A: 2 within 500 m). The device itself is instant.</summary>
+            RiteStorm = 24,
+            /// <summary>Rite of the Star (Chorus's Drill, BP_ActivePower_Drill on ADrillActivePower): for deviceDurationMs
+            /// (default 3 s; a second press after 0.5 s ends it) the ship becomes a star: unseen and unharmed, it flies straight
+            /// on at StarSpeedTops of its top speed turning at most StarTurnDegS, and every deviceGrowMs (default 0.2 s, and
+            /// 0.3 s past its end) every hostile ship within deviceRange2 (default StarRadiusTops) of a point StarAheadTops
+            /// ahead takes 'damage'.</summary>
+            RiteStar = 25,
+            /// <summary>Rite of Control (Chorus's Telekinesis, BP_ActivePower_Telekinesis + BP_Telekinesis_Debuff): the hostile
+            /// ship in the sights (the lock first) within deviceRadius (default ControlGrabTops) is held beside the nose, jammed,
+            /// for up to deviceDurationMs (default 8 s, then let go); a second press throws it at the ship in the sights within
+            /// ControlTossTops (else straight ahead) at ControlSpeedTops of the top speed: whatever it hits first, a ship takes
+            /// 'damage' and it dies, a station, hull or asteroid kills it.</summary>
+            RiteControl = 26,
+            /// <summary>Rite of the Senses (Chorus's Scan, BP_ActivePower_Scan's short range): a wave from the ship out to
+            /// deviceRadius (default SensesTops) over SensesWaveMs uncovers every cloaked hostile ship it reaches, and for
+            /// deviceDurationMs (default 20 s) the ship sees as the best scanners do (RiteSenses: class-A asteroids marked, a
+            /// locked ship's cargo read out).</summary>
+            RiteSenses = 27,
+            /// <summary>A passive Rite (Chorus's PassivePowers, BP_PassivePower_ElementalShield): never fired, it works while
+            /// mounted through its stats: deviceVoidPips more Void energy pips (the Elemental Shield's BonusEnergy 2),
+            /// deviceElementalProof 1 = no harm from heat, frost or corrosion ("Prevents all elemental damage").</summary>
+            RitePassive = 28,
         }
 
-        public const int TypeCount = 21;
+        public const int TypeCount = 28;
         /// <summary>The Annihilator Virus's most ships (its description's 6).</summary>
         public const int VirusMaxTargets = 6;
         /// <summary>The remake attributes (Modding.ItemStats).</summary>
@@ -97,6 +135,86 @@ namespace GoF2Remake.Flight
         public const int ConsumableAttr = 164, AmmoAttr = 165;
         /// <summary>Remake (2026-11-02): deviceRange2 = the spectral shift's sweep radius around its path (game units).</summary>
         public const int Range2Attr = 166;
+        /// <summary>Remake (2026-11-13): deviceVoidCost = the Void energy pips a Rite pays (Flight.VoidEnergy; Chorus's EnergyCost).</summary>
+        public const int VoidCostAttr = 178;
+        /// <summary>Remake (2026-11-13): deviceChain = the Rite of the Storm's jumps to more ships (Chorus's ChainLimit).</summary>
+        public const int ChainAttr = 179;
+        /// <summary>Remake (2026-11-13): deviceUpgrade = a Rite's upgrades (Chorus's A / B, bits 1 / 2); deviceVoidPips = more Void
+        /// energy pips (a passive's); deviceElementalProof 1 = no harm from elemental hazards (a passive's).</summary>
+        public const int UpgradeAttr = 180, VoidPipsAttr = 181, ElementalAttr = 182;
+        public const int UpgradeA = 1, UpgradeB = 2;
+        // The upgrades (their blueprints' graphs, read with the exporter's CHORUS_SCRIPT bytecode):
+        //   Hunt A  BP_ActivePower_Blink_UpgradeA: EnergyComponent.AddBonusEnergy(1) after the leap (a bonus pip lives
+        //           UEnergyComponent's BonusEnergyLifetime, 10 s: its constructor 0x140be1d60)
+        //   Hunt B  BP_Player_Buff_Blink_UpgradeB: DamageMultiplier 1.5 for Duration 5 s, every weapon and Rite
+        //   Storm A BP_ActivePower_Pulse_UpgradeA: ChainLimit 2, ChainRange 50000 cm
+        //   Storm B BP_ActivePower_Pulse_UpgradeB: ShieldComponent.IncreaseShield(ShieldDamage x ShieldStealMultiplier 0.25)
+        //   Star A  BP_ActivePower_Drill_UpgradeA: four more spheres of 10000 cm at (10000, +-6000, +-6000) cm, turning
+        //           RotationSpeed 100 deg/s about the nose (bCanRotate)
+        //   Star B  BP_ActivePower_Drill_UpgradeB: HealthComponent.AddHealth(max x HealPercentage 25 / 100) a ship destroyed
+        public const int HuntBonusPips = 1, FuryMs = 5000, StormChainA = 2;
+        public const float FuryFactor = 1.5f, StormChainTopsA = 50000f / 14000f, StealShare = 0.25f, StarHealShare = 0.25f;
+        public const float StarSideAheadTops = 10000f / 14000f, StarSideOffTops = 6000f / 14000f, StarSideDegS = 100f;
+
+        /// <summary>The Star's upgrade-A sphere 'i' (0..3) at 'ms' into its run: its centre in the ship's frame (seconds of the
+        /// top speed: x right, y up, z ahead), the four turning about the nose.</summary>
+        public static Vector3 StarSide(int i, float ms)
+        {
+            float a = (45f + 90f * i + StarSideDegS * ms / 1000f) * Mathf.Deg2Rad;
+            float r = StarSideOffTops * Mathf.Sqrt(2f);   // (the corners of +-6000, +-6000)
+            return new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, StarSideAheadTops);
+        }
+        // Chorus's Blink (BP_ActivePower_Blink's defaults: Range 100000 cm, BlinkLocationOffset -18000 cm, EnergyCost 2,
+        // Cooldown 0.5 s), its distances kept as seconds of its 140 m/s top speed (as Chorus flight's), so they scale with
+        // the ship's: 1000 m = 7.14 s, 180 m = 1.29 s. TargetableRadius 0.1 (UpdateActivePowerTargets' screen share, not
+        // decompiled) read as a 10 degree cone round the nose.
+        public const float HuntRangeTops = 100000f / 14000f, HuntBehindTops = 18000f / 14000f, HuntAimDot = 0.9848f;
+        public const int HuntCost = 2, HuntCooldownMs = 500;
+        // Chorus's Pulse Zap (BP_ActivePower_Pulse_Zap: Range 100000 cm, ChainRange 10000 cm, ChainInterval 0.25 s, EnergyCost 2,
+        // Cooldown 0.5, Duration 0; BP_Buff_Pulse: Duration 4 s), its distances as seconds of the top speed like the Hunt's.
+        public const float StormChainTops = 10000f / 14000f;
+        public const int StormCost = 2, StormCooldownMs = 500, StormJamMs = 4000, StormChainMs = 250;
+        // Chorus's Drill (ADrillActivePower's constructor 0x140a4fd40: DrillForwardVelocity 42000 cm/s, MaxAngularVelocity 72
+        // deg/s, MinDurationTime 0.5, MaxDurationTime 3, CooldownTime 0.5; BP_ActivePower_Drill: EnergyCost 3,
+        // CheckForCollisionsInterval 0.2, PostDeactivationDrillCollisionDuration 0.3, CollisionDamage 750, its sphere trace
+        // 10000 cm round a point 2500 cm ahead), the distances as seconds of the top speed.
+        public const float StarSpeedTops = 42000f / 14000f, StarTurnDegS = 72f, StarAheadTops = 2500f / 14000f, StarRadiusTops = 10000f / 14000f;
+        public const int StarCost = 3, StarCooldownMs = 500, StarMinMs = 500, StarMaxMs = 3000, StarTickMs = 200, StarTailMs = 300;
+
+        // Chorus's Telekinesis (BP_ActivePower_Telekinesis: GrabRange 70000 cm, TossRange 80000, TossSpeed 56000 cm/s,
+        // EnergyCost 3, OffsetLocations (5000, +-2500, +-2500) cm: the first; BP_Telekinesis_Debuff: CollisionDamageOtherTargets
+        // 500, from geometry or another target 500000: its death), the distances as seconds of the top speed. Its Duration
+        // 1e6 (held until thrown) is the remake's 8 s; the flight lasts the toss's reach at its speed and half a second.
+        public const float ControlGrabTops = 70000f / 14000f, ControlTossTops = 80000f / 14000f, ControlSpeedTops = 56000f / 14000f;
+        public static readonly Vector3 ControlHoldTops = new Vector3(2500f, 2500f, 5000f) / 14000f;   // (right, up, ahead)
+        public const int ControlCost = 3, ControlCooldownMs = 500, ControlHoldMs = 8000;
+        public static float ControlFlightMs => (ControlTossTops / ControlSpeedTops + 0.5f) * 1000f;
+
+        // Chorus's Scan (BP_ActivePower_Scan: ShortRangeScanDistance 600000 cm, ShortRangeScanDuration 3 s, Cooldown 0; the
+        // powers screen's cost 1), the reach as seconds of the top speed; how long the senses last is the remake's.
+        public const float SensesTops = 600000f / 14000f;
+        public const int SensesCost = 1, SensesCooldownMs = 500, SensesWaveMs = 3000, SensesMs = 20000;
+        // Its long range (held: AScanActivePower's constructor 0x140c3df70 gives LongRangeChargeDuration 1 s and
+        // LongRangeScanDuration 3 s, EnergyCost 1; the blueprint's LongRangeScanDistance 20000000 cm: 200 km, the whole orbit)
+        public const float SensesLongTops = 20000000f / 14000f;
+        public const int SensesChargeMs = 1000, SensesLongWaveMs = 3000;
+
+        /// <summary>Whether 'at' is within the star's reach: 'radius' round the point 'ahead' along 'forward' from 'pos'.</summary>
+        public static bool InStar(Vector3 pos, Vector3 forward, Vector3 at, float ahead, float radius) =>
+            (at - (pos + forward.normalized * ahead)).sqrMagnitude <= radius * radius;
+
+        /// <summary>Blink's BlinkPlayRateCurve: its timelines 1.5x as fast for a short leap, 1x at its full 1000 m ('share'
+        /// of the reach; an Auto cubic between flat ends).</summary>
+        public static float HuntPlayRate(float share) => Mathf.Lerp(1.5f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(share)));
+        /// <summary>Blink_Disappear (0.067 s): the ship's Transition 0 -> 1, sharply at the end (its keys 0.05 at 31 %, 0.41 at
+        /// 73 %: about u^3); Blink_Reappear (0.33 s): 1 -> 0 between flat ends.</summary>
+        public const float HuntVanishMs = 66.667f, HuntAppearMs = 333.333f;
+        public static float HuntVanish(float u) { u = Mathf.Clamp01(u); return u * u * u; }
+        public static float HuntAppear(float u) => 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u));
+
+        /// <summary>Rite of the Hunt's landing: 'behind' metres back from the target at 'targetPos' facing 'targetForward'
+        /// (ABlinkActivePower::UpdateTargetTransform: the target's rotation, BlinkLocationOffset along its forward).</summary>
+        public static Vector3 HuntSpot(Vector3 targetPos, Vector3 targetForward, float behind) => targetPos - targetForward.normalized * behind;
         // EVERSPACE 2's fusion hook (BP_Device_FusionHook's defaults, cm -> m): the aim cone, the pull's delay, the end conditions
         // and the speeds; the owner's pull is (AccelerationForward cm/s^2)^1.5 / 15, 126 m/s^2 at the remake's 33 m/s^2.
         public const float HookAimDot = 0.95f, HookPullDelayMs = 300f, HookMinDistance = 200f, HookMaxAngleDot = 0.8f,

@@ -224,6 +224,104 @@ namespace GoF2Remake.Tests
             Assert.IsEmpty(advanced, "a catch-up reports nothing to the leader");
         }
 
+        /// <summary>A Discord report 2026-11-16: the leader launched from Var Hastra with the free starter gear before the
+        /// guest had taken theirs; the guest, past step 6, found it priced and had no credits.</summary>
+        [Test]
+        public void AGuestCarriedPastTheFreeGearGetsIt()
+        {
+            string json = LeaderAt(7);
+            GuestAt(6);
+            Session.Equipment.RemoveAll(e => db.Item(e.item)?.categoryId == 0 || db.Item(e.item)?.categoryId == 10);   // none bought
+            CoopCampaign.ApplyLeader(json, db);
+            CoopCampaign.CatchUpTo(7, db);
+            Assert.AreEqual(7, Story.Index);
+            Assert.IsTrue(Session.Equipment.Exists(e => e.item == 0), "the Nirai Impulse EX 1");
+            Assert.IsTrue(Session.Equipment.Exists(e => e.item == 55), "the E2 Exoclad");
+            Assert.AreNotEqual(0, Story.AdjustPrice(78, 0, 100), "the shop's free gear is gone at step 7");
+
+            json = LeaderAt(21);
+            GuestAt(20);
+            Session.Equipment.RemoveAll(e => db.Item(e.item)?.categoryId == 6);
+            CoopCampaign.ApplyLeader(json, db);
+            CoopCampaign.CatchUpTo(21, db);
+            Assert.IsTrue(Session.Equipment.Exists(e => e.item == 41 && e.amount >= 10) || Session.Cargo.Exists(c => c.item == 41 && c.amount >= 10),
+                          "Kappa's EMP bombs, for 21's launch (in the hold when the secondary slots are taken)");
+        }
+
+        /// <summary>The co-op sweep (2026-11-19): what a step gives every crew member's game, whoever's win advanced it.</summary>
+        [Test]
+        public void EveryCrewMembersAdvanceGivesTheStepsOwnThings()
+        {
+            GuestAt(6);
+            Session.Equipment.RemoveAll(e => db.Item(e.item)?.categoryId == 0 || db.Item(e.item)?.categoryId == 10);
+            Story.Advance(db);   // the crew's win of 6, this game's own conversation (not a catch-up)
+            Assert.IsTrue(Session.Equipment.Exists(e => e.item == 0), "Var Hastra's free gun");
+            Assert.IsTrue(Session.Equipment.Exists(e => e.item == 55), "and armour");
+
+            GuestAt(50);
+            Session.Standing[0] = 0;
+            Story.Advance(db);
+            Assert.AreEqual(100, Session.Standing[0], "step 50's hostile Vossk in every game, not only the leader's level");
+
+            GuestAt(76);
+            Session.KhadorCronusGift = false;
+            Story.Advance(db);
+            Assert.IsTrue(Session.KhadorCronusGift, "Khador's free Cronus wherever this game was when 76 ended");
+        }
+
+        [Test]
+        public void FreeGearGoesToTheHoldWhenItsSlotIsTaken()
+        {
+            GuestAt(6);
+            Session.Equipment.RemoveAll(e => db.Item(e.item)?.categoryId == 0);
+            int primaries = db.Ship(Session.ShipIndex).slots.primary;
+            int other = db.Items.Find(i => i.TypeId == 0 && i.categoryId != 0).index;
+            Session.Equipment.RemoveAll(e => db.Item(e.item)?.TypeId == 0);
+            for (int i = 0; i < primaries; i++) Session.Equipment.Add(new ItemStack(other, 1));
+            Story.Advance(db);
+            Assert.AreEqual(primaries, Session.Equipment.FindAll(e => db.Item(e.item)?.TypeId == 0).Count, "no gun past the slots");
+            Assert.IsTrue(Session.Cargo.Exists(c => c.item == 0), "the free gun in the hold");
+        }
+
+        [Test]
+        public void ALoanerNeverReplacesTheParkedOwnShip()
+        {
+            GuestAt(47);
+            int own = Session.ShipIndex;
+            Story.Advance(db);   // 48: parked, the H'Soc lent
+            Assert.AreEqual(own, Session.ParkedShip.ship);
+            Story.SettleLoaner(47);   // set back before the loaner (ForceTo)
+            Assert.IsNull(Session.ParkedShip);
+            Assert.AreEqual(own, Session.ShipIndex, "the own ship again");
+            Session.CampaignMission = 47;
+            Story.Advance(db);
+            Story.SettleLoaner(48);   // still a loaner step: kept
+            Assert.IsNotNull(Session.ParkedShip);
+            Session.CampaignMission = 47;
+            Story.Advance(db);   // 48 again on top of the parked ship
+            Assert.AreEqual(own, Session.ParkedShip.ship, "the own ship stays the parked one");
+        }
+
+        [Test]
+        public void GuestsArentHeldToTheLeadersLevelRules()
+        {
+            GuestAt(104);
+            Story.Advance(db);
+            Session.Equipment.RemoveAll(e => e.item == 206);
+            Assert.AreEqual(-1, Story.RequirementRefusal(db, Story.Mission.station), "105's Gamma Shield II: the leader's to bring");
+            leader = true;
+            Assert.AreNotEqual(-1, Story.RequirementRefusal(db, Story.Mission.station), "the leader still needs it");
+            leader = false;
+
+            GuestAt(42);
+            var c = new StoryContext { docked = true, station = 10 };
+            Assert.IsFalse(Story.IsComplete(db, c), "42 is the leader's ride out of the Void, not a guest docked elsewhere");
+
+            GuestAt(79);
+            Session.StationIndex = 101;
+            Assert.AreEqual(Session.VoidOrbit, Story.ForcedKhadorTarget(101), "79 outside the Void: the misjump the others made");
+        }
+
         [Test]
         public void GuestWaitsForItsOwnSuccessConversation()
         {

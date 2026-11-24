@@ -8,6 +8,7 @@
 using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
+using GoF2Remake.World;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
@@ -38,7 +39,9 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("t_chars:vega", v.key);
             Assert.AreEqual("p.png", v.portrait);
             Assert.AreEqual(1, v.race);
+            Assert.IsTrue(v.hasRace);
             Assert.IsFalse(v.male);
+            Assert.IsTrue(v.hasGender);
             Assert.IsTrue(v.mirrored);
             Assert.IsFalse(v.frame);
             Assert.IsFalse(v.background);
@@ -46,12 +49,50 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(v.HasName);
             var b = ModCharacters.Find("bob");
             Assert.AreEqual(0, b.race, "Terran unless named");
+            Assert.IsFalse(b.hasRace, "an omitted race inherits the bar-mission client race");
             Assert.IsTrue(b.male);
+            Assert.IsFalse(b.hasGender, "an omitted gender inherits the mission client gender");
             Assert.IsFalse(b.mirrored);
             Assert.IsTrue(b.frame);
             Assert.IsTrue(b.background);
             Assert.IsNull(b.replaces);
             Assert.AreEqual("Bob", b.Name);
+        }
+
+        [Test]
+        public void ACharacterCanUseItsOwnModsCustomRace()
+        {
+            string dir = WriteMod("custom_race_chars", "t_custom", "1.0", "",
+                ("races.json", "[ { 'id': 'aliens', 'name': 'Aliens', 'visitor': 'models/alien.glb', 'visitorScale': 1.25 } ]"),
+                ("characters.json", "[ { 'id': 'pilot', 'portrait': 'p.png', 'race': 'aliens' } ]"));
+            WriteFile(dir, "p.png", Dummy);
+            WriteFile(dir, "models/alien.glb", Dummy);
+            ScanAndEnable("t_custom");
+
+            var race = ModRaces.Get("t_custom:aliens");
+            Assert.IsNotNull(race);
+            Assert.AreEqual("models/alien.glb", race.visitor);
+            Assert.AreEqual(1.25f, race.visitorScale);
+            var character = ModCharacters.Find("t_custom:pilot");
+            Assert.IsNotNull(character);
+            Assert.IsTrue(character.hasRace);
+            Assert.AreEqual(race.race, character.race);
+        }
+
+        [Test]
+        public void ACharacterCanOverrideItsCustomRaceMeshWithABuiltInSilhouette()
+        {
+            string dir = WriteMod("custom_race_silhouette", "t_custom_sil", "1.0", "",
+                ("races.json", "[ { 'id': 'aliens', 'name': 'Aliens', 'visitor': 'models/alien.glb' } ]"),
+                ("characters.json", "[ { 'id': 'pilot', 'portrait': 'p.png', 'race': 'aliens', 'silhouette': 'cyborg' } ]"));
+            WriteFile(dir, "p.png", Dummy);
+            WriteFile(dir, "models/alien.glb", Dummy);
+            ScanAndEnable("t_custom_sil");
+
+            var character = ModCharacters.Find("t_custom_sil:pilot");
+            Assert.IsNotNull(character);
+            Assert.AreEqual(ModRaces.Get("t_custom_sil:aliens").race, character.race);
+            Assert.AreEqual("cyborg", character.silhouette);
         }
 
         [Test]
@@ -111,6 +152,32 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(id, ModCharacters.Find("x").race);
         }
 
+        [TestCase("terran", StationTables.Visitor.TerranMale)]
+        [TestCase("vossk", StationTables.Visitor.Vossk)]
+        [TestCase("nivelian", StationTables.Visitor.Nivelian)]
+        [TestCase("midorian", StationTables.Visitor.TerranMale)]
+        [TestCase("void", StationTables.Visitor.TerranMale)]
+        [TestCase("cyborg", StationTables.Visitor.TerranMale)]
+        [TestCase("octopod", StationTables.Visitor.Multipod)]
+        [TestCase("bobolian", StationTables.Visitor.Bobolan)]
+        [TestCase("grey", StationTables.Visitor.Grey)]
+        public void BuiltInSilhouettesUseTheOriginalVisitorMeshes(string silhouette, StationTables.Visitor expected)
+        {
+            Assert.AreEqual(expected, StationTables.VisitorForSilhouette(silhouette, 0, false));
+        }
+
+        [Test]
+        public void FemaleTerranSilhouetteUsesTheFemaleVisitor()
+        {
+            Assert.AreEqual(StationTables.Visitor.TerranFemale, StationTables.VisitorForSilhouette("terran", 0, true));
+        }
+
+        [Test]
+        public void AutomaticSilhouetteKeepsTheOriginalRaceMapping()
+        {
+            Assert.AreEqual(StationTables.Visitor.Nivelian, StationTables.VisitorForSilhouette(null, 2, false));
+        }
+
         string Warning(string json)
         {
             CharactersOn(json, "t_bad");
@@ -122,7 +189,8 @@ namespace GoF2Remake.Tests
         [Test] public void ThePortraitMustBeInTheMod() => StringAssert.Contains("isn't in the mod", Warning("[ { 'id': 'x', 'portrait': 'none.png' } ]"));
         [Test] public void AnIdIsRequired() => StringAssert.Contains("\"id\" is missing", Warning("[ { 'portrait': 'p.png' } ]"));
         [Test] public void AGenderIsMaleOrFemale() => StringAssert.Contains("male or female", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'gender': 'robot' } ]"));
-        [Test] public void AnUnknownRace() => StringAssert.Contains("isn't a race", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'race': 'klingon' } ]"));
+        [Test] public void AnUnknownRace() => StringAssert.Contains("isn't a game or mod race", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'race': 'klingon' } ]"));
+        [Test] public void AnUnknownSilhouette() => StringAssert.Contains("must be terran", Warning("[ { 'id': 'x', 'portrait': 'p.png', 'silhouette': 'klingon' } ]"));
         [Test] public void CharactersMustBeAList() => StringAssert.Contains("must be a list", Warning("{ 'id': 'x' }"));
 
         [Test]

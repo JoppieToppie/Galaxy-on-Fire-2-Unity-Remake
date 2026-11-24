@@ -81,6 +81,99 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   stopped in 1.48 s; the boost 209 / 306 / 320 m/s at +1 / +2 / +3 s, braking 33 m/s^2 after it; the heading turning
   153.1 deg/s (125 x sqrt(1.5), the square root of then; now 169); the mouse's yaw the offset's horizontal share of the radius x the top rate (94.1 / 55.6
   deg/s for 232 / 137 px of 377), nothing back in the dead zone.
+- **Free flight camera** (remake, 2026-11-10, the user's request; Graphics "EVERSPACE 2 camera in free flight",
+  `Settings.Es2FreeFlightCamera`, on by default; `Es2ChaseRig` (plain C#), `ChaseCamera.PlaceEs2`): in free flight the
+  chase camera is EVERSPACE 2's third-person one, from `BP_Ship_Player`'s blueprint dump (`CameraDynamicsTick` 273795,
+  `UpdateCameraRotationLag` 270308, `UpdateFOV` 281965, `UpdateBoostCameraBehavior` 275355) and the exe
+  (`UMathLib::ESRInterpToDynamicTarget` 0x1418b6544, disassembled). ES2's rig: `CameraTPRotationPivot` PivotX ahead of the
+  ship (DT_ShipSettings 3000 cm) with an absolute rotation, the far arm (2800 cm, socket (0, 0, 600)) hanging the camera
+  behind it, the camera looking along the pivot's rotation (no look-at point). The pivot's rotation lags the ship's by
+  `ESRInterpToDynamicTarget` (the lag angle grows with the target's move over the frame and decays by 10^X a second in
+  1 ms substeps, the frame capped at MaxPhysicsDeltaTime 1/30 s; the remake scales the cap with fast-forward), X the
+  stiffness slider's default 5 (Low / High 3 / 10; the steady lag w / (X ln 10) = w x 0.087 s, the ~0.07 s measured;
+  DT_ShipSettings' 12 is not used): the whole rotation, so the camera rolls with the ship (no horizon). The pivot
+  trails the velocity: (PivotX, 0, 0) - the ship-frame velocity / 20 (lerp(15, 25, slider 0.5)), clamped back 10 m /
+  ahead 3 m, aside 20 m, down 20 m / up 3 m, VInterpTo speed 4 (free flight's `FreeVelocity`, a dodge's slide too). The
+  camera turns a moment after the ship and swings round the point ahead, so in a turn the ship slides across the view
+  while the aim stays near the middle. The remake sizes the rig by the hull: the ship-to-camera distance and height are
+  the hull's chase offset (`PlayerHull`), the pivot and the velocity offset scaled by that distance over ES2's 28 m arm.
+  FOV: ES2's are horizontal; the boost eases toward +15 deg x boosting x max(camera forward . velocity direction, 0),
+  the cruise toward +20, both FInterpTo speed 2, added to the horizontal width of the Field of view option
+  (`Es2ChaseRig.WidenVertical`). The arm is dollied for the Field of view option (UpdateFOV: D tan(base / 2) / tan(fov / 2),
+  base the original's FOV), so the ship keeps its size at any FOV (ES2's boost FOV isn't). The arm's collision probe
+  (ProbeSize 200 cm, at the rig's scale; `ChaseCamera.Probe`, shared with the docked free look's clamp: hull meshes and
+  collision volumes) pulls the camera in front of what lies between it and the ship; the ship is hidden while the camera
+  is within 50 cm of its bounds (`Es2HideHull`, the hidden layer the cockpit view uses). Views (`FreeLookCamera.Cycle`,
+  ES2's ICycleCameraView): the standard view is the far one and the camera button goes on to the close one
+  (`ChaseCamera.es2Close`, DT 2000 cm arm, socket 500 cm, in proportion to the hull's far view; "Close view" in 13
+  languages), then the turret views and free look; the cockpit view is the remake's (held button / F2). Free look
+  (ISetFreelookEnabled, `FreeLookCamera.es2Look`, not docked at an object, where the original's orbit stays): an arm
+  (DT 2000 cm at the rig's scale) on the ship's pivot, rigid with the ship, starting 15 deg above, pitch within +-89 deg,
+  the yaw free, at the remake's orbit rate per pixel (its input options); the zoom in ES2's 200 cm steps (a wheel notch;
+  a pinch 1 m per 20 px, the zoom binding 15 steps a second) between 2 m plus the hull's reach and 100 m, FInterpTo 12;
+  `ChaseCamera` blends it over the running chase rig with FreelookBlendTimeine (0.33 s, EaseInOut exponent 2) and back
+  out on release (no snap). Shakes (`Es2CameraShake`, the dumped legacy Matinee assets in
+  /Game/Blueprints/Effects/CameraShakes: sine / Perlin oscillators, rad/s, cm and degrees, camera-local, blend in / out,
+  single instances re-issued every frame last while asked for): IdleFlight at the speed's share of 100 m/s (FInterpTo 1,
+  not in free look), Boost_001 every boosting frame, BoostInit at a boost's start, CruiseMode_Start / CruiseMode_Rumble
+  (x0.15) with the cruise, Hit_001 x0.5 for a hit or a collision (`ChaseCamera.Shake`'s 6-unit calls; its own shots don't
+  shake), AccelerationSway_001 in the cockpit view (the acceleration's share of 100 m/s^2, FInterpTo 8); scaled by the
+  Camera shake option and the class (`ClassScale`: a heavy hull towards ES2's Heavy 0.8); in the cockpit the location
+  amplitudes x FirstPersonScale 0.05 (the sway 1); location at the rig's scale. Explosions keep the remake's rumble.
+  ES2's own hit-shake caller wasn't found (the 0.5 is from the camera's research); its collision shakes (Collision_Hull /
+  _Shield, x the collision's strength) aren't told apart from hits. Kept from the remake: `SoftReturn`, VR, the turret
+  view, the docked orbit, the haptics, and the original flight style's chase camera. Not ported: ES2's first-person view
+  without the cockpit, the jump-drive shakes (the remake's jumps take the camera over), the user stiffness slider. Tests
+  `Es2ChaseRigTests` (the steady turn's lag at 30-240 fps, the roll followed, the frame cap, the velocity offset's clamps,
+  the swing round the pivot, the boost's +15 deg, the dolly, the blend's ease, the shakes' weights, lifetimes, amplitudes,
+  the cockpit's scale and the class scale).
+- **Chorus flight** (remake, 2026-11-11, the user's request: "port Chorus stuff like ES2"; Options > Controls "Flight
+  style", now a choice Original / Free flight (EVERSPACE 2 style) / Chorus style, `Settings.FlightStyle` 2,
+  `FlightStyles.Chorus`; `FlightStyles.IsFree` is true for it, so it runs free flight's whole path: `ShipController.
+  FreeFlightActive`, `StepFree` handing over to `FlightModel.StepChorus` while `Model.ChorusFlight`, `SyncFree`, the HUD,
+  the ES2 camera, mods' free bonuses). After Chorus (Deep Silver FISHLABS, UE 4.26), decompiled from the player's
+  install (`Reference/research/chorus_flight.md`: USteeringComponent's UpdateLinearVelocity / UpdateAngularVelocity /
+  TickComponent and constructor, BP_Player_Ship_Base / _Phoenix's curves, UBoostComponent's tick, the player
+  controller's drift / boost buttons). Chorus's speeds are kept as shares of its 140 m/s top speed, so they scale with
+  the ship's own (the user chose scaling over Chorus's raw m/s): forward-only thrust, W asks for the top speed and S
+  brakes, both along speed-keyed curves at a constant rate (MoveTowards; the input's size scales the rate, not the
+  target): standstill to top 1.01 s, let go and it coasts to rest in 2.0 s, the brake 1.02 s, no reverse; the turn rate
+  keyed by the forward speed (x0.5 at rest, x1 from half to full speed, x0.7 at 1.5x, x0.35 at 2x; 108 deg/s against
+  free flight's 125 at the same handling scaling), reached in 0.2 s (the game's SteerAccelerationTime default) and
+  dropped at once when the input is let go, eased or reversed (`bHasAngularDeceleration` false); the roll at once; a
+  held boost (a booster needed, as everywhere in the remake) to x2 at the BOOSTING curve (x2 in 0.47 s), no energy, at
+  least 0.6 s, angular acceleration x0.66; a held drift (the Drift row, Space / LB): no thrust, no lateral damping, the
+  world velocity kept while the nose turns (up to x1.2 the turn rate), slowed only above the top speed; on release a
+  recovery pulls the forward speed back up at 1.57 tops/s to what it had (at most the top speed) while the sideways part
+  fades (LateralVerticalDeceleration by the whole speed: 0.75 tops/s); pressing the drift stops a boost, pressing the
+  boost ends a drift. Its own key layout (`GameControls.ChorusDefaults` over free flight's, overrides
+  `controls_bindings_chorus`): A / D the remake's dodge (Chorus's dash), Space drift (Chorus's right mouse button is the
+  secondary fire here), the controller's LB drift, no strafe / up-down / dampeners rows (hidden) and no roll on the
+  controller. HUD hints DRIFT (HOLD) and DODGE instead of strafe / up-down / dampeners. Tests `ChorusFlightTests` (every
+  timing above integrated by hand, the min boost, no booster, turn ratios, ramp and snap, drift and recovery, the
+  layout, the names). Later the same day:
+  - **Travel boost:** L-Ctrl (`travelBoost` row, Chorus layout only), `FlightModel.ToggleTravelBoost`. It's Chorus's
+    TravelBoostConfig: Mode AfterBurner; the player controller's constructor gives ChargeDuration 0 and bHoldButton false,
+    so a press switches it on or off at once.
+    - x5.5, the throttle held full, angular acceleration x0.5, no booster needed.
+    - Allowed only where `Navigation.TravelBoostAllowed`: no hostiles, not jumping, not interstellar, no time extender,
+      not on the autopilot.
+    - It ends on: a second press, the brake, a drift, the regular boost's key (inferred), leaving the allowed state, or
+      slowing below x4.4 after reaching x5 (TravelBoostCancel / BreakSpeedMultiplier).
+    - No controller default: Chorus's stick press and Y are taken here.
+  - **Touch:** `Frame.chorus`. The column's pill holds the drift (`TouchControls.DriftHeld` ->
+    `ShipController.SetTouchFree`'s drift), and up / down are hidden.
+  - **Set Flight Model node:** offers `ChorusFlight`, added at the end of `EventFlightModel`, since graphs store the
+    number.
+  - **Boost and dash defaults:** read from the constructors. FBoostCfg's Cooldown is 0, so the boost has no cooldown.
+    FDashCfg's Speed is 7000 cm/s: Chorus's normal dash is half the top speed sideways, 0.25 s, with 0.15 s in and
+    0.75 s out.
+  - **Dash:** `FlightModel.ChorusDash`, replacing the original's manoeuvre in Chorus flight (`ShipController.RequestDodge`).
+    - A sideways move of its own on top of the velocity, which it doesn't touch: half the top speed, reached in 0.15 s,
+      held to 0.25 s, eased out over 0.75 s (27.5 m at the remake's 100 m/s).
+    - A press within the last 0.2 s of a running dash is buffered (BufferTriggerWhenIdle) and follows at once.
+    - Not ported: the protected phase, the perfect dodge's slow motion, the lateral damping x1.5.
+    - `FlightModel.Dashing` plays the ship's `dodge` sound.
 - **Free flight on touch** (remake, 2026-11-06, the user's request: there was no way to strafe on a phone; `TouchControlsFreeFlight`,
   `Frame.freeFlight`, `ShipController.TouchFree` / `SetTouchFree`): with the free flight style and touch input (not tilt)
   the touch controls take a layout after the controller's, as EVERSPACE 2 has no touch version: the stick thrusts (up /

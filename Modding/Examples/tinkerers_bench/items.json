@@ -1,0 +1,41 @@
+[
+    // What the blueprints make. A blueprint needs a product of its own (a second blueprint for the same item replaces the
+    // first), so there is one small item per blueprint. Each is a copy of a game item ("base") with one number changed.
+    //
+    // "alwaysSoldAt": -1 on all three: a copy keeps its base's station that always stocks it, and that station would
+    // sell the copy whatever the new-game option says. Every other shop leaves a blueprint's product out by itself, so
+    // these three are only ever built.
+
+    // Made from the E2 Exoclad armour (item 55, 40 armour).
+    {
+        "id": "patchwork_plating",
+        "base": 55,
+        "name": "Patchwork Plating",
+        "description": "Hull plates cut from whatever the scrapyard had, riveted on by hand. Ugly, and thicker than anything a dealer would sell you at the price.",
+        "price": [3000, 3300],
+        "alwaysSoldAt": -1,
+        "stats": { "armor": 55 }
+    },
+
+    // Made from the Pendular Thrust steering nozzle (item 77, 40 agility).
+    {
+        "id": "hand_tuned_thruster",
+        "base": 77,
+        "name": "Hand-Tuned Thruster",
+        "description": "A stock steering nozzle, taken apart and put back together by someone who knew which parts the factory got wrong.",
+        "price": [6000, 6400],
+        "alwaysSoldAt": -1,
+        "stats": { "agility": 55 }
+    },
+
+    // Made from the Micro Gun MKII auto-cannon (item 23, 2 damage): it looks, sounds and fires like it.
+    {
+        "id": "scrapyard_repeater",
+        "base": 23,
+        "name": "Scrapyard Repeater",
+        "description": "A Micro Gun rebuilt around a heavier barrel. The rate of fire is the original's; what leaves the barrel is not.",
+        "price": [9000, 9600],
+        "alwaysSoldAt": -1,
+        "stats": { "damage": 3 }
+    }
+]

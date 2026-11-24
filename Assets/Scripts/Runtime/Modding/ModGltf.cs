@@ -42,7 +42,10 @@ namespace GoF2Remake.Modding
             // glTFast's own messages collected (without a logger it says nothing): why a model can't be read reaches the
             // mod's warnings (#134: a compression extension without its package looked like an empty model).
             var log = new GLTFast.Logging.CollectingLogger();
-            var import = new GLTFast.GltfImport(null, agent, new ModGltfMaterials(images, stripped?.gof3), log);
+            // A material's GoF3 environment cube (its "extras"), loaded once per mod and path (ModMaterials.Texture's cache).
+            System.Func<string, Texture2D> cubes = stripped == null || stripped.gof3Cube.Count == 0 ? null
+                : name => stripped.gof3Cube.TryGetValue(name, out var path) ? ModMaterials.Texture(mod, path, true) : null;
+            var import = new GLTFast.GltfImport(null, agent, new ModGltfMaterials(images, stripped?.gof3, cubes, stripped != null && stripped.glow.Count > 0 ? stripped.glow : null), log);
             var settings = new GLTFast.ImportSettings { GenerateMipMaps = true, AnisotropicFilterLevel = 8 };
             if (await import.Load(bytes, null, settings)) return import;
             import.Dispose();

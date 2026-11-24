@@ -145,6 +145,7 @@
                         <ui:Button name="tabGraphics" class="tab-button gof-semibold" />
                         <ui:Button name="tabControls" class="tab-button gof-semibold" />
                         <ui:Button name="tabBindings" class="tab-button gof-semibold" />
+                        <ui:Button name="tabCosmetics" class="tab-button gof-semibold" />
                         <ui:Button name="tabGameplay" class="tab-button gof-semibold" />
                         <ui:Button name="tabAccessibility" class="tab-button gof-semibold" />
                         <ui:Button name="tabLanguage" class="tab-button gof-semibold" />
@@ -155,12 +156,14 @@
                     <ui:ScrollView name="controlsPage" class="tab-page options-scroll" />
                     <ui:ScrollView name="bindingsPage" class="tab-page options-scroll" />
                     <ui:ScrollView name="gameplayPage" class="tab-page options-scroll" />
+                    <ui:ScrollView name="cosmeticsPage" class="tab-page options-scroll" />
                     <ui:ScrollView name="accessibilityPage" class="tab-page options-scroll" />
                     <ui:ScrollView name="languagePage" class="tab-page options-scroll">
                         <ui:VisualElement name="languageList" class="language-list" />
                     </ui:ScrollView>
                     <ui:VisualElement class="options-footer">
                         <ui:Button name="optionsBack" class="menu-button back-button gof-semibold" />
+                        <ui:Button name="optionsApply" class="menu-button back-button options-defaults options-apply gof-semibold" />
                         <ui:Button name="optionsDefaults" class="menu-button back-button options-defaults gof-semibold" />
                     </ui:VisualElement>
                 </ui:VisualElement>

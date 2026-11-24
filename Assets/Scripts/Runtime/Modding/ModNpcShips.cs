@@ -4,7 +4,7 @@
 // own or another mod's ("override": a game key below or "mod:id"):
 //   [ { "id": "dreadnought", "kind": "capital" | "freighter" | "boss", "ship": n | "mod:id" (its hull: a ships.json ship)
 //       or "looksLike": "battleship" | "carrier" | "vossk_battleship" | "freighter" (a game NPC hull), "name", "race",
-//       "hostile", "hull" (hitpoints, x the difficulty) or "hullFactor", "gunFactor", "speed" (u/ms), "explosionScale",
+//       "hostile", "hull" (hitpoints, x the difficulty) or "hullFactor", "shield", "shieldRechargeMs", "energyResistance", "ballisticResistance", "gunFactor", "speed" (u/ms), "explosionScale",
 //       "missiles", "retreat", "scale" (its size: x the hull's, its hardpoints and pads with it),
 //       "hardpoints": [ { "kind": "turret" | "object" | "hangar", "position": [x, y, z], "item", "upsideDown", "hull", ... } ]
 //                     (ships.json "subsystems" in the ship's frame; they replace its turrets),
@@ -49,6 +49,9 @@ namespace GoF2Remake.Modding
         public int race = -1;           // -1 = the orbit's
         public bool? hostile;
         public int hull = -1;           // hitpoints before the difficulty factor, -1 = the default x hullFactor
+        public int shield;              // optional NPC shield capacity; 0 = none
+        public int shieldRechargeMs;    // full recharge time; 0 = no regeneration
+        public float energyResistance, ballisticResistance; // percentages, 0..100
         public float hullFactor = 1f;
         public float gunFactor = 1f;
         public float speed = -1f;
@@ -147,6 +150,7 @@ namespace GoF2Remake.Modding
         {
             "id", "override", "kind", "ship", "looksLike", "name", "race", "hostile", "hull", "hullFactor", "gunFactor", "speed",
             "explosionScale", "scale", "missiles", "retreat", "hardpoints", "escorts", "loot", "spawn", "docking", "launches",
+            "shield", "shieldRechargeMs", "energyResistance", "ballisticResistance",
         };
         static readonly string[] SpawnFields = { "chance", "count", "races", "systems", "stations", "security", "minRank", "maxRank",
                                                  "minStep", "maxStep", "freePlayOnly", "storyOnly", "condition", "position", "distance", "replaceGame" };
@@ -188,7 +192,8 @@ namespace GoF2Remake.Modding
                 else if (ModJson.Has(o, "kind")) mod.Warnings.Add($"{where}: \"kind\" is the changed ship's own (ignored)");
                 if (ModJson.Str(o, "looksLike") is string look && Array.IndexOf(Looks, look.ToLowerInvariant()) < 0)
                     throw new ModJsonException($"{where}: \"looksLike\" must be one of {string.Join(", ", Looks)}");
-                foreach (var f in new[] { "hull" }) ModJson.Int(o, f, 0, File);
+                foreach (var f in new[] { "hull", "shield", "shieldRechargeMs" }) ModJson.Int(o, f, 0, File);
+                foreach (var f in new[] { "energyResistance", "ballisticResistance" }) ModJson.Float(o, f, 0f, File);
                 foreach (var f in new[] { "hullFactor", "gunFactor", "speed", "explosionScale", "scale" }) ModJson.Float(o, f, 0f, File);
                 foreach (var f in new[] { "hostile", "missiles", "retreat" }) ModJson.Bool(o, f, false, File);
                 foreach (var f in new[] { "hardpoints" })
@@ -310,6 +315,10 @@ namespace GoF2Remake.Modding
             }
             if (ModJson.Has(o, "hostile")) t.hostile = ModJson.Bool(o, "hostile", false, File);
             t.hull = ModJson.Int(o, "hull", t.hull, File);
+            t.shield = Mathf.Max(0, ModJson.Int(o, "shield", t.shield, File));
+            t.shieldRechargeMs = Mathf.Max(0, ModJson.Int(o, "shieldRechargeMs", t.shieldRechargeMs, File));
+            t.energyResistance = Mathf.Clamp(ModJson.Float(o, "energyResistance", t.energyResistance, File), 0f, 100f);
+            t.ballisticResistance = Mathf.Clamp(ModJson.Float(o, "ballisticResistance", t.ballisticResistance, File), 0f, 100f);
             t.hullFactor = Mathf.Max(0.01f, ModJson.Float(o, "hullFactor", t.hullFactor, File));
             t.gunFactor = Mathf.Max(0f, ModJson.Float(o, "gunFactor", t.gunFactor, File));
             t.speed = ModJson.Float(o, "speed", t.speed, File);

@@ -190,7 +190,8 @@ namespace GoF2Remake.UI
                 scroll.parent.Insert(scroll.parent.IndexOf(scroll), summary);
             }
             var (earned, gold) = Achievements.Earned();
-            int total = Achievements.Count;
+            int total = 0;
+            for (int i = 0; i < Achievements.Count; i++) if (Modding.ModCampaigns.MedalAllowed(i)) total++;
             var goldTier = Modding.ModMedals.TierOf("gold");
             foreach (var mm in Modding.ModMedals.All)
             {
@@ -205,6 +206,8 @@ namespace GoF2Remake.UI
                                          earned, total, gold);
             for (int i = 0; i < Achievements.Count; i++)
             {
+                // Remake mods (#313): a campaign naming its "medals" shows only those (the others keep their number, no button).
+                if (!Modding.ModCampaigns.MedalAllowed(i)) { medalButtons.Add(null); continue; }
                 int medal = i;
                 int grade = Achievements.Grade(i);
                 bool elite = i >= Achievements.BaseCount;
@@ -341,7 +344,7 @@ namespace GoF2Remake.UI
 
         static StyleBackground Hud(string name)
         {
-            if (!hudImages.TryGetValue(name, out var t)) hudImages[name] = t = Resources.Load<Texture2D>("GoF2Hud/" + name);
+            if (!hudImages.TryGetValue(name, out var t)) hudImages[name] = t = GoF2Remake.Data.OriginalTextures.Image("GoF2Hud/" + name);
             return t != null ? new StyleBackground(t) : new StyleBackground(StyleKeyword.None);
         }
 
@@ -566,7 +569,7 @@ namespace GoF2Remake.UI
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
             e.AddToClassList("rep-emblem");
             int look = Standing.Look(race);
-            var tex = Modding.ModRaces.Icon(race) ?? Resources.Load<Texture2D>($"GoF2Hud/race_{(look <= 3 ? look : look == 9 ? 9 : 8)}");
+            var tex = Modding.ModRaces.Icon(race) ?? GoF2Remake.Data.OriginalTextures.Image($"GoF2Hud/race_{(look <= 3 ? look : look == 9 ? 9 : 8)}");
             if (tex == null) return e;
             Color glow = Standing.IsEnemy(race) ? new Color(0.95f, 0.28f, 0.16f) : Standing.IsFriend(race) ? new Color(0.1f, 0.8f, 0.1f)
                        : new Color(0.24f, 0.6f, 0.8f);
@@ -697,7 +700,7 @@ namespace GoF2Remake.UI
             if (tex != null) e.style.backgroundImage = new StyleBackground(tex);
             else
             {
-                tex = Resources.Load<Texture2D>($"GoF2Hud/race_{race}");
+                tex = GoF2Remake.Data.OriginalTextures.Image($"GoF2Hud/race_{race}");
                 if (tex != null) e.style.backgroundImage = new StyleBackground(tex);
                 e.EnableInClassList("rep-emblem--hostile", Standing.IsEnemy(race));
             }
