@@ -122,6 +122,7 @@ namespace GoF2Remake.Modding
         static int originalItems = -1;
         static readonly Dictionary<string, int> itemIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<int, ItemDef> itemDefAt = new Dictionary<int, ItemDef>();
+        static readonly HashSet<int> multiplayerBlueprintRestricted = new HashSet<int>();
         static readonly Dictionary<int, string> placeholderItems = new Dictionary<int, string>();
         static readonly Dictionary<int, int> itemLook = new Dictionary<int, int>();
         static readonly Dictionary<int, ItemDef> itemRenames = new Dictionary<int, ItemDef>();   // overrides with a name / description
@@ -139,6 +140,7 @@ namespace GoF2Remake.Modding
             mappedRevision = -1;
             originalItems = -1;
             originalShips = -1;
+            multiplayerBlueprintRestricted.Clear();
         }
 
         public static void ClearParsed() { parsed.Clear(); mappedRevision = -1; }
@@ -180,7 +182,7 @@ namespace GoF2Remake.Modding
         {
             "id", "override", "base", "name", "description", "techLevel", "occurrence", "stock", "minPrice", "maxPrice", "price",
             "lowestPriceSystem", "highestPriceSystem", "vosskOnly", "alwaysSoldAt", "stats", "attributes", "defaultEconomy", "fx", "icon",
-            "available", "tractorColor", "jumpFx", "jumpRules", "availability",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
+            "available", "tractorColor", "jumpFx", "jumpRules", "availability", "multiplayerBlueprintRestricted",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
             "allowedClasses", "excludedClasses",   // the ship classes / tags that may / may not mount it (ShipClassRules)
         };
 
@@ -240,6 +242,18 @@ namespace GoF2Remake.Modding
                 p.items.Add(d);
             }
         }
+
+        /// <summary>Whether an item’s blueprint is restricted during a multiplayer session (solo play is unchanged).</summary>
+        public static bool IsBlueprintRestricted(int product) => (NetSession.Active || NetSession.SessionGame) && multiplayerBlueprintRestricted.Contains(product);
+
+        /// <summary>ModContentMerging applies this per-item flag in mod load order; an explicit false clears an earlier mod restriction.</summary>
+        public static void SetBlueprintRestricted(int product, bool restricted)
+        {
+            if (restricted) multiplayerBlueprintRestricted.Add(product);
+            else multiplayerBlueprintRestricted.Remove(product);
+        }
+
+        public static void ClearBlueprintRestrictions() => multiplayerBlueprintRestricted.Clear();
 
         public const string ShipsFile = "ships.json";
 
@@ -442,6 +456,8 @@ namespace GoF2Remake.Modding
             // "stock": how many units a shop holds (Shop.ModStock), a number or [least, most].
             if (Range(o, "stock", out int smin, out int smax) && (smin < 1 || smax < smin || smax > Shop.MaxStock))
                 mod.Warnings.Add($"{where}: \"stock\" {smin} to {smax} must be 1 to {Shop.MaxStock}, least first (clamped)");
+            if (ModJson.Has(o, "multiplayerBlueprintRestricted"))
+                ModJson.Bool(o, "multiplayerBlueprintRestricted", false, ItemsFile);
             if (ModJson.Get(o, "tractorColor") is JToken tc && TractorColorValue(tc) < 0)
                 mod.Warnings.Add($"{where}: \"tractorColor\" must be \"#rrggbb\" or [r, g, b] (0-255): ignored");
             if (ModJson.Get(o, "stats") is JToken st)

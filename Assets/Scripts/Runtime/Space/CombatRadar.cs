@@ -736,6 +736,13 @@ namespace GoF2Remake.Flight
             if (entry == null) { Destroy(crate.gameObject); return; }
             if (GoF2Remake.Modding.ModBlueprints.Of(entry.item) != null)
             {
+                if (Blueprints.IsRestricted(entry.item))
+                {
+                    Message?.Invoke(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session."), 1, HudMessageKind.Normal);
+                    crate.CapturedHere?.Invoke();
+                    Destroy(crate.gameObject);
+                    return;
+                }
                 // Remake mods: a data crate (a mod blueprint's drop or derelict): the blueprint is learnt, nothing goes in
                 // the hold.
                 bool known = Blueprints.IsUnlocked(entry.item);

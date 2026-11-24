@@ -341,6 +341,7 @@ namespace GoF2Remake.UI
         {
             var db = level.Database;
             int item = selected.item;
+            if (Blueprints.IsRestricted(editing)) { ReleaseArrow(); menu.ShowToast(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.")); return false; }
             // Remake mods: a skin's blueprint ("requiresShip") is only built while flying that ship.
             string refusal = Modding.ModBlueprints.RequiresShipRefusal(editing);
             if (refusal != null) { ReleaseArrow(); menu.ShowToast(refusal); return false; }
@@ -378,6 +379,7 @@ namespace GoF2Remake.UI
         void Commit(System.Action after)
         {
             var db = level.Database;
+            if (editing >= 0 && Blueprints.IsRestricted(editing)) { Revert(); after?.Invoke(); return; }
             if (!HasPending || editing < 0) { after?.Invoke(); return; }
             var st = Blueprints.State(db, editing);
             int units = 0;
@@ -424,6 +426,7 @@ namespace GoF2Remake.UI
         }
         void Apply()
         {
+            if (editing >= 0 && Blueprints.IsRestricted(editing)) { Revert(); return; }
             var db = level.Database;
             foreach (var kv in pendingUnits)
                 if (kv.Value > 0) Blueprints.Invest(db, editing, kv.Key, kv.Value, StationIndex, true);
@@ -446,6 +449,7 @@ namespace GoF2Remake.UI
         {
             var db = level.Database;
             int product = editing;
+            if (Blueprints.IsRestricted(product)) { menu.ShowToast(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.")); return; }
             int station = Blueprints.State(db, product).station;
             bool here = Blueprints.Produce(db, product, StationIndex);
             hangar = new Hangar(db, level.Stock);   // the new product needs its price
@@ -484,7 +488,7 @@ namespace GoF2Remake.UI
         void AskAutocomplete()
         {
             var db = level.Database;
-            if (editing < 0 || db.Item(editing) == null || !Blueprints.CanAutocomplete(editing)) return;   // only in the ingredients view
+            if (editing < 0 || db.Item(editing) == null || Blueprints.IsRestricted(editing) || !Blueprints.CanAutocomplete(editing)) return;   // only in the ingredients view
             string refusal = Modding.ModBlueprints.RequiresShipRefusal(editing);
             if (refusal != null) { menu.ShowToast(refusal); return; }
             int price = Blueprints.AutoCompletePrice(db, editing);

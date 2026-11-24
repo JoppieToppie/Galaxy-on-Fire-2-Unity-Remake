@@ -11,6 +11,7 @@
 //       "autocomplete": true | false | 1500000 (the price; true = the original's 1.25 x the product's price),
 //       "available": "condition"               (EventRunner.Condition: before any source offers it),
 //       "unlocked": false                      (true: known as soon as it is available),
+//       "multiplayerBlueprintRestricted": false (ordinary acquisition and production barred during multiplayer),
 //       "lounge": { "chance": 10, "price": 250000, "systemRace": -1 }   (a Space Lounge visitor sells it;
 //                 "stations": [ 78, "mod:id" ]  only in those bars (then the chance defaults to 100): like the game's own
 //                                               blueprint sellers, one at a fixed station;
@@ -46,7 +47,7 @@ namespace GoF2Remake.Modding
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "id", "ship", "item", "ingredients", "requiresShip", "dryDockOnly", "consumeBlueprint", "constructionTimeSeconds", "autocomplete", "available", "unlocked", "lounge", "derelict", "drops",
+            "id", "ship", "item", "ingredients", "requiresShip", "dryDockOnly", "consumeBlueprint", "constructionTimeSeconds", "autocomplete", "available", "unlocked", "lounge", "derelict", "drops", "multiplayerBlueprintRestricted",
         };
         static readonly HashSet<string> DerelictFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "race", "stations", "position" };
 
@@ -62,7 +63,7 @@ namespace GoF2Remake.Modding
             public ModInfo mod;
             public string where, localId, shipRef, itemRef, requiresShipRef, available;
             public readonly List<(string item, int amount)> ingredients = new List<(string, int)>();
-            public bool autocomplete = true, unlocked, dryDockOnly, consumeBlueprint;
+            public bool autocomplete = true, unlocked, dryDockOnly, consumeBlueprint, multiplayerBlueprintRestricted, hasMultiplayerBlueprintRestriction;
             public int constructionTimeSeconds; // 0: choose a duration from the ship class
             public int autocompletePrice = -1;          // -1: the original's formula
             public float loungeChance, derelictChance;  // 0: no such source
@@ -106,6 +107,8 @@ namespace GoF2Remake.Modding
                     mod = mod, where = where, localId = ModJson.Str(o, "id"), shipRef = ModJson.Str(o, "ship"), itemRef = ModJson.Str(o, "item"),
                     requiresShipRef = ModJson.Str(o, "requiresShip"), available = ModJson.Str(o, "available"),
                     unlocked = ModJson.Bool(o, "unlocked", false, File),
+                    hasMultiplayerBlueprintRestriction = ModJson.Has(o, "multiplayerBlueprintRestricted"),
+                    multiplayerBlueprintRestricted = ModJson.Bool(o, "multiplayerBlueprintRestricted", false, File),
                     dryDockOnly = ModJson.Bool(o, "dryDockOnly", false, File),
                     consumeBlueprint = ModJson.Bool(o, "consumeBlueprint", false, File),
                     constructionTimeSeconds = ModJson.Int(o, "constructionTimeSeconds", 0, File),
@@ -270,6 +273,8 @@ namespace GoF2Remake.Modding
                         if (ModContent.TryResolveShip(sr, out int si) && db.Ship(si) != null) d.shipDrops.Add((si, chance));
                         else Warn(d, $"\"drops\" \"ship\": {sr} is no ship");
                     product.blueprint = parts;
+                    if (d.hasMultiplayerBlueprintRestriction)
+                        ModContent.SetBlueprintRestricted(d.product, d.multiplayerBlueprintRestricted);
                     byProduct[d.product] = d;
                 }
                 catch (Exception e) { Warn(d, e.Message); }
@@ -312,7 +317,7 @@ namespace GoF2Remake.Modding
 
         /// <summary>Its "available" condition holds in this game.</summary>
         public static bool Available(Def d) =>
-            ModContent.ItemAvailableFor(d.product, "blueprints") &&
+            ModContent.ItemAvailableFor(d.product, "blueprints") && !ModContent.IsBlueprintRestricted(d.product) &&
             !Shop.SlipstreamOff(d.product) && ModUnlocks.Holds(d.mod, d.available, d.where);
 
         /// <summary>Blueprints.AutoCompletePrice: a mod's own price (or none: false).</summary>
@@ -342,7 +347,8 @@ namespace GoF2Remake.Modding
         public static void UnlockAvailable()
         {
             foreach (var d in All())
-                if (d.unlocked && d.product >= 0 && !Blueprints.IsUnlocked(d.product) && Available(d)) Blueprints.Unlock(d.product);
+                if (d.unlocked && d.product >= 0 && !ModContent.IsBlueprintRestricted(d.product)
+                    && !Blueprints.IsUnlocked(d.product) && Available(d)) Blueprints.Unlock(d.product);
         }
 
         /// <summary>A ship of 'race' and type 'ship' the player destroyed: the first mod blueprint whose drop for that ship
@@ -382,7 +388,8 @@ namespace GoF2Remake.Modding
         {
             var list = new List<Def>();
             foreach (var d in All())
-                if (d.product >= 0 && byProduct.ContainsKey(d.product) && source(d) && !Blueprints.IsUnlocked(d.product) && Available(d)) list.Add(d);
+                if (d.product >= 0 && byProduct.ContainsKey(d.product) && source(d) && !ModContent.IsBlueprintRestricted(d.product)
+                    && !Blueprints.IsUnlocked(d.product) && Available(d)) list.Add(d);
             return list;
         }
     }

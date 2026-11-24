@@ -584,6 +584,13 @@ namespace GoF2Remake.Data
         public void Confirm()
         {
             var a = Agent;
+            if (a.offer == AgentOffer.SellBlueprint && Modding.ModContent.IsBlueprintRestricted(a.sellBlueprint))
+            {
+                Text = Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.");
+                closing = true;
+                SetChoices();
+                return;
+            }
             string thanks = T(850 + Random.Range(0, 3));
             switch (a.offer)
             {

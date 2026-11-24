@@ -59,6 +59,7 @@ namespace GoF2Remake.Modding
         {
             NoteOriginalCounts(db);
             EnsureMapping();
+            ModContent.ClearBlueprintRestrictions();
             bool dflt = db.Economy == Economy.Default;
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).items)
@@ -70,6 +71,7 @@ namespace GoF2Remake.Modding
                             if (!TryResolveItem(d.overrideRef, out int t) || db.Item(t) == null)
                             { Report(mod, $"{d.where}: \"override\": {d.overrideRef} is no item (a modded one must come from an earlier mod)"); continue; }
                             ApplyFields(db.Item(t), d.json, dflt);
+                            ApplyBlueprintRestriction(t, d.json);
                             continue;
                         }
                         int index = itemIndex[d.key];
@@ -84,6 +86,7 @@ namespace GoF2Remake.Modding
                         if (ItemText(index, false, out var n)) item.name = n;
                         if (ItemText(index, true, out var ds)) item.description = ds;
                         ApplyFields(item, d.json, dflt);
+                        ApplyBlueprintRestriction(index, d.json);
                         db.Items.Add(item);
                     }
                     catch (ModJsonException e) { Report(mod, e.Message); }
@@ -401,6 +404,12 @@ namespace GoF2Remake.Modding
             ItemText(index, true, out p.description);
             return p;
         }
+        static void ApplyBlueprintRestriction(int item, JObject o)
+        {
+            if (ModJson.Has(o, "multiplayerBlueprintRestricted"))
+                ModContent.SetBlueprintRestricted(item, ModJson.Bool(o, "multiplayerBlueprintRestricted", false, ItemsFile));
+        }
+
         static void ApplyFields(ItemData it, JObject o, bool defaultEconomy)
         {
             const string F = ItemsFile;
@@ -425,6 +434,8 @@ namespace GoF2Remake.Modding
                 SetAttr(it, Shop.StockMinAttr, stockMin); SetAttr(it, Shop.StockMaxAttr, stockMax);
             }
             if (ModJson.Has(o, "vosskOnly")) SetAttr(it, 60, ModJson.Bool(o, "vosskOnly", false, F) ? 1 : 0);
+            if (ModJson.Has(o, "multiplayerBlueprintRestricted"))
+                ModJson.Bool(o, "multiplayerBlueprintRestricted", false, ItemsFile);
             if (ModJson.Has(o, "alwaysSoldAt")) SetAttr(it, 61, ModJson.Int(o, "alwaysSoldAt", -1, F));
             if (ModJson.Get(o, "tractorColor") is JToken tc && TractorColorValue(tc) is int rgb && rgb >= 0) SetAttr(it, 136, rgb);   // Flight.CombatRadar
             ShipClassRules.ApplyItem(it, o);   // "allowedClasses", "excludedClasses"

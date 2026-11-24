@@ -180,7 +180,7 @@ namespace GoF2Remake.Data
             foreach (var (product, at) in StoryBlueprints)
             {
                 if (at != station || Blueprints.IsUnlocked(product) || db.Item(product) == null
-                    || !Modding.ModContent.ItemAvailableFor(product, "blueprints")) continue;
+                    || !Modding.ModContent.ItemAvailableFor(product, "blueprints") || Modding.ModContent.IsBlueprintRestricted(product)) continue;
                 if (agents.Exists(a => a.offer == AgentOffer.SellBlueprint && a.sellBlueprint == product)) continue;
                 int race = systemRace >= 0 && systemRace <= 3 ? systemRace : 0;
                 bool male = race == 0 ? R(100) < 60 : true;
@@ -296,7 +296,9 @@ namespace GoF2Remake.Data
         /// the Khador Drive's blueprint is known). One the player already knows still stands there with nothing left.</summary>
         static bool StorySellerAvailable(StoryAgentData s)
         {
-            if (s.sellBlueprint < 0 || Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
+            if (s.sellBlueprint < 0) return true;
+            if (Modding.ModContent.IsBlueprintRestricted(s.sellBlueprint)) return false;
+            if (Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
             var mod = Modding.ModBlueprints.Of(s.sellBlueprint);
             return mod == null || Modding.ModBlueprints.Available(mod);
         }

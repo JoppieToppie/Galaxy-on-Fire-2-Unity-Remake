@@ -162,7 +162,7 @@ namespace GoF2Remake.Multiplayer
             {
                 int ship = Modding.ModBlueprints.ShipOf(product.index);
                 if (ship < 0 || !Modding.ModBlueprints.RequiresDryDock(product.index, db) ||
-                    IsBlueprintConsumed(product.index) || !GoF2Remake.Data.Blueprints.IsUnlocked(product.index)) continue;
+                    Modding.ModContent.IsBlueprintRestricted(product.index) || IsBlueprintConsumed(product.index) || !GoF2Remake.Data.Blueprints.IsUnlocked(product.index)) continue;
                 lines.Add(product.index + ": " + (db.Ship(ship)?.name ?? ("Ship " + ship)) +
                     " — " + (Modding.ShipClassRules.ClassLabel(db.Ship(ship)) ?? "Dry-dock restricted"));
             }
@@ -198,6 +198,8 @@ namespace GoF2Remake.Multiplayer
             int shipIndex = Modding.ModBlueprints.ShipOf(productId);
             if (product == null || shipIndex < 0 || db.Ship(shipIndex) == null)
                 return "That item is not a valid ship blueprint.";
+            if (Modding.ModContent.IsBlueprintRestricted(productId) || !Modding.ModContent.ItemAvailableFor(productId, "blueprints"))
+                return "That blueprint is unavailable in this multiplayer session.";
             if (!Modding.ModBlueprints.RequiresDryDock(productId, db))
                 return "That blueprint does not require a dry dock.";
             if (IsBlueprintConsumed(productId) || !GoF2Remake.Data.Blueprints.IsUnlocked(productId))
