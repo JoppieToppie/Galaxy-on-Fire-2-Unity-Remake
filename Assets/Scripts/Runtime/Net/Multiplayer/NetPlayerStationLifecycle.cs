@@ -408,6 +408,8 @@ namespace GoF2Remake.Multiplayer
             var gate = FindJumpgate(record.stationIndex);
             if (gate != null && (!gate.permanentlyDestroyed || gate.explosionPending || gate.salvageDropPending))
                 return "This orbit still supports a jumpgate, a gate wreck, or outstanding gate salvage.";
+            if (registry.orbitalStructures?.Exists(structure => structure != null && structure.orbit == record.stationIndex) == true)
+                return "Dismantle or destroy the remaining orbital structures before retiring this orbit.";
             record.retired = true;
             if (!Save())
             {

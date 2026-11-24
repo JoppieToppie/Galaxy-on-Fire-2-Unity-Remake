@@ -86,10 +86,67 @@ namespace GoF2Remake.World
             }
         }
 
+        readonly Dictionary<int, GameObject> orbitalStructureModels = new Dictionary<int, GameObject>();
+        string renderedOrbitalSnapshot;
+        float retryOrbitalModelsAt;
+        IReadOnlyList<PlayerOrbitalStructure> renderedOrbitalStructures;
+
+        void UpdateOrbitalStructures(int orbit)
+        {
+            var structures = NetPlayerStations.OrbitalStructures;
+            string snapshot = NetState.Instance?.PlayerStations;
+            if (ReferenceEquals(renderedOrbitalStructures, structures) && ReferenceEquals(renderedOrbitalSnapshot, snapshot) &&
+                (retryOrbitalModelsAt == 0f || Time.unscaledTime < retryOrbitalModelsAt)) return;
+            retryOrbitalModelsAt = 0f;
+            renderedOrbitalStructures = structures;
+            renderedOrbitalSnapshot = snapshot;
+            var removed = new List<int>();
+            foreach (var pair in orbitalStructureModels)
+                if (NetPlayerStations.FindOrbitalStructure(pair.Key)?.operational != true)
+                {
+                    if (pair.Value != null)
+                    {
+                        Explosion.Spawn(pair.Value.transform.position, 3f);
+                        pair.Value.SetActive(false);
+                        Destroy(pair.Value);
+                    }
+                    removed.Add(pair.Key);
+                }
+            foreach (int id in removed) orbitalStructureModels.Remove(id);
+            if (structures == null) return;
+            foreach (var structure in structures)
+            {
+                if (structure == null || structure.orbit != orbit || !structure.operational ||
+                    orbitalStructureModels.ContainsKey(structure.id)) continue;
+                string assembly = NetPlayerStations.OrbitalStructureAssembly(structure.assembly, structure.stationModel, db);
+                if (assembly == null)
+                {
+                    if (!string.IsNullOrEmpty(structure.stationModel)) retryOrbitalModelsAt = Time.unscaledTime + 2f;
+                    continue;
+                }
+                var model = OrbitBuilder.Spawn(db, assembly, Vector3.zero, Quaternion.identity, structure.name, transform);
+                if (model == null)
+                {
+                    retryOrbitalModelsAt = Time.unscaledTime + 2f;
+                    continue;
+                }
+                model.transform.position = NetPlayerStations.OrbitalStructurePosition(structure);
+                model.transform.localScale *= structure.modelScale;
+                var obstacle = model.AddComponent<Obstacle>();
+                obstacle.landmark = obstacle.cubeIsContact = true;
+                obstacle.cubeHalf = structure.hitRadius;
+                obstacle.volumes.Add(CollisionVolume.Sphere(Vector3.zero, structure.hitRadius));
+                var hull = HullCollision.Attach(model, null, obstacle, forceExact: true);
+                if (hull != null) hull.orbitalStructureId = structure.id;
+                orbitalStructureModels.Add(structure.id, model);
+            }
+        }
+
         void UpdatePlayerStationLifecycle()
         {
             if (Layout == null || Navigation == null) return;
             int orbit = Layout.stationIndex;
+            UpdateOrbitalStructures(orbit);
             UpdateWreckSalvage(orbit);
             if (!NetPlayerStations.IsPlayerStation(orbit)) return;
             bool modelPresent = NetPlayerStations.StationSceneryPresent(orbit);

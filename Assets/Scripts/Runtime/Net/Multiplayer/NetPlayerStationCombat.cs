@@ -71,7 +71,8 @@ namespace GoF2Remake.Multiplayer
             }
             else if (!NetShotRegistry.TryConsumeGateHit(NetworkObjectId, shotId, item, point, NetPlayerStations.StationPosition(orbit), radius, station: true))
                 return;
-            NetPlayerStations.ApplyStationCombatHit(orbit, item, damage);
+            if (NetPlayerStations.ApplyStationCombatHit(orbit, item, damage))
+                NetPlayerStations.NoteOrbitalAggression(this, orbit);
         }
 
         internal void BroadcastPlayerStationExplosion(int orbit)

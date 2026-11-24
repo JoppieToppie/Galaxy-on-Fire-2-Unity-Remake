@@ -807,7 +807,8 @@ namespace GoF2Remake.Multiplayer
             float factor = Mathf.Clamp01((blastRadius - Vector3.Distance(detonation, gateSurface)) / blastRadius);
             float structural = kind == Gun.Kind.EmpBomb ? 0f : Mathf.Max(0, weapon.Attr(9)) * factor;
             float empDamage = Mathf.Max(0, weapon.Attr(10)) * factor;
-            NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage);
+            if (NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage))
+                NetPlayerStations.NoteOrbitalAggression(this, orbitStationIndex);
         }
 
         /// <summary>Only an exact local scenery mesh hit can request gate damage. The server
@@ -840,7 +841,8 @@ namespace GoF2Remake.Multiplayer
             // Damage numbers are resolved from the server's item registry, never the client's report.
             float structural = Mathf.Max(0, weapon.Attr(9));
             float empDamage = Mathf.Max(0, weapon.Attr(10));
-            NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage);
+            if (NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage))
+                NetPlayerStations.NoteOrbitalAggression(this, orbitStationIndex);
         }
 
         void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>

@@ -75,6 +75,16 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
+        static bool AcceptsConstructionStock(int item)
+        {
+            if (RequiredJumpgateMaterials().Exists(part => part.item == item)) return true;
+            if (registry?.orbitalStructures?.Exists(structure => structure != null &&
+                structure.materials.Exists(material => material.item == item)) == true) return true;
+            foreach (var preset in Modding.ModPlayerInfrastructure.Current.OrbitalStructures)
+                if (preset.Materials.Exists(material => material.item == item)) return true;
+            return false;
+        }
+
         internal static string DonateFactionConstructionMaterials(NetPlayer pilot, int item, int amount)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null || pilot == null || !pilot.IsSpawned ||
@@ -84,7 +94,7 @@ namespace GoF2Remake.Multiplayer
             var station = StationAt(pilot.Station);
             if (!CanUseStationConstructionStock(station, account))
                 return "Dock at an operational station owned by you or your faction to donate materials.";
-            if (amount < 1 || amount > 500 || !NetGuard.Item(item) || !RequiredJumpgateMaterials().Exists(part => part.item == item))
+            if (amount < 1 || amount > 500 || !NetGuard.Item(item) || !AcceptsConstructionStock(item))
                 return "Donate 1–500 units of a valid jumpgate construction material.";
 
             var stock = station.donatedConstructionStock ??= new List<PlayerStationStorage>();

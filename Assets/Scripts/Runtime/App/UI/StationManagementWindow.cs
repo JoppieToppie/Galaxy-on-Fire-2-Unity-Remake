@@ -20,6 +20,7 @@ namespace GoF2Remake.UI
         readonly Dictionary<string, TextField> fields = new Dictionary<string, TextField>();
         PlayerStationRecord selected;
         bool open;
+        int confirmOrbitalRemoval;
         int confirmRetirementId = -1;
         int confirmBuilderRelinquish = -1;
         float refresh;
@@ -111,6 +112,7 @@ namespace GoF2Remake.UI
             panel.style.display = DisplayStyle.None;
             open = false;
             confirmRetirementId = -1;
+            confirmOrbitalRemoval = 0;
             drafts.Clear();
             confirmBuilderRelinquish = -1;
         }
@@ -283,6 +285,7 @@ namespace GoF2Remake.UI
             if (Modding.ModPlayerInfrastructure.Current.Enabled && Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled)
                 BuildNewJumpgateControls(id);
 
+            BuildOrbitalStructureControls(id);
             BuildFacilityControls(id);
         }
 
@@ -321,6 +324,53 @@ namespace GoF2Remake.UI
                 });
             }
 
+        }
+
+        void BuildOrbitalStructureControls(string id)
+        {
+            AddSection("ORBITAL STRUCTURES", "Each orbit can hold up to three defenses. Deliver materials from Multiplayer → Orbit Projects.");
+            if (Modding.ModPlayerInfrastructure.Current.Enabled)
+            {
+                var db = NetGame.Db;
+                var system = db.Systems.Find(entry => entry != null && entry.index == selected.system);
+                var orbits = db.Stations.Where(orbit => orbit != null && system?.stations?.Contains(orbit.index) == true)
+                    .Select(orbit => (orbit.index.ToString(), orbit.name + " [" + orbit.index + "]")).ToList();
+                var availablePresets = Modding.ModPlayerInfrastructure.Current.OrbitalStructures.Where(NetPlayerStations.OrbitalPresetAvailable).ToList();
+                var presets = availablePresets.Select(preset => (preset.Id, preset.Name + (preset.Defense ? " · Defense" : ""))).ToList();
+                AddChoice("structureOrbit", "Build orbit", orbits);
+                var cost = new Label();
+                cost.AddToClassList("player-station-note");
+                void ShowPreset(string presetId)
+                {
+                    var preset = availablePresets.Find(definition => definition.Id == presetId);
+                    cost.text = preset == null ? "" : string.Join(", ", preset.Materials.Select(material =>
+                        $"{material.amount:N0} × {db.Item(material.item)?.name ?? material.item.ToString()}"));
+                    if (preset?.Defense == true) cost.text += $" · {preset.Range / 1000f:0.##} km range";
+                }
+                AddChoice("orbitalPreset", "Structure preset", presets, ShowPreset);
+                ShowPreset(Value("orbitalPreset"));
+                if (presets.Count > 0) body.Add(cost);
+                if (orbits.Count > 0 && presets.Count > 0)
+                    AddAction("Order orbital construction", () =>
+                        Send("/station orbital-build " + id + " " + Value("structureOrbit") + " " + Value("orbitalPreset")));
+            }
+            if (NetPlayerStations.OrbitalStructures == null) return;
+            foreach (var structure in NetPlayerStations.OrbitalStructures)
+            {
+                if (structure == null || structure.sponsorStationId != selected.id) continue;
+                AddInfo($"{structure.name} #{structure.id}", $"Orbit {structure.orbit} · " + (structure.operational ? "Operational" : "Construction"));
+                if (confirmOrbitalRemoval == structure.id)
+                {
+                    AddAction("Confirm dismantling", () =>
+                    {
+                        confirmOrbitalRemoval = 0;
+                        Send("/station orbital-remove " + structure.id);
+                        RebuildBody();
+                    });
+                    AddAction("Keep structure", () => { confirmOrbitalRemoval = 0; RebuildBody(); });
+                }
+                else AddAction("Dismantle " + structure.name, () => { confirmOrbitalRemoval = structure.id; RebuildBody(); });
+            }
         }
 
         void BuildFacilityControls(string id)
@@ -548,7 +598,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        void AddChoice(string key, string label, List<(string value, string label)> options)
+        void AddChoice(string key, string label, List<(string value, string label)> options, Action<string> changed = null)
         {
             if (options.Count == 0)
             {
@@ -562,7 +612,9 @@ namespace GoF2Remake.UI
             field.AddToClassList("player-station-field");
             field.RegisterValueChangedCallback(_ =>
             {
-                if (field.index >= 0) drafts[key] = options[field.index].value;
+                if (field.index < 0) return;
+                drafts[key] = options[field.index].value;
+                changed?.Invoke(drafts[key]);
             });
             body.Add(field);
         }

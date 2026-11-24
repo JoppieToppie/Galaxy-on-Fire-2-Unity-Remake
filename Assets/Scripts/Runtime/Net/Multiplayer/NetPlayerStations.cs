@@ -321,6 +321,8 @@ namespace GoF2Remake.Multiplayer
         sealed class Registry
         {
             public int nextId = 1;
+            public int nextOrbitalStructureId = 1;
+            public List<PlayerOrbitalStructure> orbitalStructures = new List<PlayerOrbitalStructure>();
             public List<PlayerStationRecord> stations = new List<PlayerStationRecord>();
             public List<PlayerJumpgateRecord> jumpgates = new List<PlayerJumpgateRecord>();
             public List<int> consumedBlueprints = new List<int>();
@@ -373,6 +375,7 @@ namespace GoF2Remake.Multiplayer
                 var visible = new Registry
                 {
                     stations = registry.stations.ConvertAll(station => station?.ToPublicRecord()),
+                    orbitalStructures = registry.orbitalStructures,
                     jumpgates = registry.jumpgates?.ConvertAll(gate => gate?.ToPublicRecord()) ?? new List<PlayerJumpgateRecord>(),
                     consumedBlueprints = registry.consumedBlueprints
                 };
@@ -491,6 +494,14 @@ namespace GoF2Remake.Multiplayer
                     station.materials.TrueForAll(material => material != null && material.delivered >= material.required))
                     CompleteStationConstruction(station);
             ReconcileConsumedBlueprints();
+            registry.orbitalStructures ??= new List<PlayerOrbitalStructure>();
+            registry.orbitalStructures.RemoveAll(structure => structure == null);
+            registry.nextOrbitalStructureId = Math.Max(1, registry.nextOrbitalStructureId);
+            foreach (var structure in registry.orbitalStructures)
+                registry.nextOrbitalStructureId = Math.Max(registry.nextOrbitalStructureId,
+                    structure.id < int.MaxValue ? structure.id + 1 : int.MaxValue);
+            orbitalAggression.Clear();
+            nextOrbitalStructureTick = 0;
             MigrateLegacyJumpgates();
             foreach (var gate in registry.jumpgates)
                 if (gate != null && gate.scrapped && !gate.permanentlyDestroyed) InitializeGateScrap(gate);

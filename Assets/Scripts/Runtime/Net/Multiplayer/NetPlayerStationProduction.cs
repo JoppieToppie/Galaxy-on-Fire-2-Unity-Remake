@@ -133,6 +133,8 @@ namespace GoF2Remake.Multiplayer
             if (registry?.stations == null) return;
             TickStationDestruction();
             if (registry?.stations == null) return;
+            TickOrbitalStructures(now);
+            if (registry?.stations == null) return;
             TickWreckClaims();
             if (registry?.stations == null) return; // a failed station save can disable the registry
             TickFactoryJobs(now);

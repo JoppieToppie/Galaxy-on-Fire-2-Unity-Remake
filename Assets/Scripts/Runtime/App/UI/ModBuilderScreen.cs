@@ -888,6 +888,11 @@ namespace GoF2Remake.UI
                 .Where(system => system.ToJson()["jumpgate"] is JObject gate && gate["model"] != null).Select(system =>
                     (system.Name, system.IsOverride ? system.OverrideRef : Project.Key(system.LocalId))));
 
+            var stockDefense = Add(scroll, new Toggle("Offer the stock orbital defense")
+                { value = (bool?)draft["includeStockOrbitalDefense"] ?? true }, "mbv-field");
+            Note(scroll, "Add structure presets as a JSON array. Set defense to true for a platform that targets hostiles. Each orbit supports three defense platforms.");
+            var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
+                value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
             var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");
             var actions = Row(box);
             Act(actions, T("mbApply", "Apply"), () =>
@@ -899,8 +904,17 @@ namespace GoF2Remake.UI
                 draft["scrapIntegrity"] = integrity.value;
                 draft["stationModels"] = InfrastructureReferences(stationModels.value);
                 draft["jumpgateModels"] = InfrastructureReferences(gateModels.value);
-                try { ModPlayerInfrastructure.Parse(draft); }
-                catch (ModJsonException error) { errorLabel.text = error.Message; return; }
+                draft["includeStockOrbitalDefense"] = stockDefense.value;
+                try
+                {
+                    draft["orbitalStructures"] = JArray.Parse(structures.value);
+                    ModPlayerInfrastructure.Parse(draft);
+                }
+                catch (Exception error) when (error is ModJsonException || error is Newtonsoft.Json.JsonException)
+                {
+                    errorLabel.text = error.Message;
+                    return;
+                }
                 Project.PlayerInfrastructure = draft;
                 RequestReload(false);
                 ShowMenu();

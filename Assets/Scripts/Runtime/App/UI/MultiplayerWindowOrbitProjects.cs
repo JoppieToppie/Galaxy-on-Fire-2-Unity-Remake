@@ -16,6 +16,8 @@ namespace GoF2Remake.UI
         PlayerStationWreckClaim timedClaim;
         long gateCompletesUtc, nextProjectClockUtc;
         int rebuildModel = -1;
+        int confirmOrbitalAdminRemoval;
+        readonly Dictionary<int, (string item, string quantity)> orbitalDelivery = new Dictionary<int, (string, string)>();
         int reclaimModel, reclaimDestination = -1;
         string wreckMaterial = "", wreckAmount = "1", gateMaterial = "", gateAmount = "1";
 
@@ -54,6 +56,8 @@ namespace GoF2Remake.UI
             if (orbit != projectOrbit)
             {
                 projectOrbit = orbit;
+                orbitalDelivery.Clear();
+                confirmOrbitalAdminRemoval = 0;
                 rebuildModel = -1;
                 reclaimModel = 0;
                 reclaimDestination = -1;
@@ -80,6 +84,7 @@ namespace GoF2Remake.UI
                 BuildGateProject(gate, pilot.AvailableStationActions);
             else if (gate?.scrapped == true)
                 BuildGateReclaim(gate, pilot.AvailableStationActions);
+            BuildOrbitalProjects(orbit);
             var stationSalvage = NetPlayerStations.StationSalvageAt(orbit);
             var gateSalvage = NetPlayerStations.JumpgateSalvageAt(orbit);
             if (stationSalvage?.Count > 0) BuildSalvageReadout("Station salvage", stationSalvage);
@@ -88,6 +93,50 @@ namespace GoF2Remake.UI
 
             if (station?.destroyed == true && !station.retired && NetCommands.IsAdmin(pilot))
                 body.Add(Btn("Release destroyed station orbit", () => Send("/station retire " + station.id), null));
+        }
+
+        void BuildOrbitalProjects(int orbit)
+        {
+            if (NetPlayerStations.OrbitalStructures == null) return;
+            foreach (var structure in NetPlayerStations.OrbitalStructures)
+            {
+                if (structure == null || structure.orbit != orbit) continue;
+                int id = structure.id;
+                Section($"{structure.name} #{id}");
+                if (NetCommands.IsAdmin(NetPlayer.Local))
+                {
+                    if (confirmOrbitalAdminRemoval == id)
+                    {
+                        body.Add(Btn("Confirm dismantling", () =>
+                        {
+                            confirmOrbitalAdminRemoval = 0;
+                            Send("/station orbital-remove " + id);
+                        }, null));
+                        body.Add(Btn("Keep structure", () => { confirmOrbitalAdminRemoval = 0; Rebuild(); }, null));
+                    }
+                    else body.Add(Btn("Dismantle structure", () => { confirmOrbitalAdminRemoval = id; Rebuild(); }, null));
+                }
+                if (structure.operational)
+                {
+                    body.Add(Text($"Integrity {structure.integrity:N0}/{structure.maxIntegrity:N0}", 16, Dim));
+                    if (structure.defense) body.Add(Text($"Defense range {structure.range / 1000f:0.##} km", 16, Dim));
+                    continue;
+                }
+                if (structure.completesUtc > 0)
+                {
+                    body.Add(Text("Materials funded. Construction is underway.", 16, Dim));
+                    continue;
+                }
+                BuildMaterialProgress(structure.materials);
+                if (!orbitalDelivery.TryGetValue(id, out var draft))
+                    orbitalDelivery[id] = draft = (structure.materials.Find(material => material.delivered < material.required)?.item.ToString() ?? "", "1");
+                var row = ProjectDeliveryFields(draft.item, draft.quantity,
+                    value => orbitalDelivery[id] = (value, orbitalDelivery[id].quantity),
+                    value => orbitalDelivery[id] = (orbitalDelivery[id].item, value));
+                row.Add(Btn("Deliver cargo", () => SendProjectDelivery("orbital-deliver", id, orbitalDelivery[id].item, orbitalDelivery[id].quantity), null));
+                row.Add(Btn("Use sponsor stock", () => SendProjectDelivery("orbital-fund", id, orbitalDelivery[id].item, orbitalDelivery[id].quantity), null));
+                body.Add(row);
+            }
         }
 
         void BuildReconstructionOrders(PlayerStationRecord station)
