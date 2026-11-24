@@ -786,7 +786,7 @@ namespace GoF2Remake.Multiplayer
             record.looksLike = modelStationIndex;
             record.stationModelReference = StationModelReference(modelStationIndex);
             live.techLevel = model.techLevel;
-            live.textureIndex = model.textureIndex;
+            if (!record.existingOrbit) live.textureIndex = model.textureIndex;
             RecordHistory(record, account, "station-appearance-changed", null,
                 "Station visual/collision preset changed from " + previousLook + " to " + modelStationIndex + ".");
             if (Save())
