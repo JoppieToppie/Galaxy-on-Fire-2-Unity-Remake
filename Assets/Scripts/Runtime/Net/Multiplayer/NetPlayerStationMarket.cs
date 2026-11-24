@@ -332,6 +332,10 @@ namespace GoF2Remake.Multiplayer
             int cargo = NetProfiles.CargoAmount(buyer, listing.item);
             if (cargo < 0 || (long)cargo + amount > int.MaxValue)
                 return "Your saved cargo could not accept this purchase.";
+            // Inventory limits are not the same as physical hold capacity.
+            // Validate before touching escrow, credits, or the station registry.
+            if (NetProfiles.WreckSalvageCargoRoom(by, buyer) < amount)
+                return "Your ship does not have enough free cargo space for this purchase.";
 
             bool removeListing = amount == listing.amount;
             if (removeListing) record.listings.RemoveAt(listingIndex);
