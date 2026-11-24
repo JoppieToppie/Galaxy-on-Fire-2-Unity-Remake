@@ -621,16 +621,21 @@ namespace GoF2Remake.Multiplayer
             int count = 0;
             foreach (var system in NetGame.Db.Systems) if (system != null) count = Math.Max(count, system.index + 1);
             if (count <= 0) return;
-            var visible = new bool[count];
-            for (int i = 0; i < count; i++)
+            bool[] visible = save.systemVisible;
+            if (visible == null || visible.Length != count)
             {
-                var definition = NetGame.Db.Systems.Find(x => x != null && x.index == i);
-                visible[i] = save.systemVisible != null && i < save.systemVisible.Length
-                    ? save.systemVisible[i] : definition?.initiallyVisible == true;
+                int oldLength = visible?.Length ?? 0;
+                var resized = new bool[count];
+                if (visible != null) Array.Copy(visible, resized, Math.Min(oldLength, count));
+                foreach (var definition in NetGame.Db.Systems)
+                    if (definition != null && definition.index >= oldLength && definition.index < count)
+                        resized[definition.index] = definition.initiallyVisible;
+                visible = resized;
             }
-            if (GalaxyMap.LomaSystem < visible.Length) visible[GalaxyMap.LomaSystem] = true;
-            foreach (int discovered in account?.gateDiscoveredSystems ?? new List<int>())
-                if (discovered >= 0 && discovered < visible.Length) visible[discovered] = true;
+            if (GalaxyMap.LomaSystem >= 0 && GalaxyMap.LomaSystem < visible.Length) visible[GalaxyMap.LomaSystem] = true;
+            if (account?.gateDiscoveredSystems != null)
+                foreach (int discovered in account.gateDiscoveredSystems)
+                    if (discovered >= 0 && discovered < visible.Length) visible[discovered] = true;
             save.systemVisible = visible;
         }
 
