@@ -47,7 +47,17 @@ namespace GoF2Remake.Multiplayer
         internal static bool IdentityRequired { get; private set; }
         internal static string IdentityRace { get; private set; }
         internal static string IdentityMessage { get; private set; }
-        internal static bool IdentitySubmitting => IdentityRequired && Time.realtimeSinceStartup < identityRequestUntil;
+        internal static bool IdentitySubmitting
+        {
+            get
+            {
+                if (!IdentityRequired || identityRequestUntil <= 0) return false;
+                if (Time.realtimeSinceStartup < identityRequestUntil) return true;
+                identityRequestUntil = 0;
+                IdentityMessage = "No confirmation received. Retry or reconnect; any saved identity will be retained.";
+                return false;
+            }
+        }
         static float identityRequestUntil;
 
         internal static void ChooseIdentity(string race, string portrait)
