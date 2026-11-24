@@ -144,8 +144,14 @@ namespace GoF2Remake.Flight
                     if (second > 0f && (time <= 0f || second < time)) time = second;
                 }
             }
-            if (time <= 0f) time = Mathf.Sqrt(c) / projectileSpeed;
-            return lifetimeSeconds > 0f ? Mathf.Min(time, lifetimeSeconds) : time;
+            // No positive root means the projectile cannot intercept this target under the
+            // measured constant-velocity model. Do not invent a direct-flight-time lead.
+            if (time <= 0f || float.IsNaN(time) || float.IsInfinity(time)) return 0f;
+
+            // A solution beyond the projectile's lifetime is not a reachable intercept.
+            // Return zero lead rather than aiming at a point the shot cannot reach in time.
+            if (lifetimeSeconds > 0f && time > lifetimeSeconds) return 0f;
+            return time;
         }
 
 
