@@ -93,6 +93,26 @@ namespace GoF2Remake.Data
         /// A station/gate lifecycle implementation can supply this per directed system link.</summary>
         public static Func<int, int, bool> JumpgateLinkOperational;
 
+        public readonly struct ModJumpResult
+        {
+            public readonly int Station, Cells, LostItem, HullLimit;
+            public readonly bool Misjump;
+
+            public ModJumpResult(int station, int cells, int lostItem, int hullLimit, bool misjump)
+            {
+                Station = station;
+                Cells = cells;
+                LostItem = lostItem;
+                HullLimit = hullLimit;
+                Misjump = misjump;
+            }
+        }
+
+        /// <summary>In a session, the server commits the jump before returning its result to the flight controller.</summary>
+        public static Func<bool> CanResolveModJump;
+        public static bool ModJumpServerReady() => CanResolveModJump?.Invoke() == true;
+        public static Func<int, int, int, Action<ModJumpResult?>, bool> ResolveModJump;
+
         public static Action<Database> ApplyPlayerStations;
         public static Func<int, bool> IsPlayerStation, StationSceneryPresent, StationClosedByCombat, HasDryDockAtStation;
         public static Func<int, bool> HasPlayerJumpgate, HasPlayerJumpgateWreck;

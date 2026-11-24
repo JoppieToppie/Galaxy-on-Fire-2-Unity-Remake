@@ -88,7 +88,7 @@ namespace GoF2Remake.Multiplayer
             public string device;
             public bool controller;
             public float acceptedAt;   // real time of the login or the last accepted upload (the earning allowance)
-            public int acceptedUploadSequence;
+            public int acceptedUploadSequence, lastAcceptedUploadSequence;
         }
 
         class Incoming { public int seq, count, got; public byte[][] parts; }
@@ -278,7 +278,88 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        internal static bool ConsumeWreckSalvageUpload(ulong client, int sequence)
+        internal static GameHooks.ModJumpResult? CommitModJump(ulong client, int origin, int destination,
+            int driveItem, int sequence)
+        {
+            if (!Enabled || !NetGuard.InOrbit(client, origin) || !NetGuard.Station(origin) ||
+                !NetGuard.Station(destination) || !ConsumeActionUpload(client, sequence)) return null;
+
+            var login = logins[client];
+            var save = ReadSave(login.account.id);
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || pilot.Hull <= 0f || save == null || save.station != origin ||
+                save.ship != pilot.ShipIndex || save.equipment == null || save.cargo == null)
+                return null;
+
+            var db = NetGame.Db;
+            var drive = Modding.ModJumpFx.ActiveDrive(save.ship, save.equipment);
+            if (drive?.hasJumpRules != true || drive.item != driveItem ||
+                save.cargo.Exists(stack => stack != null && stack.amount > 0 && (stack.item == 209 || stack.item == 204)))
+                return null;
+
+            bool Visible(int system)
+            {
+                if (system < 0) return false;
+                return (save.systemVisible != null && system < save.systemVisible.Length && save.systemVisible[system]) ||
+                    login.account.gateDiscoveredSystems?.Contains(system) == true ||
+                    db.Systems.Find(entry => entry.index == system)?.initiallyVisible == true || system == GalaxyMap.LomaSystem;
+            }
+
+            int from = db.Stations.Find(station => station.index == origin)?.system ?? -1;
+            int to = db.Stations.Find(station => station.index == destination)?.system ?? -1;
+            if (from < 0 || from == to || !Visible(to)) return null;
+
+            // Network profiles play on Normal. Fuel and the outcome are derived on the server.
+            int cells = GalaxyMap.EnergyCells(db, from, to, false, drive, drive.freeJumps, out _);
+            var fuel = save.cargo.Find(stack => stack != null && stack.item == GalaxyMap.EnergyCellItem);
+            if (cells > (fuel?.amount ?? 0)) return null;
+
+            var path = GalaxyMap.SystemPath(db, from, to);
+            float risk = Modding.ModJumpFx.FailureProbability(drive, path != null ? path.Count - 1 : 0,
+                path != null, false);
+            int arrival = destination, lostItem = -1, hullLimit = -1;
+            bool misjump = false;
+            if (UnityEngine.Random.value < risk)
+            {
+                var candidates = World.SystemJump.MisjumpDestinations(db, origin, destination, Session.WorldIndex,
+                    Visible, requireConnected: true);
+                if (candidates.Count > 0)
+                {
+                    misjump = true;
+                    arrival = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                    if (UnityEngine.Random.value < drive.failEquipmentLossChance)
+                    {
+                        var equipment = save.equipment.FindAll(item => item != null && item.amount > 0 && !item.builtIn &&
+                            db.Item(item.item)?.TypeId == 3 && (drive.failEquipmentIncludesDrive || item.item != drive.item));
+                        if (equipment.Count > 0)
+                        {
+                            var lost = equipment[UnityEngine.Random.Range(0, equipment.Count)];
+                            lostItem = lost.item;
+                            if (--lost.amount == 0) save.equipment.Remove(lost);
+                        }
+                    }
+                    int maximum = Mathf.Max(1, Modding.ModShipKits.Armor(db.Ship(save.ship), 100) +
+                        40 * Session.ModLevel(save.shipMods, 0));
+                    int hull = Mathf.Clamp(Mathf.RoundToInt(pilot.Hull * maximum), 1, maximum);
+                    int remaining = Modding.ModJumpFx.HullAfterFailure(hull, maximum, drive.failHullDamage, drive.failMinimumHull);
+                    if (remaining < hull) hullLimit = remaining;
+                }
+            }
+
+            if (cells > 0)
+            {
+                fuel.amount -= cells;
+                if (fuel.amount == 0) save.cargo.Remove(fuel);
+            }
+            save.previousStation = origin;
+            save.station = arrival;
+            if (!Write(ProfilePath(login.account.id), JsonUtility.ToJson(save, false))) return null;
+            login.account.worth = Worth(save);
+            SaveIndex();
+            return new GameHooks.ModJumpResult(arrival, cells, lostItem, hullLimit, misjump);
+        }
+
+        internal static bool ConsumeActionUpload(ulong client, int sequence)
         {
             if (sequence == 0 || !logins.TryGetValue(client, out var login) ||
                 !login.controller || login.account == null || login.acceptedUploadSequence != sequence) return false;

@@ -97,7 +97,9 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake: the item is the base game's Khador Slipstream and Options > Gameplay "Khador Slipstream" is off
         /// (Settings.KhadorSlipstream): it stays in the hold and on the ship, but does nothing.</summary>
-        public static bool SlipstreamOff(int item) => item >= 0 && !Settings.KhadorSlipstream && item == Modding.ModContent.ItemIndexOf(SlipstreamKey);
+        public static bool SlipstreamOff(int item) =>
+            item >= 0 && item == Modding.ModContent.ItemIndexOf(SlipstreamKey) &&
+            (!Settings.KhadorSlipstream || !Modding.ModContent.ItemAvailableFor(item, "equipment"));
 
         /// <summary>The mounted cruise drive when it may fly (not a Khador Slipstream switched off), null otherwise.</summary>
         public static ItemData WorkingCruiseDrive(Database db)

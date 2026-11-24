@@ -298,6 +298,13 @@ namespace GoF2Remake.Data
         /// route at all, warning 581).</summary>
         public static int EnergyCells(Database db, int a, int b, out bool noGate)
         {
+            var drive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            return EnergyCells(db, a, b, Session.IsExtreme, drive, FreeJumps, out noGate);
+        }
+
+        public static int EnergyCells(Database db, int a, int b, bool extreme,
+            GoF2Remake.Modding.ModJumpFx.Spec drive, bool freeJumps, out bool noGate)
+        {
             noGate = false;
             var path = SystemPath(db, a, b);
             int n = path != null ? path.Count - 1 : 0;
@@ -307,10 +314,8 @@ namespace GoF2Remake.Data
                 var target = db.Systems.Find(s => s.index == b);
                 noGate = target == null || target.jumpRoutesTo.Count == 0;
             }
-            if (FreeJumps) return 0;
-            int cells = Session.IsExtreme ? n * 2 : n;
-            // Modified: a mod drive's own cost (its jumpFx "cellsFactor", x the Khador Drive's, Extreme's x2 included).
-            var drive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (freeJumps) return 0;
+            int cells = extreme ? n * 2 : n;
             if (drive != null && drive.cellsFactor != 1f) cells = Mathf.CeilToInt(cells * drive.cellsFactor);
             return cells;
         }

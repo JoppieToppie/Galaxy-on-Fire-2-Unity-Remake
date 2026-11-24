@@ -272,6 +272,7 @@ namespace GoF2Remake.Multiplayer
             var account = login.account;
             bool handing = handovers.TryGetValue(account.id, out var handover) && handover.from == client;
             if (!login.controller && !handing) return;   // observers don't write
+            if (acceptedSequence != 0 && acceptedSequence <= login.lastAcceptedUploadSequence) return;
             float now = Time.realtimeSinceStartup;
             if (!SaveGame.TryParse(json, NetGame.Db, out var save, out string problem))
             {
@@ -298,6 +299,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!Write(ProfilePath(account.id), json)) return;
             login.acceptedUploadSequence = acceptedSequence;
+            if (acceptedSequence != 0) login.lastAcceptedUploadSequence = acceptedSequence;
             account.worth = worth;
             account.playSeconds = save.playSeconds;
             account.lastSeen = Now();

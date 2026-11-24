@@ -29,6 +29,9 @@ namespace GoF2Remake.Multiplayer
         static int outSeq;
         static int pendingWreckPickup;
         static float wreckPickupSentAt;
+        static int pendingJumpSequence;
+        static Action<GameHooks.ModJumpResult?> pendingJump;
+        static NetState pendingJumpServer;
         // The profile coming in.
         static int inSeq = -1, inGot;
         static byte[][] inParts;
@@ -42,6 +45,9 @@ namespace GoF2Remake.Multiplayer
             uploadTimer = UploadSeconds;
             outSeq = 0;
             pendingWreckPickup = 0;
+            pendingJumpSequence = 0;
+            pendingJump = null;
+            pendingJumpServer = null;
             inSeq = -1; inGot = 0; inParts = null;
             Controller = true;
             Guest = false;
@@ -160,13 +166,47 @@ namespace GoF2Remake.Multiplayer
         /// control to another device of the profile).</summary>
         public static void Upload(bool handover = false)
         {
-            if (!handover && WreckPickupPending()) return;
+            if (ModJumpPending() || (!handover && WreckPickupPending())) return;
             UploadSnapshot(handover);
+        }
+
+        internal static bool CanResolveModJump =>
+            Active && !waiting && !Guest && Controller && !SaveGame.HostSaves && !NetArenaClient.InMatch;
+
+        internal static bool RequestModJump(int origin, int destination, int drive,
+            Action<GameHooks.ModJumpResult?> done)
+        {
+            if (!CanResolveModJump || ModJumpPending() || WreckPickupPending()) return false;
+            int sequence = UploadSnapshot(handover: false);
+            if (sequence == 0) return false;
+            pendingJumpSequence = sequence;
+            pendingJump = done;
+            pendingJumpServer = NetState.Instance;
+            pendingJumpServer.RequestModJumpRpc(origin, destination, drive, sequence);
+            return true;
+        }
+
+        static bool ModJumpPending()
+        {
+            if (pendingJump == null) return false;
+            if (NetGame.Active && pendingJumpServer != null && pendingJumpServer == NetState.Instance) return true;
+            ReceiveModJump(pendingJumpSequence, null);
+            return false;
+        }
+
+        internal static void ReceiveModJump(int sequence, GameHooks.ModJumpResult? outcome)
+        {
+            if (sequence != pendingJumpSequence || pendingJump == null) return;
+            var callback = pendingJump;
+            pendingJumpSequence = 0;
+            pendingJump = null;
+            pendingJumpServer = null;
+            callback(outcome);
         }
 
         internal static void RequestWreckSalvage(int orbit, int room, bool jumpgate)
         {
-            if (WreckPickupPending()) return;
+            if (ModJumpPending() || WreckPickupPending()) return;
             int sequence = UploadSnapshot(handover: false);
             if (sequence == 0) return;
             pendingWreckPickup = sequence;

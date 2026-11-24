@@ -117,22 +117,29 @@ namespace GoF2Remake.Modding
         static void ResetStatics() { cache.Clear(); revision = -1; }
 
         /// <summary>The jump effect of the first mounted jump drive that has one, null = the Khador Drive's own.</summary>
-        public static Spec Mounted()
+        public static Spec Mounted() => Mounted(Session.Equipment);
+
+        static Spec Mounted(List<ItemStack> equipment)
         {
-            foreach (var e in Session.Equipment)
+            foreach (var entry in equipment)
             {
-                var s = For(e.item);
-                if (s != null) return s;
+                if (entry == null || entry.amount <= 0 || !ModContent.ItemAvailableFor(entry.item, "equipment")) continue;
+                var spec = For(entry.item);
+                if (spec != null) return spec;
             }
             return null;
         }
 
         /// <summary>The mod drive that jumps: the first mounted one with a "jumpFx", unless the Khador Drive itself (85) or a ship
         /// with the drive built in is aboard (then null: the Khador Drive's rules and effect).</summary>
-        public static Spec ActiveDrive()
+        public static Spec ActiveDrive() => ActiveDrive(Session.ShipIndex, Session.Equipment);
+
+        public static Spec ActiveDrive(int ship, List<ItemStack> equipment)
         {
-            if (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => e.item == GalaxyMap.KhadorDriveItem && ModContent.ItemAvailableFor(e.item, "equipment"))) return null;
-            return Mounted();
+            if (equipment == null || GalaxyMap.HasIntegratedDrive(ship) ||
+                equipment.Exists(e => e != null && e.amount > 0 && e.item == GalaxyMap.KhadorDriveItem &&
+                    ModContent.ItemAvailableFor(e.item, "equipment"))) return null;
+            return Mounted(equipment);
         }
 
         /// <summary>Modified: Ship::hasVolatileGoods's refusal (text 612) with the drive that would jump by its own name: 612

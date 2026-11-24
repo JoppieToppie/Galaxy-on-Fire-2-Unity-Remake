@@ -180,7 +180,7 @@ namespace GoF2Remake.Modding
         {
             "id", "override", "base", "name", "description", "techLevel", "occurrence", "stock", "minPrice", "maxPrice", "price",
             "lowestPriceSystem", "highestPriceSystem", "vosskOnly", "alwaysSoldAt", "stats", "attributes", "defaultEconomy", "fx", "icon",
-            "available", "tractorColor", "jumpFx",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
+            "available", "tractorColor", "jumpFx", "jumpRules", "availability",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
             "allowedClasses", "excludedClasses",   // the ship classes / tags that may / may not mount it (ShipClassRules)
         };
 

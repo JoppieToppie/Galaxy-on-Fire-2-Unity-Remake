@@ -50,7 +50,7 @@ namespace GoF2Remake.World
 
         public string spaceScene = "Space";
 
-        enum State { None, AtGate, Charging, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
+        enum State { None, AtGate, Charging, AwaitingNetworkJump, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
 
         Database db;
         Navigation nav;
@@ -161,6 +161,9 @@ namespace GoF2Remake.World
             return (Time.time - requestedAt) * 1000f >= delay;
         }
         PlayerHealth health;
+        GoF2Remake.Modding.ModJumpFx.Spec networkDrive;
+        int networkDestination;
+        GameHooks.ModJumpResult? networkMisjump;
 
         /// <summary>Set by the level: the gate refuses the jump (the Kaamo siege).</summary>
         public System.Func<bool> GateBlocked;
@@ -184,7 +187,7 @@ namespace GoF2Remake.World
             if (health == null) health = ship.GetComponent<PlayerHealth>();
             if (health != null && health.Dead)
             {
-                if (state == State.Charging) { state = State.None; EndChargeShow(); }
+                if (state == State.Charging) { state = State.None; networkDrive = null; EndChargeShow(); }
                 if (state == State.Failing) { StopFailure(); state = State.None; }   // Modified
                 toInterstellar = false;
                 if (state == State.None) return;
@@ -219,7 +222,9 @@ namespace GoF2Remake.World
                     UpdateChargeShow();
                     if (chargeMs >= GalaxyMap.ChargeMs)
                     {
-                        if (RollFailure()) StartFailure(); else StartKhadorScene();   // Modified: a mod drive may fail
+                        if (networkDrive != null) ResolveNetworkJump();
+                        else if (RollFailure()) StartFailure();
+                        else StartKhadorScene();
                     }
                     break;
                 case State.GateScene:
@@ -478,6 +483,12 @@ namespace GoF2Remake.World
             // Modified: a mod drive with "noVoid" (ModJumpFx) can't take the ship out of the Void (only the story's own jump, or
             // the Debug panel's free jumps), nor into it (the map's Jump to the Void button, askVoid below).
             var modDrive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (modDrive?.hasJumpRules == true && NetSession.Active && !forced.HasValue &&
+                !GameHooks.ModJumpServerReady())
+            {
+                Message?.Invoke("This jump drive requires a multiplayer server with active profiles.");
+                return;
+            }
             bool noVoid = modDrive != null && modDrive.noVoid;
             if (inVoid && noVoid && !forced.HasValue && !Cheats.FreeJumps)
             {
@@ -574,6 +585,7 @@ namespace GoF2Remake.World
                 return;
             }
             suppressedShown = false;
+            networkDrive = null;
             if (toInterstellar)
             {
                 int leg = nav.Drive != null ? nav.Drive.cellsPerLeg : 1;
@@ -598,6 +610,17 @@ namespace GoF2Remake.World
                 Session.ProgrammedStation = -1;
                 return;
             }
+            var drive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (!storyTarget.HasValue && NetSession.Active && drive?.hasJumpRules == true)
+            {
+                if (!GameHooks.ModJumpServerReady())
+                {
+                    Message?.Invoke("This jump drive requires a multiplayer server with active profiles.");
+                    return;
+                }
+                networkDrive = drive;
+                networkDestination = Session.ProgrammedStation;
+            }
             int cells = storyTarget.HasValue ? jumpCells : Session.EnergyCellsForNextJump;
             // Into the Void it asks for two shares but takes one (startChargingJumpDrive 0x1a9710).
             int taken = storyTarget == Session.VoidOrbit ? VoidCellsTaken : cells;
@@ -616,8 +639,7 @@ namespace GoF2Remake.World
                 }
             }
             cells = taken;
-            GalaxyMap.RemoveCells(cells);
-            if (cells > 0) Message?.Invoke($"-{cells}t {Localization.Get(1396)}");
+            if (networkDrive == null) SpendJumpCells(cells);
             Play(assets != null ? assets.jumpgateCharge : null);
             // Modified: a mod drive's voice as its charge starts (ModJumpFx "chargeVoice", e.g. the prologue's ship computer:
             // "Activating hyperdrive.").
@@ -634,6 +656,75 @@ namespace GoF2Remake.World
                 Message?.Invoke($"Jump drive failure risk: {Mathf.RoundToInt(FailureChance(voiceDrive) * 100f)}%");
             requestedAt = -1f;
             ChargeStarted?.Invoke();
+        }
+
+        void SpendJumpCells(int cells)
+        {
+            if (cells <= 0) return;
+            GalaxyMap.RemoveCells(cells);
+            Message?.Invoke($"-{cells}t {Localization.Get(1396)}");
+        }
+
+        void ResolveNetworkJump()
+        {
+            state = State.AwaitingNetworkJump;
+            var drive = networkDrive;
+            networkDrive = null;
+            if (GameHooks.ResolveModJump?.Invoke(Session.StationIndex, networkDestination, drive.item,
+                result => CompleteNetworkJump(drive, result)) != true)
+                CompleteNetworkJump(drive, null);
+        }
+
+        void CompleteNetworkJump(GoF2Remake.Modding.ModJumpFx.Spec drive, GameHooks.ModJumpResult? result)
+        {
+            if (this == null || state != State.AwaitingNetworkJump) return;
+            if (!result.HasValue)
+            {
+                state = State.None;
+                EndChargeShow();
+                Message?.Invoke("The server refused the jump.");
+                return;
+            }
+
+            var outcome = result.Value;
+            SpendJumpCells(outcome.Cells);
+            if (outcome.LostItem >= 0)
+            {
+                var item = Session.Equipment.Find(entry => entry.item == outcome.LostItem && !entry.builtIn);
+                if (item != null)
+                {
+                    if (item.amount > 1) item.amount--;
+                    else Session.Equipment.Remove(item);
+                    if (health != null && !health.Dead) health.RefreshLoadout(db, true);
+                    Message?.Invoke($"Misjump equipment lost: {GameNames.Item(outcome.LostItem)}");
+                }
+            }
+            if (health != null && health.Target != null && !health.Dead && outcome.HullLimit > 0)
+            {
+                var hp = health.Hp;
+                hp.hull = Mathf.Min(hp.hull, outcome.HullLimit);
+                health.Target.hp = hp.hull;
+                Session.PlayerHull = hp.hull;
+                Message?.Invoke($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
+            }
+            if (health != null && health.Dead)
+            {
+                state = State.None;
+                EndChargeShow();
+                return;
+            }
+            if (outcome.Misjump)
+            {
+                networkMisjump = outcome;
+                failDrive = drive;
+                StartFailure();
+            }
+            else
+            {
+                jumpFailed = false;
+                Session.ProgrammedStation = outcome.Station;
+                StartKhadorScene();
+            }
         }
 
         void StartKhadorScene()
@@ -907,6 +998,14 @@ namespace GoF2Remake.World
             if (d != null && failElapsed < d.failMs) return;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }   // IntroCutscenes: StopLoop(1) at the jump
             ship.impairment = 1f;
+            if (networkMisjump.HasValue)
+            {
+                Session.ProgrammedStation = networkMisjump.Value.Station;
+                networkMisjump = null;
+                jumpFailed = true;
+                StartKhadorScene();
+                return;
+            }
             // A gate may have become unavailable during the failure sequence.
             // If no safe escape destination remains, complete the intended jump without penalties.
             bool hasEscape = d == null || !d.requireConnectedFailureDestination || FailCandidates(true).Count > 0;
@@ -919,6 +1018,7 @@ namespace GoF2Remake.World
 
         void StopFailure()
         {
+            networkMisjump = null;
             if (ship != null) ship.impairment = 1f;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }
             if (failRumble != null) { failRumble.Stop(); Destroy(failRumble); failRumble = null; }
@@ -928,13 +1028,20 @@ namespace GoF2Remake.World
         System.Collections.Generic.List<int> FailCandidates(bool requireConnected)
         {
             var visible = GalaxyMap.Visibility(db);
-            int origin = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
-            int intended = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
+            return MisjumpDestinations(db, Session.StationIndex, Session.ProgrammedStation, Session.WorldIndex,
+                system => system >= 0 && system < visible.Length && visible[system], requireConnected);
+        }
+
+        public static System.Collections.Generic.List<int> MisjumpDestinations(Database db, int departure, int destination,
+            int worldIndex, Func<int, bool> visible, bool requireConnected)
+        {
+            int origin = db.Stations.Find(s => s.index == departure)?.system ?? -1;
+            int intended = db.Stations.Find(s => s.index == destination)?.system ?? -1;
             var candidates = new System.Collections.Generic.List<int>();
             foreach (var station in db.Stations)
             {
-                if (station.index == Session.StationIndex || station.system < 0 || station.system >= visible.Length ||
-                    !visible[station.system] || OrbitLayout.IsEmptyOrbit(station.index, Session.WorldIndex)) continue;
+                if (station.index == departure || station.system < 0 || !visible(station.system) ||
+                    OrbitLayout.IsEmptyOrbit(station.index, worldIndex)) continue;
                 if (requireConnected)
                 {
                     if (station.system == origin || station.system == intended) continue;

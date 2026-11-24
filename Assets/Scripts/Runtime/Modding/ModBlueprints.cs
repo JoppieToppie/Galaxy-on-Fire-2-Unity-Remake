@@ -311,7 +311,9 @@ namespace GoF2Remake.Modding
         }
 
         /// <summary>Its "available" condition holds in this game.</summary>
-        public static bool Available(Def d) => !Shop.SlipstreamOff(d.product) && ModUnlocks.Holds(d.mod, d.available, d.where);   // remake: Settings.KhadorSlipstream
+        public static bool Available(Def d) =>
+            ModContent.ItemAvailableFor(d.product, "blueprints") &&
+            !Shop.SlipstreamOff(d.product) && ModUnlocks.Holds(d.mod, d.available, d.where);
 
         /// <summary>Blueprints.AutoCompletePrice: a mod's own price (or none: false).</summary>
         public static bool AutocompleteOverride(int product, out bool allowed, out int price)

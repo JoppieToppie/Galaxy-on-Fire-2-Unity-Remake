@@ -86,6 +86,8 @@ namespace GoF2Remake.Multiplayer
             GameHooks.FactionSellPrice = NetFactionsClient.SellPrice;
             GameHooks.FactionShipBuyPrice = NetFactionsClient.ShipBuyPrice;
             GameHooks.ProfileUpload = () => NetProfileClient.Upload();
+            GameHooks.CanResolveModJump = () => NetProfileClient.CanResolveModJump;
+            GameHooks.ResolveModJump = NetProfileClient.RequestModJump;
             GameHooks.SharedPirateBoard = () => NetState.Instance != null ? NetState.Instance.PirateBoardJson : null;
             GameHooks.SessionRule = NetRules.TryGet;
             GameHooks.RuleChangedByHost = NetRules.HostChanged;

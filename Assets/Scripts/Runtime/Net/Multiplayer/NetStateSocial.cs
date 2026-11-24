@@ -409,6 +409,29 @@ namespace GoF2Remake.Multiplayer
         [Rpc(SendTo.Server)]
         public void UploadChunkRpc(int seq, int part, int count, byte[] data, RpcParams rpc = default)
             => NetProfiles.OnUploadChunk(rpc.Receive.SenderClientId, seq, part, count, data);
+        // The request follows its profile snapshot on this same reliable network object.
+        [Rpc(SendTo.Server)]
+        public void RequestModJumpRpc(int origin, int destination, int drive, int sequence, RpcParams rpc = default)
+        {
+            if (!IsServer) return;
+            ulong client = rpc.Receive.SenderClientId;
+            GameHooks.ModJumpResult? result = null;
+            if (NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) && !NetArena.InMatch(client))
+                result = NetProfiles.CommitModJump(client, origin, destination, drive, sequence);
+            var outcome = result.GetValueOrDefault();
+            ModJumpResultRpc(sequence, result.HasValue, outcome.Station, outcome.Cells, outcome.LostItem,
+                outcome.HullLimit, outcome.Misjump, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void ModJumpResultRpc(int sequence, bool accepted, int station, int cells, int lostItem, int hullLimit,
+            bool misjump, RpcParams rpc = default)
+        {
+            NetProfileClient.ReceiveModJump(sequence, accepted
+                ? new GameHooks.ModJumpResult(station, cells, lostItem, hullLimit, misjump)
+                : (GameHooks.ModJumpResult?)null);
+        }
+
         // Keep this request on the same reliable network object as UploadChunkRpc.
         [Rpc(SendTo.Server)]
         public void RequestWreckSalvageRpc(int orbit, int room, bool jumpgate, int uploadSequence, RpcParams rpc = default)
@@ -416,7 +439,7 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer) return;
             ulong client = rpc.Receive.SenderClientId;
             if (NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) &&
-                NetProfiles.ConsumeWreckSalvageUpload(client, uploadSequence))
+                NetProfiles.ConsumeActionUpload(client, uploadSequence))
             {
                 var pilot = NetPlayer.All.Find(value => value != null && value.IsSpawned && value.OwnerClientId == client);
                 NetPlayerStations.CollectWreckSalvage(pilot, orbit, room, jumpgate);
