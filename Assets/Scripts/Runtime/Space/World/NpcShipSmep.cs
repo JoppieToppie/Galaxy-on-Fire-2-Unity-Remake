@@ -123,7 +123,7 @@ namespace GoF2Remake.World
         Target smepMotionTarget;
         Vector3 smepMotionPosition, smepMotionVelocity, smepMotionAcceleration, smepMotionSampleVelocity;
         double smepMotionTime;
-        bool smepMotionInitialized;
+        bool smepMotionInitialized, smepMotionHasSample;
         Vector3 smepReciprocalLastPosition;
         bool smepReciprocalHasPosition;
         static PlayerCollision smepPlayerCollision;
@@ -250,6 +250,8 @@ namespace GoF2Remake.World
         {
             if (target == null || !target.Alive) return nativeLead;
             SampleSmepTargetMotion(out var velocity, out var acceleration);
+            // Until two valid positions exist, native lead is more informative than a zero-motion estimate.
+            if (!smepMotionHasSample) return nativeLead;
             var firing = gun;
             if (firing == null || firing.isBeam || firing.IsMissile || firing.Homing || firing.Guided) return nativeLead;
             float projectileSpeed = firing.speedUnitsPerMs * M * 1000f;
@@ -271,6 +273,7 @@ namespace GoF2Remake.World
             if (!smepMotionInitialized || smepMotionTarget != motionTarget)
             {
                 smepMotionInitialized = true;
+                smepMotionHasSample = false;
                 smepMotionTarget = motionTarget;
                 smepMotionPosition = position;
                 smepMotionTime = now;
@@ -290,6 +293,7 @@ namespace GoF2Remake.World
             var sampleVelocity = Vector3.ClampMagnitude((position - smepMotionPosition) / elapsed, 1500f);
             if (elapsedD > 0.5)
             {
+                smepMotionHasSample = false;
                 smepMotionVelocity = Vector3.zero;
                 smepMotionAcceleration = Vector3.zero;
                 smepMotionSampleVelocity = Vector3.zero;
@@ -303,6 +307,7 @@ namespace GoF2Remake.World
             smepMotionVelocity = Vector3.Lerp(smepMotionVelocity, sampleVelocity, 0.65f);
             smepMotionAcceleration = Vector3.Lerp(smepMotionAcceleration, sampleAcceleration, 0.3f);
             smepMotionSampleVelocity = sampleVelocity;
+            smepMotionHasSample = true;
             smepMotionPosition = position;
             smepMotionTime = now;
             velocity = smepMotionVelocity;
@@ -319,7 +324,8 @@ namespace GoF2Remake.World
             for (int i = 1; i <= 12; i++)
             {
                 float time = i * sampleStep;
-                float error = (relative + velocity * time + acceleration * (0.5f * time * time)).magnitude - speed * time;
+                float travel = speed * time;
+                float error = (relative + velocity * time + acceleration * (0.5f * time * time)).sqrMagnitude - travel * travel;
                 if (error <= 0f)
                 {
                     low = previousTime;
@@ -333,7 +339,8 @@ namespace GoF2Remake.World
             for (int i = 0; i < 10; i++)
             {
                 float middle = (low + high) * 0.5f;
-                float error = (relative + velocity * middle + acceleration * (0.5f * middle * middle)).magnitude - speed * middle;
+                float travel = speed * middle;
+                float error = (relative + velocity * middle + acceleration * (0.5f * middle * middle)).sqrMagnitude - travel * travel;
                 if (error > 0f) low = middle; else high = middle;
             }
             float result = (low + high) * 0.5f;
@@ -364,7 +371,8 @@ namespace GoF2Remake.World
             foreach (var (cone, speedFactor) in Es2NpcFlight.Candidates)
             {
                 if (cone < 0.01f && speedFactor >= 1f) continue; // already tested the direct route
-                const int directions = 8;
+                // A zero cone has only one distinct direction, even at reduced speed.
+                int directions = cone == 0f ? 1 : 8;
                 for (int i = 0; i < directions; i++)
                 {
                     var axis = Quaternion.AngleAxis(i * 360f / directions, wanted) * side;
@@ -392,9 +400,10 @@ namespace GoF2Remake.World
             int frames = Mathf.CeilToInt(Es2NpcFlight.PredictionS * Es2NpcFlight.SamplesPerS);
             int frame = Time.frameCount;
             var all = smepPathObstacles;
+            var rotation = transform.rotation;
             for (int i = 0; i < frames; i++)
             {
-                velocity = SmepAiRules.StepVelocity(velocity, targetVelocity, transform.rotation, topSpeed,
+                velocity = SmepAiRules.StepVelocity(velocity, targetVelocity, rotation, topSpeed,
                                                     dtMs, smepAccelerationForward, smepAccelerationReverse,
                                                     smepAccelerationStrafe, smepAccelerationHover);
                 pos += velocity * dtMs * M;
@@ -406,9 +415,10 @@ namespace GoF2Remake.World
                 for (int k = 0; k < all.Count; k++)
                 {
                     var obstacle = all[k];
-                    if ((object)obstacle == null || (target != null && obstacle.transform == target.transform)
-                        || !obstacle.MayTouch(pos, frame)) continue;
-                    if (obstacle.Touches(pos, out _)) return false;
+                    if (obstacle == null || (target != null && obstacle.transform == target.transform)
+                        || !obstacle.MayReach(pos, radius, frame)) continue;
+                    // Keep legacy gate-cube contacts and account for the fighter's full clearance.
+                    if (obstacle.Touches(pos, out _) || obstacle.TouchesSphere(pos, radius, out _)) return false;
                 }
             }
             return true;
@@ -432,6 +442,7 @@ namespace GoF2Remake.World
 
             if (smepDogfightState == null || smepDogfightState.target != target)
             {
+                smepPathInitialized = false;
                 float now = Time.time;
                 smepDogfightState = new SmepDogfightState
                 {
