@@ -562,7 +562,8 @@ namespace GoF2Remake.World
             if (challengeFlyIn) Session.ArrivedByTravel = true;
             if (warpArrival) { launchTravel = true; Session.LaunchedFromStation = Session.ArrivedByTravel = false; }
             else if (Session.LaunchedFromStation || Session.ArrivedByTravel) StartLaunchCamera();
-            if (driveArrival) BeginDriveArrival(driveFailed, jumpDriveSpec);
+            if (driveArrival || jumpDriveSpec?.arrivalCamera?.HasCamera == true || (jumpDriveSpec?.arrivalCamera?.MinimumDuration ?? 0f) > 0f)
+                BeginDriveArrival(driveFailed, jumpDriveSpec, driveArrival);
         }
 
         // Modified: a mod drive's arrival (ModJumpFx "arrivalFx"; IntroCutscenes' time jump end, steps 10 / 11): sound 159, the
@@ -606,11 +607,17 @@ namespace GoF2Remake.World
             return true;
         }
 
-        void BeginDriveArrival(bool failed, Modding.ModJumpFx.Spec drive)
+        void BeginDriveArrival(bool failed, Modding.ModJumpFx.Spec drive, bool withFx)
         {
             driveArrivalMs = 0f;
             driveArrivalLength = 3000f;
             arrivalCinematic = drive?.arrivalCamera;
+            if (!withFx)
+            {
+                driveArrivalLength = Mathf.Max(LaunchCameraMs, arrivalCinematic.MinimumDuration);
+                driveHolding = false;
+                return;
+            }
             driveHolding = true;
             Player.externalControl = true;
             Player.ExternalSpeedMetersPerSecond = 0f;
@@ -642,7 +649,7 @@ namespace GoF2Remake.World
         {
             if (driveArrivalMs < 0f) return;
             driveArrivalMs += Time.deltaTime * 1000f;
-            if (arrivalCinematic != null && mainCamera != null && launchCameraMs > 0f && !chase.scriptCamera)
+            if (arrivalCinematic?.HasCamera == true && mainCamera != null && launchCameraMs > 0f && Settings.LaunchCamera && !chase.scriptCamera)
             {
                 var frame = Player.transform;
                 var offset = arrivalCinematic.Position(driveArrivalMs, new Vector3(1000f, 500f, 7000f));
@@ -660,7 +667,7 @@ namespace GoF2Remake.World
                 if (Player.visualModel != null) Player.visualModel.gameObject.SetActive(true);
                 Player.externalControl = false;
             }
-            if (driveArrivalMs < Mathf.Max(Mathf.Max(driveArrivalLength, DriveShowMs), arrivalCinematic?.durationMs ?? 0f)) return;
+            if (driveArrivalMs < Mathf.Max(Mathf.Max(driveArrivalLength, DriveShowMs), arrivalCinematic?.MinimumDuration ?? 0f)) return;
             if (driveFx != null) Destroy(driveFx);
             driveFx = null;
             foreach (var m in driveFxMaterials) if (m != null) Destroy(m);
