@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Multiplayer;
+using GoF2Remake.Data;
 using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -684,18 +685,44 @@ namespace GoF2Remake.UI
             AddSection("BUILD A STATION", "");
             var db = NetGame.Db;
             if (db?.Systems == null) return;
-            GoF2Remake.Data.GalaxyMap.Visibility(db);
-            var visible = GoF2Remake.Data.Session.SystemVisible;
+            var visible = GalaxyMap.Visibility(db);
             var systems = db.Systems.Where(system => system != null && system.stations?.Count > 0 &&
                     system.index >= 0 && visible != null && system.index < visible.Length && visible[system.index])
                 .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
-            AddChoice("system", "Discovered build system", systems);
             if (systems.Count == 0) AddInfo("Build location", "Discover a system before starting a station project.");
+            else
+            {
+                // The construction command creates a new orbital entry, not a replacement for an existing planet.
+                var choices = new List<(string value, string label)> { ("", "Select a system") };
+                choices.AddRange(systems);
+                AddChoice("system", "Discovered build system", choices);
+                AddAction("Choose build system on star map", () =>
+                {
+                    if (StarMap.IsOpen) return;
+                    var allowed = new HashSet<int>(systems.Select(system => int.Parse(system.Item1)));
+                    panel.style.display = DisplayStyle.None;
+                    var map = StarMap.OpenStationPlanner(db, allowed.Contains, result =>
+                    {
+                        if (!open) return;
+                        panel.style.display = DisplayStyle.Flex;
+                        var picked = db.Stations.Find(station => station != null && station.index == result.station);
+                        if (picked != null && allowed.Contains(picked.system)) drafts["system"] = picked.system.ToString();
+                        RebuildBody();
+                    });
+                    if (map == null) { panel.style.display = DisplayStyle.Flex; feedback.text = "The star map could not be opened."; feedbackTime = 8f; }
+                    else map.SetHelp("Select a discovered system, open its system view and select a planet to confirm the system. The server assigns a new station orbit; the selected planet is not replaced.");
+                });
+                AddInfo("Orbit placement", "A new orbit is allocated by the server. Existing stations are not replaced.");
+            }
             AddChoice("newStationModel", "Station model", StationModelChoices());
             AddField("newStationName", "Station name", "");
             if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))
                 AddAction("Start station project", () =>
-                    SendStationName("start-model " + Value("system") + " " + Value("newStationModel"), Value("newStationName")));
+                {
+                    if (!int.TryParse(Value("system"), out int systemId) || !systems.Any(system => system.Item1 == systemId.ToString()))
+                    { feedback.text = "Select a discovered build system first."; feedbackTime = 8f; return; }
+                    SendStationName("start-model " + systemId + " " + Value("newStationModel"), Value("newStationName"));
+                });
         }
 
         void BuildStationConstruction(PlayerStationRecord project)
