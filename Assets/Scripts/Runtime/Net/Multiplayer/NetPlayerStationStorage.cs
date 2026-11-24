@@ -479,7 +479,7 @@ namespace GoF2Remake.Multiplayer
                     return "That storage stack has reached its maximum supported quantity.";
                 if (stack == null && record.storage.Count >= MaxStorageItemTypes)
                     return "Storage has reached its item-type limit.";
-                var previousLots = CloneStorageLots(record);
+                var depositLots = CloneStorageLots(record);
                 if (stack == null)
                     record.storage.Add(stack = new PlayerStationStorage { item = item });
                 stack.amount += amount;
@@ -487,7 +487,7 @@ namespace GoF2Remake.Multiplayer
                 if (!CommitCargoTransaction(account, (item, -amount)))
                 {
                     stack.amount -= amount;
-                    record.storageLots = previousLots;
+                    record.storageLots = depositLots;
                     if (stack.amount == 0) record.storage.Remove(stack);
                     return "Storage transaction could not be journalled; no cargo was taken.";
                 }
