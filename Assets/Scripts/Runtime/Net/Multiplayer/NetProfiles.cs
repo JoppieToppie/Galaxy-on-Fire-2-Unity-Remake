@@ -358,6 +358,7 @@ namespace GoF2Remake.Multiplayer
             if (!Write(ProfilePath(login.account.id), JsonUtility.ToJson(save, false))) return null;
             login.account.worth = Worth(save);
             SaveIndex();
+            InvalidateEconomyUploads(login.account.id);
             return new GameHooks.ModJumpResult(arrival, cells, lostItem, hullLimit, misjump);
         }
 
