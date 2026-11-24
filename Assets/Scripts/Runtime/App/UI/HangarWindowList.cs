@@ -361,7 +361,12 @@ namespace GoF2Remake.UI
                     tex = ItemInfo.ItemIcon(row.item);
                     name.text = ItemInfo.TaggedItemName(row.item);
                     if (!Session.SeenItems.Contains(row.item)) sub.Add(Badge(Localization.Extra("shopNew", "NEW").OgCase(), "row-badge--new"));
-                    else if (hangar.IsMounted(row.item)) sub.Add(Badge(Localization.Extra("shopMounted", "MOUNTED").OgCase(), "row-badge--mounted"));
+                    int mountedUnits = hangar.MountedOf(row.item);
+                    if (mountedUnits > 0 || hangar.IsMounted(row.item))
+                    {
+                        string label = Localization.Extra("shopMounted", "MOUNTED").OgCase();
+                        sub.Add(Badge(mountedUnits > 0 ? $"+{mountedUnits} {label}" : label, "row-badge--mounted"));
+                    }
                     // Remake (#62): what the player has in the hold is marked like the Ship tab's cargo rows (amber edge, IN CARGO),
                     // so their own goods stand out from the station's.
                     if (hangar.CargoOf(row.item) > 0)
@@ -372,8 +377,6 @@ namespace GoF2Remake.UI
                     // The trade mode's two amounts: Remake, the station's at the row's left edge and the ship's at its right
                     // (the original's columns), under the name only the category.
                     subText.text = ItemInfo.Category(it);
-                    int mountedUnits = hangar.MountedOf(row.item);
-                    if (mountedUnits > 0) subText.text += "  " + MountedNote(mountedUnits);
                     if (hangar.Storage) break;   // the storage draws no prices
                     int p = hangar.BuyPriceOf(row.item);   // 0 for step 67's gifted mines
                     price.text = ItemInfo.Credits(p);
