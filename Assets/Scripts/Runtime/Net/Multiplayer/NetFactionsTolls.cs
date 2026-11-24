@@ -12,6 +12,29 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetFactions
     {
+        // Stock trades may finish while an unrelated station journal awaits recovery.
+        // Keep their tax separate until the journal's absolute treasury targets are settled.
+        static readonly Dictionary<string, long> deferredStationTax = new Dictionary<string, long>(StringComparer.Ordinal);
+        static void CreditStationTax(Faction faction, long amount)
+        {
+            if (faction == null || amount <= 0) return;
+            if (NetPlayerStations.ProfileWritesBlocked)
+            {
+                deferredStationTax.TryGetValue(faction.id, out long pending);
+                deferredStationTax[faction.id] = Session.SaturatingAdd(pending, amount);
+                return;
+            }
+            faction.bank = Session.SaturatingAdd(faction.bank, amount);
+            taxDirty = true;
+        }
+
+        static void FlushDeferredStationTax()
+        {
+            if (deferredStationTax.Count == 0) return;
+            foreach (var entry in deferredStationTax) CreditStationTax(FindById(entry.Key), entry.Value);
+            deferredStationTax.Clear();
+        }
+
         /// <summary>NetState.TollPaidRpc: a player of another faction paid the toll at 'station' (their game took the credits):
         /// into the holder's bank.</summary>
         public static void OnTollPaid(ulong client, int station, int amount)
@@ -56,8 +79,7 @@ namespace GoF2Remake.Multiplayer
             long paid = Math.Min(price, VatMarkup(it.maxPrice, rate)) * (long)units;
             long vat = (long)Math.Round(paid / (1.0 + rate / 1000.0) * rate / 100.0);
             if (vat <= 0) return;
-            owner.bank += vat;
-            taxDirty = true;
+            CreditStationTax(owner, vat);
         }
         /// <summary>NetState.StockShipRpc: a dealer ship bought at 'station' (the reserved row taken): the VAT of a non-member's
         /// purchase from the ship's list price (the server's own number).</summary>
@@ -71,8 +93,7 @@ namespace GoF2Remake.Multiplayer
             if (buyer != null && buyer.id == held.faction) return;
             var owner = list.factions.Find(c => c.id == held.faction);
             if (owner == null) return;
-            owner.bank += (long)Math.Round(s.price * rate / 100.0);
-            taxDirty = true;
+            CreditStationTax(owner, (long)Math.Round(s.price * rate / 100.0));
         }
         /// <summary>"/faction vat [rate] [station]": the claim's VAT rate (officers), or what it is now. The station is the one
         /// docked at unless given (any of the faction's claims, by number). A new rate thins the goods from the next stock roll.</summary>
