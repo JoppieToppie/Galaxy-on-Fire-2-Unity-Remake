@@ -351,6 +351,8 @@ namespace GoF2Remake.UI
                     cost.text = preset == null ? "" : string.Join(", ", preset.Materials.Select(material =>
                         $"{material.amount:N0} × {db.Item(material.item)?.name ?? material.item.ToString()}"));
                     if (preset?.Defense == true) cost.text += $" · {preset.Range / 1000f:0.##} km range";
+                    if (preset?.MaintenanceIntervalSeconds > 0)
+                        cost.text += " · maintenance every " + TimeSpan.FromSeconds(preset.MaintenanceIntervalSeconds).ToString("c");
                 }
                 AddChoice("orbitalPreset", "Structure preset", presets, ShowPreset);
                 ShowPreset(Value("orbitalPreset"));

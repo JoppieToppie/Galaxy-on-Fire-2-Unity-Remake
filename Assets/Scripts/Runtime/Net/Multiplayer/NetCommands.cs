@@ -450,17 +450,21 @@ namespace GoF2Remake.Multiplayer
             }
             if (args.StartsWith("orbital-build ", StringComparison.OrdinalIgnoreCase) ||
                 args.StartsWith("orbital-deliver ", StringComparison.OrdinalIgnoreCase) ||
-                args.StartsWith("orbital-fund ", StringComparison.OrdinalIgnoreCase))
+                args.StartsWith("orbital-fund ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-maintain ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-maintain-stock ", StringComparison.OrdinalIgnoreCase))
             {
                 var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (words.Length != 4 || !int.TryParse(words[1], out int structureId) ||
                     !int.TryParse(words[2], out int orbitOrItem))
-                    return "/station orbital-build <sponsor id> <orbit> <preset> | orbital-deliver|orbital-fund <structure id> <item id> <amount>";
+                    return "/station orbital-build <sponsor id> <orbit> <preset> | orbital-deliver|orbital-fund|orbital-maintain|orbital-maintain-stock <structure id> <item id> <amount>";
                 if (words[0].Equals("orbital-build", StringComparison.OrdinalIgnoreCase))
                     return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, structureId, orbitOrItem, words[3]);
                 if (!int.TryParse(words[3], out int quantity)) return "Enter a valid material quantity.";
-                return NetPlayerStations.ContributeOrbitalStructure(by as NetPlayer, structureId, orbitOrItem, quantity,
-                    words[0].Equals("orbital-fund", StringComparison.OrdinalIgnoreCase));
+                bool maintenance = words[0].StartsWith("orbital-maintain", StringComparison.OrdinalIgnoreCase);
+                bool fromStock = words[0].Equals("orbital-fund", StringComparison.OrdinalIgnoreCase) ||
+                    words[0].Equals("orbital-maintain-stock", StringComparison.OrdinalIgnoreCase);
+                return NetPlayerStations.ContributeOrbitalStructure(by as NetPlayer, structureId, orbitOrItem, quantity, fromStock, maintenance);
             }
             if (args.StartsWith("orbital-remove ", StringComparison.OrdinalIgnoreCase))
             {

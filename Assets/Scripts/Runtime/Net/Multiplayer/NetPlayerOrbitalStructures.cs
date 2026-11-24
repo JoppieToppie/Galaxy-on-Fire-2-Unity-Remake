@@ -15,7 +15,12 @@ namespace GoF2Remake.Multiplayer
         public string name, assembly, stationModel;
         public bool defense;
         public float modelScale, hitRadius, integrity, maxIntegrity, range, damage;
-        public long completesUtc;
+        public long completesUtc, maintenanceDueUtc;
+        public int maintenanceIntervalSeconds;
+        public List<PlayerStationMaterial> maintenanceMaterials = new List<PlayerStationMaterial>();
+
+        internal bool MaintenanceDue(long now) =>
+            operational && defense && maintenanceIntervalSeconds > 0 && maintenanceDueUtc > 0 && now >= maintenanceDueUtc;
         public bool operational;
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
         [NonSerialized] internal long nextShotUtc;
@@ -44,7 +49,10 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool OrbitalPresetAvailable(ModPlayerInfrastructure.OrbitalDefinition preset) =>
             OrbitalStructureAssembly(preset.Assembly, preset.StationModel, NetGame.Db) != null &&
-            preset.Materials.TrueForAll(cost => NetGuard.Item(cost.item) && NetGame.Db.Item(cost.item) != null);
+            preset.Materials.TrueForAll(cost => OrbitalMaterialAvailable(cost.item)) &&
+            preset.MaintenanceMaterials.TrueForAll(cost => OrbitalMaterialAvailable(cost.item));
+
+        static bool OrbitalMaterialAvailable(int item) => NetGuard.Item(item) && NetGame.Db.Item(item) != null;
 
         internal static PlayerOrbitalStructure FindOrbitalStructure(int id) =>
             registry?.orbitalStructures?.Find(structure => structure != null && structure.id == id);
@@ -90,10 +98,13 @@ namespace GoF2Remake.Multiplayer
                 name = preset.Name, assembly = preset.Assembly, stationModel = preset.StationModel, defense = preset.Defense,
                 modelScale = preset.ModelScale, hitRadius = preset.HitRadius, maxIntegrity = preset.Integrity,
                 integrity = preset.Integrity, range = preset.Range, damage = preset.Damage,
-                fireIntervalSeconds = preset.FireIntervalSeconds, buildSeconds = preset.BuildSeconds
+                fireIntervalSeconds = preset.FireIntervalSeconds, buildSeconds = preset.BuildSeconds,
+                maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds
             };
             foreach (var cost in preset.Materials)
                 structure.materials.Add(new PlayerStationMaterial { item = cost.item, required = cost.amount });
+            foreach (var cost in preset.MaintenanceMaterials)
+                structure.maintenanceMaterials.Add(new PlayerStationMaterial { item = cost.item, required = cost.amount });
             var previous = registry;
             structures.Add(structure);
             if (Save()) return $"Started {structure.name} #{structure.id}. Deliver materials in its orbit.";
@@ -105,18 +116,22 @@ namespace GoF2Remake.Multiplayer
             return "The orbital structure order could not be saved.";
         }
 
-        internal static string ContributeOrbitalStructure(NetPlayer pilot, int id, int item, int amount, bool fromStock = false)
+        internal static string ContributeOrbitalStructure(NetPlayer pilot, int id, int item, int amount, bool fromStock = false, bool maintenance = false)
         {
             var structure = FindOrbitalStructure(id);
-            if (!NetGame.IsServer || !sessionActive || structure == null || structure.operational || structure.completesUtc > 0)
+            if (!NetGame.IsServer || !sessionActive || structure == null)
                 return "That project is unavailable for delivery.";
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (maintenance ? !structure.MaintenanceDue(now) : structure.operational || structure.completesUtc > 0)
+                return maintenance ? "That defense has no maintenance due." : "That project is unavailable for delivery.";
             if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != structure.orbit ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(pilot.OwnerClientId))
-                return "Fly in the construction orbit with a controlled profile to deliver materials.";
+                return "Fly in the structure's orbit with a controlled profile to deliver materials.";
             var sponsor = Find(structure.sponsorStationId);
-            if (!OperationalSponsor(sponsor)) return "Construction is paused while the sponsor is unavailable.";
-            var material = structure.materials.Find(entry => entry.item == item);
-            if (material == null || amount < 1 || amount > 500 || amount > material.required - material.delivered)
+            if (!OperationalSponsor(sponsor)) return "Deliveries are paused while the sponsor is unavailable.";
+            var materials = maintenance ? structure.maintenanceMaterials : structure.materials;
+            var material = materials?.Find(entry => entry != null && entry.item == item);
+            if (!OrbitalMaterialAvailable(item) || material == null || amount < 1 || amount > 500 || amount > material.required - material.delivered)
                 return "Choose a required item and an amount from 1 to 500 within the outstanding cost.";
             string account = NetProfiles.AccountOf(pilot.OwnerClientId);
             if (string.IsNullOrEmpty(account)) return "Use a controlled profile.";
@@ -130,16 +145,23 @@ namespace GoF2Remake.Multiplayer
             }
             else if (NetProfiles.CargoAmount(account, item) < amount) return "You do not have enough cargo.";
 
-            bool paid = !fromStock && sponsor.ownershipType == PlayerStationOwnershipType.Faction;
+            bool paid = !maintenance && !fromStock && sponsor.ownershipType == PlayerStationOwnershipType.Faction;
             long payout = paid ? (long)Math.Max(1, NetGame.Db.Item(item)?.minPrice ?? 0) * amount : 0;
             if (paid && NetFactions.BankAmount(sponsor.ownerFactionId) < payout)
                 return "The sponsor faction cannot cover this delivery.";
+            bool wasOperational = structure.operational;
+            long previousCompletion = structure.completesUtc, previousDue = structure.maintenanceDueUtc;
             material.delivered += amount;
-            bool complete = structure.materials.TrueForAll(entry => entry.delivered >= entry.required);
-            if (complete)
+            bool complete = materials.TrueForAll(entry => entry.delivered >= entry.required);
+            if (complete && maintenance)
             {
-                structure.operational = structure.buildSeconds == 0;
-                if (!structure.operational) structure.completesUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + structure.buildSeconds;
+                foreach (var entry in materials) entry.delivered = 0;
+                structure.maintenanceDueUtc = now + structure.maintenanceIntervalSeconds;
+            }
+            else if (complete)
+            {
+                if (structure.buildSeconds == 0) ActivateOrbitalStructure(structure, now);
+                else structure.completesUtc = now + structure.buildSeconds;
             }
             if (fromStock) stock.amount -= amount;
             bool saved = fromStock ? Save() : paid ? CommitConstructionContribution(account, sponsor.ownerFactionId, item, amount, payout)
@@ -147,13 +169,17 @@ namespace GoF2Remake.Multiplayer
             if (!saved)
             {
                 if (fromStock) stock.amount += amount;
+                if (complete && maintenance)
+                    foreach (var entry in materials) entry.delivered = entry.required;
                 material.delivered -= amount;
-                structure.operational = false;
-                structure.completesUtc = 0;
+                structure.operational = wasOperational;
+                structure.completesUtc = previousCompletion;
+                structure.maintenanceDueUtc = previousDue;
                 return "Delivery could not be saved. Your cargo was kept.";
             }
             if (!fromStock && !(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
-                NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Orbital construction");
+                NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", maintenance ? "Orbital defense maintenance" : "Orbital construction");
+            if (maintenance) return complete ? $"{structure.name} maintenance complete." : "Delivered maintenance materials.";
             if (paid) NotifyProfileCreditChange(account, payout, "Orbital construction contribution");
             return structure.operational ? $"{structure.name} is operational." : "Delivered orbital construction materials.";
         }
@@ -199,6 +225,13 @@ namespace GoF2Remake.Multiplayer
                 Standing.IsEnemyWith(race, pilot.Standing0, pilot.Standing1, pilot.Signature, pilot.ModRaceStandings);
         }
 
+        static void ActivateOrbitalStructure(PlayerOrbitalStructure structure, long now)
+        {
+            structure.operational = true;
+            if (structure.maintenanceIntervalSeconds > 0)
+                structure.maintenanceDueUtc = now + structure.maintenanceIntervalSeconds;
+        }
+
         static void TickOrbitalStructures(long now)
         {
             if (now < nextOrbitalStructureTick || registry?.orbitalStructures == null) return;
@@ -216,11 +249,15 @@ namespace GoF2Remake.Multiplayer
                 if (!OperationalSponsor(sponsor)) continue;
                 if (!structure.operational && structure.completesUtc > 0 && now >= structure.completesUtc)
                 {
-                    structure.operational = true;
-                    if (!Save()) structure.operational = false;
+                    ActivateOrbitalStructure(structure, now);
+                    if (!Save())
+                    {
+                        structure.operational = false;
+                        structure.maintenanceDueUtc = 0;
+                    }
                     if (!ReferenceEquals(registry, original)) return;
                 }
-                if (!structure.operational || !structure.defense || now < structure.nextShotUtc) continue;
+                if (!structure.operational || !structure.defense || structure.MaintenanceDue(now) || now < structure.nextShotUtc) continue;
                 var runner = NetPlayer.OrbitRunner(structure.orbit);
                 if (runner == null) continue;
                 int race = NetGame.Db.Systems.Find(system => system != null && system.index == sponsor.system)?.raceId ?? -1;

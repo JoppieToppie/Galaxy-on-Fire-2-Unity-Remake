@@ -17,7 +17,9 @@ namespace GoF2Remake.UI
         long gateCompletesUtc, nextProjectClockUtc;
         int rebuildModel = -1;
         int confirmOrbitalAdminRemoval;
-        readonly Dictionary<int, (string item, string quantity)> orbitalDelivery = new Dictionary<int, (string, string)>();
+        long nextMaintenanceRefreshUtc = long.MaxValue;
+        readonly Dictionary<(int id, bool maintenance), (string item, string quantity)> orbitalDelivery =
+            new Dictionary<(int, bool), (string, string)>();
         int reclaimModel, reclaimDestination = -1;
         string wreckMaterial = "", wreckAmount = "1", gateMaterial = "", gateAmount = "1";
 
@@ -26,12 +28,12 @@ namespace GoF2Remake.UI
             var pilot = NetPlayer.Local;
             int orbit = pilot?.InSpace == true ? pilot.Station : -1;
             var actions = pilot?.AvailableStationActions ?? StationProjectActions.None;
-            if (!Busy && (orbit != projectOrbit || actions != projectActions ||
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (!Busy && (now >= nextMaintenanceRefreshUtc || orbit != projectOrbit || actions != projectActions ||
                 (pilot?.WreckControlProgress ?? 0) != wreckControlProgress ||
                 !ReferenceEquals(projectSnapshot, NetState.Instance?.PlayerStations)))
                 Rebuild();
 
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (now < nextProjectClockUtc) return;
             nextProjectClockUtc = now + 1;
             if (wreckCountdown != null)
@@ -52,6 +54,7 @@ namespace GoF2Remake.UI
             wreckCountdown = gateCountdown = null;
             timedClaim = null;
             nextProjectClockUtc = 0;
+            nextMaintenanceRefreshUtc = long.MaxValue;
             int orbit = pilot?.InSpace == true ? pilot.Station : -1;
             if (orbit != projectOrbit)
             {
@@ -120,6 +123,20 @@ namespace GoF2Remake.UI
                 {
                     body.Add(Text($"Integrity {structure.integrity:N0}/{structure.maxIntegrity:N0}", 16, Dim));
                     if (structure.defense) body.Add(Text($"Defense range {structure.range / 1000f:0.##} km", 16, Dim));
+                    if (structure.maintenanceDueUtc > 0)
+                    {
+                        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                        if (structure.MaintenanceDue(now))
+                        {
+                            body.Add(Text("Offline · maintenance due", 16, Dim));
+                            BuildOrbitalDelivery(structure, true);
+                        }
+                        else
+                        {
+                            nextMaintenanceRefreshUtc = Math.Min(nextMaintenanceRefreshUtc, structure.maintenanceDueUtc);
+                            body.Add(Text($"Next maintenance {DateTimeOffset.FromUnixTimeSeconds(structure.maintenanceDueUtc):u}", 16, Dim));
+                        }
+                    }
                     continue;
                 }
                 if (structure.completesUtc > 0)
@@ -127,16 +144,27 @@ namespace GoF2Remake.UI
                     body.Add(Text("Materials funded. Construction is underway.", 16, Dim));
                     continue;
                 }
-                BuildMaterialProgress(structure.materials);
-                if (!orbitalDelivery.TryGetValue(id, out var draft))
-                    orbitalDelivery[id] = draft = (structure.materials.Find(material => material.delivered < material.required)?.item.ToString() ?? "", "1");
-                var row = ProjectDeliveryFields(draft.item, draft.quantity,
-                    value => orbitalDelivery[id] = (value, orbitalDelivery[id].quantity),
-                    value => orbitalDelivery[id] = (orbitalDelivery[id].item, value));
-                row.Add(Btn("Deliver cargo", () => SendProjectDelivery("orbital-deliver", id, orbitalDelivery[id].item, orbitalDelivery[id].quantity), null));
-                row.Add(Btn("Use sponsor stock", () => SendProjectDelivery("orbital-fund", id, orbitalDelivery[id].item, orbitalDelivery[id].quantity), null));
-                body.Add(row);
+                BuildOrbitalDelivery(structure, false);
             }
+        }
+
+        void BuildOrbitalDelivery(PlayerOrbitalStructure structure, bool maintenance)
+        {
+            var materials = maintenance ? structure.maintenanceMaterials : structure.materials;
+            if (materials == null) return;
+            BuildMaterialProgress(materials);
+            var key = (structure.id, maintenance);
+            var next = materials.Find(material => material != null && material.delivered < material.required);
+            if (!orbitalDelivery.TryGetValue(key, out var draft))
+                orbitalDelivery[key] = draft = (next?.item.ToString() ?? "", "1");
+            var row = ProjectDeliveryFields(draft.item, draft.quantity,
+                value => orbitalDelivery[key] = (value, orbitalDelivery[key].quantity),
+                value => orbitalDelivery[key] = (orbitalDelivery[key].item, value));
+            row.Add(Btn(maintenance ? "Deliver maintenance cargo" : "Deliver cargo", () => SendProjectDelivery(
+                maintenance ? "orbital-maintain" : "orbital-deliver", structure.id, orbitalDelivery[key].item, orbitalDelivery[key].quantity), null));
+            row.Add(Btn("Use sponsor stock", () => SendProjectDelivery(
+                maintenance ? "orbital-maintain-stock" : "orbital-fund", structure.id, orbitalDelivery[key].item, orbitalDelivery[key].quantity), null));
+            body.Add(row);
         }
 
         void BuildReconstructionOrders(PlayerStationRecord station)

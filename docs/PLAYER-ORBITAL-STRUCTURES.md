@@ -6,6 +6,12 @@ An operational defense engages hostile ships within its configured range. Player
 
 Additional structures use the same construction, sponsorship and damage rules. They are physical installations with configurable models and integrity. A structure with `defense: false` has no weapon behavior. Structural weapons can destroy an operational structure and free its slot. Sponsor managers can dismantle a structure from Station Management. Dismantling does not refund materials.
 
+## Defense maintenance
+
+Defense presets can require recurring materials. The first deadline starts when construction completes. While overdue, a defense stays in orbit and occupies its slot, but stops firing. Open **Multiplayer → Orbit Projects** to deliver upkeep cargo or use eligible sponsor stock. Partial deliveries are saved. Completing all upkeep materials restores firing eligibility and starts a fresh interval. Maintenance cargo receives no faction payout.
+
+The optional `maintenance` object accepts `intervalSeconds` from 60 to 31,536,000 and the same `materials` format as construction. Presets without this object and existing defense records without upkeep remain maintenance-free. The upkeep terms are saved when a defense is ordered.
+
 ## Mod Builder
 
 Open **Menu → Player-built stations & gates**. **Defense limit per orbit** accepts 0–12, with 0 blocking new defense orders. The setting exports as `orbitalDefenseLimit` in `playerInfrastructure.json` and applies with the active mod's infrastructure rules. The **Orbital structure presets** field accepts the following `orbitalStructures` array. The settings export with the mod in `playerInfrastructure.json`. Disable **Offer the stock orbital defense** to use only your own presets. A custom definition with ID `orbital-defense` replaces the stock defense with the same ID.
@@ -24,6 +30,10 @@ Open **Menu → Player-built stations & gates**. **Defense limit per orbit** acc
     "damage": 150,
     "fireIntervalSeconds": 4,
     "buildSeconds": 60,
+    "maintenance": {
+      "intervalSeconds": 86400,
+      "materials": [{ "item": 156, "amount": 20 }]
+    },
     "materials": [
       { "item": 156, "amount": 300 },
       { "item": 118, "amount": 120 }

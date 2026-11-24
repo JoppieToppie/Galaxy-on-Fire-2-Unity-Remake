@@ -29,6 +29,8 @@ namespace GoF2Remake.Modding
             public int BuildSeconds, FireIntervalSeconds;
             public bool Defense;
             public List<(int item, int amount)> Materials;
+            public int MaintenanceIntervalSeconds;
+            public List<(int item, int amount)> MaintenanceMaterials = new List<(int, int)>();
         }
 
         static readonly OrbitalDefinition[] StockStructures =
@@ -107,16 +109,14 @@ namespace GoF2Remake.Modding
                 string assembly = value["assembly"] == null ? null : StructureText(value, "assembly", 128);
                 string station = value["stationModel"] == null ? null : StructureText(value, "stationModel", 128);
                 if ((assembly == null) == (station == null)) throw new ModJsonException(id + " needs one assembly or stationModel.");
-                if (!(value["materials"] is JArray materials) || materials.Count == 0 || materials.Count > 32)
-                    throw new ModJsonException(id + " needs 1–32 material entries.");
-                var costs = new List<(int item, int amount)>();
-                foreach (var material in materials)
+                int maintenanceInterval = 0;
+                List<(int item, int amount)> maintenanceCosts = null;
+                if (value["maintenance"] != null)
                 {
-                    if (!(material is JObject cost)) throw new ModJsonException(id + " materials must be objects.");
-                    int item = StructureInt(cost, "item", -1, 0, int.MaxValue);
-                    int amount = StructureInt(cost, "amount", 0, 1, 100000);
-                    if (costs.Exists(part => part.item == item)) throw new ModJsonException(id + " repeats a material item.");
-                    costs.Add((item, amount));
+                    if (!defense || !(value["maintenance"] is JObject maintenance))
+                        throw new ModJsonException(id + " maintenance must be an object on a defense preset.");
+                    maintenanceInterval = StructureInt(maintenance, "intervalSeconds", 0, 60, 31536000);
+                    maintenanceCosts = ReadStructureMaterials(maintenance, id + " maintenance");
                 }
                 result.RemoveAll(definition => definition.Id == id);
                 result.Add(new OrbitalDefinition
@@ -129,10 +129,28 @@ namespace GoF2Remake.Modding
                     Range = defense ? StructureNumber(value, "range", 5000f, 50, 20000) : 0,
                     Damage = defense ? StructureNumber(value, "damage", 120f, 1, 10000) : 0,
                     FireIntervalSeconds = StructureInt(value, "fireIntervalSeconds", 3, 1, 120),
-                    Materials = costs
+                    Materials = ReadStructureMaterials(value, id),
+                    MaintenanceIntervalSeconds = maintenanceInterval,
+                    MaintenanceMaterials = maintenanceCosts ?? new List<(int, int)>()
                 });
             }
             return result;
+        }
+
+        static List<(int item, int amount)> ReadStructureMaterials(JObject value, string id)
+        {
+            if (!(value["materials"] is JArray materials) || materials.Count == 0 || materials.Count > 32)
+                throw new ModJsonException(id + " needs 1–32 material entries.");
+            var costs = new List<(int item, int amount)>();
+            foreach (var material in materials)
+            {
+                if (!(material is JObject cost)) throw new ModJsonException(id + " materials must be objects.");
+                int item = StructureInt(cost, "item", -1, 0, int.MaxValue);
+                int amount = StructureInt(cost, "amount", 0, 1, 100000);
+                if (costs.Exists(part => part.item == item)) throw new ModJsonException(id + " repeats a material item.");
+                costs.Add((item, amount));
+            }
+            return costs;
         }
 
         static string StructureText(JObject value, string key, int limit)

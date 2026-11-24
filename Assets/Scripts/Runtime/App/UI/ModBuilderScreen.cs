@@ -893,7 +893,7 @@ namespace GoF2Remake.UI
             var defenseLimit = Add(scroll, new IntegerField("Defense limit per orbit")
                 { value = settings.OrbitalDefenseLimit }, "mbv-field");
             Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOrbitalDefenseLimit}. Build orders reserve a slot. A limit of 0 blocks new defense orders.");
-            Note(scroll, "Add structure presets as a JSON array. Set defense to true for a platform that targets hostiles.");
+            Note(scroll, "Add structure presets as a JSON array. Set defense to true for a platform that targets hostiles. Add maintenance with intervalSeconds and materials to require recurring upkeep.");
             var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
                 value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
             var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");

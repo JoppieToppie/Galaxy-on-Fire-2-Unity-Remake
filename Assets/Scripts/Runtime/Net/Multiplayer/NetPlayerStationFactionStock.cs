@@ -79,9 +79,11 @@ namespace GoF2Remake.Multiplayer
         {
             if (RequiredJumpgateMaterials().Exists(part => part.item == item)) return true;
             if (registry?.orbitalStructures?.Exists(structure => structure != null &&
-                structure.materials.Exists(material => material.item == item)) == true) return true;
+                (structure.materials.Exists(material => material.item == item) ||
+                structure.maintenanceMaterials?.Exists(material => material.item == item) == true)) == true) return true;
             foreach (var preset in Modding.ModPlayerInfrastructure.Current.OrbitalStructures)
-                if (preset.Materials.Exists(material => material.item == item)) return true;
+                if (preset.Materials.Exists(material => material.item == item) ||
+                    preset.MaintenanceMaterials.Exists(material => material.item == item)) return true;
             return false;
         }
 
@@ -95,7 +97,7 @@ namespace GoF2Remake.Multiplayer
             if (!CanUseStationConstructionStock(station, account))
                 return "Dock at an operational station owned by you or your faction to donate materials.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item) || !AcceptsConstructionStock(item))
-                return "Donate 1–500 units of a valid jumpgate construction material.";
+                return "Donate 1–500 units of a valid construction or maintenance material.";
 
             var stock = station.donatedConstructionStock ??= new List<PlayerStationStorage>();
             long used = 0;
