@@ -834,6 +834,17 @@ namespace GoF2Remake.Multiplayer
                 if (!int.TryParse(args.Substring(market.Length).Trim(), out int stationId)) return "/station market <station id>";
                 return NetPlayerStations.MarketStatus(stationId);
             }
+            bool buyStable = args.StartsWith("buy-listing ", StringComparison.OrdinalIgnoreCase);
+            bool cancelStable = args.StartsWith("cancel-listing ", StringComparison.OrdinalIgnoreCase);
+            if (buyStable || cancelStable)
+            {
+                var words = args.Substring(buyStable ? 12 : 15).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                int quantity = 0;
+                if (words.Length != (buyStable ? 3 : 2) || !int.TryParse(words[0], out int targetStation) ||
+                    !int.TryParse(words[1], out int listingId) || (buyStable && !int.TryParse(words[2], out quantity)))
+                    return "Choose a station listing and quantity.";
+                return NetPlayerStations.BuyItemListingById(by as NetPlayer, targetStation, listingId, quantity, cancelStable);
+            }
             const string buy = "buy ";
             if (args.StartsWith(buy, StringComparison.OrdinalIgnoreCase))
             {
