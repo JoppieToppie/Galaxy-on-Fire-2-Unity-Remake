@@ -28,7 +28,7 @@ namespace GoF2Remake.UI
         float refreshIn;
         bool requestPending, isOpen;
 
-        float feedbackRemaining;
+        float feedbackRemaining, requestDeadline;
 
         public bool IsOpen => isOpen;
 
@@ -116,7 +116,8 @@ namespace GoF2Remake.UI
 
             int stationIndex = level.Layout.stationIndex;
             var current = NetPlayerStations.Stations?.FirstOrDefault(s => s != null && s.stationIndex == stationIndex);
-            bool hasDock = current != null && !current.underConstruction &&
+            bool hasDock = current != null && !current.retired && !current.destroyed && !current.wreckClaimOpen &&
+                current.offeredForClaimUtc == 0 && !current.underConstruction && !NetPlayerStations.StationClosedByCombat(stationIndex) &&
                 (current.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false);
             if (!hasDock)
             {
@@ -135,6 +136,15 @@ namespace GoF2Remake.UI
             else station = current;
 
             if (!IsOpen) return;
+            if (requestPending && (Time.realtimeSinceStartup >= requestDeadline || station.dryDockBuilding))
+            {
+                requestPending = false;
+                if (!station.dryDockBuilding)
+                {
+                    feedbackText.text = "No confirmation received. Check the current status before retrying.";
+                    feedbackRemaining = 8f;
+                }
+            }
             if (feedbackRemaining > 0f && (feedbackRemaining -= Time.unscaledDeltaTime) <= 0f) feedbackText.text = "";
             if ((refreshIn -= Time.unscaledDeltaTime) <= 0f)
             {
@@ -169,6 +179,7 @@ namespace GoF2Remake.UI
         {
             list.Clear();
             blueprints.Clear();
+            int previousProduct = selectedProduct;
             selectedProduct = -1;
             var db = level?.Database;
             if (db == null || station == null) return;
@@ -176,7 +187,8 @@ namespace GoF2Remake.UI
             foreach (var product in Blueprints.Products(db))
             {
                 int ship = ModBlueprints.ShipOf(product.index);
-                if (ship < 0 || !ModBlueprints.RequiresDryDock(product.index, db)) continue;
+                if (ship < 0 || !ModBlueprints.RequiresDryDock(product.index, db) ||
+                    ModContent.IsBlueprintRestricted(product.index) || !ModContent.ItemAvailableFor(product.index, "blueprints")) continue;
                 var hull = db.Ship(ship);
                 string name = hull?.name ?? ("Ship " + ship);
                 string className = ShipClassRules.ClassLabel(hull) ?? "Dry-dock restricted";
@@ -186,7 +198,7 @@ namespace GoF2Remake.UI
 
             foreach (var item in blueprints)
             {
-                bool unlocked = Blueprints.IsUnlocked(item.productId);
+                bool unlocked = Blueprints.IsUnlocked(item.productId) && !NetPlayerStations.IsBlueprintConsumed(item.productId);
                 var row = new Button(() => Select(item.productId))
                 {
                     text = item.name + "\n" + item.className + (unlocked ? "" : "  ·  LOCKED")
@@ -207,16 +219,17 @@ namespace GoF2Remake.UI
                 return;
             }
 
-            Select(blueprints[0].productId);
+            Select(blueprints.Any(item => item.productId == previousProduct) ? previousProduct : blueprints[0].productId);
         }
 
         void Select(int productId)
         {
+            int index = blueprints.FindIndex(x => x.productId == productId);
+            if (index < 0) { selectedProduct = -1; buildButton.SetEnabled(false); return; }
             selectedProduct = productId;
-            var item = blueprints.FirstOrDefault(x => x.productId == productId);
-            if (item.productId < 0) return;
+            var item = blueprints[index];
             detailTitle.text = item.name;
-            bool unlocked = Blueprints.IsUnlocked(productId);
+            bool unlocked = Blueprints.IsUnlocked(productId) && !NetPlayerStations.IsBlueprintConsumed(productId);
             var definition = ModBlueprints.Of(productId);
             detailText.text = item.className + "\nBlueprint item ID: " + productId +
                 "\nBlueprint status: " + (unlocked ? "UNLOCKED" : "LOCKED") +
@@ -237,7 +250,7 @@ namespace GoF2Remake.UI
             recipeText.text = string.Join("\n", lines);
             var dockStatus = NetPlayerStations.GetDryDockVisualStatus(station.id);
             bool hasCapacity = dockStatus != null && dockStatus.storedHulls < dockStatus.hullCapacity;
-            buildButton.SetEnabled(unlocked && hasCapacity && !requestPending && !(dockStatus?.building ?? true)
+            buildButton.SetEnabled(unlocked && hasCapacity && !requestPending && dockStatus?.operational == true && !(dockStatus?.building ?? true)
                 && product?.blueprint != null && product.blueprint.Count > 0);
             foreach (var child in list.Children())
             {
@@ -285,6 +298,7 @@ namespace GoF2Remake.UI
             if (station == null || selectedProduct < 0 || requestPending ||
                 (NetPlayerStations.GetDryDockVisualStatus(station.id)?.building ?? true)) return;
             requestPending = true;
+            requestDeadline = Time.realtimeSinceStartup + 10f;
             buildButton.SetEnabled(false);
             statusText.text = "Sending construction request to the server…";
             NetPanel.Command("/station drydock-build " + station.id + " " + selectedProduct);
