@@ -131,7 +131,7 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.PlayerStationPosition = NetPlayerStations.StationPosition;
             SpaceHooks.PlayerJumpgateOffline = NetPlayerStations.JumpgateOffline;
             SpaceHooks.CanUsePlayerJumpgate = orbit => NetPlayerStations.CanUseJumpgate(NetPlayer.Local, orbit);
-            SpaceHooks.DiscoverPlayerJumpgate = orbit => NetPlayer.Local?.RequestJumpgateDiscovery(orbit);
+            SpaceHooks.RequestPlayerJumpgateTravel = (orbit, done) => NetPlayer.Local?.RequestPlayerJumpgateTravel(orbit, done) == true;
             SpaceHooks.PlayerInfrastructureSnapshot = () => NetState.Instance?.PlayerStations;
             SpaceHooks.PlayerOrbitalModels = (db, orbit) => NetPlayerStations.OrbitalStructures?
                 .Where(structure => structure != null && structure.orbit == orbit && structure.operational)
