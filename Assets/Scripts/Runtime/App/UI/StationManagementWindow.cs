@@ -101,7 +101,7 @@ namespace GoF2Remake.UI
             if (!CanOpen) { if (open) Close(); return; }
             if (!open) return;
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
-            if (Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
+            if (StarMap.IsOpen || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
             {
                 refresh = 2f;
@@ -168,13 +168,16 @@ namespace GoF2Remake.UI
             int previousId = selected?.id ?? -1;
             selected = records.FirstOrDefault(x => x.id == previousId)
                 ?? records.FirstOrDefault(x => x.stationIndex == level.Layout.stationIndex) ?? records[0];
-            if (previousId != selected.id) RebuildBody();
+            if (previousId != selected.id) drafts.Clear();
         }
 
         void SelectStation(PlayerStationRecord record)
         {
             if (selected?.id != record.id)
             {
+                confirmRetirementId = -1;
+                confirmBuilderRelinquish = -1;
+                confirmOrbitalRemoval = 0;
                 drafts.Clear();
                 body.scrollOffset = Vector2.zero;
             }
@@ -679,12 +682,18 @@ namespace GoF2Remake.UI
         void BuildNewStationControls()
         {
             AddSection("BUILD A STATION", "");
-            var systems = NetGame.Db.Systems.Where(system => system != null && system.stations?.Count > 0)
+            var db = NetGame.Db;
+            if (db?.Systems == null) return;
+            GoF2Remake.Data.GalaxyMap.Visibility(db);
+            var visible = GoF2Remake.Data.Session.SystemVisible;
+            var systems = db.Systems.Where(system => system != null && system.stations?.Count > 0 &&
+                    system.index >= 0 && visible != null && system.index < visible.Length && visible[system.index])
                 .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
-            AddChoice("system", "Build system", systems);
+            AddChoice("system", "Discovered build system", systems);
+            if (systems.Count == 0) AddInfo("Build location", "Discover a system before starting a station project.");
             AddChoice("newStationModel", "Station model", StationModelChoices());
             AddField("newStationName", "Station name", "");
-            if (!string.IsNullOrEmpty(Value("newStationModel")))
+            if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))
                 AddAction("Start station project", () =>
                     SendStationName("start-model " + Value("system") + " " + Value("newStationModel"), Value("newStationName")));
         }
@@ -702,10 +711,13 @@ namespace GoF2Remake.UI
                 AddInfo("Deliveries", "Fly within 5 km of the reconstruction site and open Multiplayer → Orbit Projects.");
             else
             {
-                AddField("contributeItem", "Material item ID", project.materials?.Find(material =>
-                    material != null && material.required > material.delivered)?.item.ToString() ?? "");
-                AddField("contributeAmount", "Amount", "10");
-                AddAction("Deliver construction cargo", () =>
+                var remaining = project.materials?.Where(material => material != null && material.required > material.delivered)
+                    .Select(material => (material.item.ToString(), (NetGame.Db.Item(material.item)?.name ?? "Item " + material.item) +
+                        " · " + (material.required - material.delivered).ToString("N0") + " remaining")).ToList()
+                    ?? new List<(string, string)>();
+                AddChoice("contributeItem", "Required material", remaining);
+                AddField("contributeAmount", "Units", "10");
+                if (remaining.Count > 0) AddAction("Deliver construction cargo", () =>
                     Send("/station contribute " + id + " " + Value("contributeItem") + " " + Value("contributeAmount")));
             }
             AddAction("View contribution ledger", "/station contributions " + id);
@@ -841,9 +853,9 @@ namespace GoF2Remake.UI
 
         void Dispatch(string command)
         {
-            NetPanel.Command(command.TrimEnd());
             feedback.text = "Request sent. The server response will appear here.";
             feedbackTime = 8f;
+            NetPanel.Command(command.TrimEnd());
         }
 
         void OnChat(NetChat.Message message)
