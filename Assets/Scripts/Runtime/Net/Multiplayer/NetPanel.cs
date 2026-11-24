@@ -21,6 +21,8 @@ namespace GoF2Remake.Multiplayer
             // Profile (NetProfiles).
             public bool profiles;            // the server keeps profiles (factions, the leaderboard and /link need them)
             public string profileId = "";
+            public bool playerIdentityEnabled;
+            public string playerRace, playerPortrait;
             public int devices;
             public bool controller = true, guest;
             // Faction (NetFactions).

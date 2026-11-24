@@ -32,6 +32,7 @@ namespace GoF2Remake.Modding
             public string id, key, portrait;
             public Dictionary<string, string> name;
             public int race;            // game race or ModRaces number
+            public bool playerPortrait;
             public bool hasRace;      // false: inherit the event client's race
             public bool hasGender;    // false: inherit the event client's gender
             public string silhouette; // optional lounge visitor mesh, independent of race/name colour
@@ -54,7 +55,7 @@ namespace GoF2Remake.Modding
         }
 
         static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "id", "name", "portrait", "race", "gender", "silhouette", "mirrored", "frame", "background", "replaces" };
+            { "id", "name", "portrait", "race", "gender", "silhouette", "mirrored", "frame", "background", "replaces", "playerPortrait" };
 
         static readonly Dictionary<string, Def> defs = new Dictionary<string, Def>(StringComparer.OrdinalIgnoreCase);
         static int parsedRevision = -1, loading;
@@ -99,6 +100,7 @@ namespace GoF2Remake.Modding
                     mirrored = ModJson.Bool(o, "mirrored", false, File),
                     frame = ModJson.Bool(o, "frame", true, File),
                     background = ModJson.Bool(o, "background", true, File),
+                    playerPortrait = ModJson.Bool(o, "playerPortrait", false, File),
                     replaces = ModJson.Str(o, "replaces"),
                     silhouette = ModJson.Str(o, "silhouette"),
                 };

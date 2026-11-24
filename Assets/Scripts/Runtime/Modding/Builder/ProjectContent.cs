@@ -315,6 +315,7 @@ namespace GoF2Remake.Modding
         public bool Male { get => !string.Equals(S("gender"), "female", System.StringComparison.OrdinalIgnoreCase); set => json["gender"] = value ? "male" : "female"; }
         public bool Mirrored { get => B("mirrored", false); set => SetB("mirrored", value, false); }
         public bool Frame { get => B("frame", true); set => SetB("frame", value, true); }
+        public bool PlayerPortrait { get => B("playerPortrait", false); set => SetB("playerPortrait", value, false); }
         public bool Background { get => B("background", true); set => SetB("background", value, true); }
         /// <summary>The story character it stands in for (a speaker's name or number), null = nobody.</summary>
         public string Replaces { get => json["replaces"]?.ToString(); set => SetS("replaces", value); }

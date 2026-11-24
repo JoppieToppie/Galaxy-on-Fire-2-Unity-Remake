@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 using GoF2Remake.Modding;
 
@@ -20,7 +19,7 @@ namespace GoF2Remake.Multiplayer
         {
             key = null;
             if (!ModRaces.TryResolve(reference, null, out int race)) return false;
-            key = ModRaces.Is(race) ? ModRaces.Get(race)?.key : race.ToString(CultureInfo.InvariantCulture);
+            key = PlayerIdentity.RaceKey(race);
             return !string.IsNullOrEmpty(key);
         }
 

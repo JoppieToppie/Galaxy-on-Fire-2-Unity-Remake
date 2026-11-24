@@ -136,6 +136,7 @@ namespace GoF2Remake.Modding
         public static int GameRaceWord(string w) => (w ?? "").Trim().ToLowerInvariant() switch
         {
             "terran" or "terrans" => 0, "vossk" => 1, "nivelian" or "nivelians" => 2, "midorian" or "midorians" => 3,
+            "octopod" or "multipod" => 4, "cyborg" => 5, "bobolian" or "bobolan" => 6, "grey" or "gray" => 7,
             "pirate" or "pirates" => 8, "void" => 9, "specter" or "specters" => 10, _ => -1,
         };
 

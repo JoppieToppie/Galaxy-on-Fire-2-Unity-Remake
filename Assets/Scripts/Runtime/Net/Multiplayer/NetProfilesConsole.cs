@@ -25,6 +25,7 @@ namespace GoF2Remake.Multiplayer
             {
                 case "/link":
                     return words.Length == 1 ? NewLinkCode(login) : UseLinkCode(login, words[1], words.Length > 2 && words[2].ToLowerInvariant() == "force");
+                case "/appearance": return SetOwnAppearance(login, words);
                 case "/control":
                     return TakeControl(login);
                 case "/profile": case "/whoami":
@@ -35,6 +36,21 @@ namespace GoF2Remake.Multiplayer
                     return Localization.Extra("mpCommands", "Commands: /duel <name>, /accept, /decline, /ffa, /leave, /arena, /top; /faction (help: /faction help), /f <text>; /link (a code for another device), /link CODE, /control, /profile; /staff (ops: /kick, /tempban, /unban, /bans; admins: /ban, /op, /deop).");
             }
         }
+        static string SetOwnAppearance(Login login, string[] words)
+        {
+            if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled)
+                return "Player race and portrait selection is disabled.";
+            if (login.account == null || !login.controller) return "Take control of a persistent profile first.";
+            if (NetPlayerStations.ProfileWritesBlocked) return "Profile changes are paused during station transaction recovery.";
+            if (words.Length != 3 || !PlayerIdentity.TryResolveRace(words[1], out int race) ||
+                !PlayerIdentity.TryResolvePortrait(race, words[2], out _, out _))
+                return "Choose a race and a portrait belonging to that race.";
+            string raceKey = PlayerIdentity.RaceKey(race);
+            if (!string.IsNullOrEmpty(login.account.stationPolicyRace) && login.account.stationPolicyRace != raceKey)
+                return "Your profile race is already set. A server administrator can reset it.";
+            return SavePlayerIdentity(login.account, raceKey, words[2]) ? "Pilot appearance saved." : "Pilot appearance could not be saved.";
+        }
+
         static string NewLinkCode(Login login)
         {
             if (login.account == null) return Localization.Extra("mpGuestNoLink", "A guest has no profile to link.");
@@ -143,7 +159,14 @@ namespace GoF2Remake.Multiplayer
             {
                 s.guest = l.account == null;
                 s.controller = l.controller;
-                if (l.account != null) { s.profileId = l.account.id; s.devices = l.account.devices.Count; }
+                if (l.account != null)
+                {
+                    s.profileId = l.account.id;
+                    s.devices = l.account.devices.Count;
+                    s.playerIdentityEnabled = Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled;
+                    s.playerRace = l.account.stationPolicyRace;
+                    s.playerPortrait = l.account.playerPortrait;
+                }
             }
             s.top = Leaderboard();
         }
