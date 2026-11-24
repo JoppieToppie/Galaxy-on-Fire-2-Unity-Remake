@@ -499,6 +499,9 @@ namespace GoF2Remake.Multiplayer
                 return "The station does not have that much of this item.";
             if (OwnedStorageAmount(record, account, item) < amount)
                 return "Those goods belong to another contributor and cannot be withdrawn by this profile.";
+            // Keep withdrawal atomic: reject over-capacity transfers before editing storage lots.
+            if (NetProfiles.WreckSalvageCargoRoom(by, account) < amount)
+                return "Your ship does not have enough free cargo space for this withdrawal.";
             var previousLots = CloneStorageLots(record);
             RemoveStorageLots(record, account, item, amount);
             stack.amount -= amount;
