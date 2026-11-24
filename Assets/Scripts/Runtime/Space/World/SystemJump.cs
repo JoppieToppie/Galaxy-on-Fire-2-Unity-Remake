@@ -250,13 +250,11 @@ namespace GoF2Remake.World
                 if (cam != null) cam.transform.SetPositionAndRotation(ship.transform.TransformPoint(heldView), ship.transform.rotation * heldTurn);
                 return;
             }
-            if (cam != null && state == State.KhadorScene && khadorModFx && modCamera != null)
+            if (cam != null && state == State.KhadorScene && khadorModFx && modCamera?.HasCamera == true)
             {
                 var fallback = new Vector3(2000f, 300f, -2000f);
-                var offset = modCamera.Position(animMs, fallback);
-                if (modCamera.keys.Count == 0 && !modCamera.drift.HasValue)
-                    offset += new Vector3(-5f, 2f, -5f) * animMs;
-                cam.transform.position = modCameraOrigin + sceneFrame * (offset * M);
+                if (modCamera.keys.Count > 0 || modCamera.drift.HasValue)
+                    cam.transform.position = modCameraOrigin + sceneFrame * (modCamera.Position(animMs, fallback, new Vector3(-5f, 2f, -5f)) * M);
                 var aim = modCamera.lookAt == "effect" && fx != null ? fx.transform.position :
                     modCamera.lookAt == "custom" ? modCameraOrigin : ship.transform.position;
                 aim += sceneFrame * ((modCamera.lookOffset ?? Vector3.zero) * M);
@@ -801,7 +799,7 @@ namespace GoF2Remake.World
                 var modFx = ModJumpEffect.Spawn(modSpec, meet - modRot * ModJumpEffect.MeetOffset(modSpec), modRot, jumpFailed ? modSpec.failTexture : null);
                 fx = modFx.gameObject;
                 animLength = Mathf.Max(modFx.LengthMs, modSpec.meetMs) + modSpec.endHoldMs;   // then the next area loads
-                if (modCamera?.durationMs != null) animLength = Mathf.Max(animLength, modCamera.durationMs.Value);
+                if (modCamera != null) animLength = Mathf.Max(animLength, modCamera.MinimumDuration);
                 khadorHideMs = modSpec.meetMs;
                 khadorModFx = true;
             }
@@ -887,7 +885,7 @@ namespace GoF2Remake.World
             bool gateScene = state == State.GateScene;
             var cam = Camera.main;
             // Modified: a mod drive's effect keeps the camera drifting off after the ship vanished, to its end and the hold after.
-            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null && (gateScene || !khadorModFx || modCamera == null))   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
+            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null && (gateScene || !khadorModFx || modCamera == null || (modCamera.keys.Count == 0 && !modCamera.drift.HasValue)))   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
                 cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M * (gateScene ? gateSceneScale : 1f));
             if (rift != null)
             {
