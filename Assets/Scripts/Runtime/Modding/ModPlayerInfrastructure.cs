@@ -26,6 +26,22 @@ namespace GoF2Remake.Modding
         public float MinimumJumpgateScale { get; private set; } = 1f;
         public float ScrapIntegrity { get; private set; } = DefaultScrapIntegrity;
         public IReadOnlyList<string> StationModels { get; private set; } = Array.Empty<string>();
+        public IReadOnlyDictionary<string, string> StationModelImages { get; private set; } = new Dictionary<string, string>();
+        static ModInfo currentRulesMod;
+
+        internal static (string id, UnityEngine.Texture2D texture) StationModelImage(int model)
+        {
+            ResolveActiveRules();
+            foreach (var entry in current.StationModelImages)
+            {
+                if (!(int.TryParse(entry.Key, out int numeric) && numeric == model) &&
+                    !(ModWorld.TryResolveStation(entry.Key, out int index) && index == model)) continue;
+                var texture = GameModels.Is(entry.Value) ? GameModels.Icon(entry.Value) :
+                    currentRulesMod != null ? ModMaterials.Texture(currentRulesMod, entry.Value, false, true) : null;
+                return (entry.Value, texture);
+            }
+            return (null, null);
+        }
         public IReadOnlyList<OrbitalDefinition> OrbitalStructures { get; private set; } = StockStructures;
         public IReadOnlyList<string> JumpgateModels { get; private set; } = Array.Empty<string>();
 
@@ -82,11 +98,13 @@ namespace GoF2Remake.Modding
             var mods = ModManager.Active;
             if (currentRevision == ModManager.Revision) return;
             current = Defaults;
+            currentRulesMod = null;
             minimumScales = (1f, 1f);
             foreach (var mod in mods)
             {
                 if (!(ModContent.Parse(mod).playerInfrastructure is ModPlayerInfrastructure rules)) continue;
                 current = rules;
+                currentRulesMod = mod;
                 minimumScales.Station = Math.Max(minimumScales.Station, rules.MinimumStationScale);
                 minimumScales.Jumpgate = Math.Max(minimumScales.Jumpgate, rules.MinimumJumpgateScale);
             }
@@ -119,6 +137,7 @@ namespace GoF2Remake.Modding
                 OtherOrbitalStructureLimit = StructureInt(settings, "otherOrbitalStructureLimit", MaxOtherOrbitalStructureLimit, 0, MaxOtherOrbitalStructureLimit),
                 OrbitalStructures = ReadStructures(settings),
                 StationModels = ReadReferences(settings, "stationModels"),
+                StationModelImages = ReadModelImages(settings),
                 JumpgateModels = ReadReferences(settings, "jumpgateModels")
             };
         }
@@ -236,6 +255,23 @@ namespace GoF2Remake.Modding
             if (value == null) return true;
             if (value.Type != JTokenType.Boolean) throw new ModJsonException(FileName + " " + field + " must be true or false.");
             return (bool)value;
+        }
+
+        static IReadOnlyDictionary<string, string> ReadModelImages(JObject settings)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (settings["stationModelImages"] == null) return result;
+            if (!(settings["stationModelImages"] is JObject images) || images.Count > 256)
+                throw new ModJsonException(FileName + " stationModelImages must be an object with up to 256 entries.");
+            foreach (var entry in images.Properties())
+            {
+                string key = entry.Name.Trim();
+                string value = entry.Value.Type == JTokenType.String ? ((string)entry.Value).Trim() : "";
+                if (key.Length == 0 || key.Length > 128 || value.Length == 0 || value.Length > 256 || result.ContainsKey(key))
+                    throw new ModJsonException(FileName + " contains an invalid station model image reference.");
+                result.Add(key, value);
+            }
+            return result;
         }
 
         static IReadOnlyList<string> ReadReferences(JObject settings, string field)
