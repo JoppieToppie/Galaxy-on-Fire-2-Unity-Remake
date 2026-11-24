@@ -11,6 +11,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Unity.InputSystem",
+        "Unity.Netcode.Runtime",
         "Unity.RenderPipelines.Universal.Runtime",
         "glTFast"
     ],
