@@ -44,7 +44,10 @@ namespace GoF2Remake.UI
             openButton.AddToClassList("station-button");
             openButton.AddToClassList("gof-semibold");
             var buttons = root.Q("sidePanel")?.Q(className: "station-buttons");
-            if (buttons != null) buttons.Add(openButton); else safeArea.Add(openButton);
+            var inspectButton = buttons?.Q<Button>("inspectButton");
+            if (inspectButton != null) buttons.Insert(buttons.IndexOf(inspectButton), openButton);
+            else if (buttons != null) buttons.Add(openButton);
+            else safeArea.Add(openButton);
             openButton.style.display = DisplayStyle.None;
             openButton.clicked += menu.PlayRelease;
             openButton.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
@@ -79,11 +82,23 @@ namespace GoF2Remake.UI
             panel?.RemoveFromHierarchy();
         }
 
+        bool CanOpen => NetGame.Active && level?.Layout != null;
+
+        static string StationDataStatus()
+        {
+            var state = NetState.Instance;
+            if (NetGame.IsServer ? !NetGame.PersistentHost && !NetGame.Dedicated
+                : state != null && !state.ProfilesOn && !state.Dedicated)
+                return "Player-built stations require a persistent world. When hosting, set World to Persistent.";
+            if (NetPlayerStations.Stations == null || (!NetGame.IsServer && string.IsNullOrEmpty(state?.PlayerStations)))
+                return "Player station data is unavailable. Check that the server has loaded its station registry.";
+            return null;
+        }
+
         public void Update()
         {
-            bool available = NetGame.Active && level?.Layout != null && NetPlayerStations.Stations != null;
-            openButton.style.display = available ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!available) { if (open) Close(); return; }
+            openButton.style.display = CanOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!CanOpen) { if (open) Close(); return; }
             if (!open) return;
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
@@ -97,7 +112,7 @@ namespace GoF2Remake.UI
 
         void Open()
         {
-            if (!NetGame.Active) return;
+            if (!CanOpen) return;
             menu.CloseHangar();
             panel.style.display = DisplayStyle.Flex;
             panel.BringToFront();
@@ -122,6 +137,11 @@ namespace GoF2Remake.UI
         void RebuildStationList()
         {
             stationList.Clear();
+            if (StationDataStatus() != null)
+            {
+                selected = null;
+                return;
+            }
             // Away from a project, show it only to its funders or when it has public orders.
             int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;
             var records = NetPlayerStations.Stations?.Where(x => x != null && !x.retired && !x.destroyed && !x.wreckClaimOpen &&
@@ -175,6 +195,13 @@ namespace GoF2Remake.UI
                 if (focusLabel != null && panel.focusController?.focusedElement == null)
                     body.Query<Button>().ToList().Find(button => button.text == focusLabel)?.Focus();
             }).ExecuteLater(1);
+            var dataStatus = StationDataStatus();
+            if (dataStatus != null)
+            {
+                AddSection("STATION MANAGEMENT", dataStatus);
+                return;
+            }
+
             BuildStationPlanner();
             var current = NetGame.Db.Stations.Find(station => station != null && station.index == level.Layout.stationIndex);
             if (current != null) BuildSystemGates(current.system);
