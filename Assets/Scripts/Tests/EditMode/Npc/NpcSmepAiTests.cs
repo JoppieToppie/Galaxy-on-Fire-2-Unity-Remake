@@ -72,6 +72,17 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(excluded, SmepAiRules.ExcludedNpcClass(classId));
         }
 
+        [TestCase("Frigate")]
+        [TestCase("Freighter")]
+        [TestCase("Cruiser")]
+        [TestCase("Carrier")]
+        public void MobileLargeShipsHaveDesktopParity(string shipClass)
+        {
+            Assert.IsFalse(SmepAiRules.ProtectedMobile(true, shipClass));
+            Assert.IsTrue(SmepAiRules.UseCustomFlight(true, SmepAiRules.ProtectedMobile(true, shipClass), false, true, false));
+            Assert.IsTrue(SmepAiRules.ProtectedMobile(true, "Fighter"));
+        }
+
         [Test]
         public void DesktopPlayerWinsNewSelectionEvenWhenMobilePlayerIsCloser()
         {
