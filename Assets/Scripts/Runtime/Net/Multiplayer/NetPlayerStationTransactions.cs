@@ -206,6 +206,11 @@ namespace GoF2Remake.Multiplayer
                 journal.storedShips.Add(new StationShipTarget { account = target.Key, ships = target.Value });
 
             if (!NetProfiles.Write(TransactionPath, JsonUtility.ToJson(journal, true))) return false;
+            var affectedAccounts = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var target in journal.cargo) affectedAccounts.Add(target.account);
+            foreach (var target in journal.credits) affectedAccounts.Add(target.account);
+            foreach (var target in journal.storedShips) affectedAccounts.Add(target.account);
+            foreach (string account in affectedAccounts) NetProfiles.InvalidateEconomyUploads(account);
             if (!FinishTransaction(journal))
                 Debug.LogWarning("NetPlayerStations: station transaction is journalled and will be retried during recovery.");
             return true; // A durable journal commits the intent; callers must not compensate it.
