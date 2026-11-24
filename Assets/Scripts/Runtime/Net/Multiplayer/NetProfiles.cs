@@ -581,7 +581,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool DiscoverSystem(string id, int system)
         {
-            if (string.IsNullOrEmpty(id) || NetGame.Db?.Systems == null ||
+            if (NetPlayerStations.ProfileWritesBlocked || string.IsNullOrEmpty(id) || NetGame.Db?.Systems == null ||
                 NetGame.Db.Systems.Find(x => x != null && x.index == system) == null) return false;
             var account = index?.accounts?.Find(x => x != null && string.Equals(x.id, id, StringComparison.Ordinal));
             if (account == null) return false;
@@ -589,7 +589,11 @@ namespace GoF2Remake.Multiplayer
             if (!account.gateDiscoveredSystems.Contains(system))
             {
                 account.gateDiscoveredSystems.Add(system);
-                SaveIndex();
+                if (!Write(IndexPath, JsonUtility.ToJson(index, true)))
+                {
+                    account.gateDiscoveredSystems.Remove(system);
+                    return false;
+                }
             }
             var save = ReadSave(id);
             bool host = false;
@@ -858,7 +862,13 @@ namespace GoF2Remake.Multiplayer
             try
             {
                 string tmp = path + ".tmp";
-                File.WriteAllText(tmp, text);
+                // Flush file contents before the atomic rename, including transaction intent files.
+                using (var stream = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: true))
+                        writer.Write(text);
+                    stream.Flush(flushToDisk: true);
+                }
                 // Replace the destination atomically. Deleting it before moving the temporary
                 // file leaves a crash window with no primary profile or transaction journal.
                 if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
