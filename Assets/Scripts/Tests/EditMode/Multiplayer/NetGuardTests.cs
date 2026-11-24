@@ -266,6 +266,27 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(10, station.storage[0].amount);
         }
 
+        [Test]
+        public void PlayerGateInteractionRequiresFiniteNearbyPosition()
+        {
+            var centre = Vector3.forward * 5000f;
+            Assert.IsTrue(NetPlayerStations.GateInteractionInRange(centre, centre, 375f));
+            Assert.IsTrue(NetPlayerStations.GateInteractionInRange(centre + Vector3.right * 450f, centre, 375f));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(centre + Vector3.right * 476f, centre, 375f));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(Vector3.zero, centre, 375f));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(centre, centre, float.NaN));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(centre, centre, 0f));
+        }
+
+        [Test]
+        public void PercentageFactionTollDoesNotOverflowLongCreditBalances()
+        {
+            Assert.AreEqual(500, NetFactions.TollFor(-5, 10000));
+            Assert.AreEqual(1, NetFactions.TollFor(-5, 0));
+            Assert.AreEqual(int.MaxValue, NetFactions.TollFor(-100, long.MaxValue));
+            Assert.AreEqual(int.MaxValue, NetFactions.TollFor(-5, long.MaxValue));
+        }
+
         // ---- NetRateLimit ----
 
         [SetUp]
