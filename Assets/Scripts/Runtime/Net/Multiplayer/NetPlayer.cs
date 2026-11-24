@@ -481,6 +481,32 @@ namespace GoF2Remake.Multiplayer
             reply?.Invoke(result);
         }
 
+        int stationMarketSequence;
+        System.Action<NetPlayerStations.MarketUiCatalogue> stationMarketReply;
+        internal bool RequestStationMarket(int station, System.Action<NetPlayerStations.MarketUiCatalogue> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null) return false;
+            stationMarketReply = reply;
+            stationMarketSequence = stationMarketSequence == int.MaxValue ? 1 : stationMarketSequence + 1;
+            StationMarketRequestRpc(stationMarketSequence, station);
+            return true;
+        }
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationMarketRequestRpc(int sequence, int station, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            StationMarketReplyRpc(sequence, JsonUtility.ToJson(NetPlayerStations.MarketCatalogueFor(this, station)));
+        }
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void StationMarketReplyRpc(int sequence, string json)
+        {
+            if (!IsOwner || sequence != stationMarketSequence) return;
+            var reply = stationMarketReply;
+            stationMarketReply = null;
+            try { reply?.Invoke(JsonUtility.FromJson<NetPlayerStations.MarketUiCatalogue>(json)); }
+            catch (System.Exception e) { Debug.LogWarning("Station marketplace snapshot: " + e.Message); }
+        }
+
         int stationPlannerSequence;
         System.Action<int[]> stationPlannerReply;
         internal bool RequestStationPlannerLocations(System.Action<int[]> reply)
