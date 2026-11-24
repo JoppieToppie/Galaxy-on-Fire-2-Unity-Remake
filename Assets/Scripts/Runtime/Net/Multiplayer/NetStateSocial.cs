@@ -55,7 +55,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Chat)) return;
             if (text == null || text.Length > NetChat.MaxLength * 4) { NetRateLimit.Reject(client, "an overlong chat line"); return; }
             text = NetChat.Clean(text);
-            if (text.Length == 0) return;
+            if (text.Length == 0 || NetProfiles.IdentityPending(client)) return;
             var sender = NetSquad.Find(client);
             if (sender == null) return;
             // A command (the station window's buttons send them as chat lines, NetPanel.Command): run like a typed one
@@ -133,7 +133,7 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             var from = NetSquad.Find(client);
-            if (from == null) return;
+            if (from == null || NetProfiles.IdentityPending(client)) return;
             string reply = NetCommands.RunOnServer(name, args, from);
             if (!string.IsNullOrEmpty(reply)) NoticeToRpc(reply, RpcTarget.Single(from.OwnerClientId, RpcTargetUse.Temp));
         }
