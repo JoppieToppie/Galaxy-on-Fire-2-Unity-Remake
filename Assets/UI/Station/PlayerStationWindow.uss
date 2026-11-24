@@ -26,15 +26,12 @@
 .player-station-action { margin: 4px 0; padding: 9px 14px; color: var(--gof-text); background-color: var(--button-fill); border-width: 1px; border-color: var(--button-line); border-radius: 3px; -unity-text-align: middle-left; white-space: normal; }
 .player-station-action:hover, .player-station-close:hover { color: #FFFFFF; border-color: var(--gof-amber); }
 .player-station-feedback { min-height: 28px; margin-top: 10px; padding: 8px 12px; color: var(--gof-amber); background-color: rgba(0,0,0,0.4); white-space: normal; }
-@media (max-width: 900px) {
-    .player-station-window { left: 2%; right: 2%; top: 7%; bottom: 5%; padding: 10px; }
-    .player-station-content { flex-direction: column; }
-    .player-station-list { width: auto; min-width: 0; max-height: 25%; margin-right: 0; margin-bottom: 8px; border-right-width: 0; border-bottom-width: 1px; border-bottom-color: rgba(95,185,205,0.35); flex-direction: row; }
-    .player-station-row { min-width: 150px; margin-right: 6px; }
-    .player-station-title { font-size: var(--text-body); letter-spacing: 2px; }
-}
-
-.input-touch .player-station-window { left: 2%; right: 2%; top: 6%; bottom: 4%; padding: 10px; }
-.input-touch .player-station-content { flex-direction: column; }
-.input-touch .player-station-list { width: auto; min-width: 0; max-height: 24%; margin-right: 0; margin-bottom: 8px; border-right-width: 0; border-bottom-width: 1px; border-bottom-color: rgba(95,185,205,0.35); flex-direction: row; }
-.input-touch .player-station-row { min-width: 150px; margin-right: 6px; }
+.player-station-window.player-station-compact { left: 2%; right: 2%; top: 6%; bottom: 4%; padding: 10px; }
+.player-station-compact .player-station-content { flex-direction: column; }
+.player-station-compact .player-station-list { width: auto; min-width: 0; max-height: 24%; margin-right: 0; margin-bottom: 8px; border-right-width: 0; border-bottom-width: 1px; border-bottom-color: rgba(95,185,205,0.35); }
+.player-station-compact .player-station-row { min-width: 150px; max-width: 240px; margin-right: 6px; }
+.player-station-compact .player-station-title { font-size: var(--text-body); letter-spacing: 2px; }
+.player-station-compact .player-station-field { flex-direction: column; align-items: stretch; }
+.player-station-compact .player-station-field .unity-base-field__label { min-width: 0; width: auto; white-space: normal; }
+.player-station-compact .player-station-info { flex-wrap: wrap; }
+.player-station-action:focus, .player-station-row:focus, .player-station-close:focus { border-color: var(--gof-amber); color: #FFFFFF; }
