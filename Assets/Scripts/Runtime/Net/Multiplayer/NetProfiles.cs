@@ -201,7 +201,12 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>The player's device controls its profile (a signed-in controller, not a guest or an observer).</summary>
-        internal static bool Controls(ulong client) => logins.TryGetValue(client, out var l) && l.account != null && l.controller;
+        static bool NeedsIdentity(Account account) => account != null && Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled &&
+            !PlayerIdentity.IsComplete(account.stationPolicyRace, account.playerPortrait);
+
+        internal static bool IdentityPending(ulong client) => Enabled && logins.TryGetValue(client, out var login) && NeedsIdentity(login.account);
+
+        internal static bool Controls(ulong client) => logins.TryGetValue(client, out var l) && l.account != null && l.controller && !NeedsIdentity(l.account);
 
         /// <summary>Credits the server moved in or out of a profile (the faction bank): its recorded worth moves too, so the
         /// next upload is measured against what the game should have now.</summary>
@@ -898,7 +903,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || string.IsNullOrEmpty(id)) return false;
             var account = index?.accounts.Find(entry => entry != null && entry.id == id);
-            if (account == null) return false;
+            if (account == null || PlayerIdentity.IsComplete(account.stationPolicyRace, account.playerPortrait) ||
+                (Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled && IsOnline(id))) return false;
             return SavePlayerIdentity(account, race, race == account.stationPolicyRace ? account.playerPortrait : null);
         }
 
