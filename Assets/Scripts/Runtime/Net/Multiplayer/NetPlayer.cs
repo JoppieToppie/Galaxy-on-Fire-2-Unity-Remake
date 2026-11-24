@@ -483,19 +483,19 @@ namespace GoF2Remake.Multiplayer
 
         int stationMarketSequence;
         System.Action<NetPlayerStations.MarketUiCatalogue> stationMarketReply;
-        internal bool RequestStationMarket(int station, System.Action<NetPlayerStations.MarketUiCatalogue> reply)
+        internal bool RequestStationMarket(int station, int page, System.Action<NetPlayerStations.MarketUiCatalogue> reply)
         {
             if (!IsOwner || !IsSpawned || reply == null) return false;
             stationMarketReply = reply;
             stationMarketSequence = stationMarketSequence == int.MaxValue ? 1 : stationMarketSequence + 1;
-            StationMarketRequestRpc(stationMarketSequence, station);
+            StationMarketRequestRpc(stationMarketSequence, station, page);
             return true;
         }
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        void StationMarketRequestRpc(int sequence, int station, RpcParams rpc = default)
+        void StationMarketRequestRpc(int sequence, int station, int page, RpcParams rpc = default)
         {
             if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
-            StationMarketReplyRpc(sequence, JsonUtility.ToJson(NetPlayerStations.MarketCatalogueFor(this, station)));
+            StationMarketReplyRpc(sequence, JsonUtility.ToJson(NetPlayerStations.MarketCatalogueFor(this, station, page)));
         }
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
         void StationMarketReplyRpc(int sequence, string json)
