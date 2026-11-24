@@ -67,6 +67,8 @@ namespace GoF2Remake.Multiplayer
         const int PlayerStationChunkBytes = 2800, MaxPlayerStationChunks = 1024;
         readonly NetworkList<FixedString4096Bytes> playerStationChunks = new NetworkList<FixedString4096Bytes>(null, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         int playerStationRevision;
+        int appliedPlayerStationRevision;
+        bool playerStationSnapshotDirty;
         string playerStationJson = "";
         readonly NetworkVariable<FixedString4096Bytes> sieges = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' sieges
         readonly NetworkVariable<FixedString4096Bytes> pirateBoard = new NetworkVariable<FixedString4096Bytes>();   // PirateReports' board (JSON)
@@ -163,6 +165,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer || !IsSpawned) return false;
             json ??= "";
+            if (playerStationChunks.Count > 0 && string.Equals(playerStationJson, json, StringComparison.Ordinal)) return true;
             byte[] bytes = Encoding.UTF8.GetBytes(json);
             int count = Math.Max(1, (bytes.Length + PlayerStationChunkBytes - 1) / PlayerStationChunkBytes);
             if (count > MaxPlayerStationChunks)
@@ -190,7 +193,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer || playerStationChunks.Count == 0) return;
             int revision = -1, count = -1;
-            var payloads = new string[playerStationChunks.Count];
+            string[] payloads = null;
             foreach (var value in playerStationChunks)
             {
                 string entry = value.ToString();
@@ -202,7 +205,11 @@ namespace GoF2Remake.Multiplayer
                     !int.TryParse(entry.Substring(a + 1, b - a - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int index) ||
                     !int.TryParse(entry.Substring(b + 1, d - b - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int itemCount)) return;
                 if (itemRevision <= 0 || itemCount < 1 || itemCount > MaxPlayerStationChunks || index < 0 || index >= itemCount) return;
-                if (revision < 0) { revision = itemRevision; count = itemCount; payloads = new string[count]; }
+                if (revision < 0)
+                {
+                    if (itemRevision == appliedPlayerStationRevision || playerStationChunks.Count != itemCount) return;
+                    revision = itemRevision; count = itemCount; payloads = new string[count];
+                }
                 if (revision != itemRevision || count != itemCount || payloads[index] != null) return;
                 payloads[index] = entry.Substring(d + 1);
             }
@@ -218,6 +225,7 @@ namespace GoF2Remake.Multiplayer
                 byte[] snapshot = Convert.FromBase64String(joined.ToString());
                 playerStationJson = Encoding.UTF8.GetString(snapshot);
                 NetPlayerStations.ReceiveSnapshot(playerStationJson);
+                appliedPlayerStationRevision = revision;
             }
             catch (Exception e)
             {
@@ -304,7 +312,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!IsServer)
             {
-                playerStationChunks.OnListChanged += _ => TryApplyPlayerStationSnapshot();
+                playerStationChunks.OnListChanged += _ => playerStationSnapshotDirty = true;
                 TryApplyPlayerStationSnapshot();
             }
             // The session's Pirate activity board on every game (the host's too), now and whenever the server changes it.
@@ -332,6 +340,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (Instance == this) Instance = null;
             playerStationJson = "";
+            appliedPlayerStationRevision = 0;
+            playerStationSnapshotDirty = false;
             NetPlayerStations.EndSession();
         }
 
@@ -439,6 +449,13 @@ namespace GoF2Remake.Multiplayer
         void Update()
         {
             if (refuseJoin != null) { string why = refuseJoin; refuseJoin = null; NetGame.RefuseJoin(why); return; }
+            // NetworkList emits one callback for every chunk. Decode at most once per frame,
+            // and only when all chunks of a revision have arrived.
+            if (!IsServer && IsSpawned && playerStationSnapshotDirty)
+            {
+                playerStationSnapshotDirty = false;
+                TryApplyPlayerStationSnapshot();
+            }
             NetStock.Flush();   // the shared stock that arrived, applied between frames (every player)
             NetTradeClient.Tick();   // this player's trade offer goes out, kept within the hold
             NetCoop.Tick(this);   // a co-op campaign: the leader's story out, a guest's catch-up and progress
