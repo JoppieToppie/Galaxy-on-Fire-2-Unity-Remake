@@ -864,7 +864,19 @@ namespace GoF2Remake.UI
             var draft = (JObject)Project.PlayerInfrastructure.DeepClone();
             ModPlayerInfrastructure settings;
             try { settings = ModPlayerInfrastructure.Parse(draft); }
-            catch (ModJsonException error) { Status(error.Message, true); return; }
+            catch (ModJsonException error)
+            {
+                // Invalid saved rules must remain editable rather than locking the user out of the editor.
+                EditJson(draft, () =>
+                {
+                    try { ModPlayerInfrastructure.Parse(draft); }
+                    catch (ModJsonException invalid) { Status(invalid.Message, true); return; }
+                    Project.PlayerInfrastructure = draft;
+                    RequestReload(false);
+                    ShowPlayerInfrastructure();
+                }, "Repair the player infrastructure rules: " + error.Message);
+                return;
+            }
 
             CloseModal();
             var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
@@ -900,9 +912,41 @@ namespace GoF2Remake.UI
                 { value = settings.OtherOrbitalStructureLimit }, "mbv-field");
             Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOtherOrbitalStructureLimit} for structures without weapons.");
             Note(scroll, "Add presets as a JSON array. Use sponsorRaces to filter by the sponsor system’s race. Defense presets can set targetPlayers and targetNpcs.");
+            Note(scroll, "Use the example buttons below to add a valid editable preset, then replace its model and costs as needed.");
             Note(scroll, "Add maintenance with intervalSeconds and materials for upkeep. Optional decayPercentPerDay defaults to 1. Optional minimumIntegrityPercent defaults to 15 and can be set from 15 to 100.");
             var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
                 value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
+            void AddPreset(bool defense)
+            {
+                try
+                {
+                    var entries = JArray.Parse(structures.value);
+                    string prefix = defense ? "custom-defense" : "custom-structure";
+                    string id = prefix;
+                    for (int i = 2; entries.OfType<JObject>().Any(entry => string.Equals((string)entry["id"], id, StringComparison.OrdinalIgnoreCase)); i++)
+                        id = prefix + "-" + i;
+                    var preset = new JObject
+                    {
+                        ["id"] = id, ["name"] = defense ? "Custom defense" : "Custom structure",
+                        ["assembly"] = "turret_002_static", ["defense"] = defense,
+                        ["modelScale"] = 1f, ["hitRadius"] = 250f, ["integrity"] = 12000f,
+                        ["buildSeconds"] = 0, ["materials"] = new JArray(new JObject { ["item"] = 156, ["amount"] = 200 })
+                    };
+                    if (defense)
+                    {
+                        preset["targetPlayers"] = true; preset["targetNpcs"] = true;
+                        preset["range"] = 5000; preset["damage"] = 120; preset["fireIntervalSeconds"] = 3;
+                        preset["maintenance"] = new JObject { ["intervalSeconds"] = 86400, ["decayPercentPerDay"] = 1,
+                            ["minimumIntegrityPercent"] = 15, ["materials"] = new JArray(new JObject { ["item"] = 156, ["amount"] = 10 }) };
+                    }
+                    entries.Add(preset);
+                    structures.value = entries.ToString(Newtonsoft.Json.Formatting.Indented);
+                }
+                catch (Newtonsoft.Json.JsonException e) { Status("Repair the preset JSON first: " + e.Message, true); }
+            }
+            var templates = Row(scroll);
+            Act(templates, "+ Defense preset", () => AddPreset(true));
+            Act(templates, "+ Other structure", () => AddPreset(false));
             var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");
             var actions = Row(box);
             Act(actions, T("mbApply", "Apply"), () =>
