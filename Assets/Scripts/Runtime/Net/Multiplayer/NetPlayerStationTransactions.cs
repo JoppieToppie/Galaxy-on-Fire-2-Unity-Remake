@@ -67,14 +67,7 @@ namespace GoF2Remake.Multiplayer
                 if (!NetProfiles.Controls(client)) continue;
                 // The host profile was updated directly by NetProfiles.SetCreditsAmount.
                 if (NetGame.PersistentHost && client == NetGame.LocalId) break;
-                long remaining = delta;
-                while (remaining != 0)
-                {
-                    int part = remaining > int.MaxValue ? int.MaxValue :
-                        remaining < int.MinValue ? int.MinValue : (int)remaining;
-                    NetState.Instance?.SendAdmin(client, NetAdmin.Order.Credits, part, 0, 0, "", reason ?? "Station transaction");
-                    remaining -= part;
-                }
+                NetState.Instance?.SendStationCreditDelta(client, delta, reason ?? "Station transaction");
                 break;
             }
         }
