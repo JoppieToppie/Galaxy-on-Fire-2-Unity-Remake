@@ -42,9 +42,9 @@ namespace GoF2Remake.Multiplayer
                 return "Player race and portrait selection is disabled.";
             if (login.account == null || !login.controller) return "Take control of a persistent profile first.";
             if (NetPlayerStations.ProfileWritesBlocked) return "Profile changes are paused during station transaction recovery.";
-            if (words.Length != 3 || !PlayerIdentity.TryResolveRace(words[1], out int race) ||
+            if (words.Length != 3 || !PlayerIdentity.TryResolveSelectableRace(words[1], out int race) ||
                 !PlayerIdentity.TryResolvePortrait(race, words[2], out _, out _))
-                return "Choose a race and a portrait belonging to that race.";
+                return "Choose a playable race and a matching portrait. Void and Specters are not playable.";
             string raceKey = PlayerIdentity.RaceKey(race);
             if (!PlayerIdentity.CanChoose(login.account.stationPolicyRace, login.account.playerPortrait, raceKey))
                 return "Your pilot identity is permanent and cannot be changed.";
