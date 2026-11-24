@@ -128,3 +128,36 @@ mod drive effects retain their previous behaviour when `jumpRules` and
 For reference, the relevant engine files are `ModJumpFx.cs`, `SystemJump.cs`,
 `StarMapRules.cs`, `StarMapOverlay.cs`, `ModContentNumbering.cs`, `Shop.cs`,
 `Hangar.cs` and `GameHooks.cs`.
+
+## Optional cinematic controls
+
+Under an item's `jumpFx`, add `departureCamera` and/or `arrivalCamera` objects. An empty object leaves the original camera unchanged. Arrival camera controls do not require `arrivalFx`.
+
+```json
+{
+  "departureCamera": {
+    "cameraOffset": [2000, 300, -2000],
+    "cameraDrift": [-5, 2, -5],
+    "cameraFov": 70,
+    "cameraLookAt": "ship",
+    "allowShipTurning": false,
+    "shipSpeed": 2,
+    "cameraKeyframes": [
+      {"ms": 0, "offset": [2000, 300, -2000]},
+      {"ms": 5000, "offset": [1000, 600, -4000]}
+    ]
+  },
+  "arrivalCamera": {
+    "cameraOffset": [1000, 500, 7000],
+    "durationMs": 3000
+  }
+}
+```
+
+- Offsets use Unity-oriented game units (20 units per metre); departure offsets are relative to the original jump focus in the departure frame, arrival offsets relative to the ship. Drift uses units per millisecond. Without authored drift or keyframes, departure drift retains the original ship-relative motion; the numerical preview assumes an unturned ship.
+- `cameraFov` is horizontal degrees (10–150). `cameraRotation` is optional local Euler angles and overrides look-at. `cameraLookOffset` adds a local offset to the look target. Departure `cameraLookAt` supports ship, effect and custom (original focus). Arrival looks at the ship unless a fixed rotation is supplied.
+- `cameraKeyframes` use linear position interpolation, hold outside the keyed interval, override drift and offset, and accept up to 512 distinct timestamps. Last duplicate wins. `durationMs` and the last key extend the sequence, with authored times limited to 120000 ms. Existing effect timing is not shortened.
+- Departure-only `shipSpeed` uses game units/ms (0–100), `shipRotation` uses local Euler degrees, and `allowShipTurning` enables the original roll input. These do not change jump destination or server-side penalties.
+- In Mod Builder, open Items, select a drive with jumpFx, then Jump cinematics. The slider samples offsets, not a rendered scene. Use field resets to remove overrides. Local arrival-camera preferences and scripted camera ownership remain respected.
+
+Long cinematics extend the local travel presentation; test with matching multiplayer builds before deployment. No rendered cinematic preview is provided.
