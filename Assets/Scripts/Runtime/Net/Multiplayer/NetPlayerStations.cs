@@ -948,8 +948,25 @@ namespace GoF2Remake.Multiplayer
                 Modding.ModWorld.MobileOf(orbit) != null) return false;
             var system = db.Systems?.Find(entry => entry != null && entry.index == anchor.system);
             if (system?.stations?.Contains(orbit) != true) return false;
-            var layout = World.OrbitLayout.Build(db, orbit, includePlayerGateLandmark: true);
-            return layout != null && !layout.stationObject && !layout.originStructure;
+            return World.OrbitLayout.VacantStationSite(orbit, Session.WorldIndex);
+        }
+
+        internal static int[] AvailableConstructionOrbits(NetPlayer pilot)
+        {
+            if (!NetGame.IsServer || !sessionActive || registry?.stations == null || pilot == null || !pilot.IsSpawned ||
+                !Modding.ModPlayerInfrastructure.Current.Enabled || ProfileWritesBlocked || persistenceFaulted ||
+                registry.stations.FindAll(station => station != null && !station.retired).Count >= MaxStations)
+                return Array.Empty<int>();
+            var reachable = NetProfiles.ConstructionReachableSystems(pilot);
+            var orbits = new List<int>();
+            foreach (var system in NetGame.Db.Systems)
+            {
+                if (system == null || system.stations == null || !reachable.Contains(system.index)) continue;
+                int count = registry.stations.FindAll(record => record != null && !record.retired && !record.destroyed && record.system == system.index).Count;
+                if (count >= MaxStationsPerSystem) continue;
+                foreach (int orbit in system.stations) if (CanBuildStationInOrbit(orbit)) orbits.Add(orbit);
+            }
+            return orbits.ToArray();
         }
 
         internal static HashSet<int> ReachableConstructionSystems(int origin, Func<int, bool> discovered, Func<PlayerJumpgateRecord, bool> gateAllowed)
@@ -995,7 +1012,7 @@ namespace GoF2Remake.Multiplayer
             if (registry.stations.FindAll(station => station != null && !station.retired).Count >= MaxStations)
                 return "This world has reached its player station limit.";
             int inSystem = 0;
-            foreach (var station in registry.stations) if (station != null && !station.destroyed && station.system == system.index) inSystem++;
+            foreach (var station in registry.stations) if (station != null && !station.retired && !station.destroyed && station.system == system.index) inSystem++;
             if (inSystem >= MaxStationsPerSystem)
                 return "This system has reached its player station limit.";
 
@@ -1117,7 +1134,7 @@ namespace GoF2Remake.Multiplayer
             var countsBySystem = new Dictionary<int, int>();
             foreach (var station in registry.stations)
             {
-                if (station == null || station.destroyed) continue;
+                if (station == null || station.destroyed || station.retired) continue;
                 countsBySystem.TryGetValue(station.system, out int existingCount);
                 countsBySystem[station.system] = existingCount + 1;
             }
@@ -1150,6 +1167,8 @@ namespace GoF2Remake.Multiplayer
                         }
                         continue;
                     }
+                    // Never overlay a newly occupied base/mod orbit on a changed mod set.
+                    if (!World.OrbitLayout.VacantStationSite(record.stationIndex, Session.WorldIndex)) continue;
                     if (!runtimeStations.TryGetValue(anchor, out var identity))
                     {
                         identity = new RuntimeStationIdentity { ProjectId = record.id, OriginalName = anchor.name, OriginalTechLevel = anchor.techLevel };
