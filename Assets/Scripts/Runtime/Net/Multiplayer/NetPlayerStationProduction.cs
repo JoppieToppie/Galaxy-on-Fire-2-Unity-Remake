@@ -41,7 +41,8 @@ namespace GoF2Remake.Multiplayer
                 stationId = record.id,
                 stationName = record.name,
                 installed = installed,
-                operational = installed && !record.underConstruction,
+                operational = installed && !record.underConstruction && !record.destroyed && !record.retired &&
+                    !record.wreckClaimOpen && !StationClosedByCombat(record.stationIndex),
                 building = building,
                 storedHulls = NetGame.IsServer ? (record.dryDockShips?.Count ?? 0) : record.visibleDryDockHullCount,
                 hullCapacity = MaxDryDockShipsPerStation,
