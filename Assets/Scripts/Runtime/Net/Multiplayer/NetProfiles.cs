@@ -312,7 +312,8 @@ namespace GoF2Remake.Multiplayer
 
             int from = db.Stations.Find(station => station.index == origin)?.system ?? -1;
             int to = db.Stations.Find(station => station.index == destination)?.system ?? -1;
-            if (from < 0 || from == to || !Visible(to)) return null;
+            if (from < 0 || from == to || !Visible(to) ||
+                !NetPlayerStations.CanVisitStation(destination, login.account.id)) return null;
 
             // Network profiles play on Normal. Fuel and the outcome are derived on the server.
             int cells = GalaxyMap.EnergyCells(db, from, to, false, drive, drive.freeJumps, out _);
@@ -328,6 +329,7 @@ namespace GoF2Remake.Multiplayer
             {
                 var candidates = World.SystemJump.MisjumpDestinations(db, origin, destination, Session.WorldIndex,
                     Visible, requireConnected: true);
+                candidates.RemoveAll(station => !NetPlayerStations.CanVisitStation(station, login.account.id));
                 if (candidates.Count > 0)
                 {
                     misjump = true;
