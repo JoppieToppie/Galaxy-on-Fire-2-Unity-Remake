@@ -97,12 +97,12 @@ namespace GoF2Remake.UI
             footer.AddToClassList("drydock-footer");
             panel.Add(footer);
 
-            NetChat.Added += OnChat;
+
         }
 
         public void Dispose()
         {
-            NetChat.Added -= OnChat;
+
             panel?.RemoveFromHierarchy();
         }
 
@@ -301,13 +301,14 @@ namespace GoF2Remake.UI
             requestDeadline = Time.realtimeSinceStartup + 10f;
             buildButton.SetEnabled(false);
             statusText.text = "Sending construction request to the server…";
-            NetPanel.Command("/station drydock-build " + station.id + " " + selectedProduct);
+            if (NetPlayer.Local?.RequestStationUiCommand("/station drydock-build " + station.id + " " + selectedProduct, OnBuildReply) != true)
+                OnBuildReply("A station request is already pending, or the server is unavailable.");
         }
 
-        void OnChat(NetChat.Message message)
+        void OnBuildReply(string result)
         {
-            if (!IsOpen || message == null || message.channel != NetChat.Channel.Notice) return;
-            feedbackText.text = message.text;
+            if (!IsOpen) return;
+            feedbackText.text = string.IsNullOrEmpty(result) ? "Request completed." : result;
             feedbackRemaining = 5f;
             requestPending = false;
             RefreshStatus();
