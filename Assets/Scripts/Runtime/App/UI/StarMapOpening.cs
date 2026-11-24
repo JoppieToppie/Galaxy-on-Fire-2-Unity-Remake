@@ -56,6 +56,16 @@ namespace GoF2Remake.UI
             go.SetActive(true);
             return map;
         }
+        // A construction planner is a non-travelling map: its result is only a selected location.
+        internal static StarMap OpenStationPlanner(Database db, Func<int, bool> allowed, Action<StarMapResult> closed)
+        {
+            var map = Open(db, StarMapMode.Mission, false, closed);
+            if (map != null) map.constructionSystemAllowed = allowed;
+            return map;
+        }
+
+        Func<int, bool> constructionSystemAllowed;
+
         void Close(StarMapResult result)
         {
             if (Current == this) Current = null;
@@ -216,6 +226,8 @@ namespace GoF2Remake.UI
                 // hide it while they are there: GalaxyMap.ForcedHidden; they are taken out of it in flight).
                 visible = (bool[])GalaxyMap.Visibility(db).Clone();
                 if (currentSystem >= 0 && currentSystem < visible.Length) visible[currentSystem] = true;
+                if (constructionSystemAllowed != null)
+                    for (int i = 0; i < visible.Length; i++) visible[i] = visible[i] && constructionSystemAllowed(i);
                 if (builder != null)
                 {
                     // The Mod Builder's map: every system, under the builder's panels, without the map's own header / footer. Not
