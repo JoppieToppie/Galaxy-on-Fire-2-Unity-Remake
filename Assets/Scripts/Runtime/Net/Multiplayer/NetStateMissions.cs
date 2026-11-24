@@ -37,16 +37,49 @@ namespace GoF2Remake.Multiplayer
             var pilot = GoF2Remake.Events.EventHost.Find(client);
             if (pilot != null) GoF2Remake.Events.EventRunner.OnWreckHacked(pilot, station, name);
         }
+        // The radar has no finite ship-lock range. Use a generous network sanity bound,
+        // rather than imposing the tractor beam's much shorter range on ship scans.
+        public const float ScanMaxDistanceMeters = 100000f;
+
+        public static bool ScanDistanceValid(Vector3 from, Vector3 to) =>
+            NetGuard.Position(from) && NetGuard.Position(to) &&
+            (from - to).sqrMagnitude <= ScanMaxDistanceMeters * ScanMaxDistanceMeters;
+
         [Rpc(SendTo.Server)]
-        public void ShipScannedRpc(int station, string name, RpcParams rpc = default)
+        public void ShipScannedRpc(int station, ulong targetId, RpcParams rpc = default)
         {
-            // A player's scanner locked a ship in its orbit: the events' "on scanned" (checked: the sender is in that orbit).
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) || !NetGuard.InOrbit(client, station)) return;
-            name = name ?? "";
+            var sender = NetSquad.Find(client);
+            if (sender == null || !sender.HasCurrentWreckClaimPose || sender.Hull <= 0f ||
+                !NetProfiles.HasScanEquipment(sender) || targetId == NetShots.NoTarget ||
+                NetworkManager == null || NetworkManager.SpawnManager == null ||
+                !NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var obj) ||
+                obj == null || !obj.IsSpawned) return;
+
+            string name;
+            var player = obj.GetComponent<NetPlayer>();
+            if (player != null)
+            {
+                if (player == sender || !player.InSpace || player.Station != station ||
+                    !player.ScanVisible || !ScanDistanceValid(sender.Position, player.Position)) return;
+                name = player.TaggedName;
+            }
+            else
+            {
+                var proxy = obj.GetComponent<NetProxy>();
+                if (proxy == null || proxy.Station != station || !proxy.ScanVisible ||
+                    !ScanDistanceValid(sender.Position, proxy.WorldPosition)) return;
+                bool team = !proxy.IsMissionShip || NetSquad.SameClient(proxy.OwnerClientId, sender);
+                name = team && !string.IsNullOrEmpty(proxy.Label)
+                    ? NetNews.Safe(proxy.Label) : GameNames.Race(proxy.Race);
+            }
+            name ??= "";
             if (name.Length > 64) name = name.Substring(0, 64);
-            var pilot = GoF2Remake.Events.EventHost.Find(client);
-            if (pilot != null) GoF2Remake.Events.EventRunner.OnShipScanned(pilot, station, name);
+            // Identity and eligibility are checked, but a client still reports lock completion.
+            // Do not treat this event alone as proof of aim or uninterrupted lock duration.
+            var pilot = EventHost.Find(client);
+            if (pilot != null) EventRunner.OnShipScanned(pilot, station, name);
         }
         [Rpc(SendTo.Server)]
         public void PadDockedRpc(int station, RpcParams rpc = default)

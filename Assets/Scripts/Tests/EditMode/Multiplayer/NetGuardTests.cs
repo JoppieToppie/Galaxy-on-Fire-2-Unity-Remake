@@ -53,6 +53,16 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ScanDistanceRejectsInvalidAndDistantPositions()
+        {
+            Assert.IsTrue(NetState.ScanDistanceValid(Vector3.zero, Vector3.forward * 5000f));
+            Assert.IsTrue(NetState.ScanDistanceValid(Vector3.zero, Vector3.forward * NetState.ScanMaxDistanceMeters));
+            Assert.IsFalse(NetState.ScanDistanceValid(Vector3.zero, Vector3.forward * (NetState.ScanMaxDistanceMeters + 100f)));
+            Assert.IsFalse(NetState.ScanDistanceValid(Vector3.zero, new Vector3(float.NaN, 0, 0)));
+            Assert.IsFalse(NetState.ScanDistanceValid(new Vector3(2e6f, 0, 0), new Vector3(2e6f, 0, 0)));
+        }
+
+        [Test]
         public void Rotations()
         {
             Assert.IsTrue(NetGuard.Rotation(Quaternion.identity));

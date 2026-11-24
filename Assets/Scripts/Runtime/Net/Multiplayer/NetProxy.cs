@@ -60,6 +60,7 @@ namespace GoF2Remake.Multiplayer
         Vector3 posePosition;
         Quaternion poseRotation = Quaternion.identity;
         bool hasPose;
+        double lastScanPoseTime;
         NpcShip ship;
         Target junk;   // the owner's space junk (a Junk removal mission, or one taken over), instead of a ship
         GameObject visual;
@@ -163,6 +164,7 @@ namespace GoF2Remake.Multiplayer
         public Vector3 ShownVelocity => smoothing.Velocity;
         public float HullFraction => St.HullFraction;
         public NetProxyStatus Status => St;
+        internal bool ScanVisible => ((IsOwner && ship != null) || (hasPose && Time.realtimeSinceStartupAsDouble - lastScanPoseTime <= 5)) && IsFlying && !IsJunk && St.radius > 0f && St.cloak < 25 && !St.Has(NetProxyStatus.Hidden) && !St.Has(NetProxyStatus.Asleep) && !St.Has(NetProxyStatus.Inactive);
         /// <summary>The ship this game runs for it (null = another game's, or none).</summary>
         public NpcShip BoundShip => IsOwner ? ship : null;
         /// <summary>Remake (Settings.DerelictWrecks): another game's derelict freighter nobody has hacked yet: this player
@@ -216,6 +218,7 @@ namespace GoF2Remake.Multiplayer
             posePosition = entry.position;
             poseRotation = entry.rotation;
             hasPose = true;
+            if (IsServer) lastScanPoseTime = Time.realtimeSinceStartupAsDouble;
             if (show && !IsOwner) smoothing.Push(entry.position, gap);
         }
 

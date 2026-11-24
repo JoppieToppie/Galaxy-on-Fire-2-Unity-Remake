@@ -169,6 +169,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's standings toward mods'races (mod race key -> value): Standing.IsEnemyWith.</summary>
         public IReadOnlyDictionary<string, int> ModRaceStandings => IsOwner ? Session.ModRaceStanding : modRaceStandings;
         public float CloakPercent => look.cloak;
+        internal bool ScanVisible => visible.Value && Hull > 0f && CloakPercent < 25f && HasCurrentWreckClaimPose;
         /// <summary>The squad mission (FreelanceMission.netId) this player's level runs here, 0 = none.</summary>
         public long MissionRun => missionRun.Value;
         /// <summary>The squad mission (netId) this player holds, 0 = none (the reward split, NetMissions).</summary>

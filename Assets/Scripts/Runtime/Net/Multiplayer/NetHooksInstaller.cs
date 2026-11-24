@@ -185,10 +185,14 @@ namespace GoF2Remake.Multiplayer
                 if (EventHost.Local) EventRunner.OnWreckHacked(LocalPilot.Instance, station, name);
                 else NetState.Instance?.WreckHackedRpc(station, name ?? "");
             };
-            SpaceHooks.ShipScanned = (station, name) =>
+            SpaceHooks.ShipScanned = (station, target) =>
             {
-                if (EventHost.Local) EventRunner.OnShipScanned(LocalPilot.Instance, station, name);
-                else NetState.Instance?.ShipScannedRpc(station, name ?? "");
+                if (EventHost.Local) EventRunner.OnShipScanned(LocalPilot.Instance, station, Flight.CombatRadar.PlateName(target));
+                else
+                {
+                    ulong id = NetShots.TargetId(target);
+                    if (id != NetShots.NoTarget) NetState.Instance?.ShipScannedRpc(station, id);
+                }
             };
             SpaceHooks.PadDocked = station =>
             {

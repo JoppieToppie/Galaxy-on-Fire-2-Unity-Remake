@@ -381,7 +381,7 @@ namespace GoF2Remake.Flight
                     if (assets != null && assets.targetLock != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.targetLock), Settings.SfxVolume);
                     Haptics.Play(Haptics.TargetLock);   // remake
                     ReadShip(Locked);
-                    GoF2Remake.World.SpaceHooks.ShipScanned?.Invoke(Session.StationIndex, PlateName(Locked));   // remake: "on scanned"
+                    GoF2Remake.World.SpaceHooks.ShipScanned?.Invoke(Session.StationIndex, Locked);   // remake: "on scanned"
                 }
             }
             else if (CrateCandidate != null || StealCandidate != null)

@@ -367,6 +367,24 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static bool HasScanEquipment(NetPlayer pilot)
+        {
+            var db = NetGame.Db;
+            if (pilot == null || db?.Ship(pilot.ShipIndex) == null) return false;
+            if (pilot.OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId && NetPlayer.Local == pilot)
+                return Session.ShipIndex == pilot.ShipIndex && Session.Equipment.Exists(m =>
+                    m != null && m.amount > 0 && Shop.KindOf(db.Item(m.item)) == 17 &&
+                    Modding.ModContent.ItemAvailableFor(m.item, "equipment"));
+            if (!Enabled) return true; // ordinary sessions have no server-side equipment snapshot
+            if (!Controls(pilot.OwnerClientId)) return false;
+            var account = AccountOf(pilot.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return false;
+            var save = ReadSave(account);
+            return save != null && save.ship == pilot.ShipIndex && save.equipment != null &&
+                save.equipment.Exists(m => m != null && m.amount > 0 && Shop.KindOf(db.Item(m.item)) == 17 &&
+                    Modding.ModContent.ItemAvailableFor(m.item, "equipment"));
+        }
+
         internal static float WreckSalvageTractorReach(NetPlayer pilot)
         {
             var db = NetGame.Db;

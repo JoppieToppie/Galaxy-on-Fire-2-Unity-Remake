@@ -105,14 +105,19 @@ pointing at one another. Construction, EMP shutdown, structural destruction and
 scrapping remove those dynamic links from emergency-destination eligibility.
 The provider checks gate operational state, not the player's access permissions.
 
-These checks currently run in the local jump controller, using its latest
-replicated station registry. This is not yet server-authoritative validation:
-a client could hold stale gate state or choose an unapproved destination.
+In solo play the local jump controller resolves the outcome. In multiplayer, opt-in
+jump-rule drives require an active controlling server profile (not guest, arena or
+host-save mode). The client sends a profile snapshot and jump request; the server
+checks the origin, destination visibility, mounted drive and fuel, rolls failure,
+selects a visible emergency destination with operational reciprocal links, and
+commits fuel and equipment loss and the arrival station before acknowledging the
+result. The client applies the returned hull limit and plays the corresponding
+transition. If no eligible emergency destination exists, the requested jump proceeds
+without catastrophic penalties. Replayed profile upload sequences are rejected.
 
-Failure outcomes are calculated by the local player jump controller. The current
-changes do **not** add authoritative host-side validation or new network messages;
-server-side revalidation and multiplayer synchronization require integration with
-the multiplayer networking layer before this is considered authoritative in sessions.
+The server uses replicated pilot state and accepted profile data; this is not a
+fully server-simulated flight model. Legacy drives without jumpRules retain their
+existing behaviour. Multiplayer profiles use Normal difficulty for this calculation.
 
 ## Compatibility and defaults
 
