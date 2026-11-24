@@ -302,9 +302,8 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
-                by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at this station and use a controlled player profile to buy goods.";
+            if (!IsStationContext(by, record, out string buyer))
+                return "Dock at this station with visitor permission and use a controlled player profile to buy goods.";
             if (record.underConstruction) return "This station is not operational yet.";
             if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
                 return "No listing exists at that index.";
@@ -316,7 +315,6 @@ namespace GoF2Remake.Multiplayer
             if (amount < 1 || amount > 500 || amount > listing.amount)
                 return "Choose an amount between 1 and 500, up to the available listing stock.";
 
-            string buyer = NetProfiles.AccountOf(by.OwnerClientId);
             string seller = listing.sellerProfile;
             if (string.IsNullOrEmpty(buyer)) return "Your player profile is unavailable.";
             if (string.Equals(buyer, seller, StringComparison.Ordinal))
@@ -389,10 +387,8 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
-                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at this station using a controlled profile to cancel a listing.";
-            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at this station using an authorised controlled profile to cancel a listing.";
             if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
                 return "No listing exists at that index.";
             var listing = record.listings[listingIndex];
