@@ -222,6 +222,50 @@ namespace GoF2Remake.Tests
                 detonation, surface, surface, 20f, 40f), "the detonation applies only once");
         }
 
+        [Test]
+        public void RepeatedShotRegistrationCannotRearmConsumedGateHit()
+        {
+            const ulong source = 100004;
+            const uint shot = 104;
+            var point = Vector3.forward * 100f;
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f, Vector3.zero, Vector3.forward * 200f);
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateHit(source, shot, 55, point, point, 20f));
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f, Vector3.zero, Vector3.forward * 200f);
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 55, point, point, 20f));
+        }
+
+        [Test]
+        public void StationSnapshotDecodesPaddedChunksAndSplitUtf8()
+        {
+            string original = new string('x', 2799) + "é" + new string('z', 2800);
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(original);
+            var chunks = new System.Collections.Generic.List<string>();
+            for (int offset = 0; offset < bytes.Length; offset += 2800)
+                chunks.Add(System.Convert.ToBase64String(bytes, offset, System.Math.Min(2800, bytes.Length - offset)));
+            Assert.AreEqual(original, NetState.DecodePlayerStationChunks(chunks.ToArray()));
+        }
+
+        [Test]
+        public void StationSnapshotRejectsTruncatedIntermediateChunk()
+        {
+            Assert.Throws<System.FormatException>(() => NetState.DecodePlayerStationChunks(new[] { "YQ==", "Yg==" }));
+        }
+
+        [Test]
+        public void NewStorageLotDoesNotCreditStationOwnerForVisitorDeposit()
+        {
+            var station = new PlayerStationRecord { ownerProfile = "owner" };
+            station.storage.Add(new PlayerStationStorage { item = 156, amount = 10 });
+            var add = typeof(NetPlayerStations).GetMethod("AddStorageLot",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(add);
+            add.Invoke(null, new object[] { station, "visitor", 156, 10 });
+            Assert.AreEqual(1, station.storageLots.Count);
+            Assert.AreEqual("visitor", station.storageLots[0].ownerProfile);
+            Assert.AreEqual(10, station.storageLots[0].amount);
+            Assert.AreEqual(10, station.storage[0].amount);
+        }
+
         // ---- NetRateLimit ----
 
         [SetUp]
