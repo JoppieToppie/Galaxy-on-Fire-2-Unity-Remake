@@ -1181,6 +1181,11 @@ namespace GoF2Remake.Multiplayer
         void Update()
         {
             if (!IsSpawned) return;
+            if (IsServer && NetProfiles.IdentityPending(OwnerClientId) && Where != Place.None)
+            {
+                NetGame.Kick(OwnerClientId, "Complete your permanent pilot identity before entering the world.");
+                return;
+            }
             if (IsServer) CheckReportedCollisionMode();
             if (!IsOwner)
             {
