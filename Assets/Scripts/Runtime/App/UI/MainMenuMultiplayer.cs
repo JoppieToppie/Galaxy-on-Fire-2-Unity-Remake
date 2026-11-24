@@ -93,8 +93,8 @@ namespace GoF2Remake.UI
             Line("CREATE YOUR PILOT", 30);
             Line(identityController ? "Choose your race, then a portrait belonging to that race. Both choices are permanent on this server and affect station and jumpgate policies." :
                 "This profile is being set up on another device. Wait for its identity to be confirmed, link an existing profile, or disconnect.", 18);
-            identityRaces = ModRefs.RaceWords.Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
-                .Concat(ModRaces.All.Select(race => (Key: race.key, Name: ModRaces.Name(race.race))))
+            identityRaces = ModRefs.RaceWords.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
+                .Concat(ModRaces.All.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: race.key, Name: ModRaces.Name(race.race))))
                 .GroupBy(race => race.Key).Select(group => group.First()).ToList();
             var raceLabels = new List<string> { "Choose your race…" };
             raceLabels.AddRange(identityRaces.Select(race => race.Name + " [" + race.Key + "]"));
