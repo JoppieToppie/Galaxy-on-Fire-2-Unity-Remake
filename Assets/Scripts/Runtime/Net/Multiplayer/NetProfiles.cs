@@ -570,28 +570,34 @@ namespace GoF2Remake.Multiplayer
             return definition?.initiallyVisible == true || system == GalaxyMap.LomaSystem;
         }
 
-        internal static bool CanReachConstructionSystem(NetPlayer pilot, int destination)
+        internal static bool CanReachConstructionSystem(NetPlayer pilot, int destination) => ConstructionReachableSystems(pilot).Contains(destination);
+
+        internal static HashSet<int> ConstructionReachableSystems(NetPlayer pilot)
         {
-            if (pilot == null || !Controls(pilot.OwnerClientId)) return false;
+            if (pilot == null || !Controls(pilot.OwnerClientId)) return new HashSet<int>();
             var db = NetGame.Db;
             int origin = db?.Stations?.Find(station => station != null && station.index == pilot.Station)?.system ?? -1;
-            if (origin < 0) return false;
+            if (origin < 0) return new HashSet<int>();
             string account = AccountOf(pilot.OwnerClientId);
             var save = ReadSave(account);
             bool host = IsHostClient(pilot.OwnerClientId);
             var visible = host ? GalaxyMap.Visibility(db) : save?.systemVisible;
+            var gateDiscoveries = index?.accounts?.Find(entry => entry != null && entry.id == account)?.gateDiscoveredSystems;
             bool Discovered(int system) => system >= 0 && ((visible != null && system < visible.Length && visible[system]) ||
-                db.Systems.Find(entry => entry != null && entry.index == system)?.initiallyVisible == true || system == GalaxyMap.LomaSystem);
+                gateDiscoveries?.Contains(system) == true || db.Systems.Find(entry => entry != null && entry.index == system)?.initiallyVisible == true || system == GalaxyMap.LomaSystem);
             string faction = NetFactions.Of(account)?.id;
             var reachable = NetPlayerStations.ReachableConstructionSystems(origin, Discovered,
                 gate => NetPlayerStations.ConstructionGateAllowed(gate, account, faction));
-            if (reachable.Contains(destination)) return true;
-            if (!Discovered(destination)) return false;
+            reachable.RemoveWhere(system => !Discovered(system));
             var drive = host ? Modding.ModJumpFx.ActiveDrive() : save == null ? null : Modding.ModJumpFx.ActiveDrive(save.ship, save.equipment);
-            if (drive?.hasJumpRules != true || (!host && save.ship != pilot.ShipIndex)) return false;
-            if (host ? GalaxyMap.HasVolatileGoods : save.cargo?.Exists(stack => stack != null && stack.amount > 0 && (stack.item == 209 || stack.item == 204)) == true) return false;
-            int cells = GalaxyMap.EnergyCells(db, origin, destination, false, drive, drive.freeJumps, out _);
-            return cells <= (host ? GalaxyMap.CellsInCargo() : save.cargo?.Find(stack => stack != null && stack.item == GalaxyMap.EnergyCellItem)?.amount ?? 0);
+            if (drive?.hasJumpRules != true || (!host && save.ship != pilot.ShipIndex)) return reachable;
+            if (host ? GalaxyMap.HasVolatileGoods : save.cargo?.Exists(stack => stack != null && stack.amount > 0 && (stack.item == 209 || stack.item == 204)) == true) return reachable;
+            int fuel = host ? GalaxyMap.CellsInCargo() : save.cargo?.Find(stack => stack != null && stack.item == GalaxyMap.EnergyCellItem)?.amount ?? 0;
+            foreach (var system in db.Systems)
+                if (system != null && !reachable.Contains(system.index) && Discovered(system.index) &&
+                    GalaxyMap.EnergyCells(db, origin, system.index, false, drive, drive.freeJumps, out _) <= fuel)
+                    reachable.Add(system.index);
+            return reachable;
         }
 
         internal static bool HasFactionDiscoveredSystem(string factionId, int system)
