@@ -68,6 +68,70 @@ namespace GoF2Remake.Modding
             }
         }
 
+        // Cinematic offsets are in Unity-oriented game units, drift in game units/ms.
+        public sealed class Cinematic
+        {
+            public Vector3? offset, drift, lookOffset, rotation, shipRotation;
+            public float? fov, shipSpeed, durationMs;
+            public bool allowShipTurning = true;
+            public string lookAt = "ship";
+            public readonly List<CameraKey> keys = new List<CameraKey>();
+            public Vector3 Position(float ms, Vector3 fallback)
+            {
+                if (keys.Count == 0) return (offset ?? fallback) + (drift ?? Vector3.zero) * ms;
+                if (ms <= keys[0].ms) return keys[0].offset;
+                for (int i = 1; i < keys.Count; i++)
+                    if (ms <= keys[i].ms)
+                        return Vector3.Lerp(keys[i - 1].offset, keys[i].offset,
+                            Mathf.InverseLerp(keys[i - 1].ms, keys[i].ms, ms));
+                return keys[keys.Count - 1].offset;
+            }
+        }
+
+        public struct CameraKey { public float ms; public Vector3 offset; }
+
+        static float? Number(JToken t, float min, float max)
+        {
+            if (t == null || (t.Type != JTokenType.Float && t.Type != JTokenType.Integer)) return null;
+            float v = (float)t;
+            return float.IsNaN(v) || float.IsInfinity(v) ? (float?)null : Mathf.Clamp(v, min, max);
+        }
+
+        static Vector3? Vector(JToken t)
+        {
+            if (!(t is JArray a) || a.Count != 3) return null;
+            var x = Number(a[0], -1000000f, 1000000f);
+            var y = Number(a[1], -1000000f, 1000000f);
+            var z = Number(a[2], -1000000f, 1000000f);
+            return x.HasValue && y.HasValue && z.HasValue ? new Vector3(x.Value, y.Value, z.Value) : (Vector3?)null;
+        }
+
+        public static Cinematic ReadCinematic(JObject o)
+        {
+            if (o == null) return null;
+            var c = new Cinematic
+            {
+                offset = Vector(o["cameraOffset"]), drift = Vector(o["cameraDrift"]),
+                lookOffset = Vector(o["cameraLookOffset"]), rotation = Vector(o["cameraRotation"]),
+                shipRotation = Vector(o["shipRotation"]), fov = Number(o["cameraFov"], 10f, 150f),
+                shipSpeed = Number(o["shipSpeed"], 0f, 100f),
+                durationMs = Number(o["durationMs"], 0f, 120000f),
+                allowShipTurning = o["allowShipTurning"]?.Type != JTokenType.Boolean || (bool)o["allowShipTurning"],
+                lookAt = o["cameraLookAt"]?.Type == JTokenType.String ? (string)o["cameraLookAt"] : "ship"
+            };
+            if (o["cameraKeyframes"] is JArray frames)
+                foreach (var entry in frames)
+                {
+                    if (!(entry is JObject k)) continue;
+                    var time = Number(k["ms"], 0f, 120000f);
+                    var offset = Vector(k["offset"]);
+                    if (time.HasValue && offset.HasValue && c.keys.Count < 512)
+                        c.keys.Add(new CameraKey { ms = time.Value, offset = offset.Value });
+                }
+            c.keys.Sort((a, b) => a.ms.CompareTo(b.ms));
+            return c;
+        }
+
         public sealed class Spec
         {
             public ModInfo mod;
@@ -89,6 +153,7 @@ namespace GoF2Remake.Modding
             public int failLine = -1, failSpeaker;                // Modified: the line's text in the radio box, and its face
             public float scale = 0.5f, glow = 2.5f, meetMs = 2300f, meetDepth = 8200f;
             public float lengthMs;
+            public Cinematic departureCamera, arrivalCamera;
             public List<Part> parts;
         }
 
@@ -171,6 +236,8 @@ namespace GoF2Remake.Modding
         static Spec Read(ModInfo mod, JObject o, JObject rules, string where)
         {
             var s = new Spec { mod = mod, where = where };
+            s.departureCamera = ReadCinematic(o["departureCamera"] as JObject);
+            s.arrivalCamera = ReadCinematic(o["arrivalCamera"] as JObject);
             s.data = (string)o["data"];
             s.texture = (string)o["texture"];
             s.sound = (string)o["sound"];
