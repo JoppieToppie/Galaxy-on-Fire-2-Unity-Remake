@@ -15,6 +15,15 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<FixedString4096Bytes> managedJumpgates = new NetworkVariable<FixedString4096Bytes>(
             default, NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
         internal int ManagedStationOrbit => managedStationOrbit.Value;
+        // The public gate record deliberately omits private ownership and blacklist data.
+        // Replicate only the server's access decision for the pilot's current orbit.
+        readonly NetworkVariable<int> usablePlayerJumpgate = new NetworkVariable<int>(-1,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal bool HasPlayerJumpgateAccess(int orbit) => IsOwner && orbit >= 0 && usablePlayerJumpgate.Value == orbit;
+        internal void SetPlayerJumpgateAccess(int orbit)
+        {
+            if (IsServer && usablePlayerJumpgate.Value != orbit) usablePlayerJumpgate.Value = orbit;
+        }
 
         internal bool CanViewManagedJumpgate(int orbit)
         {
