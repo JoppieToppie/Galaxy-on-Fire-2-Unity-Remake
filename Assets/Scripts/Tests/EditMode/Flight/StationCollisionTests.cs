@@ -64,6 +64,29 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void CrowdedSweepStillFindsForcedExactHull()
+        {
+            // More than the original 64-hit buffer, none of these colliders owns a hull.
+            for (int i = 0; i < 80; i++)
+            {
+                var blocker = new GameObject("unowned collider") { layer = HullCollision.HullLayer };
+                blocker.transform.SetParent(root.transform, false);
+                blocker.transform.localPosition = Vector3.forward * (i + 2);
+                blocker.AddComponent<BoxCollider>();
+            }
+            var model = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            model.transform.SetParent(root.transform, false);
+            model.transform.localPosition = Vector3.forward * 100f;
+            Object.DestroyImmediate(model.GetComponent<BoxCollider>());
+            var hull = HullCollision.Attach(model, null, null, flyableShip: true, forceExact: true);
+            Assert.IsNotNull(hull);
+            Assert.IsTrue(hull.Collides, "forced-exact eligibility cannot depend on the session collision mode");
+            Assert.IsTrue(HullCollision.Sweep(Vector3.zero, Vector3.forward * 110f, 0.1f,
+                body => body == hull, out float distance));
+            Assert.That(distance, Is.EqualTo(99.4f).Within(0.1f));
+        }
+
+        [Test]
         public void StationSphereVolumesExpandByTheShipRadius()
         {
             station.volumes = new List<CollisionVolume> { CollisionVolume.Sphere(Vector3.zero, 10f) };
