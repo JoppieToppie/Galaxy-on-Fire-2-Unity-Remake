@@ -322,6 +322,24 @@ namespace GoF2Remake.UI
                     BuildVisitorMarket(selected.id.ToString());
                     if (selected.addons?.Any(addon => addon != null && addon.kind == "storage") == true)
                         BuildVisitorStorage(selected.id.ToString());
+                    if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                    {
+                        string recoveryId = selected.id.ToString();
+                        if (selected.addons?.Any(addon => addon?.kind == "hangar") == true)
+                        {
+                            AddAction("List station hangar ships", "/station ships " + recoveryId);
+                            AddField("recoveryHangarIndex", "Station hangar index", "1");
+                            AddAction("Retrieve your stored ship", () =>
+                                Send("/station retrieve-ship " + recoveryId + " " + Value("recoveryHangarIndex")));
+                        }
+                        if (selected.addons?.Any(addon => addon?.kind == "drydock") == true)
+                        {
+                            AddAction("List dry-dock ships", "/station drydock " + recoveryId);
+                            AddField("recoveryDryDockIndex", "Dry-dock index", "1");
+                            AddAction("Retrieve your stored large hull", () =>
+                                Send("/station drydock-retrieve " + recoveryId + " " + Value("recoveryDryDockIndex")));
+                        }
+                    }
                     BuildConstructionProcurement(selected.id.ToString(), false);
                     if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
                     return;
@@ -965,6 +983,25 @@ namespace GoF2Remake.UI
             AddChoice("stationAppearance", "Station model", StationModelChoices());
             AddAction("Change station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
             AddAction("View station history", "/station history " + id);
+            if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+            {
+                AddSection("RACE POLICIES", "");
+                AddChoice("raceFacility", "Facility", NetPlayerStations.RacePolicyFacilities.Select(value => (value, value)).ToList());
+                AddField("stationPolicyRace", "Race name or qualified mod ID", "");
+                AddChoice("racePolicyState", "Race access", new List<(string, string)>
+                {
+                    ("inherit", "Inherit faction policy"), ("allow", "Allow under race policy"), ("deny", "Deny under race policy")
+                });
+                AddAction("Apply station race rule", () => Send("/station race-policy " + id + " " +
+                    Value("raceFacility") + " " + Value("stationPolicyRace") + " " + Value("racePolicyState")));
+                AddAction("View station and faction race rules", "/station race-policy " + id);
+                if (Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
+                {
+                    AddAccountField("stationRaceExemption", "Race exemption target");
+                    AddAction("Grant race exemption", () => Send("/station race-policy " + id + " exempt add " + Value("stationRaceExemption")));
+                    AddAction("Revoke race exemption", () => Send("/station race-policy " + id + " exempt remove " + Value("stationRaceExemption")));
+                }
+            }
             AddAccountField("governanceAccount", "Target pilot");
             AddChoice("governanceRole", "Station role", Enum.GetNames(typeof(PlayerStationRole))
                 .Append("none").Select(value => (value, value)).ToList());

@@ -202,6 +202,7 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!CanManageHangar(by, record, out string builderAccount))
                 return "Dock at this station with an authorised profile to use its dry dock.";
+            if (!AllowsFacilityUse(record, builderAccount, "drydock")) return "Station race policy restricts this facility.";
             if (record.underConstruction) return "Finish station construction before building ships.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
                 return "Install a dry dock module first.";
@@ -458,6 +459,7 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!IsStationContext(by, record, out string account))
                 return "Dock at this station with a controlled profile to operate its factory.";
+            if (!AllowsFacilityUse(record, account, "factory")) return "Station race policy restricts this facility.";
             return StartFactoryJob(record, account, FindFactoryRecipe(recipeId), batches, -1);
         }
 
@@ -489,6 +491,7 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!IsStationContext(by, record, out string account))
                 return "Dock at the station using a controlled profile to configure repeat orders.";
+            if (!AllowsFacilityUse(record, account, "factory")) return "Station race policy restricts this facility.";
             bool automationAuthority = record.ownershipType == PlayerStationOwnershipType.Individual
                 ? string.Equals(record.ownerProfile, account, StringComparison.Ordinal)
                 : HasStationPermission(record, account, PlayerStationPermission.StationOperations) &&
@@ -654,7 +657,8 @@ namespace GoF2Remake.Multiplayer
                     return;
                 }
                 if (!ReferenceEquals(registry, original)) return;
-                var next = record.factoryRepeatOrders.Find(x => x != null && !x.paused);
+                var next = record.factoryRepeatOrders.Find(x => x != null && !x.paused &&
+                    AllowsFacilityUse(record, x.createdByProfile, "factory"));
                 if (next == null) continue;
                 var recipe = FindFactoryRecipe(next.recipeId);
                 if (recipe == null)
@@ -690,6 +694,7 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!CanManage(by, record, out string account))
                 return "Dock at this station and use its controlling profile to operate the refinery.";
+            if (!AllowsFacilityUse(record, account, "refinery")) return "Station race policy restricts the refinery.";
             if (record.underConstruction) return "Finish station construction before refining materials.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "refinery" && a.level > 0) ?? false))
                 return "Install a refinery module first.";

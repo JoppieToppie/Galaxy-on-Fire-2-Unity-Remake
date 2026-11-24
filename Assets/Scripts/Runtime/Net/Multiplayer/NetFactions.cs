@@ -158,6 +158,7 @@ namespace GoF2Remake.Multiplayer
         public class Faction
         {
             public List<StationRaceAccessRule> jumpgateRaceAccess;
+            public List<StationFacilityRaceRule> stationRaceRules;
             public string id, name, tag, leader, created;
             public List<string> officers = new List<string>(), members = new List<string>();   // members include everyone
             public long bank;

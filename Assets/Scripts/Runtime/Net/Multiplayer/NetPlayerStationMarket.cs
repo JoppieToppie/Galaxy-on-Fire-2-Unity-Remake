@@ -92,6 +92,7 @@ namespace GoF2Remake.Multiplayer
             if (material == null || amount > material.required - material.delivered)
                 return "The project no longer needs that quantity of this material.";
             string seller = NetProfiles.AccountOf(by.OwnerClientId);
+            if (!AllowsFacilityUse(record, seller, "market")) return "Station race policy restricts this sale.";
             int cargo = NetProfiles.CargoAmount(seller, order.item);
             long total = order.unitPrice * amount, balance = NetProfiles.CreditAmount(seller);
             if (string.IsNullOrEmpty(seller) || cargo < amount) return "Your saved profile does not have enough of that material.";
@@ -261,6 +262,7 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!CanManageStorage(by, record, out string account))
                 return "Dock at this station using an authorised profile to list your own stored goods.";
+            if (!AllowsFacilityUse(record, account, "market")) return "Station race policy restricts marketplace listings.";
             if (record.underConstruction) return "Finish station construction before opening listings.";
             if (StorageCapacity(record) <= 0) return "Install a storage module before listing station goods.";
             if (!NetGuard.Item(item) || !Hangar.IsSaleable(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice)
@@ -342,15 +344,16 @@ namespace GoF2Remake.Multiplayer
         {
             var result = new MarketUiCatalogue { stationId = stationId };
             var station = Find(stationId);
-            if (!IsStationContext(pilot, station, out string account) || station.underConstruction) return result;
+            if (!IsStationContext(pilot, station, out string account, recoverProperty: true) || station.underConstruction) return result;
+            bool canTrade = AllowsFacilityUse(station, account, "market");
             if (station.listings != null)
                 foreach (var listing in station.listings)
-                    if (listing != null && listing.id > 0 && listing.amount > 0)
+                    if (listing != null && listing.id > 0 && listing.amount > 0 && (canTrade || listing.sellerProfile == account))
                         result.rows.Add(new MarketUiRow { id = listing.id, item = listing.item, amount = listing.amount,
                             price = listing.unitPrice, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
             if (station.shipListings != null)
                 foreach (var listing in station.shipListings)
-                    if (listing?.hull != null && listing.id > 0)
+                    if (listing?.hull != null && listing.id > 0 && (canTrade || listing.sellerProfile == account))
                         result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
                             price = listing.price, hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
             const int pageSize = 64;
@@ -368,6 +371,7 @@ namespace GoF2Remake.Multiplayer
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (!IsStationContext(by, record, out string buyer))
                 return "Dock at this station with visitor permission and use a controlled player profile to buy goods.";
+            if (!AllowsFacilityUse(record, buyer, "market")) return "Station race policy restricts marketplace purchases.";
             if (record.underConstruction) return "This station is not operational yet.";
             if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
                 return "No listing exists at that index.";
@@ -451,7 +455,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (!IsStationContext(by, record, out string account))
+            if (!IsStationContext(by, record, out string account, recoverProperty: true))
                 return "Dock at this station using an authorised controlled profile to cancel a listing.";
             if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
                 return "No listing exists at that index.";

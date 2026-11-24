@@ -70,6 +70,8 @@ namespace GoF2Remake.Multiplayer
                 station.bans?.RemoveAll(value => value == null || value.source == PlayerStationBanSource.OwnerAuthority);
             }
             station.roleAssignments?.Clear();
+            station.facilityRaceRules = null;
+            station.facilityRaceExemptions = null;
             station.individualSuccessorProfile = null;
             station.factionSuccessorProfile = null;
             station.factionSuccessorFactionId = null;

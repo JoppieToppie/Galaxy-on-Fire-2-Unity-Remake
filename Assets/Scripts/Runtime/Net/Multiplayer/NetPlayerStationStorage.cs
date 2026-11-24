@@ -35,10 +35,10 @@ namespace GoF2Remake.Multiplayer
 
         internal static string InstallHangar(NetPlayer by, int id) => InstallModuleFromCargo(by, id, "hangar");
 
-        static bool CanManageHangar(NetPlayer by, PlayerStationRecord record, out string account)
+        static bool CanManageHangar(NetPlayer by, PlayerStationRecord record, out string account, bool recoverProperty = false)
         {
-            return IsStationContext(by, record, out account) &&
-                HasStationPermission(record, account, PlayerStationPermission.Hangar);
+            if (!IsStationContext(by, record, out account, recoverProperty)) return false;
+            return HasStationPermission(record, account, PlayerStationPermission.Hangar);
         }
 
         internal static string PersonalFleet(NetPlayer by)
@@ -63,7 +63,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out _)) return "Ship hangar access is private to the owner and authorised faction members.";
+            if (!CanManageHangar(by, record, out _, recoverProperty: true)) return "Ship hangar access is private to the owner and authorised faction members.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false))
                 return "This station has no ship hangar module.";
             record.storedShips ??= new List<StoredShip>();
@@ -195,6 +195,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
+            if (!AllowsFacilityUse(record, account, "hangar")) return "Station race policy restricts this facility.";
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
             if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment must be transferred into station storage.";
@@ -236,7 +237,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
+            if (!CanManageHangar(by, record, out string account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its ship hangar.";
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "This station has no ship hangar module.";
             record.storedShips ??= new List<StoredShip>();
@@ -295,7 +296,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out _)) return "Dry dock access is private to the owner and authorised faction members.";
+            if (!CanManageHangar(by, record, out _, recoverProperty: true)) return "Dry dock access is private to the owner and authorised faction members.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
                 return "This station has no dry dock module.";
             record.dryDockShips ??= new List<StoredShip>();
@@ -332,6 +333,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
+            if (!AllowsFacilityUse(record, account, "drydock")) return "Station race policy restricts this facility.";
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "Install a dry dock module first.";
             if (StorageCapacity(record) <= 0) return "Install station storage first; ship equipment are transferred there.";
@@ -371,7 +373,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
+            if (!CanManageHangar(by, record, out string account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its dry dock.";
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "This station has no dry dock module.";
             record.dryDockShips ??= new List<StoredShip>();
@@ -456,8 +458,9 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (!IsStationContext(by, record, out string account))
+            if (!IsStationContext(by, record, out string account, recoverProperty: !deposit))
                 return "Dock at this station with visitor permission using a controlled profile to manage storage.";
+            if (deposit && !AllowsFacilityUse(record, account, "storage")) return "Station race policy restricts storage deposits.";
             if (deposit && !CanManageStorage(by, record, out _))
                 return "Only the owner or authorised faction members may deposit into this station.";
             if (record.underConstruction) return "Finish station construction before using storage.";

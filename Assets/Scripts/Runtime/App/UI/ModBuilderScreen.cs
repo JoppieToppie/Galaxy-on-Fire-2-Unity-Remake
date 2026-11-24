@@ -886,6 +886,10 @@ namespace GoF2Remake.UI
             var gates = Add(scroll, new Toggle("Allow new sponsored jumpgate projects") { value = settings.JumpgatesEnabled }, "mbv-field");
             var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
             var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
+            var stationRacePolicies = Add(scroll, new Toggle("Enable station race policies")
+                { value = settings.StationRacePoliciesEnabled }, "mbv-field");
+            var stationRaceExemptions = Add(scroll, new Toggle("Allow station ownership authorities to grant race exemptions")
+                { value = settings.StationRaceExemptionsEnabled }, "mbv-field");
             var playerIdentity = Add(scroll, new Toggle("Allow players to choose a race and portrait")
                 { value = settings.PlayerIdentityEnabled }, "mbv-field");
             var gateRacePolicies = Add(scroll, new Toggle("Enable jumpgate race policies")
@@ -1109,6 +1113,8 @@ namespace GoF2Remake.UI
                 draft["scrapIntegrity"] = integrity.value;
                 draft["minimumStationScale"] = stationScale.value;
                 draft["minimumJumpgateScale"] = jumpgateScale.value;
+                draft["stationRacePoliciesEnabled"] = stationRacePolicies.value;
+                draft["stationRaceExemptionsEnabled"] = stationRaceExemptions.value;
                 draft["playerIdentityEnabled"] = playerIdentity.value;
                 draft["jumpgateRacePoliciesEnabled"] = gateRacePolicies.value;
                 draft["jumpgateRaceExemptionsEnabled"] = gateRaceExemptions.value;

@@ -141,14 +141,16 @@ namespace GoF2Remake.Multiplayer
             return changed;
         }
 
-        static bool IsStationContext(NetPlayer by, PlayerStationRecord record, out string account)
+        static bool IsStationContext(NetPlayer by, PlayerStationRecord record, out string account, bool recoverProperty = false)
         {
             account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
             return NetGame.IsServer && sessionActive && registry != null && record != null &&
                 by != null && by.IsSpawned && by.InHangar && by.Station == record.stationIndex &&
                 record.offeredForClaimUtc == 0 && !StationClosedByCombat(record.stationIndex) &&
                 NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account) &&
-                HasStationPermission(record, account, PlayerStationPermission.Visit);
+                HasStationPermission(record, account, PlayerStationPermission.Visit) &&
+                (AllowsStationRace(record, account, "docking") ||
+                 (recoverProperty && HasRaceProtectedProperty(record, account)));
         }
 
         static bool IsStationOwnerAccount(PlayerStationRecord record, string account)
@@ -341,7 +343,9 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanVisitStation(int stationIndex, string account)
         {
             var record = StationAt(stationIndex);
-            return record == null || (!StationClosedByCombat(stationIndex) && HasStationPermission(record, account, PlayerStationPermission.Visit));
+            return record == null || (!StationClosedByCombat(stationIndex) &&
+                HasStationPermission(record, account, PlayerStationPermission.Visit) &&
+                (AllowsStationRace(record, account, "docking") || HasRaceProtectedProperty(record, account)));
         }
 
         // Ownership authority controls staffing and faction-wide station policy.

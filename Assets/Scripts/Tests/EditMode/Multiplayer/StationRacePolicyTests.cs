@@ -7,6 +7,40 @@ namespace GoF2Remake.Tests
     public class StationRacePolicyTests
     {
         [Test]
+        public void StationOverrideAffectsOnlyTheSelectedFacilityAndRace()
+        {
+            const string race = "7";
+            var defaults = NetPlayerStations.WithFacilityRaceRule(null, new StationFacilityRaceRule
+                { facility = "hangar", race = race, state = PlayerStationPermissionState.Deny });
+            Assert.IsFalse(NetPlayerStations.FacilityRaceAllowed(race, "hangar", null, defaults));
+            Assert.IsTrue(NetPlayerStations.FacilityRaceAllowed(race, "drydock", null, defaults));
+            Assert.IsTrue(NetPlayerStations.FacilityRaceAllowed("4", "hangar", null, defaults));
+            Assert.IsTrue(NetPlayerStations.FacilityRaceAllowed(null, "hangar", null, defaults));
+            var local = NetPlayerStations.WithFacilityRaceRule(null, new StationFacilityRaceRule
+                { facility = "hangar", race = race, state = PlayerStationPermissionState.Allow });
+            Assert.IsTrue(NetPlayerStations.FacilityRaceAllowed(race, "hangar", local, defaults));
+            local = NetPlayerStations.WithFacilityRaceRule(local, new StationFacilityRaceRule
+                { facility = "hangar", race = race, state = PlayerStationPermissionState.Inherit });
+            Assert.IsFalse(NetPlayerStations.FacilityRaceAllowed(race, "hangar", local, defaults));
+        }
+
+        [Test]
+        public void DockingRecoveryTracksOwnedPropertyAndKeepsRulesPrivate()
+        {
+            var station = new PlayerStationRecord();
+            station.storageLots.Add(new PlayerStationStorageLot { ownerProfile = "pilot", item = 5, amount = 3 });
+            Assert.IsTrue(NetPlayerStations.HasRaceProtectedProperty(station, "pilot"));
+            Assert.IsFalse(NetPlayerStations.HasRaceProtectedProperty(station, "other"));
+            station.storageLots[0].amount = 0;
+            Assert.IsFalse(NetPlayerStations.HasRaceProtectedProperty(station, "pilot"));
+            station.facilityRaceRules = NetPlayerStations.WithFacilityRaceRule(null, new StationFacilityRaceRule
+                { facility = "docking", race = "7", state = PlayerStationPermissionState.Deny });
+            var loaded = JsonUtility.FromJson<PlayerStationRecord>(JsonUtility.ToJson(station));
+            Assert.IsFalse(NetPlayerStations.FacilityRaceAllowed("7", "docking", loaded.facilityRaceRules, null));
+            Assert.IsNull(loaded.ToPublicRecord().facilityRaceRules);
+        }
+
+        [Test]
         public void GateAllowOverridesFactionDenyAndInheritRestoresIt()
         {
             const string race = "smep:example";

@@ -127,6 +127,8 @@ namespace GoF2Remake.Multiplayer
         public PlayerStationOwnershipType factionSuccessorType = PlayerStationOwnershipType.Individual;
         public string factionSuccessorDelegateProfile;
         public PlayerStationFactionPermissionProfile factionPermissions = new PlayerStationFactionPermissionProfile();
+        public List<StationFacilityRaceRule> facilityRaceRules;
+        public List<string> facilityRaceExemptions;
         public int governanceVersion;
         public List<PlayerStationPermissionOverride> permissionOverrides = new List<PlayerStationPermissionOverride>();
         public List<PlayerStationRoleAssignment> roleAssignments = new List<PlayerStationRoleAssignment>();
@@ -185,6 +187,8 @@ namespace GoF2Remake.Multiplayer
             visible.pendingTransfer = null;
             visible.history = null;
             visible.permissionOverrides = null;
+            visible.facilityRaceRules = null;
+            visible.facilityRaceExemptions = null;
             visible.roleAssignments = null;
             visible.bans = null;
             visible.individualSuccessorProfile = null;

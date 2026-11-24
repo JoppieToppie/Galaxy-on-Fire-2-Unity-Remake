@@ -908,7 +908,11 @@ namespace GoF2Remake.Multiplayer
             string previousPortrait = account.playerPortrait;
             account.stationPolicyRace = race;
             account.playerPortrait = portrait;
-            if (Write(IndexPath, JsonUtility.ToJson(index, true))) return true;
+            if (Write(IndexPath, JsonUtility.ToJson(index, true)))
+            {
+                if (previousRace != race) NetPlayerStations.RefreshAccessForFactionChange();
+                return true;
+            }
             account.stationPolicyRace = previousRace;
             account.playerPortrait = previousPortrait;
             return false;

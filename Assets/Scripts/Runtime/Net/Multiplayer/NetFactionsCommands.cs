@@ -69,6 +69,8 @@ namespace GoF2Remake.Multiplayer
                 case "sieges": return SiegesText();
                 case "garrison": return SetGarrison(client, me, arg);
                 case "vat": return SetVat(client, me, arg);
+                case "station-race": return NetProfiles.Controls(client) ?
+                    SetFactionStationRace(me, arg) : "Take profile control before editing faction policy.";
                 case "gate-race": return NetProfiles.Controls(client) ?
                     SetFactionJumpgateRace(me, arg) : "Take profile control before editing faction policy.";
                 default:
@@ -78,6 +80,26 @@ namespace GoF2Remake.Multiplayer
                                                             "gate-race <race> <inherit|allow|deny> sets race defaults for faction-owned jumpgates. /f <text> talks to your faction.");
             }
         }
+        static string SetFactionStationRace(string account, string arg)
+        {
+            if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                return "Station race policies are disabled.";
+            var faction = Of(account);
+            if (faction == null || faction.leader != account)
+                return "Only the faction leader can change faction station race defaults.";
+            if (!NetPlayerStations.TryReadFacilityRaceRule(arg, out var rule))
+                return "/faction station-race <facility> <race> <inherit|allow|deny>";
+            var previous = faction.stationRaceRules;
+            faction.stationRaceRules = NetPlayerStations.WithFacilityRaceRule(previous, rule);
+            if (!Save())
+            {
+                faction.stationRaceRules = previous;
+                return "The faction station race default could not be saved.";
+            }
+            NetPlayerStations.RefreshAccessForFactionChange();
+            return "Faction station race default saved.";
+        }
+
         static string SetFactionJumpgateRace(string account, string arg)
         {
             if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.JumpgateRacePoliciesEnabled)

@@ -355,6 +355,8 @@ namespace GoF2Remake.Multiplayer
         static string Station(string args, IPilot by)
         {
             args = (args ?? "").Trim();
+            if (args.StartsWith("race-policy ", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.StationFacilityRaceCommand(by as NetPlayer, args.Substring("race-policy ".Length));
             if (args.StartsWith("jumpgate-race ", StringComparison.OrdinalIgnoreCase))
                 return NetPlayerStations.SetJumpgateRace(by as NetPlayer, args.Substring("jumpgate-race ".Length));
             if (args.StartsWith("profile-race ", StringComparison.OrdinalIgnoreCase))
