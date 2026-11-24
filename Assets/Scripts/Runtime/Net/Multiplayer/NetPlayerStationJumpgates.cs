@@ -99,8 +99,25 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
-        internal static PlayerJumpgateRecord FindJumpgate(int orbitStationIndex) =>
-            registry?.jumpgates?.Find(x => x != null && x.orbitStationIndex == orbitStationIndex);
+        static Registry indexedGateRegistry;
+        static int indexedGateCount = -1;
+        static readonly Dictionary<int, PlayerJumpgateRecord> gatesByOrbit = new Dictionary<int, PlayerJumpgateRecord>();
+
+        internal static PlayerJumpgateRecord FindJumpgate(int orbitStationIndex)
+        {
+            int count = registry?.jumpgates?.Count ?? 0;
+            if (!ReferenceEquals(indexedGateRegistry, registry) || indexedGateCount != count)
+            {
+                gatesByOrbit.Clear();
+                indexedGateRegistry = registry;
+                indexedGateCount = count;
+                if (registry?.jumpgates != null)
+                    foreach (var gate in registry.jumpgates)
+                        if (gate != null && !gatesByOrbit.ContainsKey(gate.orbitStationIndex))
+                            gatesByOrbit.Add(gate.orbitStationIndex, gate);
+            }
+            return gatesByOrbit.TryGetValue(orbitStationIndex, out var result) ? result : null;
+        }
 
         static PlayerStationRecord JumpgateAccessRecord(PlayerJumpgateRecord gate) => gate == null ? null : new PlayerStationRecord
         {
@@ -618,10 +635,12 @@ namespace GoF2Remake.Multiplayer
             int existingIndex = stationRebuild ? registry.jumpgates.IndexOf(existingGate) : -1;
             if (stationRebuild && existingIndex >= 0) registry.jumpgates[existingIndex] = gate;
             else registry.jumpgates.Add(gate);
+            indexedGateCount = -1;
             if (!Save())
             {
                 if (stationRebuild && existingIndex >= 0) registry.jumpgates[existingIndex] = existingGate;
                 else registry.jumpgates.Remove(gate);
+                indexedGateCount = -1;
                 return "The jumpgate construction plan could not be saved.";
             }
             return "Jumpgate project started in orbit " + orbitStationIndex + " of " + origin.name +
