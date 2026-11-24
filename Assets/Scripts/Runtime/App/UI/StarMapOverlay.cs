@@ -233,6 +233,17 @@ namespace GoF2Remake.UI
                 it.name.EnableInClassList("map-name--selected", sel);
                 it.name.style.opacity = other ? 64f / 255f : 1f;
                 it.pulse.style.opacity = pulse;
+                if (constructionOrbitAllowed != null)
+                {
+                    bool vacant = constructionOrbitAllowed(planets[k].station);
+                    it.name.style.color = vacant ? new Color(0.53f, 0.94f, 0.72f) : new Color(0.65f, 0.65f, 0.65f);
+                    it.ring.style.opacity = vacant ? 1f : 0.25f;
+                    it.line1.text = vacant ? "VACANT SITE" : "UNAVAILABLE";
+                    it.line1.style.display = DisplayStyle.Flex;
+                    it.line1.style.top = 68.5f + 30f;
+                    it.line2.style.display = DisplayStyle.None;
+                    continue;
+                }
                 int tech = db.Stations.Find(s => s.index == planets[k].station)?.techLevel ?? 0;
                 it.line1.style.display = sel && tech > 0 ? DisplayStyle.Flex : DisplayStyle.None;
                 if (sel && tech > 0) { it.line1.text = $"{T(133)}: {tech}"; it.line1.style.top = 68.5f + 30f; }
