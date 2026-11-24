@@ -60,6 +60,7 @@ namespace GoF2Remake.Multiplayer
             if (faction == null || !IsOfficer(faction, me)) return Localization.Extra("mpFactionNotOfficer", "Only a faction's leader and officers can do that.");
             if (!TryAmount(arg, out long amount)) return "/faction withdraw N";
             if (!NetProfiles.Controls(client)) return Localization.Extra("mpFactionController", "Do that on the device that controls your profile.");
+            if (NetPlayerStations.ProfileWritesBlocked) return "Faction treasury recovery is pending.";
             if (faction.bank < amount) return string.Format(Localization.Extra("mpFactionBankShort", "The bank has {0:N0} credits."), faction.bank);
             faction.bank -= amount;
             Save();
@@ -190,7 +191,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>NetState.Update (server): members docked at a claim keep it; claims nobody kept lapse; old deposits drop.</summary>
         public static void Tick()
         {
-            if (list == null) return;
+            if (list == null || NetPlayerStations.ProfileWritesBlocked) return;
             if ((siegeTimer -= Time.unscaledDeltaTime) <= 0f) { siegeTimer = SiegeTickSeconds; TickSieges(SiegeTickSeconds); }
             if (charges.Count > 0)
                 foreach (var key in new List<int>(charges.Keys)) if (charges[key].until < Time.realtimeSinceStartup) charges.Remove(key);
