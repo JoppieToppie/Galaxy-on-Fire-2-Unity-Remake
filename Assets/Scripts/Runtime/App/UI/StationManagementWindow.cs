@@ -281,8 +281,8 @@ namespace GoF2Remake.UI
                     : "Deposits are personal contributions. Individually owned stations do not draw from faction funds.");
                 AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                 AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
-                AddField("transferKind", "Transfer recipient type (player/faction)", "player");
-                AddField("transferAccount", "Recipient profile account ID", "");
+                AddChoice("transferKind", "Transfer recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Pilot’s faction") });
+                AddAccountField("transferAccount", "Recipient pilot");
                 AddAction("Propose ownership transfer", () => Send("/station transfer " + selected.id + " " + Value("transferKind") + " " + Value("transferAccount")));
                 AddAction("Accept pending transfer", "/station transfer-accept " + selected.id);
                 AddAction("Cancel pending transfer", "/station transfer-cancel " + selected.id);
@@ -629,8 +629,8 @@ namespace GoF2Remake.UI
                     AddField(modeKey, "Access · everyone, faction, blacklist or owner", access);
                     AddAction("Set gate access · orbit " + orbitId, () =>
                         Send("/station jumpgate-access " + orbitId + " " + Value(modeKey)));
-                    AddField(typeKey, "Blacklist entry type · player or faction", "player");
-                    AddField(targetKey, "Blacklist account or faction ID", "");
+                    AddChoice(typeKey, "Blacklist entry type", new List<(string, string)> { ("player", "Pilot"), ("faction", "Pilot’s faction") });
+                    AddAccountField(targetKey, "Blacklist target");
                     AddAction("Add to gate blacklist", () =>
                         Send("/station jumpgate-blacklist " + orbitId + " add " + Value(typeKey) + " " + Value(targetKey)));
                     AddAction("Remove from gate blacklist", () =>
@@ -941,7 +941,7 @@ namespace GoF2Remake.UI
             AddChoice("stationAppearance", "Station model", StationModelChoices());
             AddAction("Change station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
             AddAction("View station history", "/station history " + id);
-            AddField("governanceAccount", "Profile account ID", "");
+            AddAccountField("governanceAccount", "Target pilot");
             AddChoice("governanceRole", "Station role", Enum.GetNames(typeof(PlayerStationRole))
                 .Append("none").Select(value => (value, value)).ToList());
             AddAction("Set station role", () => Send("/station role " + id + " " + Value("governanceAccount") + " " + Value("governanceRole")));
@@ -984,6 +984,24 @@ namespace GoF2Remake.UI
                 }
                 else AddAction("Relinquish builder rights", () => { confirmBuilderRelinquish = station.id; RebuildBody(); });
             }
+        }
+
+        void AddAccountField(string key, string label)
+        {
+            AddField(key, label + " (or offline account/faction reference)", "");
+            var pilots = NetPlayer.All.Where(pilot => pilot != null && pilot.IsSpawned && !pilot.Observer)
+                .OrderBy(pilot => pilot.DisplayName).ToList();
+            if (pilots.Count == 0) return;
+            var labels = new List<string> { "Select an online pilot…" };
+            labels.AddRange(pilots.Select(pilot => pilot.TaggedName + " [#" + pilot.OwnerClientId + "]"));
+            var picker = new DropdownField(label, labels, 0);
+            picker.AddToClassList("player-station-field");
+            picker.RegisterValueChangedCallback(_ =>
+            {
+                if (picker.index > 0 && picker.index <= pilots.Count)
+                    fields[key].value = "online:" + pilots[picker.index - 1].OwnerClientId;
+            });
+            body.Add(picker);
         }
 
         void AddField(string key, string label, string initial)
