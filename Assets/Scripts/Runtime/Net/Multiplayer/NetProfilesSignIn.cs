@@ -20,6 +20,11 @@ namespace GoF2Remake.Multiplayer
         public static void OnLogin(ulong client, string token, string device, string name)
         {
             if (!Enabled || NetState.Instance == null || logins.ContainsKey(client)) return;
+            if (NetPlayerStations.ProfileWritesBlocked && !IsHostClient(client))
+            {
+                NetGame.Kick(client, "Station transaction recovery is pending. Reconnect once recovery completes.");
+                return;
+            }
             device = CleanDevice(device);
             name = NetGame.Clean(name);
             Account account = null;
@@ -114,6 +119,11 @@ namespace GoF2Remake.Multiplayer
                         login.economyRevisionDirty = false;
                         NetState.Instance.SendEconomyRevision(login.client, login.economyRevision);
                     }
+            // A disconnect during journal recovery may have deferred controller promotion.
+            if (!NetPlayerStations.ProfileWritesBlocked)
+                foreach (var login in new List<Login>(logins.Values))
+                    if (login.account != null && !login.controller && ControllerOf(login.account) == null &&
+                        !handovers.ContainsKey(login.account.id)) Promote(login);
             if (now >= nextPrune) Prune();   // hourly: profiles unused for PruneDays
             if (links.Count > 0)
                 foreach (var code in new List<string>(links.Keys))
@@ -135,7 +145,10 @@ namespace GoF2Remake.Multiplayer
         static void Promote(Login login)
         {
             if (login.account != null && ControllerOf(login.account) != null) return;
+            if (NetPlayerStations.ProfileWritesBlocked) return;
             login.controller = true;
+            login.acceptedUploadSequence = 0;
+            incoming.Remove(login.client);
             login.acceptedAt = Time.realtimeSinceStartup;
             SetObserverFlag(login.client, false);
             SendProfile(login, null);
@@ -177,6 +190,11 @@ namespace GoF2Remake.Multiplayer
             }
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
             NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home);
+            if (!NetPlayerStations.ProfileWritesBlocked && !IsHostClient(login.client))
+            {
+                login.economyRevisionDirty = false;
+                NetState.Instance?.SendEconomyRevision(login.client, login.economyRevision);
+            }
             NetModeration.SyncRole(login.client);   // the profile's role onto its NetPlayer (NetCommands' rights)
         }
         /// <summary>The log's note on a signed-in client: its profile and device label ("" when it has none).</summary>
