@@ -96,6 +96,7 @@ namespace GoF2Remake.World
         float smepPathMs, smepPathSpeed = 1f;
         Vector3 smepPathWanted, smepPathDirection;
         bool smepPathStraight = true;
+        readonly List<Obstacle> smepPathObstacles = new List<Obstacle>(16);
         float smepHullTopSpeed, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
         // Player flight rules are resolved once at spawn, never in the movement loop.
         void SetupSmepHullFlight(ShipData ship)
@@ -349,7 +350,13 @@ namespace GoF2Remake.World
             float reach = (Mathf.Max(topSpeed, currentVelocity.magnitude) * 1000f
                            * Es2NpcFlight.PredictionS * M) + r;
             Es2GatherAsteroids(transform.position, reach);
-            if (es2Near.Count == 0 && !Es2ObstacleNear(transform.position, reach)) return;
+            smepPathObstacles.Clear();
+            int frame = Time.frameCount;
+            var origin = transform.position;
+            foreach (var obstacle in Obstacle.All)
+                if (obstacle != null && (target == null || obstacle.transform != target.transform) &&
+                    obstacle.MayReach(origin, reach, frame)) smepPathObstacles.Add(obstacle);
+            if (es2Near.Count == 0 && smepPathObstacles.Count == 0) return;
             if (SmepPathClear(currentVelocity, wanted, topSpeed, r)) return;
 
             var side = Vector3.Cross(wanted, Mathf.Abs(Vector3.Dot(wanted, Vector3.up)) > 0.95f
@@ -384,7 +391,7 @@ namespace GoF2Remake.World
             float dtMs = 1000f / Es2NpcFlight.SamplesPerS;
             int frames = Mathf.CeilToInt(Es2NpcFlight.PredictionS * Es2NpcFlight.SamplesPerS);
             int frame = Time.frameCount;
-            var all = Obstacle.All;
+            var all = smepPathObstacles;
             for (int i = 0; i < frames; i++)
             {
                 velocity = SmepAiRules.StepVelocity(velocity, targetVelocity, transform.rotation, topSpeed,
@@ -536,7 +543,10 @@ namespace GoF2Remake.World
                 {
                     smepPathWanted = wanted;
                     SmepPathTest(state.velocity, wanted, Mathf.Max(0f, effectiveTopSpeed));
-                    smepPathMs = Es2NpcFlight.ForceUpdateS * 1000f * (smepPathStraight ? 2f : 1f);
+                    // Shorten (never extend) the existing refresh interval by a stable per-ship
+                    // phase to distribute expensive trajectory probes across frames.
+                    float phase = 0.85f + (unchecked((uint)GetInstanceID()) % 16u) * 0.01f;
+                    smepPathMs = Es2NpcFlight.ForceUpdateS * 1000f * (smepPathStraight ? 2f : 1f) * phase;
                     smepPathInitialized = true;
                 }
                 if (!smepPathStraight)
