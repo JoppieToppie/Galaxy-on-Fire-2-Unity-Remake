@@ -308,89 +308,36 @@ namespace GoF2Remake.UI
                 body.Add(claim);
             }
         }
-        string appearanceProfile, draftRace, draftPortrait;
 
-        static List<string> AppearanceChoices(List<(string Key, string Name)> entries)
-        {
-            var counts = entries.GroupBy(entry => entry.Name).ToDictionary(group => group.Key, group => group.Count());
-            return entries.Select(entry => counts[entry.Name] == 1 ? entry.Name : $"{entry.Name} ({entry.Key})").ToList();
-        }
+
+
 
 
         void BuildPlayerIdentity(NetPanel.State profile)
         {
-            Section("Pilot appearance");
-            if (appearanceProfile != profile.profileId)
+            Section("Pilot identity (permanent)");
+            if (!PlayerIdentity.IsComplete(profile.playerRace, profile.playerPortrait))
             {
-                appearanceProfile = profile.profileId;
-                draftRace = draftPortrait = null;
-            }
-
-            string selectedRace = string.IsNullOrEmpty(profile.playerRace) ? draftRace : profile.playerRace;
-            var races = ModRefs.RaceWords.Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
-                .Concat(ModRaces.All.Select(race => (Key: race.key, Name: ModRaces.Name(race.race)))).ToList();
-            if (string.IsNullOrEmpty(profile.playerRace) && profile.controller)
-            {
-                var choices = new List<string> { "Choose a race" };
-                choices.AddRange(AppearanceChoices(races));
-                int index = races.FindIndex(race => race.Key == selectedRace) + 1;
-                var picker = new DropdownField("Race", choices, index);
-                picker.RegisterValueChangedCallback(_ =>
-                {
-                    draftRace = picker.index > 0 ? races[picker.index - 1].Key : null;
-                    draftPortrait = null;
-                    Rebuild();
-                });
-                body.Add(picker);
-            }
-            else if (!string.IsNullOrEmpty(profile.playerRace))
-            {
-                string raceName = races.Find(race => race.Key == profile.playerRace).Name ?? profile.playerRace;
-                body.Add(Text(raceName, 16, Color.white));
-            }
-
-            if (string.IsNullOrEmpty(selectedRace)) return;
-            if (!PlayerIdentity.TryResolveRace(selectedRace, out int raceId))
-            {
-                body.Add(Text("This race is unavailable with the current mods.", 15, Bad));
+                body.Add(Text("Identity setup must be completed when joining the server.", 15, Bad));
                 return;
             }
-            var portraits = PlayerIdentity.Portraits(raceId).ToList();
-            string selection = profile.controller ? draftPortrait ?? profile.playerPortrait : profile.playerPortrait;
-            int portraitIndex = portraits.FindIndex(portrait => portrait.Key == selection);
-            if (portraitIndex < 0 && profile.controller) portraitIndex = 0;
-
-            var preview = new VisualElement();
-            preview.AddToClassList("profile-portrait");
-            void Preview(string key)
+            if (!PlayerIdentity.TryResolveRace(profile.playerRace, out int race))
             {
-                if (!PlayerIdentity.TryResolvePortrait(raceId, key, out var parts, out var character)) return;
+                body.Add(Text("Saved race: " + profile.playerRace + " (currently unavailable)", 15, Dim));
+                return;
+            }
+            string name = ModRefs.RaceWords.FirstOrDefault(entry => entry.race == race).name ?? ModRaces.Name(race);
+            body.Add(Text(name, 16, Color.white));
+            if (PlayerIdentity.TryResolvePortrait(race, profile.playerPortrait, out var parts, out var character))
+            {
+                var preview = new VisualElement();
+                preview.AddToClassList("profile-portrait");
                 if (character == null) Portrait.Show(preview, parts, false);
                 else Portrait.ShowCharacter(preview, character, false);
+                body.Add(preview);
             }
-
-            if (portraitIndex >= 0) Preview(portraits[portraitIndex].Key);
-            if (!profile.controller)
-            {
-                if (portraitIndex >= 0) body.Add(preview);
-                return;
-            }
-
-            var portraitPicker = new DropdownField("Portrait", AppearanceChoices(portraits), portraitIndex);
-            portraitPicker.RegisterValueChangedCallback(_ =>
-            {
-                if (portraitPicker.index < 0) return;
-                draftPortrait = portraits[portraitPicker.index].Key;
-                Preview(draftPortrait);
-            });
-            body.Add(portraitPicker);
-            body.Add(preview);
-            if (string.IsNullOrEmpty(profile.playerRace))
-                body.Add(Text("Your race is used by station policies. A server administrator can reset it after you save.", 14, Dim));
-            body.Add(Btn("Save appearance", () =>
-            {
-                if (portraitPicker.index >= 0) Send($"/appearance {selectedRace} {portraits[portraitPicker.index].Key}");
-            }, "squad-button--accept"));
+            else body.Add(Text("Saved portrait unavailable with the current mods.", 15, Dim));
+            body.Add(Text("Race and portrait cannot be changed.", 14, Dim));
         }
 
         /// <summary>Admins: the server's settings, each with its field (or switch) and Save; saved on the server and kept
