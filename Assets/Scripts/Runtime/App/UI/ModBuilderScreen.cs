@@ -911,8 +911,9 @@ namespace GoF2Remake.UI
             var otherStructureLimit = Add(scroll, new IntegerField("Other structure limit per orbit")
                 { value = settings.OtherOrbitalStructureLimit }, "mbv-field");
             Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOtherOrbitalStructureLimit} for structures without weapons.");
-            Note(scroll, "Add presets as a JSON array. Use sponsorRaces to filter by the sponsor system’s race. Defense presets can set targetPlayers and targetNpcs.");
-            Note(scroll, "Use the example buttons below to add a valid editable preset, then replace its model and costs as needed.");
+            Heading(scroll, "Orbital structure catalogue");
+            Note(scroll, "Configure each preset using the fields below. Advanced JSON remains available for additional fields.");
+            Note(scroll, "Use the example buttons to create a defense or a non-combat structure.");
             Note(scroll, "Add maintenance with intervalSeconds and materials for upkeep. Optional decayPercentPerDay defaults to 1. Optional minimumIntegrityPercent defaults to 15 and can be set from 15 to 100.");
             var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
                 value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
@@ -947,7 +948,138 @@ namespace GoF2Remake.UI
             var templates = Row(scroll);
             Act(templates, "+ Defense preset", () => AddPreset(true));
             Act(templates, "+ Other structure", () => AddPreset(false));
+            var graphical = Add(scroll, new VisualElement());
             var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");
+            void RenderPresets()
+            {
+                graphical.Clear();
+                JArray entries;
+                try { entries = JArray.Parse(structures.value); }
+                catch (Newtonsoft.Json.JsonException e) { Note(graphical, "Repair the advanced JSON: " + e.Message); return; }
+                void Sync() => structures.SetValueWithoutNotify(entries.ToString(Newtonsoft.Json.Formatting.Indented));
+                void MaterialEditor(VisualElement parent, JObject owner, string heading)
+                {
+                    Heading(parent, heading);
+                    var costs = owner["materials"] as JArray;
+                    if (costs == null) { costs = new JArray(); owner["materials"] = costs; }
+                    foreach (var token in costs.ToList())
+                    {
+                        if (!(token is JObject cost)) continue;
+                        var line = Add(parent, new VisualElement(), "mbv-panel");
+                        int item = (int?)cost["item"] ?? 156;
+                        var choices = Database.Shared.Items.Where(entry => entry != null && entry.index >= 0)
+                            .OrderBy(entry => entry.name).ToList();
+                        var labels = choices.Select(entry => entry.name + " [#" + entry.index + "]").ToList();
+                        int current = choices.FindIndex(entry => entry.index == item);
+                        if (current < 0) { labels.Insert(0, "Unresolved item #" + item); }
+                        var pick = Add(line, new DropdownField("Material", labels, Math.Max(0, current)), "mbv-field");
+                        bool unresolved = current < 0;
+                        pick.RegisterValueChangedCallback(_ =>
+                        {
+                            int index = pick.index - (unresolved ? 1 : 0);
+                            if (index >= 0 && index < choices.Count) { cost["item"] = choices[index].index; Sync(); }
+                        });
+                        Int(line, "Units", (int?)cost["amount"] ?? 1, 1, 100000, value => { cost["amount"] = value; Sync(); });
+                        Act(line, "Remove material", () => { cost.Remove(); Sync(); RenderPresets(); });
+                    }
+                    Act(parent, "+ Material", () =>
+                    {
+                        if (costs.Count >= 32) { errorLabel.text = "At most 32 material entries are allowed."; return; }
+                        int item = Database.Shared.Items.Find(entry => entry != null && entry.index >= 0 &&
+                            !costs.OfType<JObject>().Any(cost => (int?)cost["item"] == entry.index))?.index ?? -1;
+                        if (item < 0) return;
+                        costs.Add(new JObject { ["item"] = item, ["amount"] = 1 });
+                        Sync(); RenderPresets();
+                    });
+                }
+                foreach (var token in entries.ToList())
+                {
+                    if (!(token is JObject preset)) { Note(graphical, "Invalid preset: expected an object."); continue; }
+                    var group = Add(graphical, new VisualElement(), "mbv-panel");
+                    Heading(group, (string)preset["name"] ?? "Unnamed preset");
+                    Text(group, "Preset ID", (string)preset["id"], 48, value => { preset["id"] = value.Trim(); Sync(); });
+                    Text(group, "Display name", (string)preset["name"], 64, value => { preset["name"] = value.Trim(); Sync(); });
+                    bool defense = (bool?)preset["defense"] ?? false;
+                    var defenseToggle = Add(group, new Toggle("Armed defense") { value = defense }, "mbv-field");
+                    defenseToggle.RegisterValueChangedCallback(e =>
+                    {
+                        preset["defense"] = e.newValue;
+                        if (!e.newValue) preset.Remove("maintenance");
+                        Sync(); RenderPresets();
+                    });
+                    var modelType = Add(group, new DropdownField("Model source", new List<string> { "Assembly", "Station reference" },
+                        preset["stationModel"] == null ? 0 : 1), "mbv-field");
+                    modelType.RegisterValueChangedCallback(_ =>
+                    {
+                        if (modelType.index == 0) { preset.Remove("stationModel"); preset["assembly"] = "turret_002_static"; }
+                        else { preset.Remove("assembly"); preset["stationModel"] = "70"; }
+                        Sync(); RenderPresets();
+                    });
+                    string modelKey = preset["stationModel"] == null ? "assembly" : "stationModel";
+                    Text(group, modelKey == "assembly" ? "Assembly name" : "Station model reference", (string)preset[modelKey], 128,
+                        value => { preset[modelKey] = value.Trim(); Sync(); });
+                    if (modelKey == "assembly")
+                    {
+                        var assemblies = Database.Shared.Assemblies.Where(entry => entry != null && !string.IsNullOrEmpty(entry.name))
+                            .Select(entry => entry.name).Distinct().OrderBy(name => name).ToList();
+                        if (assemblies.Count > 0)
+                        {
+                            var options = new List<string> { "Choose an assembly…" }; options.AddRange(assemblies);
+                            var pick = Add(group, new DropdownField("Available models", options, 0), "mbv-field");
+                            pick.RegisterValueChangedCallback(_ =>
+                            {
+                                if (pick.index > 0) { preset["assembly"] = options[pick.index]; Sync(); RenderPresets(); }
+                            });
+                        }
+                    }
+                    Text(group, "Allowed sponsor races (one reference per line; empty = all)",
+                        string.Join("\n", (preset["sponsorRaces"] as JArray)?.Values<string>() ?? Enumerable.Empty<string>()), 4096,
+                        value => { preset["sponsorRaces"] = InfrastructureReferences(value); Sync(); }, true);
+                    void Number(string key, string label, float fallback, float min, float max) =>
+                        Float(group, label, (float?)preset[key] ?? fallback, min, max, value => { preset[key] = value; Sync(); });
+                    void Whole(string key, string label, int fallback, int min, int max) =>
+                        Int(group, label, (int?)preset[key] ?? fallback, min, max, value => { preset[key] = value; Sync(); });
+                    Number("modelScale", "Model scale", 1, 0.01f, 10);
+                    Number("hitRadius", "Hit radius (m)", 250, 10, 2000);
+                    Number("integrity", "Maximum integrity", 12000, 1, 10000000);
+                    Whole("buildSeconds", "Build duration (seconds)", 0, 0, 2592000);
+                    MaterialEditor(group, preset, "Construction materials");
+                    if (defense)
+                    {
+                        foreach (string target in new[] { "targetPlayers", "targetNpcs" })
+                        {
+                            var flag = Add(group, new Toggle(target == "targetPlayers" ? "Target hostile players" : "Target hostile NPCs")
+                                { value = (bool?)preset[target] ?? true }, "mbv-field");
+                            flag.RegisterValueChangedCallback(e => { preset[target] = e.newValue; Sync(); });
+                        }
+                        Number("range", "Weapon range (m)", 5000, 50, 20000);
+                        Number("damage", "Damage per shot", 120, 1, 10000);
+                        Whole("fireIntervalSeconds", "Fire interval (seconds)", 3, 1, 120);
+                        var upkeep = Add(group, new Toggle("Require maintenance") { value = preset["maintenance"] is JObject }, "mbv-field");
+                        upkeep.RegisterValueChangedCallback(e =>
+                        {
+                            if (e.newValue) preset["maintenance"] = new JObject { ["intervalSeconds"] = 86400, ["decayPercentPerDay"] = 1,
+                                ["minimumIntegrityPercent"] = 15, ["materials"] = new JArray(new JObject { ["item"] = 156, ["amount"] = 10 }) };
+                            else preset.Remove("maintenance");
+                            Sync(); RenderPresets();
+                        });
+                        if (preset["maintenance"] is JObject maintenance)
+                        {
+                            Int(group, "Maintenance interval (seconds)", (int?)maintenance["intervalSeconds"] ?? 86400, 60, 31536000,
+                                value => { maintenance["intervalSeconds"] = value; Sync(); });
+                            Float(group, "Overdue integrity decay (% per day)", (float?)maintenance["decayPercentPerDay"] ?? 1, 0, 100,
+                                value => { maintenance["decayPercentPerDay"] = value; Sync(); });
+                            Float(group, "Minimum remaining integrity (%)", (float?)maintenance["minimumIntegrityPercent"] ?? 15, 15, 100,
+                                value => { maintenance["minimumIntegrityPercent"] = value; Sync(); });
+                            MaterialEditor(group, maintenance, "Maintenance materials");
+                        }
+                    }
+                    Act(group, "Remove preset", () => { preset.Remove(); Sync(); RenderPresets(); }, "mbv-danger");
+                }
+            }
+            structures.isDelayed = true;
+            structures.RegisterValueChangedCallback(_ => RenderPresets());
+            RenderPresets();
             var actions = Row(box);
             Act(actions, T("mbApply", "Apply"), () =>
             {
