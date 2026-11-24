@@ -15,7 +15,7 @@ namespace GoF2Remake.Multiplayer
         public string name, assembly, stationModel;
         public bool defense;
         public float modelScale, hitRadius, integrity, maxIntegrity, range, damage;
-        public long completesUtc, maintenanceDueUtc;
+        public long completesUtc, maintenanceDueUtc, maintenanceDecayUtc;
         public int maintenanceIntervalSeconds;
         public List<PlayerStationMaterial> maintenanceMaterials = new List<PlayerStationMaterial>();
 
@@ -31,6 +31,8 @@ namespace GoF2Remake.Multiplayer
         const int DefenseSlotsPerRing = 3;
         const int MaxOtherStructuresPerOrbit = 8;
         const int MaxOrbitalStructures = 512;
+        const int DecayCheckpointSeconds = 60;
+        const double OverdueIntegrityLossPerSecond = 0.01 / 86400;
         static long nextOrbitalStructureTick;
         static readonly Dictionary<(int orbit, ulong client), long> orbitalAggression = new Dictionary<(int, ulong), long>();
 
@@ -151,12 +153,16 @@ namespace GoF2Remake.Multiplayer
                 return "The sponsor faction cannot cover this delivery.";
             bool wasOperational = structure.operational;
             long previousCompletion = structure.completesUtc, previousDue = structure.maintenanceDueUtc;
+            long previousDecay = structure.maintenanceDecayUtc;
+            float previousIntegrity = structure.integrity;
             material.delivered += amount;
             bool complete = materials.TrueForAll(entry => entry.delivered >= entry.required);
             if (complete && maintenance)
             {
+                ApplyOverdueDecay(structure, now, 1);
                 foreach (var entry in materials) entry.delivered = 0;
                 structure.maintenanceDueUtc = now + structure.maintenanceIntervalSeconds;
+                structure.maintenanceDecayUtc = 0;
             }
             else if (complete)
             {
@@ -175,6 +181,8 @@ namespace GoF2Remake.Multiplayer
                 structure.operational = wasOperational;
                 structure.completesUtc = previousCompletion;
                 structure.maintenanceDueUtc = previousDue;
+                structure.maintenanceDecayUtc = previousDecay;
+                structure.integrity = previousIntegrity;
                 return "Delivery could not be saved. Your cargo was kept.";
             }
             if (!fromStock && !(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
@@ -232,6 +240,41 @@ namespace GoF2Remake.Multiplayer
                 structure.maintenanceDueUtc = now + structure.maintenanceIntervalSeconds;
         }
 
+        static bool ApplyOverdueDecay(PlayerOrbitalStructure structure, long now, int minimumElapsed)
+        {
+            if (!structure.MaintenanceDue(now) || structure.integrity <= 1f) return false;
+            long elapsed = now - Math.Max(structure.maintenanceDueUtc, structure.maintenanceDecayUtc);
+            if (elapsed < minimumElapsed) return false;
+
+            double loss = structure.maxIntegrity * OverdueIntegrityLossPerSecond * elapsed;
+            float remaining = (float)Math.Max(1d, structure.integrity - loss);
+            if (remaining >= structure.integrity) return false;
+            structure.integrity = remaining;
+            structure.maintenanceDecayUtc = now;
+            return true;
+        }
+
+        static void SaveOverdueDefenseDecay(long now)
+        {
+            var original = registry;
+            List<(PlayerOrbitalStructure structure, float integrity, long checkpoint)> changes = null;
+            foreach (var structure in original.orbitalStructures)
+            {
+                if (structure == null) continue;
+                float integrity = structure.integrity;
+                long checkpoint = structure.maintenanceDecayUtc;
+                if (!ApplyOverdueDecay(structure, now, DecayCheckpointSeconds)) continue;
+                changes ??= new List<(PlayerOrbitalStructure, float, long)>();
+                changes.Add((structure, integrity, checkpoint));
+            }
+            if (changes == null || Save() || !ReferenceEquals(registry, original)) return;
+            foreach (var change in changes)
+            {
+                change.structure.integrity = change.integrity;
+                change.structure.maintenanceDecayUtc = change.checkpoint;
+            }
+        }
+
         static void TickOrbitalStructures(long now)
         {
             if (now < nextOrbitalStructureTick || registry?.orbitalStructures == null) return;
@@ -242,6 +285,8 @@ namespace GoF2Remake.Multiplayer
             foreach (var key in expired) orbitalAggression.Remove(key);
 
             var original = registry;
+            SaveOverdueDefenseDecay(now);
+            if (!ReferenceEquals(registry, original)) return;
             foreach (var structure in original.orbitalStructures)
             {
                 if (structure == null) continue;
@@ -288,13 +333,16 @@ namespace GoF2Remake.Multiplayer
             float old = structure.integrity;
             int index = list.IndexOf(structure);
             if (index < 0) return;
-            structure.integrity = Mathf.Max(0, old - damage);
+            long oldDecay = structure.maintenanceDecayUtc;
+            ApplyOverdueDecay(structure, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), 1);
+            structure.integrity = Mathf.Max(0, structure.integrity - damage);
             if (structure.integrity == 0) list.RemoveAt(index);
             if (Save()) NoteOrbitalAggression(pilot, structure.orbit);
             else if (ReferenceEquals(registry, previous))
             {
                 if (structure.integrity == 0) list.Insert(index, structure);
                 structure.integrity = old;
+                structure.maintenanceDecayUtc = oldDecay;
             }
         }
     }

@@ -8,7 +8,7 @@ Additional structures use the same construction, sponsorship and damage rules. T
 
 ## Defense maintenance
 
-Defense presets can require recurring materials. The first deadline starts when construction completes. While overdue, a defense stays in orbit and occupies its slot, but stops firing. Open **Multiplayer → Orbit Projects** to deliver upkeep cargo or use eligible sponsor stock. Partial deliveries are saved. Completing all upkeep materials restores firing eligibility and starts a fresh interval. Maintenance cargo receives no faction payout.
+Defense presets can require recurring materials. The first deadline starts when construction completes. While overdue, a defense stops firing and loses 1% of its maximum integrity per 24 hours of elapsed time, down to a floor of 1 integrity. The defense occupies its slot and remains vulnerable to structural damage. Decay includes elapsed time while the server was offline. Open **Multiplayer → Orbit Projects** to deliver upkeep cargo or use eligible sponsor stock. Partial deliveries are saved. Completing all upkeep materials ends decay, restores firing eligibility and starts a fresh interval. Lost integrity stays lost. Maintenance cargo receives no faction payout.
 
 The optional `maintenance` object accepts `intervalSeconds` from 60 to 31,536,000 and the same `materials` format as construction. Presets without this object and existing defense records without upkeep remain maintenance-free. The upkeep terms are saved when a defense is ordered.
 
