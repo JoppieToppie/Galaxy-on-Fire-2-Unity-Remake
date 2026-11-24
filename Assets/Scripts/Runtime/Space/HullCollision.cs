@@ -40,7 +40,25 @@ namespace GoF2Remake.Flight
 
         static readonly Dictionary<Collider, HullBody> bodies = new Dictionary<Collider, HullBody>();
         static readonly HashSet<Mesh> baked = new HashSet<Mesh>();
-        static readonly RaycastHit[] hits = new RaycastHit[64];
+        static RaycastHit[] hits = new RaycastHit[64];
+
+        // NonAlloc results are unordered; a full buffer may omit the nearest eligible hull.
+        // Grow only on saturation and reuse the larger buffer for subsequent queries.
+        static int QuerySweep(Vector3 from, float radius, Vector3 direction, float distance)
+        {
+            while (true)
+            {
+                int count = Physics.SphereCastNonAlloc(from, radius, direction, hits, distance, HullMask, QueryTriggerInteraction.Ignore);
+                if (count < hits.Length) return count;
+                Array.Resize(ref hits, checked(hits.Length * 2));
+            }
+        }
+
+        static void InvalidateGeometry()
+        {
+            syncedFrame = -1;
+            sweptFrame = -1;
+        }
         static readonly List<Renderer> lowLods = new List<Renderer>();
         static SphereCollider avoidanceProbe;
         static int syncedFrame = -1;
@@ -57,7 +75,7 @@ namespace GoF2Remake.Flight
         {
             int frame = Time.frameCount;
             if (frame == sweptFrame && radius == sweptRadius && from.Equals(sweptFrom) && to.Equals(sweptTo)) return sweptCount;
-            sweptCount = Physics.SphereCastNonAlloc(from, radius, dir, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            sweptCount = QuerySweep(from, radius, dir, len);
             sweptFrame = Application.isPlaying ? frame : -1;
             sweptFrom = from;
             sweptTo = to;
@@ -80,7 +98,8 @@ namespace GoF2Remake.Flight
         {
             bodies.Clear();
             baked.Clear();
-            syncedFrame = -1;
+            InvalidateGeometry();
+            sweptCount = 0;
             Suppressed = false;
             modeFrame = -1;
             pending.Clear();
@@ -136,17 +155,18 @@ namespace GoF2Remake.Flight
         public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false, bool forceExact = false)
         {
             if (model == null || Suppressed) return null;
+            // Read Mode before looking up the body: a mode change can materialize deferred hulls.
+            bool defer = obstacle == null && !forceExact && Application.isPlaying
+                && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal;
             var body = model.GetComponent<HullBody>();
-            // Preserve NPC navigation geometry and forced-exact hulls.
-            if (body == null && obstacle == null && Application.isPlaying
-                && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal
-                && !forceExact)
+            // An immediate attachment supersedes any deferred registration for this model.
+            if (pending.Count > 0) pending.RemoveAll(p => p.model == null || p.model == model);
+            if (body == null && defer)
             {
-                pending.RemoveAll(p => p.model == null || p.model == model);
                 pending.Add((model, target, obstacle, flyableShip));
                 return null;
             }
-            if (body == null)
+            if (body == null || body.colliders.Count == 0)
             {
                 lowLods.Clear();
                 foreach (var g in model.GetComponentsInChildren<LODGroup>(true))
@@ -161,7 +181,7 @@ namespace GoF2Remake.Flight
                 var meshes = new List<MeshFilter>();
                 foreach (var mf in model.GetComponentsInChildren<MeshFilter>(true)) if (IsHullMesh(mf)) meshes.Add(mf);
                 if (meshes.Count == 0) return null;
-                body = model.AddComponent<HullBody>();
+                if (body == null) body = model.AddComponent<HullBody>();
                 var rb = model.GetComponent<Rigidbody>();
                 if (rb == null) rb = model.AddComponent<Rigidbody>();
                 rb.isKinematic = true;
@@ -178,6 +198,7 @@ namespace GoF2Remake.Flight
                     body.colliders.Add(c);
                     bodies[c] = body;
                 }
+                InvalidateGeometry();
             }
             if (forceExact) forcedExact.Add(body);
             body.target = target;
@@ -222,7 +243,10 @@ namespace GoF2Remake.Flight
             return false;
         }
 
-        internal static void Forget(Collider c) => bodies.Remove(c);
+        internal static void Forget(Collider c)
+        {
+            if (bodies.Remove(c)) InvalidateGeometry();
+        }
 
         /// <summary>No hull for 'target' any more (its colliders gone): what the original never hits (a fighter's turret,
         /// radius 0).</summary>
@@ -234,6 +258,7 @@ namespace GoF2Remake.Flight
             forcedExact.Remove(b);
             foreach (var c in b.colliders) if (c != null) { bodies.Remove(c); UnityEngine.Object.Destroy(c.gameObject); }
             b.colliders.Clear();
+            InvalidateGeometry();
             target.hull = null;
             if (b.obstacle != null && b.obstacle.hull == b) b.obstacle.hull = null;
         }
@@ -252,6 +277,7 @@ namespace GoF2Remake.Flight
             c.sharedMesh = mesh;
             body.colliders.Add(c);
             bodies[c] = body;
+            InvalidateGeometry();
         }
 
         public static HullBody BodyOf(Collider c) => c != null && bodies.TryGetValue(c, out var b) ? b : null;
@@ -281,8 +307,8 @@ namespace GoF2Remake.Flight
         /// step: their kinematic bodies aren't simulated).</summary>
         internal static void Sync()
         {
-            if (syncedFrame == Time.frameCount) return;
-            syncedFrame = Time.frameCount;
+            if (Application.isPlaying && syncedFrame == Time.frameCount) return;
+            syncedFrame = Application.isPlaying ? Time.frameCount : -1;
             Physics.SyncTransforms();
         }
 
@@ -348,7 +374,7 @@ namespace GoF2Remake.Flight
             if (len < 1e-4f) return false;
             Sync();
             sweptFrame = -1;   // (the shared buffer is written)
-            int n = Physics.SphereCastNonAlloc(from, radius, d / len, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            int n = QuerySweep(from, radius, d / len, len);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
@@ -391,7 +417,7 @@ namespace GoF2Remake.Flight
             if (bodies.Count == 0 || reach <= 0f) return float.MaxValue;
             Sync();
             sweptFrame = -1;   // (the shared buffer is written)
-            int n = Physics.SphereCastNonAlloc(from, radius, dir, hits, reach, HullMask, QueryTriggerInteraction.Ignore);
+            int n = QuerySweep(from, radius, dir, reach);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
@@ -439,8 +465,7 @@ namespace GoF2Remake.Flight
             float reach = Mathf.Max(0f, lookAhead);
             if (reach <= 0.01f || forward.sqrMagnitude < 1e-6f) return false;
             sweptFrame = -1;
-            int n = Physics.SphereCastNonAlloc(position, Mathf.Max(0.1f, clearance * 0.65f), forward.normalized,
-                hits, reach, HullMask, QueryTriggerInteraction.Ignore);
+            int n = QuerySweep(position, Mathf.Max(0.1f, clearance * 0.65f), forward.normalized, reach);
             float nearest = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
