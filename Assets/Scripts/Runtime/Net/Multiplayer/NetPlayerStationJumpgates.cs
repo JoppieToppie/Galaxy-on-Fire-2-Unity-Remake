@@ -876,13 +876,15 @@ namespace GoF2Remake.Multiplayer
             if (targetType == "player")
             {
                 type = PlayerJumpgateBlockType.Profile;
-                id = NetProfiles.FindAccount((target ?? "").Trim());
+                id = ResolveStationAccount(target);
                 if (string.IsNullOrEmpty(id)) return "Supply a valid player profile or account name.";
             }
             else if (targetType == "faction")
             {
                 type = PlayerJumpgateBlockType.Faction;
                 var faction = NetFactions.FindById((target ?? "").Trim());
+                if (faction == null && (target ?? "").StartsWith("online:", StringComparison.OrdinalIgnoreCase))
+                    faction = NetFactions.Of(ResolveStationAccount(target));
                 id = faction?.id;
                 if (string.IsNullOrEmpty(id)) return "Supply a valid faction ID.";
             }
