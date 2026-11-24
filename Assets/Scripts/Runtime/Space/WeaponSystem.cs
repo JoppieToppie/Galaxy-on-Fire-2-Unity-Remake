@@ -281,7 +281,20 @@ namespace GoF2Remake.Flight
             }
         }
         /// <summary>More than one secondary item is mounted (the HUD offers the switch).</summary>
-        public bool CanCycleSecondary { get { int n = 0, last = -1; foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex != last) { last = r.gun.itemIndex; n++; } return n > 1; } }
+        public bool CanCycleSecondary
+        {
+            get
+            {
+                int? first = null;
+                foreach (var r in rigs)
+                {
+                    if (!r.gun.isSecondary) continue;
+                    if (!first.HasValue) first = r.gun.itemIndex;
+                    else if (r.gun.itemIndex != first.Value) return true;
+                }
+                return false;
+            }
+        }
         /// <summary>No firing (the mining minigame blocks the guns, MGame::OnTouchBegin / OnTouchEnd).</summary>
         public bool Blocked { get => blocked || WarpHeld; set => blocked = value; }
         bool blocked;
@@ -810,7 +823,7 @@ namespace GoF2Remake.Flight
             if (reportContact == null || shotId == 0) return;
             float radius = gun.magnitude * M;
             Physics.SyncTransforms();  // bombs can detonate on expiry without a preceding hull cast
-            foreach (var body in UnityEngine.Object.FindObjectsByType<HullBody>(FindObjectsSortMode.None))
+            foreach (var body in HullCollision.ForcedExactBodies)
             {
                 if (body == null || (body.playerJumpgateOrbit < 0 && body.playerStationOrbit < 0 && body.orbitalStructureId <= 0) ||
                     !HullCollision.IsForcedExact(body) || !body.Collides) continue;
