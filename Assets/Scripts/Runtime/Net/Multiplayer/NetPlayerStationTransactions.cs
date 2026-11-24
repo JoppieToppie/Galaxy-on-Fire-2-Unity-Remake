@@ -43,6 +43,8 @@ namespace GoF2Remake.Multiplayer
             // Legacy single-profile field: retained so an interrupted journal from the first version can recover.
             public string account;
             public string registryJson;
+            // Durable completion marker; old journals deserialize as unfinished.
+            public bool completed;
             public List<StationCargoTarget> cargo = new List<StationCargoTarget>();
             public List<StationCreditTarget> credits = new List<StationCreditTarget>();
             public List<StationFactionBankTarget> factionBanks = new List<StationFactionBankTarget>();
@@ -50,6 +52,11 @@ namespace GoF2Remake.Multiplayer
         }
 
         static string TransactionPath => path == null ? null : path + ".transaction";
+
+        // Fail closed while absolute journal targets may still be replayed. Profile uploads
+        // cannot safely replace a durable target until recovery has completed.
+        internal static bool ProfileWritesBlocked => NetGame.IsServer &&
+            !string.IsNullOrEmpty(TransactionPath) && File.Exists(TransactionPath);
 
         /// <summary>Apply a committed profile-credit delta to its online controller's live game.</summary>
         internal static void NotifyProfileCreditChange(string account, long delta, string reason)
@@ -235,6 +242,7 @@ namespace GoF2Remake.Multiplayer
 
         static bool FinishTransaction(StationTransactionJournal journal)
         {
+            if (journal.completed) return CleanupCompletedJournal();
             foreach (var target in journal.cargo)
                 if (target == null || !NetProfiles.SetCargoAmount(target.account, target.item, target.amount))
                     return false;
@@ -253,16 +261,26 @@ namespace GoF2Remake.Multiplayer
             registry = JsonUtility.FromJson<Registry>(journal.registryJson);
             if (registry == null) return false;
             registry.stations ??= new List<PlayerStationRecord>();
+            // Record completion before attempting deletion. A cleanup failure must never
+            // cause already committed absolute targets to be applied a second time.
+            journal.completed = true;
+            if (!NetProfiles.Write(TransactionPath, JsonUtility.ToJson(journal, true))) return false;
+            NetState.Instance?.PublishPlayerStations(Snapshot);
+            return CleanupCompletedJournal();
+        }
+
+        static bool CleanupCompletedJournal()
+        {
             try
             {
                 if (File.Exists(TransactionPath)) File.Delete(TransactionPath);
+                return true;
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"NetPlayerStations: committed transaction journal cleanup deferred ({e.Message}).");
+                return false;
             }
-            NetState.Instance?.PublishPlayerStations(Snapshot);
-            return true;
         }
     }
 }
