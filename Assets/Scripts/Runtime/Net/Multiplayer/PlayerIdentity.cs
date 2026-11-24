@@ -8,6 +8,11 @@ namespace GoF2Remake.Multiplayer
 {
     internal static class PlayerIdentity
     {
+        internal static bool IsComplete(string race, string portrait) => !string.IsNullOrEmpty(race) && !string.IsNullOrEmpty(portrait);
+
+        internal static bool CanChoose(string savedRace, string savedPortrait, string race) =>
+            !IsComplete(savedRace, savedPortrait) && (string.IsNullOrEmpty(savedRace) || string.Equals(savedRace, race, StringComparison.Ordinal));
+
         internal static string RaceKey(int race) => ModRaces.Is(race)
             ? ModRaces.Get(race)?.key : race.ToString(CultureInfo.InvariantCulture);
 
