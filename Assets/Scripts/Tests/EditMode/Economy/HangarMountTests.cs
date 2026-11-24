@@ -7,8 +7,10 @@
 // 2 / 1 / 0 / 9, Betty (0) 1 / 1 / 0 / 3, Specter (44) 4 / 2 / 0 / 16. The new game's equipment (shop.md 8): 2, 2 primary,
 // 36 x 6 secondary, 54 shield, 59 armor, 82 scanner, 73 booster.
 
+using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Data;
+using GoF2Remake.Flight;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
@@ -52,6 +54,102 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(h.Mount(64), "a second one: compression stacks");
             Assert.AreEqual(2, Mounted(64));
             Assert.IsEmpty(Session.Cargo);
+        }
+
+        [Test]
+        public void DuplicateSecondaryMountsAreDetectedWithoutRelaxingOtherTypes()
+        {
+            var mounted = new List<ItemStack> { new ItemStack(36, 4) };   // Edo is a secondary
+            Assert.IsTrue(Hangar.IsDuplicateSecondaryMount(Db, 36, mounted));
+            Assert.IsFalse(Hangar.DuplicateSecondaryMountAllowed(Db, 36, mounted, false), "vanilla default is unchanged");
+            Assert.IsTrue(Hangar.DuplicateSecondaryMountAllowed(Db, 36, mounted, true), "an active mod enables the exception");
+            Assert.IsFalse(Hangar.IsDuplicateSecondaryMount(Db, 2, mounted), "primary weapons are unaffected");
+            Assert.IsTrue(Hangar.IsDuplicateSecondaryMount(Db, 36,
+                new List<ItemStack> { new ItemStack(36, 1) { builtIn = true } }), "an integrated secondary is still a hardpoint");
+        }
+
+        [Test]
+        public void MultipleSecondaryMountsShareOneAmmoPool()
+        {
+            var first = new ItemStack(36, 1);
+            var second = new ItemStack(36, 2);
+            var pool = new SecondaryAmmoPool();
+            pool.AddStack(first);
+            pool.AddStack(second);
+            Assert.AreEqual(3, pool.Amount);
+            Assert.IsTrue(pool.HasAmmo);
+            Assert.AreEqual(1, pool.ConsumeOne());
+            Assert.AreEqual(2, pool.Amount);
+            Assert.AreEqual(0, first.amount, "the pool exhausts the first saved stack");
+            Assert.AreEqual(2, second.amount, "then consumes from the next stack");
+            Assert.AreEqual(4, pool.Add(4));
+            Assert.AreEqual(6, pool.Amount);
+            Assert.AreEqual(2, first.amount, "restock is shared rather than being assigned wholly to the first mount");
+            Assert.AreEqual(4, second.amount, "both saved mount stacks retain rounds if either launcher is demounted");
+            Assert.Greater(Hangar.UnitsOf(Db, first), 0, "the first launcher can be demounted with its own ammunition");
+            Assert.Greater(Hangar.UnitsOf(Db, second), 0, "the second launcher can be demounted with its own ammunition");
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        public void SharedRestockSurvivesDemountingEitherLauncher(int demountIndex)
+        {
+            Session.ShipIndex = 44;   // Specter: two secondary hardpoints
+            Session.Cargo.RemoveAll(x => x.item == 36);
+            Session.Equipment = new List<ItemStack>();
+            Hangar.SyncBuiltIn(Db);
+            var first = new ItemStack(36, 1);
+            var second = new ItemStack(36, 1);
+            Session.Equipment.Add(first);
+            Session.Equipment.Add(second);
+            var pool = new SecondaryAmmoPool();
+            pool.AddStack(first);
+            pool.AddStack(second);
+            Assert.AreEqual(10, pool.Add(10));
+            Assert.AreEqual(6, first.amount);
+            Assert.AreEqual(6, second.amount);
+
+            var removed = demountIndex == 0 ? first : second;
+            var surviving = demountIndex == 0 ? second : first;
+            Dis().Demount(Session.Equipment.IndexOf(removed));
+
+            Assert.AreEqual(6, Shop.CargoOf(36), "the removed launcher takes only its own saved ammo");
+            Assert.IsFalse(Session.Equipment.Contains(removed));
+            Assert.IsTrue(Session.Equipment.Contains(surviving));
+            Assert.AreEqual(6, surviving.amount, "the surviving launcher retains its ammunition");
+        }
+
+        [Test]
+        public void BuiltInAndFittedDuplicateSecondariesCanShareAndRestock()
+        {
+            var builtIn = new ItemStack(36, 1) { builtIn = true };
+            var fitted = new ItemStack(36, 2);
+            var pool = new SecondaryAmmoPool();
+            pool.AddStack(builtIn);
+            pool.AddStack(fitted);
+
+            Assert.AreEqual(3, pool.Amount);
+            Assert.AreEqual(6, pool.Add(6));
+            Assert.AreEqual(4, builtIn.amount);
+            Assert.AreEqual(5, fitted.amount);
+            Assert.AreEqual(9, pool.Amount);
+        }
+
+        [Test]
+        public void SeparatePoolsPreserveVanillaPerMountAmmunition()
+        {
+            var first = new ItemStack(36, 2);
+            var second = new ItemStack(36, 3);
+            var firstMount = new SecondaryAmmoPool();
+            var secondMount = new SecondaryAmmoPool();
+            firstMount.AddStack(first);
+            secondMount.AddStack(second);
+
+            Assert.AreEqual(2, firstMount.Amount);
+            Assert.AreEqual(3, secondMount.Amount);
+            Assert.AreEqual(4, firstMount.Add(2));
+            Assert.AreEqual(4, first.amount);
+            Assert.AreEqual(3, second.amount, "a vanilla independent mount is not changed by the other pool");
         }
 
         [Test]

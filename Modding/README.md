@@ -3,7 +3,9 @@
 A mod is a folder (or a `.zip`) of plain files: JSON for data, PNG for images. Most mods contain no code. A mod may also
 carry **scripts** (Lua, see [Scripts](#scripts)): those run inside the game only, without access to files, the network or
 other programs, so a mod you download can't harm your computer, and the game asks before it runs a mod's scripts.
-Players turn mods on and off in the main menu's **Mods** screen.
+Players turn mods on and off in the main menu's **Mods** screen. A mod can opt into duplicate secondary hardpoints by
+setting `"multipleSecondaryMounts": true` in its `mod.json`; it is off unless an active mod explicitly requests it,
+and the setting is included in the multiplayer mod signature.
 
 **Making a mod in the game:** main menu > **Mods** > **Mod Builder** (experimental) makes projects in this same format
 without writing any JSON: new ships from a `.glb` model or on one of the game's ship models (no 3D file needed), or

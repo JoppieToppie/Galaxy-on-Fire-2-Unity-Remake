@@ -29,6 +29,19 @@ namespace GoF2Remake.Modding
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static partial class ModContent
     {
+        /// <summary>Whether any active user mod has explicitly opted into duplicate secondary hardpoints. The base content
+        /// and disabled / inactive mods cannot turn this on; an unmodified game therefore keeps its original mount rules.</summary>
+        public static bool MultipleSecondaryMountsEnabled => HasMultipleSecondaryMounts(ModManager.Active);
+
+        /// <summary>Pure form used by the feature tests and the active-mod property above.</summary>
+        public static bool HasMultipleSecondaryMounts(IEnumerable<ModInfo> mods)
+        {
+            if (mods == null) return false;
+            foreach (var mod in mods)
+                if (mod != null && !mod.IsBase && mod.Manifest != null && mod.Manifest.multipleSecondaryMounts) return true;
+            return false;
+        }
+
         /// <summary>The asset pack of the mods' models (AssemblyData.pack; AssembledObject.LoadPrefab hands out the built
         /// templates for it: ModShips, ModStations).</summary>
         public const string Pack = "mod";
