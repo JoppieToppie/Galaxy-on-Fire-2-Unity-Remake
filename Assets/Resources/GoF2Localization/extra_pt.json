@@ -1292,7 +1292,7 @@
  "resupplyRepairs": "Reparos",
  "saveFailed": "Não foi possível salvar o jogo.",
  "shopBuy": "COMPRAR",
- "shopDoubleClickMount": "  ·  clique duas vezes para montar",
+ "shopDoubleClickMount": "  ·  clique duas vezes ou use Shift+clique para montar",
  "shopDoubleTapMount": "  ·  toque duas vezes para montar",
  "shopMoveSlot": "MOVER",
  "shopEmptySlot": "Encaixe vazio",

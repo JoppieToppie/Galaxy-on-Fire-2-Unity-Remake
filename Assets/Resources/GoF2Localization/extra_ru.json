@@ -1292,7 +1292,7 @@
  "resupplyRepairs": "Ремонт",
  "saveFailed": "Не удалось сохранить игру.",
  "shopBuy": "КУПИТЬ",
- "shopDoubleClickMount": "  ·  двойной щелчок для установки",
+ "shopDoubleClickMount": "  ·  двойной щелчок или Shift + ЛКМ для установки",
  "shopDoubleTapMount": "  ·  двойное касание для установки",
  "shopMoveSlot": "ПЕРЕМЕСТИТЬ",
  "shopEmptySlot": "Пустой слот",

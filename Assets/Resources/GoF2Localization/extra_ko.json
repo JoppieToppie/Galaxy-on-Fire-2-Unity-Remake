@@ -1281,7 +1281,7 @@
  "resupplyRepairs": "수리",
  "saveFailed": "게임을 저장할 수 없습니다.",
  "shopBuy": "구매",
- "shopDoubleClickMount": "  ·  더블 클릭하여 장착",
+ "shopDoubleClickMount": "  ·  더블 클릭 또는 Shift+클릭으로 장착",
  "shopDoubleTapMount": "  ·  더블 탭하여 장착",
  "shopMoveSlot": "이동",
  "shopEmptySlot": "빈 슬롯",

@@ -60,26 +60,26 @@ namespace GoF2Remake.UI
             rowActions.RemoveFromClassList("row-actions--equipment");
             rowActions.RemoveFromClassList("row-actions--reorder");
             if (!IsOpen || (!Shown(actionButton) && !Shown(actionButton2)) || e?.parent == null || !list.contentContainer.Contains(e)) return;
-            // CLAUDE.md "Row actions": full-height actions; stacked slot arrows or a separate amount on the right.
+            // CLAUDE.md "Row actions": full-height actions; stacked slot arrows or a separate amount before the action.
             bool mounted = selected.kind == RowKind.Slot && selected.equipment >= 0, hold = selected.kind == RowKind.CargoItem;
-            if (mounted || hold)
+            if (mounted || hold || selected.kind == RowKind.StoredShip)
             {
                 rowActions.AddToClassList("row-actions--inline");
                 rowActions.AddToClassList("row-actions--equipment");
                 rowActions.RemoveFromClassList("row-actions--mounted");
-                actionButton2?.AddToClassList("detail-action--hidden");   // MOVE: the arrows (X still moves it to the next slot)
+                if (mounted || hold) actionButton2?.AddToClassList("detail-action--hidden");   // MOVE: the arrows (X still moves it to the next slot)
                 if (hold)
                 {
                     rowQty.text = $"{hangar.CargoOf(selected.item)}t";
+                    e.Add(rowQty);
                 }
-                else if (hangar.NextSlot(selected.equipment) >= 0)
+                else if (mounted && hangar.NextSlot(selected.equipment) >= 0)
                 {
                     rowActions.AddToClassList("row-actions--reorder");
                     rowActions.Insert(0, rowMove);
                 }
                 e.Add(rowActions);
-                if (hold) e.Add(rowQty);   // its own column, outside the proportional button area
-                e.AddToClassList("list-row--actions");   // its own amount hidden (USS)
+                if (mounted || hold) e.AddToClassList("list-row--actions");   // keep the stored ship price visible
                 rowActionsHost = e;
                 return;
             }
@@ -201,7 +201,7 @@ namespace GoF2Remake.UI
                 if (selected.kind == RowKind.ShopShip)
                 {
                     int delta = hangar.BuyShipPrice(selected.ship) - hangar.ShipPrice(Session.ShipIndex);
-                    ShowAction($"{T(301).UiCaps()}   {ItemInfo.Credits(delta)}", true);
+                    ShowAction($"{Localization.Extra("shopBuy", "BUY").UiCaps()}   {ItemInfo.Credits(delta)}", true);
                     ItemInfo.FillModLines(detailMods, hangar.Stock.ModsOf(selected.ship));   // a traded-in hull's mods
                 }
                 else if (selected.kind == RowKind.StoredShip)

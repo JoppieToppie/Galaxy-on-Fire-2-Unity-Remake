@@ -184,7 +184,7 @@ namespace GoF2Remake.UI
                     // the mounted slots.
                     if (cargo.Count > 0)
                         AddHeader(Localization.Get(284) + (InputMode.Current == InputKind.Touch ? Localization.Extra("shopDoubleTapMount", "  ·  double-tap to mount")
-                                                         : InputMode.Current == InputKind.KeyboardMouse ? Localization.Extra("shopDoubleClickMount", "  ·  double-click to mount") : ""), true);
+                                                         : InputMode.Current == InputKind.KeyboardMouse ? Localization.Extra("shopDoubleClickMount", "  ·  double-click or Shift-click to mount") : ""), true);
                     foreach (int i in cargo) AddRow(new Row { kind = RowKind.CargoItem, item = i, type = type });
                 }
             }

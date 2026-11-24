@@ -1282,7 +1282,7 @@
  "saveFailed": "تعذر حفظ اللعبة.",
  "saveTransferFolder": "تُصدَّر الحفظات إلى هذا المجلد وتُستورَد منه:",
  "shopBuy": "شراء",
- "shopDoubleClickMount": "  ·  انقر مرتين للتركيب",
+ "shopDoubleClickMount": "  ·  انقر مرتين أو اضغط على Shift وانقر للتركيب",
  "shopDoubleTapMount": "  ·  المس مرتين للتركيب",
  "shopMoveSlot": "نقل",
  "shopEmptySlot": "خانة فارغة",

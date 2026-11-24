@@ -1293,7 +1293,7 @@
  "saveFailed": "Das Spiel konnte nicht gespeichert werden.",
  "saveTransferFolder": "Exportierte Spielstände landen in diesem Ordner und werden von dort importiert:",
  "shopBuy": "KAUFEN",
- "shopDoubleClickMount": "  ·  Doppelklick zum Einbauen",
+ "shopDoubleClickMount": "  ·  Doppelklick oder Umschalt+Klick zum Einbauen",
  "shopDoubleTapMount": "  ·  doppelt tippen zum Einbauen",
  "shopMoveSlot": "VERSCHIEBEN",
  "shopEmptySlot": "Freier Platz",

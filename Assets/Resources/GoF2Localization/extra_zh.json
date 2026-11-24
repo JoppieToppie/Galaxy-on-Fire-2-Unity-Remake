@@ -1209,7 +1209,7 @@
   "resupplyRepairs": "修复",
   "saveFailed": "无法保存游戏。",
   "shopBuy": "购买",
-  "shopDoubleClickMount": "  ·  双击以安装",
+  "shopDoubleClickMount": "  ·  双击或按住 Shift 单击以安装",
   "shopDoubleTapMount": "  ·  双击以安装",
   "shopMoveSlot": "移动",
   "shopEmptySlot": "空槽位",

@@ -1281,7 +1281,7 @@
  "resupplyRepairs": "修理",
  "saveFailed": "ゲームをセーブできませんでした。",
  "shopBuy": "購入",
- "shopDoubleClickMount": "  ·  ダブルクリックで装備",
+ "shopDoubleClickMount": "  ·  ダブルクリックまたは Shift＋クリックで装備",
  "shopDoubleTapMount": "  ·  ダブルタップで装備",
  "shopMoveSlot": "移動",
  "shopEmptySlot": "空きスロット",

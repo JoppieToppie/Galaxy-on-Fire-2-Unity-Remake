@@ -300,7 +300,7 @@ namespace GoF2Remake.UI
             }
             Slots(265, s.slots.primary, current?.slots.primary ?? 0, "");
             Slots(266, s.slots.secondary, current?.slots.secondary ?? 0, "");
-            Slots(267, s.slots.turret, current?.slots.turret ?? 0, "");
+            rows.Add((T(267), s.slots.turret.ToString(), Cmp(s.slots.turret, current?.slots.turret ?? 0)));
             Slots(269, equipment, current != null ? current.slots.equipment + CurLv(2) : 0, Plus(2));
             rows.Add((T(164), handling + Plus(3), current == null ? 2 : Cmp(handling, Mathf.RoundToInt(current.handling) + 20 * CurLv(3))));
             rows.Add((T(132), Credits(price), 2));

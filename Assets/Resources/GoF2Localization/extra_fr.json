@@ -1293,7 +1293,7 @@
  "saveFailed": "La partie n'a pas pu être sauvegardée.",
  "saveTransferFolder": "Les sauvegardes exportées vont dans ce dossier et sont importées depuis celui-ci :",
  "shopBuy": "ACHETER",
- "shopDoubleClickMount": "  ·  double-clic pour monter",
+ "shopDoubleClickMount": "  ·  double-clic ou Maj+clic pour monter",
  "shopDoubleTapMount": "  ·  double toucher pour monter",
  "shopMoveSlot": "DÉPLACER",
  "shopEmptySlot": "Emplacement vide",
