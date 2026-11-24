@@ -144,7 +144,8 @@ namespace GoF2Remake.Multiplayer
                 if (recovered && !pending) persistenceFaulted = false;
                 nextTransactionRetryUtc = pending ? now + 5 : 0;
             }
-            if (registry?.stations == null) return;
+            // Never advance another persistent lifecycle over an unfinished journal.
+            if (persistenceFaulted || ProfileWritesBlocked || registry?.stations == null) return;
             PublishStationManagementAccess();
             TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             if (registry?.stations == null) return;
