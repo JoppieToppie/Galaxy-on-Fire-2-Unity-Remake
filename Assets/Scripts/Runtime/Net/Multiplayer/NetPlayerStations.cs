@@ -141,6 +141,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationMaterial> moduleConstructionMaterials;
         public List<PlayerStationAddon> addons = new List<PlayerStationAddon>();
         public List<PlayerStationListing> listings = new List<PlayerStationListing>();
+        public int nextItemListingId = 1;
         public List<PlayerStationShipListing> shipListings = new List<PlayerStationShipListing>();
         public int nextShipListingId = 1;
         public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
@@ -311,6 +312,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class PlayerStationListing
     {
+        public int id;
         public int item;
         public int amount;
         public long unitPrice;
@@ -486,6 +488,7 @@ namespace GoF2Remake.Multiplayer
                 station.addons ??= new List<PlayerStationAddon>();
                 station.materials ??= new List<PlayerStationMaterial>();
                 station.listings ??= new List<PlayerStationListing>();
+                NormalizeItemListingIds(station);
                 station.buyOrders ??= new List<PlayerStationBuyOrder>();
                 station.constructionContributions ??= new List<PlayerStationContribution>();
                 station.jumpgateMaterials ??= new List<PlayerStationMaterial>();
