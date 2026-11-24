@@ -46,6 +46,8 @@ namespace GoF2Remake.UI
             identityOverlay.BringToFront();
             bool pending = NetProfileClient.IdentitySubmitting;
             identityFeedback.text = NetProfileClient.IdentityMessage ?? "";
+            identityConsent.SetEnabled(identityController && !pending);
+            identityCode.SetEnabled(!pending);
             identityConfirm.SetEnabled(identityController && !pending && identityConsent.value &&
                 !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait));
             identityLink.SetEnabled(!pending && !string.IsNullOrWhiteSpace(identityCode.value));
