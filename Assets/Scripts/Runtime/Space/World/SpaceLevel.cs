@@ -950,7 +950,7 @@ namespace GoF2Remake.World
             {
                 // Modified: the arrival camera's clock starts once a mod drive's arrival fx is over (no skipping meanwhile).
                 var hc = mainCamera.transform;
-                hc.rotation = Quaternion.LookRotation(Player.transform.position - hc.position, Player.transform.up);
+                if (arrivalCinematic == null) hc.rotation = Quaternion.LookRotation(Player.transform.position - hc.position, Player.transform.up);
                 return;
             }
             if (Time.timeScale > 0f && PlayerTriedToFly()) { EndLaunchCamera(false); return; }
