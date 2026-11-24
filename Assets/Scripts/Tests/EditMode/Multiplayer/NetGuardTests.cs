@@ -287,6 +287,27 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(int.MaxValue, NetFactions.TollFor(-5, long.MaxValue));
         }
 
+        [Test]
+        public void ItemListingIdsSurviveListRemovalAndLegacyMigration()
+        {
+            var station = new PlayerStationRecord();
+            station.listings.Add(new PlayerStationListing { id = 7, item = 156 });
+            station.listings.Add(new PlayerStationListing { item = 155 });
+            station.listings.Add(new PlayerStationListing { id = 7, item = 118 });
+            var normalize = typeof(NetPlayerStations).GetMethod("NormalizeItemListingIds",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(normalize);
+            normalize.Invoke(null, new object[] { station });
+            Assert.AreEqual(7, station.listings[0].id);
+            Assert.AreEqual(8, station.listings[1].id);
+            Assert.AreEqual(9, station.listings[2].id);
+            station.listings.RemoveAt(0);
+            normalize.Invoke(null, new object[] { station });
+            Assert.AreEqual(8, station.listings[0].id);
+            Assert.AreEqual(9, station.listings[1].id);
+            Assert.AreEqual(10, station.nextItemListingId);
+        }
+
         // ---- NetRateLimit ----
 
         [SetUp]
