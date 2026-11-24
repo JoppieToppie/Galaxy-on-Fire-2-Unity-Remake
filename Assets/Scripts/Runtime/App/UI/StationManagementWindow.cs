@@ -15,7 +15,8 @@ namespace GoF2Remake.UI
     {
         readonly StationMenu menu;
         readonly StationLevel level;
-        readonly VisualElement safeArea, panel, stationList;
+        readonly VisualElement safeArea, panel;
+        readonly ScrollView stationList;
         readonly ScrollView body;
         readonly Label heading, feedback;
         readonly Button openButton, closeButton;
@@ -30,6 +31,8 @@ namespace GoF2Remake.UI
         float nextPlannerQuery;
         HashSet<int> plannerOrbits;
         bool plannerRequestPending;
+        StarMap plannerMap;
+        bool compact;
         float feedbackTime;
         float pressedAt = -10f;
 
@@ -37,8 +40,9 @@ namespace GoF2Remake.UI
         internal Button MenuButton => openButton;
         internal void FocusFirst() => closeButton.Focus();
         public VisualElement[] NavItems() => panel.Query<VisualElement>().ToList()
-            .Where(element => element is Button || element is DropdownField || element is TextField)
-            .ToArray();
+            .Where(element => element.ClassListContains("player-station-action") || element.ClassListContains("player-station-row") ||
+                element.ClassListContains("player-station-close") || element.ClassListContains("player-station-field"))
+            .Where(element => element.focusable).ToArray();
 
         public StationManagementWindow(StationMenu menu, StationLevel level, VisualElement root)
         {
@@ -76,14 +80,34 @@ namespace GoF2Remake.UI
             body = new ScrollView(ScrollViewMode.Vertical); body.AddToClassList("player-station-body");
             split.Add(body); panel.Add(split);
             feedback = new Label(); feedback.AddToClassList("player-station-feedback"); panel.Add(feedback);
+            panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
+            panel.RegisterCallback<FocusInEvent>(evt =>
+            {
+                if (evt.target is VisualElement target)
+                {
+                    if (body.Contains(target)) body.ScrollTo(target);
+                    else if (stationList.Contains(target)) stationList.ScrollTo(target);
+                }
+            });
             NetChat.Added += OnChat;
         }
 
         public void Dispose()
         {
+            Close();
             NetChat.Added -= OnChat;
             openButton?.RemoveFromHierarchy();
             panel?.RemoveFromHierarchy();
+        }
+
+        void ApplyResponsiveLayout()
+        {
+            bool small = InputMode.Current == InputKind.Touch || panel.resolvedStyle.width < 850f;
+            if (compact == small) return;
+            compact = small;
+            panel.EnableInClassList("player-station-compact", small);
+            stationList.mode = small ? ScrollViewMode.Horizontal : ScrollViewMode.Vertical;
+            stationList.contentContainer.style.flexDirection = small ? FlexDirection.Row : FlexDirection.Column;
         }
 
         bool CanOpen => NetGame.Active && level?.Layout != null;
@@ -104,6 +128,7 @@ namespace GoF2Remake.UI
             openButton.style.display = CanOpen ? DisplayStyle.Flex : DisplayStyle.None;
             if (!CanOpen) { if (open) Close(); return; }
             if (!open) return;
+            ApplyResponsiveLayout();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (StarMap.IsOpen || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
@@ -136,6 +161,8 @@ namespace GoF2Remake.UI
             if (!open) return;
             panel.style.display = DisplayStyle.None;
             open = false;
+            if (plannerMap != null && StarMap.Current == plannerMap) plannerMap.CloseBuilder();
+            plannerMap = null;
             confirmRetirementId = -1;
             confirmOrbitalRemoval = 0;
             drafts.Clear();
@@ -732,7 +759,7 @@ namespace GoF2Remake.UI
                 AddInfo("Build location", plannerRequestPending ? "Waiting for server-approved construction locations…" : "Construction locations are unavailable.");
                 return;
             }
-            bool Available(int orbit) => plannerOrbits.Contains(orbit) && NetPlayerStations.CanBuildStationInOrbit(orbit);
+            bool Available(int orbit) => plannerOrbits?.Contains(orbit) == true && NetPlayerStations.CanBuildStationInOrbit(orbit);
             var systems = db.Systems.Where(system => system != null && system.stations?.Any(Available) == true)
                 .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
             if (systems.Count == 0) AddInfo("Build location", "No reachable discovered system has a vacant orbit.");
@@ -753,6 +780,7 @@ namespace GoF2Remake.UI
                     panel.style.display = DisplayStyle.None;
                     var map = StarMap.OpenStationPlanner(db, allowed.Contains, Available, result =>
                     {
+                        plannerMap = null;
                         if (!open) return;
                         panel.style.display = DisplayStyle.Flex;
                         var picked = db.Stations.Find(station => station != null && station.index == result.station);
@@ -760,6 +788,7 @@ namespace GoF2Remake.UI
                         { drafts["system"] = picked.system.ToString(); drafts["buildOrbit"] = picked.index.ToString(); }
                         RebuildBody();
                     });
+                    plannerMap = map;
                     if (map == null) { panel.style.display = DisplayStyle.Flex; feedback.text = "The star map could not be opened."; feedbackTime = 8f; }
                     else map.SetHelp("Select a reachable system, then a vacant orbit. Occupied or reserved orbits cannot be confirmed.");
                 });
