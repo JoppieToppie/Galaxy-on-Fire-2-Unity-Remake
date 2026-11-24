@@ -29,6 +29,18 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void VoidAndSpectersAreNotSelectableButRemainWorldRaces()
+        {
+            foreach (var entry in ModRefs.RaceWords)
+            {
+                string key = PlayerIdentity.RaceKey(entry.race);
+                Assert.IsTrue(PlayerIdentity.TryResolveRace(key, out _));
+                Assert.AreEqual(entry.race != 9 && entry.race != 10,
+                    PlayerIdentity.TryResolveSelectableRace(key, out _));
+            }
+        }
+
+        [Test]
         public void CompleteIdentityIsImmutableEvenWhenRaceIsUnchanged()
         {
             Assert.IsTrue(PlayerIdentity.CanChoose(null, null, "4"));
