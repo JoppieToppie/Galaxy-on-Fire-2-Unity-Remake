@@ -23,7 +23,7 @@ namespace GoF2Remake.Multiplayer
 
     public static partial class NetPlayerStations
     {
-        public const int MaxDefensesPerOrbit = 3;
+        const int DefenseSlotsPerRing = 3;
         const int MaxOtherStructuresPerOrbit = 8;
         const int MaxOrbitalStructures = 512;
         static long nextOrbitalStructureTick;
@@ -52,28 +52,37 @@ namespace GoF2Remake.Multiplayer
         internal static Vector3 OrbitalStructurePosition(PlayerOrbitalStructure structure)
         {
             if (structure.defense)
-                return Quaternion.Euler(0f, structure.slot * 120f, 0f) * new Vector3(0, 0, 8000f);
+            {
+                int ring = structure.slot / DefenseSlotsPerRing;
+                float angle = (structure.slot % DefenseSlotsPerRing) * 120f + (ring % 2) * 60f;
+                return Quaternion.Euler(0f, angle, 0f) * new Vector3(0, 0, 8000f + ring * 4000f);
+            }
             return Quaternion.Euler(0f, 22.5f + structure.slot * 45f, 0f) * new Vector3(0, 3000f, 14000f);
         }
 
         internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId)
         {
-            if (!ModPlayerInfrastructure.Current.Enabled) return "New infrastructure projects are disabled.";
+            var settings = ModPlayerInfrastructure.Current;
+            if (!settings.Enabled) return "New infrastructure projects are disabled.";
             var sponsor = Find(sponsorId);
             if (!CanIssueJumpgateOrder(pilot, sponsor, out _) || sponsor.underConstruction)
                 return "Dock at an operational sponsor station you can manage.";
             if (!ValidOrbit(sponsor.system, orbit, out _)) return "Choose an existing orbit in the sponsor system.";
             ModPlayerInfrastructure.OrbitalDefinition preset = null;
-            foreach (var entry in ModPlayerInfrastructure.Current.OrbitalStructures)
+            foreach (var entry in settings.OrbitalStructures)
                 if (entry.Id == presetId) { preset = entry; break; }
             if (preset == null || !OrbitalPresetAvailable(preset)) return "That structure preset is unavailable.";
             var structures = registry.orbitalStructures;
             if (structures.Count >= MaxOrbitalStructures || registry.nextOrbitalStructureId >= int.MaxValue)
                 return "This persistent world has reached its orbital project limit.";
-            int capacity = preset.Defense ? MaxDefensesPerOrbit : MaxOtherStructuresPerOrbit;
+            int capacity = preset.Defense ? settings.OrbitalDefenseLimit : MaxOtherStructuresPerOrbit;
+            int occupied = 0;
+            foreach (var entry in structures)
+                if (entry != null && entry.orbit == orbit && entry.defense == preset.Defense) occupied++;
+            if (occupied >= capacity) return "This orbit has no free " + (preset.Defense ? "defense" : "structure") + " slots.";
+
             int slot = 0;
-            while (slot < capacity && structures.Exists(entry => entry.orbit == orbit && entry.defense == preset.Defense && entry.slot == slot)) slot++;
-            if (slot >= capacity) return "This orbit has no free " + (preset.Defense ? "defense" : "structure") + " slots.";
+            while (structures.Exists(entry => entry != null && entry.orbit == orbit && entry.defense == preset.Defense && entry.slot == slot)) slot++;
 
             var structure = new PlayerOrbitalStructure
             {

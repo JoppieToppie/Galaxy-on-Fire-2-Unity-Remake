@@ -328,14 +328,19 @@ namespace GoF2Remake.UI
 
         void BuildOrbitalStructureControls(string id)
         {
-            AddSection("ORBITAL STRUCTURES", "Each orbit can hold up to three defenses. Deliver materials from Multiplayer → Orbit Projects.");
-            if (Modding.ModPlayerInfrastructure.Current.Enabled)
+            var settings = Modding.ModPlayerInfrastructure.Current;
+            string limit = settings.OrbitalDefenseLimit > 0
+                ? $"Defense limit per orbit ({settings.OrbitalDefenseLimit}). "
+                : "New defense orders are disabled. ";
+            AddSection("ORBITAL STRUCTURES", limit + "Deliver materials from Multiplayer → Orbit Projects.");
+            if (settings.Enabled)
             {
                 var db = NetGame.Db;
                 var system = db.Systems.Find(entry => entry != null && entry.index == selected.system);
                 var orbits = db.Stations.Where(orbit => orbit != null && system?.stations?.Contains(orbit.index) == true)
                     .Select(orbit => (orbit.index.ToString(), orbit.name + " [" + orbit.index + "]")).ToList();
-                var availablePresets = Modding.ModPlayerInfrastructure.Current.OrbitalStructures.Where(NetPlayerStations.OrbitalPresetAvailable).ToList();
+                var availablePresets = settings.OrbitalStructures.Where(preset =>
+                    (!preset.Defense || settings.OrbitalDefenseLimit > 0) && NetPlayerStations.OrbitalPresetAvailable(preset)).ToList();
                 var presets = availablePresets.Select(preset => (preset.Id, preset.Name + (preset.Defense ? " · Defense" : ""))).ToList();
                 AddChoice("structureOrbit", "Build orbit", orbits);
                 var cost = new Label();

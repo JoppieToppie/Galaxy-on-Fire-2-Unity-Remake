@@ -8,12 +8,15 @@ namespace GoF2Remake.Modding
     {
         public const string FileName = "playerInfrastructure.json";
         public const float DefaultScrapIntegrity = 5000f;
+        public const int DefaultOrbitalDefenseLimit = 3;
+        public const int MaxOrbitalDefenseLimit = 12;
 
         public bool Enabled { get; private set; } = true;
         public bool JumpgatesEnabled { get; private set; } = true;
         internal bool RestrictStationModels { get; private set; }
         public bool IncludeStockStations { get; private set; } = true;
         public bool IncludeStockJumpgates { get; private set; } = true;
+        public int OrbitalDefenseLimit { get; private set; } = DefaultOrbitalDefenseLimit;
         public float ScrapIntegrity { get; private set; } = DefaultScrapIntegrity;
         public IReadOnlyList<string> StationModels { get; private set; } = Array.Empty<string>();
         public IReadOnlyList<OrbitalDefinition> OrbitalStructures { get; private set; } = StockStructures;
@@ -77,6 +80,7 @@ namespace GoF2Remake.Modding
                 IncludeStockStations = ReadToggle(settings, "includeStockStations"),
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,
+                OrbitalDefenseLimit = StructureInt(settings, "orbitalDefenseLimit", DefaultOrbitalDefenseLimit, 0, MaxOrbitalDefenseLimit),
                 OrbitalStructures = ReadStructures(settings),
                 StationModels = ReadReferences(settings, "stationModels"),
                 JumpgateModels = ReadReferences(settings, "jumpgateModels")
