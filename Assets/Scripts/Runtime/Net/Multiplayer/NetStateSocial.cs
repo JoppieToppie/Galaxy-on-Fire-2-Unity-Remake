@@ -407,8 +407,14 @@ namespace GoF2Remake.Multiplayer
         void ProfileChunkRpc(int seq, int part, byte[] data, RpcParams rpc = default) => NetProfileClient.OnProfileChunk(seq, part, data);
         /// <summary>A player's profile, a chunk at a time (NetProfileClient.Upload).</summary>
         [Rpc(SendTo.Server)]
-        public void UploadChunkRpc(int seq, int part, int count, byte[] data, RpcParams rpc = default)
-            => NetProfiles.OnUploadChunk(rpc.Receive.SenderClientId, seq, part, count, data);
+        public void UploadChunkRpc(int seq, int part, int count, long economyRevision, byte[] data, RpcParams rpc = default)
+            => NetProfiles.OnUploadChunk(rpc.Receive.SenderClientId, seq, part, count, economyRevision, data);
+
+        internal void SendEconomyRevision(ulong client, long revision) =>
+            EconomyRevisionRpc(revision, RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void EconomyRevisionRpc(long revision, RpcParams rpc = default) => NetProfileClient.OnEconomyRevision(revision);
         // The request follows its profile snapshot on this same reliable network object.
         [Rpc(SendTo.Server)]
         public void RequestModJumpRpc(int origin, int destination, int drive, int sequence, RpcParams rpc = default)
