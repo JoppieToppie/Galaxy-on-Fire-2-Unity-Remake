@@ -5,6 +5,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using GoF2Remake.Modding;
+using GoF2Remake.Multiplayer;
 using GoF2Remake.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -19,6 +22,141 @@ namespace GoF2Remake.UI
 {
     public partial class MainMenu
     {
+        VisualElement identityOverlay;
+        Label identityFeedback;
+        DropdownField identityRacePicker, identityPortraitPicker;
+        Button identityConfirm, identityLink;
+        Toggle identityConsent;
+        TextField identityCode;
+        VisualElement identityPreview;
+        List<(string Key, string Name)> identityRaces, identityPortraits;
+        string identityRace, identityPortrait, identityPreset;
+        bool identityController;
+
+        bool UpdatePlayerIdentitySetup()
+        {
+            if (!NetGame.Active || !NetProfileClient.IdentityRequired)
+            {
+                identityOverlay?.RemoveFromHierarchy();
+                identityOverlay = null;
+                return false;
+            }
+            if (identityOverlay == null || identityOverlay.parent != root || identityPreset != NetProfileClient.IdentityRace ||
+                identityController != NetProfileClient.Controller) BuildIdentitySetup();
+            identityOverlay.BringToFront();
+            bool pending = NetProfileClient.IdentitySubmitting;
+            identityFeedback.text = NetProfileClient.IdentityMessage ?? "";
+            identityConfirm.SetEnabled(identityController && !pending && identityConsent.value &&
+                !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait));
+            identityLink.SetEnabled(!pending && !string.IsNullOrWhiteSpace(identityCode.value));
+            identityRacePicker?.SetEnabled(identityController && !pending && string.IsNullOrEmpty(identityPreset));
+            identityPortraitPicker?.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityRace));
+            if (root.focusController?.focusedElement is not VisualElement focused || !identityOverlay.Contains(focused))
+            {
+                if (InputMode.Current == InputKind.Gamepad) (identityRacePicker?.enabledSelf == true ? (VisualElement)identityRacePicker : identityPortraitPicker?.enabledSelf == true ? identityPortraitPicker : identityCode).Focus();
+            }
+            return true;
+        }
+
+        void BuildIdentitySetup()
+        {
+            identityOverlay?.RemoveFromHierarchy();
+            identityPreset = NetProfileClient.IdentityRace;
+            identityController = NetProfileClient.Controller;
+            identityRace = string.IsNullOrEmpty(identityPreset) ? null : identityPreset;
+            identityPortrait = null;
+            identityOverlay = new VisualElement { name = "firstJoinIdentity" };
+            identityOverlay.style.position = Position.Absolute;
+            identityOverlay.style.left = identityOverlay.style.right = identityOverlay.style.top = identityOverlay.style.bottom = 0;
+            identityOverlay.style.backgroundColor = new Color(0.025f, 0.06f, 0.10f, 0.99f);
+            identityOverlay.style.alignItems = Align.Center;
+            identityOverlay.style.justifyContent = Justify.Center;
+            root.Add(identityOverlay);
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.width = new Length(90, LengthUnit.Percent);
+            scroll.style.maxWidth = 850;
+            scroll.style.maxHeight = new Length(94, LengthUnit.Percent);
+            scroll.style.paddingLeft = scroll.style.paddingRight = 24;
+            identityOverlay.Add(scroll);
+            Label Line(string value, int size)
+            {
+                var label = new Label(value);
+                label.style.fontSize = size;
+                label.style.whiteSpace = WhiteSpace.Normal;
+                label.style.color = Color.white;
+                label.style.marginBottom = 10;
+                scroll.Add(label);
+                return label;
+            }
+            Line("CREATE YOUR PILOT", 30);
+            Line(identityController ? "Choose your race, then a portrait belonging to that race. Both choices are permanent on this server and affect station and jumpgate policies." :
+                "This profile is being set up on another device. Wait for its identity to be confirmed, link an existing profile, or disconnect.", 18);
+            identityRaces = ModRefs.RaceWords.Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
+                .Concat(ModRaces.All.Select(race => (Key: race.key, Name: ModRaces.Name(race.race))))
+                .GroupBy(race => race.Key).Select(group => group.First()).ToList();
+            var raceLabels = new List<string> { "Choose your race…" };
+            raceLabels.AddRange(identityRaces.Select(race => race.Name + " [" + race.Key + "]"));
+            identityRacePicker = new DropdownField("1. Race", raceLabels, identityRaces.FindIndex(race => race.Key == identityRace) + 1);
+            scroll.Add(identityRacePicker);
+            identityPortraitPicker = new DropdownField("2. Portrait", new List<string> { "Choose a race first" }, 0);
+            scroll.Add(identityPortraitPicker);
+            identityPreview = new VisualElement();
+            identityPreview.style.width = 220;
+            identityPreview.style.height = 220;
+            identityPreview.style.alignSelf = Align.Center;
+            scroll.Add(identityPreview);
+            identityConsent = new Toggle("I understand that neither choice can be changed later.");
+            scroll.Add(identityConsent);
+            identityConfirm = new Button(() => NetProfileClient.ChooseIdentity(identityRace, identityPortrait)) { text = "CONFIRM PERMANENT IDENTITY & JOIN" };
+            scroll.Add(identityConfirm);
+            identityFeedback = Line("", 16);
+            Line("Already have a profile on this server? Link it instead.", 16);
+            identityCode = new TextField("Link code") { maxLength = 16 };
+            scroll.Add(identityCode);
+            identityLink = new Button(() => NetProfileClient.LinkIdentity(identityCode.value.Trim())) { text = "LINK EXISTING PROFILE" };
+            scroll.Add(identityLink);
+            var cancel = new Button(() => NetGame.RefuseJoin("Pilot setup cancelled.")) { text = "DISCONNECT" };
+            scroll.Add(cancel);
+            foreach (var button in new[] { identityConfirm, identityLink, cancel })
+            {
+                button.style.minHeight = 44;
+                button.style.marginTop = 8;
+                button.style.whiteSpace = WhiteSpace.Normal;
+            }
+            void UpdatePortraits()
+            {
+                identityPortrait = null;
+                identityConsent.SetValueWithoutNotify(false);
+                identityPreview.Clear();
+                identityPortraits = PlayerIdentity.TryResolveRace(identityRace, out int race) ? PlayerIdentity.Portraits(race).ToList() : new List<(string, string)>();
+                var labels = new List<string> { identityPortraits.Count == 0 ? "Choose a race first" : "Choose your portrait…" };
+                labels.AddRange(identityPortraits.Select(entry => entry.Name + " [" + entry.Key + "]"));
+                identityPortraitPicker.choices = labels;
+                identityPortraitPicker.index = 0;
+            }
+            identityRacePicker.RegisterValueChangedCallback(_ =>
+            {
+                identityRace = identityRacePicker.index > 0 ? identityRaces[identityRacePicker.index - 1].Key : null;
+                UpdatePortraits();
+            });
+            identityPortraitPicker.RegisterValueChangedCallback(_ =>
+            {
+                identityPortrait = identityPortraitPicker.index > 0 && identityPortraitPicker.index <= identityPortraits.Count ? identityPortraits[identityPortraitPicker.index - 1].Key : null;
+                identityConsent.SetValueWithoutNotify(false);
+                identityPreview.Clear();
+                if (PlayerIdentity.TryResolveRace(identityRace, out int race) && PlayerIdentity.TryResolvePortrait(race, identityPortrait, out var parts, out var character))
+                {
+                    if (character == null) Portrait.Show(identityPreview, parts, false);
+                    else Portrait.ShowCharacter(identityPreview, character, false);
+                }
+            });
+            UpdatePortraits();
+            scroll.RegisterCallback<FocusInEvent>(evt => { if (evt.target is VisualElement element && scroll.Contains(element)) scroll.ScrollTo(element); });
+            identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => { evt.StopPropagation(); });
+            identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
+            identityRacePicker.Focus();
+        }
+
         /// <summary>The name a public game is listed under: the Game name field, else "<pilot>'s universe".</summary>
         string SessionName()
         {
