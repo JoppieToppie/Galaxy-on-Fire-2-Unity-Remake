@@ -46,9 +46,33 @@ namespace GoF2Remake.Multiplayer
                 !PlayerIdentity.TryResolvePortrait(race, words[2], out _, out _))
                 return "Choose a race and a portrait belonging to that race.";
             string raceKey = PlayerIdentity.RaceKey(race);
-            if (!string.IsNullOrEmpty(login.account.stationPolicyRace) && login.account.stationPolicyRace != raceKey)
-                return "Your profile race is already set. A server administrator can reset it.";
-            return SavePlayerIdentity(login.account, raceKey, words[2]) ? "Pilot appearance saved." : "Pilot appearance could not be saved.";
+            if (!PlayerIdentity.CanChoose(login.account.stationPolicyRace, login.account.playerPortrait, raceKey))
+                return "Your pilot identity is permanent and cannot be changed.";
+            if (!SavePlayerIdentity(login.account, raceKey, words[2])) return "Pilot appearance could not be saved. Try again.";
+            foreach (var device in logins.Values)
+                if (device.account == login.account)
+                {
+                    SetObserverFlag(device.client, !device.controller);
+                    SendProfile(device, null);
+                }
+            return "Pilot identity saved permanently.";
+        }
+
+        // These requests are authenticated by the connection and do not require a spawned pilot.
+        internal static string CompleteIdentity(ulong client, string race, string portrait)
+        {
+            if (!logins.TryGetValue(client, out var login)) return "Not signed in yet.";
+            if (string.IsNullOrEmpty(race) || string.IsNullOrEmpty(portrait) || race.Length > 128 || portrait.Length > 256)
+                return "Choose a valid race and portrait.";
+            return SetOwnAppearance(login, new[] { "/appearance", race, portrait });
+        }
+
+        internal static string LinkDuringIdentity(ulong client, string code)
+        {
+            if (!logins.TryGetValue(client, out var login) || !NeedsIdentity(login.account)) return "No pending profile setup.";
+            if (NetPlayerStations.ProfileWritesBlocked) return "Profile recovery is pending.";
+            if (string.IsNullOrWhiteSpace(code) || code.Length > 16) return "Enter a valid link code.";
+            return UseLinkCode(login, code, false);
         }
 
         static string NewLinkCode(Login login)
