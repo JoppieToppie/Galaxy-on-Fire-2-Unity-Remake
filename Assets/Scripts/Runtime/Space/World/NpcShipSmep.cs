@@ -2,7 +2,7 @@
 // NpcShip, part: the optional SMEP fighter flight mode (a mod hull's traffic.ai = "smep").
 // Eligible NPCs use authoritative 6DOF translation, with native ES2 flight reserved for controller fallback.
 // ES2 aim and combat assist, acceleration-aware lead and native collision avoidance remain integrated.
-// Mobile targets always force conventional flight regardless of mobileAi; the mod remains opt-in.
+// Mobile small-ship targets use conventional flight; large player hulls have platform parity.
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
@@ -34,7 +34,9 @@ namespace GoF2Remake.World
                || string.Equals(shipClass, ShipClassRules.Carrier, System.StringComparison.OrdinalIgnoreCase)
                || string.Equals(shipClass, ShipClassRules.Freighter, System.StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>Pure controller-selection rule, independent of the targeted ship's class.</summary>
+        public static bool ProtectedMobile(bool mobile, string shipClass) => mobile && !ExcludedNpcClass(shipClass);
+
+        /// <summary>Controller selection uses the protected-mobile classification.</summary>
         public static bool UseCustomFlight(bool eligibleNpc, bool mobileTarget, bool empDisabled, bool canTurn, bool drifting)
             => eligibleNpc && !mobileTarget && !empDisabled && canTurn && !drifting;
 
@@ -164,16 +166,23 @@ namespace GoF2Remake.World
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec);
-        // A mobile player target always forces conventional flight, even with mobileAi opt-in.
-        bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(MobilePlatformTarget(target), SmepMobileOptIn);
+        // Mobile protection applies only to non-capital player hulls.
+        bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(ProtectedMobileTarget(target), SmepMobileOptIn);
         bool SmepEligible => SmepEnabledForTarget;
 
         static bool MobilePlatformTarget(Target t)
             => t != null && SmepAiRules.IsMobileTarget(t.isPlayer, t.netPilot, t.mobilePlatform, Application.isMobilePlatform);
 
-        static bool MobileTouchTarget(Target t)
+        bool ProtectedMobileTarget(Target t)
         {
-            if (t == null || (!t.isPlayer && !t.netPilot)) return false;
+            if (!MobilePlatformTarget(t)) return false;
+            int index = t.netShipIndex >= 0 ? t.netShipIndex : t.shipType;
+            return SmepAiRules.ProtectedMobile(true, index >= 0 ? ShipClassRules.ClassOf(db?.Ship(index)) : null);
+        }
+
+        bool MobileTouchTarget(Target t)
+        {
+            if (!ProtectedMobileTarget(t)) return false;
             return t.netPilot ? t.mobileTouchControls
                               : Application.isMobilePlatform && InputMode.Current == InputKind.Touch;
         }
@@ -181,7 +190,7 @@ namespace GoF2Remake.World
         /// <summary>Find an eligible hostile remote player, optionally restricted to desktop.</summary>
         Target FindSmepRemotePlayer(bool desktopOnly)
         {
-            if (!SmepHullEligible || !NetSession.Active || RemotePlayers == null || HostileToRemote == null)
+            if (!SmepHullEligible || IsWingman || MissionShip || StoryShip || ScriptEnemy != null || order != null || mindControlMs > 0f || !NetSession.Active || RemotePlayers == null || HostileToRemote == null)
                 return null;
             var origin = transform.position;
             float detect = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
@@ -192,7 +201,7 @@ namespace GoF2Remake.World
             foreach (var candidate in RemotePlayers)
             {
                 if (!Pursuable(candidate) || !HostileToRemote(this, candidate)) continue;
-                bool mobile = MobilePlatformTarget(candidate);
+                bool mobile = ProtectedMobileTarget(candidate);
                 if (desktopOnly && mobile) continue;
                 float distance = (candidate.transform.position - origin).sqrMagnitude;
                 if (distance > detectSq || !SmepAiRules.PreferPlayerTarget(mobile, distance, best != null, bestMobile, bestDistance))
