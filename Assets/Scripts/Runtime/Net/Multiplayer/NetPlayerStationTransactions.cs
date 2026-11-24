@@ -248,18 +248,37 @@ namespace GoF2Remake.Multiplayer
         static bool FinishTransaction(StationTransactionJournal journal)
         {
             if (journal.completed) return CleanupCompletedJournal();
+            var accounts = new HashSet<string>(StringComparer.Ordinal);
             foreach (var target in journal.cargo)
-                if (target == null || !NetProfiles.SetCargoAmount(target.account, target.item, target.amount))
-                    return false;
+            {
+                if (target == null || string.IsNullOrEmpty(target.account)) return false;
+                accounts.Add(target.account);
+            }
             foreach (var target in journal.credits)
-                if (target == null || !NetProfiles.SetCreditsAmount(target.account, target.amount))
-                    return false;
+            {
+                if (target == null || string.IsNullOrEmpty(target.account)) return false;
+                accounts.Add(target.account);
+            }
+            foreach (var target in journal.storedShips)
+            {
+                if (target == null || string.IsNullOrEmpty(target.account) || target.ships == null) return false;
+                accounts.Add(target.account);
+            }
+            foreach (var account in accounts)
+            {
+                var cargo = new Dictionary<int, int>();
+                long? credits = null;
+                List<StoredShip> ships = null;
+                foreach (var target in journal.cargo)
+                    if (target.account == account) cargo[target.item] = target.amount;
+                foreach (var target in journal.credits)
+                    if (target.account == account) credits = target.amount;
+                foreach (var target in journal.storedShips)
+                    if (target.account == account) ships = target.ships;
+                if (!NetProfiles.ApplyStationProfileTargets(account, cargo, credits, ships)) return false;
+            }
             foreach (var target in journal.factionBanks)
                 if (target == null || !NetFactions.SetBankAmount(target.factionId, target.amount))
-                    return false;
-            foreach (var target in journal.storedShips)
-                if (target == null || string.IsNullOrEmpty(target.account) || target.ships == null ||
-                    !NetProfiles.SetStoredShips(target.account, target.ships))
                     return false;
 
             if (!NetProfiles.Write(path, journal.registryJson)) return false;
