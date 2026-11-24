@@ -197,7 +197,8 @@ namespace GoF2Remake.Multiplayer
 
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
         {
-            if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building ||
+            if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building || gate.explosionPending ||
+                (gate.combatStateInitialized && gate.structuralIntegrity <= 0f) || gate.destinationSystem < 0 ||
                 gate.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds()) return false;
             // A faction owns the infrastructure, but individual members remain subject to the
             // blacklist. Only an individually owned gate's actual owner bypasses its blacklist.
@@ -432,7 +433,8 @@ namespace GoF2Remake.Multiplayer
         public static bool JumpgateOffline(int stationIndex)
         {
             var gate = FindJumpgate(stationIndex);
-            return gate != null && (gate.building || gate.scrapped || gate.permanentlyDestroyed ||
+            return gate != null && (gate.building || gate.scrapped || gate.permanentlyDestroyed || gate.explosionPending ||
+                (gate.combatStateInitialized && gate.structuralIntegrity <= 0f) ||
                 gate.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         }
 
@@ -915,19 +917,30 @@ namespace GoF2Remake.Multiplayer
                 return by.HasPlayerJumpgateAccess(orbitStationIndex) && !gate.building && !gate.scrapped &&
                     !gate.permanentlyDestroyed && !gate.explosionPending &&
                     gate.empShutdownUntilUtc <= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            return JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            return JumpgateAccessAllowed(gate, account, NetFactions.Of(account)?.id);
         }
 
         /// <summary>Server validation for the owner-only interaction RPC. Returns -1 unless the player is at an accessible, operational gate.</summary>
         internal static int JumpgateDestinationForInteraction(NetPlayer by, int orbitStationIndex)
         {
-            if (!NetGame.IsServer || !sessionActive || by == null || !by.IsSpawned ||
-                !by.InSpace || by.Hull <= 0f || by.Station != orbitStationIndex ||
+            if (!NetGame.IsServer || !sessionActive || ProfileWritesBlocked || by == null || !by.IsSpawned ||
+                !by.InSpace || by.Hull <= 0f || by.Station != orbitStationIndex || !by.HasCurrentWreckClaimPose ||
                 !NetProfiles.Controls(by.OwnerClientId) || !CanUseJumpgate(by, orbitStationIndex)) return -1;
-            var gate = FindJumpgate(orbitStationIndex);
-            CompleteJumpgateIfDue(gate);
-            return gate != null && !gate.building && !gate.scrapped && !gate.permanentlyDestroyed
-                ? gate.destinationSystem : -1;
+            var layout = GoF2Remake.World.OrbitLayout.Build(NetGame.Db, orbitStationIndex, includePlayerGateLandmark: true);
+            if (layout == null || !layout.hasJumpgate) return -1;
+            var centre = GoF2Remake.World.OrbitLayout.ToUnity(layout.Place(layout.jumpgate));
+            float radius = layout.JumpgateRadius * GoF2Remake.World.OrbitLayout.MetersPerUnit;
+            if (!GateInteractionInRange(by.Position, centre, radius)) return -1;
+            return FindJumpgate(orbitStationIndex)?.destinationSystem ?? -1;
+        }
+
+        // Allow a bounded margin for the most recent network pose, not arbitrary orbit-wide activation.
+        internal static bool GateInteractionInRange(Vector3 position, Vector3 centre, float radius)
+        {
+            if (!NetGuard.Position(position) || !NetGuard.Position(centre) || !NetGuard.Finite(radius) || radius <= 0f) return false;
+            float reach = radius + Mathf.Clamp(radius * 0.25f, 100f, 250f);
+            return (position - centre).sqrMagnitude <= reach * reach;
         }
 
         internal static string JumpgateOrbits(int systemIndex)
