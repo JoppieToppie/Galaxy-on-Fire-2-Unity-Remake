@@ -39,6 +39,7 @@ namespace GoF2Remake.Flight
 
         void OnDestroy()
         {
+            HullCollision.ForgetBody(this);
             foreach (var c in colliders) if (c != null) HullCollision.Forget(c);
         }
     }
