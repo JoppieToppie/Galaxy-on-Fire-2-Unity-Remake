@@ -100,6 +100,8 @@ namespace GoF2Remake.Multiplayer
             var target = index.accounts.Find(a => a.id == link.account);
             if (target == null) { links.Remove(code); return Localization.Extra("mpLinkUnknown", "That link code is unknown or ran out."); }
             if (target == login.account) return Localization.Extra("mpLinkSame", "This device already uses that profile.");
+            if (NeedsIdentity(target) && !NeedsIdentity(login.account))
+                return "Complete the target profile's identity on its original device before linking it.";
             var own = login.account;
             if (own != null)
             {
@@ -118,7 +120,7 @@ namespace GoF2Remake.Multiplayer
             login.acceptedAt = Time.realtimeSinceStartup;
             target.lastSeen = Now();
             SaveIndex();
-            SetObserverFlag(login.client, !login.controller);
+            SetObserverFlag(login.client, !login.controller || NeedsIdentity(login.account));
             SendProfile(login, token);
             Debug.Log($"Server: client {login.client} linked to profile {target.id} ({target.devices.Count} devices).");
             if (login.controller) RestoreSquad(login);
