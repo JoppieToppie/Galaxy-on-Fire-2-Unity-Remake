@@ -57,14 +57,14 @@ namespace GoF2Remake.UI
             return map;
         }
         // A construction planner is a non-travelling map: its result is only a selected location.
-        internal static StarMap OpenStationPlanner(Database db, Func<int, bool> allowed, Action<StarMapResult> closed)
+        internal static StarMap OpenStationPlanner(Database db, Func<int, bool> allowed, Func<int, bool> orbitAllowed, Action<StarMapResult> closed)
         {
             var map = Open(db, StarMapMode.Mission, false, closed);
-            if (map != null) map.constructionSystemAllowed = allowed;
+            if (map != null) { map.constructionSystemAllowed = allowed; map.constructionOrbitAllowed = orbitAllowed; }
             return map;
         }
 
-        Func<int, bool> constructionSystemAllowed;
+        Func<int, bool> constructionSystemAllowed, constructionOrbitAllowed;
 
         void Close(StarMapResult result)
         {
