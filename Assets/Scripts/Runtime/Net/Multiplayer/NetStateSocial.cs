@@ -147,6 +147,20 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: an admin's order for player 'who''s game (NetAdmin: /kill, /heal, /give, /credits, /spawn, /ship...).</summary>
         internal void SendAdmin(ulong who, NetAdmin.Order order, int a, int b, int c, string text, string by) =>
             AdminRpc((byte)order, a, b, c, text ?? "", by, RpcTarget.Single(who, RpcTargetUse.Temp));
+        // One reliable 64-bit settlement message instead of splitting into Int32-sized admin orders.
+        internal void SendStationCreditDelta(ulong client, long delta, string reason)
+        {
+            if (IsServer && delta != 0) StationCreditDeltaRpc(delta, reason ?? "Station transaction", RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void StationCreditDeltaRpc(long delta, string reason, RpcParams rpc = default)
+        {
+            Session.Credits = System.Math.Max(0L, Session.SaturatingAdd(Session.Credits, delta));
+            NetChat.Notice($"{reason}: {delta:+#,0;-#,0;0} credits.");
+            GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+        }
+
         /// <summary>Only the server sends these (checked there: the admin's rights, the arguments).</summary>
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void AdminRpc(byte order, int a, int b, int c, string text, string by, RpcParams rpc = default)
