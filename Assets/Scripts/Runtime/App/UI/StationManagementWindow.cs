@@ -27,6 +27,9 @@ namespace GoF2Remake.UI
         int confirmRetirementId = -1;
         int confirmBuilderRelinquish = -1;
         float refresh;
+        float nextPlannerQuery;
+        HashSet<int> plannerOrbits;
+        bool plannerRequestPending;
         float feedbackTime;
         float pressedAt = -10f;
 
@@ -101,6 +104,7 @@ namespace GoF2Remake.UI
             openButton.style.display = CanOpen ? DisplayStyle.Flex : DisplayStyle.None;
             if (!CanOpen) { if (open) Close(); return; }
             if (!open) return;
+            if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (StarMap.IsOpen || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
@@ -119,6 +123,9 @@ namespace GoF2Remake.UI
             panel.BringToFront();
             open = true;
             refresh = 0;
+            plannerOrbits = null;
+            plannerRequestPending = false;
+            RefreshPlannerLocations();
             RebuildStationList();
             RebuildBody();
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) closeButton.Focus();
@@ -132,6 +139,8 @@ namespace GoF2Remake.UI
             confirmRetirementId = -1;
             confirmOrbitalRemoval = 0;
             drafts.Clear();
+            plannerOrbits = null;
+            plannerRequestPending = false;
             confirmBuilderRelinquish = -1;
         }
 
@@ -699,22 +708,32 @@ namespace GoF2Remake.UI
                 Send("/station contribute " + Value("sharedProject") + " " + Value("sharedMaterial") + " " + Value("sharedAmount")));
         }
 
+        void RefreshPlannerLocations()
+        {
+            nextPlannerQuery = Time.unscaledTime + 8f;
+            plannerRequestPending = true;
+            if (NetPlayer.Local?.RequestStationPlannerLocations(orbits =>
+            {
+                if (!open) return;
+                plannerRequestPending = false;
+                var updated = new HashSet<int>(orbits);
+                if (plannerOrbits == null || !plannerOrbits.SetEquals(updated)) refresh = 0;
+                plannerOrbits = updated;
+            }) != true) plannerRequestPending = false;
+        }
+
         void BuildNewStationControls()
         {
             AddSection("BUILD A STATION", "");
             var db = NetGame.Db;
             if (db?.Systems == null) return;
-            var visible = GalaxyMap.Visibility(db);
-            bool Discovered(int id) => id >= 0 && id < visible.Length && visible[id];
-            int origin = db.Stations.Find(station => station != null && station.index == level.Layout.stationIndex)?.system ?? -1;
-            var reachable = NetPlayerStations.ReachableConstructionSystems(origin, Discovered, gate =>
-                !NetPlayerStations.JumpgateOffline(gate.orbitStationIndex) &&
-                (NetPlayerStations.CanUseJumpgate(NetPlayer.Local, gate.orbitStationIndex) || gate.accessMode == PlayerJumpgateAccessMode.Everyone));
-            var drive = Modding.ModJumpFx.ActiveDrive();
-            bool Reachable(int id) => reachable.Contains(id) || (drive?.hasJumpRules == true && !GalaxyMap.HasVolatileGoods &&
-                GalaxyMap.EnergyCells(db, origin, id, false, drive, drive.freeJumps, out _) <= GalaxyMap.CellsInCargo());
-            var systems = db.Systems.Where(system => system != null && Discovered(system.index) && Reachable(system.index) &&
-                    system.stations?.Any(NetPlayerStations.CanBuildStationInOrbit) == true)
+            if (plannerOrbits == null)
+            {
+                AddInfo("Build location", plannerRequestPending ? "Waiting for server-approved construction locations…" : "Construction locations are unavailable.");
+                return;
+            }
+            bool Available(int orbit) => plannerOrbits.Contains(orbit) && NetPlayerStations.CanBuildStationInOrbit(orbit);
+            var systems = db.Systems.Where(system => system != null && system.stations?.Any(Available) == true)
                 .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
             if (systems.Count == 0) AddInfo("Build location", "No reachable discovered system has a vacant orbit.");
             else
@@ -724,7 +743,7 @@ namespace GoF2Remake.UI
                 AddChoice("system", "Reachable build system", choices, _ => { drafts.Remove("buildOrbit"); RebuildBody(); });
                 var orbitChoices = new List<(string value, string label)> { ("", "Select a vacant orbit") };
                 if (int.TryParse(Value("system"), out int chosenSystem))
-                    orbitChoices.AddRange(db.Stations.Where(station => station != null && station.system == chosenSystem && NetPlayerStations.CanBuildStationInOrbit(station.index))
+                    orbitChoices.AddRange(db.Stations.Where(station => station != null && station.system == chosenSystem && Available(station.index))
                         .OrderBy(station => station.name).Select(station => (station.index.ToString(), station.name)));
                 AddChoice("buildOrbit", "Vacant orbit", orbitChoices);
                 AddAction("Choose system and orbit on star map", () =>
@@ -732,12 +751,12 @@ namespace GoF2Remake.UI
                     if (StarMap.IsOpen) return;
                     var allowed = new HashSet<int>(systems.Select(system => int.Parse(system.Item1)));
                     panel.style.display = DisplayStyle.None;
-                    var map = StarMap.OpenStationPlanner(db, allowed.Contains, NetPlayerStations.CanBuildStationInOrbit, result =>
+                    var map = StarMap.OpenStationPlanner(db, allowed.Contains, Available, result =>
                     {
                         if (!open) return;
                         panel.style.display = DisplayStyle.Flex;
                         var picked = db.Stations.Find(station => station != null && station.index == result.station);
-                        if (picked != null && allowed.Contains(picked.system) && NetPlayerStations.CanBuildStationInOrbit(picked.index))
+                        if (picked != null && allowed.Contains(picked.system) && Available(picked.index))
                         { drafts["system"] = picked.system.ToString(); drafts["buildOrbit"] = picked.index.ToString(); }
                         RebuildBody();
                     });
@@ -768,7 +787,7 @@ namespace GoF2Remake.UI
                 {
                     if (!int.TryParse(Value("system"), out int systemId) || !systems.Any(system => system.Item1 == systemId.ToString()))
                     { feedback.text = "Select a discovered build system first."; feedbackTime = 8f; return; }
-                    if (!int.TryParse(Value("buildOrbit"), out int orbit) || !NetPlayerStations.CanBuildStationInOrbit(orbit) ||
+                    if (!int.TryParse(Value("buildOrbit"), out int orbit) || !Available(orbit) ||
                         db.Stations.Find(station => station != null && station.index == orbit)?.system != systemId)
                     { feedback.text = "Select a vacant orbit first."; feedbackTime = 8f; return; }
                     SendStationName("start-orbit " + systemId + " " + orbit + " " + Value("newStationModel"), Value("newStationName"));
