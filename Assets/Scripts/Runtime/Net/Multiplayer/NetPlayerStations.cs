@@ -105,6 +105,8 @@ namespace GoF2Remake.Multiplayer
         public int id;
         /// <summary>The station index assigned in database order; kept stable while the server's mod set stays the same.</summary>
         public int stationIndex = -1;
+        // Legacy projects used appended database indices. New projects occupy real vacant orbits.
+        public bool existingOrbit;
         public string name;
         // OwnershipType defaults to Individual for old JSON saves and remains backward compatible.
         public PlayerStationOwnershipType ownershipType = PlayerStationOwnershipType.Individual;
@@ -654,6 +656,7 @@ namespace GoF2Remake.Multiplayer
                 if (station == null) continue;
                 // Preserve the first-match semantics of the original list lookup.
                 if (!stationsById.ContainsKey(station.id)) stationsById.Add(station.id, station);
+                if (station.existingOrbit && station.retired) continue;
                 if (!stationsByOrbit.ContainsKey(station.stationIndex)) stationsByOrbit.Add(station.stationIndex, station);
             }
         }
@@ -937,8 +940,44 @@ namespace GoF2Remake.Multiplayer
             return result;
         }
 
-        /// <summary>Reserve a new orbital site and start its long-running, server-owned material project.</summary>
-        internal static string StartConstruction(NetPlayer by, int systemIndex, string name, int modelPreset = -1)
+        internal static bool CanBuildStationInOrbit(int orbit)
+        {
+            var db = NetGame.Db;
+            var anchor = db?.Stations?.Find(station => station != null && station.index == orbit);
+            if (anchor == null || orbit < 0 || orbit == Session.VoidOrbit || StationAt(orbit) != null ||
+                Modding.ModWorld.MobileOf(orbit) != null) return false;
+            var system = db.Systems?.Find(entry => entry != null && entry.index == anchor.system);
+            if (system?.stations?.Contains(orbit) != true) return false;
+            var layout = World.OrbitLayout.Build(db, orbit, includePlayerGateLandmark: true);
+            return layout != null && !layout.stationObject && !layout.originStructure;
+        }
+
+        internal static HashSet<int> ReachableConstructionSystems(int origin, Func<int, bool> discovered, Func<PlayerJumpgateRecord, bool> gateAllowed)
+        {
+            var result = new HashSet<int>();
+            var db = NetGame.Db;
+            if (origin < 0 || db?.Systems == null) return result;
+            var queue = new Queue<int>();
+            result.Add(origin); queue.Enqueue(origin);
+            void Add(int next)
+            {
+                if (next >= 0 && discovered(next) && db.Systems.Exists(system => system != null && system.index == next) && result.Add(next)) queue.Enqueue(next);
+            }
+            while (queue.Count > 0)
+            {
+                int current = queue.Dequeue();
+                var system = db.Systems.Find(entry => entry != null && entry.index == current);
+                if (system?.jumpRoutesTo != null)
+                    foreach (int next in system.jumpRoutesTo) Add(next);
+                if (registry?.jumpgates != null)
+                    foreach (var gate in registry.jumpgates)
+                        if (gate != null && gate.system == current && gateAllowed(gate)) Add(gate.destinationSystem);
+            }
+            return result;
+        }
+
+        /// <summary>Reserve a vacant orbital site and start its long-running, server-owned material project.</summary>
+        internal static string StartConstruction(NetPlayer by, int systemIndex, string name, int modelPreset = -1, int requestedOrbit = -1)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built stations need a persistent host or dedicated server.";
@@ -964,6 +1003,12 @@ namespace GoF2Remake.Multiplayer
             if (string.IsNullOrEmpty(owner)) return "Your controlled profile has no account identity.";
             if (!NetProfiles.HasDiscoveredSystem(owner, systemIndex))
                 return "Discover the selected system before planning station construction.";
+            if (!NetProfiles.CanReachConstructionSystem(by, systemIndex))
+                return "The selected system cannot be reached with your current gate access or drive.";
+            int stationIndex = requestedOrbit >= 0 ? requestedOrbit : system.stations.FindIndex(CanBuildStationInOrbit);
+            if (requestedOrbit < 0 && stationIndex >= 0) stationIndex = system.stations[stationIndex];
+            if (stationIndex < 0 || !system.stations.Contains(stationIndex) || !CanBuildStationInOrbit(stationIndex))
+                return "Select a vacant orbit. Existing stations, wrecks and reserved projects cannot be replaced.";
             if (registry.nextId >= int.MaxValue) return "The station ID limit has been reached.";
 
             int look = modelPreset;
@@ -978,14 +1023,12 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             if (!IsStationModelPreset(look)) return "Choose an existing station model from the game catalogue.";
-            int stationIndex = db.Stations.Count;
-            foreach (var station in registry.stations)
-                if (station != null && station.stationIndex >= stationIndex) stationIndex = station.stationIndex + 1;
 
             var record = new PlayerStationRecord
             {
                 id = registry.nextId++,
                 stationIndex = stationIndex,
+                existingOrbit = true,
                 name = name,
                 ownerProfile = owner,
                 ownerName = by.DisplayName,
@@ -1054,6 +1097,8 @@ namespace GoF2Remake.Multiplayer
         sealed class RuntimeStationIdentity
         {
             public int ProjectId;
+            public string OriginalName;
+            public int OriginalTechLevel;
         }
 
         static readonly System.Runtime.CompilerServices.ConditionalWeakTable<StationData, RuntimeStationIdentity>
@@ -1092,6 +1137,30 @@ namespace GoF2Remake.Multiplayer
                 bool validOrbit = system != null && system.stations != null && system.stations.Count > 0;
                 bool validPreset = look != null;
                 bool available = count <= MaxStationsPerSystem && validOrbit && validPreset;
+                if (record.existingOrbit)
+                {
+                    var anchor = db.Stations.Find(station => station != null && station.index == record.stationIndex && station.system == record.system);
+                    if (anchor == null || system?.stations?.Contains(record.stationIndex) != true) continue;
+                    if (record.retired)
+                    {
+                        if (runtimeStations.TryGetValue(anchor, out var old) && old.ProjectId == record.id)
+                        {
+                            anchor.name = old.OriginalName; anchor.techLevel = old.OriginalTechLevel;
+                            runtimeStations.Remove(anchor);
+                        }
+                        continue;
+                    }
+                    if (!runtimeStations.TryGetValue(anchor, out var identity))
+                    {
+                        identity = new RuntimeStationIdentity { ProjectId = record.id, OriginalName = anchor.name, OriginalTechLevel = anchor.techLevel };
+                        runtimeStations.Add(anchor, identity);
+                    }
+                    if (identity.ProjectId != record.id || !available) continue;
+                    // Preserve the planet's original texture, location and membership. Only station metadata changes.
+                    anchor.name = record.underConstruction && !record.reconstructing ? identity.OriginalName : record.name;
+                    anchor.techLevel = record.underConstruction ? identity.OriginalTechLevel : look.techLevel;
+                    continue;
+                }
                 if (record.retired)
                 {
                     system?.stations?.Remove(record.stationIndex);
