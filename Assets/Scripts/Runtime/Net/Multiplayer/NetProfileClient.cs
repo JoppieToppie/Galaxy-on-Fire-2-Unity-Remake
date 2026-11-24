@@ -42,12 +42,48 @@ namespace GoF2Remake.Multiplayer
         static int inSeq = -1, inGot;
         static byte[][] inParts;
         static string inToken;
-        static bool inController, inGuest;
+        static bool inController, inGuest, inIdentityRequired;
+        static string inSavedRace;
+        internal static bool IdentityRequired { get; private set; }
+        internal static string IdentityRace { get; private set; }
+        internal static string IdentityMessage { get; private set; }
+        internal static bool IdentitySubmitting => IdentityRequired && Time.realtimeSinceStartup < identityRequestUntil;
+        static float identityRequestUntil;
+
+        internal static void ChooseIdentity(string race, string portrait)
+        {
+            if (!IdentityRequired || !Controller || IdentitySubmitting || NetState.Instance == null) return;
+            IdentityMessage = "Saving your permanent identity…";
+            identityRequestUntil = Time.realtimeSinceStartup + 10f;
+            NetState.Instance.ChoosePlayerIdentityRpc(race, portrait);
+        }
+
+        internal static void LinkIdentity(string code)
+        {
+            if (!IdentityRequired || IdentitySubmitting || NetState.Instance == null) return;
+            IdentityMessage = "Linking your existing profile…";
+            identityRequestUntil = Time.realtimeSinceStartup + 10f;
+            NetState.Instance.LinkIdentityRpc(code);
+        }
+
+        internal static void OnIdentityResult(string result)
+        {
+            identityRequestUntil = 0;
+            IdentityMessage = result;
+        }
+
+        internal static void ClearIdentitySetup()
+        {
+            IdentityRequired = false;
+            IdentityRace = IdentityMessage = null;
+            identityRequestUntil = 0;
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
             waiting = false;
+            ClearIdentitySetup();
             uploadTimer = UploadSeconds;
             outSeq = 0;
             economyRevision = 0;
@@ -80,6 +116,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>NetState reached this client on a server with profiles: sign in, the world waits for the profile.</summary>
         public static void Begin(string server, int worldSeed)
         {
+            ClearIdentitySetup();
             economyRevision = 0;
             outSeq = 0;
             serverId = server ?? "";
@@ -118,7 +155,7 @@ namespace GoF2Remake.Multiplayer
 
         // ---- the profile coming in --------------------------------------------------------------------------
 
-        internal static void OnProfileHeader(int seq, int count, string token, bool controller, bool guest, int home)
+        internal static void OnProfileHeader(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace)
         {
             inSeq = seq;
             inGot = 0;
@@ -126,6 +163,8 @@ namespace GoF2Remake.Multiplayer
             inToken = token;
             inController = controller;
             inGuest = guest;
+            inIdentityRequired = identityRequired;
+            inSavedRace = savedRace;
             if (count <= 0) Complete(null);
         }
 
@@ -142,6 +181,16 @@ namespace GoF2Remake.Multiplayer
             if (!string.IsNullOrEmpty(inToken)) { PlayerPrefs.SetString(TokenKey, inToken); PlayerPrefs.Save(); }
             Controller = inController;
             Guest = inGuest;
+            if (inIdentityRequired)
+            {
+                IdentityRequired = true;
+                IdentityRace = inSavedRace;
+                identityRequestUntil = 0;
+                // Keep the token, but do not enter or apply the gameplay profile until the server saves both choices.
+                waiting = true;
+                return;
+            }
+            ClearIdentitySetup();
             bool applied = false;
             if (!string.IsNullOrEmpty(json))
             {
