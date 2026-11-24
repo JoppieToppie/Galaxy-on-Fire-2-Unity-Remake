@@ -17,7 +17,11 @@ namespace GoF2Remake.Multiplayer
         internal static PlayerStationRecord StationAt(int orbit)
         {
             EnsureStationIndex();
-            return stationsByOrbit.TryGetValue(orbit, out var station) ? station : null;
+            if (!stationsByOrbit.TryGetValue(orbit, out var station)) return null;
+            if (station.existingOrbit && NetGame.Db != null &&
+                (!OrbitLayout.VacantStationSite(orbit, Session.WorldIndex) ||
+                 NetGame.Db.Stations.Find(anchor => anchor != null && anchor.index == orbit)?.system != station.system)) return null;
+            return station;
         }
 
         public static Vector3 StationPosition(int orbit) =>
