@@ -89,13 +89,13 @@ namespace GoF2Remake.UI
                     else if (stationList.Contains(target)) stationList.ScrollTo(target);
                 }
             });
-            NetChat.Added += OnChat;
+
         }
 
         public void Dispose()
         {
             Close();
-            NetChat.Added -= OnChat;
+
             openButton?.RemoveFromHierarchy();
             panel?.RemoveFromHierarchy();
         }
@@ -980,15 +980,18 @@ namespace GoF2Remake.UI
         {
             feedback.text = "Request sent. The server response will appear here.";
             feedbackTime = 8f;
-            NetPanel.Command(command.TrimEnd());
-        }
-
-        void OnChat(NetChat.Message message)
-        {
-            if (!open || feedbackTime <= 0 || message == null || message.channel != NetChat.Channel.Notice) return;
-            feedback.text = message.text;
-            feedbackTime = 8f;
-            refresh = 0;
+            if (NetPlayer.Local?.RequestStationUiCommand(command.TrimEnd(), result =>
+            {
+                if (!open) return;
+                feedback.text = string.IsNullOrEmpty(result) ? "Request completed." : result;
+                feedbackTime = 12f;
+                refresh = 0;
+                nextPlannerQuery = 0;
+            }) != true)
+            {
+                feedback.text = "A station request is already pending, or the server is unavailable.";
+                feedbackTime = 8f;
+            }
         }
 
         static string ModuleLabel(string id)
