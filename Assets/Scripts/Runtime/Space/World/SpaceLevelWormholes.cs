@@ -459,7 +459,8 @@ namespace GoF2Remake.World
             // of the station, the gate and the asteroids, facing the station. With "arrivalFx" the drive's jump (failed or not)
             // ends with the 2D hyper_drive fx bringing the ship in (BeginDriveArrival).
             var jumpDriveSpec = (Session.DriveArrival || Session.DriveFailArrival) && Session.ArrivedByTravel && !Layout.interstellar && !warpArrival
-                ? Modding.ModJumpFx.ActiveDrive() : null;
+                ? (Session.DriveArrivalSpec ?? Modding.ModJumpFx.ActiveDrive()) : null;
+            Session.DriveArrivalSpec = null;
             bool driveFailed = jumpDriveSpec != null && Session.DriveFailArrival;
             bool driveArrival = jumpDriveSpec != null && jumpDriveSpec.arrivalFx;
             Session.DriveArrival = Session.DriveFailArrival = false;
@@ -561,7 +562,7 @@ namespace GoF2Remake.World
             if (challengeFlyIn) Session.ArrivedByTravel = true;
             if (warpArrival) { launchTravel = true; Session.LaunchedFromStation = Session.ArrivedByTravel = false; }
             else if (Session.LaunchedFromStation || Session.ArrivedByTravel) StartLaunchCamera();
-            if (driveArrival) BeginDriveArrival(driveFailed);
+            if (driveArrival) BeginDriveArrival(driveFailed, jumpDriveSpec);
         }
 
         // Modified: a mod drive's arrival (ModJumpFx "arrivalFx"; IntroCutscenes' time jump end, steps 10 / 11): sound 159, the
@@ -570,6 +571,7 @@ namespace GoF2Remake.World
         const float DriveFailMinUnits = 60000f, DriveShowMs = 2500f;
         float driveArrivalMs = -1f, driveArrivalLength;
         bool driveHolding;
+        Modding.ModJumpFx.Cinematic arrivalCinematic;
         GameObject driveFx;
         readonly System.Collections.Generic.List<Material> driveFxMaterials = new System.Collections.Generic.List<Material>();
         /// <summary>A mod drive's arrival fx is still running (the ship invulnerable, the arrival camera waiting).</summary>
@@ -604,10 +606,11 @@ namespace GoF2Remake.World
             return true;
         }
 
-        void BeginDriveArrival(bool failed)
+        void BeginDriveArrival(bool failed, Modding.ModJumpFx.Spec drive)
         {
             driveArrivalMs = 0f;
             driveArrivalLength = 3000f;
+            arrivalCinematic = drive?.arrivalCamera;
             driveHolding = true;
             Player.externalControl = true;
             Player.ExternalSpeedMetersPerSecond = 0f;
@@ -618,7 +621,6 @@ namespace GoF2Remake.World
             driveFx = Instantiate(assets.hyperDrive, Player.transform.position, mainCamera.transform.rotation * Quaternion.Euler(0f, 180f, 0f));
             // The mounted mod drive's own texture: its "texture", or "failTexture" after a failure (the game's own, purple,
             // when it names none); copies of the fx's materials before PartAnimation copies them for the fades.
-            var drive = Modding.ModJumpFx.ActiveDrive();
             string path = drive == null ? null : failed ? drive.failTexture : drive.texture;
             var tex = string.IsNullOrEmpty(path) ? null : Modding.ModMaterials.Texture(drive.mod, path, false);
             if (tex != null) tex.wrapMode = TextureWrapMode.Repeat;   // the hyper_drive meshes map past 0..1 (AssetImport.FxRepeats)
@@ -640,6 +642,17 @@ namespace GoF2Remake.World
         {
             if (driveArrivalMs < 0f) return;
             driveArrivalMs += Time.deltaTime * 1000f;
+            if (arrivalCinematic != null && mainCamera != null && launchCameraMs > 0f && !chase.scriptCamera)
+            {
+                var frame = Player.transform;
+                var offset = arrivalCinematic.Position(driveArrivalMs, new Vector3(1000f, 500f, 7000f));
+                mainCamera.transform.position = frame.TransformPoint(offset * M);
+                var aim = frame.TransformPoint((arrivalCinematic.lookOffset ?? Vector3.zero) * M);
+                var direction = aim - mainCamera.transform.position;
+                if (arrivalCinematic.rotation.HasValue) mainCamera.transform.rotation = frame.rotation * Quaternion.Euler(arrivalCinematic.rotation.Value);
+                else if (direction.sqrMagnitude > 1e-6f) mainCamera.transform.rotation = Quaternion.LookRotation(direction, frame.up);
+                if (arrivalCinematic.fov.HasValue) mainCamera.fieldOfView = Aspect.VerticalFov(arrivalCinematic.fov.Value, mainCamera.aspect);
+            }
             if (driveFx != null) driveFx.transform.rotation = mainCamera.transform.rotation * Quaternion.Euler(0f, 180f, 0f);   // +z at the viewer
             if (driveHolding && driveArrivalMs >= DriveShowMs)
             {
@@ -647,12 +660,13 @@ namespace GoF2Remake.World
                 if (Player.visualModel != null) Player.visualModel.gameObject.SetActive(true);
                 Player.externalControl = false;
             }
-            if (driveArrivalMs < Mathf.Max(driveArrivalLength, DriveShowMs)) return;
+            if (driveArrivalMs < Mathf.Max(Mathf.Max(driveArrivalLength, DriveShowMs), arrivalCinematic?.durationMs ?? 0f)) return;
             if (driveFx != null) Destroy(driveFx);
             driveFx = null;
             foreach (var m in driveFxMaterials) if (m != null) Destroy(m);
             driveFxMaterials.Clear();
             driveArrivalMs = -1f;
+            arrivalCinematic = null;
         }
         /// <summary>Level::init with initStreamOutPosition (space_level_setup.md 4): into the gate orbit at the hidden gate
         /// (landmark 2); else 4 x the planet billboard (-20000 * dir) of the station the player came from, or (0, 0, 100000)
