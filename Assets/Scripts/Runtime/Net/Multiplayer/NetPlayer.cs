@@ -102,7 +102,8 @@ namespace GoF2Remake.Multiplayer
             NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
         readonly NetworkVariable<FixedString64Bytes> factionId = new NetworkVariable<FixedString64Bytes>(default,
             NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-        int pendingJumpgateDestination = -1;
+        int gateRequestSequence;
+        System.Action<int> gateTravelReply;
         readonly NetworkVariable<int> factionHome = new NetworkVariable<int>(-1);   // the server's: the faction's home station, -1 = none
         readonly NetworkVariable<int> tollStation = new NetworkVariable<int>(-1, Read, Write);   // NetFactionsClient.TollStation
         readonly NetworkVariable<bool> distress = new NetworkVariable<bool>(false, Read, Write);  // NetDistress: calls for help
@@ -441,20 +442,48 @@ namespace GoF2Remake.Multiplayer
                 Local.level.OnPlayerJumpgateDestroyed(permanentlyDestroyed);
         }
 
-        /// <summary>Called locally when a pilot interacts with a player-built jumpgate. The server rechecks the gate and persists discovery.</summary>
-        public void RequestJumpgateDiscovery(int orbitStationIndex)
+        /// <summary>Explicit player-gate travel request, separate from ordinary orbit changes.</summary>
+        public bool RequestPlayerJumpgateTravel(int orbit, System.Action<int> done)
         {
-            if (IsOwner && IsSpawned) JumpgateDiscoveryUpRpc(orbitStationIndex);
+            if (!IsOwner || !IsSpawned || done == null) return false;
+            gateTravelReply = done;
+            gateRequestSequence = gateRequestSequence == int.MaxValue ? 1 : gateRequestSequence + 1;
+            PlayerGateTravelUpRpc(orbit, gateRequestSequence);
+            return true;
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
-        void JumpgateDiscoveryUpRpc(int orbitStationIndex)
+        void PlayerGateTravelUpRpc(int orbitStationIndex, int sequence, RpcParams rpc = default)
         {
-            int destination = NetPlayerStations.JumpgateDestinationForInteraction(this, orbitStationIndex);
-            if (destination < 0) return;
-            bool newlyDiscovered = !NetProfiles.HasDiscoveredSystem(ProfileAccount, destination);
-            if (!NetProfiles.DiscoverSystem(ProfileAccount, destination)) return;
-            JumpgateDiscoveryRpc(destination, newlyDiscovered);
+            int arrival = -1;
+            if (IsServer && rpc.Receive.SenderClientId == OwnerClientId &&
+                NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim))
+            {
+                int system = NetPlayerStations.JumpgateDestinationForInteraction(this, orbitStationIndex);
+                if (system >= 0)
+                {
+                    int target = NetPlayerStations.JumpgateDestinationStation(orbitStationIndex);
+                    if (target >= 0)
+                    {
+                        bool newlyDiscovered = !NetProfiles.HasDiscoveredSystem(ProfileAccount, system);
+                        if (NetProfiles.DiscoverSystem(ProfileAccount, system))
+                        {
+                            arrival = target;
+                            JumpgateDiscoveryRpc(system, newlyDiscovered);
+                        }
+                    }
+                }
+            }
+            PlayerGateTravelReplyRpc(sequence, arrival);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void PlayerGateTravelReplyRpc(int sequence, int arrival)
+        {
+            if (!IsOwner || sequence != gateRequestSequence) return;
+            var reply = gateTravelReply;
+            gateTravelReply = null;
+            reply?.Invoke(arrival);
         }
 
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
@@ -469,33 +498,6 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
-        void OnStationValueChangedWithGateAccess(int previous, int next)
-        {
-            // The gate orbit is the origin of the transition. Reject a destination update
-            // from a player who is not permitted to use that gate.
-            if (previous != next && NetPlayerStations.HasJumpgateAtStation(previous))
-            {
-                int expectedDestination = NetPlayerStations.JumpgateDestinationStation(previous);
-                if (!NetPlayerStations.CanUseJumpgate(this, previous) || expectedDestination < 0 ||
-                    (next != -1 && next != expectedDestination))
-                {
-                    station.Value = previous;
-                    return;
-                }
-                pendingJumpgateDestination = next == -1 ? expectedDestination : -1;
-            }
-            else if (previous == -1 && pendingJumpgateDestination >= 0)
-            {
-                if (next != pendingJumpgateDestination)
-                {
-                    station.Value = previous;
-                    return;
-                }
-                pendingJumpgateDestination = -1;
-            }
-            OnStationValueChanged(previous, next);
-        }
-
         public override void OnNetworkSpawn()
         {
             DontDestroyOnLoad(gameObject);
@@ -505,7 +507,7 @@ namespace GoF2Remake.Multiplayer
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
             if (IsServer)
             {
-                station.OnValueChanged += OnStationValueChangedWithGateAccess;
+                station.OnValueChanged += OnStationValueChanged;
                 place.OnValueChanged += OnPlaceValueChanged;
             }
             if (IsServer)
@@ -642,7 +644,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer)
             {
-                station.OnValueChanged -= OnStationValueChangedWithGateAccess;
+                station.OnValueChanged -= OnStationValueChanged;
                 place.OnValueChanged -= OnPlaceValueChanged;
             }
             // Host: a player going (disconnected: Netcode despawns the player object before OnClientDisconnectCallback) hands
