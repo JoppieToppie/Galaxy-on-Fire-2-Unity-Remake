@@ -206,7 +206,7 @@ namespace GoF2Remake.Multiplayer
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            list = null; invites.Clear(); charges.Clear(); claimTimer = siegeTimer = 0f; taxDirty = false;
+            list = null; invites.Clear(); charges.Clear(); deferredStationTax.Clear(); claimTimer = siegeTimer = 0f; taxDirty = false;
             ClaimCost = DefaultClaimCost; MaxClaims = DefaultMaxClaims; LapseDays = DefaultLapseDays;
             SiegeCost = DefaultSiegeCost; Toll = DefaultToll;
         }
@@ -219,6 +219,7 @@ namespace GoF2Remake.Multiplayer
         public static void Load()
         {
             invites.Clear();
+            deferredStationTax.Clear();
             try
             {
                 if (File.Exists(PathOf)) list = JsonUtility.FromJson<FactionList>(File.ReadAllText(PathOf));
