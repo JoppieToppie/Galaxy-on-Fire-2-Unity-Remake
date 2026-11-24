@@ -128,8 +128,14 @@ namespace GoF2Remake.Multiplayer
         public static string TollText(int toll) => toll < 0 ? $"{-toll}%" : toll.ToString();
 
         /// <summary>What a pilot with 'credits' pays for the toll setting 'toll' (0 = none).</summary>
-        public static int TollFor(int toll, long credits) =>
-            toll >= 0 ? toll : (int)Math.Min(int.MaxValue, Math.Max(1L, Math.Max(0L, credits) * -toll / 100));
+        public static int TollFor(int toll, long credits)
+        {
+            if (toll >= 0) return toll;
+            long balance = Math.Max(0L, credits), rate = Math.Min(100L, -(long)toll);
+            // Split the multiplication to avoid overflowing a valid 64-bit credit balance.
+            long amount = balance / 100 * rate + (balance % 100) * rate / 100;
+            return (int)Math.Min(int.MaxValue, Math.Max(1L, amount));
+        }
         const int KaamoStation = 108, LomaSystem = 25;
 
         /// <summary>A claim's price from the bank (-claimcost), the claims per faction (-maxclaims), the days without a member
