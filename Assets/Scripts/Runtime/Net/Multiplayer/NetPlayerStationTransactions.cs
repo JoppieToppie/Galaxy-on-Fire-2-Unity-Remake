@@ -79,6 +79,15 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
+        // Positive amount deposits into the faction, negative amount withdraws.
+        internal static bool CommitFactionBankTransfer(string account, string factionId, long amount)
+        {
+            if (amount == 0 || amount == long.MinValue || ProfileWritesBlocked) return false;
+            return CommitProfileTransaction(null,
+                new List<(string account, long delta)> { (account, -amount) },
+                new List<(string factionId, long delta)> { (factionId, amount) });
+        }
+
         internal static bool CommitCargoTransaction(string account, params (int item, int delta)[] changes)
         {
             var cargo = new List<(string account, int item, int delta)>();
