@@ -442,6 +442,33 @@ namespace GoF2Remake.Multiplayer
                 Local.level.OnPlayerJumpgateDestroyed(permanentlyDestroyed);
         }
 
+        int stationPlannerSequence;
+        System.Action<int[]> stationPlannerReply;
+        internal bool RequestStationPlannerLocations(System.Action<int[]> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null) return false;
+            stationPlannerReply = reply;
+            stationPlannerSequence = stationPlannerSequence == int.MaxValue ? 1 : stationPlannerSequence + 1;
+            StationPlannerRequestRpc(stationPlannerSequence);
+            return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationPlannerRequestRpc(int sequence, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            StationPlannerReplyRpc(sequence, NetPlayerStations.AvailableConstructionOrbits(this));
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void StationPlannerReplyRpc(int sequence, int[] orbits)
+        {
+            if (!IsOwner || sequence != stationPlannerSequence) return;
+            var reply = stationPlannerReply;
+            stationPlannerReply = null;
+            reply?.Invoke(orbits ?? System.Array.Empty<int>());
+        }
+
         /// <summary>Explicit player-gate travel request, separate from ordinary orbit changes.</summary>
         public bool RequestPlayerJumpgateTravel(int orbit, System.Action<int> done)
         {
