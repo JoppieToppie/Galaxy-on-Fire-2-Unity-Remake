@@ -195,6 +195,8 @@ namespace GoF2Remake.Multiplayer
                 HasRole(station, managerAccount, PlayerStationRole.StationAdministrator)) == true;
         }
 
+        internal static bool ConstructionGateAllowed(PlayerJumpgateRecord gate, string account, string factionId) => JumpgateAccessAllowed(gate, account, factionId);
+
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
         {
             if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building || gate.explosionPending ||
