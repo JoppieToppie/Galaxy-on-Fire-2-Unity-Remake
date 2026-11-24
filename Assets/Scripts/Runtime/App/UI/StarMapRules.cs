@@ -142,6 +142,15 @@ namespace GoF2Remake.UI
         {
             int station = planets[k].station;
             if (builder != null) { builder.stationPicked?.Invoke(station); return; }
+            if (constructionSystemAllowed != null)
+            {
+                int constructionSystem = SystemOf(station);
+                if (!constructionSystemAllowed(constructionSystem)) { ShowDialog("This system is unavailable for station construction.", null, null, true); return; }
+                string systemName = db.Systems.Find(system => system != null && system.index == constructionSystem)?.name ?? "this system";
+                ShowDialog("Plan a new station in " + systemName + "? The server will allocate a new orbit.",
+                    () => Close(new StarMapResult { station = station }), null);
+                return;
+            }
             if (mode == StarMapMode.Mission && !travel) { ShowDialog(StationName(station), null, null, true); return; }   // view only
             if (station == currentStation) { ShowDialog(T(419), null, null, true); return; }
             // Modified: StarMap::OnTouchEnd's campaign checks for the target station (the cabins of 91 / 94, step 142's plasma
