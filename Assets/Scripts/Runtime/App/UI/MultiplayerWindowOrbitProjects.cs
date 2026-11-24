@@ -121,14 +121,15 @@ namespace GoF2Remake.UI
                 }
                 if (structure.operational)
                 {
-                    body.Add(Text($"Integrity {structure.integrity:N0}/{structure.maxIntegrity:N0}", 16, Dim));
+                    string integrity = structure.integrity.ToString(structure.integrity < 1f ? "N2" : "N0");
+                    body.Add(Text($"Integrity {integrity}/{structure.maxIntegrity:N0}", 16, Dim));
                     if (structure.defense) body.Add(Text($"Defense range {structure.range / 1000f:0.##} km", 16, Dim));
                     if (structure.maintenanceDueUtc > 0)
                     {
                         long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                         if (structure.MaintenanceDue(now))
                         {
-                            string status = structure.integrity > 1f
+                            string status = structure.CanLoseIntegrityToMaintenance
                                 ? "Offline · maintenance due · integrity slowly decaying"
                                 : "Offline · maintenance due";
                             body.Add(Text(status, 16, Dim));

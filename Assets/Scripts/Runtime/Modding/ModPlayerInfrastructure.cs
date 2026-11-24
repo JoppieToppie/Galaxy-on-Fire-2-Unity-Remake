@@ -10,6 +10,7 @@ namespace GoF2Remake.Modding
         public const float DefaultScrapIntegrity = 5000f;
         public const int DefaultOrbitalDefenseLimit = 3;
         public const int MaxOrbitalDefenseLimit = 12;
+        public const float DefaultOrbitalDecayPercentPerDay = 1f;
 
         public bool Enabled { get; private set; } = true;
         public bool JumpgatesEnabled { get; private set; } = true;
@@ -30,6 +31,7 @@ namespace GoF2Remake.Modding
             public bool Defense;
             public List<(int item, int amount)> Materials;
             public int MaintenanceIntervalSeconds;
+            public float MaintenanceDecayPercentPerDay = DefaultOrbitalDecayPercentPerDay;
             public List<(int item, int amount)> MaintenanceMaterials = new List<(int, int)>();
         }
 
@@ -110,12 +112,14 @@ namespace GoF2Remake.Modding
                 string station = value["stationModel"] == null ? null : StructureText(value, "stationModel", 128);
                 if ((assembly == null) == (station == null)) throw new ModJsonException(id + " needs one assembly or stationModel.");
                 int maintenanceInterval = 0;
+                float maintenanceDecayPercentPerDay = DefaultOrbitalDecayPercentPerDay;
                 List<(int item, int amount)> maintenanceCosts = null;
                 if (value["maintenance"] != null)
                 {
                     if (!defense || !(value["maintenance"] is JObject maintenance))
                         throw new ModJsonException(id + " maintenance must be an object on a defense preset.");
                     maintenanceInterval = StructureInt(maintenance, "intervalSeconds", 0, 60, 31536000);
+                    maintenanceDecayPercentPerDay = StructureNumber(maintenance, "decayPercentPerDay", DefaultOrbitalDecayPercentPerDay, 0f, 100f);
                     maintenanceCosts = ReadStructureMaterials(maintenance, id + " maintenance");
                 }
                 result.RemoveAll(definition => definition.Id == id);
@@ -131,6 +135,7 @@ namespace GoF2Remake.Modding
                     FireIntervalSeconds = StructureInt(value, "fireIntervalSeconds", 3, 1, 120),
                     Materials = ReadStructureMaterials(value, id),
                     MaintenanceIntervalSeconds = maintenanceInterval,
+                    MaintenanceDecayPercentPerDay = maintenanceDecayPercentPerDay,
                     MaintenanceMaterials = maintenanceCosts ?? new List<(int, int)>()
                 });
             }

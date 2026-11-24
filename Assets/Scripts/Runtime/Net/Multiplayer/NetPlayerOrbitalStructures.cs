@@ -17,10 +17,18 @@ namespace GoF2Remake.Multiplayer
         public float modelScale, hitRadius, integrity, maxIntegrity, range, damage;
         public long completesUtc, maintenanceDueUtc, maintenanceDecayUtc;
         public int maintenanceIntervalSeconds;
+        public bool hasMaintenanceDecayRate;
+        public float maintenanceDecayPercentPerDay;
         public List<PlayerStationMaterial> maintenanceMaterials = new List<PlayerStationMaterial>();
 
         internal bool MaintenanceDue(long now) =>
             operational && defense && maintenanceIntervalSeconds > 0 && maintenanceDueUtc > 0 && now >= maintenanceDueUtc;
+        internal float MaintenanceDecayPercentPerDay => hasMaintenanceDecayRate
+            ? maintenanceDecayPercentPerDay : ModPlayerInfrastructure.DefaultOrbitalDecayPercentPerDay;
+        internal float MaintenanceIntegrityFloor => maxIntegrity * 0.15f;
+        internal bool CanLoseIntegrityToMaintenance =>
+            MaintenanceDecayPercentPerDay > 0f && integrity > MaintenanceIntegrityFloor;
+
         public bool operational;
         public List<PlayerStationMaterial> materials = new List<PlayerStationMaterial>();
         [NonSerialized] internal long nextShotUtc;
@@ -32,7 +40,6 @@ namespace GoF2Remake.Multiplayer
         const int MaxOtherStructuresPerOrbit = 8;
         const int MaxOrbitalStructures = 512;
         const int DecayCheckpointSeconds = 60;
-        const double OverdueIntegrityLossPerSecond = 0.01 / 86400;
         static long nextOrbitalStructureTick;
         static readonly Dictionary<(int orbit, ulong client), long> orbitalAggression = new Dictionary<(int, ulong), long>();
 
@@ -101,7 +108,9 @@ namespace GoF2Remake.Multiplayer
                 modelScale = preset.ModelScale, hitRadius = preset.HitRadius, maxIntegrity = preset.Integrity,
                 integrity = preset.Integrity, range = preset.Range, damage = preset.Damage,
                 fireIntervalSeconds = preset.FireIntervalSeconds, buildSeconds = preset.BuildSeconds,
-                maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds
+                maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds,
+                hasMaintenanceDecayRate = true,
+                maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay
             };
             foreach (var cost in preset.Materials)
                 structure.materials.Add(new PlayerStationMaterial { item = cost.item, required = cost.amount });
@@ -242,12 +251,12 @@ namespace GoF2Remake.Multiplayer
 
         static bool ApplyOverdueDecay(PlayerOrbitalStructure structure, long now, int minimumElapsed)
         {
-            if (!structure.MaintenanceDue(now) || structure.integrity <= 1f) return false;
+            if (!structure.MaintenanceDue(now) || !structure.CanLoseIntegrityToMaintenance) return false;
             long elapsed = now - Math.Max(structure.maintenanceDueUtc, structure.maintenanceDecayUtc);
             if (elapsed < minimumElapsed) return false;
 
-            double loss = structure.maxIntegrity * OverdueIntegrityLossPerSecond * elapsed;
-            float remaining = (float)Math.Max(1d, structure.integrity - loss);
+            double loss = structure.maxIntegrity * (structure.MaintenanceDecayPercentPerDay / 100d) * (elapsed / 86400d);
+            float remaining = (float)Math.Max(structure.MaintenanceIntegrityFloor, structure.integrity - loss);
             if (remaining >= structure.integrity) return false;
             structure.integrity = remaining;
             structure.maintenanceDecayUtc = now;
