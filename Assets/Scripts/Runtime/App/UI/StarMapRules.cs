@@ -145,9 +145,10 @@ namespace GoF2Remake.UI
             if (constructionSystemAllowed != null)
             {
                 int constructionSystem = SystemOf(station);
-                if (!constructionSystemAllowed(constructionSystem)) { ShowDialog("This system is unavailable for station construction.", null, null, true); return; }
+                if (!constructionSystemAllowed(constructionSystem) || constructionOrbitAllowed?.Invoke(station) != true)
+                { ShowDialog("This orbit is occupied, reserved or inaccessible.", null, null, true); return; }
                 string systemName = db.Systems.Find(system => system != null && system.index == constructionSystem)?.name ?? "this system";
-                ShowDialog("Plan a new station in " + systemName + "? The server will allocate a new orbit.",
+                ShowDialog("Reserve the vacant orbit of " + StationName(station, false) + " in " + systemName + " for a station project?",
                     () => Close(new StarMapResult { station = station }), null);
                 return;
             }
