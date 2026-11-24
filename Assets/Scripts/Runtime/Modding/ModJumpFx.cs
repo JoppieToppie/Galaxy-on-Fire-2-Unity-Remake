@@ -76,9 +76,11 @@ namespace GoF2Remake.Modding
             public bool allowShipTurning = true;
             public string lookAt = "ship";
             public readonly List<CameraKey> keys = new List<CameraKey>();
-            public Vector3 Position(float ms, Vector3 fallback)
+            public bool HasCamera => offset.HasValue || drift.HasValue || lookOffset.HasValue || rotation.HasValue || fov.HasValue || lookAt != "ship" || keys.Count > 0;
+            public float MinimumDuration => Mathf.Max(durationMs ?? 0f, keys.Count == 0 ? 0f : keys[keys.Count - 1].ms);
+            public Vector3 Position(float ms, Vector3 fallback, Vector3 defaultDrift = default)
             {
-                if (keys.Count == 0) return (offset ?? fallback) + (drift ?? Vector3.zero) * ms;
+                if (keys.Count == 0) return (offset ?? fallback) + (drift ?? defaultDrift) * ms;
                 if (ms <= keys[0].ms) return keys[0].offset;
                 for (int i = 1; i < keys.Count; i++)
                     if (ms <= keys[i].ms)
@@ -125,9 +127,15 @@ namespace GoF2Remake.Modding
                     if (!(entry is JObject k)) continue;
                     var time = Number(k["ms"], 0f, 120000f);
                     var offset = Vector(k["offset"]);
-                    if (time.HasValue && offset.HasValue && c.keys.Count < 512)
-                        c.keys.Add(new CameraKey { ms = time.Value, offset = offset.Value });
+                    if (time.HasValue && offset.HasValue)
+                    {
+                        int existing = c.keys.FindIndex(k => k.ms == time.Value);
+                        var frame = new CameraKey { ms = time.Value, offset = offset.Value };
+                        if (existing >= 0) c.keys[existing] = frame;
+                        else if (c.keys.Count < 512) c.keys.Add(frame);
+                    }
                 }
+            if (c.lookAt != "effect" && c.lookAt != "custom") c.lookAt = "ship";
             c.keys.Sort((a, b) => a.ms.CompareTo(b.ms));
             return c;
         }
