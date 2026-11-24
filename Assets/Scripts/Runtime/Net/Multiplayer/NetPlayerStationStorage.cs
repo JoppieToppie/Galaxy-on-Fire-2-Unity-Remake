@@ -140,7 +140,9 @@ namespace GoF2Remake.Multiplayer
         static void AddStorageLot(PlayerStationRecord record, string account, int item, int amount)
         {
             if (amount <= 0) return;
-            EnsureStorageLots(record);
+            // Callers normalize legacy lots before changing aggregate stock. Normalizing
+            // here would credit the newly added stock to the station owner a second time.
+            record.storageLots ??= new List<PlayerStationStorageLot>();
             var lot = record.storageLots.Find(x => x != null && x.item == item &&
                 string.Equals(x.ownerProfile, account, StringComparison.Ordinal));
             if (lot == null) record.storageLots.Add(lot = new PlayerStationStorageLot { ownerProfile = account, item = item });
@@ -454,10 +456,8 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
-                by.Station != record.stationIndex || !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at this station using a controlled profile to manage storage.";
-            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (!IsStationContext(by, record, out string account))
+                return "Dock at this station with visitor permission using a controlled profile to manage storage.";
             if (deposit && !CanManageStorage(by, record, out _))
                 return "Only the owner or authorised faction members may deposit into this station.";
             if (record.underConstruction) return "Finish station construction before using storage.";
@@ -479,6 +479,7 @@ namespace GoF2Remake.Multiplayer
                     return "That storage stack has reached its maximum supported quantity.";
                 if (stack == null && record.storage.Count >= MaxStorageItemTypes)
                     return "Storage has reached its item-type limit.";
+                var previousLots = CloneStorageLots(record);
                 if (stack == null)
                     record.storage.Add(stack = new PlayerStationStorage { item = item });
                 stack.amount += amount;
@@ -486,7 +487,7 @@ namespace GoF2Remake.Multiplayer
                 if (!CommitCargoTransaction(account, (item, -amount)))
                 {
                     stack.amount -= amount;
-                    RemoveStorageLots(record, account, item, amount);
+                    record.storageLots = previousLots;
                     if (stack.amount == 0) record.storage.Remove(stack);
                     return "Storage transaction could not be journalled; no cargo was taken.";
                 }
