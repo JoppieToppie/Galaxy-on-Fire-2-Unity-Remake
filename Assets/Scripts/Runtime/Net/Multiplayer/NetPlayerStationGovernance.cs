@@ -147,7 +147,8 @@ namespace GoF2Remake.Multiplayer
             return NetGame.IsServer && sessionActive && registry != null && record != null &&
                 by != null && by.IsSpawned && by.InHangar && by.Station == record.stationIndex &&
                 record.offeredForClaimUtc == 0 && !StationClosedByCombat(record.stationIndex) &&
-                NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account);
+                NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account) &&
+                HasStationPermission(record, account, PlayerStationPermission.Visit);
         }
 
         static bool IsStationOwnerAccount(PlayerStationRecord record, string account)
@@ -373,7 +374,7 @@ namespace GoF2Remake.Multiplayer
             roleName = (roleName ?? "").Trim();
             PlayerStationRole role = PlayerStationRole.StationAdministrator;
             bool remove = string.Equals(roleName, "none", StringComparison.OrdinalIgnoreCase);
-            if (!remove && !Enum.TryParse(roleName, true, out role))
+            if (!remove && (!Enum.TryParse(roleName, true, out role) || !Enum.IsDefined(typeof(PlayerStationRole), role)))
                 return "Choose StationAdministrator, Quartermaster, ConstructionManager, MarketManager, SecurityOfficer or none.";
             if (role == PlayerStationRole.StationAdministrator && record.ownershipType == PlayerStationOwnershipType.Faction)
             {
@@ -413,9 +414,11 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!IsStationContext(by, record, out string account))
                 return "Dock at the station using a controlled profile to change permissions.";
-            if (!Enum.TryParse(permissionName, true, out PlayerStationPermission permission))
+            if (!Enum.TryParse(permissionName, true, out PlayerStationPermission permission) ||
+                !Enum.IsDefined(typeof(PlayerStationPermission), permission))
                 return "Unknown permission. Use visit, storage, hangar, stationOperations, construction, appearance, finance, marketplace or security.";
-            if (!Enum.TryParse(stateName, true, out PlayerStationPermissionState state))
+            if (!Enum.TryParse(stateName, true, out PlayerStationPermissionState state) ||
+                !Enum.IsDefined(typeof(PlayerStationPermissionState), state))
                 return "Choose inherit, allow or deny.";
             bool builder = HasBuilderRights(record, account);
             if (builder && permission != PlayerStationPermission.Visit)
@@ -491,10 +494,11 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (!IsStationAuthority(by, record, out string account))
                 return "Only the station owner or faction leader may change faction permission defaults.";
-            if (!Enum.TryParse(permissionName, true, out PlayerStationPermission permission))
+            if (!Enum.TryParse(permissionName, true, out PlayerStationPermission permission) ||
+                !Enum.IsDefined(typeof(PlayerStationPermission), permission))
                 return "Unknown permission.";
             if (!Enum.TryParse(stateName, true, out PlayerStationPermissionState state) ||
-                state == PlayerStationPermissionState.Inherit)
+                !Enum.IsDefined(typeof(PlayerStationPermissionState), state) || state == PlayerStationPermissionState.Inherit)
                 return "Choose allow or deny for a faction default.";
             bool officer = string.Equals((groupName ?? "").Trim(), "officer", StringComparison.OrdinalIgnoreCase);
             if (!officer && !string.Equals((groupName ?? "").Trim(), "member", StringComparison.OrdinalIgnoreCase))
@@ -641,12 +645,7 @@ namespace GoF2Remake.Multiplayer
 
         static bool CanManageConstruction(NetPlayer by, PlayerStationRecord record, out string account)
         {
-            account = by == null ? null : NetProfiles.AccountOf(by.OwnerClientId);
-            if (!NetGame.IsServer || !sessionActive || registry == null || record == null ||
-                by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
-                record.offeredForClaimUtc > 0 || StationClosedByCombat(record.stationIndex) ||
-                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId) || string.IsNullOrEmpty(account))
-                return false;
+            if (!IsStationContext(by, record, out account)) return false;
 
             if (HasBuilderRights(record, account)) return true;
 
