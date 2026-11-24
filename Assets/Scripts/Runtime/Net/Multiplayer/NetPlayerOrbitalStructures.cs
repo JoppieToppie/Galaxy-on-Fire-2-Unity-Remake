@@ -14,18 +14,20 @@ namespace GoF2Remake.Multiplayer
         public int id, orbit, sponsorStationId, slot, buildSeconds, fireIntervalSeconds;
         public string name, assembly, stationModel;
         public bool defense;
+        public bool ignorePlayers, ignoreNpcs;
         public float modelScale, hitRadius, integrity, maxIntegrity, range, damage;
         public long completesUtc, maintenanceDueUtc, maintenanceDecayUtc;
         public int maintenanceIntervalSeconds;
         public bool hasMaintenanceDecayRate;
-        public float maintenanceDecayPercentPerDay;
+        public float maintenanceDecayPercentPerDay, minimumMaintenanceIntegrityPercent;
         public List<PlayerStationMaterial> maintenanceMaterials = new List<PlayerStationMaterial>();
 
         internal bool MaintenanceDue(long now) =>
             operational && defense && maintenanceIntervalSeconds > 0 && maintenanceDueUtc > 0 && now >= maintenanceDueUtc;
         internal float MaintenanceDecayPercentPerDay => hasMaintenanceDecayRate
             ? maintenanceDecayPercentPerDay : ModPlayerInfrastructure.DefaultOrbitalDecayPercentPerDay;
-        internal float MaintenanceIntegrityFloor => maxIntegrity * 0.15f;
+        internal float MaintenanceIntegrityFloor => maxIntegrity *
+            (Math.Max(minimumMaintenanceIntegrityPercent, ModPlayerInfrastructure.MinimumOrbitalDecayIntegrityPercent) / 100f);
         internal bool CanLoseIntegrityToMaintenance =>
             MaintenanceDecayPercentPerDay > 0f && integrity > MaintenanceIntegrityFloor;
 
@@ -37,7 +39,6 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetPlayerStations
     {
         const int DefenseSlotsPerRing = 3;
-        const int MaxOtherStructuresPerOrbit = 8;
         const int MaxOrbitalStructures = 512;
         const int DecayCheckpointSeconds = 60;
         static long nextOrbitalStructureTick;
@@ -56,10 +57,19 @@ namespace GoF2Remake.Multiplayer
             return !string.IsNullOrEmpty(assembly) && db.AssemblyByName(assembly) != null ? assembly : null;
         }
 
-        internal static bool OrbitalPresetAvailable(ModPlayerInfrastructure.OrbitalDefinition preset) =>
-            OrbitalStructureAssembly(preset.Assembly, preset.StationModel, NetGame.Db) != null &&
-            preset.Materials.TrueForAll(cost => OrbitalMaterialAvailable(cost.item)) &&
-            preset.MaintenanceMaterials.TrueForAll(cost => OrbitalMaterialAvailable(cost.item));
+        internal static bool OrbitalPresetAvailable(ModPlayerInfrastructure.OrbitalDefinition preset, int sponsorRace)
+        {
+            if (OrbitalStructureAssembly(preset.Assembly, preset.StationModel, NetGame.Db) == null ||
+                !preset.Materials.TrueForAll(cost => OrbitalMaterialAvailable(cost.item)) ||
+                !preset.MaintenanceMaterials.TrueForAll(cost => OrbitalMaterialAvailable(cost.item))) return false;
+            if (preset.SponsorRaces.Count == 0) return true;
+            foreach (string reference in preset.SponsorRaces)
+                if (ModRaces.TryResolve(reference, null, out int race) && race == sponsorRace) return true;
+            return false;
+        }
+
+        static int OrbitalSponsorRace(PlayerStationRecord sponsor) =>
+            NetGame.Db.Systems.Find(system => system != null && system.index == sponsor.system)?.raceId ?? -1;
 
         static bool OrbitalMaterialAvailable(int item) => NetGuard.Item(item) && NetGame.Db.Item(item) != null;
 
@@ -88,11 +98,11 @@ namespace GoF2Remake.Multiplayer
             ModPlayerInfrastructure.OrbitalDefinition preset = null;
             foreach (var entry in settings.OrbitalStructures)
                 if (entry.Id == presetId) { preset = entry; break; }
-            if (preset == null || !OrbitalPresetAvailable(preset)) return "That structure preset is unavailable.";
+            if (preset == null || !OrbitalPresetAvailable(preset, OrbitalSponsorRace(sponsor))) return "That structure preset is unavailable.";
             var structures = registry.orbitalStructures;
             if (structures.Count >= MaxOrbitalStructures || registry.nextOrbitalStructureId >= int.MaxValue)
                 return "This persistent world has reached its orbital project limit.";
-            int capacity = preset.Defense ? settings.OrbitalDefenseLimit : MaxOtherStructuresPerOrbit;
+            int capacity = preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit;
             int occupied = 0;
             foreach (var entry in structures)
                 if (entry != null && entry.orbit == orbit && entry.defense == preset.Defense) occupied++;
@@ -105,12 +115,14 @@ namespace GoF2Remake.Multiplayer
             {
                 id = registry.nextOrbitalStructureId++, sponsorStationId = sponsorId, orbit = orbit, slot = slot,
                 name = preset.Name, assembly = preset.Assembly, stationModel = preset.StationModel, defense = preset.Defense,
+                ignorePlayers = !preset.TargetPlayers, ignoreNpcs = !preset.TargetNpcs,
                 modelScale = preset.ModelScale, hitRadius = preset.HitRadius, maxIntegrity = preset.Integrity,
                 integrity = preset.Integrity, range = preset.Range, damage = preset.Damage,
                 fireIntervalSeconds = preset.FireIntervalSeconds, buildSeconds = preset.BuildSeconds,
                 maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds,
                 hasMaintenanceDecayRate = true,
-                maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay
+                maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay,
+                minimumMaintenanceIntegrityPercent = preset.MinimumMaintenanceIntegrityPercent
             };
             foreach (var cost in preset.Materials)
                 structure.materials.Add(new PlayerStationMaterial { item = cost.item, required = cost.amount });
@@ -314,22 +326,25 @@ namespace GoF2Remake.Multiplayer
                 if (!structure.operational || !structure.defense || structure.MaintenanceDue(now) || now < structure.nextShotUtc) continue;
                 var runner = NetPlayer.OrbitRunner(structure.orbit);
                 if (runner == null) continue;
-                int race = NetGame.Db.Systems.Find(system => system != null && system.index == sponsor.system)?.raceId ?? -1;
+                int race = OrbitalSponsorRace(sponsor);
                 Vector3 centre = OrbitalStructurePosition(structure);
                 NetPlayer target = null;
                 float closest = structure.range * structure.range;
-                foreach (var pilot in NetPlayer.All)
+                if (!structure.ignorePlayers)
                 {
-                    if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != structure.orbit ||
-                        pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose) continue;
-                    float distance = (pilot.Position - centre).sqrMagnitude;
-                    if (distance > closest || !HostileToDefense(pilot, sponsor, structure.orbit, race, now)) continue;
-                    closest = distance;
-                    target = pilot;
+                    foreach (var pilot in NetPlayer.All)
+                    {
+                        if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != structure.orbit ||
+                            pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose) continue;
+                        float distance = (pilot.Position - centre).sqrMagnitude;
+                        if (distance > closest || !HostileToDefense(pilot, sponsor, structure.orbit, race, now)) continue;
+                        closest = distance;
+                        target = pilot;
+                    }
                 }
                 structure.nextShotUtc = now + structure.fireIntervalSeconds;
                 if (target != null) target.ApplyOrbitalDefenseDamage(structure.orbit, structure.damage, centre);
-                else runner.FireOrbitalDefenseAtNpc(structure, race, centre);
+                else if (!structure.ignoreNpcs) runner.FireOrbitalDefenseAtNpc(structure, race, centre);
             }
         }
 

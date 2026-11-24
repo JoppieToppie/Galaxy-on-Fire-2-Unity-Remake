@@ -1,6 +1,6 @@
 # Player-built orbital structures
 
-Dock at an operational player station and open **Station Management → Orbital Structures**. Choose a preset and an orbit in the sponsor system. Each orbit has three shared defense slots by default and eight other structure slots. Orders reserve a slot before the first delivery. Lowering the defense limit preserves existing defenses and projects. The server accepts new orders once usage falls below the limit. Open **Multiplayer → Orbit Projects** in the build orbit to deliver the required materials and see progress. The station owner or an eligible faction member can use the sponsor's donated stock. Qualifying deliveries from cargo to faction projects are paid from the faction bank.
+Dock at an operational player station and open **Station Management → Orbital Structures**. Choose a preset and an orbit in the sponsor system. Each orbit has three shared defense slots by default and eight other structure slots by default. Orders reserve a slot before the first delivery. Lowering either limit preserves existing structures and projects. The server accepts new orders once usage falls below the limit. Open **Multiplayer → Orbit Projects** in the build orbit to deliver the required materials and see progress. The station owner or an eligible faction member can use the sponsor's donated stock. Qualifying deliveries from cargo to faction projects are paid from the faction bank.
 
 An operational defense engages hostile ships within its configured range. Players are hostile if banned by the sponsor, hostile to the sponsor's system race by standing, or recently recorded attacking player infrastructure in that orbit. The sponsor and its faction are protected. Hostile NPCs are selected using the sponsor system race and the NPC's alignment. Defenses choose a hostile player first, then a hostile NPC if no eligible player is in range. The server applies player defense damage and schedules NPC defense fire through the orbit runner. Defenses are inactive while the sponsor is unavailable and resume when it is operational again.
 
@@ -8,13 +8,13 @@ Additional structures use the same construction, sponsorship and damage rules. T
 
 ## Defense maintenance
 
-Defense presets can require recurring materials. The first deadline starts when construction completes. While overdue, a defense stops firing and by default loses 1% of its maximum integrity per 24 hours of elapsed time. Decay stops at 15% of maximum integrity. An already damaged defense below 15% stays at its current integrity as far as maintenance decay is concerned. The defense occupies its slot and remains vulnerable to structural damage. Decay includes elapsed time while the server was offline. Open **Multiplayer → Orbit Projects** to deliver upkeep cargo or use eligible sponsor stock. Partial deliveries are saved. Completing all upkeep materials ends decay, restores firing eligibility and starts a fresh interval. Lost integrity stays lost. Maintenance cargo receives no faction payout.
+Defense presets can require recurring materials. The first deadline starts when construction completes. While overdue, a defense stops firing and by default loses 1% of its maximum integrity per 24 hours of elapsed time. Decay stops at the preset’s integrity floor, which defaults to 15% of maximum integrity. A defense already below its floor takes no further maintenance decay. The defense occupies its slot and remains vulnerable to structural damage. Decay includes elapsed time while the server was offline. Open **Multiplayer → Orbit Projects** to deliver upkeep cargo or use eligible sponsor stock. Partial deliveries are saved. Completing all upkeep materials ends decay, restores firing eligibility and starts a fresh interval. Lost integrity stays lost. Maintenance cargo receives no faction payout.
 
-The optional `maintenance` object accepts `intervalSeconds` from 60 to 31,536,000, the same `materials` format as construction, and `decayPercentPerDay` from 0 to 100. Set the decay rate to 0 to disable integrity loss while keeping overdue defenses offline. Presets and existing defense records without upkeep remain maintenance-free. Each defense keeps the upkeep terms saved when it was ordered. Existing defenses ordered before decay rates were configurable use 1% per day and the 15% floor.
+The optional `maintenance` object accepts `intervalSeconds` from 60 to 31,536,000, the same `materials` format as construction, `decayPercentPerDay` from 0 to 100, and `minimumIntegrityPercent` from 15 to 100. Set the decay rate to 0 to disable integrity loss while keeping overdue defenses offline. Presets and existing defense records without upkeep remain maintenance-free. Each defense keeps the upkeep terms saved when it was ordered. Existing defenses ordered before decay rates were configurable use 1% per day and the 15% floor. Previously ordered defenses with a custom rate keep that rate and use the 15% floor.
 
 ## Mod Builder
 
-Open **Menu → Player-built stations & gates**. **Defense limit per orbit** accepts 0–12, with 0 blocking new defense orders. The setting exports as `orbitalDefenseLimit` in `playerInfrastructure.json` and applies with the active mod's infrastructure rules. The **Orbital structure presets** field accepts the following `orbitalStructures` array. The settings export with the mod in `playerInfrastructure.json`. Disable **Offer the stock orbital defense** to use only your own presets. A custom definition with ID `orbital-defense` replaces the stock defense with the same ID.
+Open **Menu → Player-built stations & gates**. **Defense limit per orbit** accepts 0–12, with 0 blocking new defense orders. **Other structure limit per orbit** accepts 0–8. The limits export as `orbitalDefenseLimit` and `otherOrbitalStructureLimit` in `playerInfrastructure.json` and are enforced by the host. The **Orbital structure presets** field accepts the following `orbitalStructures` array. The settings export with the mod in `playerInfrastructure.json`. Disable **Offer the stock orbital defense** to use only your own presets. A custom definition with ID `orbital-defense` replaces the stock defense with the same ID.
 
 ```json
 [
@@ -22,6 +22,9 @@ Open **Menu → Player-built stations & gates**. **Defense limit per orbit** acc
     "id": "frontier-defense",
     "name": "Frontier Defense",
     "defense": true,
+    "sponsorRaces": ["terran", "my_mod:frontier_race"],
+    "targetPlayers": true,
+    "targetNpcs": true,
     "stationModel": "my_mod:frontier_platform",
     "modelScale": 1,
     "hitRadius": 300,
@@ -33,6 +36,7 @@ Open **Menu → Player-built stations & gates**. **Defense limit per orbit** acc
     "maintenance": {
       "intervalSeconds": 86400,
       "decayPercentPerDay": 0.5,
+      "minimumIntegrityPercent": 25,
       "materials": [{ "item": 156, "amount": 20 }]
     },
     "materials": [
@@ -42,5 +46,7 @@ Open **Menu → Player-built stations & gates**. **Defense limit per orbit** acc
   }
 ]
 ```
+
+`sponsorRaces` filters new orders by the race that owns the sponsor’s system. Use base-game race names or qualified mod race IDs such as `my_mod:frontier_race`. Omit the list or leave it empty for availability in every system. `targetPlayers` and `targetNpcs` each default to `true` for defenses and are saved on order.
 
 Use either `stationModel` with a station model reference or `assembly` with an existing game assembly such as `turret_002_static`. Distances are in metres. Integrity, material costs, scale, timing and combat settings are saved into each project when ordered. Additional station or gate assets can be registered in the same Mod Builder section.

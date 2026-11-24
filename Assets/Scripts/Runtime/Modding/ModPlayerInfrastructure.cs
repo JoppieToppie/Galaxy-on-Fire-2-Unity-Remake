@@ -11,6 +11,8 @@ namespace GoF2Remake.Modding
         public const int DefaultOrbitalDefenseLimit = 3;
         public const int MaxOrbitalDefenseLimit = 12;
         public const float DefaultOrbitalDecayPercentPerDay = 1f;
+        public const float MinimumOrbitalDecayIntegrityPercent = 15f;
+        public const int MaxOtherOrbitalStructureLimit = 8;
 
         public bool Enabled { get; private set; } = true;
         public bool JumpgatesEnabled { get; private set; } = true;
@@ -18,6 +20,7 @@ namespace GoF2Remake.Modding
         public bool IncludeStockStations { get; private set; } = true;
         public bool IncludeStockJumpgates { get; private set; } = true;
         public int OrbitalDefenseLimit { get; private set; } = DefaultOrbitalDefenseLimit;
+        public int OtherOrbitalStructureLimit { get; private set; } = MaxOtherOrbitalStructureLimit;
         public float ScrapIntegrity { get; private set; } = DefaultScrapIntegrity;
         public IReadOnlyList<string> StationModels { get; private set; } = Array.Empty<string>();
         public IReadOnlyList<OrbitalDefinition> OrbitalStructures { get; private set; } = StockStructures;
@@ -29,9 +32,12 @@ namespace GoF2Remake.Modding
             public float ModelScale, HitRadius, Integrity, Range, Damage;
             public int BuildSeconds, FireIntervalSeconds;
             public bool Defense;
+            public bool TargetPlayers = true, TargetNpcs = true;
+            public IReadOnlyList<string> SponsorRaces = Array.Empty<string>();
             public List<(int item, int amount)> Materials;
             public int MaintenanceIntervalSeconds;
             public float MaintenanceDecayPercentPerDay = DefaultOrbitalDecayPercentPerDay;
+            public float MinimumMaintenanceIntegrityPercent = MinimumOrbitalDecayIntegrityPercent;
             public List<(int item, int amount)> MaintenanceMaterials = new List<(int, int)>();
         }
 
@@ -85,6 +91,7 @@ namespace GoF2Remake.Modding
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,
                 OrbitalDefenseLimit = StructureInt(settings, "orbitalDefenseLimit", DefaultOrbitalDefenseLimit, 0, MaxOrbitalDefenseLimit),
+                OtherOrbitalStructureLimit = StructureInt(settings, "otherOrbitalStructureLimit", MaxOtherOrbitalStructureLimit, 0, MaxOtherOrbitalStructureLimit),
                 OrbitalStructures = ReadStructures(settings),
                 StationModels = ReadReferences(settings, "stationModels"),
                 JumpgateModels = ReadReferences(settings, "jumpgateModels")
@@ -113,6 +120,7 @@ namespace GoF2Remake.Modding
                 if ((assembly == null) == (station == null)) throw new ModJsonException(id + " needs one assembly or stationModel.");
                 int maintenanceInterval = 0;
                 float maintenanceDecayPercentPerDay = DefaultOrbitalDecayPercentPerDay;
+                float minimumMaintenanceIntegrityPercent = MinimumOrbitalDecayIntegrityPercent;
                 List<(int item, int amount)> maintenanceCosts = null;
                 if (value["maintenance"] != null)
                 {
@@ -120,12 +128,17 @@ namespace GoF2Remake.Modding
                         throw new ModJsonException(id + " maintenance must be an object on a defense preset.");
                     maintenanceInterval = StructureInt(maintenance, "intervalSeconds", 0, 60, 31536000);
                     maintenanceDecayPercentPerDay = StructureNumber(maintenance, "decayPercentPerDay", DefaultOrbitalDecayPercentPerDay, 0f, 100f);
+                    minimumMaintenanceIntegrityPercent = StructureNumber(maintenance, "minimumIntegrityPercent",
+                        MinimumOrbitalDecayIntegrityPercent, MinimumOrbitalDecayIntegrityPercent, 100f);
                     maintenanceCosts = ReadStructureMaterials(maintenance, id + " maintenance");
                 }
                 result.RemoveAll(definition => definition.Id == id);
                 result.Add(new OrbitalDefinition
                 {
                     Id = id, Name = StructureText(value, "name", 64), Assembly = assembly, StationModel = station, Defense = defense,
+                    TargetPlayers = defense && ReadToggle(value, "targetPlayers"),
+                    TargetNpcs = defense && ReadToggle(value, "targetNpcs"),
+                    SponsorRaces = ReadReferences(value, "sponsorRaces"),
                     ModelScale = StructureNumber(value, "modelScale", 1f, 0.01f, 10f),
                     HitRadius = StructureNumber(value, "hitRadius", 250f, 10f, 2000f),
                     Integrity = StructureNumber(value, "integrity", 12000f, 1, 10000000),
@@ -136,6 +149,7 @@ namespace GoF2Remake.Modding
                     Materials = ReadStructureMaterials(value, id),
                     MaintenanceIntervalSeconds = maintenanceInterval,
                     MaintenanceDecayPercentPerDay = maintenanceDecayPercentPerDay,
+                    MinimumMaintenanceIntegrityPercent = minimumMaintenanceIntegrityPercent,
                     MaintenanceMaterials = maintenanceCosts ?? new List<(int, int)>()
                 });
             }

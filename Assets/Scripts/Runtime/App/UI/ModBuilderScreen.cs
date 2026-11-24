@@ -893,7 +893,11 @@ namespace GoF2Remake.UI
             var defenseLimit = Add(scroll, new IntegerField("Defense limit per orbit")
                 { value = settings.OrbitalDefenseLimit }, "mbv-field");
             Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOrbitalDefenseLimit}. Build orders reserve a slot. A limit of 0 blocks new defense orders.");
-            Note(scroll, "Add structure presets as a JSON array. Set defense to true for a platform that targets hostiles. Add maintenance with intervalSeconds and materials to require recurring upkeep. Set decayPercentPerDay in maintenance to adjust overdue integrity loss (default 1, 0 disables decay).");
+            var otherStructureLimit = Add(scroll, new IntegerField("Other structure limit per orbit")
+                { value = settings.OtherOrbitalStructureLimit }, "mbv-field");
+            Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOtherOrbitalStructureLimit} for structures without weapons.");
+            Note(scroll, "Add presets as a JSON array. Use sponsorRaces to filter by the sponsor system’s race. Defense presets can set targetPlayers and targetNpcs.");
+            Note(scroll, "Add maintenance with intervalSeconds and materials for upkeep. Optional decayPercentPerDay defaults to 1. Optional minimumIntegrityPercent defaults to 15 and can be set from 15 to 100.");
             var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
                 value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
             var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");
@@ -909,6 +913,7 @@ namespace GoF2Remake.UI
                 draft["jumpgateModels"] = InfrastructureReferences(gateModels.value);
                 draft["includeStockOrbitalDefense"] = stockDefense.value;
                 draft["orbitalDefenseLimit"] = defenseLimit.value;
+                draft["otherOrbitalStructureLimit"] = otherStructureLimit.value;
                 try
                 {
                     draft["orbitalStructures"] = JArray.Parse(structures.value);

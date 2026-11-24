@@ -332,7 +332,8 @@ namespace GoF2Remake.UI
             string limit = settings.OrbitalDefenseLimit > 0
                 ? $"Defense limit per orbit ({settings.OrbitalDefenseLimit}). "
                 : "New defense orders are disabled. ";
-            AddSection("ORBITAL STRUCTURES", limit + "Deliver materials from Multiplayer → Orbit Projects.");
+            AddSection("ORBITAL STRUCTURES", limit + $"Other structure limit per orbit ({settings.OtherOrbitalStructureLimit}). " +
+                "Deliver materials from Multiplayer → Orbit Projects.");
             if (settings.Enabled)
             {
                 var db = NetGame.Db;
@@ -340,7 +341,8 @@ namespace GoF2Remake.UI
                 var orbits = db.Stations.Where(orbit => orbit != null && system?.stations?.Contains(orbit.index) == true)
                     .Select(orbit => (orbit.index.ToString(), orbit.name + " [" + orbit.index + "]")).ToList();
                 var availablePresets = settings.OrbitalStructures.Where(preset =>
-                    (!preset.Defense || settings.OrbitalDefenseLimit > 0) && NetPlayerStations.OrbitalPresetAvailable(preset)).ToList();
+                    (preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit) > 0 &&
+                    NetPlayerStations.OrbitalPresetAvailable(preset, system?.raceId ?? -1)).ToList();
                 var presets = availablePresets.Select(preset => (preset.Id, preset.Name + (preset.Defense ? " · Defense" : ""))).ToList();
                 AddChoice("structureOrbit", "Build orbit", orbits);
                 var cost = new Label();
