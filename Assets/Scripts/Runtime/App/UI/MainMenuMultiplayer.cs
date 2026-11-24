@@ -98,10 +98,33 @@ namespace GoF2Remake.UI
                 .GroupBy(race => race.Key).Select(group => group.First()).ToList();
             var raceLabels = new List<string> { "Choose your race…" };
             raceLabels.AddRange(identityRaces.Select(race => race.Name + " [" + race.Key + "]"));
-            identityRacePicker = new DropdownField("1. Race", raceLabels, identityRaces.FindIndex(race => race.Key == identityRace) + 1);
-            scroll.Add(identityRacePicker);
-            identityPortraitPicker = new DropdownField("2. Portrait", new List<string> { "Choose a race first" }, 0);
-            scroll.Add(identityPortraitPicker);
+            DropdownField IdentityPicker(string label, List<string> choices, int selected)
+            {
+                var picker = new DropdownField(label, choices, selected);
+                picker.style.marginTop = 8;
+                picker.style.marginBottom = 12;
+                picker.style.flexShrink = 0;
+                picker.labelElement.style.fontSize = 17;
+                picker.labelElement.style.marginBottom = 6;
+                picker.labelElement.style.color = Color.white;
+                var input = picker.Q<VisualElement>(className: BaseField<string>.inputUssClassName);
+                if (input != null)
+                {
+                    input.style.minHeight = 56;
+                    input.style.paddingLeft = input.style.paddingRight = 14;
+                    input.style.fontSize = 20;
+                    input.style.backgroundColor = new Color(0.055f, 0.12f, 0.18f);
+                    if (input.Q<TextElement>() is TextElement text)
+                    {
+                        text.style.fontSize = 20;
+                        text.style.unityTextAlign = TextAnchor.MiddleLeft;
+                    }
+                }
+                scroll.Add(picker);
+                return picker;
+            }
+            identityRacePicker = IdentityPicker("1. Race", raceLabels, identityRaces.FindIndex(race => race.Key == identityRace) + 1);
+            identityPortraitPicker = IdentityPicker("2. Portrait", new List<string> { "Choose a race first" }, 0);
             identityPreview = new VisualElement();
             identityPreview.style.width = 220;
             identityPreview.style.height = 220;
