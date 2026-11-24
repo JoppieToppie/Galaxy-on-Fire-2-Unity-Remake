@@ -628,6 +628,12 @@ namespace GoF2Remake.Multiplayer
         static readonly Dictionary<int, PlayerStationRecord> stationsById = new Dictionary<int, PlayerStationRecord>();
         static readonly Dictionary<int, PlayerStationRecord> stationsByOrbit = new Dictionary<int, PlayerStationRecord>();
 
+        static void ReplaceStationRecord(Registry target, int index, PlayerStationRecord replacement)
+        {
+            target.stations[index] = replacement;
+            if (ReferenceEquals(target, indexedRegistry)) indexedStationCount = -1;
+        }
+
         static void EnsureStationIndex()
         {
             int count = registry?.stations?.Count ?? 0;
