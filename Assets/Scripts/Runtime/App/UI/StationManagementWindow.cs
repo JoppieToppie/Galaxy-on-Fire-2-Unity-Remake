@@ -32,6 +32,9 @@ namespace GoF2Remake.UI
         HashSet<int> plannerOrbits;
         bool plannerRequestPending;
         StarMap plannerMap;
+        NetPlayerStations.MarketUiCatalogue marketCatalogue;
+        int marketPage;
+        float nextMarketQuery;
         bool compact;
         float feedbackTime;
         float pressedAt = -10f;
@@ -129,6 +132,7 @@ namespace GoF2Remake.UI
             if (!CanOpen) { if (open) Close(); return; }
             if (!open) return;
             ApplyResponsiveLayout();
+            if (Time.unscaledTime >= nextMarketQuery) RefreshMarketCatalogue();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (StarMap.IsOpen || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
@@ -152,6 +156,9 @@ namespace GoF2Remake.UI
             plannerRequestPending = false;
             RefreshPlannerLocations();
             RebuildStationList();
+            marketPage = 0;
+            marketCatalogue = null;
+            RefreshMarketCatalogue();
             RebuildBody();
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) closeButton.Focus();
         }
@@ -168,6 +175,7 @@ namespace GoF2Remake.UI
             drafts.Clear();
             plannerOrbits = null;
             plannerRequestPending = false;
+            marketCatalogue = null;
             confirmBuilderRelinquish = -1;
         }
 
@@ -215,6 +223,9 @@ namespace GoF2Remake.UI
                 confirmRetirementId = -1;
                 confirmBuilderRelinquish = -1;
                 confirmOrbitalRemoval = 0;
+                marketCatalogue = null;
+                marketPage = 0;
+                nextMarketQuery = 0;
                 drafts.Clear();
                 body.scrollOffset = Vector2.zero;
             }
@@ -329,9 +340,7 @@ namespace GoF2Remake.UI
                 AddField("marketHullPrice", "Hull price in credits", "");
                 AddAction("List hull for sale", () => Send("/station list-ship " + selected.id + " " +
                     Value("marketFleetIndex") + " " + Value("marketHullPrice")));
-                AddField("marketShipListing", "Ship listing number", "1");
-                AddAction("Buy listed hull", () => Send("/station buy-ship " + selected.id + " " + Value("marketShipListing")));
-                AddAction("Cancel my hull listing", () => Send("/station delist-ship " + selected.id + " " + Value("marketShipListing")));
+
                 if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
                 BuildStationGovernance(selected);
             }
@@ -503,10 +512,7 @@ namespace GoF2Remake.UI
             AddField("marketPrice", "Price per unit (credits)", "100");
             AddField("marketPayout", "Listing proceeds (personal/faction)", "personal");
             AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice") + " " + Value("marketPayout")));
-            AddField("listingIndex", "Listing index", "0");
-            AddField("buyAmount", "Purchase amount", "1");
-            AddAction("Buy listing", () => Send("/station buy " + id + " " + Value("listingIndex") + " " + Value("buyAmount")));
-            AddAction("Cancel your listing", () => Send("/station delist " + id + " " + Value("listingIndex")));
+            BuildMarketCatalogue(id);
             BuildConstructionProcurement(id, NetPlayer.Local?.CanFundStationProjectInUi(selected.id) == true, canManageModule: true);
 
 
@@ -854,11 +860,59 @@ namespace GoF2Remake.UI
         {
             AddSection("MARKETPLACE", "");
             AddAction("View item and hull listings", "/station market " + id);
-            AddField("visitorListing", "Item listing number", "");
-            AddField("visitorQuantity", "Units", "1");
-            AddAction("Buy listed items", () => Send("/station buy " + id + " " + Value("visitorListing") + " " + Value("visitorQuantity")));
-            AddField("visitorHull", "Hull listing number", "");
-            AddAction("Buy listed hull", () => Send("/station buy-ship " + id + " " + Value("visitorHull")));
+            BuildMarketCatalogue(id);
+        }
+
+        void RefreshMarketCatalogue()
+        {
+            nextMarketQuery = Time.unscaledTime + 8f;
+            if (selected == null || selected.underConstruction || selected.stationIndex != level.Layout.stationIndex ||
+                selected.offeredForClaimUtc > 0) return;
+            int stationId = selected.id;
+            NetPlayer.Local?.RequestStationMarket(stationId, marketPage, catalogue =>
+            {
+                if (!open || selected?.id != stationId || catalogue == null) return;
+                marketCatalogue = catalogue;
+                marketPage = catalogue.page;
+                refresh = 0;
+            });
+        }
+
+        void BuildMarketCatalogue(string id)
+        {
+            if (marketCatalogue == null || marketCatalogue.stationId.ToString() != id)
+            {
+                AddInfo("Listings", "Waiting for the server marketplace catalogue…");
+                AddAction("Refresh listings", RefreshMarketCatalogue);
+                return;
+            }
+            var entries = marketCatalogue.rows ?? new List<NetPlayerStations.MarketUiRow>();
+            if (entries.Count == 0) { AddInfo("Listings", "No available listings."); return; }
+            if (marketCatalogue.pageCount > 1)
+            {
+                AddInfo("Marketplace page", (marketPage + 1) + " / " + marketCatalogue.pageCount);
+                if (marketPage > 0) AddAction("Previous page", () => { marketPage--; drafts.Remove("marketSelection"); RefreshMarketCatalogue(); });
+                if (marketPage + 1 < marketCatalogue.pageCount) AddAction("Next page", () => { marketPage++; drafts.Remove("marketSelection"); RefreshMarketCatalogue(); });
+            }
+            string Key(NetPlayerStations.MarketUiRow entry) => (entry.hull ? "h" : "i") + entry.id;
+            var choices = new List<(string value, string label)> { ("", "Select a listing") };
+            foreach (var entry in entries)
+            {
+                string name = entry.hull ? NetGame.Db.Ship(entry.item)?.name : NetGame.Db.Item(entry.item)?.name;
+                choices.Add((Key(entry), (name ?? "Unknown") + " · " + entry.amount + " × " + entry.price.ToString("N0") + " cr" + (entry.mine ? " (yours)" : "") + " [" + Key(entry) + "]"));
+            }
+            AddChoice("marketSelection", "Listing", choices, _ => RebuildBody());
+            var chosen = entries.Find(entry => Key(entry) == Value("marketSelection"));
+            if (chosen == null) return;
+            if (chosen.mine)
+                AddAction("Cancel my listing", () => Send("/station " + (chosen.hull ? "delist-ship" : "cancel-listing") + " " + id + " " + chosen.id));
+            else if (chosen.hull)
+                AddAction("Buy selected hull", () => Send("/station buy-ship " + id + " " + chosen.id));
+            else
+            {
+                AddField("marketBuyQuantity", "Units (up to " + chosen.amount + ")", "1");
+                AddAction("Buy selected goods", () => Send("/station buy-listing " + id + " " + chosen.id + " " + Value("marketBuyQuantity")));
+            }
         }
 
         void BuildVisitorStorage(string id)
@@ -987,6 +1041,7 @@ namespace GoF2Remake.UI
                 feedbackTime = 12f;
                 refresh = 0;
                 nextPlannerQuery = 0;
+                nextMarketQuery = 0;
             }) != true)
             {
                 feedback.text = "A station request is already pending, or the server is unavailable.";
