@@ -488,7 +488,7 @@ namespace GoF2Remake.Multiplayer
                 if (station.addons.Count > MaxAddonsPerStation || station.listings.Count > MaxListingsPerStation)
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
-            registry.nextId = Math.Max(highest + 1, Math.Max(1, registry.nextId));
+            registry.nextId = Math.Max(highest == int.MaxValue ? int.MaxValue : highest + 1, Math.Max(1, registry.nextId));
             if (!RecoverPendingTransaction())
             {
                 persistenceFaulted = true;
