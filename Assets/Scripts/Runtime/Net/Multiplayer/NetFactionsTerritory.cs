@@ -249,7 +249,11 @@ namespace GoF2Remake.Multiplayer
                     : $"{NetNews.Place(c.station)} is unclaimed again", c.station);
                 changed = true;
             }
-            if (changed) { Save(); PublishClaims(); }
+            if (changed)
+            {
+                if (!NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true))) taxDirty = true;
+                PublishClaims();
+            }
         }
     }
 }
