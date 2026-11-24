@@ -24,7 +24,7 @@ namespace GoF2Remake.UI
         /// <param name="revealSystem">The reveal animation of a newly visible system (-1 = none).</param>
         public static StarMap Open(Database db, StarMapMode mode, bool jumpDrive, Action<StarMapResult> closed, int promptStation = -1,
                                        int focusStation = -1, bool askVoid = false, int routeFromSystem = -1, int revealSystem = -1,
-                                       bool allowTravel = false)
+                                       bool allowTravel = false, Func<int, bool> constructionSystems = null, Func<int, bool> constructionOrbits = null)
         {
             var assets = StarMapAssets.Load();
             if (assets == null || assets.layout == null || assets.panelSettings == null)
@@ -47,6 +47,8 @@ namespace GoF2Remake.UI
             map.routeFrom = routeFromSystem;
             map.revealSystem = revealSystem;
             map.travel = allowTravel && mode == StarMapMode.Mission;
+            map.constructionSystemAllowed = constructionSystems;
+            map.constructionOrbitAllowed = constructionOrbits;
             // (not the in-flight Khador map: the quick menu's Khador Drive entry is the original jump, its Slipstream entry the crossing)
             map.slipstream = jumpDrive && InterstellarSpace.Drive(db) != null && (mode == StarMapMode.Station || map.travel);
             var pr = go.AddComponent<PanelRenderer>();
@@ -59,9 +61,7 @@ namespace GoF2Remake.UI
         // A construction planner is a non-travelling map: its result is only a selected location.
         internal static StarMap OpenStationPlanner(Database db, Func<int, bool> allowed, Func<int, bool> orbitAllowed, Action<StarMapResult> closed)
         {
-            var map = Open(db, StarMapMode.Mission, false, closed);
-            if (map != null) { map.constructionSystemAllowed = allowed; map.constructionOrbitAllowed = orbitAllowed; }
-            return map;
+            return Open(db, StarMapMode.Mission, false, closed, constructionSystems: allowed, constructionOrbits: orbitAllowed);
         }
 
         Func<int, bool> constructionSystemAllowed, constructionOrbitAllowed;
