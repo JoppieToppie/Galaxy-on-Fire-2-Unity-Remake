@@ -903,6 +903,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || string.IsNullOrEmpty(id)) return false;
             var account = index?.accounts.Find(entry => entry != null && entry.id == id);
+            if (Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled && !string.IsNullOrEmpty(race) &&
+                !PlayerIdentity.TryResolveSelectableRace(race, out _)) return false;
             if (account == null || PlayerIdentity.IsComplete(account.stationPolicyRace, account.playerPortrait) ||
                 (Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled && IsOnline(id))) return false;
             return SavePlayerIdentity(account, race, race == account.stationPolicyRace ? account.playerPortrait : null);
