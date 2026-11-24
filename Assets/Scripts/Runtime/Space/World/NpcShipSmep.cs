@@ -556,7 +556,7 @@ namespace GoF2Remake.World
                     SmepPathTest(state.velocity, wanted, Mathf.Max(0f, effectiveTopSpeed));
                     // Shorten (never extend) the existing refresh interval by a stable per-ship
                     // phase to distribute expensive trajectory probes across frames.
-                    float phase = 0.85f + (unchecked((uint)GetInstanceID()) % 16u) * 0.01f;
+                    float phase = 0.85f + (unchecked((uint)GetEntityId().GetHashCode()) % 16u) * 0.01f;
                     smepPathMs = Es2NpcFlight.ForceUpdateS * 1000f * (smepPathStraight ? 2f : 1f) * phase;
                     smepPathInitialized = true;
                 }
