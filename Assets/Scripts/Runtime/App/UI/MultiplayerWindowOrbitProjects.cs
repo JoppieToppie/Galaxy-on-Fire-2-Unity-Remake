@@ -77,9 +77,12 @@ namespace GoF2Remake.UI
             {
                 Section("Reconstructing " + station.name);
                 BuildMaterialProgress(station.materials);
-                var row = ProjectDeliveryFields(wreckMaterial, wreckAmount, value => wreckMaterial = value, value => wreckAmount = value);
-                row.Add(Btn("Deliver cargo", () => SendProjectDelivery("contribute", station.id, wreckMaterial, wreckAmount), null));
-                body.Add(row);
+                var row = ProjectDeliveryFields(station.materials, wreckMaterial, wreckAmount, value => wreckMaterial = value, value => wreckAmount = value);
+                if (row != null)
+                {
+                    row.Add(Btn("Deliver cargo", () => SendProjectDelivery("contribute", station.id, wreckMaterial, wreckAmount), null));
+                    body.Add(row);
+                }
                 BuildReconstructionOrders(station);
             }
 
@@ -161,9 +164,10 @@ namespace GoF2Remake.UI
             var next = materials.Find(material => material != null && material.delivered < material.required);
             if (!orbitalDelivery.TryGetValue(key, out var draft))
                 orbitalDelivery[key] = draft = (next?.item.ToString() ?? "", "1");
-            var row = ProjectDeliveryFields(draft.item, draft.quantity,
+            var row = ProjectDeliveryFields(materials, draft.item, draft.quantity,
                 value => orbitalDelivery[key] = (value, orbitalDelivery[key].quantity),
                 value => orbitalDelivery[key] = (orbitalDelivery[key].item, value));
+            if (row == null) return;
             row.Add(Btn(maintenance ? "Deliver maintenance cargo" : "Deliver cargo", () => SendProjectDelivery(
                 maintenance ? "orbital-maintain" : "orbital-deliver", structure.id, orbitalDelivery[key].item, orbitalDelivery[key].quantity), null));
             row.Add(Btn("Use sponsor stock", () => SendProjectDelivery(
@@ -304,7 +308,8 @@ namespace GoF2Remake.UI
             }
             var firstOutstanding = gate.materials?.Find(material => material != null && material.required > material.delivered);
             if (string.IsNullOrEmpty(gateMaterial) && firstOutstanding != null) gateMaterial = firstOutstanding.item.ToString();
-            var row = ProjectDeliveryFields(gateMaterial, gateAmount, value => gateMaterial = value, value => gateAmount = value);
+            var row = ProjectDeliveryFields(gate.materials, gateMaterial, gateAmount, value => gateMaterial = value, value => gateAmount = value);
+            if (row == null) return;
             row.Add(Btn("Deliver cargo", () => SendProjectDelivery("jumpgate-contribute", gate.orbitStationIndex, gateMaterial, gateAmount), null));
             if (actions.HasFlag(StationProjectActions.FundJumpgate))
                 row.Add(Btn("Use donated stock", () => SendProjectDelivery("jumpgate-fund-stock", gate.orbitStationIndex, gateMaterial, gateAmount), null));
@@ -331,10 +336,24 @@ namespace GoF2Remake.UI
             }
         }
 
-        VisualElement ProjectDeliveryFields(string material, string amount, Action<string> updateMaterial, Action<string> updateAmount)
+        VisualElement ProjectDeliveryFields(List<PlayerStationMaterial> materials, string material, string amount, Action<string> updateMaterial, Action<string> updateAmount)
         {
+            var outstanding = materials?.FindAll(entry => entry != null && entry.delivered < entry.required);
+            if (outstanding == null || outstanding.Count == 0) return null;
+            var labels = outstanding.ConvertAll(entry => (NetGame.Db?.Item(entry.item)?.name ?? ("Item " + entry.item)) +
+                " [" + entry.item + "] · " + (entry.required - entry.delivered).ToString("N0") + " needed");
+            int index = Math.Max(0, outstanding.FindIndex(entry => entry.item.ToString() == material));
+            updateMaterial(outstanding[index].item.ToString());
             var row = Row();
-            row.Add(Field("Item ID", material, 10, 130, updateMaterial, TouchScreenKeyboardType.NumberPad));
+            var picker = new DropdownField(labels, index);
+            picker.style.minWidth = 180;
+            picker.style.flexGrow = 1;
+            picker.RegisterValueChangedCallback(_ =>
+            {
+                if (picker.index >= 0 && picker.index < outstanding.Count)
+                    updateMaterial(outstanding[picker.index].item.ToString());
+            });
+            row.Add(picker);
             row.Add(Field("Units", amount, 3, 110, updateAmount, TouchScreenKeyboardType.NumberPad));
             return row;
         }
