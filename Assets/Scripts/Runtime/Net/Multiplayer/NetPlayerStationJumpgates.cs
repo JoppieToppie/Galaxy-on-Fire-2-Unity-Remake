@@ -202,7 +202,7 @@ namespace GoF2Remake.Multiplayer
             // A faction owns the infrastructure, but individual members remain subject to the
             // blacklist. Only an individually owned gate's actual owner bypasses its blacklist.
             bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual &&
-                string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
+                !string.IsNullOrEmpty(account) && string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
             if (owner) return true;
             if (gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly) return false;
             if (gate.blacklist != null)
@@ -911,7 +911,11 @@ namespace GoF2Remake.Multiplayer
         {
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null || by == null || !by.IsSpawned) return false;
-            return NetGame.IsServer && JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
+            if (!NetGame.IsServer)
+                return by.HasPlayerJumpgateAccess(orbitStationIndex) && !gate.building && !gate.scrapped &&
+                    !gate.permanentlyDestroyed && !gate.explosionPending &&
+                    gate.empShutdownUntilUtc <= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            return JumpgateAccessAllowed(gate, by.ProfileAccount, by.FactionId);
         }
 
         /// <summary>Server validation for the owner-only interaction RPC. Returns -1 unless the player is at an accessible, operational gate.</summary>
