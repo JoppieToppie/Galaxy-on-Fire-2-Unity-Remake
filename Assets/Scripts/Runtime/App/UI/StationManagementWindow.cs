@@ -746,7 +746,22 @@ namespace GoF2Remake.UI
                 });
                 AddInfo("Orbit placement", "The selected planet keeps its orbit. Construction reserves its vacant station site.");
             }
-            AddChoice("newStationModel", "Station model", StationModelChoices());
+            var modelPreview = new VisualElement();
+            modelPreview.style.height = 120; modelPreview.style.width = 200;
+            modelPreview.style.alignSelf = Align.Center;
+            var modelImageLabel = new Label();
+            modelImageLabel.AddToClassList("player-station-note");
+            void Preview(string model)
+            {
+                if (!int.TryParse(model, out int index)) return;
+                var image = Modding.ModPlayerInfrastructure.StationModelImage(index);
+                modelPreview.style.backgroundImage = image.texture != null ? new StyleBackground(image.texture) : StyleKeyword.None;
+                modelPreview.style.display = image.texture != null ? DisplayStyle.Flex : DisplayStyle.None;
+                modelImageLabel.text = string.IsNullOrEmpty(image.id) ? "No thumbnail assigned for this model." : "Image ID: " + image.id;
+            }
+            AddChoice("newStationModel", "Station model", StationModelChoices(), Preview);
+            Preview(Value("newStationModel"));
+            body.Add(modelPreview); body.Add(modelImageLabel);
             AddField("newStationName", "Station name", "");
             if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))
                 AddAction("Start station project", () =>
