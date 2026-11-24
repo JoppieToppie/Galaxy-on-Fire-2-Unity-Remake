@@ -661,9 +661,28 @@ namespace GoF2Remake.UI
             body.Add(field);
         }
 
-        static List<(string value, string label)> StationModelChoices() =>
-            NetGame.Db.Stations.Where(station => station != null && NetPlayerStations.IsStationModelPreset(station.index))
-                .OrderBy(station => station.name).Select(station => (station.index.ToString(), station.name + " [" + station.index + "]")).ToList();
+        static List<(string value, string label)> StationModelChoices()
+        {
+            var db = NetGame.Db;
+            var models = db.Stations.Where(station => station != null && NetPlayerStations.IsStationModelPreset(station.index))
+                .Select(station => (station, race: db.Systems.Find(system => system != null && system.index == station.system)?.raceId ?? -1))
+                .OrderBy(entry => entry.race).ThenBy(entry => entry.station.index);
+            var result = new List<(string, string)>();
+            var counts = new Dictionary<int, int>();
+            var assemblies = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var entry in models)
+            {
+                string assembly = OrbitBuilder.StationPresetAssembly(db, entry.station);
+                if (string.IsNullOrEmpty(assembly)) continue;
+                // Identical stock models are shown once per race; distinct custom presets retain their identities.
+                if (!Modding.ModWorld.IsModStation(entry.station.index) && Modding.ModWorld.ModelOf(entry.station.index) == null &&
+                    !assemblies.Add(entry.race + ":" + assembly)) continue;
+                counts.TryGetValue(entry.race, out int number); counts[entry.race] = ++number;
+                string race = entry.race >= 0 ? GoF2Remake.Flight.Standing.RaceName(entry.race) : "Unassigned";
+                result.Add((entry.station.index.ToString(), $"{race} {number} · {entry.station.name} [#{entry.station.index}]"));
+            }
+            return result;
+        }
 
         static List<(string value, string label)> GateModelChoices() =>
             NetPlayerStations.JumpgateModelChoices().Select(model => (model.id.ToString(), model.label)).ToList();
@@ -686,33 +705,46 @@ namespace GoF2Remake.UI
             var db = NetGame.Db;
             if (db?.Systems == null) return;
             var visible = GalaxyMap.Visibility(db);
-            var systems = db.Systems.Where(system => system != null && system.stations?.Count > 0 &&
-                    system.index >= 0 && visible != null && system.index < visible.Length && visible[system.index])
+            bool Discovered(int id) => id >= 0 && id < visible.Length && visible[id];
+            int origin = db.Stations.Find(station => station != null && station.index == level.Layout.stationIndex)?.system ?? -1;
+            var reachable = NetPlayerStations.ReachableConstructionSystems(origin, Discovered, gate =>
+                !NetPlayerStations.JumpgateOffline(gate.orbitStationIndex) &&
+                (NetPlayerStations.CanUseJumpgate(NetPlayer.Local, gate.orbitStationIndex) || gate.accessMode == PlayerJumpgateAccessMode.Everyone));
+            var drive = Modding.ModJumpFx.ActiveDrive();
+            bool Reachable(int id) => reachable.Contains(id) || (drive?.hasJumpRules == true && !GalaxyMap.HasVolatileGoods &&
+                GalaxyMap.EnergyCells(db, origin, id, false, drive, drive.freeJumps, out _) <= GalaxyMap.CellsInCargo());
+            var systems = db.Systems.Where(system => system != null && Discovered(system.index) && Reachable(system.index) &&
+                    system.stations?.Any(NetPlayerStations.CanBuildStationInOrbit) == true)
                 .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
-            if (systems.Count == 0) AddInfo("Build location", "Discover a system before starting a station project.");
+            if (systems.Count == 0) AddInfo("Build location", "No reachable discovered system has a vacant orbit.");
             else
             {
-                // The construction command creates a new orbital entry, not a replacement for an existing planet.
                 var choices = new List<(string value, string label)> { ("", "Select a system") };
                 choices.AddRange(systems);
-                AddChoice("system", "Discovered build system", choices);
-                AddAction("Choose build system on star map", () =>
+                AddChoice("system", "Reachable build system", choices, _ => { drafts.Remove("buildOrbit"); RebuildBody(); });
+                var orbitChoices = new List<(string value, string label)> { ("", "Select a vacant orbit") };
+                if (int.TryParse(Value("system"), out int chosenSystem))
+                    orbitChoices.AddRange(db.Stations.Where(station => station != null && station.system == chosenSystem && NetPlayerStations.CanBuildStationInOrbit(station.index))
+                        .OrderBy(station => station.name).Select(station => (station.index.ToString(), station.name)));
+                AddChoice("buildOrbit", "Vacant orbit", orbitChoices);
+                AddAction("Choose system and orbit on star map", () =>
                 {
                     if (StarMap.IsOpen) return;
                     var allowed = new HashSet<int>(systems.Select(system => int.Parse(system.Item1)));
                     panel.style.display = DisplayStyle.None;
-                    var map = StarMap.OpenStationPlanner(db, allowed.Contains, result =>
+                    var map = StarMap.OpenStationPlanner(db, allowed.Contains, NetPlayerStations.CanBuildStationInOrbit, result =>
                     {
                         if (!open) return;
                         panel.style.display = DisplayStyle.Flex;
                         var picked = db.Stations.Find(station => station != null && station.index == result.station);
-                        if (picked != null && allowed.Contains(picked.system)) drafts["system"] = picked.system.ToString();
+                        if (picked != null && allowed.Contains(picked.system) && NetPlayerStations.CanBuildStationInOrbit(picked.index))
+                        { drafts["system"] = picked.system.ToString(); drafts["buildOrbit"] = picked.index.ToString(); }
                         RebuildBody();
                     });
                     if (map == null) { panel.style.display = DisplayStyle.Flex; feedback.text = "The star map could not be opened."; feedbackTime = 8f; }
-                    else map.SetHelp("Select a discovered system, open its system view and select a planet to confirm the system. The server assigns a new station orbit; the selected planet is not replaced.");
+                    else map.SetHelp("Select a reachable system, then a vacant orbit. Occupied or reserved orbits cannot be confirmed.");
                 });
-                AddInfo("Orbit placement", "A new orbit is allocated by the server. Existing stations are not replaced.");
+                AddInfo("Orbit placement", "The selected planet keeps its orbit. Construction reserves its vacant station site.");
             }
             AddChoice("newStationModel", "Station model", StationModelChoices());
             AddField("newStationName", "Station name", "");
@@ -721,7 +753,10 @@ namespace GoF2Remake.UI
                 {
                     if (!int.TryParse(Value("system"), out int systemId) || !systems.Any(system => system.Item1 == systemId.ToString()))
                     { feedback.text = "Select a discovered build system first."; feedbackTime = 8f; return; }
-                    SendStationName("start-model " + systemId + " " + Value("newStationModel"), Value("newStationName"));
+                    if (!int.TryParse(Value("buildOrbit"), out int orbit) || !NetPlayerStations.CanBuildStationInOrbit(orbit) ||
+                        db.Stations.Find(station => station != null && station.index == orbit)?.system != systemId)
+                    { feedback.text = "Select a vacant orbit first."; feedbackTime = 8f; return; }
+                    SendStationName("start-orbit " + systemId + " " + orbit + " " + Value("newStationModel"), Value("newStationName"));
                 });
         }
 
