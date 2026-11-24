@@ -329,9 +329,8 @@ namespace GoF2Remake.World
             ship.ExternalSpeedMetersPerSecond = ship.SpeedMetersPerSecond;
             if (weapons != null) weapons.Blocked = true;
             nav.Paused = true;
-            bool playerGate = GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Session.StationIndex);
-            if (playerGate && !GoF2Remake.Multiplayer.NetPlayerStations.CanUseJumpgate(
-                GoF2Remake.Multiplayer.NetPlayer.Local, Session.StationIndex))
+            bool playerGate = GameHooks.HasPlayerJumpgate?.Invoke(Session.StationIndex) == true;
+            if (playerGate && SpaceHooks.CanUsePlayerJumpgate?.Invoke(Session.StationIndex) != true)
             {
                 nav.Paused = false;
                 ship.externalControl = false;
@@ -342,8 +341,8 @@ namespace GoF2Remake.World
                 return;
             }
             if (playerGate)
-                GoF2Remake.Multiplayer.NetPlayer.Local?.RequestJumpgateDiscovery(Session.StationIndex);
-            int fixedDestination = GoF2Remake.Multiplayer.NetPlayerStations.JumpgateDestinationStation(Session.StationIndex);
+                SpaceHooks.DiscoverPlayerJumpgate?.Invoke(Session.StationIndex);
+            int fixedDestination = GameHooks.PlayerJumpgateDestination?.Invoke(Session.StationIndex) ?? -1;
             if (fixedDestination >= 0)
             {
                 // A player-built gate is a point-to-point connection, not a general-purpose system gate.

@@ -34,7 +34,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Data;
-using GoF2Remake.Multiplayer;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -297,7 +296,7 @@ namespace GoF2Remake.Modding
         /// Large hull classes always require a player station dry dock. Mods may also mark a
         /// specialised ship blueprint with "dryDockOnly": true in blueprints.json.
         /// </summary>
-        public static bool RequiresDryDock(int product) => RequiresDryDock(product, NetGame.Db);
+        public static bool RequiresDryDock(int product) => RequiresDryDock(product, NetSession.Db);
 
         public static bool RequiresDryDock(int product, Database db)
         {

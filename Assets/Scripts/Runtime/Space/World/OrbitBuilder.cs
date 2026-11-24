@@ -378,7 +378,7 @@ namespace GoF2Remake.World
             }
             // A mod's own station model (ModStations), once built; else (and for the rest) the original it names ("looksLike",
             // Modding.ModWorld.StationLook).
-            int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(layout.stationIndex);
+            int preset = GameHooks.PlayerStationModel?.Invoke(layout.stationIndex) ?? -1;
             if (preset >= 0)
             {
                 var source = db.Stations.Find(s => s != null && s.index == preset);
@@ -443,7 +443,7 @@ namespace GoF2Remake.World
             // from the usual (0, pi, 0), -45 deg about Unity's up), every model of it (a player's request).
             var gameRotation = layout.stationIndex == 111 ? LuurRotation : new Vector3(0f, Mathf.PI, 0f);
             var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(gameRotation), "Station", parent);
-            if (go != null) go.transform.position = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(layout.stationIndex);
+            if (go != null) go.transform.position = SpaceHooks.StationPosition(layout.stationIndex);
             // Remake, experimental (OrbitScale): Options > Gameplay "Station scale".
             if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
             // Remake: the station's opacity keys play like the engine's (the blinking lights of the Nivelian, Midorian, pirate,
@@ -515,7 +515,7 @@ namespace GoF2Remake.World
             {
                 var o = station.AddComponent<GoF2Remake.Flight.Obstacle>();
                 o.landmark = o.isStation = true;
-                int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(layout.stationIndex);
+                int preset = GameHooks.PlayerStationModel?.Invoke(layout.stationIndex) ?? -1;
                 var own = Modding.ModWorld.ModelOf(preset >= 0 ? preset : layout.stationIndex);
                 o.volumes = own != null && Modding.ModStations.Built(own.station)
                     ? Modding.ModStations.Volumes(own, station, layout.StationScale)
@@ -566,8 +566,8 @@ namespace GoF2Remake.World
             // Only independently constructed player gates opt into exact mesh geometry in Original mode.
             // This does not attach a combat Target yet: the server must validate weapon hits before
             // the gate is allowed to receive structural damage.
-            if (go != null && (forcePlayerGate || GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(layout.stationIndex) ||
-                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(layout.stationIndex)))
+            if (go != null && (forcePlayerGate || GameHooks.HasPlayerJumpgate?.Invoke(layout.stationIndex) == true ||
+                GameHooks.HasPlayerJumpgateWreck?.Invoke(layout.stationIndex) == true))
             {
                 var hull = GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);
                 if (hull != null) hull.playerJumpgateOrbit = layout.stationIndex;

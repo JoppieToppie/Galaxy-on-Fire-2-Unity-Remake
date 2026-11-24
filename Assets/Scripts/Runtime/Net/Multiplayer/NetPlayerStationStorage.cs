@@ -81,8 +81,7 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
-        // A parked hull is only an owned hull and its permanent upgrades. Removable equipment and hold
-        // contents belong to station storage, never to the stored ship record.
+        // Moving a stored hull into a station transfers its removable equipment into station storage.
         static bool CollectShipInventory(StoredShip ship, Dictionary<int, long> items)
         {
             if (ship == null || items == null) return false;
@@ -93,12 +92,6 @@ namespace GoF2Remake.Multiplayer
                 if (units == 0) continue;
                 if (NetGame.Db?.Item(stack.item) == null) return false;
                 items[stack.item] = (items.TryGetValue(stack.item, out long old) ? old : 0) + units;
-            }
-            foreach (var stack in ship.cargo ?? new List<ItemStack>())
-            {
-                if (stack == null || stack.amount <= 0) continue;
-                if (NetGame.Db?.Item(stack.item) == null) return false;
-                items[stack.item] = (items.TryGetValue(stack.item, out long old) ? old : 0) + stack.amount;
             }
             return true;
         }
@@ -202,7 +195,7 @@ namespace GoF2Remake.Multiplayer
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
-            if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment and cargo must be transferred into station storage.";
+            if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment must be transferred into station storage.";
             record.storedShips ??= new List<StoredShip>();
             if (record.storedShips.Count >= MaxStoredShipsPerStation) return "This station's ship hangar is full.";
             var owned = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
@@ -211,8 +204,8 @@ namespace GoF2Remake.Multiplayer
             if (candidate == null) return "That ship record is invalid.";
             if (IsDryDockHull(candidate)) return "Frigates, freighters, cruisers and carriers must use a station dry dock.";
             var items = new Dictionary<int, long>();
-            if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
-            if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
+            if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment item; nothing was transferred.";
+            if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment; nothing was transferred.";
 
             var targetShips = new List<StoredShip>(owned);
             StoredShip ship = candidate;
@@ -234,7 +227,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " at " + record.name +
-                ". Its removable equipment and cargo are now in station storage; hull upgrades remain with the ship.";
+                ". Its removable equipment are now in station storage; hull upgrades remain with the ship.";
         }
 
         internal static string RetrieveShip(NetPlayer by, int id, int hangarIndex)
@@ -252,10 +245,10 @@ namespace GoF2Remake.Multiplayer
             if (hangarIndex > record.storedShipOwners.Count ||
                 !string.Equals(record.storedShipOwners[hangarIndex - 1], account, StringComparison.Ordinal))
                 return "That hull belongs to another pilot and cannot be retrieved by this profile.";
-            // Older registry records may still contain fitted equipment or cargo. Migrate it to station
+            // Older registry records may still contain fitted equipment. Migrate it to station
             // storage before returning a bare hull, rather than silently putting the old behaviour back.
             var items = new Dictionary<int, long>();
-            if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment or cargo item; nothing was withdrawn.";
+            if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment item; nothing was withdrawn.";
             if (items.Count > 0 && !CanFitStationItems(record, items))
                 return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
             var bare = BareHull(ship);
@@ -279,7 +272,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!NetGame.PersistentHost || by.OwnerClientId != NetGame.LocalId) NetProfiles.RefreshProfile(by.OwnerClientId);
             return "Returned a bare " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) +
-                " to your personal stored fleet. Its equipment and cargo remain in station storage.";
+                " to your personal stored fleet. Its equipment remain in station storage.";
         }
 
         const int MaxDryDockShipsPerStation = 20;
@@ -339,7 +332,7 @@ namespace GoF2Remake.Multiplayer
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "Install a dry dock module first.";
-            if (StorageCapacity(record) <= 0) return "Install station storage first; ship equipment and cargo are transferred there.";
+            if (StorageCapacity(record) <= 0) return "Install station storage first; ship equipment are transferred there.";
             record.dryDockShips ??= new List<StoredShip>();
             if (record.dryDockShips.Count + (record.dryDockBuilding ? 1 : 0) >= MaxDryDockShipsPerStation) return "This station's dry dock is full or its remaining slot is reserved for the active build.";
             var fleet = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
@@ -347,8 +340,8 @@ namespace GoF2Remake.Multiplayer
             var candidate = fleet[fleetIndex - 1];
             if (!IsDryDockHull(candidate)) return "The dry dock only accepts ships classified as Frigate, Freighter, Cruiser or Carrier.";
             var items = new Dictionary<int, long>();
-            if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment or cargo item; nothing was transferred.";
-            if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment and cargo; nothing was transferred.";
+            if (!CollectShipInventory(candidate, items)) return "The ship contains an invalid equipment item; nothing was transferred.";
+            if (!CanFitStationItems(record, items)) return "Station storage lacks the capacity or item-type space for this ship's equipment; nothing was transferred.";
             var targetShips = new List<StoredShip>(fleet);
             StoredShip ship = candidate;
             targetShips.RemoveAt(fleetIndex - 1);
@@ -388,7 +381,7 @@ namespace GoF2Remake.Multiplayer
                 !string.Equals(record.dryDockShipOwners[dockIndex - 1], account, StringComparison.Ordinal))
                 return "That hull belongs to another pilot and cannot be retrieved by this profile.";
             var items = new Dictionary<int, long>();
-            if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment or cargo item; nothing was withdrawn.";
+            if (!CollectShipInventory(ship, items)) return "The stored ship contains an invalid equipment item; nothing was withdrawn.";
             if (items.Count > 0 && !CanFitStationItems(record, items)) return "Station storage cannot accommodate this legacy ship inventory; nothing was withdrawn.";
             var bare = BareHull(ship);
             var personalShips = NetProfiles.StoredShipsOf(account, by.OwnerClientId);

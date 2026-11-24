@@ -217,7 +217,7 @@ namespace GoF2Remake.Data
 
         public static int CargoCapacity(Database db, int hullCargo, int upgradeLevel, IReadOnlyList<ItemStack> equipment)
         {
-            long basis = Math.Max(0, hullCargo) + 30L * Math.Max(0, upgradeLevel);
+            long basis = System.Math.Max(0, hullCargo) + 30L * System.Math.Max(0, upgradeLevel);
             long compression = 0;
             if (equipment != null)
                 foreach (var stack in equipment)
@@ -227,8 +227,8 @@ namespace GoF2Remake.Data
                     if (item != null && item.categoryId == 12) compression += item.Attr(22);
                 }
 
-            double capacity = basis + Math.Truncate(basis * (double)compression / 100);
-            return (int)Math.Clamp(capacity, 0, int.MaxValue);
+            double capacity = basis + System.Math.Truncate(basis * (double)compression / 100);
+            return (int)System.Math.Clamp(capacity, 0, int.MaxValue);
         }
 
         public static int FreeCargo(Database db) => MaxLoad(db) - CargoLoad();

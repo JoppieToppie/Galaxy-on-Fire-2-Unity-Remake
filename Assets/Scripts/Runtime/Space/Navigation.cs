@@ -386,7 +386,7 @@ namespace GoF2Remake.Flight
             var st = db.Stations.Find(s => s.index == layout.stationIndex);
             if (layout.hasStation && st != null)
                 Targets.Add(new Target { kind = Kind.Station,
-                    fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(st.index), station = st.index,
+                    fixedPosition = SpaceHooks.StationPosition(st.index), station = st.index,
                                          name = st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}" });
             else if (layout.hasStation && layout.alienOrbit)   // the Void station: distance only, no autopilot
             {
@@ -705,7 +705,7 @@ namespace GoF2Remake.Flight
                     target = new Target { kind = Kind.Station, station = orbit };
                     Targets.Add(target);
                 }
-                target.fixedPosition = GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(orbit);
+                target.fixedPosition = SpaceHooks.StationPosition(orbit);
                 target.name = $"{name} {Localization.Get(136)}";
             }
         }

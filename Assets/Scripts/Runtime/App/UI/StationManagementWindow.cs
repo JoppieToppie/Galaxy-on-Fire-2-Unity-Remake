@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GoF2Remake.Multiplayer;
+using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -13,7 +14,8 @@ namespace GoF2Remake.UI
     {
         readonly StationMenu menu;
         readonly StationLevel level;
-        readonly VisualElement safeArea, panel, stationList, body;
+        readonly VisualElement safeArea, panel, stationList;
+        readonly ScrollView body;
         readonly Label heading, feedback;
         readonly Button openButton, closeButton;
         readonly Dictionary<string, string> drafts = new Dictionary<string, string>();

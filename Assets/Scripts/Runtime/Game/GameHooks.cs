@@ -93,6 +93,13 @@ namespace GoF2Remake.Data
         /// A station/gate lifecycle implementation can supply this per directed system link.</summary>
         public static Func<int, int, bool> JumpgateLinkOperational;
 
+        public static Action<Database> ApplyPlayerStations;
+        public static Func<int, bool> IsPlayerStation, StationSceneryPresent, StationClosedByCombat, HasDryDockAtStation;
+        public static Func<int, bool> HasPlayerJumpgate, HasPlayerJumpgateWreck;
+        public static Func<int, int> PlayerStationModel, PlayerJumpgateDestination, PlayerJumpgateModelPreset;
+        public static Func<int, string> PlayerJumpgateModelReference;
+        public static Func<string, Modding.ModWorld.StationModel> ResolvePlayerJumpgateModel;
+
         // ---- the co-op campaign (NetCoop; CoopCampaign) -------------------------------------------------------------
 
         /// <summary>The session is a co-op campaign (NetState's flag); unset: no.</summary>

@@ -96,6 +96,8 @@ namespace GoF2Remake.World
     public delegate bool StationPoseQuery(int station, out Vector3 position, out Quaternion rotation);
     public delegate bool StarMapOpener(Database db, StarMapMode mode, bool jumpDrive, Action<StarMapResult> closed, int promptStation, bool askVoid);
 
+    public enum InfrastructureContactKind { Station, Jumpgate, OrbitalStructure }
+
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class SpaceHooks
     {
@@ -109,6 +111,17 @@ namespace GoF2Remake.World
         /// <summary>Point defense shot down another game's mirrored shot (source object, shot id): ask the server to cancel it
         /// (NetPlayer.InterceptMirrorShot), so the shot's later hit counts for nothing.</summary>
         public static Action<ulong, uint> InterceptMirrorShot;
+        public static Func<int, Vector3> PlayerStationPosition;
+        public static Func<int, bool> PlayerJumpgateOffline, CanUsePlayerJumpgate;
+        public static Action<int> DiscoverPlayerJumpgate;
+        public static Action<InfrastructureContactKind, int, int, uint, Vector3, Vector3, bool> ReportInfrastructureContact;
+        public static Func<string> PlayerInfrastructureSnapshot;
+        public static Func<Database, int, IEnumerable<(int id, string name, string assembly, Vector3 position, float scale, float radius)>> PlayerOrbitalModels;
+        public static Func<int, bool, IReadOnlyList<(int item, int amount)>> PlayerWreckSalvage;
+        public static Func<int, bool, Vector3> PlayerWreckSalvagePosition;
+        public static Action<int, bool, int> CollectPlayerWreckSalvage;
+
+        public static Vector3 StationPosition(int orbit) => PlayerStationPosition?.Invoke(orbit) ?? Vector3.zero;
 
         /// <summary>The players' games in the session (this one's included); none outside one.</summary>
         public static IEnumerable<IOrbitPeer> Peers => PeersProvider != null ? PeersProvider() : Array.Empty<IOrbitPeer>();

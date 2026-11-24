@@ -188,16 +188,16 @@ namespace GoF2Remake.World
         internal string ConfirmedPlayerGateReference { get; set; }
 
         Modding.ModWorld.StationModel PlayerGateModel =>
-            GoF2Remake.Multiplayer.NetPlayerStations.ResolveJumpgateModel(ConfirmedPlayerGatePreset.HasValue
+            GameHooks.ResolvePlayerJumpgateModel?.Invoke(ConfirmedPlayerGatePreset.HasValue
                 ? ConfirmedPlayerGateReference
-                : GoF2Remake.Multiplayer.NetPlayerStations.FindJumpgate(stationIndex)?.modelReference);
+                : GameHooks.PlayerJumpgateModelReference?.Invoke(stationIndex));
 
         int PlayerGateLook
         {
             get
             {
                 int preset = ConfirmedPlayerGatePreset ??
-                    GoF2Remake.Multiplayer.NetPlayerStations.FindJumpgate(stationIndex)?.modelPreset ?? 0;
+                    GameHooks.PlayerJumpgateModelPreset?.Invoke(stationIndex) ?? 0;
                 return JumpgatePresetAssembly(preset) != null ? preset - 1 : -1;
             }
         }
@@ -254,12 +254,12 @@ namespace GoF2Remake.World
             o.BuildLights();
             o.BuildAsteroidField();
             if (!alien) o.ApplyMod(Modding.ModWorld.OrbitOf(stationIndex), st);
-            if (GoF2Remake.Multiplayer.NetPlayerStations.IsPlayerStation(stationIndex))
+            if (GameHooks.IsPlayerStation?.Invoke(stationIndex) == true)
             {
                 // Player projects reserve a generated orbit when construction begins. It remains empty until all
                 // required materials arrive; completion makes that orbit a normal dockable station.
-                o.stationObject = GoF2Remake.Multiplayer.NetPlayerStations.StationSceneryPresent(stationIndex);
-                o.hasStation = o.stationObject && !GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(stationIndex);
+                o.stationObject = GameHooks.StationSceneryPresent?.Invoke(stationIndex) == true;
+                o.hasStation = o.stationObject && GameHooks.StationClosedByCombat?.Invoke(stationIndex) != true;
             }
             var minimumScales = Modding.ModPlayerInfrastructure.ActiveMinimumScales;
             o.stationScale = o.stationObject ? Mathf.Max(OrbitScale.Chosen, minimumScales.Station) : OrbitScale.Chosen;
@@ -278,7 +278,7 @@ namespace GoF2Remake.World
         public static float StationReach(int stationIndex, bool alienOrbit)
         {
             float reach = VolumesReach(Flight.CollisionVolume.ForStation(StationLook(stationIndex), alienOrbit, alienOrbit && Story.Dlc1Won)) * 1.15f;
-            int preset = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(stationIndex);
+            int preset = GameHooks.PlayerStationModel?.Invoke(stationIndex) ?? -1;
             if (!alienOrbit && Modding.ModWorld.ModelOf(preset >= 0 ? preset : stationIndex) is Modding.ModWorld.StationModel own)
                 reach = Mathf.Max(reach, own.size * 0.6f);
             return Mathf.Max(reach, 10000f);
@@ -299,7 +299,7 @@ namespace GoF2Remake.World
         {
             if (Session.CompletedWorld && station == 109) return 114;
             if (Session.CompletedWorld && station == 110) return 115;
-            int playerStationLook = GoF2Remake.Multiplayer.NetPlayerStations.LooksLike(station);
+            int playerStationLook = GameHooks.PlayerStationModel?.Invoke(station) ?? -1;
             if (playerStationLook == 109) return 114;
             if (playerStationLook == 110) return 115;
             return playerStationLook >= 0 ? Modding.ModWorld.StationLook(playerStationLook) : Modding.ModWorld.StationLook(station);
@@ -377,8 +377,8 @@ namespace GoF2Remake.World
         void BuildGates(SystemData sys, bool includePlayerGateLandmark)
         {
             hasJumpgate = sys != null && (includePlayerGateLandmark || sys.jumpgateStation == stationIndex ||
-                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(stationIndex) ||
-                GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(stationIndex));
+                GameHooks.HasPlayerJumpgate?.Invoke(stationIndex) == true ||
+                GameHooks.HasPlayerJumpgateWreck?.Invoke(stationIndex) == true);
             var rnd = new JavaRandom(2L * stationIndex);
             int a = 0;
             for (int i = hasJumpgate ? 1 : 2; i <= 2; i++)

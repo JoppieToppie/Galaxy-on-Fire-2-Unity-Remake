@@ -171,7 +171,7 @@ namespace GoF2Remake.Data
         {
             if (units <= 0) return;
             // A dry-dock-restricted ship blueprint cannot be progressed through an ordinary station's hangar.
-            if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(station)) return;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && GameHooks.HasDryDockAtStation?.Invoke(station) != true) return;
             var s = State(db, product);
             var it = db.Item(product);
             int slot = it.blueprint.FindIndex(p => p.item == ingredient);
@@ -227,7 +227,7 @@ namespace GoF2Remake.Data
         /// <summary>210 / 223 can't be started in a system without gate routes (528).</summary>
         public static bool CanStartIn(Database db, int product, int station)
         {
-            if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(station)) return false;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && GameHooks.HasDryDockAtStation?.Invoke(station) != true) return false;
             if (!NeedsRoutes.Contains(product)) return true;
             int sys = db.Stations.Find(x => x.index == station)?.system ?? -1;
             var routes = db.Systems.Find(x => x.index == sys)?.jumpRoutesTo;
@@ -267,7 +267,7 @@ namespace GoF2Remake.Data
         public static bool Produce(Database db, int product, int currentStation)
         {
             // Keep the final production path authoritative too; the UI's CanStartIn check is not a security boundary.
-            if (Modding.ModBlueprints.RequiresDryDock(product, db) && !Multiplayer.NetPlayerStations.HasDryDockAtStation(currentStation)) return false;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && GameHooks.HasDryDockAtStation?.Invoke(currentStation) != true) return false;
             var it = db.Item(product);
             if (it == null || it.blueprint == null || !Modding.ModContent.ItemAvailableFor(product, "blueprints")) return false;   // unavailable or stale product
             var s = State(db, product);

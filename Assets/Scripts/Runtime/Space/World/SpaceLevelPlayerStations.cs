@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
-using GoF2Remake.Multiplayer;
 using UnityEngine;
 
 namespace GoF2Remake.World
@@ -12,14 +11,14 @@ namespace GoF2Remake.World
         int visiblePlayerStationState = -1;
         int visiblePlayerStationModel = -1;
         Crate stationSalvageCrate;
-        IReadOnlyList<PlayerStationMaterial> renderedStationSalvage;
+        IReadOnlyList<(int item, int amount)> renderedStationSalvage;
         Crate jumpgateSalvageCrate;
-        IReadOnlyList<PlayerStationMaterial> renderedJumpgateSalvage;
+        IReadOnlyList<(int item, int amount)> renderedJumpgateSalvage;
 
         void AttachStationHull()
         {
             int orbit = Layout.stationIndex;
-            bool combatStation = NetPlayerStations.IsPlayerStation(orbit);
+            bool combatStation = GameHooks.IsPlayerStation?.Invoke(orbit) == true;
             var hull = HullCollision.Attach(Station, null, Station.GetComponent<Obstacle>(), forceExact: combatStation);
             if (hull != null && combatStation) hull.playerStationOrbit = orbit;
         }
@@ -33,14 +32,14 @@ namespace GoF2Remake.World
 
         void UpdateWreckSalvage(int orbit)
         {
-            UpdateSalvageCrate(orbit, false, NetPlayerStations.StationSalvageAt(orbit),
+            UpdateSalvageCrate(orbit, false, SpaceHooks.PlayerWreckSalvage?.Invoke(orbit, false),
                 ref stationSalvageCrate, ref renderedStationSalvage);
-            UpdateSalvageCrate(orbit, true, NetPlayerStations.JumpgateSalvageAt(orbit),
+            UpdateSalvageCrate(orbit, true, SpaceHooks.PlayerWreckSalvage?.Invoke(orbit, true),
                 ref jumpgateSalvageCrate, ref renderedJumpgateSalvage);
         }
 
-        void UpdateSalvageCrate(int orbit, bool jumpgate, IReadOnlyList<PlayerStationMaterial> manifest,
-            ref Crate crate, ref IReadOnlyList<PlayerStationMaterial> rendered)
+        void UpdateSalvageCrate(int orbit, bool jumpgate, IReadOnlyList<(int item, int amount)> manifest,
+            ref Crate crate, ref IReadOnlyList<(int item, int amount)> rendered)
         {
             if (ReferenceEquals(manifest, rendered) &&
                 (crate != null || manifest == null)) return;
@@ -59,7 +58,7 @@ namespace GoF2Remake.World
                 {
                     var part = manifest[i];
                     var item = crate.loot[i];
-                    if (part != null && item.item == part.item && item.amount == part.required) continue;
+                    if (item.item == part.item && item.amount == part.amount) continue;
                     same = false;
                     break;
                 }
@@ -69,15 +68,15 @@ namespace GoF2Remake.World
 
             var loot = new List<ItemStack>();
             foreach (var material in manifest)
-                if (material != null && material.required > 0) loot.Add(new ItemStack(material.item, material.required));
+                if (material.amount > 0) loot.Add(new ItemStack(material.item, material.amount));
             if (loot.Count == 0) return;
             if (crate == null)
             {
-                var anchor = jumpgate ? NetPlayerStations.JumpgateSalvagePosition(orbit) : NetPlayerStations.StationSalvagePosition(orbit);
+                var anchor = SpaceHooks.PlayerWreckSalvagePosition?.Invoke(orbit, jumpgate) ?? Vector3.zero;
                 crate = Crate.Spawn(anchor, loot, Layout.raceId, Crate.LookContainer);
                 crate.keep = true;
                 crate.remote = true;
-                crate.CollectStationSalvage = room => NetPlayer.Local?.RequestWreckSalvage(orbit, room, jumpgate);
+                crate.CollectStationSalvage = room => SpaceHooks.CollectPlayerWreckSalvage?.Invoke(orbit, jumpgate, room);
             }
             else
             {
@@ -89,20 +88,23 @@ namespace GoF2Remake.World
         readonly Dictionary<int, GameObject> orbitalStructureModels = new Dictionary<int, GameObject>();
         string renderedOrbitalSnapshot;
         float retryOrbitalModelsAt;
-        IReadOnlyList<PlayerOrbitalStructure> renderedOrbitalStructures;
+        bool orbitalModelsInitialized;
 
         void UpdateOrbitalStructures(int orbit)
         {
-            var structures = NetPlayerStations.OrbitalStructures;
-            string snapshot = NetState.Instance?.PlayerStations;
-            if (ReferenceEquals(renderedOrbitalStructures, structures) && ReferenceEquals(renderedOrbitalSnapshot, snapshot) &&
+            string snapshot = SpaceHooks.PlayerInfrastructureSnapshot?.Invoke();
+            if (orbitalModelsInitialized && ReferenceEquals(renderedOrbitalSnapshot, snapshot) &&
                 (retryOrbitalModelsAt == 0f || Time.unscaledTime < retryOrbitalModelsAt)) return;
             retryOrbitalModelsAt = 0f;
-            renderedOrbitalStructures = structures;
+            orbitalModelsInitialized = true;
+            var structures = SpaceHooks.PlayerOrbitalModels?.Invoke(db, orbit);
+            var activeIds = new HashSet<int>();
+            if (structures != null)
+                foreach (var structure in structures) activeIds.Add(structure.id);
             renderedOrbitalSnapshot = snapshot;
             var removed = new List<int>();
             foreach (var pair in orbitalStructureModels)
-                if (NetPlayerStations.FindOrbitalStructure(pair.Key)?.operational != true)
+                if (!activeIds.Contains(pair.Key))
                 {
                     if (pair.Value != null)
                     {
@@ -116,26 +118,24 @@ namespace GoF2Remake.World
             if (structures == null) return;
             foreach (var structure in structures)
             {
-                if (structure == null || structure.orbit != orbit || !structure.operational ||
-                    orbitalStructureModels.ContainsKey(structure.id)) continue;
-                string assembly = NetPlayerStations.OrbitalStructureAssembly(structure.assembly, structure.stationModel, db);
-                if (assembly == null)
+                if (orbitalStructureModels.ContainsKey(structure.id)) continue;
+                if (structure.assembly == null)
                 {
-                    if (!string.IsNullOrEmpty(structure.stationModel)) retryOrbitalModelsAt = Time.unscaledTime + 2f;
+                    retryOrbitalModelsAt = Time.unscaledTime + 2f;
                     continue;
                 }
-                var model = OrbitBuilder.Spawn(db, assembly, Vector3.zero, Quaternion.identity, structure.name, transform);
+                var model = OrbitBuilder.Spawn(db, structure.assembly, Vector3.zero, Quaternion.identity, structure.name, transform);
                 if (model == null)
                 {
                     retryOrbitalModelsAt = Time.unscaledTime + 2f;
                     continue;
                 }
-                model.transform.position = NetPlayerStations.OrbitalStructurePosition(structure);
-                model.transform.localScale *= structure.modelScale;
+                model.transform.position = structure.position;
+                model.transform.localScale *= structure.scale;
                 var obstacle = model.AddComponent<Obstacle>();
                 obstacle.landmark = obstacle.cubeIsContact = true;
-                obstacle.cubeHalf = structure.hitRadius;
-                obstacle.volumes.Add(CollisionVolume.Sphere(Vector3.zero, structure.hitRadius));
+                obstacle.cubeHalf = structure.radius;
+                obstacle.volumes.Add(CollisionVolume.Sphere(Vector3.zero, structure.radius));
                 var hull = HullCollision.Attach(model, null, obstacle, forceExact: true);
                 if (hull != null) hull.orbitalStructureId = structure.id;
                 orbitalStructureModels.Add(structure.id, model);
@@ -148,13 +148,13 @@ namespace GoF2Remake.World
             int orbit = Layout.stationIndex;
             UpdateOrbitalStructures(orbit);
             UpdateWreckSalvage(orbit);
-            if (!NetPlayerStations.IsPlayerStation(orbit)) return;
-            bool modelPresent = NetPlayerStations.StationSceneryPresent(orbit);
-            bool operational = modelPresent && !NetPlayerStations.StationClosedByCombat(orbit);
+            if (GameHooks.IsPlayerStation?.Invoke(orbit) != true) return;
+            bool modelPresent = GameHooks.StationSceneryPresent?.Invoke(orbit) == true;
+            bool operational = modelPresent && GameHooks.StationClosedByCombat?.Invoke(orbit) != true;
             int state = operational ? 2 : modelPresent ? 1 : 0;
             bool moved = modelPresent && Station != null &&
-                Station.transform.position != NetPlayerStations.StationPosition(orbit);
-            int model = NetPlayerStations.LooksLike(orbit);
+                Station.transform.position != SpaceHooks.StationPosition(orbit);
+            int model = GameHooks.PlayerStationModel?.Invoke(orbit) ?? -1;
             bool modelChanged = visiblePlayerStationState >= 0 && visiblePlayerStationModel != model;
             if (modelChanged && DockedInOrbit && visiblePlayerStationState == state && !moved) return;
             if (visiblePlayerStationState == state && !moved && !modelChanged) return;

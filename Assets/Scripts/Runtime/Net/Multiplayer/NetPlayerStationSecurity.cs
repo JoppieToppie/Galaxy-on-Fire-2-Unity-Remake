@@ -1,3 +1,4 @@
+using GoF2Remake.World;
 using Unity.Netcode;
 
 namespace GoF2Remake.Multiplayer

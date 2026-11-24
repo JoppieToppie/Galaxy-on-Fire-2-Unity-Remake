@@ -296,7 +296,7 @@ namespace GoF2Remake.World
         {
             if (Layout == null || Navigation == null || SystemJump == null ||
                 playerJumpgateWreck || playerJumpgatePermanentlyDestroyed ||
-                (!serverConfirmed && !GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateAtStation(Layout.stationIndex))) return;
+                (!serverConfirmed && GameHooks.HasPlayerJumpgate?.Invoke(Layout.stationIndex) != true)) return;
             if (Jumpgate != null) return;
             var refreshed = serverConfirmed ? Layout : OrbitLayout.Build(db, Layout.stationIndex);
             if (refreshed == null || !refreshed.hasJumpgate) return;
@@ -415,7 +415,7 @@ namespace GoF2Remake.World
             }
             else
                 root.transform.SetPositionAndRotation(
-                    OrbitScale.ToUnity(UndockPoint) + GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(Layout.stationIndex),
+                    OrbitScale.ToUnity(UndockPoint) + SpaceHooks.StationPosition(Layout.stationIndex),
                     OrbitLayout.RotationToUnity(new Vector3(0f, (Random.value < 0.5f ? 1 : -1) * OrbitLayout.UndockYaw / 65536f * 2f * Mathf.PI, 0f)));
             // Modified: at Luur the station is turned -45 deg (OrbitBuilder.SpawnStation), and the undock point with it, about the
             // station (a player's request): out of its hangar, in front of it as at any other station. Arrivals stay as they were.

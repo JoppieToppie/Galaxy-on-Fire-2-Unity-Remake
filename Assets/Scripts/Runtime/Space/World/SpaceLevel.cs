@@ -120,7 +120,7 @@ namespace GoF2Remake.World
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
         public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, StoryLocked) || (Siege != null && Siege.Active) || FreelanceBlocks
                                       || GoF2Remake.World.SpaceHooks.NoDocking
-                                      || GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(Layout.stationIndex);   // an event's Restrict Travel
+                                      || GameHooks.StationClosedByCombat?.Invoke(Layout.stationIndex) == true;   // an event's Restrict Travel
         bool freelanceMissionOrbit;
         /// <summary>The orbit was built around the freelance mission (Status::departStation put it in Status+400) and it holds
         /// the player here until it is won or failed (Freelance.BlocksTravel).</summary>
@@ -202,7 +202,7 @@ namespace GoF2Remake.World
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
         bool InDockRange => Es2 != null ? Es2.InZone(Player.transform.position)   // EVERSPACE 2: the dock's Interact box
-                                         : (Player.transform.position - GoF2Remake.Multiplayer.NetPlayerStations.StationPosition(Layout.stationIndex)).sqrMagnitude < DockMeters * DockMeters;
+                                         : (Player.transform.position - SpaceHooks.StationPosition(Layout.stationIndex)).sqrMagnitude < DockMeters * DockMeters;
         /// <summary>The dock range in metres in the scaled orbit (OrbitScale.Radius).</summary>
         float DockMeters => Layout.PlaceRadius(StationDockRange) * M;
         /// <summary>Remake mods: a mobile station whose dock range the player is in (having left it once since the level began).</summary>
@@ -471,7 +471,7 @@ namespace GoF2Remake.World
             Mining.navigation = Navigation;
             SystemJump = Player.gameObject.AddComponent<SystemJump>();
             SystemJump.Setup(db, Navigation, Player, Weapons, chase, Jumpgate);
-            if (GoF2Remake.Multiplayer.NetPlayerStations.HasJumpgateWreckAtStation(Layout.stationIndex))
+            if (GameHooks.HasPlayerJumpgateWreck?.Invoke(Layout.stationIndex) == true)
                 SetPlayerJumpgateWreck(false);
 
             // Ship combat: the player's Player object, the orbit's NPC traffic, the ship / salvage locks.
@@ -562,10 +562,10 @@ namespace GoF2Remake.World
             }
             // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
             if (plainOrbit && !prologue && !interstellar && Station != null &&
-                (Layout.hasStation || !GoF2Remake.Multiplayer.NetPlayerStations.IsPlayerStation(station)))
+                (Layout.hasStation || GameHooks.IsPlayerStation?.Invoke(station) != true))
                 SpawnPlayerStationDockPoints(station);
             Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active) ||
-                    GoF2Remake.Multiplayer.NetPlayerStations.StationClosedByCombat(Layout.stationIndex))
+                    GameHooks.StationClosedByCombat?.Invoke(Layout.stationIndex) == true)
                 ? Localization.Get(525) : null;
             Docking.Docked += () =>
             {
@@ -692,7 +692,7 @@ namespace GoF2Remake.World
             SystemJump.GateBlocked = () => builderTest || challenge || Story.BlocksJumps(Layout.stationIndex, StoryLocked) || FreelanceBlocks
                                            || (Siege != null && Siege.Active) || GoF2Remake.World.SpaceHooks.NoJumps
                                            || PlayerJumpgateEmpDisabled
-                                           || GoF2Remake.Multiplayer.NetPlayerStations.JumpgateOffline(Layout.stationIndex);
+                                           || SpaceHooks.PlayerJumpgateOffline?.Invoke(Layout.stationIndex) == true;
             Radar = Player.gameObject.AddComponent<CombatRadar>();
             Radar.Setup(db, Player, Navigation, Mining, Weapons, Health, Traffic);
             Radar.Clouds = GasClouds;

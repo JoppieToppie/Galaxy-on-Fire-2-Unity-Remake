@@ -7,6 +7,8 @@
 
 using GoF2Remake.Data;
 using System.Linq;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using GoF2Remake.Events;
 using GoF2Remake.World;
 using UnityEngine;
@@ -15,6 +17,16 @@ namespace GoF2Remake.Multiplayer
 {
     public static class NetHooksInstaller
     {
+        static readonly ConditionalWeakTable<IReadOnlyList<PlayerStationMaterial>, (int item, int amount)[]> wreckSalvage =
+            new ConditionalWeakTable<IReadOnlyList<PlayerStationMaterial>, (int, int)[]>();
+
+        static IReadOnlyList<(int item, int amount)> WreckSalvageAt(int orbit, bool jumpgate)
+        {
+            var materials = jumpgate ? NetPlayerStations.JumpgateSalvageAt(orbit) : NetPlayerStations.StationSalvageAt(orbit);
+            return materials == null ? null : wreckSalvage.GetValue(materials,
+                entries => entries.Where(entry => entry != null && entry.required > 0).Select(entry => (entry.item, entry.required)).ToArray());
+        }
+
         static void ChatToScripts(NetChat.Message m) => Modding.ModScripts.Raise("chat", m.from, m.text, m.own);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -96,11 +108,56 @@ namespace GoF2Remake.Multiplayer
             GameHooks.CoopPublish = NetCoop.Publish;
             GameHooks.CoopFreelanceDone = NetCoop.ReportFreelance;
 
+            GameHooks.ApplyPlayerStations = NetPlayerStations.Apply;
+            GameHooks.IsPlayerStation = NetPlayerStations.IsPlayerStation;
+            GameHooks.StationSceneryPresent = NetPlayerStations.StationSceneryPresent;
+            GameHooks.StationClosedByCombat = NetPlayerStations.StationClosedByCombat;
+            GameHooks.HasDryDockAtStation = NetPlayerStations.HasDryDockAtStation;
+            GameHooks.HasPlayerJumpgate = NetPlayerStations.HasJumpgateAtStation;
+            GameHooks.HasPlayerJumpgateWreck = NetPlayerStations.HasJumpgateWreckAtStation;
+            GameHooks.PlayerStationModel = NetPlayerStations.LooksLike;
+            GameHooks.PlayerJumpgateDestination = NetPlayerStations.JumpgateDestinationStation;
+            GameHooks.PlayerJumpgateModelPreset = orbit => NetPlayerStations.FindJumpgate(orbit)?.modelPreset ?? 0;
+            GameHooks.PlayerJumpgateModelReference = orbit => NetPlayerStations.FindJumpgate(orbit)?.modelReference;
+            GameHooks.ResolvePlayerJumpgateModel = NetPlayerStations.ResolveJumpgateModel;
+
             InstallSpace();
         }
 
         static void InstallSpace()
         {
+            SpaceHooks.PlayerStationPosition = NetPlayerStations.StationPosition;
+            SpaceHooks.PlayerJumpgateOffline = NetPlayerStations.JumpgateOffline;
+            SpaceHooks.CanUsePlayerJumpgate = orbit => NetPlayerStations.CanUseJumpgate(NetPlayer.Local, orbit);
+            SpaceHooks.DiscoverPlayerJumpgate = orbit => NetPlayer.Local?.RequestJumpgateDiscovery(orbit);
+            SpaceHooks.PlayerInfrastructureSnapshot = () => NetState.Instance?.PlayerStations;
+            SpaceHooks.PlayerOrbitalModels = (db, orbit) => NetPlayerStations.OrbitalStructures?
+                .Where(structure => structure != null && structure.orbit == orbit && structure.operational)
+                .Select(structure => (structure.id, structure.name,
+                    NetPlayerStations.OrbitalStructureAssembly(structure.assembly, structure.stationModel, db),
+                    NetPlayerStations.OrbitalStructurePosition(structure), structure.modelScale, structure.hitRadius)).ToArray();
+            SpaceHooks.PlayerWreckSalvage = WreckSalvageAt;
+            SpaceHooks.PlayerWreckSalvagePosition = (orbit, jumpgate) =>
+                jumpgate ? NetPlayerStations.JumpgateSalvagePosition(orbit) : NetPlayerStations.StationSalvagePosition(orbit);
+            SpaceHooks.CollectPlayerWreckSalvage = (orbit, jumpgate, room) => NetPlayer.Local?.RequestWreckSalvage(orbit, room, jumpgate);
+            SpaceHooks.ReportInfrastructureContact = (kind, id, item, shot, point, surface, blast) =>
+            {
+                var pilot = NetPlayer.Local;
+                if (pilot == null) return;
+                switch (kind)
+                {
+                    case InfrastructureContactKind.Station:
+                        pilot.ReportPlayerStationContact(id, item, shot, point, surface, blast);
+                        break;
+                    case InfrastructureContactKind.OrbitalStructure:
+                        pilot.ReportOrbitalStructureContact(id, item, shot, point, surface, blast);
+                        break;
+                    case InfrastructureContactKind.Jumpgate:
+                        if (blast) pilot.ReportJumpgateBlast(id, item, shot, point, surface);
+                        else pilot.ReportJumpgateImpact(id, item, shot, point);
+                        break;
+                }
+            };
             SpaceHooks.GuestAssembly = NetHangar.GuestAssembly;   // PR #87: guests' customizable ships
             SpaceHooks.GuestShipY = NetHangar.GuestShipY;
             SpaceHooks.GuestBuild = NetHangar.GuestBuild;

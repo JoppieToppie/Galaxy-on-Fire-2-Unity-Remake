@@ -396,14 +396,14 @@ namespace GoF2Remake.Flight
             gun.SceneryImpact += (i, body, point) =>
             {
                 if (body == null || !HullCollision.IsForcedExact(body)) return;
-                var pilot = GoF2Remake.Multiplayer.NetPlayer.Local;
+                var reportContact = GoF2Remake.World.SpaceHooks.ReportInfrastructureContact;
                 uint shotId = gun.bullets[i].networkShotId;
                 if (body.orbitalStructureId > 0)
-                    pilot?.ReportOrbitalStructureContact(body.orbitalStructureId, gun.itemIndex, shotId, point, point, false);
+                    reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.OrbitalStructure, body.orbitalStructureId, gun.itemIndex, shotId, point, point, false);
                 else if (body.playerStationOrbit >= 0)
-                    pilot?.ReportPlayerStationContact(body.playerStationOrbit, gun.itemIndex, shotId, point, point, false);
+                    reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.Station, body.playerStationOrbit, gun.itemIndex, shotId, point, point, false);
                 else if (body.playerJumpgateOrbit >= 0)
-                    pilot?.ReportJumpgateImpact(body.playerJumpgateOrbit, gun.itemIndex, shotId, point);
+                    reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.Jumpgate, body.playerJumpgateOrbit, gun.itemIndex, shotId, point, point, false);
             };
             gun.AreaHit += (target, dmg, emp, center) => OnAreaHit(rig, target, dmg, emp, center);
             gun.Ignited += point => OnIgnited(rig, point);
@@ -716,8 +716,8 @@ namespace GoF2Remake.Flight
         {
             if (gun == null || gun.magnitude <= 0f || bullet < 0 || bullet >= gun.bullets.Length) return;
             uint shotId = gun.bullets[bullet].networkShotId;
-            var pilot = GoF2Remake.Multiplayer.NetPlayer.Local;
-            if (pilot == null || shotId == 0) return;
+            var reportContact = GoF2Remake.World.SpaceHooks.ReportInfrastructureContact;
+            if (reportContact == null || shotId == 0) return;
             float radius = gun.magnitude * M;
             Physics.SyncTransforms();  // bombs can detonate on expiry without a preceding hull cast
             foreach (var body in UnityEngine.Object.FindObjectsByType<HullBody>(FindObjectsSortMode.None))
@@ -751,10 +751,10 @@ namespace GoF2Remake.Flight
                 }
                 if (!found) continue;
                 if (body.orbitalStructureId > 0)
-                    pilot.ReportOrbitalStructureContact(body.orbitalStructureId, gun.itemIndex, shotId, centre, surface, true);
+                    reportContact(GoF2Remake.World.InfrastructureContactKind.OrbitalStructure, body.orbitalStructureId, gun.itemIndex, shotId, centre, surface, true);
                 else if (body.playerStationOrbit >= 0)
-                    pilot.ReportPlayerStationContact(body.playerStationOrbit, gun.itemIndex, shotId, centre, surface, true);
-                else pilot.ReportJumpgateBlast(body.playerJumpgateOrbit, gun.itemIndex, shotId, centre, surface);
+                    reportContact(GoF2Remake.World.InfrastructureContactKind.Station, body.playerStationOrbit, gun.itemIndex, shotId, centre, surface, true);
+                else reportContact(GoF2Remake.World.InfrastructureContactKind.Jumpgate, body.playerJumpgateOrbit, gun.itemIndex, shotId, centre, surface, true);
             }
         }
 

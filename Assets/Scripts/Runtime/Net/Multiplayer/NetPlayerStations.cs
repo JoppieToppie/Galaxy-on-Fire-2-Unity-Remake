@@ -249,6 +249,13 @@ namespace GoF2Remake.Multiplayer
     }
 
     [Serializable]
+    public sealed class PlayerStationStorage
+    {
+        public int item;
+        public int amount;
+    }
+
+    [Serializable]
     public sealed class PlayerStationStorageLot
     {
         public string ownerProfile;

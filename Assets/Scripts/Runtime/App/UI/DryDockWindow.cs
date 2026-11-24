@@ -157,7 +157,7 @@ namespace GoF2Remake.UI
             RefreshStatus();
         }
 
-        void Close()
+        internal void Close()
         {
             if (!IsOpen) return;
             panel.style.display = DisplayStyle.None;
