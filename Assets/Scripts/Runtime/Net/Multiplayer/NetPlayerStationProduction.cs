@@ -124,7 +124,9 @@ namespace GoF2Remake.Multiplayer
             float realtime = Time.realtimeSinceStartup;
             // Wreck claims need responsive progress updates; production, permissions, maintenance
             // and construction do not need to be inspected every rendered frame.
-            if (registry?.stations != null && realtime >= nextWreckClaimTick)
+            // Do not mutate wreck claims ahead of an unfinished durable transaction.
+            if (registry?.stations != null && !persistenceFaulted &&
+                realtime >= nextWreckClaimTick && !File.Exists(TransactionPath))
             {
                 nextWreckClaimTick = realtime + 0.125f; // 8 Hz
                 TickWreckClaims();
