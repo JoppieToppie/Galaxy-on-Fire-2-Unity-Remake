@@ -28,6 +28,20 @@ namespace GoF2Remake.Tests
             }
         }
 
+        [Test]
+        public void CompleteIdentityIsImmutableEvenWhenRaceIsUnchanged()
+        {
+            Assert.IsTrue(PlayerIdentity.CanChoose(null, null, "4"));
+            Assert.IsFalse(PlayerIdentity.IsComplete("4", null));
+            Assert.IsTrue(PlayerIdentity.CanChoose("4", null, "4"));
+            Assert.IsFalse(PlayerIdentity.CanChoose("4", null, "6"));
+            Assert.IsTrue(PlayerIdentity.IsComplete("4", "stock/4/4-0"));
+            Assert.IsFalse(PlayerIdentity.CanChoose("4", "stock/4/4-0", "4"));
+            Assert.IsFalse(PlayerIdentity.CanChoose("4", "stock/4/4-0", "6"));
+            // Removing a portrait's mod does not make a previously saved identity editable.
+            Assert.IsFalse(PlayerIdentity.CanChoose("removed:race", "removed:portrait", "4"));
+        }
+
         [TestCase("octopod", 4)]
         [TestCase("bobolian", 6)]
         [TestCase("grey", 7)]
