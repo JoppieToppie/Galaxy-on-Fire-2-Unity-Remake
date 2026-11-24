@@ -89,9 +89,11 @@ namespace GoF2Remake.Multiplayer
             public bool controller;
             public float acceptedAt;   // real time of the login or the last accepted upload (the earning allowance)
             public int acceptedUploadSequence, lastAcceptedUploadSequence;
+            public long economyRevision;
+            public bool economyRevisionDirty;
         }
 
-        class Incoming { public int seq, count, got; public byte[][] parts; }
+        class Incoming { public int seq, count, got; public long economyRevision; public byte[][] parts; }
 
         static bool configured;
         static string folder;
@@ -359,9 +361,24 @@ namespace GoF2Remake.Multiplayer
             return new GameHooks.ModJumpResult(arrival, cells, lostItem, hullLimit, misjump);
         }
 
+        // Invalidate uploads immediately; publish the barrier on the next server tick, after
+        // synchronous transaction callers have sent their existing reliable economy updates.
+        internal static void InvalidateEconomyUploads(string account)
+        {
+            if (string.IsNullOrEmpty(account)) return;
+            foreach (var login in logins.Values)
+            {
+                if (login.account == null || login.account.id != account || IsHostClient(login.client)) continue;
+                login.economyRevision++;
+                login.economyRevisionDirty = true;
+                login.acceptedUploadSequence = 0;
+                incoming.Remove(login.client);
+            }
+        }
+
         internal static bool ConsumeActionUpload(ulong client, int sequence)
         {
-            if (sequence == 0 || !logins.TryGetValue(client, out var login) ||
+            if (NetPlayerStations.ProfileWritesBlocked || sequence == 0 || !logins.TryGetValue(client, out var login) ||
                 !login.controller || login.account == null || login.acceptedUploadSequence != sequence) return false;
             login.acceptedUploadSequence = 0;
             return true;
