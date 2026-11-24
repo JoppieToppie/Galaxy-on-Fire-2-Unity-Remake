@@ -15,7 +15,7 @@ namespace GoF2Remake.UI
     {
         readonly StationMenu menu;
         readonly StationLevel level;
-        readonly VisualElement safeArea, panel;
+        readonly VisualElement stationRoot, overlay, panel;
         readonly ScrollView stationList;
         readonly ScrollView body;
         readonly Label heading, feedback;
@@ -32,6 +32,8 @@ namespace GoF2Remake.UI
         HashSet<int> plannerOrbits;
         bool plannerRequestPending;
         StarMap plannerMap;
+        string modelPickerKey;
+        Vector2 modelPickerReturnScroll;
         NetPlayerStations.MarketUiCatalogue marketCatalogue;
         int marketPage;
         float nextMarketQuery;
@@ -50,7 +52,8 @@ namespace GoF2Remake.UI
         public StationManagementWindow(StationMenu menu, StationLevel level, VisualElement root)
         {
             this.menu = menu; this.level = level;
-            safeArea = root.Q("safeArea") ?? root;
+            stationRoot = root;
+            var safeArea = root.Q("safeArea") ?? root;
             openButton = new Button(Open) { name = "playerStationsButton", text = "STATION MANAGEMENT" };
             openButton.AddToClassList("station-button");
             openButton.AddToClassList("gof-semibold");
@@ -63,16 +66,19 @@ namespace GoF2Remake.UI
             openButton.clicked += menu.PlayRelease;
             openButton.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
 
+            overlay = new VisualElement { name = "playerStationOverlay" };
+            overlay.AddToClassList("player-station-overlay");
+            overlay.style.display = DisplayStyle.None;
+            safeArea.Add(overlay);
             panel = new VisualElement { name = "playerStationManagement" };
             panel.AddToClassList("player-station-window");
-            panel.style.display = DisplayStyle.None;
             panel.RegisterCallback<PointerDownEvent>(_ => pressedAt = Time.unscaledTime, TrickleDown.TrickleDown);
             panel.RegisterCallback<PointerUpEvent>(_ => pressedAt = -10f, TrickleDown.TrickleDown);
-            safeArea.Add(panel);
+            overlay.Add(panel);
 
             var top = new VisualElement(); top.AddToClassList("player-station-header");
             heading = new Label("PLAYER STATIONS"); heading.AddToClassList("player-station-title"); top.Add(heading);
-            closeButton = new Button(Close) { text = "BACK" }; closeButton.AddToClassList("player-station-close");
+            closeButton = new Button(Back) { text = "BACK" }; closeButton.AddToClassList("player-station-close");
             closeButton.clicked += menu.PlayRelease;
             closeButton.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
             top.Add(closeButton); panel.Add(top);
@@ -88,8 +94,8 @@ namespace GoF2Remake.UI
             {
                 if (evt.target is VisualElement target)
                 {
-                    if (body.Contains(target)) body.ScrollTo(target);
-                    else if (stationList.Contains(target)) stationList.ScrollTo(target);
+                    if (target != body.contentContainer && body.contentContainer.Contains(target)) body.ScrollTo(target);
+                    else if (target != stationList.contentContainer && stationList.contentContainer.Contains(target)) stationList.ScrollTo(target);
                 }
             });
 
@@ -100,7 +106,7 @@ namespace GoF2Remake.UI
             Close();
 
             openButton?.RemoveFromHierarchy();
-            panel?.RemoveFromHierarchy();
+            overlay?.RemoveFromHierarchy();
         }
 
         void ApplyResponsiveLayout()
@@ -135,7 +141,7 @@ namespace GoF2Remake.UI
             if (Time.unscaledTime >= nextMarketQuery) RefreshMarketCatalogue();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
-            if (StarMap.IsOpen || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
+            if (StarMap.IsOpen || modelPickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
             {
                 refresh = 2f;
@@ -148,8 +154,8 @@ namespace GoF2Remake.UI
         {
             if (!CanOpen) return;
             menu.CloseHangar();
-            panel.style.display = DisplayStyle.Flex;
-            panel.BringToFront();
+            overlay.style.display = DisplayStyle.Flex;
+            overlay.BringToFront();
             open = true;
             refresh = 0;
             plannerOrbits = null;
@@ -163,13 +169,26 @@ namespace GoF2Remake.UI
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) closeButton.Focus();
         }
 
+        internal void Back()
+        {
+            if (modelPickerKey != null) CloseModelPicker();
+            else Close();
+        }
+
         public void Close()
         {
             if (!open) return;
-            panel.style.display = DisplayStyle.None;
+            overlay.style.display = DisplayStyle.None;
             open = false;
-            if (plannerMap != null && StarMap.Current == plannerMap) plannerMap.CloseBuilder();
-            plannerMap = null;
+            if (plannerMap != null)
+            {
+                stationRoot.RemoveFromClassList("station-map-open");
+                if (StarMap.Current == plannerMap) plannerMap.CloseBuilder();
+                plannerMap = null;
+            }
+            modelPickerKey = null;
+            panel.RemoveFromClassList("player-station-picking-model");
+            heading.text = "PLAYER STATIONS";
             confirmRetirementId = -1;
             confirmOrbitalRemoval = 0;
             drafts.Clear();
@@ -234,9 +253,9 @@ namespace GoF2Remake.UI
             RebuildBody();
         }
 
-        void RebuildBody()
+        void RebuildBody(Vector2? scrollPosition = null)
         {
-            var before = body.scrollOffset;
+            var before = scrollPosition ?? body.scrollOffset;
             var focused = panel.focusController?.focusedElement as VisualElement;
             string focusLabel = (focused as Button)?.text;
             body.Clear(); fields.Clear();
@@ -745,13 +764,13 @@ namespace GoF2Remake.UI
             body.Add(field);
         }
 
-        static List<(string value, string label)> StationModelChoices()
+        static List<(string value, string label, string race)> StationModelChoices()
         {
             var db = NetGame.Db;
             var models = db.Stations.Where(station => station != null && NetPlayerStations.IsStationModelPreset(station.index))
                 .Select(station => (station, race: db.Systems.Find(system => system != null && system.index == station.system)?.raceId ?? -1))
                 .OrderBy(entry => entry.race).ThenBy(entry => entry.station.index);
-            var result = new List<(string, string)>();
+            var result = new List<(string, string, string)>();
             var counts = new Dictionary<int, int>();
             var assemblies = new HashSet<string>(StringComparer.Ordinal);
             foreach (var entry in models)
@@ -763,9 +782,99 @@ namespace GoF2Remake.UI
                     !assemblies.Add(entry.race + ":" + assembly)) continue;
                 counts.TryGetValue(entry.race, out int number); counts[entry.race] = ++number;
                 string race = entry.race >= 0 ? GoF2Remake.Flight.Standing.RaceName(entry.race) : "Unassigned";
-                result.Add((entry.station.index.ToString(), $"{race} {number} · {entry.station.name} [#{entry.station.index}]"));
+                result.Add((entry.station.index.ToString(), $"{race} {number} · {entry.station.name} [#{entry.station.index}]", race));
             }
             return result;
+        }
+
+        void AddStationModelPicker(string key)
+        {
+            var models = StationModelChoices();
+            if (models.Count == 0)
+            {
+                drafts.Remove(key);
+                AddInfo("Station model", "No station models are configured.");
+                return;
+            }
+
+            var chosen = models.Find(model => model.value == Value(key));
+            if (chosen.value == null) drafts.Remove(key);
+            AddAction(chosen.value == null ? "Choose station model" : "Station model: " + chosen.label,
+                () => OpenModelPicker(key, models));
+            if (!int.TryParse(chosen.value, out int index)) return;
+            var image = Modding.ModPlayerInfrastructure.StationModelImage(index);
+            if (image.texture != null)
+            {
+                var preview = new VisualElement();
+                preview.AddToClassList("player-station-model-preview");
+                preview.style.backgroundImage = new StyleBackground(image.texture);
+                body.Add(preview);
+            }
+            if (!string.IsNullOrEmpty(image.id)) AddInfo("Image ID", image.id);
+        }
+
+        void OpenModelPicker(string key, List<(string value, string label, string race)> models)
+        {
+            modelPickerKey = key;
+            modelPickerReturnScroll = body.scrollOffset;
+            panel.AddToClassList("player-station-picking-model");
+            heading.text = "CHOOSE STATION MODEL";
+            string selectedModel = Value(key);
+            body.Clear();
+            fields.Clear();
+            var search = new TextField("Filter by race or model");
+            search.AddToClassList("player-station-field");
+            body.Add(search);
+            var results = new VisualElement();
+            body.Add(results);
+
+            void ShowMatches(string query)
+            {
+                results.Clear();
+                var words = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var group in models.Where(model => words.All(word =>
+                             model.label.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0)).GroupBy(model => model.race))
+                {
+                    var label = new Label(group.Key);
+                    label.AddToClassList("player-station-section-title");
+                    results.Add(label);
+                    foreach (var model in group)
+                    {
+                        var button = new Button(() =>
+                        {
+                            drafts[key] = model.value;
+                            CloseModelPicker();
+                        }) { text = model.label };
+                        button.AddToClassList("player-station-row");
+                        button.EnableInClassList("player-station-row--selected", model.value == selectedModel);
+                        button.clicked += menu.PlayRelease;
+                        results.Add(button);
+                    }
+                }
+                if (results.childCount == 0)
+                {
+                    var empty = new Label("No station models match your search.");
+                    empty.AddToClassList("player-station-note");
+                    results.Add(empty);
+                }
+            }
+
+            search.RegisterValueChangedCallback(change => ShowMatches(change.newValue));
+            ShowMatches("");
+            body.scrollOffset = Vector2.zero;
+            if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing)
+                results.Q<Button>()?.Focus();
+        }
+
+        void CloseModelPicker()
+        {
+            modelPickerKey = null;
+            panel.RemoveFromClassList("player-station-picking-model");
+            heading.text = "PLAYER STATIONS";
+            RebuildBody(modelPickerReturnScroll);
+            if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing)
+                body.Query<Button>().ToList().Find(button => button.text.StartsWith("Station model:", StringComparison.Ordinal) ||
+                    button.text == "Choose station model")?.Focus();
         }
 
         static List<(string value, string label)> GateModelChoices() =>
@@ -825,39 +934,36 @@ namespace GoF2Remake.UI
                 {
                     if (StarMap.IsOpen) return;
                     var allowed = new HashSet<int>(systems.Select(system => int.Parse(system.Item1)));
-                    panel.style.display = DisplayStyle.None;
+                    if (stationRoot.focusController?.focusedElement is VisualElement focused) focused.Blur();
+                    stationRoot.AddToClassList("station-map-open");
                     var map = StarMap.OpenStationPlanner(db, allowed.Contains, Available, result =>
                     {
                         plannerMap = null;
+                        stationRoot.RemoveFromClassList("station-map-open");
                         if (!open) return;
-                        panel.style.display = DisplayStyle.Flex;
                         var picked = db.Stations.Find(station => station != null && station.index == result.station);
                         if (picked != null && allowed.Contains(picked.system) && Available(picked.index))
                         { drafts["system"] = picked.system.ToString(); drafts["buildOrbit"] = picked.index.ToString(); }
                         RebuildBody();
+                        panel.schedule.Execute(() =>
+                        {
+                            if (open && !StarMap.IsOpen && InputMode.Current != InputKind.Touch && !InputMode.MousePointing)
+                                body.Query<Button>().ToList().Find(button => button.text == "Choose system and orbit on star map")?.Focus();
+                        });
                     });
                     plannerMap = map;
-                    if (map == null) { panel.style.display = DisplayStyle.Flex; feedback.text = "The star map could not be opened."; feedbackTime = 8f; }
-                    else map.SetHelp("Select a reachable system, then a vacant orbit. Occupied or reserved orbits cannot be confirmed.");
+                    if (map == null)
+                    {
+                        stationRoot.RemoveFromClassList("station-map-open");
+                        feedback.text = "The star map could not be opened.";
+                        feedbackTime = 8f;
+                    }
+                    else map.SetHelp("Only discovered systems you can reach with your current gate access or drive and fuel, and with a vacant orbit, are shown.");
                 });
                 AddInfo("Orbit placement", "The selected planet keeps its orbit. Construction reserves its vacant station site.");
             }
-            var modelPreview = new VisualElement();
-            modelPreview.style.height = 120; modelPreview.style.width = 200;
-            modelPreview.style.alignSelf = Align.Center;
-            var modelImageLabel = new Label();
-            modelImageLabel.AddToClassList("player-station-note");
-            void Preview(string model)
-            {
-                if (!int.TryParse(model, out int index)) return;
-                var image = Modding.ModPlayerInfrastructure.StationModelImage(index);
-                modelPreview.style.backgroundImage = image.texture != null ? new StyleBackground(image.texture) : StyleKeyword.None;
-                modelPreview.style.display = image.texture != null ? DisplayStyle.Flex : DisplayStyle.None;
-                modelImageLabel.text = string.IsNullOrEmpty(image.id) ? "No thumbnail assigned for this model." : "Image ID: " + image.id;
-            }
-            AddChoice("newStationModel", "Station model", StationModelChoices(), Preview);
-            Preview(Value("newStationModel"));
-            body.Add(modelPreview); body.Add(modelImageLabel);
+            AddInfo("Eligible build systems", $"{systems.Count}. A system must be discovered, reachable with your gate access or drive and fuel, and have a vacant orbit.");
+            AddStationModelPicker("newStationModel");
             AddField("newStationName", "Station name", "");
             if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))
                 AddAction("Start station project", () =>
@@ -980,8 +1086,9 @@ namespace GoF2Remake.UI
         {
             string id = station.id.ToString();
             AddSection("APPEARANCE AND GOVERNANCE", "");
-            AddChoice("stationAppearance", "Station model", StationModelChoices());
-            AddAction("Change station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
+            AddStationModelPicker("stationAppearance");
+            if (!string.IsNullOrEmpty(Value("stationAppearance")))
+                AddAction("Change station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
             AddAction("View station history", "/station history " + id);
             if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
             {
