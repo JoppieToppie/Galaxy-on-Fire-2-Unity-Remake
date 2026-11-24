@@ -80,7 +80,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 SaveIndex();
             }
-            SetObserverFlag(client, !login.controller);
+            SetObserverFlag(client, !login.controller || NeedsIdentity(account));
             SendProfile(login, newToken);
             if (account != null && !login.controller)
                 NetState.Instance.Notify(client, Localization.Extra("mpObserverJoined",
@@ -150,7 +150,7 @@ namespace GoF2Remake.Multiplayer
             login.acceptedUploadSequence = 0;
             incoming.Remove(login.client);
             login.acceptedAt = Time.realtimeSinceStartup;
-            SetObserverFlag(login.client, false);
+            SetObserverFlag(login.client, NeedsIdentity(login.account));
             SendProfile(login, null);
             NetState.Instance?.Notify(login.client, Localization.Extra("mpNowController", "This device controls your profile now."));
             Debug.Log($"Server: client {login.client} controls profile {login.account?.id} now.");
@@ -189,7 +189,8 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
-            NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home);
+            NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home,
+                NeedsIdentity(login.account), login.account?.stationPolicyRace);
             if (!NetPlayerStations.ProfileWritesBlocked && !IsHostClient(login.client))
             {
                 login.economyRevisionDirty = false;
@@ -299,7 +300,7 @@ namespace GoF2Remake.Multiplayer
             if (!logins.TryGetValue(client, out var login) || login.account == null) return;
             var account = login.account;
             bool handing = handovers.TryGetValue(account.id, out var handover) && handover.from == client;
-            if (!login.controller && !handing) return;   // observers don't write
+            if (NeedsIdentity(account) || (!login.controller && !handing)) return;   // incomplete profiles and observers don't write
             if (NetPlayerStations.ProfileWritesBlocked)
             {
                 Reject(login, "a station transaction is awaiting durable recovery; retry after recovery completes");
