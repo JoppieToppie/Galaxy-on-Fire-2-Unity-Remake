@@ -50,7 +50,10 @@ namespace GoF2Remake.Flight
 
         /// <summary>'world' may touch the volumes (or the contact cube): within their bounding sphere and the obstacle active.
         /// Measured once per 'frame'.</summary>
-        public bool MayTouch(Vector3 world, int frame)
+        public bool MayTouch(Vector3 world, int frame) => MayReach(world, 0f, frame);
+
+        /// <summary>Conservative sphere overlap using the same per-frame obstacle bounds.</summary>
+        internal bool MayReach(Vector3 world, float radius, int frame)
         {
             if (broadFrame != frame)
             {
@@ -71,7 +74,8 @@ namespace GoF2Remake.Flight
                 }
                 broadReach = reach + 50f;   // what the obstacle can move in the rest of the frame, generously
             }
-            return broadActive && (world - broadCentre).sqrMagnitude <= broadReach * broadReach;
+            float combined = broadReach + Mathf.Max(0f, radius);
+            return broadActive && (world - broadCentre).sqrMagnitude <= combined * combined;
         }
 
         /// <summary>Remake (a fleet battle's capital ships turn, CapitalShip): the volumes were made for 'baseRotation' and
