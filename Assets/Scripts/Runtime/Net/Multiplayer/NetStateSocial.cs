@@ -406,17 +406,36 @@ namespace GoF2Remake.Multiplayer
         }
         /// <summary>Server: a profile to one player: the header (its new token, if any; its role), then the gzipped chunks
         /// (none = a fresh start). Reliable RPCs to one client arrive in order.</summary>
-        internal void SendProfile(ulong client, string token, bool controller, bool guest, string json, int home)
+        internal void SendProfile(ulong client, string token, bool controller, bool guest, string json, int home, bool identityRequired, string savedRace)
         {
             if (!IsServer) return;
             var parts = NetProfiles.Pack(json);
             int seq = ++profileSeq;
-            ProfileHeaderRpc(seq, parts.Count, token ?? "", controller, guest, home, RpcTarget.Single(client, RpcTargetUse.Temp));
+            ProfileHeaderRpc(seq, parts.Count, token ?? "", controller, guest, home, identityRequired, savedRace ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
             for (int i = 0; i < parts.Count; i++) ProfileChunkRpc(seq, i, parts[i], RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void ProfileHeaderRpc(int seq, int count, string token, bool controller, bool guest, int home, RpcParams rpc = default)
-            => NetProfileClient.OnProfileHeader(seq, count, token, controller, guest, home);
+        void ProfileHeaderRpc(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace, RpcParams rpc = default)
+            => NetProfileClient.OnProfileHeader(seq, count, token, controller, guest, home, identityRequired, savedRace);
+
+        [Rpc(SendTo.Server)]
+        internal void ChoosePlayerIdentityRpc(string race, string portrait, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!IsServer || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
+            IdentityResultRpc(NetProfiles.CompleteIdentity(client, race, portrait), RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.Server)]
+        internal void LinkIdentityRpc(string code, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!IsServer || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
+            IdentityResultRpc(NetProfiles.LinkDuringIdentity(client, code), RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void IdentityResultRpc(string result, RpcParams rpc = default) => NetProfileClient.OnIdentityResult(result);
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void ProfileChunkRpc(int seq, int part, byte[] data, RpcParams rpc = default) => NetProfileClient.OnProfileChunk(seq, part, data);
         /// <summary>A player's profile, a chunk at a time (NetProfileClient.Upload).</summary>
