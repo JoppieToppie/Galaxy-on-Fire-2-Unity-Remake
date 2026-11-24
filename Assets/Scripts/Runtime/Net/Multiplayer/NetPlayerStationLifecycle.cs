@@ -14,8 +14,11 @@ namespace GoF2Remake.Multiplayer
         const float LegacyWreckMaxIntegrity = 12000f;
         const int ReconstructionPercent = 50;
 
-        internal static PlayerStationRecord StationAt(int orbit) =>
-            registry?.stations?.Find(station => station != null && station.stationIndex == orbit);
+        internal static PlayerStationRecord StationAt(int orbit)
+        {
+            EnsureStationIndex();
+            return stationsByOrbit.TryGetValue(orbit, out var station) ? station : null;
+        }
 
         public static Vector3 StationPosition(int orbit) =>
             new Vector3(StationAt(orbit)?.stationOffsetX ?? 0f, 0f, 0f);
