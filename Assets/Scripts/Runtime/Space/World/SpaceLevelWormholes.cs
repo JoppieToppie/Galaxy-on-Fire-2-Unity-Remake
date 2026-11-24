@@ -614,7 +614,7 @@ namespace GoF2Remake.World
             arrivalCinematic = drive?.arrivalCamera;
             if (!withFx)
             {
-                driveArrivalLength = Mathf.Max(LaunchCameraMs, arrivalCinematic.MinimumDuration);
+                driveArrivalLength = Mathf.Max(DriveShowMs, arrivalCinematic.MinimumDuration);
                 driveHolding = false;
                 return;
             }
