@@ -65,10 +65,11 @@ namespace GoF2Remake.Multiplayer
             foreach (var pilot in NetPlayer.All)
             {
                 if (pilot == null || !pilot.IsSpawned) continue;
+                pilot.SetPlayerJumpgateAccess(pilot.InSpace && CanUseJumpgate(pilot, pilot.Station) ? pilot.Station : -1);
                 var orbitStation = StationAt(pilot.Station);
                 var station = pilot.InHangar ? orbitStation : null;
                 string account = NetProfiles.Controls(pilot.OwnerClientId) ? NetProfiles.AccountOf(pilot.OwnerClientId) : null;
-                bool manages = station != null && !StationClosedByCombat(station.stationIndex) &&
+                bool manages = IsStationContext(pilot, station, out _) &&
                     HasStationPermission(station, account, PlayerStationPermission.StationOperations);
                 pilot.SetManagedStationOrbit(manages ? station.stationIndex : -1);
                 pilot.SetStationProjectActions(AvailableStationProjectActions(pilot, station, account));
