@@ -462,6 +462,15 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
 
+            // Recover the durable snapshot before normalizing it, not the superseded pre-transaction registry.
+            if (!RecoverPendingTransaction())
+            {
+                persistenceFaulted = true;
+                registry = null;
+                Debug.LogError("NetPlayerStations: station persistence is disabled because an interrupted transaction could not be recovered. Preserve the journal and registry for manual recovery.");
+                return;
+            }
+
             registry.stations ??= new List<PlayerStationRecord>();
             registry.jumpgates ??= new List<PlayerJumpgateRecord>();
             registry.consumedBlueprints ??= new List<int>();
@@ -489,13 +498,6 @@ namespace GoF2Remake.Multiplayer
                     Debug.LogWarning($"NetPlayerStations: station {station.id} exceeds a module or listing limit; preserving all saved records.");
             }
             registry.nextId = Math.Max(highest == int.MaxValue ? int.MaxValue : highest + 1, Math.Max(1, registry.nextId));
-            if (!RecoverPendingTransaction())
-            {
-                persistenceFaulted = true;
-                registry = null;
-                Debug.LogError("NetPlayerStations: station persistence is disabled because an interrupted transaction could not be recovered. Preserve the journal and registry for manual recovery.");
-                return;
-            }
             // Older buy-order completions could leave a funded rebuild marked as closed.
             foreach (var station in registry.stations)
                 if (station != null && station.reconstructing && !station.underConstruction &&
@@ -535,11 +537,14 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Apply the server's station snapshot on a joining game. Clients keep a read-only copy and never save it.</summary>
         internal static void ReceiveSnapshot(string json)
         {
+            var previous = registry;
+            bool wasActive = sessionActive;
             sessionActive = true;
             if (string.IsNullOrEmpty(json)) { registry = new Registry(); return; }
             try
             {
-                registry = JsonUtility.FromJson<Registry>(json) ?? new Registry();
+                registry = JsonUtility.FromJson<Registry>(json);
+                if (registry == null) throw new InvalidDataException("Station snapshot did not contain a registry.");
                 registry.stations ??= new List<PlayerStationRecord>();
                 registry.jumpgates ??= new List<PlayerJumpgateRecord>();
                 registry.consumedBlueprints ??= new List<int>();
@@ -575,8 +580,9 @@ namespace GoF2Remake.Multiplayer
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"NetPlayerStations: server snapshot unreadable ({e.Message}).");
-                registry = new Registry();
+                registry = previous;
+                sessionActive = wasActive;
+                throw new InvalidDataException("Server station snapshot was unreadable.", e);
             }
         }
 
