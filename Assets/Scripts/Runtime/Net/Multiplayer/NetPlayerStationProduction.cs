@@ -154,10 +154,14 @@ namespace GoF2Remake.Multiplayer
             TickOrbitalStructures(now);
             if (registry?.stations == null) return; // a failed station save can disable the registry
             TickFactoryJobs(now);
-            if (now < nextDryDockRetryUtc) return;
-            foreach (var record in registry.stations)
+            if (now < nextDryDockRetryUtc || registry?.stations == null || persistenceFaulted || ProfileWritesBlocked) return;
+            var dryDockRegistry = registry;
+            foreach (var record in dryDockRegistry.stations)
+            {
+                if (!ReferenceEquals(registry, dryDockRegistry)) return;
                 if (record != null && record.offeredForClaimUtc == 0 && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
                     if (!CompleteDryDockJob(record, now)) nextDryDockRetryUtc = now + 5;
+            }
         }
 
         /// <summary>List ship blueprints that this station's dry dock can construct.</summary>
@@ -559,7 +563,12 @@ namespace GoF2Remake.Multiplayer
                 if (record.factoryJobs.Count > 0)
                 {
                     var job = record.factoryJobs[0];
-                    if (job == null) { record.factoryJobs.RemoveAt(0); Save(); continue; }
+                    if (job == null)
+                    {
+                        record.factoryJobs.RemoveAt(0);
+                        if (!Save()) { record.factoryJobs.Insert(0, null); return; }
+                        continue;
+                    }
                     if (job.completesUtc > now) continue;
                     EnsureStorageLots(record);
                     var output = record.storage.Find(x => x != null && x.item == job.outputItem);
@@ -604,7 +613,7 @@ namespace GoF2Remake.Multiplayer
                 }
 
                 if (record.factoryJobs.Count != 0) continue;
-                bool resumed = false;
+                List<PlayerFactoryRepeatOrder> resumed = null;
                 foreach (var paused in record.factoryRepeatOrders)
                 {
                     if (paused == null || !paused.paused) continue;
@@ -632,22 +641,42 @@ namespace GoF2Remake.Multiplayer
                         (pausedOutput != null && pausedOutput.amount > int.MaxValue - produced) ||
                         storedNow - consumed + produced > StorageCapacity(record))
                         hasInputs = false;
-                    if (hasInputs) { paused.paused = false; resumed = true; }
+                    if (hasInputs)
+                    {
+                        paused.paused = false;
+                        (resumed ??= new List<PlayerFactoryRepeatOrder>()).Add(paused);
+                    }
                 }
-                if (resumed && !Save()) return;
+                if (resumed != null && !Save())
+                {
+                    foreach (var order in resumed) order.paused = true;
+                    return;
+                }
                 if (!ReferenceEquals(registry, original)) return;
                 var next = record.factoryRepeatOrders.Find(x => x != null && !x.paused);
                 if (next == null) continue;
                 var recipe = FindFactoryRecipe(next.recipeId);
-                if (recipe == null) { next.paused = true; Save(); continue; }
+                if (recipe == null)
+                {
+                    next.paused = true;
+                    if (!Save()) { next.paused = false; return; }
+                    continue;
+                }
                 int batches = Math.Min(100, Math.Max(1, next.batchesPerCycle));
                 if (!next.continuous) batches = Math.Min(batches, Math.Max(0, next.remainingBatches));
-                if (batches <= 0) { record.factoryRepeatOrders.Remove(next); Save(); continue; }
+                if (batches <= 0)
+                {
+                    int index = record.factoryRepeatOrders.IndexOf(next);
+                    record.factoryRepeatOrders.RemoveAt(index);
+                    if (!Save()) { record.factoryRepeatOrders.Insert(index, next); return; }
+                    continue;
+                }
                 string result = StartFactoryJob(record, next.createdByProfile, recipe, batches, next.id);
                 if (!result.StartsWith("Factory job started:", StringComparison.Ordinal))
                 {
+                    if (!ReferenceEquals(registry, original)) return;
                     next.paused = true;
-                    Save();
+                    if (!Save()) { next.paused = false; return; }
                 }
             }
         }
