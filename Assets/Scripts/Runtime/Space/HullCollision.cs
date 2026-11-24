@@ -127,6 +127,8 @@ namespace GoF2Remake.Flight
         /// <summary>Exact gate hulls remain available regardless of the global ship collision preference.</summary>
         public static bool IsForcedExact(HullBody body) => body != null && forcedExact.Contains(body);
         static readonly HashSet<HullBody> forcedExact = new HashSet<HullBody>();
+        internal static IEnumerable<HullBody> ForcedExactBodies => forcedExact;
+        internal static void ForgetBody(HullBody body) => forcedExact.Remove(body);
 
         /// <summary>The hull of 'model' (its root gets the HullBody); 'target' what shots on it hit, 'obstacle' what the
         /// player slides along (either may be null); 'flyableShip' a ship a player can fly (HullBody.flyableShip: Mixed
