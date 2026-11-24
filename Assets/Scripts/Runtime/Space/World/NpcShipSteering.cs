@@ -137,7 +137,7 @@ namespace GoF2Remake.World
                            || !slow.CanTurn;   // remake: an EMP device's slow
             float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : chorusF ? chorusFight.SpeedFactor : formationSpeed;   // (GoF3's Easy: slower in your sights)
             float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
-            bool useSmepFlight = SmepAiRules.UseCustomFlight(SmepHullEligible, MobilePlatformTarget(target), Hp.empDisabled, slow.CanTurn, noSteer);
+            bool useSmepFlight = SmepAiRules.UseCustomFlight(SmepHullEligible, ProtectedMobileTarget(target), Hp.empDisabled, slow.CanTurn, noSteer);
             if (useSmepFlight)
                 // Preserve native boost/pacing as a ratio, but use the modded player hull's top speed.
                 // One shared speed cap applies to forward, reverse, sideways and hover.
