@@ -142,6 +142,16 @@ namespace GoF2Remake.World
             return (station == 78 && mission <= 1) || (station == 111 && mission > 0x5d) || (station == 101 && mission >= 0x54);
         }
 
+        // Evaluate base/mod occupancy without constructing a full seeded orbit layout.
+        internal static bool VacantStationSite(int orbit, int mission)
+        {
+            if (orbit < 0 || orbit == Session.VoidOrbit || Modding.ModWorld.MobileOf(orbit) != null) return false;
+            var spec = Modding.ModWorld.OrbitOf(orbit);
+            if (spec?.station == 1 || spec?.station == 2) return false;
+            if (orbit == 103 && !Session.FreePlay && Session.CampaignMission > 0x54) return false;
+            return spec?.station == 0 || (IsEmptyOrbit(orbit, mission) && System.Array.IndexOf(StationObjectInEmptyOrbit, orbit) < 0);
+        }
+
         static readonly string[] SunTextures =
         {
             "sun_000", "sun_001", "sun_002", "sun_003", "sun_004", "sun_005", "sun_006", "sun_007", "sun_008", "sun_009",
