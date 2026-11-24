@@ -113,7 +113,7 @@ namespace GoF2Remake.World
         public static Action<ulong, uint> InterceptMirrorShot;
         public static Func<int, Vector3> PlayerStationPosition;
         public static Func<int, bool> PlayerJumpgateOffline, CanUsePlayerJumpgate;
-        public static Action<int> DiscoverPlayerJumpgate;
+        public static Func<int, Action<int>, bool> RequestPlayerJumpgateTravel;
         public static Action<InfrastructureContactKind, int, int, uint, Vector3, Vector3, bool> ReportInfrastructureContact;
         public static Func<string> PlayerInfrastructureSnapshot;
         public static Func<Database, int, IEnumerable<(int id, string name, string assembly, Vector3 position, float scale, float radius)>> PlayerOrbitalModels;
