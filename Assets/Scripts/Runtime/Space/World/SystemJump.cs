@@ -370,7 +370,11 @@ namespace GoF2Remake.World
             if (fixedDestination >= 0)
             {
                 // A player-built gate is a point-to-point connection, not a general-purpose system gate.
-                OnGateMapClosed(new StarMapResult { station = fixedDestination, safestRoute = false });
+                nav.Paused = false;
+                Session.ProgrammedStation = fixedDestination;
+                Session.RouteSafest = false;
+                hopping = false;
+                StartGateScene(fixedDestination);
                 return;
             }
             int prog = Session.ProgrammedStation;
