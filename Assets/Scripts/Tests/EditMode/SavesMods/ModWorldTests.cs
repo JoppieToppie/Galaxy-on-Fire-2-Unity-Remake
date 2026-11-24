@@ -28,6 +28,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void InfrastructureThumbnailReferencesAreOptionalAndValidated()
+        {
+            var empty = ModPlayerInfrastructure.Parse(new Newtonsoft.Json.Linq.JObject());
+            Assert.AreEqual(0, empty.StationModelImages.Count);
+            var rules = ModPlayerInfrastructure.Parse(Newtonsoft.Json.Linq.JObject.Parse(
+                "{ 'stationModelImages': { '41': 'images/terran.png', 'example:station': 'gof2:item_046' } }"));
+            Assert.AreEqual("images/terran.png", rules.StationModelImages["41"]);
+            Assert.AreEqual("gof2:item_046", rules.StationModelImages["example:station"]);
+            Assert.Throws<ModJsonException>(() => ModPlayerInfrastructure.Parse(
+                Newtonsoft.Json.Linq.JObject.Parse("{ 'stationModelImages': { '41': '' } }")));
+        }
+
+        [Test]
         public void ActiveModsSetIndependentSizeFloorsForStockOrbits()
         {
             WriteMod("t_station_size", "t_station_size", "1.0", "",
