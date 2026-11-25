@@ -25,6 +25,7 @@ namespace GoF2Remake.UI
         readonly Dictionary<string, TextField> fields = new Dictionary<string, TextField>();
         PlayerStationRecord selected;
         bool open;
+        int deliveryProjectId = -1;
         string managementPage = "overview";
         int confirmOrbitalRemoval;
         int confirmRetirementId = -1;
@@ -174,6 +175,8 @@ namespace GoF2Remake.UI
             if (!open) return;
             if (inFlight) overlay.style.display = StarMap.IsOpen ? DisplayStyle.None : DisplayStyle.Flex;
             ApplyResponsiveLayout();
+            int nearby = LocalDeliveryProject()?.id ?? -1;
+            if (nearby != deliveryProjectId) { deliveryProjectId = nearby; refresh = 0; }
             if (Time.unscaledTime >= nextMarketQuery) RefreshMarketCatalogue();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
@@ -249,7 +252,7 @@ namespace GoF2Remake.UI
             var records = NetPlayerStations.Stations?.Where(x => x != null && !x.retired && !x.destroyed && !x.wreckClaimOpen &&
                 (x.stationIndex == currentStation || x.underConstruction &&
                     (NetPlayer.Local?.CanFundStationProjectInUi(x.id) == true ||
-                        !x.reconstructing && x.buyOrders?.Any(order => order != null && order.remaining > 0) == true)))
+                        x.stationIndex == currentStation || !x.reconstructing && x.buyOrders?.Any(order => order != null && order.remaining > 0) == true)))
                 .OrderBy(x => x.stationIndex != currentStation).ThenBy(x => x.id).ToList();
             if (records == null || records.Count == 0)
             {
@@ -291,6 +294,23 @@ namespace GoF2Remake.UI
             RebuildBody();
         }
 
+        PlayerStationRecord LocalDeliveryProject()
+        {
+            var pilot = NetPlayer.Local;
+            if (pilot?.InSpace != true) return null;
+            var project = NetPlayerStations.StationAt(pilot.Station);
+            return NetPlayerStations.CanDeliverAtConstructionSite(pilot, project) ? project : null;
+        }
+
+        void AddStationLocation(PlayerStationRecord record)
+        {
+            var db = NetGame.Db;
+            var system = db?.Systems?.Find(entry => entry != null && entry.index == record.system);
+            var orbit = db?.Stations?.Find(entry => entry != null && entry.index == record.stationIndex);
+            AddInfo("System", system?.name ?? "Unknown system");
+            AddInfo("Orbit", orbit?.name ?? "Unknown orbit");
+        }
+
         void RebuildBody(Vector2? scrollPosition = null)
         {
             var before = scrollPosition ?? body.scrollOffset;
@@ -318,7 +338,8 @@ namespace GoF2Remake.UI
             AddAction("Station overview", () => ChangeManagementPage("overview"));
             if (Modding.ModPlayerInfrastructure.Current.Enabled)
                 AddAction("Build station", () => ChangeManagementPage("build"));
-            AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
+            var localProject = LocalDeliveryProject();
+            if (localProject != null) AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
             AddAction("Resource buy orders", () => ChangeManagementPage("orders"));
             if (managementPage == "build")
             {
@@ -327,8 +348,8 @@ namespace GoF2Remake.UI
             }
             if (managementPage == "contribute")
             {
-                if (selected?.underConstruction == true) BuildStationConstruction(selected);
-                BuildSharedContribution();
+                if (localProject != null) BuildStationConstruction(localProject);
+                else AddInfo("Delivery", "Fly within 5 km of a station construction site to contribute materials.");
                 return;
             }
             if (managementPage == "orders")
@@ -347,7 +368,8 @@ namespace GoF2Remake.UI
             AddSection("STATION OVERVIEW", "");
             if (selected != null)
             {
-                AddInfo("Station", selected.name + "  (#" + selected.id + ")");
+                AddInfo("Station", selected.name);
+                AddStationLocation(selected);
                 if (selected.offeredForClaimUtc > 0)
                 {
                     AddInfo("Claim price", NetPlayerStations.StationClaimPrice.ToString("N0") + " credits");
@@ -357,7 +379,10 @@ namespace GoF2Remake.UI
                 if (selected.underConstruction)
                 {
                     AddInfo("Project", selected.name);
-                    AddAction("Open contribution menu", () => ChangeManagementPage("contribute"));
+                    if (localProject?.id == selected.id)
+                        AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
+                    else AddInfo("Delivery", "Fly within 5 km of this construction site to deliver materials.");
+                    AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                     AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
                 }
@@ -380,7 +405,7 @@ namespace GoF2Remake.UI
                     AddField("recoveryNote", "Recovery verification note", "");
                     AddAction("Authorise successor recovery", () => Send("/station recover " + selected.id + " " + Value("recoveryNote")));
                 }
-                AddInfo("System index", selected.system.ToString());
+
                 string installed = selected.addons == null || selected.addons.Count == 0
                     ? "None" : string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind)));
                 AddInfo("Installed facilities", installed);
@@ -661,7 +686,8 @@ namespace GoF2Remake.UI
                         " remaining at " + order.unitPrice.ToString("N0") + " cr each");
                     AddInfo("Escrow", order.reservedCredits.ToString("N0") + " credits reserved");
                     int orderIndex = i;
-                    if (!selected.reconstructing)
+                    if (selected.underConstruction ? LocalDeliveryProject()?.id == selected.id :
+                        !inFlight && CurrentOrbit == selected.stationIndex)
                     {
                         AddField("procureSellAmount" + i, "Units to sell into order #" + i, "1");
                         AddAction("Sell " + itemName + " to order #" + i, () =>
@@ -672,6 +698,8 @@ namespace GoF2Remake.UI
                             Send("/station cancel-order " + id + " " + orderIndex));
                 }
             }
+            if (selected.underConstruction && LocalDeliveryProject()?.id != selected.id)
+                AddInfo("Delivery", "Travel within 5 km of this construction site to fulfil orders.");
             if (!allowManagement) return;
             AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
                 ? "Faction treasury. Orders require leader/officer authority." : "Station owner's personal credits.");
@@ -679,7 +707,11 @@ namespace GoF2Remake.UI
             var outstanding = new HashSet<int>(requirements?.Where(material => material != null && material.required > material.delivered)
                 .Select(material => material.item) ?? Enumerable.Empty<int>());
             if (outstanding.Count == 0) { AddInfo("Materials", "No outstanding requirements."); return; }
-            AddItemChoice("buyOrderItem", "Required material", outstanding);
+            AddChoice("buyOrderItem", "Required material", requirements.Where(material => material != null &&
+                outstanding.Contains(material.item) && NetGame.Db?.Item(material.item) != null)
+                .OrderBy(material => NetGame.Db.Item(material.item).name, StringComparer.CurrentCultureIgnoreCase)
+                .Select(material => (material.item.ToString(), NetGame.Db.Item(material.item).name +
+                    " · " + (material.required - material.delivered).ToString("N0") + " needed")).ToList());
             AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
             AddField("buyOrderPrice", "Offer per unit (credits)", "100");
             AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " +
@@ -1011,16 +1043,6 @@ namespace GoF2Remake.UI
             RebuildBody(Vector2.zero);
         }
 
-        void BuildSharedContribution()
-        {
-            AddSection("CONTRIBUTE TO STATION", "Select an accessible project from the station list or use a shared project reference.");
-            AddField("sharedProject", "Shared project ID", "");
-            AddItemChoice("sharedMaterial", "Material");
-            AddField("sharedAmount", "Units", "1");
-            AddAction("Deliver to a shared project", () =>
-                Send("/station contribute " + Value("sharedProject") + " " + Value("sharedMaterial") + " " + Value("sharedAmount")));
-        }
-
         void RefreshPlannerLocations()
         {
             nextPlannerQuery = Time.unscaledTime + 8f;
@@ -1116,25 +1138,21 @@ namespace GoF2Remake.UI
                     if (material != null)
                         AddInfo((NetGame.Db.Item(material.item)?.name ?? "Unavailable material"),
                             material.delivered + "/" + material.required);
-            if (project.reconstructing)
-                AddInfo("Deliveries", "Fly within 5 km of the reconstruction site and open Multiplayer → Orbit Projects.");
-            else
+            AddStationLocation(project);
+            var remaining = project.materials?.Where(material => material != null && material.required > material.delivered &&
+                NetGame.Db?.Item(material.item) != null)
+                .OrderBy(material => NetGame.Db.Item(material.item).name, StringComparer.CurrentCultureIgnoreCase)
+                .Select(material => (material.item.ToString(), NetGame.Db.Item(material.item).name +
+                    " · " + (material.required - material.delivered).ToString("N0") + " needed")).ToList()
+                ?? new List<(string, string)>();
+            if (remaining.Count > 0)
             {
-                var remaining = new HashSet<int>(project.materials?.Where(material => material != null && material.required > material.delivered)
-                    .Select(material => material.item) ?? Enumerable.Empty<int>());
-                AddItemChoice("contributeItem", "Required material", remaining);
+                AddChoice("contributeItem", "Required material", remaining);
                 AddField("contributeAmount", "Units", "10");
-                if (remaining.Count > 0)
-                {
-                    if (!inFlight || NetPlayerStations.CanDeliverAtConstructionSite(NetPlayer.Local, project))
-                        AddAction("Deliver construction cargo", () =>
-                            Send("/station contribute " + id + " " + Value("contributeItem") + " " + Value("contributeAmount")));
-                    else AddInfo("Deliveries", "Fly within 5 km of the construction site to deliver cargo.");
-                }
+                AddAction("Deliver construction cargo", () =>
+                    Send("/station contribute " + id + " " + Value("contributeItem") + " " + Value("contributeAmount")));
             }
             AddAction("View contribution ledger", "/station contributions " + id);
-            AddInfo("Shared project ID", project.id.ToString());
-
         }
 
         void BuildVisitorMarket(string id)
