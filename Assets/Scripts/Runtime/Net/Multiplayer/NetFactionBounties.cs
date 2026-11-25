@@ -12,14 +12,16 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetFactions
     {
-        const int BountyKillThreshold = 10;
+        const int PvpKillsForBounty = 10, PveKillsPerPvpKill = 10;
+        const int PveKillsForBounty = PvpKillsForBounty * PveKillsPerPvpKill;
         const long BountyWindowSeconds = 7 * 86400, BountyDurationSeconds = 7 * 86400;
 
         [Serializable]
         sealed class BountyRecord
         {
             public string account, issuer;
-            public List<long> kills = new List<long>();
+            public List<long> pvpKills = new List<long>(), pveKills = new List<long>();
+            public List<long> kills; // Legacy records did not distinguish PvP from PvE.
             public long wantedUntil;
         }
 
@@ -43,7 +45,17 @@ namespace GoF2Remake.Multiplayer
                     : new BountyFile();
                 if (bountyFile?.records == null) throw new InvalidDataException("Missing bounty records.");
                 bountyFile.records.RemoveAll(r => r == null || string.IsNullOrEmpty(r.account) || string.IsNullOrEmpty(r.issuer));
-                foreach (var record in bountyFile.records) record.kills ??= new List<long>();
+                foreach (var record in bountyFile.records)
+                {
+                    record.pvpKills ??= new List<long>();
+                    record.pveKills ??= new List<long>();
+                    if (record.kills == null || record.kills.Count == 0) continue;
+                    // Player factions previously counted only PvP. An NPC issuer's old kills may be PvE.
+                    var history = record.issuer.StartsWith("faction:", StringComparison.Ordinal) ? record.pvpKills : record.pveKills;
+                    history.AddRange(record.kills);
+                    record.kills = null;
+                    bountyDirty = true;
+                }
                 TickBounties();
             }
             catch (Exception e)
@@ -64,7 +76,8 @@ namespace GoF2Remake.Multiplayer
             if (bountyFile == null) return;
             long now = UnixNow;
             bountyDirty |= bountyFile.records.RemoveAll(r => r.wantedUntil <= now &&
-                !r.kills.Exists(k => k > now - BountyWindowSeconds)) > 0;
+                !r.pvpKills.Exists(k => k > now - BountyWindowSeconds) &&
+                !r.pveKills.Exists(k => k > now - BountyWindowSeconds)) > 0;
             SaveBounties();
         }
 
@@ -98,19 +111,21 @@ namespace GoF2Remake.Multiplayer
                     yield return r.issuer;
         }
 
-        static bool AddBountyKill(string account, string issuer, long now)
+        static bool AddBountyKill(string account, string issuer, long now, bool pvp)
         {
             var record = bountyFile.records.Find(r => r.account == account && r.issuer == issuer);
             if (record == null)
                 bountyFile.records.Add(record = new BountyRecord { account = account, issuer = issuer });
             if (record.wantedUntil > now) return false;
 
-            record.kills.RemoveAll(k => k <= now - BountyWindowSeconds);
-            record.kills.Add(now);
-            bool issued = record.kills.Count >= BountyKillThreshold;
+            record.pvpKills.RemoveAll(k => k <= now - BountyWindowSeconds);
+            record.pveKills.RemoveAll(k => k <= now - BountyWindowSeconds);
+            (pvp ? record.pvpKills : record.pveKills).Add(now);
+            bool issued = (long)record.pvpKills.Count * PveKillsPerPvpKill + record.pveKills.Count >= PveKillsForBounty;
             if (issued)
             {
-                record.kills.Clear();
+                record.pvpKills.Clear();
+                record.pveKills.Clear();
                 record.wantedUntil = now + BountyDurationSeconds;
             }
             bountyDirty = true;
@@ -151,7 +166,7 @@ namespace GoF2Remake.Multiplayer
 
             void CountKill(string issuer)
             {
-                if (AddBountyKill(account, issuer, now)) issuedBy.Add(BountyIssuerName(issuer));
+                if (AddBountyKill(account, issuer, now, pvp: true)) issuedBy.Add(BountyIssuerName(issuer));
             }
         }
 
@@ -161,7 +176,7 @@ namespace GoF2Remake.Multiplayer
             string issuer = NpcBountyIssuer(race);
             var killer = issuer == null ? null : NetSquad.Find(client);
             if (killer == null || NetArena.InMatch(client)) return;
-            bool issued = AddBountyKill(NetProfiles.AccountOf(client), issuer, UnixNow);
+            bool issued = AddBountyKill(NetProfiles.AccountOf(client), issuer, UnixNow, pvp: false);
             if (SaveBounties() && issued)
                 NetState.Instance?.Notify(client, $"{BountyIssuerName(issuer)} has issued a bounty on you.");
         }
