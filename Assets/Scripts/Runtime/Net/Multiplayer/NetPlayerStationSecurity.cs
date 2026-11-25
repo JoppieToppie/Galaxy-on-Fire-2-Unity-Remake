@@ -5,8 +5,60 @@ namespace GoF2Remake.Multiplayer
 {
     public sealed partial class NetPlayer
     {
-        void OnStationValueChanged(int previous, int current) => ValidatePlayerStationAccess();
-        void OnPlaceValueChanged(byte previous, byte current) => ValidatePlayerStationAccess();
+        int deathRespawnDestination = -1, deathOrigin = -1;
+        bool deathRespawnProtected;
+        float deathRespawnArrivalAt;
+        internal int DeathRespawnDestination => deathRespawnDestination;
+        internal int DeathOrigin => deathOrigin >= 0 ? deathOrigin : Station;
+
+        internal void RecordDeathRespawn(int origin)
+        {
+            if (!IsServer || deathOrigin >= 0 || NetState.Instance?.ProfilesOn != true ||
+                NetArena.InMatch(OwnerClientId)) return;
+            deathOrigin = origin;
+            deathRespawnDestination = NetFactions.DeathRespawnStation(this, NetProfiles.LastDeathDock(OwnerClientId), origin);
+            deathRespawnProtected = Modding.ModPvpPiracy.Enabled &&
+                NetFactions.SecureForBounties(origin, OwnerClientId) && !IsPirate;
+        }
+
+        void OnStationValueChanged(int previous, int current)
+        {
+            if (IsServer && InSpace && Hull == 0f) RecordDeathRespawn(previous);
+            ValidatePlayerStationAccess();
+        }
+
+        void OnPlaceValueChanged(byte previous, byte current)
+        {
+            if (IsServer && previous == (byte)Place.Space && current != (byte)Place.Space && Hull == 0f &&
+                NetState.Instance?.ProfilesOn == true && !NetArena.InMatch(OwnerClientId))
+            {
+                RecordDeathRespawn(Station);
+                if (NetState.Instance.EnsureDeathPenalty(this) != true && !IsOwner)
+                {
+                    NetGame.Kick(OwnerClientId, "Your death penalty must be saved before respawning.");
+                    return;
+                }
+                deathRespawnArrivalAt = UnityEngine.Time.unscaledTime + 0.5f;
+            }
+            ValidatePlayerStationAccess();
+        }
+
+        void ValidateDeathRespawnArrival()
+        {
+            if (!IsServer || deathOrigin < 0 || !InHangar || UnityEngine.Time.unscaledTime < deathRespawnArrivalAt) return;
+            if (deathRespawnDestination >= 0 && Station == deathRespawnDestination)
+            {
+                deathOrigin = deathRespawnDestination = -1;
+                return;
+            }
+            if (deathRespawnDestination < 0)
+            {
+                if (!IsOwner) NetGame.Kick(OwnerClientId, "No permitted death respawn station is available.");
+                return;
+            }
+            deathRespawnArrivalAt = UnityEngine.Time.unscaledTime + 2f;
+            ApproveDeathRespawnRpc(deathRespawnDestination, deathRespawnProtected);
+        }
 
         void ValidatePlayerStationAccess()
         {
@@ -18,18 +70,16 @@ namespace GoF2Remake.Multiplayer
         internal void RequestDeathRespawnRpc(RpcParams rpc = default)
         {
             if (rpc.Receive.SenderClientId != OwnerClientId || !IsSpawned || !InSpace || Hull != 0f || NetArena.InMatch(OwnerClientId)) return;
+            RecordDeathRespawn(Station);
             if (NetState.Instance?.EnsureDeathPenalty(this) != true) return;
-            int last = NetProfiles.LastDeathDock(OwnerClientId);
-            int destination = NetFactions.DeathRespawnStation(this, last);
-            if (destination < 0) { NetState.Instance?.Notify(OwnerClientId, "No permitted respawn station is available."); return; }
-            bool protectedDeath = Modding.ModPvpPiracy.Enabled && NetFactions.SecureForBounties(Station, OwnerClientId) && !IsPirate;
-            ApproveDeathRespawnRpc(destination, protectedDeath);
+            if (deathRespawnDestination < 0) { NetState.Instance?.Notify(OwnerClientId, "No permitted respawn station is available."); return; }
+            ApproveDeathRespawnRpc(deathRespawnDestination, deathRespawnProtected);
         }
 
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
         void ApproveDeathRespawnRpc(int destination, bool protectedDeath)
         {
-            if (!IsOwner || !InSpace) return;
+            if (!IsOwner || (InHangar && GoF2Remake.Data.Session.StationIndex == destination)) return;
             GoF2Remake.Data.Session.StationIndex = destination;
             GoF2Remake.Data.Session.DockedFromSpace = false;
             GoF2Remake.Data.Session.SkipRespawnDockingFine = protectedDeath;
