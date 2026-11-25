@@ -39,7 +39,8 @@ namespace GoF2Remake.Multiplayer
         static bool CanManageHangar(NetPlayer by, PlayerStationRecord record, out string account, bool recoverProperty = false)
         {
             if (!IsStationContext(by, record, out account, recoverProperty)) return false;
-            return HasStationPermission(record, account, PlayerStationPermission.Hangar);
+            return HasStationPermission(record, account, PlayerStationPermission.Hangar) ||
+                (recoverProperty && (record.storedShipOwners?.Contains(account) == true || record.dryDockShipOwners?.Contains(account) == true));
         }
 
         [Serializable] internal sealed class ManagementOption
@@ -411,7 +412,7 @@ namespace GoF2Remake.Multiplayer
             string account;
             if (fromStorage)
             {
-                string error = StorageAccessError(by, record, out account);
+                string error = StorageAccessError(by, record, out account, withdrawal: true);
                 if (error != null) return error;
                 if (StorageCapacity(record) <= 0) return "This station has no storage module.";
             }
@@ -554,7 +555,7 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (viaStorage && StorageAccessError(by, record, out _) is string error) return error;
+            if (viaStorage && StorageAccessError(by, record, out _, withdrawal: true) is string error) return error;
             if (!CanManageHangar(by, record, out string account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its dry dock.";
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "This station has no dry dock module.";
@@ -605,7 +606,7 @@ namespace GoF2Remake.Multiplayer
         internal sealed class StorageUiSnapshot
         {
             public int stationId, capacity, used, cargoRoom;
-            public bool canDeposit;
+            public bool canDeposit, canWithdraw;
             public string error;
             public List<PlayerStationStorage> items = new List<PlayerStationStorage>();
             public List<StorageHullRow> hulls = new List<StorageHullRow>();
@@ -623,7 +624,7 @@ namespace GoF2Remake.Multiplayer
         {
             var snapshot = new StorageUiSnapshot { stationId = id };
             var record = Find(id);
-            snapshot.error = StorageAccessError(by, record, out string account);
+            snapshot.error = StorageAccessError(by, record, out string account, withdrawal: true);
             if (snapshot.error != null) return snapshot;
             snapshot.capacity = StorageCapacity(record);
             if (snapshot.capacity <= 0)
@@ -633,7 +634,8 @@ namespace GoF2Remake.Multiplayer
             }
 
             EnsureStorageLots(record);
-            snapshot.canDeposit = true;
+            snapshot.canDeposit = CanManageStorage(by, record, out _);
+            snapshot.canWithdraw = true;
             snapshot.cargoRoom = NetProfiles.WreckSalvageCargoRoom(by, account);
             foreach (var stack in record.storage)
             {
@@ -643,7 +645,7 @@ namespace GoF2Remake.Multiplayer
                 if (owned > 0) snapshot.items.Add(new PlayerStationStorage { item = stack.item, amount = owned });
             }
             bool useDryDock = record.addons?.Exists(addon => addon?.kind == "drydock" && addon.level > 0) == true &&
-                CanManageHangar(by, record, out _) && AllowsFacilityUse(record, account, "drydock");
+                CanManageHangar(by, record, out _, recoverProperty: true);
             void AddHullRows(List<StoredShip> ships, bool stored, bool dryDock)
             {
                 if (ships == null) return;
@@ -659,24 +661,28 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             var fleet = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
-            AddHullRows(fleet, stored: false, dryDock: false);
+            if (snapshot.canDeposit && CanManageHangar(by, record, out _)) AddHullRows(fleet, stored: false, dryDock: false);
             AddHullRows(record.storedShips, stored: true, dryDock: false);
             if (useDryDock)
             {
-                AddHullRows(fleet, stored: false, dryDock: true);
+                if (snapshot.canDeposit && CanManageHangar(by, record, out _) && AllowsFacilityUse(record, account, "drydock"))
+                    AddHullRows(fleet, stored: false, dryDock: true);
                 AddHullRows(record.dryDockShips, stored: true, dryDock: true);
             }
             return snapshot;
         }
 
-        static string StorageAccessError(NetPlayer pilot, PlayerStationRecord record, out string account)
+        static string StorageAccessError(NetPlayer pilot, PlayerStationRecord record, out string account, bool withdrawal = false)
         {
             account = null;
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (record.underConstruction) return "Finish station construction before using storage.";
-            if (!IsStationContext(pilot, record, out account))
-                return "Dock at this station with visitor permission using a controlled profile to use storage.";
+            if (!IsStationContext(pilot, record, out account, recoverProperty: withdrawal))
+                return "Dock at this station using a controlled profile to use storage.";
+            string ownerAccount = account;
+            if (withdrawal && (record.storageLots?.Exists(lot => lot != null && lot.amount > 0 && lot.ownerProfile == ownerAccount) == true ||
+                record.storedShipOwners?.Contains(account) == true || record.dryDockShipOwners?.Contains(account) == true)) return null;
             if (!CanManageStorage(pilot, record, out _))
                 return FacilityUseRefusal(record, account, "storage", "You need storage permission to use this facility.");
             return null;
@@ -686,7 +692,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
-            string error = StorageAccessError(by, record, out _);
+            string error = StorageAccessError(by, record, out _, withdrawal: true);
             if (error != null) return error;
             EnsureStorageLots(record);
             if (StorageCapacity(record) <= 0) return "This station has no storage module.";
@@ -711,7 +717,7 @@ namespace GoF2Remake.Multiplayer
         internal static string MoveStorage(NetPlayer by, int id, int item, int amount, bool deposit)
         {
             var record = Find(id);
-            string error = StorageAccessError(by, record, out string account);
+            string error = StorageAccessError(by, record, out string account, withdrawal: !deposit);
             if (error != null) return error;
             if (amount < 1 || amount > 500 || !NetGuard.Item(item))
                 return "Move between 1 and 500 units of a valid item.";
