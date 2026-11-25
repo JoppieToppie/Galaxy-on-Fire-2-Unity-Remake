@@ -759,11 +759,29 @@ namespace GoF2Remake.Multiplayer
         internal static bool UnderConstruction(int stationIndex) =>
             StationAt(stationIndex)?.underConstruction == true;
 
-        internal static bool CanDeliverAtConstructionSite(NetPlayer pilot, PlayerStationRecord record) =>
-            pilot != null && record?.underConstruction == true && pilot.InSpace &&
-            pilot.Station == record.stationIndex && pilot.Hull > 0 && pilot.HasCurrentWreckClaimPose &&
-            (record.reconstructing || pilot.DockedAtObject) &&
-            (pilot.Position - StationPosition(record.stationIndex)).sqrMagnitude <= WreckControlRadiusMetres * WreckControlRadiusMetres;
+        internal static bool ConstructionDockPoseValid(Vector3 position, Vector3 centre, float hullHeight)
+        {
+            if (!NetGuard.Position(position) || !NetGuard.Position(centre) || !NetGuard.Finite(hullHeight) || hullHeight < 0f) return false;
+            // Four side faces, plus an allowance for hull height and quantized/network-delayed poses.
+            Vector3 offset = position - centre;
+            float face = Mathf.Max(Mathf.Abs(offset.x), Mathf.Abs(offset.z));
+            float tangent = Mathf.Min(Mathf.Abs(offset.x), Mathf.Abs(offset.z));
+            float contact = GoF2Remake.Flight.ObjectDocking.ConstructionCubeHalf + hullHeight;
+            const float tolerance = 75f;
+            return Mathf.Abs(face - contact) <= tolerance && tangent <= tolerance && Mathf.Abs(offset.y) <= tolerance;
+        }
+
+        internal static bool CanDeliverAtConstructionSite(NetPlayer pilot, PlayerStationRecord record)
+        {
+            if (pilot == null || record?.underConstruction != true || record.retired || record.destroyed ||
+                record.offeredForClaimUtc > 0 || !pilot.InSpace || pilot.Station != record.stationIndex ||
+                pilot.Hull <= 0 || !pilot.HasCurrentWreckClaimPose) return false;
+            var centre = StationPosition(record.stationIndex);
+            if (record.reconstructing) return (pilot.Position - centre).sqrMagnitude <= WreckControlRadiusMetres * WreckControlRadiusMetres;
+            if (pilot.ConstructionDockProject != record.id || !NetGuard.Ship(pilot.ShipIndex)) return false;
+            float height = Mathf.Max(0f, StationTables.ShipY(pilot.ShipIndex) * World.OrbitLayout.MetersPerUnit);
+            return ConstructionDockPoseValid(pilot.Position, centre, height);
+        }
 
         static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record)
         {
