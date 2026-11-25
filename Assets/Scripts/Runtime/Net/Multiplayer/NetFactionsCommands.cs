@@ -107,10 +107,10 @@ namespace GoF2Remake.Multiplayer
             var faction = Of(account);
             if (faction == null || faction.leader != account)
                 return "Only the faction leader can change faction jumpgate race defaults.";
-            if (!NetPlayerStations.TryReadRaceAccess(arg, out string race, out var state))
+            if (!NetPlayerStations.TryReadRaceAccess(arg, out string race, out var state, out string reason))
                 return "/faction gate-race <race> <inherit|allow|deny>";
             var previous = faction.jumpgateRaceAccess;
-            faction.jumpgateRaceAccess = NetPlayerStations.WithRaceAccess(previous, race, state);
+            faction.jumpgateRaceAccess = NetPlayerStations.WithRaceAccess(previous, race, state, reason);
             if (Save()) return "Faction jumpgate race default saved.";
             faction.jumpgateRaceAccess = previous;
             return "The faction jumpgate race default could not be saved.";
