@@ -895,6 +895,20 @@ namespace GoF2Remake.UI
             var gates = Add(scroll, new Toggle("Allow new sponsored jumpgate projects") { value = settings.JumpgatesEnabled }, "mbv-field");
             var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
             var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
+            Heading(scroll, "Construction duration");
+            var stationBuildSeconds = Add(scroll, new IntegerField("Stations (seconds)") { value = settings.StationBuildSeconds }, "mbv-field");
+            var jumpgateBuildSeconds = Add(scroll, new IntegerField("Jumpgates (seconds)") { value = settings.JumpgateBuildSeconds }, "mbv-field");
+            var moduleBuildFields = new Dictionary<string, IntegerField>();
+            foreach (string kind in ModPlayerInfrastructure.TimedModules)
+                moduleBuildFields.Add(kind, Add(scroll, new IntegerField(kind + " (seconds)") { value = settings.ModuleBuildSeconds(kind) }, "mbv-field"));
+            Note(scroll, "Timers start once the project is fully funded. A duration of 0 completes it immediately.");
+            var refineryRecipes = Add(scroll, new TextField("Refinery recipe overrides (JSON)") { multiline = true,
+                value = draft["refineryRecipes"]?.ToString() ?? "" }, "mbv-field");
+            Note(scroll, "Leave blank for stock recipes. Entries use input, output, inputUnits and outputUnits item IDs and quantities.");
+            var factoryRecipes = Add(scroll, new TextField("Factory recipe overrides (JSON)") { multiline = true,
+                value = draft["factoryRecipes"]?.ToString() ?? "" }, "mbv-field");
+            Note(scroll, "Factory entries use id, output, outputUnits and a materials list with item and amount. Server station-economy overrides take precedence.");
+            Note(scroll, "Author dry-dock designs in blueprints.json. Pilots can start eligible jobs from the shipyard.");
             Heading(scroll, "Race policies and player identity");
             var stationRaceMarketLimit = Add(scroll, new IntegerField("Race marketplace adjustment cap (%)")
                 { value = settings.StationRaceMarketLimitPercent }, "mbv-field");
@@ -1047,29 +1061,46 @@ namespace GoF2Remake.UI
                         if (!e.newValue) preset.Remove("maintenance");
                         Sync(); RenderPresets();
                     });
-                    var modelType = Add(group, new DropdownField("Model source", new List<string> { "Assembly", "Station reference" },
-                        preset["stationModel"] == null ? 0 : 1), "mbv-field");
-                    modelType.RegisterValueChangedCallback(_ =>
+                    if (defense)
                     {
-                        if (modelType.index == 0) { preset.Remove("stationModel"); preset["assembly"] = "turret_002_static"; }
-                        else { preset.Remove("assembly"); preset["stationModel"] = "70"; }
-                        Sync(); RenderPresets();
-                    });
-                    string modelKey = preset["stationModel"] == null ? "assembly" : "stationModel";
-                    Text(group, modelKey == "assembly" ? "Assembly name" : "Station model reference", (string)preset[modelKey], 128,
-                        value => { preset[modelKey] = value.Trim(); Sync(); });
-                    if (modelKey == "assembly")
-                    {
-                        var assemblies = Database.Shared.Assemblies.Where(entry => entry != null && !string.IsNullOrEmpty(entry.name))
-                            .Select(entry => entry.name).Distinct().OrderBy(name => name).ToList();
-                        if (assemblies.Count > 0)
+                        var sentries = ModPlayerInfrastructure.SentryAssemblies.ToList();
+                        int index = sentries.IndexOf(ModPlayerInfrastructure.DefenseAssembly((string)preset["assembly"]));
+                        var model = Add(group, new DropdownField("Deployable sentry model", sentries, index), "mbv-field");
+                        model.RegisterValueChangedCallback(_ =>
                         {
-                            var options = new List<string> { "Choose an assembly…" }; options.AddRange(assemblies);
-                            var pick = Add(group, new DropdownField("Available models", options, 0), "mbv-field");
-                            pick.RegisterValueChangedCallback(_ =>
+                            if (model.index < 0) return;
+                            preset.Remove("stationModel");
+                            preset["assembly"] = sentries[model.index];
+                            Sync();
+                        });
+                        Note(group, "Defense models are 35 times the deployed sentry size.");
+                    }
+                    else
+                    {
+                        var modelType = Add(group, new DropdownField("Model source", new List<string> { "Assembly", "Station reference" },
+                            preset["stationModel"] == null ? 0 : 1), "mbv-field");
+                        modelType.RegisterValueChangedCallback(_ =>
+                        {
+                            if (modelType.index == 0) { preset.Remove("stationModel"); preset["assembly"] = "turret_002_static"; }
+                            else { preset.Remove("assembly"); preset["stationModel"] = "70"; }
+                            Sync(); RenderPresets();
+                        });
+                        string modelKey = preset["stationModel"] == null ? "assembly" : "stationModel";
+                        Text(group, modelKey == "assembly" ? "Assembly name" : "Station model reference", (string)preset[modelKey], 128,
+                            value => { preset[modelKey] = value.Trim(); Sync(); });
+                        if (modelKey == "assembly")
+                        {
+                            var assemblies = Database.Shared.Assemblies.Where(entry => entry != null && !string.IsNullOrEmpty(entry.name))
+                                .Select(entry => entry.name).Distinct().OrderBy(name => name).ToList();
+                            if (assemblies.Count > 0)
                             {
-                                if (pick.index > 0) { preset["assembly"] = options[pick.index]; Sync(); RenderPresets(); }
-                            });
+                                var options = new List<string> { "Choose an assembly…" }; options.AddRange(assemblies);
+                                var pick = Add(group, new DropdownField("Available models", options, 0), "mbv-field");
+                                pick.RegisterValueChangedCallback(_ =>
+                                {
+                                    if (pick.index > 0) { preset["assembly"] = options[pick.index]; Sync(); RenderPresets(); }
+                                });
+                            }
                         }
                     }
                     Text(group, "Allowed sponsor races (one reference per line; empty = all)",
@@ -1079,7 +1110,7 @@ namespace GoF2Remake.UI
                         Float(group, label, (float?)preset[key] ?? fallback, min, max, value => { preset[key] = value; Sync(); });
                     void Whole(string key, string label, int fallback, int min, int max) =>
                         Int(group, label, (int?)preset[key] ?? fallback, min, max, value => { preset[key] = value; Sync(); });
-                    Number("modelScale", "Model scale", 1, 0.01f, 10);
+                    if (!defense) Number("modelScale", "Model scale", 1, 0.01f, 10);
                     Number("hitRadius", "Hit radius (m)", 250, 10, 2000);
                     Number("integrity", "Maximum integrity", 12000, 1, 10000000);
                     Whole("buildSeconds", "Build duration (seconds)", 0, 0, 2592000);
@@ -1125,6 +1156,11 @@ namespace GoF2Remake.UI
             {
                 draft["enabled"] = enabled.value;
                 draft["jumpgatesEnabled"] = gates.value;
+                draft["stationBuildSeconds"] = stationBuildSeconds.value;
+                draft["jumpgateBuildSeconds"] = jumpgateBuildSeconds.value;
+                var moduleTimes = new JObject();
+                foreach (var module in moduleBuildFields) moduleTimes[module.Key] = module.Value.value;
+                draft["moduleBuildSeconds"] = moduleTimes;
                 draft["includeStockStations"] = stockStations.value;
                 draft["includeStockJumpgates"] = stockGates.value;
                 draft["scrapIntegrity"] = integrity.value;
@@ -1144,6 +1180,10 @@ namespace GoF2Remake.UI
                 draft["otherOrbitalStructureLimit"] = otherStructureLimit.value;
                 try
                 {
+                    if (string.IsNullOrWhiteSpace(refineryRecipes.value)) draft.Remove("refineryRecipes");
+                    else draft["refineryRecipes"] = JArray.Parse(refineryRecipes.value);
+                    if (string.IsNullOrWhiteSpace(factoryRecipes.value)) draft.Remove("factoryRecipes");
+                    else draft["factoryRecipes"] = JArray.Parse(factoryRecipes.value);
                     var images = new JObject();
                     foreach (string line in (modelImages.value ?? "").Split('\n'))
                     {

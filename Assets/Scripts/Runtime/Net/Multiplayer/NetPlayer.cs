@@ -538,7 +538,7 @@ namespace GoF2Remake.Multiplayer
                 "transfer" or "successor" => 3, "jumpgate-blacklist" => 4,
                 "jumpgate-race" or "race-policy" => words.Length > 2 && words[2] == "exempt" ? 4 : -1,
                 "role" or "permission" or "pilot-tax" or "pilot-market-access" or "ban" or "unban" or "ban-faction" or "unban-faction" or "successor-delegate" or "individual-successor" => 2,
-                "store-ship" or "retrieve-ship" or "drydock-store" or "drydock-retrieve" or "list-ship" => 2,
+                "store-ship" or "retrieve-ship" or "storage-store-hull" or "storage-take-hull" or "storage-store-large" or "storage-take-large" or "drydock-store" or "drydock-retrieve" or "list-ship" => 2,
                 _ => -1 };
             if (last < 0 || last >= words.Length) return true;
             string selected = words[last];
@@ -549,7 +549,7 @@ namespace GoF2Remake.Multiplayer
             }
             else if (selected.StartsWith("fleet-hull:") || selected.StartsWith("hangar-hull:") || selected.StartsWith("drydock-hull:"))
             {
-                string expected = words[0] == "retrieve-ship" ? "hangar-hull:" : words[0] == "drydock-retrieve" ? "drydock-hull:" : "fleet-hull:";
+                string expected = words[0] is "retrieve-ship" or "storage-take-hull" ? "hangar-hull:" : words[0] is "drydock-retrieve" or "storage-take-large" ? "drydock-hull:" : "fleet-hull:";
                 if (!selected.StartsWith(expected) || !int.TryParse(words[1], out int station) ||
                     !NetPlayerStations.ResolveManagementHull(this, station, selected, out string index)) return false;
                 words[last] = index;

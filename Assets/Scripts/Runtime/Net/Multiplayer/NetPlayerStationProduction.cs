@@ -147,6 +147,8 @@ namespace GoF2Remake.Multiplayer
             }
             // Never advance another persistent lifecycle over an unfinished journal.
             if (persistenceFaulted || ProfileWritesBlocked || registry?.stations == null) return;
+            TickConstruction(now);
+            if (registry?.stations == null || ProfileWritesBlocked) return;
             PublishStationManagementAccess();
             TickJumpgates(); // fixed-destination gate projects share the persistent UTC construction lifecycle.
             if (registry?.stations == null) return;
@@ -294,20 +296,8 @@ namespace GoF2Remake.Multiplayer
                 " Check /station drydock <id> for progress.";
         }
 
-        // GoF2's paired ore/core commodities. A refinery converts ten units of raw ore into one core.
-        static readonly int[,] RefineryRecipes =
-        {
-            { 154, 165 }, { 155, 166 }, { 156, 167 }, { 157, 168 },
-            { 158, 169 }, { 159, 170 }, { 160, 171 }, { 161, 172 },
-            { 162, 173 }, { 163, 174 }, { 164, 175 }, { 217, 218 },
-        };
-
-        internal static HashSet<int> RefinableOreItems()
-        {
-            var result = new HashSet<int>();
-            for (int i = 0; i < RefineryRecipes.GetLength(0); i++) result.Add(RefineryRecipes[i, 0]);
-            return result;
-        }
+        internal static HashSet<int> RefinableOreItems() =>
+            new HashSet<int>(Modding.ModPlayerInfrastructure.Current.RefineryRecipes.Keys);
 
         sealed class FactoryRecipe
         {
@@ -376,8 +366,15 @@ namespace GoF2Remake.Multiplayer
         static FactoryRecipe FindFactoryRecipe(int recipeId)
         {
             if (economyRecipes.TryGetValue(recipeId, out var recipe)) return recipe;
-            return BuiltInFactoryRecipes.Find(candidate => candidate.id == recipeId) ??
-                RegisteredFactoryRecipes.Find(candidate => candidate.id == recipeId);
+            var registered = RegisteredFactoryRecipes.Find(candidate => candidate.id == recipeId);
+            if (registered != null) return registered;
+            if (Modding.ModPlayerInfrastructure.Current.FactoryRecipes.TryGetValue(recipeId, out var configured))
+            {
+                if (!EconomyItem(configured.Output) || !configured.Inputs.TrueForAll(input => EconomyItem(input.item))) return null;
+                return new FactoryRecipe { id = recipeId, output = configured.Output, outputAmount = configured.OutputUnits,
+                    inputs = configured.Inputs.ToArray() };
+            }
+            return BuiltInFactoryRecipes.Find(candidate => candidate.id == recipeId);
         }
 
         static bool HasFactoryModule(PlayerStationRecord record) =>
@@ -706,39 +703,38 @@ namespace GoF2Remake.Multiplayer
             if (!(record.addons?.Exists(a => a != null && a.kind == "refinery" && a.level > 0) ?? false))
                 return "Install a refinery module first.";
             if (StorageCapacity(record) <= 0) return "The station needs a storage module for refinery input and output.";
-            if (amount < 10 || amount > 500 || amount % 10 != 0)
-                return "Refine between 10 and 500 ore, in multiples of 10.";
-
-            int outputItem = -1;
-            for (int i = 0; i < RefineryRecipes.GetLength(0); i++)
-                if (RefineryRecipes[i, 0] == oreItem) { outputItem = RefineryRecipes[i, 1]; break; }
-            if (outputItem < 0) return "That commodity cannot be refined into a core.";
+            if (!Modding.ModPlayerInfrastructure.Current.RefineryRecipes.TryGetValue(oreItem, out var recipe) ||
+                !EconomyItem(oreItem) || !EconomyItem(recipe.Output))
+                return "No valid refinery recipe is configured for that item.";
+            if (amount < recipe.InputUnits || amount > 500 || amount % recipe.InputUnits != 0)
+                return $"Refine up to 500 units at a time, in multiples of {recipe.InputUnits}.";
+            int outputItem = recipe.Output;
 
             EnsureStorageLots(record);
             var input = record.storage.Find(x => x != null && x.item == oreItem);
             if (input == null || input.amount < amount || OwnedStorageAmount(record, account, oreItem) < amount) return "Your profile does not own enough of that ore in station storage.";
-            int batches = amount / 10;
+            int outputUnits = amount / recipe.InputUnits * recipe.OutputUnits;
             var output = record.storage.Find(x => x != null && x.item == outputItem);
             long stored = 0;
             foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
-            if (output != null && output.amount > int.MaxValue - batches)
+            if (output != null && output.amount > int.MaxValue - outputUnits)
                 return "The refined core stack has reached its maximum supported quantity.";
-            // Ten units become one: refining frees nine units of capacity per batch.
+            // Validate capacity after both sides of the recipe have been applied.
             if (output == null && record.storage.Count >= MaxStorageItemTypes)
                 return "Storage has reached its item-type limit.";
-            if (stored - amount + batches > StorageCapacity(record))
-                return "Station storage has insufficient room for the refined cores.";
+            if (stored - amount + outputUnits > StorageCapacity(record))
+                return "Station storage has insufficient room for the refinery output.";
 
             var previousLots = CloneStorageLots(record);
             RemoveStorageLots(record, account, oreItem, amount);
             input.amount -= amount;
             if (input.amount == 0) record.storage.Remove(input);
             if (output == null) record.storage.Add(output = new PlayerStationStorage { item = outputItem });
-            output.amount += batches;
-            AddStorageLot(record, account, outputItem, batches);
+            output.amount += outputUnits;
+            AddStorageLot(record, account, outputItem, outputUnits);
             if (!Save())
             {
-                output.amount -= batches;
+                output.amount -= outputUnits;
                 record.storageLots = previousLots;
                 if (output.amount == 0) record.storage.Remove(output);
                 if (input.amount == 0) record.storage.Add(input);
@@ -747,7 +743,7 @@ namespace GoF2Remake.Multiplayer
             }
             string oreName = NetGame.Db?.Item(oreItem)?.name ?? ("Item " + oreItem);
             string coreName = NetGame.Db?.Item(outputItem)?.name ?? ("Item " + outputItem);
-            return "Refined " + amount + " " + oreName + " into " + batches + " " + coreName + " at " + record.name + ".";
+            return "Refined " + amount + " " + oreName + " into " + outputUnits + " " + coreName + " at " + record.name + ".";
         }
     }
 }

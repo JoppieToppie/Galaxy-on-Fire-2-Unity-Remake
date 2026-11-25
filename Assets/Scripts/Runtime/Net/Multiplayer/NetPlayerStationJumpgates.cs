@@ -7,7 +7,6 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
-        const int MaxJumpgateBuildSeconds = 2592000;
         internal const long JumpgateRegenDelaySeconds = 900;
         // Provisional balancing values; weapon eligibility is independent of ship class.
         internal static float JumpgateMaxIntegrity = 10000f;
@@ -627,7 +626,7 @@ namespace GoF2Remake.Multiplayer
         static List<PlayerStationMaterial> RequiredJumpgateMaterials() => ConstructionCost("jumpgate");
 
         /// <summary>Build at any orbital anchor in the sponsor station's system, not only at the sponsor station itself.</summary>
-        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int buildSeconds, int modelPreset = 0)
+        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int modelPreset = 0)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built jumpgates need a persistent host or dedicated server.";
@@ -658,8 +657,7 @@ namespace GoF2Remake.Multiplayer
                 return factionIssued
                     ? "The destination must have been discovered by at least one member of the owning faction."
                     : "You must personally discover the destination system before connecting a gate to it.";
-            if (buildSeconds < 0 || buildSeconds > MaxJumpgateBuildSeconds)
-                return "Build time must be between 0 and 2,592,000 seconds (30 days). Use 0 for no build timer.";
+            int buildSeconds = Modding.ModPlayerInfrastructure.Current.JumpgateBuildSeconds;
             if (!TrySelectJumpgateModel(modelPreset, out string modelReference))
                 return "Choose an enabled jumpgate model from the construction catalogue.";
             var existingGate = FindJumpgate(orbitStationIndex);

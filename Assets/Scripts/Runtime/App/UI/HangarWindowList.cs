@@ -356,7 +356,28 @@ namespace GoF2Remake.UI
                         AddRow(new Row { kind = RowKind.ShopItem, item = item, type = type,
                             stationUnits = stacks.TryGetValue(item, out int owned) ? owned : 0 });
                 }
-                if (items.Count == 0) AddNote("No stored goods.");
+                if (items.Count == 0) AddNote("No loose goods in the hold or station storage.");
+                bool mountedHeader = false;
+                for (int i = 0; i < Session.Equipment.Count; i++)
+                {
+                    var stack = Session.Equipment[i];
+                    if (stack == null || stack.builtIn || stack.amount <= 0 || level.Database.Item(stack.item) == null) continue;
+                    if (!mountedHeader) { AddHeader("FITTED EQUIPMENT"); mountedHeader = true; }
+                    AddRow(new Row { kind = RowKind.Slot, item = stack.item, equipment = i, type = hangar.TypeOf(stack.item) });
+                }
+                if (storage.hulls?.Count > 0)
+                {
+                    AddHeader("SHIPS");
+                    foreach (var hull in storage.hulls)
+                    {
+                        if (level.Database.Ship(hull.ship) == null) continue;
+                        string action = hull.stored ? "storage-take-" : "storage-store-";
+                        string command = $"{action}{(hull.dryDock ? "large" : "hull")} {storage.stationId} {hull.token}";
+                        AddRow(new Row { kind = RowKind.MarketAction, ship = hull.ship, marketKey = hull.token,
+                            marketLabel = (hull.stored ? "Withdraw " : "Store ") + ItemInfo.ShipName(hull.ship) + (hull.dryDock ? " · Dry dock" : ""),
+                            marketAction = () => SendPlayerMarketCommand(command) });
+                    }
+                }
                 return;
             }
 
@@ -434,6 +455,7 @@ namespace GoF2Remake.UI
             {
                 case RowKind.MarketAction:
                     name.text = row.marketLabel;
+                    if (row.ship >= 0) tex = ItemInfo.ShipIcon(row.ship);
                     break;
                 case RowKind.ShopItem:
                 {
@@ -655,7 +677,7 @@ namespace GoF2Remake.UI
             // The station's (or the storage's) left, the hold's right; the Ship tab's hold items only the hold's (right), a
             // blueprint's ingredients only the hold's, on the left (the station's is in their SOLD HERE badge).
             if (row.kind == RowKind.Ingredient) e.Add(Amount(hangar.BlueprintSupply(row.item), "row-qty--station"));
-            else if (amounts && row.kind != RowKind.CargoItem) e.Add(Amount(hangar.StockOf(row.item), "row-qty--station"));
+            else if (amounts && row.kind != RowKind.CargoItem) e.Add(Amount(PlayerMarketplace && row.kind == RowKind.ShopItem ? row.stationUnits : hangar.StockOf(row.item), "row-qty--station"));
             e.Add(icon);
             e.Add(texts);
             if (amounts && row.kind != RowKind.Ingredient)

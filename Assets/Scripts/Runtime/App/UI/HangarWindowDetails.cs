@@ -125,7 +125,8 @@ namespace GoF2Remake.UI
             string T(int id) => Localization.Get(id);
             if (selected.kind == RowKind.MarketAction)
             {
-                detailIcon.style.backgroundImage = StyleKeyword.None;
+                if (selected.ship >= 0) detailIcon.style.backgroundImage = new StyleBackground(ItemInfo.ShipIcon(selected.ship));
+                else detailIcon.style.backgroundImage = StyleKeyword.None;
                 detailName.text = selected.marketLabel;
                 detailSub.text = "";
                 ShowAction(selected.marketLabel, true);

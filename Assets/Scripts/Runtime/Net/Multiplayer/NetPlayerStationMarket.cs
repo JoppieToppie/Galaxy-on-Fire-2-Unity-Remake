@@ -168,8 +168,8 @@ namespace GoF2Remake.Multiplayer
                     record.buyOrders = oldOrders;
                     return "An outstanding buy order has invalid escrow. The order was preserved for administrator recovery.";
                 }
-                rollbackCompletion = stationProject ? CompleteStationConstruction(record) :
-                    CompleteModuleConstruction(record, record.moduleConstructionKind);
+                rollbackCompletion = stationProject ? FundStationConstruction(record) :
+                    FundModuleConstruction(record, record.moduleConstructionKind);
                 record.buyOrders.Clear();
             }
             bool newReceipt = stationProject && receipt == null;
@@ -204,7 +204,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var refund in profileRefunds)
                 NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
             return $"Sold {amount} x {NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item)} into construction order #{order.id} for {total:N0} credits." +
-                (complete ? " Construction is complete; remaining order escrow was refunded." : " Materials were added to the construction project.");
+                (complete ? " Project funded; remaining order escrow was refunded." : " Materials were added to the construction project.");
         }
 
         static bool StageConstructionEscrowRefunds(List<PlayerStationBuyOrder> orders,

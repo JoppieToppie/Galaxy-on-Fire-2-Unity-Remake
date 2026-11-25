@@ -229,6 +229,7 @@ namespace GoF2Remake.Multiplayer
         public int dryDockBlueprintItem = -1, dryDockShip = -1;
         public long dryDockStartedUtc, dryDockCompletesUtc;
         public bool dryDockConsumeBlueprint;
+        public long stationBuildCompletesUtc, moduleBuildCompletesUtc;
         public string dryDockBuilderProfile;
         /// <summary>When enabled, members of the owner's current faction may use station storage and hangar.</summary>
         public bool factionStorageAccess;
@@ -538,8 +539,16 @@ namespace GoF2Remake.Multiplayer
             registry.orbitalStructures.RemoveAll(structure => structure == null);
             registry.nextOrbitalStructureId = Math.Max(1, registry.nextOrbitalStructureId);
             foreach (var structure in registry.orbitalStructures)
+            {
+                if (structure.defense)
+                {
+                    structure.assembly = Modding.ModPlayerInfrastructure.DefenseAssembly(structure.assembly);
+                    structure.stationModel = null;
+                    structure.modelScale = Modding.ModPlayerInfrastructure.DefenseModelScale;
+                }
                 registry.nextOrbitalStructureId = Math.Max(registry.nextOrbitalStructureId,
                     structure.id < int.MaxValue ? structure.id + 1 : int.MaxValue);
+            }
             orbitalAggression.Clear();
             nextOrbitalStructureTick = 0;
             MigrateLegacyJumpgates();
@@ -816,9 +825,20 @@ namespace GoF2Remake.Multiplayer
             return null;
         }
 
+        static Action FundStationConstruction(PlayerStationRecord record)
+        {
+            int seconds = Modding.ModPlayerInfrastructure.Current.StationBuildSeconds;
+            if (seconds == 0) return CompleteStationConstruction(record);
+            long previous = record.stationBuildCompletesUtc;
+            record.stationBuildCompletesUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + seconds;
+            return () => record.stationBuildCompletesUtc = previous;
+        }
+
         // Callers stage this change in the same journal as materials and escrow.
         static Action CompleteStationConstruction(PlayerStationRecord record)
         {
+            long deadline = record.stationBuildCompletesUtc;
+            record.stationBuildCompletesUtc = 0;
             bool wasUnderConstruction = record.underConstruction;
             bool wasReconstructing = record.reconstructing;
             var rollbackGateOwnership = wasReconstructing ? RestoreSponsoredGateOwnership(record) : null;
@@ -835,6 +855,7 @@ namespace GoF2Remake.Multiplayer
             return () =>
             {
                 if (starterStorage != null) record.addons.Remove(starterStorage);
+                record.stationBuildCompletesUtc = deadline;
                 record.underConstruction = wasUnderConstruction;
                 record.reconstructing = wasReconstructing;
                 record.stationIntegrityInitialized = integrityInitialized;
@@ -853,6 +874,7 @@ namespace GoF2Remake.Multiplayer
             if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Deposit between 1 and 500 units of a valid item.";
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
+            if (record.stationBuildCompletesUtc > 0) return "The station is fully funded and under construction.";
             string locationError = ConstructionDeliveryError(by, record);
             if (locationError != null) return locationError;
             var resource = record.materials?.Find(m => m != null && m.item == item);
@@ -956,7 +978,7 @@ namespace GoF2Remake.Multiplayer
             resource.delivered += amount;
             if (complete)
             {
-                rollbackCompletion = CompleteStationConstruction(record);
+                rollbackCompletion = FundStationConstruction(record);
                 record.buyOrders?.Clear();
             }
 
@@ -990,7 +1012,8 @@ namespace GoF2Remake.Multiplayer
             if (factionOwned) result += $" Paid {payout:N0} credits from the faction bank ({unitValue:N0} per unit).";
             if (complete)
             {
-                result += " Construction is complete; the station is now open.";
+                result += record.underConstruction ? " All materials delivered. The construction timer has started." :
+                    " Construction is complete; the station is now open.";
                 if (profileRefunds.Count > 0 || banks.Count > (factionOwned ? 1 : 0))
                     result += " Remaining construction buy-order escrow was returned to its original funders.";
             }

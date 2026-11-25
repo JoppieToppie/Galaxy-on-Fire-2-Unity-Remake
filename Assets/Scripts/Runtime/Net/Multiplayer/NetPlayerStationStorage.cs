@@ -286,14 +286,23 @@ namespace GoF2Remake.Multiplayer
         static StoredShip BareHull(StoredShip ship) =>
             new StoredShip(ship.ship, ship.race, ship.mods != null ? new List<int>(ship.mods) : new List<int>());
 
-        internal static string StoreShip(NetPlayer by, int id, int fleetIndex)
+        internal static string StoreShip(NetPlayer by, int id, int fleetIndex, bool fromStorage = false)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its ship hangar.";
-            if (!AllowsFacilityUse(record, account, "hangar")) return FacilityUseRefusal(record, account, "hangar", "Station race policy restricts this facility.");
+            string account;
+            if (fromStorage)
+            {
+                string error = StorageAccessError(by, record, out account);
+                if (error != null) return error;
+            }
+            else
+            {
+                if (!CanManageHangar(by, record, out account)) return "Dock at this station with an authorised profile to use its ship hangar.";
+                if (!AllowsFacilityUse(record, account, "hangar")) return FacilityUseRefusal(record, account, "hangar", "Station race policy restricts this facility.");
+            }
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
-            if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
+            if (!fromStorage && !(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
             if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment must be transferred into station storage.";
             record.storedShips ??= new List<StoredShip>();
             if (record.storedShips.Count >= MaxStoredShipsPerStation) return "This station's ship hangar is full.";
@@ -329,13 +338,23 @@ namespace GoF2Remake.Multiplayer
                 ". Its removable equipment are now in station storage; hull upgrades remain with the ship.";
         }
 
-        internal static string RetrieveShip(NetPlayer by, int id, int hangarIndex)
+        internal static string RetrieveShip(NetPlayer by, int id, int hangarIndex, bool fromStorage = false)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageHangar(by, record, out string account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its ship hangar.";
-            if (record.underConstruction) return "Finish station construction before using the ship hangar.";
-            if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "This station has no ship hangar module.";
+            string account;
+            if (fromStorage)
+            {
+                string error = StorageAccessError(by, record, out account);
+                if (error != null) return error;
+                if (StorageCapacity(record) <= 0) return "This station has no storage module.";
+            }
+            else
+            {
+                if (!CanManageHangar(by, record, out account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its ship hangar.";
+                if (record.underConstruction) return "Finish station construction before using the ship hangar.";
+                if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "This station has no ship hangar module.";
+            }
             record.storedShips ??= new List<StoredShip>();
             record.storedShipOwners ??= new List<string>();
             if (hangarIndex < 1 || hangarIndex > record.storedShips.Count) return "That ship index is not in this station's hangar.";
@@ -424,10 +443,11 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
-        internal static string DryDockStoreShip(NetPlayer by, int id, int fleetIndex)
+        internal static string DryDockStoreShip(NetPlayer by, int id, int fleetIndex, bool viaStorage = false)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (viaStorage && StorageAccessError(by, record, out _) is string error) return error;
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
             if (!AllowsFacilityUse(record, account, "drydock")) return FacilityUseRefusal(record, account, "drydock", "Station race policy restricts this facility.");
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
@@ -465,10 +485,11 @@ namespace GoF2Remake.Multiplayer
             return "Stored " + (NetGame.Db?.Ship(ship.ship)?.name ?? ("ship " + ship.ship)) + " in the dry dock at " + record.name + ".";
         }
 
-        internal static string DryDockRetrieveShip(NetPlayer by, int id, int dockIndex)
+        internal static string DryDockRetrieveShip(NetPlayer by, int id, int dockIndex, bool viaStorage = false)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
+            if (viaStorage && StorageAccessError(by, record, out _) is string error) return error;
             if (!CanManageHangar(by, record, out string account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its dry dock.";
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "This station has no dry dock module.";
@@ -522,6 +543,15 @@ namespace GoF2Remake.Multiplayer
             public bool canDeposit;
             public string error;
             public List<PlayerStationStorage> items = new List<PlayerStationStorage>();
+            public List<StorageHullRow> hulls = new List<StorageHullRow>();
+        }
+
+        [Serializable]
+        internal sealed class StorageHullRow
+        {
+            public string token;
+            public int ship;
+            public bool stored, dryDock;
         }
 
         internal static StorageUiSnapshot StorageSnapshotFor(NetPlayer by, int id)
@@ -546,6 +576,30 @@ namespace GoF2Remake.Multiplayer
                 snapshot.used += stack.amount;
                 int owned = OwnedStorageAmount(record, account, stack.item);
                 if (owned > 0) snapshot.items.Add(new PlayerStationStorage { item = stack.item, amount = owned });
+            }
+            bool useDryDock = record.addons?.Exists(addon => addon?.kind == "drydock" && addon.level > 0) == true &&
+                CanManageHangar(by, record, out _) && AllowsFacilityUse(record, account, "drydock");
+            void AddHullRows(List<StoredShip> ships, bool stored, bool dryDock)
+            {
+                if (ships == null) return;
+                for (int i = 0; i < ships.Count; i++)
+                {
+                    var hull = ships[i];
+                    if (hull == null || (!stored && IsDryDockHull(hull) != dryDock)) continue;
+                    var owners = dryDock ? record.dryDockShipOwners : record.storedShipOwners;
+                    if (stored && (i >= (owners?.Count ?? 0) || owners[i] != account)) continue;
+                    string token = (stored ? (dryDock ? "drydock-hull:" : "hangar-hull:") : "fleet-hull:") +
+                        (i + 1) + ":" + HullFingerprint(hull);
+                    snapshot.hulls.Add(new StorageHullRow { token = token, ship = hull.ship, stored = stored, dryDock = dryDock });
+                }
+            }
+            var fleet = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
+            AddHullRows(fleet, stored: false, dryDock: false);
+            AddHullRows(record.storedShips, stored: true, dryDock: false);
+            if (useDryDock)
+            {
+                AddHullRows(fleet, stored: false, dryDock: true);
+                AddHullRows(record.dryDockShips, stored: true, dryDock: true);
             }
             return snapshot;
         }

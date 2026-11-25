@@ -27,6 +27,33 @@ namespace GoF2Remake.Modding
         internal bool RestrictStationModels { get; private set; }
         public bool IncludeStockStations { get; private set; } = true;
         public bool IncludeStockJumpgates { get; private set; } = true;
+        public const int DefaultStationBuildSeconds = 12 * 60 * 60;
+        public const int MaxBuildSeconds = 30 * 24 * 60 * 60;
+        internal static readonly string[] TimedModules = { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" };
+        public int StationBuildSeconds { get; private set; } = DefaultStationBuildSeconds;
+        public int JumpgateBuildSeconds { get; private set; }
+        public IReadOnlyDictionary<int, (int Output, int InputUnits, int OutputUnits)> RefineryRecipes { get; private set; } =
+            StockRefineryRecipes();
+        static Dictionary<int, (int, int, int)> StockRefineryRecipes()
+        {
+            var recipes = new Dictionary<int, (int, int, int)>();
+            for (int ore = 154; ore <= 164; ore++) recipes.Add(ore, (ore + 11, 10, 1));
+            recipes.Add(217, (218, 10, 1));
+            return recipes;
+        }
+
+        internal sealed class FactoryDefinition
+        {
+            public int Output, OutputUnits;
+            public List<(int item, int amount)> Inputs;
+        }
+
+        internal IReadOnlyDictionary<int, FactoryDefinition> FactoryRecipes { get; private set; } =
+            new Dictionary<int, FactoryDefinition>();
+
+        readonly Dictionary<string, int> moduleBuildSeconds = new Dictionary<string, int>();
+        public int ModuleBuildSeconds(string kind) => moduleBuildSeconds.TryGetValue(kind, out int seconds) ? seconds : 0;
+
         public int OrbitalDefenseLimit { get; private set; } = DefaultOrbitalDefenseLimit;
         public int OtherOrbitalStructureLimit { get; private set; } = MaxOtherOrbitalStructureLimit;
         public float MinimumStationScale { get; private set; } = 1f;
@@ -67,15 +94,22 @@ namespace GoF2Remake.Modding
             public List<(int item, int amount)> MaintenanceMaterials = new List<(int, int)>();
         }
 
-        static readonly OrbitalDefinition[] StockStructures =
+        internal static readonly string[] SentryAssemblies = { "sn_sentry_gun_001", "sn_sentry_gun_002", "sn_sentry_gun_003" };
+        // Deployable sentries use a 0.5 model scale. Station defenses are 35 times that size.
+        internal const float DefenseModelScale = .5f * 35f;
+
+        internal static string DefenseAssembly(string assembly) =>
+            Array.IndexOf(SentryAssemblies, assembly) >= 0 ? assembly : SentryAssemblies[0];
+
+        static OrbitalDefinition StockDefense(int model) => new OrbitalDefinition
         {
-            new OrbitalDefinition
-            {
-                Id = "orbital-defense", Name = "Orbital Defense", Defense = true, Assembly = "turret_002_static",
-                ModelScale = 1f, HitRadius = 250f, Integrity = 12000f, Range = 5000f, Damage = 120f,
-                FireIntervalSeconds = 3, Materials = new List<(int, int)> { (156, 200), (155, 100), (118, 80), (127, 50) }
-            }
+            Id = model == 0 ? "orbital-defense" : "orbital-defense-" + (model + 1),
+            Name = "Orbital Sentry " + (model + 1), Defense = true, Assembly = SentryAssemblies[model],
+            ModelScale = DefenseModelScale, HitRadius = 250f, Integrity = 12000f, Range = 5000f, Damage = 120f,
+            FireIntervalSeconds = 3, Materials = new List<(int, int)> { (156, 200), (155, 100), (118, 80), (127, 50) }
         };
+
+        static readonly OrbitalDefinition[] StockStructures = { StockDefense(0), StockDefense(1), StockDefense(2) };
 
         static readonly ModPlayerInfrastructure Defaults = new ModPlayerInfrastructure();
         static ModPlayerInfrastructure current = Defaults;
@@ -130,7 +164,7 @@ namespace GoF2Remake.Modding
             float integrity = ModJson.Float(settings, "scrapIntegrity", DefaultScrapIntegrity, FileName);
             if (float.IsNaN(integrity) || float.IsInfinity(integrity) || integrity < 1 || integrity > 10000000)
                 throw new ModJsonException(FileName + " scrapIntegrity must be between 1 and 10,000,000.");
-            return new ModPlayerInfrastructure
+            var rules = new ModPlayerInfrastructure
             {
                 RestrictStationModels = true,
                 Enabled = ReadToggle(settings, "enabled"),
@@ -150,6 +184,8 @@ namespace GoF2Remake.Modding
                 IncludeStockStations = ReadToggle(settings, "includeStockStations"),
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,
+                StationBuildSeconds = StructureInt(settings, "stationBuildSeconds", DefaultStationBuildSeconds, 0, MaxBuildSeconds),
+                JumpgateBuildSeconds = StructureInt(settings, "jumpgateBuildSeconds", 0, 0, MaxBuildSeconds),
                 MinimumStationScale = ReadMinimumScale(settings, "minimumStationScale"),
                 MinimumJumpgateScale = ReadMinimumScale(settings, "minimumJumpgateScale"),
                 OrbitalDefenseLimit = StructureInt(settings, "orbitalDefenseLimit", DefaultOrbitalDefenseLimit, 0, MaxOrbitalDefenseLimit),
@@ -159,6 +195,54 @@ namespace GoF2Remake.Modding
                 StationModelImages = ReadModelImages(settings),
                 JumpgateModels = ReadReferences(settings, "jumpgateModels")
             };
+            if (settings["moduleBuildSeconds"] != null)
+            {
+                if (!(settings["moduleBuildSeconds"] is JObject modules))
+                    throw new ModJsonException(FileName + " moduleBuildSeconds must be an object.");
+                foreach (var property in modules.Properties())
+                {
+                    if (Array.IndexOf(TimedModules, property.Name) < 0)
+                        throw new ModJsonException("Unknown station module " + property.Name);
+                    rules.moduleBuildSeconds[property.Name] = StructureInt(modules, property.Name, 0, 0, MaxBuildSeconds);
+                }
+            }
+            if (settings["refineryRecipes"] != null)
+            {
+                if (!(settings["refineryRecipes"] is JArray definitions) || definitions.Count > 256)
+                    throw new ModJsonException(FileName + " refineryRecipes must contain up to 256 recipes.");
+                var recipes = new Dictionary<int, (int, int, int)>();
+                foreach (var entry in definitions)
+                {
+                    if (!(entry is JObject recipe)) throw new ModJsonException("A refinery recipe must be an object.");
+                    int input = StructureInt(recipe, "input", -1, 0, int.MaxValue);
+                    int output = StructureInt(recipe, "output", -1, 0, int.MaxValue);
+                    if (input < 0 || output < 0 || input == output || recipes.ContainsKey(input))
+                        throw new ModJsonException("Refinery recipes need unique inputs and distinct output item IDs.");
+                    recipes.Add(input, (output, StructureInt(recipe, "inputUnits", 10, 1, 500),
+                        StructureInt(recipe, "outputUnits", 1, 1, 500)));
+                }
+                rules.RefineryRecipes = recipes;
+            }
+            if (settings["factoryRecipes"] != null)
+            {
+                if (!(settings["factoryRecipes"] is JArray factory) || factory.Count > 256)
+                    throw new ModJsonException(FileName + " factoryRecipes must contain up to 256 recipes.");
+                var recipes = new Dictionary<int, FactoryDefinition>();
+                foreach (var entry in factory)
+                {
+                    if (!(entry is JObject recipe)) throw new ModJsonException("A factory recipe must be an object.");
+                    int id = StructureInt(recipe, "id", 0, 1, int.MaxValue);
+                    if (recipes.ContainsKey(id)) throw new ModJsonException("Duplicate factory recipe ID " + id);
+                    recipes.Add(id, new FactoryDefinition
+                    {
+                        Output = StructureInt(recipe, "output", -1, 0, int.MaxValue),
+                        OutputUnits = StructureInt(recipe, "outputUnits", 1, 1, 100000),
+                        Inputs = ReadStructureMaterials(recipe, "Factory recipe " + id)
+                    });
+                }
+                rules.FactoryRecipes = recipes;
+            }
+            return rules;
         }
 
         static float ReadMinimumScale(JObject settings, string key)
@@ -188,7 +272,12 @@ namespace GoF2Remake.Modding
                 bool defense = value["defense"] != null && ReadToggle(value, "defense");
                 string assembly = value["assembly"] == null ? null : StructureText(value, "assembly", 128);
                 string station = value["stationModel"] == null ? null : StructureText(value, "stationModel", 128);
-                if ((assembly == null) == (station == null)) throw new ModJsonException(id + " needs one assembly or stationModel.");
+                if (defense)
+                {
+                    assembly = DefenseAssembly(assembly);
+                    station = null;
+                }
+                else if ((assembly == null) == (station == null)) throw new ModJsonException(id + " needs one assembly or stationModel.");
                 int maintenanceInterval = 0;
                 float maintenanceDecayPercentPerDay = DefaultOrbitalDecayPercentPerDay;
                 float minimumMaintenanceIntegrityPercent = MinimumOrbitalDecayIntegrityPercent;
@@ -210,7 +299,7 @@ namespace GoF2Remake.Modding
                     TargetPlayers = defense && ReadToggle(value, "targetPlayers"),
                     TargetNpcs = defense && ReadToggle(value, "targetNpcs"),
                     SponsorRaces = ReadReferences(value, "sponsorRaces"),
-                    ModelScale = StructureNumber(value, "modelScale", 1f, 0.01f, 10f),
+                    ModelScale = defense ? DefenseModelScale : StructureNumber(value, "modelScale", 1f, 0.01f, 10f),
                     HitRadius = StructureNumber(value, "hitRadius", 250f, 10f, 2000f),
                     Integrity = StructureNumber(value, "integrity", 12000f, 1, 10000000),
                     BuildSeconds = StructureInt(value, "buildSeconds", 0, 0, 2592000),

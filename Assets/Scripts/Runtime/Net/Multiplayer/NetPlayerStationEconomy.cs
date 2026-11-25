@@ -84,11 +84,15 @@ namespace GoF2Remake.Multiplayer
 
         static IEnumerable<FactoryRecipe> EffectiveFactoryRecipes()
         {
+            var ids = new HashSet<int>();
             foreach (var recipe in BuiltInFactoryRecipes)
-                yield return economyRecipes.TryGetValue(recipe.id, out var configured) ? configured : recipe;
-            foreach (var recipe in RegisteredFactoryRecipes) yield return recipe;
+                if (ids.Add(recipe.id) && FindFactoryRecipe(recipe.id) is FactoryRecipe builtIn) yield return builtIn;
+            foreach (var recipe in RegisteredFactoryRecipes)
+                if (ids.Add(recipe.id) && FindFactoryRecipe(recipe.id) is FactoryRecipe registered) yield return registered;
+            foreach (int id in Modding.ModPlayerInfrastructure.Current.FactoryRecipes.Keys)
+                if (ids.Add(id) && FindFactoryRecipe(id) is FactoryRecipe configured) yield return configured;
             foreach (var recipe in economyRecipes.Values)
-                if (!BuiltInFactoryRecipes.Exists(builtIn => builtIn.id == recipe.id)) yield return recipe;
+                if (ids.Add(recipe.id)) yield return recipe;
         }
 
         static bool EconomyItem(int item) => NetGuard.Item(item) && NetGame.Db?.Item(item) != null;

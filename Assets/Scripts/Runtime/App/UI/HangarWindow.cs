@@ -55,11 +55,11 @@ namespace GoF2Remake.UI
             public int listingId, stationUnits;
             public long listingPrice;
             public bool ownListing;
-            public string marketLabel;
+            public string marketLabel, marketKey;
             public Action marketAction;
             public bool Selectable => kind != RowKind.Header;
             public bool Same(Row o) => o != null && o.kind == kind && o.item == item && o.ship == ship && o.type == type
-                                       && o.listingId == listingId && o.marketLabel == marketLabel
+                                       && o.listingId == listingId && o.marketLabel == marketLabel && o.marketKey == marketKey
                                        && (kind != RowKind.Slot || o.equipment == equipment);
         }
 

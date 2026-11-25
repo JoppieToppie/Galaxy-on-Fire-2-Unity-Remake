@@ -31,6 +31,10 @@ namespace GoF2Remake.Multiplayer
             if (!CanManageConstruction(pilot, station, out account))
                 return "Dock here as the builder or authorised construction manager to install modules.";
             if (station.underConstruction) return "Finish station construction before installing modules.";
+            if (station.moduleBuildCompletesUtc > 0) return "A station module is already being assembled.";
+            if (!string.IsNullOrEmpty(station.moduleConstructionKind) && station.moduleConstructionKind != kind &&
+                ModPlayerInfrastructure.Current.ModuleBuildSeconds(kind) > 0)
+                return "Finish the active module project before starting a timed installation.";
             if ((kind == "factory" || kind == "refinery") && StorageCapacity(station) <= 0)
                 return "Install storage first.";
             if (station.addons?.Exists(addon => addon != null && addon.kind == kind) == true)
@@ -62,6 +66,7 @@ namespace GoF2Remake.Multiplayer
             var station = Find(id);
             if (string.IsNullOrEmpty(station?.moduleConstructionKind)) return "There is no active module project.";
             if (!CanManageConstruction(pilot, station, out _)) return "Dock here as the builder or authorised construction manager.";
+            if (station.moduleBuildCompletesUtc > 0) return "This project is fully funded and already being assembled.";
             if (station.buyOrders?.Count > 0 || station.moduleConstructionMaterials?.Exists(material => material != null && material.delivered > 0) == true)
                 return "Cancel outstanding orders first. A project with delivered materials can be finished with cargo or buy orders.";
             string kind = station.moduleConstructionKind;
@@ -74,8 +79,48 @@ namespace GoF2Remake.Multiplayer
             return "The module project's cancellation could not be saved.";
         }
 
+        static Action FundModuleConstruction(PlayerStationRecord station, string kind)
+        {
+            int seconds = ModPlayerInfrastructure.Current.ModuleBuildSeconds(kind);
+            if (seconds == 0) return CompleteModuleConstruction(station, kind);
+            string previousKind = station.moduleConstructionKind;
+            long previousDeadline = station.moduleBuildCompletesUtc;
+            station.moduleConstructionKind = kind;
+            station.moduleBuildCompletesUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + seconds;
+            return () =>
+            {
+                station.moduleConstructionKind = previousKind;
+                station.moduleBuildCompletesUtc = previousDeadline;
+            };
+        }
+
+        static void TickConstruction(long now)
+        {
+            var projects = registry;
+            foreach (var station in projects.stations)
+            {
+                if (!ReferenceEquals(registry, projects)) return;
+                if (station == null || station.destroyed || station.retired || station.wreckClaimOpen ||
+                    station.offeredForClaimUtc > 0) continue;
+                if (station.underConstruction && station.stationBuildCompletesUtc > 0 && station.stationBuildCompletesUtc <= now)
+                {
+                    var rollback = CompleteStationConstruction(station);
+                    if (Save()) Apply(NetGame.Db);
+                    else rollback();
+                }
+                else if (!station.underConstruction && station.moduleBuildCompletesUtc > 0 &&
+                    station.moduleBuildCompletesUtc <= now && !string.IsNullOrEmpty(station.moduleConstructionKind))
+                {
+                    var rollback = CompleteModuleConstruction(station, station.moduleConstructionKind);
+                    if (!Save()) rollback();
+                }
+            }
+        }
+
         static Action CompleteModuleConstruction(PlayerStationRecord station, string kind)
         {
+            long previousDeadline = station.moduleBuildCompletesUtc;
+            station.moduleBuildCompletesUtc = 0;
             string previousKind = station.moduleConstructionKind;
             var previousMaterials = station.moduleConstructionMaterials;
             station.addons ??= new List<PlayerStationAddon>();
@@ -89,6 +134,7 @@ namespace GoF2Remake.Multiplayer
             return () =>
             {
                 station.addons.Remove(module);
+                station.moduleBuildCompletesUtc = previousDeadline;
                 station.moduleConstructionKind = previousKind;
                 station.moduleConstructionMaterials = previousMaterials;
             };
@@ -115,7 +161,7 @@ namespace GoF2Remake.Multiplayer
                     return "Insufficient " + ConstructionItemName(material.item) + " in cargo.";
                 changes.Add((material.item, -outstanding));
             }
-            var rollback = CompleteModuleConstruction(station, kind);
+            var rollback = FundModuleConstruction(station, kind);
             bool saved = changes.Count == 0 ? Save() : CommitCargoTransaction(account, changes.ToArray());
             if (!saved)
             {
@@ -125,7 +171,7 @@ namespace GoF2Remake.Multiplayer
             if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
                 foreach (var change in changes)
                     NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Take, change.item, -change.delta, 0, "", "Station module");
-            return ModuleName(kind) + " installed at " + station.name + ".";
+            return ModuleName(kind) + (station.moduleBuildCompletesUtc > 0 ? " construction started." : " installed at " + station.name + ".");
         }
 
         internal static string InstallModuleFromStorage(NetPlayer pilot, int id, string kind)
@@ -166,8 +212,8 @@ namespace GoF2Remake.Multiplayer
                 stack.amount -= pair.Value;
                 if (stack.amount == 0) station.storage.Remove(stack);
             }
-            var rollback = CompleteModuleConstruction(station, kind);
-            if (Save()) return ModuleName(kind) + " installed using your station storage.";
+            var rollback = FundModuleConstruction(station, kind);
+            if (Save()) return ModuleName(kind) + (station.moduleBuildCompletesUtc > 0 ? " construction funded from storage." : " installed using your station storage.");
             rollback();
             station.storage = previousStorage;
             station.storageLots = previousLots;
@@ -267,8 +313,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (station == null || station.offeredForClaimUtc > 0 || station.destroyed || station.wreckClaimOpen || station.retired)
                 return null;
-            return station.underConstruction ? station.materials :
-                string.IsNullOrEmpty(station.moduleConstructionKind) ? null : station.moduleConstructionMaterials;
+            return station.underConstruction ? station.stationBuildCompletesUtc > 0 ? null : station.materials :
+                station.moduleBuildCompletesUtc > 0 || string.IsNullOrEmpty(station.moduleConstructionKind) ? null : station.moduleConstructionMaterials;
         }
     }
 }

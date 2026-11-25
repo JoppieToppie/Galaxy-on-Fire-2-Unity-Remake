@@ -450,6 +450,8 @@ namespace GoF2Remake.UI
                 if (selected.underConstruction)
                 {
                     AddInfo("State", "Under construction");
+                    if (selected.stationBuildCompletesUtc > 0)
+                        AddInfo("Build time remaining", ConstructionTime(Math.Max(1, selected.stationBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
                     if (localProject?.id == selected.id) AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
                     else AddInfo("Delivery", "Dock at this construction site to deliver materials.");
                     if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
@@ -513,6 +515,13 @@ namespace GoF2Remake.UI
                     foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" })
                     {
                         if (HasModule(module)) { AddInfo(ModuleLabel(module), "Installed"); continue; }
+                        if (selected.moduleConstructionKind == module && selected.moduleBuildCompletesUtc > 0)
+                        {
+                            AddInfo(ModuleLabel(module), "Building · " + ConstructionTime(Math.Max(1, selected.moduleBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
+                            continue;
+                        }
+                        int duration = Modding.ModPlayerInfrastructure.Current.ModuleBuildSeconds(module);
+                        if (duration > 0) AddInfo(ModuleLabel(module) + " build time", ConstructionTime(duration));
                         AddAction("Install " + ModuleLabel(module) + " from cargo", "/station install " + id + " " + module);
                         AddAction("Install " + ModuleLabel(module) + " from your storage", "/station install-storage " + id + " " + module);
                         if (string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Open " + ModuleLabel(module) + " project", "/station module-project " + id + " " + module);
@@ -648,21 +657,20 @@ namespace GoF2Remake.UI
                 AddChoice("jumpgateOrbit", "Build orbit", orbits);
                 AddChoice("jumpgateDestination", "Destination system", destinations);
                 AddChoice("jumpgateModel", "Jumpgate model", GateModelChoices());
-                AddNumber("jumpgateBuildSeconds", "Build duration (seconds)", 0, 0, 2592000);
+                AddInfo("Build time after funding", ConstructionTime(Modding.ModPlayerInfrastructure.Current.JumpgateBuildSeconds));
                 if (orbits.Count > 0 && destinations.Count > 0 && !string.IsNullOrEmpty(Value("jumpgateModel")))
                 AddAction("Start jumpgate construction", () =>
                 {
                     string orbit = Value("jumpgateOrbit").Trim();
                     string destination = Value("jumpgateDestination").Trim();
-                    string buildSeconds = Value("jumpgateBuildSeconds").Trim();
                     if (!int.TryParse(orbit, out _) || !int.TryParse(destination, out _) ||
-                        !int.TryParse(buildSeconds, out _) || !int.TryParse(Value("jumpgateModel"), out int model))
+                        !int.TryParse(Value("jumpgateModel"), out int model))
                     {
-                        feedback.text = "Choose an orbit, destination and model, and enter a build time.";
+                        feedback.text = "Choose an orbit, destination and model.";
                         feedbackTime = 4f;
                         return;
                     }
-                    Send("/station jumpgate " + id + " " + orbit + " " + destination + " " + buildSeconds + " " + model);
+                    Send("/station jumpgate " + id + " " + orbit + " " + destination + " " + model);
                 });
             }
 
@@ -956,9 +964,12 @@ namespace GoF2Remake.UI
             switch (managementPage)
             {
                 case "refinery":
-                    AddSection("REFINERY", "Convert raw ore stored at the station into its matching core.");
-                    AddItemChoice("oreItem", "Raw ore", NetPlayerStations.RefinableOreItems());
-                    AddNumber("oreAmount", "Ore units", 10, 10, 10000, 10);
+                    AddSection("REFINERY", "Convert stored input materials using the station's configured recipes.");
+                    AddItemChoice("oreItem", "Input material", NetPlayerStations.RefinableOreItems());
+                    if (!int.TryParse(Value("oreItem"), out int ore) ||
+                        !Modding.ModPlayerInfrastructure.Current.RefineryRecipes.TryGetValue(ore, out var recipe)) break;
+                    AddInfo("Output per batch", recipe.OutputUnits + " × " + (NetGame.Db.Item(recipe.Output)?.name ?? "Unavailable item"));
+                    AddNumber("oreAmount", "Input units", recipe.InputUnits, recipe.InputUnits, 500, recipe.InputUnits);
                     AddAction("Refine ore", () => Send("/station refine " + id + " " + Value("oreItem") + " " + Value("oreAmount")));
                     break;
                 case "factory":
@@ -999,6 +1010,12 @@ namespace GoF2Remake.UI
         void BuildConstructionProcurement(string id, bool allowManagement, bool canManageModule = false)
         {
             string module = selected.moduleConstructionKind;
+            long deadline = selected.underConstruction ? selected.stationBuildCompletesUtc : selected.moduleBuildCompletesUtc;
+            if (deadline > 0)
+            {
+                AddInfo("Build time remaining", ConstructionTime(Math.Max(1, deadline - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
+                return;
+            }
             if (!selected.underConstruction && string.IsNullOrEmpty(module)) return;
             AddSection("CONSTRUCTION PROCUREMENT", "Suppliers are paid from escrow.");
             if (!string.IsNullOrEmpty(module))
@@ -1554,11 +1571,17 @@ namespace GoF2Remake.UI
                 });
         }
 
+        static string ConstructionTime(long seconds) =>
+            seconds <= 0 ? "Immediate" : TimeSpan.FromSeconds(seconds).ToString("c");
+
         void BuildStationConstruction(PlayerStationRecord project)
         {
             string id = project.id.ToString();
             AddSection("SELECTED STATION PROJECT", "Deliver materials directly to this construction project.");
             AddInfo("Project", project.name);
+            if (project.stationBuildCompletesUtc > 0)
+                AddInfo("Build time remaining", ConstructionTime(Math.Max(1, project.stationBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
+            else AddInfo("Build time after funding", ConstructionTime(Modding.ModPlayerInfrastructure.Current.StationBuildSeconds));
             if (project.materials != null)
                 foreach (var material in project.materials)
                     if (material != null)
