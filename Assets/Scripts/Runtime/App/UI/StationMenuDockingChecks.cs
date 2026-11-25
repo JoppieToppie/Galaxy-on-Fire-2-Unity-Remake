@@ -522,6 +522,17 @@ namespace GoF2Remake.UI
             wingmenChecked = true;
             Session.WingmanShowEmp = true;   // Status+0xf8 reset on the station visit
             if (!Wingmen.Expired) return false;
+            if (Modding.ModWingmen.ExtendContracts && Session.Credits >= Wingmen.ExtensionPrice)
+            {
+                long price = Wingmen.ExtensionPrice;
+                ShowChoice($"Your wingman contracts have expired. Retain all {Session.Wingmen.Count} surviving wingmen for another {Modding.ModWingmen.ExtensionSeconds / 60f:0.#} minutes of flight for {price:N0} credits?",
+                    "Extend contract", "Dismiss", () =>
+                    {
+                        if (!Wingmen.TryExtend()) Wingmen.Dismiss();
+                        RefreshCredits(); Session.Autosave();
+                    }, () => { Wingmen.Dismiss(); Session.Autosave(); });
+                return true;
+            }
             // The first wingman's voice (race + portrait; body 10 is the only female face, AgentGenerator.CreatePortrait).
             var face = Session.WingmanPortrait;
             string voiceLine = GenericVoice.For(313, Session.WingmanRace, face == null || face.Length == 0 || face[0] != 10, face);
