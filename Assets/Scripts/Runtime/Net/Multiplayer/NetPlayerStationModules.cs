@@ -94,6 +94,60 @@ namespace GoF2Remake.Multiplayer
             };
         }
 
+        // Shared construction donations belong to the station, not to the donating pilot's personal storage.
+        // Once the active module can be fully funded, consume the stock and start its normal build timer.
+        static bool TryFundModuleFromDonations(PlayerStationRecord station)
+        {
+            if (station.underConstruction || station.moduleBuildCompletesUtc > 0 ||
+                string.IsNullOrEmpty(station.moduleConstructionKind) || station.moduleConstructionMaterials == null ||
+                station.moduleConstructionMaterials.Count == 0 || station.donatedConstructionStock == null) return false;
+            var required = new Dictionary<int, int>();
+            foreach (var material in station.moduleConstructionMaterials)
+            {
+                if (material == null || material.delivered < 0 || material.required < material.delivered) return false;
+                int remaining = material.required - material.delivered;
+                if (remaining == 0) continue;
+                required.TryGetValue(material.item, out int previous);
+                if (previous > int.MaxValue - remaining) return false;
+                required[material.item] = previous + remaining;
+            }
+            foreach (var pair in required)
+                if ((station.donatedConstructionStock.Find(stack => stack != null && stack.item == pair.Key)?.amount ?? 0) < pair.Value)
+                    return false;
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            var refunds = new List<(string account, long amount)>();
+            if (!StageConstructionEscrowRefunds(station.buyOrders, credits, banks, refunds)) return false;
+            var oldStock = station.donatedConstructionStock.ConvertAll(stack => stack == null ? null :
+                new PlayerStationStorage { item = stack.item, amount = stack.amount });
+            var oldOrders = station.buyOrders;
+            var materials = station.moduleConstructionMaterials;
+            var oldDelivered = materials.Select(material => material.delivered).ToList();
+            foreach (var pair in required)
+            {
+                var stack = station.donatedConstructionStock.Find(entry => entry != null && entry.item == pair.Key);
+                stack.amount -= pair.Value;
+                if (stack.amount == 0) station.donatedConstructionStock.Remove(stack);
+            }
+            foreach (var material in materials) material.delivered = material.required;
+            station.buyOrders = new List<PlayerStationBuyOrder>();
+            string kind = station.moduleConstructionKind;
+            var rollback = FundModuleConstruction(station, kind);
+            bool saved = credits.Count > 0 || banks.Count > 0 ? CommitProfileTransaction(null, credits, banks) : Save();
+            if (!saved)
+            {
+                rollback();
+                station.donatedConstructionStock = oldStock;
+                station.buyOrders = oldOrders;
+                for (int i = 0; i < materials.Count; i++) materials[i].delivered = oldDelivered[i];
+                return false;
+            }
+            if (!ProfileWritesBlocked)
+                foreach (var refund in refunds) NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
+            Debug.Log($"Server: audit station {station.id}: {kind} funded from donated construction stock.");
+            return true;
+        }
+
         static void TickConstruction(long now)
         {
             var projects = registry;
@@ -102,6 +156,7 @@ namespace GoF2Remake.Multiplayer
                 if (!ReferenceEquals(registry, projects)) return;
                 if (station == null || station.destroyed || station.retired || station.wreckClaimOpen ||
                     station.offeredForClaimUtc > 0) continue;
+                if (!station.underConstruction && station.moduleBuildCompletesUtc <= 0 && TryFundModuleFromDonations(station)) continue;
                 if (station.underConstruction && station.stationBuildCompletesUtc > 0 && station.stationBuildCompletesUtc <= now)
                 {
                     var rollback = CompleteStationConstruction(station);
