@@ -30,7 +30,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class NetNews
     {
-        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot }
+        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement }
 
         public sealed class Item
         {
@@ -88,7 +88,7 @@ namespace GoF2Remake.Multiplayer
                     var saved = JsonUtility.FromJson<SavedList>(File.ReadAllText(path));
                     if (saved?.items != null)
                         foreach (var s in saved.items)
-                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.Pilot), station = s.station, text = s.text ?? "" });
+                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.StationAnnouncement), station = s.station, text = s.text ?? "" });
                 }
             }
             catch (Exception e) { Debug.LogWarning($"Server: news.json unreadable ({e.Message}); starting without news."); serverItems.Clear(); }
@@ -218,7 +218,7 @@ namespace GoF2Remake.Multiplayer
             var p = (packed ?? "").Split(new[] { '|' }, 5);
             if (p.Length < 5 || !long.TryParse(p[0], out long id) || !int.TryParse(p[1], out int kind) || !int.TryParse(p[2], out int station)
                 || !long.TryParse(p[3], out long time)) return null;
-            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.Pilot), station = station, time = time, text = Clean(p[4]) };
+            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.StationAnnouncement), station = station, time = time, text = Clean(p[4]) };
         }
 
         /// <summary>NetState: an item from the server ("" with 'reset' = the list starts over).</summary>
@@ -237,7 +237,7 @@ namespace GoF2Remake.Multiplayer
         static readonly (string label, string color)[] Kickers =
         {
             ("BREAKING", "#ff5a4f"), ("TERRITORY", "#f5a524"), ("WAR", "#ff7a1a"), ("ARENA", "#38bdf8"),
-            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"),
+            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"),
         };
 
         /// <summary>The session's news for the ticker (rich text, each item followed by NewsTicker.Separator), "" = none:
@@ -252,6 +252,7 @@ namespace GoF2Remake.Multiplayer
             {
                 float ageMinutes = (now - it.time) / 60f;
                 if (ageMinutes > TickerHours * 60f || shown >= TickerItems) break;
+                if (it.kind == Kind.StationAnnouncement && it.station != dockedStation) continue;
                 if (shown == 0) sb.Append("<b><color=#f5a524>GALNET</color></b> <color=#7f8a99>sector news</color>").Append(NewsTicker.Separator);
                 shown++;
                 var (label, color) = Kickers[(int)it.kind];
@@ -263,6 +264,16 @@ namespace GoF2Remake.Multiplayer
                 sb.Append(NewsTicker.Separator);
             }
             return sb.ToString();
+        }
+
+        internal static List<string> StationAnnouncements(int orbit)
+        {
+            var lines = new List<string>();
+            long now = UnixNow;
+            foreach (var item in items)
+                if (item.kind == Kind.StationAnnouncement && item.station == orbit && now - item.time <= MaxAgeSeconds)
+                    lines.Add(Age(Math.Max(0f, (now - item.time) / 60f)) + " · " + item.text);
+            return lines;
         }
 
         static string Age(float minutes)
