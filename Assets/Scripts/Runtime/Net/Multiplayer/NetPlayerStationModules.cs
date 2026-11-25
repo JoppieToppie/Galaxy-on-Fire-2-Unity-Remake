@@ -249,11 +249,49 @@ namespace GoF2Remake.Multiplayer
             Array.Find(ModuleExteriorDefaults, preset => preset.Id == id) ??
                 ModPlayerInfrastructure.Current.OrbitalStructures.FirstOrDefault(preset => !preset.Defense && preset.Id == id);
 
+        internal static bool TryDefenseSlot(string kind, out int slot)
+        {
+            slot = -1;
+            if (kind == null || !kind.StartsWith("defense-", StringComparison.Ordinal) ||
+                !int.TryParse(kind.Substring(8), out int number) || number < 1 ||
+                number > ModPlayerInfrastructure.Current.OrbitalDefenseLimit) return false;
+            slot = number - 1;
+            return true;
+        }
+
+        static string PlanDefensePlacement(PlayerStationRecord station, string kind, int slot, Vector3Int offset, string presetId)
+        {
+            var preset = ModPlayerInfrastructure.Current.OrbitalStructures.FirstOrDefault(p => p.Defense && p.Id == presetId && OrbitalPresetAvailable(p, OrbitalSponsorRace(station)));
+            if (preset == null) return "Choose an available defense model.";
+            if (registry.orbitalStructures.Exists(p => p != null && p.orbit == station.stationIndex && p.defense && p.slot == slot))
+                return "This defense slot already has a construction project or operational defense.";
+            var point = Vector3Int.RoundToInt(StationPosition(station.stationIndex)) + offset;
+            string error = OrbitalPlacementError(station.stationIndex, GoF2Remake.World.OrbitLayout.Build(NetGame.Db, station.stationIndex), point, preset.HitRadius);
+            if (error != null) return error;
+            var previous = station.placements;
+            var updated = previous == null ? new List<PlayerStationPlacement>() : new List<PlayerStationPlacement>(previous);
+            updated.RemoveAll(p => p?.kind == kind);
+            foreach (var other in updated)
+            {
+                if (other == null || !TryDefenseSlot(other.kind, out _)) continue;
+                var otherPreset = ModPlayerInfrastructure.Current.OrbitalStructures.FirstOrDefault(p => p.Id == other.preset && p.Defense);
+                float clearance = Math.Max(200f, preset.HitRadius + (otherPreset?.HitRadius ?? 0f));
+                if ((new Vector3(other.x, other.y, other.z) - offset).sqrMagnitude < clearance * clearance)
+                    return "This position overlaps " + other.kind + ".";
+            }
+            updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = offset.x, y = offset.y, z = offset.z });
+            station.placements = updated;
+            if (Save()) return $"Defense {slot + 1} planned placement saved.";
+            station.placements = previous;
+            return "The placement could not be saved.";
+        }
+
         internal static string PlanModulePlacement(NetPlayer pilot, int id, string kind, int x, int y, int z, string presetId)
         {
             var station = Find(id);
             if (!CanManageConstruction(pilot, station, out _) || station.underConstruction)
                 return "Dock at the operational station with construction authority.";
+            if (TryDefenseSlot(kind, out int defenseSlot)) return PlanDefensePlacement(station, kind, defenseSlot, new Vector3Int(x, y, z), presetId);
             int key = Array.IndexOf(PlacementKinds, kind);
             if (key < 0) return "Choose a refinery, factory, dry dock or docking arm.";
             var offset = new Vector3(x, y, z);
