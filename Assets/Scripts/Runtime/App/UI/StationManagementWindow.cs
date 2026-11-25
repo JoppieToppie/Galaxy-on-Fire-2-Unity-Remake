@@ -2044,8 +2044,8 @@ namespace GoF2Remake.UI
         {
             string id = station.id.ToString();
             AddSection("RACE POLICIES", "Select a race to inspect inherited and station-specific policies. Changes apply only when confirmed.");
-            var races = Modding.ModRefs.RaceWords.Select(race => (value: PlayerIdentity.RaceKey(race.race), label: race.name))
-                .Concat(Modding.ModRaces.All.Select(race => (value: race.key, label: Modding.ModRaces.Name(race.race))))
+            var races = Modding.ModRefs.RaceWords.Select(entry => (value: PlayerIdentity.RaceKey(entry.race), label: entry.name))
+                .Concat(Modding.ModRaces.All.Select(entry => (value: entry.key, label: Modding.ModRaces.Name(entry.race))))
                 .GroupBy(race => race.value).Select(group => group.First()).OrderBy(race => race.label).ToList();
             if (races.Count == 0) { AddInfo("Race directory", "No races are configured."); return; }
             string race = Value("stationPolicyRace");
@@ -2305,7 +2305,7 @@ namespace GoF2Remake.UI
             bool pending = false;
             var publish = new Button(() =>
             {
-                string message = System.Text.RegularExpressions.Regex.Replace(field.value.Trim(), @"\s+", " ");
+                string message = System.Text.RegularExpressions.Regex.Replace((field.value ?? "").Trim(), @"\s+", " ");
                 if (message.Length == 0 || pending) return;
                 pending = Dispatch("/station broadcast " + id + " " + message, result =>
                 {
@@ -2324,7 +2324,7 @@ namespace GoF2Remake.UI
             {
                 string message = field.value ?? "";
                 counter.text = $"{message.Length} / {NetNews.OfficialMessageLimit} characters";
-                preview.text = "[" + selected?.name + "] " + message;
+                preview.text = selected?.name + ": " + message;
                 long remaining = Math.Max(0L, (managementCatalogue?.stationBroadcastReadyUtc ?? 0L) - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 cooldown.text = remaining > 0 ? $"Station cooldown: {remaining / 60:00}:{remaining % 60:00}" : "Station broadcast available";
                 publish.SetEnabled(!pending && remaining == 0 && !string.IsNullOrWhiteSpace(message) && managementCatalogue?.canAnnounce == true);
