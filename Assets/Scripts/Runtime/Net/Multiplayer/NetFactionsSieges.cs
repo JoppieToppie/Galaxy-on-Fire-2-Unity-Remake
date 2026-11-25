@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using GoF2Remake.Data;
+using GoF2Remake.World;
 using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
