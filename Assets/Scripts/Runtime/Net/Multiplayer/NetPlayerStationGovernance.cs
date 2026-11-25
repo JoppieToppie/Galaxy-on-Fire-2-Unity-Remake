@@ -362,6 +362,17 @@ namespace GoF2Remake.Multiplayer
                   AllowsStationRace(record, account, "docking")) || HasRaceProtectedProperty(record, account)));
         }
 
+        internal static bool HasSiegeRespawnPrivilege(int orbit, string account)
+        {
+            var record = StationAt(orbit);
+            if (record == null || string.IsNullOrEmpty(account)) return false;
+            if (IsStationOwnerAccount(record, account) || HasBuilderRights(record, account)) return true;
+            var faction = NetFactions.Of(account);
+            return (record.ownershipType == PlayerStationOwnershipType.Faction && faction != null &&
+                faction.id == record.ownerFactionId && (faction.leader == account || faction.officers?.Contains(account) == true)) ||
+                (HasRole(record, account, PlayerStationRole.StationAdministrator) && HasStationPermission(record, account, PlayerStationPermission.StationOperations));
+        }
+
         // Ownership authority controls staffing and faction-wide station policy.
         // Station administrators manage day-to-day settings but cannot appoint staff or
         // rewrite the faction's permission profile.
