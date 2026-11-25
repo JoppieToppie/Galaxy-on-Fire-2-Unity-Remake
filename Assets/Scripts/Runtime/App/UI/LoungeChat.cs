@@ -307,6 +307,7 @@ namespace GoF2Remake.Data
                 }
                 case AgentOffer.Wingmen:
                     // With all medals the "fans" pay the player (782-784).
+                    if (a.wingmen.Count > 2) return $"{a.wingmen.Count + 1} wingmen available. " + (Achievements.WingmenPayPlayer ? "Payment: " : "Hiring cost: ") + C(a.costs);
                     return T((Achievements.WingmenPayPlayer ? 782 : 779) + a.wingmen.Count).Replace("#C", C(a.costs)).Replace("#W", a.wingmen.Count > 0 ? a.wingmen[0] : "");
                 case AgentOffer.Diplomat:
                 {
@@ -517,7 +518,7 @@ namespace GoF2Remake.Data
                     return Outcome.Confirm;
                 }
                 case AgentOffer.Wingmen:
-                    if (Session.Wingmen.Count > 0) return Refuse(T(785));
+                    if (!Wingmen.CanHire(a)) return Refuse(!Modding.ModWingmen.MultipleGroups && Wingmen.Hired ? T(785) : $"Wingman capacity: {Session.Wingmen.Count}/{Modding.ModWingmen.MaxTotal}. This group cannot be hired.");
                     if (Achievements.WingmenPayPlayer) { ConfirmText = T(867).Replace("#C", C(a.costs)); return Outcome.Confirm; }
                     if (a.costs > Session.Credits) return Refuse(T(203).Replace("#C", C(a.costs - Session.Credits)));
                     ConfirmText = T(866).Replace("#Q", (a.wingmen.Count + 1).ToString()).Replace("#C", C(a.costs));
@@ -606,6 +607,7 @@ namespace GoF2Remake.Data
                     thanks += " " + (a.mission.type == MissionType.Challenge ? T(856) : T(853 + Random.Range(0, 3)));
                     break;
                 case AgentOffer.Wingmen:
+                    if (!Wingmen.CanHire(a) || a.accepted || (!Achievements.WingmenPayPlayer && a.costs > Session.Credits)) break;
                     Session.Credits += Achievements.WingmenPayPlayer ? a.costs : -a.costs;
                     Wingmen.Hire(a);
                     a.accepted = true;
