@@ -98,9 +98,13 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.NetGame.Active)
             {
                 int docked = Session.LastDockedStation;
-                // A defender destroyed in their station's siege fight respawns there (NetFactions).
-                bool defending = GoF2Remake.Multiplayer.NetFactionsClient.DefendsSiegeHere(Session.StationIndex);
-                if (!defending && docked >= 0 && docked < GoF2Remake.Multiplayer.NetGame.Db.Stations.Count) Session.StationIndex = docked;
+                if (GoF2Remake.Multiplayer.NetState.Instance?.ProfilesOn == true && GoF2Remake.Multiplayer.NetPlayer.Local != null)
+                {
+                    gameOverMs = 7000f; // keep the prompt retryable until the server approves
+                    GoF2Remake.Multiplayer.NetPlayer.Local.RequestDeathRespawnRpc();
+                    return;
+                }
+                if (docked >= 0 && docked < GoF2Remake.Multiplayer.NetGame.Db.Stations.Count) Session.StationIndex = docked;
                 Session.DockedFromSpace = false;
                 Session.SkipRespawnDockingFine = protectedDeath;
                 SceneManager.LoadScene("Station");
