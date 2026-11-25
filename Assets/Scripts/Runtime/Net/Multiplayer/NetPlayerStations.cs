@@ -423,7 +423,8 @@ namespace GoF2Remake.Multiplayer
         {
             registry = null;
             path = null;
-            nextDryDockRetryUtc = 0;
+            ResetConstructionSchedule();
+            nextJumpgateRetryUtc = 0;
             nextSlowStationTick = nextWreckClaimTick = 0f;
             nextGateManagementUpdate = 0;
             ResetWreckControl();
@@ -1162,6 +1163,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>End the replicated session view; saved server data is reloaded next time.</summary>
         internal static void EndSession()
         {
+            ResetConstructionSchedule();
             registry = null;
             path = null;
             sessionActive = false;
@@ -1377,6 +1379,7 @@ namespace GoF2Remake.Multiplayer
             string snapshot = publish ? Snapshot : null;
             if (publish && !CanPublishStationSnapshot(snapshot)) return false;
             if (!NetProfiles.Write(path, JsonUtility.ToJson(registry, true))) return false;
+            MarkConstructionScheduleDirty();
             if (publish) NetState.Instance?.PublishPlayerStations(snapshot);
             return true;
         }

@@ -58,7 +58,7 @@ namespace GoF2Remake.Multiplayer
             };
         }
 
-        static long nextDryDockRetryUtc, nextTransactionRetryUtc;
+        static long nextTransactionRetryUtc;
         const int FactorySecondsPerBatch = 60;
 
         static int DryDockBuildDuration(int productId, int shipIndex)
@@ -157,14 +157,6 @@ namespace GoF2Remake.Multiplayer
             TickOrbitalStructures(now);
             if (registry?.stations == null) return; // a failed station save can disable the registry
             TickFactoryJobs(now);
-            if (now < nextDryDockRetryUtc || registry?.stations == null || persistenceFaulted || ProfileWritesBlocked) return;
-            var dryDockRegistry = registry;
-            foreach (var record in dryDockRegistry.stations)
-            {
-                if (!ReferenceEquals(registry, dryDockRegistry)) return;
-                if (record != null && record.offeredForClaimUtc == 0 && record.dryDockBuilding && record.dryDockCompletesUtc <= now)
-                    if (!CompleteDryDockJob(record, now)) nextDryDockRetryUtc = now + 5;
-            }
         }
 
         /// <summary>List ship blueprints that this station's dry dock can construct.</summary>

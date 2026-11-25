@@ -324,6 +324,7 @@ namespace GoF2Remake.Multiplayer
             // A normal synchronous commit already has exactly this state in memory. Keep
             // object identity for callers; only recovery must replace the live registry.
             if (!preserveLiveRegistry) registry = recovered;
+            MarkConstructionScheduleDirty();
             // Record completion before attempting deletion. A cleanup failure must never
             // cause already committed absolute targets to be applied a second time.
             journal.completed = true;

@@ -507,5 +507,61 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(rules.SiegeRespawnStationAdministrators);
         }
 
+
+        [Test]
+        public void ConstructionQueueProcessesOnlyDueJobsInDeadlineOrder()
+        {
+            var queue = new ConstructionDeadlineQueue();
+            queue.Schedule(ConstructionJobKind.Jumpgate, 9, 120, 100);
+            queue.Schedule(ConstructionJobKind.Module, 2, 110, 100);
+            queue.Schedule(ConstructionJobKind.Station, 5, 110, 100);
+            queue.Schedule(ConstructionJobKind.Module, 2, 110, 100);
+            Assert.AreEqual(3, queue.Count);
+            Assert.IsFalse(queue.TryTakeDue(109, out _));
+            Assert.IsTrue(queue.TryTakeDue(110, out var station));
+            Assert.AreEqual((int)ConstructionJobKind.Station, station.kind);
+            Assert.IsTrue(queue.TryTakeDue(110, out var module));
+            Assert.AreEqual((int)ConstructionJobKind.Module, module.kind);
+            Assert.IsFalse(queue.TryTakeDue(119, out _));
+            Assert.IsTrue(queue.TryTakeDue(120, out var gate));
+            Assert.AreEqual(9, gate.id);
+            Assert.IsFalse(queue.TryTakeDue(120, out _));
+        }
+
+        [Test]
+        public void ConstructionQueueRetrySurvivesIndexRebuildButCancelledJobsDoNot()
+        {
+            var queue = new ConstructionDeadlineQueue();
+            queue.Schedule(ConstructionJobKind.Module, 2, 50, 100);
+            queue.Schedule(ConstructionJobKind.Station, 3, 105, 100);
+            Assert.IsTrue(queue.TryTakeDue(100, out var job));
+            queue.Retry(job, 100);
+            queue.BeginRebuild(101);
+            queue.Schedule(ConstructionJobKind.Module, 2, 50, 101);
+            // Station 3 was cancelled; a replacement project has a different deadline.
+            queue.Schedule(ConstructionJobKind.Station, 3, 200, 101);
+            queue.EndRebuild();
+            Assert.IsFalse(queue.TryTakeDue(104, out _));
+            Assert.IsTrue(queue.TryTakeDue(105, out var retry));
+            Assert.AreEqual(job.deadline, retry.deadline);
+            Assert.AreEqual(job.id, retry.id);
+            Assert.IsFalse(queue.TryTakeDue(105, out _));
+            Assert.IsTrue(queue.TryTakeDue(200, out var replacement));
+            Assert.AreEqual(200L, replacement.deadline);
+        }
+
+        [Test]
+        public void ConstructionQueueHandlesOfflineDeadlinesAndClearsOnWorldChange()
+        {
+            var queue = new ConstructionDeadlineQueue();
+            queue.Schedule(ConstructionJobKind.DryDock, 4, 10, 10000);
+            queue.Schedule(ConstructionJobKind.DonationFunding, 5, 0, 10000);
+            Assert.IsTrue(queue.TryTakeDue(10000, out var offline));
+            Assert.AreEqual((int)ConstructionJobKind.DryDock, offline.kind);
+            queue.Reset();
+            Assert.AreEqual(0, queue.Count);
+            Assert.IsFalse(queue.TryTakeDue(long.MaxValue, out _));
+        }
+
     }
 }

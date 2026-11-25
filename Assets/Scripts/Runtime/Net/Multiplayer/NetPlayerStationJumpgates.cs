@@ -614,13 +614,6 @@ namespace GoF2Remake.Multiplayer
                 }
                 runner.BroadcastJumpgateExplosion(gate.orbitStationIndex, gate.permanentlyDestroyed);
             }
-            foreach (var gate in registry.jumpgates)
-            {
-                if (gate == null || !gate.building || gate.startedUtc <= 0 ||
-                    gate.completesUtc <= 0 || gate.completesUtc > now || JumpgateConstructionPausedAt(gate) > 0) continue;
-                CompleteJumpgateIfDue(gate);
-                if (gate.building) { nextJumpgateRetryUtc = now + 5; return; }
-            }
         }
 
         static List<PlayerStationMaterial> RequiredJumpgateMaterials() => ConstructionCost("jumpgate");

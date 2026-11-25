@@ -419,16 +419,6 @@ namespace GoF2Remake.Multiplayer
                 if (structure == null) continue;
                 var sponsor = Find(structure.sponsorStationId);
                 if (!OperationalSponsor(sponsor)) continue;
-                if (!structure.operational && structure.completesUtc > 0 && now >= structure.completesUtc)
-                {
-                    ActivateOrbitalStructure(structure, now);
-                    if (!Save())
-                    {
-                        structure.operational = false;
-                        structure.maintenanceDueUtc = 0;
-                    }
-                    if (!ReferenceEquals(registry, original)) return;
-                }
                 if (!structure.operational || !structure.defense || structure.MaintenanceDue(now) || now < structure.nextShotUtc) continue;
                 var runner = NetPlayer.OrbitRunner(structure.orbit);
                 if (runner == null) continue;
