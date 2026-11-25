@@ -14,7 +14,25 @@ namespace GoF2Remake.World
         {
             if (constructionPort != null)
             {
-                if (Docking != null && Docking.Target == constructionPort) Docking.Abort();
+                if (Docking != null && Docking.Target == constructionPort)
+                {
+                    bool onApproach = Docking.State == ObjectDocking.Phase.Approach;
+                    Docking.Abort();
+                    // The full station can be much larger than the temporary cube. Release outside its hull.
+                    if (!onApproach && Player != null && Layout != null && GameHooks.StationSceneryPresent?.Invoke(Layout.stationIndex) == true)
+                    {
+                        var completed = OrbitLayout.Build(db, Layout.stationIndex);
+                        if (completed != null)
+                        {
+                            var centre = SpaceHooks.StationPosition(Layout.stationIndex);
+                            var delta = Player.transform.position - centre;
+                            float safeRadius = completed.stationReach * OrbitLayout.MetersPerUnit * completed.StationScale + 250f;
+                            if (delta.sqrMagnitude < safeRadius * safeRadius)
+                                Player.transform.position = centre + (delta.sqrMagnitude > 0.01f ? delta.normalized : Vector3.forward) * safeRadius;
+                            Player.ExternalSpeedMetersPerSecond = 0f;
+                        }
+                    }
+                }
                 Traffic?.Ships.Remove(constructionPort);
                 Navigation?.Targets.RemoveAll(target => target.dockingShip == constructionPort);
                 constructionPort.gameObject.SetActive(false);
@@ -251,6 +269,7 @@ namespace GoF2Remake.World
                 var refreshed = OrbitLayout.Build(db, orbit);
                 if (refreshed == null) return;
                 Layout.stationReach = refreshed.stationReach;
+                Layout.stationScale = refreshed.stationScale;
                 Station = OrbitBuilder.SpawnStation(db, Layout);
                 if (Station != null)
                 {
