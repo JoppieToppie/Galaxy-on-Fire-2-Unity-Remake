@@ -176,6 +176,7 @@ namespace GoF2Remake.Multiplayer
             visible.visibleDryDockHullCount = dryDockShips?.Count ?? 0;
             visible.storage = null;
             visible.donatedConstructionStock = null;
+            visible.stationBankCredits = 0;
             visible.storageLots = null;
             visible.storedShips = null;
             visible.storedShipOwners = null;
@@ -239,6 +240,7 @@ namespace GoF2Remake.Multiplayer
         public bool wreckClaimOpen;
         public bool reconstructing, destroyed, retired, stationIntegrityInitialized;
         public float stationIntegrity, stationIntegrityCapacity;
+        public long stationBankCredits;
         public int marketplaceTaxPercent;
         public List<PlayerStationMarketRule> marketplacePilotRules;
         public List<PlayerStationPlacement> placements;
