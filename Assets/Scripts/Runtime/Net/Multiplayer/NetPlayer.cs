@@ -864,6 +864,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer)
             {
+                if (InSpace && Hull == 0f && NetState.Instance != null && !NetworkManager.ShutdownInProgress)
+                    NetState.Instance.EnsureDeathPenalty(this, refresh: false);
                 station.OnValueChanged -= OnStationValueChanged;
                 place.OnValueChanged -= OnPlaceValueChanged;
             }
