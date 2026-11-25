@@ -87,6 +87,17 @@ namespace GoF2Remake.Multiplayer
         internal bool CanFundStationProjectInUi(int id) =>
             System.Array.IndexOf(stationProjectsFundable.Value.ToString().Split(','), id.ToString()) >= 0;
 
+        readonly NetworkVariable<FixedString4096Bytes> stationLedgers = new NetworkVariable<FixedString4096Bytes>(default,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal void SetStationLedgerAccess(string ids)
+        {
+            if (!IsServer) return;
+            var encoded = new FixedString4096Bytes(ids);
+            if (!stationLedgers.Value.Equals(encoded)) stationLedgers.Value = encoded;
+        }
+        internal bool CanViewStationLedgerInUi(int id) =>
+            System.Array.IndexOf(stationLedgers.Value.ToString().Split(','), id.ToString()) >= 0;
+
         internal bool CanUseStationStockInUi => AvailableStationActions.HasFlag(StationProjectActions.UseStationStock);
         internal bool CanRelinquishBuilderRightsInUi => AvailableStationActions.HasFlag(StationProjectActions.RelinquishBuilder);
 
@@ -130,7 +141,7 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> siegeRun = new NetworkVariable<bool>(false, Read, Write);   // KaamoSiege: builds the siege here
         readonly NetworkVariable<int> constructionDockProject = new NetworkVariable<int>(-1, Read, Write);
         internal int ConstructionDockProject => IsOwner && level != null && level.Docking?.IsDocked == true &&
-            level.Docking.Target?.DockingType == ObjectDocking.ConstructionSite
+            level.Layout != null && level.Docking.Target?.DockingType == ObjectDocking.ConstructionSite
             ? NetPlayerStations.StationAt(level.Layout.stationIndex)?.id ?? -1 : IsOwner ? -1 : constructionDockProject.Value;
         readonly NetworkVariable<bool> atObject = new NetworkVariable<bool>(false, Read, Write);   // docked at an object (ObjectDocking)
         readonly NetworkVariable<int> turretItem = new NetworkVariable<int>(-1, Read, Write);   // the mounted turrets (PackTurrets)
