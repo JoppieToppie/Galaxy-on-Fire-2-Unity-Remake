@@ -260,15 +260,15 @@ namespace GoF2Remake.UI
             Section("Resource buy orders");
             for (int i = 0; i < station.buyOrders.Count; i++)
             {
-                int orderIndex = i;
                 var order = station.buyOrders[i];
-                if (order == null || order.remaining <= 0) continue;
+                if (order == null || order.remaining <= 0 || order.id <= 0) continue;
+                int orderIndex = order.id;
                 string name = NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item);
                 var row = Row();
                 row.Add(Text($"{name} · {order.remaining:N0} at {order.unitPrice:N0} cr", 16, Dim));
                 string quantity = "1";
                 row.Add(Field("Units", quantity, 3, 110, value => quantity = value, TouchScreenKeyboardType.NumberPad));
-                row.Add(Btn("Sell", () => SendProjectDelivery("sell-order", station.id,
+                row.Add(Btn("Sell", () => SendProjectDelivery("sell-order-id", station.id,
                     orderIndex.ToString(), quantity), null));
                 body.Add(row);
             }
