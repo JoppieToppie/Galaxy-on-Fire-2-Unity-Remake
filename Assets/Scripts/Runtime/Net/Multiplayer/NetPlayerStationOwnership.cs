@@ -5,8 +5,8 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
-        public const long StationClaimPrice = 25_000_000;
-        public const long StationRenamePrice = 300_000;
+        public static long StationClaimPrice => Modding.ModPlayerInfrastructure.Current.StationClaimPrice;
+        public static long StationRenamePrice => Modding.ModPlayerInfrastructure.Current.StationRenamePrice;
 
         public static bool StationOfferedForClaim(int orbit) => StationAt(orbit)?.offeredForClaimUtc > 0;
 
