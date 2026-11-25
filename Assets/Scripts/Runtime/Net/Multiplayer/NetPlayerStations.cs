@@ -1023,7 +1023,8 @@ namespace GoF2Remake.Multiplayer
                 return "Sign in to a controlled player profile before building a station.";
             if (!Modding.ModPlayerInfrastructure.Current.Enabled) return "New player station projects are disabled by the active mods.";
             name = (name ?? "").Trim();
-            if (!ValidStationName(name)) return StationNameRules;
+            string nameError = StationNameError(name);
+            if (nameError != null) return nameError;
             var db = NetGame.Db;
             var system = db?.Systems?.Find(s => s != null && s.index == systemIndex);
             if (system == null || system.stations == null || system.stations.Count == 0)
@@ -1112,20 +1113,38 @@ namespace GoF2Remake.Multiplayer
             ResetWreckControl();
         }
 
-        internal const int StationNameMaxLength = 40;
-        internal const string StationNameRules =
-            "Station names must be 3–40 characters. Use letters, digits, spaces, hyphens, underscores or apostrophes.";
-
-        internal static bool ValidStationName(string name)
+        internal const int StationNameMinLength = 3, StationNameMaxLength = 40;
+        static readonly char[] StationNameSeparators = { ' ', '-', '_' };
+        static readonly HashSet<string> StationNameProfanity = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            if (name == null || name.Length < 3 || name.Length > StationNameMaxLength) return false;
+            "ass", "asshole", "assholes", "bastard", "bastards", "bitch", "bitches", "bullshit",
+            "cunt", "cunts", "damn", "dick", "dickhead", "dickheads", "fuck", "fucked", "fucker", "fuckers",
+            "fucking", "fucks", "motherfucker", "motherfuckers", "piss", "shit", "shits", "shitting",
+            "shitty", "whore", "whores"
+        };
+
+        internal static string StationNameError(string name)
+        {
+            name = (name ?? "").Trim();
+            if (name.Length < StationNameMinLength || name.Length > StationNameMaxLength)
+                return $"Station names must be {StationNameMinLength}–{StationNameMaxLength} characters.";
+
             bool hasLetterOrDigit = false;
             foreach (char c in name)
             {
                 if (char.IsLetter(c) || c is >= '0' and <= '9') hasLetterOrDigit = true;
-                else if (c is not (' ' or '-' or '_' or '\'')) return false;
+                else if (c is not (' ' or '-' or '_' or '\'')) return "Use letters, digits, spaces, hyphens, underscores or apostrophes.";
             }
-            return hasLetterOrDigit;
+            if (!hasLetterOrDigit) return "Station names must contain a letter or digit.";
+
+            foreach (string word in name.Split(StationNameSeparators, StringSplitOptions.RemoveEmptyEntries))
+            {
+                // Treat possessives and quoted words like the word itself.
+                string token = word.Trim('\'');
+                if (token.EndsWith("'s", StringComparison.OrdinalIgnoreCase)) token = token.Substring(0, token.Length - 2);
+                if (StationNameProfanity.Contains(token)) return "Choose a station name without profanity.";
+            }
+            return null;
         }
 
         sealed class RuntimeStationIdentity

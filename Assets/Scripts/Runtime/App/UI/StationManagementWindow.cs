@@ -1754,9 +1754,10 @@ namespace GoF2Remake.UI
             drafts.TryGetValue(key, out var choice) ? choice : "";
         void SendStationName(string action, string name)
         {
-            if (!NetPlayerStations.ValidStationName(name))
+            string nameError = NetPlayerStations.StationNameError(name);
+            if (nameError != null)
             {
-                feedback.text = NetPlayerStations.StationNameRules;
+                feedback.text = nameError;
                 feedbackTime = 8f;
                 return;
             }
