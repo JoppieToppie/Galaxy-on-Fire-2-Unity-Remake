@@ -86,7 +86,7 @@ namespace GoF2Remake.UI
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (!Busy && (now >= nextMaintenanceRefreshUtc || orbit != projectOrbit || actions != projectActions ||
                 (pilot?.WreckControlProgress ?? 0) != wreckControlProgress ||
-                constructionDeliveryInRange != NetPlayerStations.CanDeliverAtConstructionSite(pilot, NewConstructionInOrbit(pilot)) ||
+                constructionDeliveryInRange != NetPlayerStations.CanDeliverAtConstructionSite(pilot, NetPlayerStations.StationAt(orbit)) ||
                 !ReferenceEquals(projectSnapshot, NetState.Instance?.PlayerStations)))
                 Rebuild();
 
@@ -108,7 +108,7 @@ namespace GoF2Remake.UI
             projectActions = pilot?.AvailableStationActions ?? StationProjectActions.None;
             wreckControlProgress = pilot?.WreckControlProgress ?? 0;
             var construction = NewConstructionInOrbit(pilot);
-            constructionDeliveryInRange = NetPlayerStations.CanDeliverAtConstructionSite(pilot, construction);
+            constructionDeliveryInRange = NetPlayerStations.CanDeliverAtConstructionSite(pilot, NetPlayerStations.StationAt(pilot?.Station ?? -1));
             wreckCountdown = gateCountdown = null;
             timedClaim = null;
             nextProjectClockUtc = 0;
@@ -135,13 +135,14 @@ namespace GoF2Remake.UI
             {
                 Section("Reconstructing " + station.name);
                 BuildMaterialProgress(station.materials);
-                var row = ProjectDeliveryFields(station.materials, wreckMaterial, wreckAmount, value => wreckMaterial = value, value => wreckAmount = value);
+                if (!constructionDeliveryInRange) body.Add(Text("Fly within 5 km of the reconstruction site to deliver materials.", 16, Dim));
+                var row = constructionDeliveryInRange ? ProjectDeliveryFields(station.materials, wreckMaterial, wreckAmount, value => wreckMaterial = value, value => wreckAmount = value) : null;
                 if (row != null)
                 {
                     row.Add(Btn("Deliver cargo", () => SendProjectDelivery("contribute", station.id, wreckMaterial, wreckAmount), null));
                     body.Add(row);
                 }
-                BuildReconstructionOrders(station);
+                if (constructionDeliveryInRange) BuildReconstructionOrders(station);
             }
 
             else if (construction != null)
@@ -151,15 +152,15 @@ namespace GoF2Remake.UI
                 body.Add(Text(constructionDeliveryInRange
                     ? "Construction site in range. Deliver the requested cargo here."
                     : "Fly within 5 km of the construction site marker to deliver cargo.", 16, Dim));
-                var row = ProjectDeliveryFields(construction.materials, wreckMaterial, wreckAmount,
-                    value => wreckMaterial = value, value => wreckAmount = value);
+                var row = constructionDeliveryInRange ? ProjectDeliveryFields(construction.materials, wreckMaterial, wreckAmount,
+                    value => wreckMaterial = value, value => wreckAmount = value) : null;
                 if (row != null)
                 {
                     var deliver = Btn("Deliver cargo", () => SendProjectDelivery("contribute", construction.id, wreckMaterial, wreckAmount), null);
-                    deliver.SetEnabled(constructionDeliveryInRange);
                     row.Add(deliver);
                     body.Add(row);
                 }
+                if (constructionDeliveryInRange) BuildReconstructionOrders(construction);
             }
 
             if (gate?.building == true)
@@ -256,7 +257,7 @@ namespace GoF2Remake.UI
         void BuildReconstructionOrders(PlayerStationRecord station)
         {
             if (station.buyOrders == null || station.buyOrders.Count == 0) return;
-            Section("Reconstruction buy orders");
+            Section("Resource buy orders");
             for (int i = 0; i < station.buyOrders.Count; i++)
             {
                 int orderIndex = i;
@@ -265,8 +266,10 @@ namespace GoF2Remake.UI
                 string name = NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item);
                 var row = Row();
                 row.Add(Text($"{name} · {order.remaining:N0} at {order.unitPrice:N0} cr", 16, Dim));
-                row.Add(Btn("Sell entered quantity", () => SendProjectDelivery("sell-order", station.id,
-                    orderIndex.ToString(), wreckAmount), null));
+                string quantity = "1";
+                row.Add(Field("Units", quantity, 3, 110, value => quantity = value, TouchScreenKeyboardType.NumberPad));
+                row.Add(Btn("Sell", () => SendProjectDelivery("sell-order", station.id,
+                    orderIndex.ToString(), quantity), null));
                 body.Add(row);
             }
         }
