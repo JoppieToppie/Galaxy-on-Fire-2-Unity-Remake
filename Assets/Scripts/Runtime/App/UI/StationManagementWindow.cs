@@ -498,14 +498,15 @@ namespace GoF2Remake.UI
             switch (managementPage)
             {
                 case "news":
-                    AddSection("STATION NEWS", "Recent announcements from the owning faction.");
+                    AddSection("LOCAL STATION NEWS", "Announcements published by the station authority. Visible at this station.");
                     var announcements = NetNews.StationAnnouncements(selected.stationIndex);
                     if (announcements.Count == 0) AddInfo("Announcements", "No recent announcements.");
                     foreach (string announcement in announcements) AddInfo("Announcement", announcement);
                     if (managementCatalogue?.canAnnounce == true)
                     {
                         AddField("stationAnnouncement", "New announcement", "");
-                        AddAction("Publish to station news", () => Send(("/station announce " + id + " " + Value("stationAnnouncement")).TrimEnd()));
+                        AddAction("Publish to station news", () => Send("/station announce " + id + " " + Value("stationAnnouncement")));
+                        BuildOfficialStationBroadcast(id);
                     }
                     break;
                 case "ownership":
@@ -2014,6 +2015,59 @@ namespace GoF2Remake.UI
             row.Add(Control("Max", () => Set(max)));
             body.Add(row);
             body.Add(picker);
+        }
+
+        void BuildOfficialStationBroadcast(string id)
+        {
+            AddSection("GALACTIC NEWS BROADCAST", "Official announcements appear on the existing GalNet ticker galaxy-wide. Your station shares one five-minute cooldown.");
+            const string key = "stationBroadcast";
+            var composer = new VisualElement();
+            composer.AddToClassList("player-station-composer");
+            var field = new TextField("Announcement") { maxLength = NetNews.OfficialMessageLimit, multiline = true, value = drafts.TryGetValue(key, out var draft) ? draft : "" };
+            field.AddToClassList("player-station-field");
+            field.style.minHeight = 80;
+            composer.Add(field);
+            var counter = new Label();
+            counter.AddToClassList("player-station-note");
+            composer.Add(counter);
+            var preview = new Label();
+            preview.enableRichText = false;
+            preview.AddToClassList("player-station-preview");
+            composer.Add(preview);
+            var cooldown = new Label();
+            cooldown.AddToClassList("player-station-note");
+            composer.Add(cooldown);
+            bool pending = false;
+            var publish = new Button(() =>
+            {
+                string message = System.Text.RegularExpressions.Regex.Replace(field.value.Trim(), @"\s+", " ");
+                if (message.Length == 0 || pending) return;
+                pending = Dispatch("/station broadcast " + id + " " + message, result =>
+                {
+                    pending = false;
+                    if (result == "Official broadcast published to GalNet.")
+                    {
+                        drafts.Remove(key);
+                        field.SetValueWithoutNotify("");
+                        if (managementCatalogue != null) managementCatalogue.stationBroadcastReadyUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + NetNews.OfficialCooldownSeconds;
+                    }
+                });
+            }) { text = "PUBLISH GALNET BROADCAST" };
+            publish.AddToClassList("player-station-action");
+            composer.Add(publish);
+            void UpdateComposer()
+            {
+                string message = field.value ?? "";
+                counter.text = $"{message.Length} / {NetNews.OfficialMessageLimit} characters";
+                preview.text = "[" + selected?.name + "] " + message;
+                long remaining = Math.Max(0L, (managementCatalogue?.stationBroadcastReadyUtc ?? 0L) - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                cooldown.text = remaining > 0 ? $"Station cooldown: {remaining / 60:00}:{remaining % 60:00}" : "Station broadcast available";
+                publish.SetEnabled(!pending && remaining == 0 && !string.IsNullOrWhiteSpace(message) && managementCatalogue?.canAnnounce == true);
+            }
+            field.RegisterValueChangedCallback(change => { drafts[key] = change.newValue; UpdateComposer(); });
+            body.Add(composer);
+            UpdateComposer();
+            composer.schedule.Execute(UpdateComposer).Every(1000);
         }
 
         void AddField(string key, string label, string initial)
