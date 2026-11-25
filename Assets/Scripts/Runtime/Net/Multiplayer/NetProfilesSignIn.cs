@@ -334,6 +334,15 @@ namespace GoF2Remake.Multiplayer
                 Reject(login, problem);
                 return;
             }
+            // Settle the server-observed death before reading the canonical profile.
+            // Settlement can replace the profile and invalidate the upload revision.
+            var pilot = NetSquad.Find(client);
+            if (pilot != null && pilot.HasRecordedDeath && pilot.RecordedDeathRequiresPenalty &&
+                NetState.Instance?.EnsureDeathPenalty(pilot, refresh: false) != true)
+            {
+                Reject(login, "your recorded death has not been settled");
+                return;
+            }
             // A stale upload must not resurrect the pre-death loadout, even if it was
             // assembled after receipt of the new economy revision.
             var prior = ReadSave(account.id);
@@ -342,13 +351,6 @@ namespace GoF2Remake.Multiplayer
             {
                 Reject(login, "your profile has not acknowledged the latest death recovery");
                 if (!IsHostClient(client)) RefreshProfile(client);
-                return;
-            }
-            var pilot = NetSquad.Find(client);
-            if (pilot != null && pilot.HasRecordedDeath && pilot.RecordedDeathRequiresPenalty &&
-                NetState.Instance?.EnsureDeathPenalty(pilot, refresh: false) != true)
-            {
-                Reject(login, "your recorded death has not been settled");
                 return;
             }
             // Recovery records belong to the server, not to the uploading client.
