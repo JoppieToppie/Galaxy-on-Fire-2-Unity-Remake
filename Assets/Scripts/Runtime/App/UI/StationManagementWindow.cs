@@ -738,7 +738,7 @@ namespace GoF2Remake.UI
                 pages.Add(("bank", "Station bank"));
                 if (managementCatalogue?.canManageMarket == true || managementCatalogue?.canSecurity == true)
                     pages.Add(("market", "Marketplace policy"));
-                if (HasModule("hangar")) pages.Add(("hangar", "Hangar"));
+                pages.Add(("hangar", "Hangar"));
                 if (HasModule("drydock")) pages.Add(("drydock", "Dry dock"));
                 if (managementCatalogue?.canManage == true)
                 {
@@ -928,21 +928,15 @@ namespace GoF2Remake.UI
             var db = NetGame.Db;
             var station = selected;
             int firstControl = body.contentContainer.childCount;
-            var types = new List<(string, string)> { ("orbital", "Orbital defense"), ("factory", "Factory"), ("refinery", "Refinery"), ("drydock", "Dry dock") };
+            var types = new List<(string, string)>();
+            for (int i = 1; i <= Modding.ModPlayerInfrastructure.Current.OrbitalDefenseLimit; i++) types.Add(("defense-" + i, "Defense " + i));
+            types.AddRange(new[] { ("factory", "Factory"), ("refinery", "Refinery"), ("drydock", "Dry dock") });
             for (int i = 1; i <= 4; i++) types.Add(("dockarm-" + i, "Docking arm " + i));
             AddChoice("placementType", "Project", types, _ => drafts.Remove("placementPreset"));
             string kind = Value("placementType");
-            bool orbital = kind == "orbital";
+            bool orbital = NetPlayerStations.TryDefenseSlot(kind, out int defenseSlot);
             var system = db.Systems.Find(entry => entry.index == station.system);
             int previewOrbit = station.stationIndex;
-            if (orbital && system?.stations != null)
-            {
-                var orbits = db.Stations.Where(entry => entry != null && system.stations.Contains(entry.index))
-                    .OrderBy(entry => entry.index != station.stationIndex).ThenBy(entry => entry.name)
-                    .Select(entry => (entry.index.ToString(), entry.name)).ToList();
-                AddChoice("placementOrbit", "Target orbit", orbits);
-                if (int.TryParse(Value("placementOrbit"), out int chosen)) previewOrbit = chosen;
-            }
             placementOrbit = previewOrbit;
             placementSnapshot = PlacementSnapshotOf(station, previewOrbit);
             var layout = OrbitLayout.Build(db, previewOrbit);
@@ -954,6 +948,8 @@ namespace GoF2Remake.UI
                 settings.OrbitalDefenseLimit > 0) :
                 NetPlayerStations.ModuleExteriorChoices(station, kind)).ToList();
             var existing = station.placements?.Find(entry => entry?.kind == kind);
+            var builtDefense = orbital ? NetPlayerStations.OrbitalStructures?.FirstOrDefault(entry => entry != null && entry.orbit == previewOrbit && entry.defense && entry.slot == defenseSlot) : null;
+            if (builtDefense != null) { AddInfo("Defense " + (defenseSlot + 1), builtDefense.name + " · " + (builtDefense.operational ? "Operational" : "Construction ordered")); AddInfo("Placement", "Fixed once construction is ordered."); return; }
             if (!drafts.ContainsKey("placementPreset") && existing != null) drafts["placementPreset"] = existing.preset;
             AddChoice("placementPreset", "Exterior model", presets.Select(preset => (preset.Id, preset.Name)).ToList());
             var preset = presets.Find(value => value.Id == Value("placementPreset"));
@@ -964,11 +960,22 @@ namespace GoF2Remake.UI
             bool hasDraft = placementDrafts.TryGetValue(draftKey, out Vector3Int position);
             if (!hasDraft)
                 position = existing != null ? new Vector3Int(existing.x, existing.y, existing.z) :
-                    new Vector3Int(0, 0, orbital ? 8000 : Mathf.Clamp(Mathf.RoundToInt(layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale), 300, 9000));
+                    (orbital ? Vector3Int.RoundToInt(Quaternion.Euler(0, defenseSlot * 360f / Math.Max(1, settings.OrbitalDefenseLimit), 0) * new Vector3(0, 0, 8000)) : new Vector3Int(0, 0, Mathf.Clamp(Mathf.RoundToInt(layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale), 300, 9000)));
 
             Vector3Int Absolute(Vector3Int point) => Vector3Int.RoundToInt(stationPosition) + point;
-            string PlacementError(Vector3Int point) =>
-                NetPlayerStations.OrbitalPlacementError(previewOrbit, layout, Absolute(point), preset.HitRadius);
+            string PlacementError(Vector3Int point)
+            {
+                var error = NetPlayerStations.OrbitalPlacementError(previewOrbit, layout, Absolute(point), preset.HitRadius);
+                if (error != null) return error;
+                foreach (var other in station.placements ?? new List<PlayerStationPlacement>())
+                {
+                    if (other == null || other.kind == kind || !NetPlayerStations.TryDefenseSlot(other.kind, out _)) continue;
+                    var otherPreset = settings.OrbitalStructures.FirstOrDefault(p => p.Defense && p.Id == other.preset);
+                    float separation = Math.Max(200f, preset.HitRadius + (otherPreset?.HitRadius ?? 0f));
+                    if ((new Vector3(other.x, other.y, other.z) - point).sqrMagnitude < separation * separation) return "Overlaps " + other.kind;
+                }
+                return null;
+            }
 
             bool TryNextClearPosition(Vector3Int start, out Vector3Int next)
             {
@@ -997,7 +1004,7 @@ namespace GoF2Remake.UI
 
             var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
             AddSection("ORBIT PLACEMENT", orbital
-                ? "Confirm each position to reserve a construction slot without delivering materials. Amber markers show reserved positions, including unbuilt projects. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
+                ? "Save each numbered defense position before ordering construction. Amber markers show saved positions and existing projects. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
                 : "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap.");
             var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
             var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
@@ -1110,7 +1117,7 @@ namespace GoF2Remake.UI
             CameraPreset("Perspective", 29f, 34f);
             CameraPreset("Top", 89f, 0f);
             CameraPreset("Side", 0f, 90f);
-            var orderButton = new Button { text = orbital ? (preset.Defense ? "CONFIRM DEFENSE PLACEMENT" : "CONFIRM STRUCTURE PLACEMENT") : "Save planned position" };
+            var orderButton = new Button { text = "Save planned placement" };
             void AddPlacementControl(Button button)
             {
                 StyleChoice(button, false);
@@ -1127,9 +1134,8 @@ namespace GoF2Remake.UI
                 coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
                 if (!orbital) return;
                 string error = PlacementError(position);
-                placementStatus.text = placementAwaitingSnapshot ? "Placement saved. Synchronizing reserved slots…" : slotsTaken >= slotLimit ? "All slots of this type are reserved." :
-                    error ?? "Position clear. Confirm to reserve; materials can be delivered later.";
-                orderButton.SetEnabled(error == null && slotsTaken < slotLimit && !placementOrderPending);
+                placementStatus.text = placementAwaitingSnapshot ? "Placement saved. Synchronizing reserved slots…" : error ?? "Position clear. Save this plan without ordering construction.";
+                orderButton.SetEnabled(error == null && !placementOrderPending);
             }
             if (orbital)
                 AddPlacementControl(new Button(() =>
@@ -1149,9 +1155,9 @@ namespace GoF2Remake.UI
             AddPlacementControl(orderButton);
             orderButton.clicked += () =>
             {
-                if (orbital && (placementOrderPending || slotsTaken >= slotLimit || PlacementError(position) != null)) return;
-                Vector3Int point = orbital ? Absolute(position) : position;
-                string command = orbital ? $"/station orbital-place {station.id} {previewOrbit}" : $"/station place {station.id} {kind}";
+                if (orbital && (placementOrderPending || PlacementError(position) != null)) return;
+                Vector3Int point = position;
+                string command = $"/station place {station.id} {kind}";
                 string request = $"{command} {point.x} {point.y} {point.z} {preset.Id}";
                 if (!orbital) { Send(request); return; }
                 int version = ++placementRequestVersion;
@@ -1163,7 +1169,7 @@ namespace GoF2Remake.UI
                 if (!Dispatch(request, result =>
                 {
                     if (version != placementRequestVersion) return;
-                    bool accepted = result?.StartsWith("Started ", StringComparison.Ordinal) == true;
+                    bool accepted = result?.EndsWith("planned placement saved.", StringComparison.Ordinal) == true;
                     // The reply and replicated registry may arrive in either order. Do not allow
                     // another confirmation against stale slots or stale collision geometry.
                     var live = NetPlayerStations.StationAt(CurrentOrbit);
@@ -1288,6 +1294,13 @@ namespace GoF2Remake.UI
                     AddAction("Order orbital construction", () =>
                         Send("/station orbital-build " + id + " " + Value("structureOrbit") + " " + Value("orbitalPreset")));
             }
+            foreach (var plan in selected.placements ?? new List<PlayerStationPlacement>())
+            {
+                if (plan == null || !NetPlayerStations.TryDefenseSlot(plan.kind, out int slot)) continue;
+                if (NetPlayerStations.OrbitalStructures?.Any(p => p != null && p.orbit == selected.stationIndex && p.defense && p.slot == slot) == true) continue;
+                AddInfo("Defense " + (slot + 1), "Planned · " + plan.preset);
+                if (settings.Enabled) AddAction("Order Defense " + (slot + 1) + " construction", "/station defense-build " + id + " " + (slot + 1));
+            }
             if (NetPlayerStations.OrbitalStructures == null) return;
             foreach (var structure in NetPlayerStations.OrbitalStructures)
             {
@@ -1340,6 +1353,7 @@ namespace GoF2Remake.UI
                     break;
                 case "hangar":
                     AddSection("SHIP HANGAR", "Store small and medium bare hulls. Removable equipment and cargo move into station storage.");
+                    AddInfo("Hull capacity", NetPlayerStations.ShipHangarCapacity(selected).ToString());
                     AddCatalogueChoice("fleetIndex", "Your personal fleet", "smallFleet");
                     if (!string.IsNullOrEmpty(Value("fleetIndex"))) AddAction("Store selected hull", () => Send("/station store-ship " + id + " " + Value("fleetIndex")));
                     AddCatalogueChoice("hangarIndex", "Your hulls stored here", "hangar");
