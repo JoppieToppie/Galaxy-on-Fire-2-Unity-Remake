@@ -147,6 +147,7 @@ namespace GoF2Remake.Flight
             Target = target;
             if (takenPoint >= 0) { takenObject = target.transform; SpacePoints.Take(takenObject, takenPoint); }
             State = Phase.Approach;
+            circleMs = 0f;
             weapons?.ResetGunDelay();   // PlayerEgo::approachDockingPoint
             phaseMs = 0f;
             ship.SetThrottle(1f);
@@ -437,6 +438,7 @@ namespace GoF2Remake.Flight
         void Release()
         {
             State = Phase.Idle;
+            PlayerDocked = false;
             Target = null;
             FreePoint();
             Hacking = null;
