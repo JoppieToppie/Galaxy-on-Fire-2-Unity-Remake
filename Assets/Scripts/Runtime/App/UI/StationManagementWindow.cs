@@ -383,7 +383,7 @@ namespace GoF2Remake.UI
                         AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
                     else AddInfo("Delivery", "Dock at this construction site to deliver materials.");
                     if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
-                    AddAction("View construction contribution ledger", "/station contributions " + selected.id);
+                        AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                     AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
                 }
@@ -396,6 +396,12 @@ namespace GoF2Remake.UI
                     : "Deposits are personal contributions. Individually owned stations do not draw from faction funds.");
                 if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
                     AddAction("View construction contribution ledger", "/station contributions " + selected.id);
+                if (inFlight || CurrentOrbit != selected.stationIndex)
+                {
+                    AddInfo("Facilities", "Dock at this station to manage or use its facilities.");
+                    if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
+                    return;
+                }
                 AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
                 AddChoice("transferKind", "Transfer recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Pilot’s faction") });
                 AddAccountField("transferAccount", "Recipient pilot");
