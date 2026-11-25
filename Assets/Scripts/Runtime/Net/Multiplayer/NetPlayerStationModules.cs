@@ -220,7 +220,7 @@ namespace GoF2Remake.Multiplayer
             return "The module installation could not be saved. Your stored goods were kept.";
         }
 
-        internal static readonly string[] PlacementKinds = { "refinery", "drydock", "dockarm-1", "dockarm-2", "dockarm-3", "dockarm-4" };
+        internal static readonly string[] PlacementKinds = { "refinery", "drydock", "dockarm-1", "dockarm-2", "dockarm-3", "dockarm-4", "factory" };
 
         static readonly ModPlayerInfrastructure.OrbitalDefinition[] ModuleExteriorDefaults =
         {
@@ -229,14 +229,16 @@ namespace GoF2Remake.Multiplayer
             new ModPlayerInfrastructure.OrbitalDefinition { Id = "builtin:drydock", Name = "Dry dock exterior",
                 Assembly = "station_068_terran", ModelScale = .35f, HitRadius = 650f },
             new ModPlayerInfrastructure.OrbitalDefinition { Id = "builtin:dockarm", Name = "Docking arm exterior",
-                Assembly = "container_003_terran", ModelScale = 1f, HitRadius = 100f }
+                Assembly = "container_003_terran", ModelScale = 1f, HitRadius = 100f },
+            new ModPlayerInfrastructure.OrbitalDefinition { Id = "builtin:factory", Name = "Factory exterior",
+                Assembly = "station_055_terran", ModelScale = .25f, HitRadius = 400f }
         };
 
         internal static IEnumerable<ModPlayerInfrastructure.OrbitalDefinition> ModuleExteriorChoices(PlayerStationRecord station, string kind)
         {
             int key = Array.IndexOf(PlacementKinds, kind);
             if (key < 0) yield break;
-            var stock = ModuleExteriorDefaults[Math.Min(key, 2)];
+            var stock = ModuleExteriorDefaults[kind == "factory" ? 3 : Math.Min(key, 2)];
             if (NetGame.Db?.AssemblyByName(stock.Assembly) != null) yield return stock;
             int race = OrbitalSponsorRace(station);
             foreach (var preset in ModPlayerInfrastructure.Current.OrbitalStructures)
@@ -253,7 +255,7 @@ namespace GoF2Remake.Multiplayer
             if (!CanManageConstruction(pilot, station, out _) || station.underConstruction)
                 return "Dock at the operational station with construction authority.";
             int key = Array.IndexOf(PlacementKinds, kind);
-            if (key < 0) return "Choose a refinery, dry dock or docking arm.";
+            if (key < 0) return "Choose a refinery, factory, dry dock or docking arm.";
             var offset = new Vector3(x, y, z);
             if (offset.sqrMagnitude < 1f || offset.sqrMagnitude > 12000f * 12000f)
                 return "Choose a placement within 12 km of the station.";
@@ -262,7 +264,7 @@ namespace GoF2Remake.Multiplayer
                 return "Choose an exterior model available to this station.";
             var previous = station.placements;
             var updated = previous == null ? new List<PlayerStationPlacement>() : new List<PlayerStationPlacement>(previous);
-            string module = key >= 2 ? "dockarm" : kind;
+            string module = kind.StartsWith("dockarm-", StringComparison.Ordinal) ? "dockarm" : kind;
             if (updated.Exists(entry => entry?.kind == kind) &&
                 station.addons?.Exists(addon => addon != null && addon.kind == module && addon.level > 0) == true)
                 return "That installed structure already has a fixed position.";
@@ -285,7 +287,7 @@ namespace GoF2Remake.Multiplayer
             {
                 int key = Array.IndexOf(PlacementKinds, placement?.kind);
                 if (key < 0) continue;
-                string module = key >= 2 ? "dockarm" : placement.kind;
+                string module = placement.kind.StartsWith("dockarm-", StringComparison.Ordinal) ? "dockarm" : placement.kind;
                 if (station.addons?.Exists(addon => addon != null && addon.level > 0 && addon.kind == module) != true) continue;
                 var preset = SavedModuleExterior(placement.preset);
                 if (preset == null) continue;
