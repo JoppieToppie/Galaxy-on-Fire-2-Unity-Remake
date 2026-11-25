@@ -429,6 +429,7 @@ namespace GoF2Remake.Multiplayer
                     if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
                 }
             }
+            victim.RecordDeathRespawn(victim.Station);
             EnsureDeathPenalty(victim);
         }
 
@@ -436,7 +437,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer || victim == null || victim.Hull != 0f) return false;
             if (NetArena.InMatch(victim.OwnerClientId) ||
-                !NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId)) return true;
+                !NetFactions.DropsEquipmentOnDeath(victim.DeathOrigin, victim.IsPirate, victim.OwnerClientId)) return true;
             ulong id = victim.NetworkObjectId;
             if (attemptedBountyDrops.Contains(id)) return true;
             if (!witnessedLiveFlight.Contains(id) && !victim.HasCurrentWreckClaimPose) return false;
