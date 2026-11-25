@@ -12,9 +12,7 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   1-2 raiders: Easy / Normal) and "> 0.7" (Escort / Intercept freighters ×1.4: Hard / Extreme); the cloak cooldown 5000 /
   7000 / 9000 / 12000 ms; Loma's toll 2 / 5 / 10 / 20 %. `Session.IsExtreme` (`Status::hardCoreMode`, == 1.5) keeps the
   Extreme-only rules (economy, stock, mining, standing, energy cells, hit cube 650, medals, fines, self-damage). The save
-  slot rows show the difficulty. Remake: the pause and station menus' Options > Gameplay has a Difficulty row
-  (`OptionDef.inGameOnly`, not in the main menu or multiplayer) that changes the game in progress; spawns and the
-  Extreme rules follow from the next orbit or docking.
+  slot rows show the difficulty selected when starting the save.
 - **Save games** (`SaveGame`, the original's RecordHandler slots; v12 records the mods, see "Mods"): one JSON file per
   slot in `Application.persistentDataPath/Saves` (remake format, `SaveData`, versioned); slot 0 = auto-save on docking
   (`ModStation::autosave`), 1..11 manual. Only saved while docked, so loading opens the Station scene. The main menu's
@@ -110,18 +108,16 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `SaveFolderTests` (a sandbox folder as the other device; `SaveFolder.TestTarget` / `StoreOverride`, never the player's
   choice while `GamePaths.Override` is set). Verified in the Editor (Windows); not yet run on Android, iOS, UWP, Linux or
   macOS.
-- **Hardcore** (remake, permadeath; the new game's toggle in the Game options panel after the economy
-  (`MainMenu.PickEconomy` -> `gameOptionsPanel`: the Kaamo Club, Hardcore, Tutorials, then Start game, amber like the
-  station's Launch (`.choice-button--start`), with the difficulty and economy picked), `MainMenu.hardcoreNext`, off
-  whenever a difficulty is picked; not the original's "hardcore mode", which is Extreme): `Session.Hardcore` with
-  `Session.RunId` (a new id at every new game; save v15 `hardcore` / `runId`); it saves only to the auto-save
-  (`SaveGame.Save` refuses other slots, the station hides Save game); the player's death (`FlightHud.OnGameOver`, not in
-  sessions or with an event's respawn point) deletes every slot of the run at once (`SaveGame.DeleteRun`: closing the
-  game on the death screen keeps nothing) and Tap returns to the main menu; mission and quest failures still reload the
-  auto-save; the slot rows say HARDCORE. Below it **Medals** (On / Off, `MainMenu.noMedalsNext`, on whenever a
-  difficulty is picked): off starts a game without medals (`Session.NoMedals`, save v18 `noMedals`, older saves have
-  medals; the slot rows say NO MEDALS), the VoidX and the Specter / fireworks then come with the story; see
-  docs/notes/bar-and-freelance.md "A game without medals".
+- **Hardcore** is selected below difficulty, alongside Tutorials. Both default off. The save records the
+  Hardcore flag and run ID. Hardcore allows only the docking auto-save, and death deletes that run's saves
+  unless a respawn rule applies. Medals are selected in Game Options and default on. A save without medals
+  shows “No medals” after the economy, separated by a comma.
+- **Campaign rules**: each new save records its Kaamo upgrade limit and VIP rule, plus a bit mask for
+  Tutorials, Blueprint Autocomplete, Cloak Bay and the four independent Remake Options. An older save
+  without that mask imports the former local preferences when loaded and records them on its next save.
+  Old slots without Kaamo rule fields also import the former stacking limit and VIP purchase availability.
+  The retired Always on setting becomes Buy at the club. Purchased cards and fitted upgrades remain saved.
+  Settings presets and resets leave these save values intact.
 - **New Game+** (remake, GitHub #4, `NewGamePlus`): with a finished game in the slots (main game past 44, Valkyrie past
   83, Supernova at 162; the newest one) the campaign panel shows a "New Game+" toggle (off each time it opens). Turned
   on, the new game (after the campaign's first step) gets the old credits added, the unlocked blueprints and the medals

@@ -10,10 +10,6 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Enabling Debug uses its own confirmation. Opening an already-enabled Debug page in the main menu, station or
   flight never asks to expand Game Rules, grants rule-editing consent or changes the experience profile.
 
-- **Game Rules access** (issue #311): Expand/Custom has its own app-session consent. Debug tools belongs to the
-  always-visible Tools section and uses a separate Enable/Cancel confirmation when enabled. Debug entry points
-  never grant or request Game Rules consent.
-
 - **Debug sizing** (remake): the main menu's Debug panel is 88 % of the screen high with the mission list and the cheats
   (a ScrollView following the focus) filling it; the pause menu's Debug page scrolls its rows (`.debug-scroll`, as tall
   as them, shrunk to the panel) with the selection kept in view; the station's Debug page is as tall as its 570 px list,

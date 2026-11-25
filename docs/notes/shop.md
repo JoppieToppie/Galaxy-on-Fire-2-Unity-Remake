@@ -177,19 +177,15 @@ ship trade); the UI is `HangarWindow` (tabs Ship / Shop in `UI/Station`, styles 
   handling +0.2, kept with the hull (`Session.ShipMods`). Remake (players' suggestion): a hull's mods show as lines
   under its description, "Kaamo Club armor upgrade applied (+40)" etc. (`ItemInfo.FillModLines`: the hangar's own /
   dealer / stored ship, the carrier's repair page, the item window), and the hangar's stat rows include them with "(+)"
-  (`ItemInfo.ShipStats(..., mods)`). **Stacking** (remake, Options > Gameplay "Stackable Kaamo Club upgrades",
-  `Settings.KaamoStacking`, on by default): the mechanics fit their mod again up to the upgrade limit
-  (`Session.MaxModLevel` = Options > Gameplay "Kaamo Club upgrade limit", `Settings.KaamoMaxLevel`, 2..20, default 5; 10
-  until 2026-10-16, after players' feedback that uncapped they reached 45 equipment slots on a Cronus; its row only
-  while stacking is on; a session rule: the host's option, a dedicated server's `-kaamomaxlevel N` / `/set kaamomaxlevel`,
-  carried beside the rule bits as `NetRules.HostKaamoLevel` / `NetState.KaamoLevel`; a server with profiles cuts
-  profiles back to it, `NetProfiles.ClampMods`; levels fitted before a lower limit stay in single player; at the top the
-  mechanic says so, `kaamoModMaxed`), a level = how many times it is in `Session.ShipMods` (`Session.ModLevel`; every
+  (`ItemInfo.ShipStats(..., mods)`). **Kaamo Club Upgrades** is selected in Game Options and stored in the save.
+  Level 1 is the original default: one upgrade of each type per ship. Levels 2–5 permit stacking, and Off
+  disables bonuses and upgrade dealers as well as VIP. Multiplayer uses its server rule and upgrade limit
+  (`-kaamomaxlevel N` / `/set kaamomaxlevel`). A level is how many times the upgrade appears in `Session.ShipMods` (`Session.ModLevel`; every
   effect is per level: hull, cargo, slots, `BuildFlightStats`' handling upgrades), the price x2 per level fitted
   (`LoungeChat.ModPrice`, capped at the 64-bit top; a ship without a price, the Cronus (37, Khador's gift at step 77), is
   valued at 2 500 000 between its sister ships the Typhon and the Nemesis, `UnpricedShipValue`; in multiplayer the
   Cronus itself costs 1 150 000, `Database.CronusSessionPrice`: its upgrades cost 0 at every level; the offer adds
-  "(Upgrade level N.)"), the lines show the total and "level N"; off = the original's one of each
+  "(Upgrade level N.)"), the lines show the total and "level N"
   (`LoungeChat.ModForSale`), levels already fitted stay. The list format is unchanged, so saves, traded-in / stored
   hulls and presets carry the levels. A traded-in hull keeps them in the dealer row that takes it
   (`StationStock.shipMods`, by ship index; `HangarWindow::OnTouchEnd` 0x176d94 adds the old ship's mods to that row and
