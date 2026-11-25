@@ -428,8 +428,11 @@ namespace GoF2Remake.Multiplayer
                 string[] words = args.Substring(jumpgateBlacklist.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (words.Length < 4 || !int.TryParse(words[0], out int blacklistOrbit))
                     return "/station jumpgate-blacklist <orbit station index> add|remove player|faction <account or faction id>";
-                return NetPlayerStations.SetJumpgateBlacklist(by as NetPlayer, blacklistOrbit,
-                    words[1], words[2], string.Join(" ", words, 3, words.Length - 3));
+                string targetAndReason = string.Join(" ", words, 3, words.Length - 3);
+                int separator = targetAndReason.IndexOf(" | ", StringComparison.Ordinal);
+                string target = separator < 0 ? targetAndReason : targetAndReason.Substring(0, separator);
+                string reason = separator < 0 ? null : targetAndReason.Substring(separator + 3);
+                return NetPlayerStations.SetJumpgateBlacklist(by as NetPlayer, blacklistOrbit, words[1], words[2], target, reason);
             }
             const string jumpgateDestination = "jumpgate-destination ";
             if (args.StartsWith(jumpgateDestination, StringComparison.OrdinalIgnoreCase))
