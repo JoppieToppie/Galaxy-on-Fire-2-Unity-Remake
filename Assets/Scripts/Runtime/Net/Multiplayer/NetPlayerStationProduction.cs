@@ -302,6 +302,13 @@ namespace GoF2Remake.Multiplayer
             { 162, 173 }, { 163, 174 }, { 164, 175 }, { 217, 218 },
         };
 
+        internal static HashSet<int> RefinableOreItems()
+        {
+            var result = new HashSet<int>();
+            for (int i = 0; i < RefineryRecipes.GetLength(0); i++) result.Add(RefineryRecipes[i, 0]);
+            return result;
+        }
+
         sealed class FactoryRecipe
         {
             public int id, output, outputAmount;
