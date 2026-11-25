@@ -29,9 +29,13 @@ namespace GoF2Remake.Flight
         {
             if (target == null || !target.isAsteroid) return;
             // The asteroid hit cube extends to its diagonal, not just its face.
-            maxRadius = Mathf.Max(maxRadius, Mathf.Max(0f, target.radius) * 1.7320508f);
-            if (memberships.ContainsKey(target)) return;
+            maxRadius = Mathf.Max(maxRadius, Reach(target));
             long key = Key(target.transform.position);
+            if (memberships.TryGetValue(target, out long previous))
+            {
+                if (previous == key) return;
+                Unregister(target);
+            }
             if (!cells.TryGetValue(key, out var cell))
             {
                 cell = new List<Target>(4);
@@ -69,12 +73,25 @@ namespace GoF2Remake.Flight
                         {
                             var asteroid = cell[i];
                             if (asteroid == null || !asteroid.isActiveAndEnabled || !asteroid.Alive) continue;
-                            float r = Mathf.Max(0f, asteroid.radius) * 1.7320508f;
+                            float r = Reach(asteroid);
                             float limit = Mathf.Max(0f, reach) + Margin + r;
                             if ((asteroid.transform.position - centre).sqrMagnitude <= limit * limit)
                                 into.Add(asteroid);
                         }
                     }
+        }
+
+        static float Reach(Target asteroid)
+        {
+            if (asteroid.boxes == null || asteroid.boxes.Length == 0)
+                return Mathf.Max(0f, asteroid.radius) * 1.7320508f;
+            var scale = asteroid.transform.lossyScale;
+            scale = new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
+            float result = 0f;
+            foreach (var box in asteroid.boxes)
+                result = Mathf.Max(result, Vector3.Scale(box.center, scale).magnitude +
+                    Vector3.Scale(box.extents, scale).magnitude);
+            return result;
         }
 
         static int Cell(float value) => Mathf.FloorToInt(value / CellSize);
