@@ -289,17 +289,17 @@ namespace GoF2Remake.World
             if (names == null || names.Count == 0 || player == null || Session.CampaignMission == 158) return;
             // Level::createWingmen: not in the supernova system (27) either, before campaign 0x9e.
             if (!Session.FreePlay && Session.CampaignMission < 0x9e && (db.Stations.Find(s => s.index == StationIndex)?.system ?? -1) == 27) return;
-            int race = Session.WingmanRace;
             float[] right = { -1000f, 2000f, 0f };
-            for (int i = 0; i < Mathf.Min(3, names.Count); i++)
+            for (int i = 0; i < Mathf.Min(Modding.ModWingmen.MaxTotal, names.Count); i++)
             {
+                int race = i < Session.WingmanRaces.Count ? Session.WingmanRaces[i] : Session.WingmanRace;
                 var state = UnityEngine.Random.state;
                 UnityEngine.Random.InitState(5 * names[i].Length);
                 int ship = NpcTables.RandomFighter(race <= 3 || Modding.ModRaces.Is(race) ? race : Standing.Pirate);   // races 4-7: the pirate pool
                 UnityEngine.Random.state = state;
                 // remake mods (wingmen.json): a mod crew flies its own ships (one no longer there: the game's way)
                 if (i < Session.WingmanShips.Count && Session.WingmanShips[i] >= 0 && db.Ship(Session.WingmanShips[i]) != null) ship = Session.WingmanShips[i];
-                var pos = player.position + (player.right * right[i] - player.forward * 2000f + Vector3.up * (i == 2 ? 1000f : 0f)) * 0.05f;
+                var pos = player.position + (player.right * right[i % 3] - player.forward * (2000f + 1800f * (i / 3)) + Vector3.up * (i % 3 == 2 ? 1000f : 0f)) * 0.05f;
                 var spec = new SpawnSpec
                 {
                     group = NpcGroup.Wingman, race = race, ship = ship, alwaysFriend = true, noLoot = true, name = names[i],
