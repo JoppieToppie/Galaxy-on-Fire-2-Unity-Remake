@@ -15,6 +15,58 @@ namespace GoF2Remake.Multiplayer
         // ---- sieges (phase 3) ---------------------------------------------------------------------------
         static long UnixNow => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         static Siege SiegeAt(int station) => list?.sieges.Find(s => s.station == station);
+        internal static bool CanRespawnAt(int station, string account)
+        {
+            var siege = SiegeAt(station);
+            if (siege == null || !siege.started) return true;
+            var faction = Of(account);
+            return (faction != null && faction.id == siege.defender &&
+                (faction.leader == account || faction.officers?.Contains(account) == true)) ||
+                NetPlayerStations.HasSiegeRespawnPrivilege(station, account);
+        }
+
+        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked)
+        {
+            var db = NetGame.Db;
+            if (pilot == null || db?.Stations == null || db.Systems == null) return -1;
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            int origin = pilot.Station;
+            var faction = Of(account);
+            bool Allowed(int orbit) => orbit >= 0 && CanRespawnAt(orbit, account) &&
+                !NetPlayerStations.StationClosedByCombat(orbit) && NetPlayerStations.CanVisitStation(orbit, account) &&
+                db.Stations.Exists(s => s != null && s.index == orbit) && OrbitLayout.Build(db, orbit).hasStation;
+            var siege = SiegeAt(origin);
+            bool defending = siege != null && siege.started && faction != null && faction.id == siege.defender;
+            if (defending && Allowed(origin)) return origin;
+            if (!defending && Allowed(lastDocked)) return lastDocked;
+            int system = db.Stations.Find(s => s != null && s.index == origin)?.system ?? -1;
+            var queue = new Queue<int>();
+            var seen = new HashSet<int>();
+            if (system >= 0) { queue.Enqueue(system); seen.Add(system); }
+            int fallback = -1;
+            while (queue.Count > 0)
+            {
+                int current = queue.Dequeue();
+                var sys = db.Systems.Find(s => s != null && s.index == current);
+                if (sys == null) continue;
+                foreach (int orbit in sys.stations ?? new List<int>())
+                {
+                    if (!Allowed(orbit)) continue;
+                    var playerStation = NetPlayerStations.StationAt(orbit);
+                    if (faction != null && (ClaimAt(orbit)?.faction == faction.id || playerStation?.ownerFactionId == faction.id)) return orbit;
+                    if (fallback < 0 && orbit < 100000 && playerStation == null) fallback = orbit;
+                }
+                foreach (int next in sys.jumpRoutesTo ?? new List<int>())
+                    if (seen.Add(next)) queue.Enqueue(next);
+            }
+            if (fallback >= 0) return fallback;
+            if (Allowed(lastDocked)) return lastDocked;
+            if (faction != null && Allowed(faction.home)) return faction.home;
+            foreach (var station in db.Stations)
+                if (station != null && station.index < 100000 && Allowed(station.index)) return station.index;
+            return -1;
+        }
+
         static string DeclareSiege(ulong client, string me)
         {
             var faction = Of(me);
