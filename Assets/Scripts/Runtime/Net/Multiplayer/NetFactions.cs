@@ -154,6 +154,16 @@ namespace GoF2Remake.Multiplayer
             LapseDays = Mathf.Max(1, lapseDays);
         }
 
+        internal static List<(string id, string name, string leader)> StationFactionDirectory()
+        {
+            var result = new List<(string, string, string)>();
+            if (list?.factions == null) return result;
+            foreach (var faction in list.factions)
+                if (faction != null && !string.IsNullOrEmpty(faction.id)) result.Add((faction.id, "[" + faction.tag + "] " + faction.name, faction.leader));
+            result.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Item2, b.Item2));
+            return result;
+        }
+
         [Serializable]
         public class Faction
         {
