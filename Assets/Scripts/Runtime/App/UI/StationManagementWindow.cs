@@ -578,7 +578,7 @@ namespace GoF2Remake.UI
             AddAction("Set owner-only access", "/station access " + id + " owner");
 
             AddSection("REFINERY", "Convert supported raw ore stored at the station into its matching core.");
-            AddItemChoice("oreItem", "Raw ore");
+            AddItemChoice("oreItem", "Raw ore", NetPlayerStations.RefinableOreItems());
             AddField("oreAmount", "Ore units (multiples of 10)", "10");
             AddAction("Refine ore", () => Send("/station refine " + id + " " + Value("oreItem") + " " + Value("oreAmount")));
 
@@ -675,8 +675,8 @@ namespace GoF2Remake.UI
             AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
                 ? "Faction treasury. Orders require leader/officer authority." : "Station owner's personal credits.");
             var requirements = selected.underConstruction ? selected.materials : selected.moduleConstructionMaterials;
-            var outstanding = requirements?.Where(material => material != null && material.required > material.delivered)
-                .Select(material => material.item).ToHashSet() ?? new HashSet<int>();
+            var outstanding = new HashSet<int>(requirements?.Where(material => material != null && material.required > material.delivered)
+                .Select(material => material.item) ?? Enumerable.Empty<int>());
             if (outstanding.Count == 0) { AddInfo("Materials", "No outstanding requirements."); return; }
             AddItemChoice("buyOrderItem", "Required material", outstanding);
             AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
@@ -819,13 +819,52 @@ namespace GoF2Remake.UI
         void AddItemChoice(string key, string label, HashSet<int> allowed = null)
         {
             var items = NetGame.Db?.Items;
-            var options = new List<(string value, string label)> { ("", "Select an item") };
-            if (items != null)
-                options.AddRange(items.Where(item => item != null && !string.IsNullOrWhiteSpace(item.name) &&
+            var all = items == null ? new List<ItemData>() : items
+                .Where(item => item != null && !string.IsNullOrWhiteSpace(item.name) &&
                     (allowed == null || allowed.Contains(item.index)))
-                    .OrderBy(item => item.name, StringComparer.CurrentCultureIgnoreCase).ThenBy(item => item.index)
-                    .Select(item => (item.index.ToString(), item.name)));
-            AddChoice(key, label, options);
+                .OrderBy(item => item.name, StringComparer.CurrentCultureIgnoreCase).ThenBy(item => item.index).ToList();
+            var names = all.GroupBy(item => item.name).ToDictionary(group => group.Key, group => group.Count());
+            var options = all.Select(item => (value: item.index.ToString(), label: names[item.name] == 1 ? item.name :
+                item.name + " (" + item.type + ", " + (all.Where(other => other.name == item.name).ToList().IndexOf(item) + 1) + ")")).ToList();
+            var search = new TextField("Search " + label.ToLowerInvariant()) { value = Value(key + "Search") };
+            search.AddToClassList("player-station-field");
+            body.Add(search);
+            var field = new DropdownField(label);
+            field.AddToClassList("player-station-field");
+            body.Add(field);
+            var preview = new VisualElement { pickingMode = PickingMode.Ignore };
+            preview.style.width = 90;
+            preview.style.height = 44;
+            body.Add(preview);
+            var visible = new List<(string value, string label)>();
+            void RefreshPreview()
+            {
+                preview.style.backgroundImage = int.TryParse(Value(key), out int item)
+                    ? new StyleBackground(ItemInfo.ItemIcon(item)) : new StyleBackground();
+            }
+            void Filter(string query)
+            {
+                visible = new List<(string value, string label)> { ("", "Select an item") };
+                visible.AddRange(options.Where(option => string.IsNullOrWhiteSpace(query) ||
+                    option.label.IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0));
+                int index = Math.Max(0, visible.FindIndex(option => option.value == Value(key)));
+                field.choices = visible.Select(option => option.label).ToList();
+                field.SetValueWithoutNotify(visible[index].label);
+                drafts[key] = visible[index].value;
+                RefreshPreview();
+            }
+            field.RegisterValueChangedCallback(_ =>
+            {
+                if (field.index < 0 || field.index >= visible.Count) return;
+                drafts[key] = visible[field.index].value;
+                RefreshPreview();
+            });
+            search.RegisterValueChangedCallback(change =>
+            {
+                drafts[key + "Search"] = change.newValue;
+                Filter(change.newValue);
+            });
+            Filter(search.value);
         }
 
         void AddChoice(string key, string label, List<(string value, string label)> options, Action<string> changed = null)
