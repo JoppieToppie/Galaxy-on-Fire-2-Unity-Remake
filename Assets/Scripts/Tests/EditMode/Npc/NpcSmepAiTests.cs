@@ -1,5 +1,5 @@
 // NpcSmepAiTests.cs
-// Regression coverage for the mod opt-in boundary and SMEP's fallback firing safeguards.
+// Regression coverage for SMEP fighter flight and its fallback firing safeguards.
 
 using NUnit.Framework;
 using GoF2Remake.World;
@@ -8,34 +8,6 @@ namespace GoF2Remake.Tests
 {
     public class NpcSmepAiTests : NpcTestBase
     {
-        [TestCase("smep", true)]
-        [TestCase("SMEP", true)]
-        [TestCase("gof3", false)]
-        [TestCase("es2", false)]
-        [TestCase(null, false)]
-        public void ModRequestTakesPrecedenceIndependentOfGlobalPreset(string requestedAi, bool expected)
-        {
-            Assert.AreEqual(expected, SmepAiRules.RequestedByMod(requestedAi));
-        }
-
-        [TestCase(false, false, true)]
-        [TestCase(false, true, true)]
-        [TestCase(true, false, false)]
-        [TestCase(true, true, true)]
-        public void MobilePlatformRequiresAnExplicitModOptIn(bool mobilePlatform, bool mobileOptIn, bool expected)
-        {
-            Assert.AreEqual(expected, SmepAiRules.EnabledOnPlatform(mobilePlatform, mobileOptIn));
-        }
-
-        [TestCase(false, false, true)]
-        [TestCase(false, true, true)]
-        [TestCase(true, false, false)]
-        [TestCase(true, true, false)]
-        public void DesktopHostAlsoRequiresOptInForMobileMultiplayerTargets(bool mobileTarget, bool mobileOptIn, bool expected)
-        {
-            Assert.AreEqual(expected, SmepAiRules.EnabledForTarget(mobileTarget, mobileOptIn));
-        }
-
         [TestCase(true, false, false, true, true)]
         [TestCase(true, false, false, false, false)]
         [TestCase(false, true, true, false, true)]
@@ -110,15 +82,6 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void MobileOptInDoesNotOverrideMobileTargetFallback()
-        {
-            // Mobile AI opt-in controls the build, not the target's controller.
-            Assert.IsTrue(SmepAiRules.EnabledOnPlatform(true, true));
-            Assert.IsFalse(SmepAiRules.EnabledForTarget(true, true));
-            Assert.IsFalse(SmepAiRules.UseCustomFlight(true, true, false, true, false));
-        }
-
-        [Test]
         public void MobilePilotJoiningMidFightForcesConventionalFlight()
         {
             Assert.IsTrue(SmepAiRules.UseCustomFlight(true, false, false, true, false));
@@ -190,14 +153,6 @@ namespace GoF2Remake.Tests
             Assert.That(velocity.magnitude, Is.EqualTo(0.5f).Within(0.00001f));
             Assert.AreEqual(UnityEngine.Vector3.zero, SmepAiRules.VelocityFromDisplacement(
                             UnityEngine.Vector3.zero, UnityEngine.Vector3.one, 0f, 1f, 1f));
-        }
-
-        [Test]
-        public void ExistingModsDoNotOptIntoMobileSmepByDefault()
-        {
-            Assert.IsFalse(new GoF2Remake.Data.CustomTraffic().mobileAi);
-            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{}").mobileAi);
-            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{\"ai\":\"smep\"}").mobileAi);
         }
 
         [Test]

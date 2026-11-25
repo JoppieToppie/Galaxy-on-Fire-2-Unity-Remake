@@ -666,6 +666,9 @@ namespace GoF2Remake.Data
         /// session rule.</summary>
         public static bool Es2NpcFlight { get => Rule(R.Es2NpcFlight, "es2NpcFlight", false); set => SetRule(R.Es2NpcFlight, "es2NpcFlight", value); }
 
+        /// <summary>Native 6DOF combat for eligible fighters. Multiplayer hosts choose this for the session.</summary>
+        public static bool SmepFighterAi { get => Rule(R.SmepFighterAi, "smepFighterAi", false); set => SetRule(R.SmepFighterAi, "smepFighterAi", value); }
+
         static int LocalCollision
         {
             get
@@ -696,6 +699,7 @@ namespace GoF2Remake.Data
             if (GetBool("smarterNpcTargeting", false)) m |= R.SmarterNpcTargeting;
             if (GetBool("es2Aiming", false)) m |= R.Es2Aiming;
             if (GetBool("es2NpcFlight", false)) m |= R.Es2NpcFlight;
+            if (GetBool("smepFighterAi", false)) m |= R.SmepFighterAi;
             if (GetBool("derelictWrecks", false)) m |= R.DerelictWrecks;
             return R.WithDogfight(R.WithCollision(m, LocalCollision), LocalDogfight);
         }
@@ -837,7 +841,7 @@ namespace GoF2Remake.Data
             int rules = LocalRules();
             foreach (int bit in new[] { R.CloakLosesPursuers, R.PirateEvents, R.CapitalShips, R.InformerOriginalRule, R.KaamoStacking,
                                         R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks,
-                                        R.Es2Aiming, R.Es2NpcFlight, R.DogfightOriginal, R.DogfightEvery, R.DogfightEs2 })
+                                        R.Es2Aiming, R.Es2NpcFlight, R.SmepFighterAi, R.DogfightOriginal, R.DogfightEvery, R.DogfightEs2 })
                 GameHooks.RuleChangedByHost?.Invoke(bit, (rules & bit) != 0);
             int collision = LocalCollision;
             GameHooks.RuleChangedByHost?.Invoke(R.PreciseShipCollision, collision == R.CollisionExact);
@@ -1228,7 +1232,7 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] GameplayKeys =
         {
-            "gameplayExperienceCustom", "stationScale", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule", "originalTargetLock", "keepEnemyLock", "modShipTraffic", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "shipCollision", "preciseShipCollision", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "blueprintAutocomplete", "hostileAutopilotFastForward", "turretLeadAim", "remakeFreeLook", "flightStyle", "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare", "speedrunPosition", "speedrunLiveSplit",
+            "gameplayExperienceCustom", "stationScale", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule", "originalTargetLock", "keepEnemyLock", "modShipTraffic", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "smepFighterAi", "shipCollision", "preciseShipCollision", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "blueprintAutocomplete", "hostileAutopilotFastForward", "turretLeadAim", "remakeFreeLook", "flightStyle", "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare", "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
         public static readonly string[] AccessibilityKeys = { "discordPresence", "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };

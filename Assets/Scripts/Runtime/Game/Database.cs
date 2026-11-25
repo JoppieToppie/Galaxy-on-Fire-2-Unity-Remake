@@ -590,12 +590,8 @@ namespace GoF2Remake.Data
         /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
         /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
         public string role;
-        /// <summary>Remake: "gof3" = Galaxy on Fire 3's fight, "es2" = EVERSPACE 2's fight, "smep" = the native SMEP fighter
-        /// mode (ES2 aiming / flight plus SMEP range, strafing and fire rules), all while Options > Gameplay "NPC dogfighting"
-        /// is "Mod hulls' own" (the default); else GoF2's. SMEP needs "mobileAi": true below to run on mobile platforms.</summary>
+        /// <summary>This hull's dogfight style when the session uses "Mod hulls' own". SMEP 6DOF is a session-wide option.</summary>
         public string ai;
-        /// <summary>Remake: with "ai": "smep", explicitly allow SMEP on mobile platforms and against mobile multiplayer pilots; off by default.</summary>
-        public bool mobileAi;
         /// <summary>Remake (2026-11-06): with "ai": "gof3", its evasive roll's base chance (GoF3's evadeChanceBase: scouts and T1-T2
         /// hulls 0, T3+ fighters 0.33, T3+ gunships 1, bosses 0.1), capped by the difficulty (Flight.Gof3Dogfight.EvadeChance);
         /// below 0 (unset) = a fighter's 0.33.</summary>

@@ -36,7 +36,7 @@ namespace GoF2Remake.UI
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Combat,
                 "flightStyle", "remakeFreeLook", "targetLock", "keepEnemyLock", "turretLeadAim", "bombArming",
                 "cloakLosesPursuers", "empBreaksCloak", "collisionDamage", "shipCollision",
-                "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight");
+                "smarterNpcTargeting", "npcDogfight", "smepFighterAi", "es2Aiming", "es2NpcFlight");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Flight,
                 "fastForwardMode", "hostileAutopilotFastForward", "autoJumpgate", "khadorSlipstream");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Missions,

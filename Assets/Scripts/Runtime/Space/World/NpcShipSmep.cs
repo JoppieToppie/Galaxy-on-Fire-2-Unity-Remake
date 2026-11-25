@@ -1,5 +1,5 @@
 // NpcShipSmep.cs
-// NpcShip, part: the optional SMEP fighter flight mode (a mod hull's traffic.ai = "smep").
+// NpcShip, part: the optional session-wide SMEP fighter flight mode.
 // Eligible NPCs use authoritative 6DOF translation, with native ES2 flight reserved for controller fallback.
 // ES2 aim and combat assist, acceleration-aware lead and native collision avoidance remain integrated.
 // Mobile small-ship targets use conventional flight; large player hulls have platform parity.
@@ -17,16 +17,6 @@ namespace GoF2Remake.World
     /// <summary>Pure SMEP policy shared by runtime and regression tests.</summary>
     public static class SmepAiRules
     {
-        /// <summary>An explicit per-hull SMEP request is independent of global dogfight presets.</summary>
-        public static bool RequestedByMod(string ai)
-            => string.Equals(ai, "smep", System.StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>SMEP is opt-in on mobile builds; desktop retains the mod hull's normal opt-in behaviour.</summary>
-        public static bool EnabledOnPlatform(bool mobilePlatform, bool mobileOptIn) => !mobilePlatform || mobileOptIn;
-
-        /// <summary>Mobile player targets always use conventional flight regardless of mod opt-in.</summary>
-        public static bool EnabledForTarget(bool mobileTarget, bool mobileOptIn) => !mobileTarget;
-
         /// <summary>Excluded NPC hull classes; the target's class is never consulted.</summary>
         public static bool ExcludedNpcClass(string shipClass)
             => string.Equals(shipClass, ShipClassRules.Frigate, System.StringComparison.OrdinalIgnoreCase)
@@ -97,17 +87,24 @@ namespace GoF2Remake.World
         Vector3 smepPathWanted, smepPathDirection;
         bool smepPathStraight = true;
         readonly List<Obstacle> smepPathObstacles = new List<Obstacle>(16);
-        float smepHullTopSpeed, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
-        // Player flight rules are resolved once at spawn, never in the movement loop.
+        float smepHullBaseSpeed, smepHullSpeedFactor, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
+
+        // Resolve only this hull's flight overrides once at spawn. Stock hulls keep their NPC speed and use default 6DOF acceleration.
         void SetupSmepHullFlight(ShipData ship)
         {
-            var stats = Database.BuildFlightStats(ship, null);
-            var rules = stats.rules ?? FlightRules.Default;
-            var bonus = stats.free?.bonus ?? new FlightBonus();
-            float handling = Mathf.Max(5f, stats.handling / 100f * 20f);
+            var rules = FlightRules.Default;
+            var hullRules = ship?.flightRules;
+            if (hullRules != null && hullRules.Count != 0)
+            {
+                rules = rules.Clone();
+                rules.Apply(hullRules);
+            }
+            var bonus = new FlightBonus().Add(ship?.flightBoth).Add(ship?.flightFree);
+            float handling = Mathf.Max(5f, (ship?.handling ?? 100f) / 100f * 20f);
             float handlingFactor = Mathf.Pow(handling / 20f, rules.freeAccelHandlingExponent)
                                    * FlightBonus.Scale(bonus.acceleration);
-            smepHullTopSpeed = rules.baseSpeed * FlightBonus.Scale(bonus.topSpeed);
+            smepHullBaseSpeed = hullRules?.ContainsKey("baseSpeed") == true ? rules.baseSpeed : 0f;
+            smepHullSpeedFactor = FlightBonus.Scale(bonus.topSpeed);
             smepAccelerationForward = rules.freeAccelForward * handlingFactor * FlightBonus.Scale(bonus.forwardAcceleration);
             smepAccelerationReverse = (rules.freeAccelReverse > 0f ? rules.freeAccelReverse : rules.freeAccelSide)
                                       * handlingFactor * FlightBonus.Scale(bonus.reverseAcceleration);
@@ -158,17 +155,13 @@ namespace GoF2Remake.World
             public bool retreating;
         }
 
-        bool SmepMobileOptIn => Spec != null && (db?.Ship(Spec.ship) as CustomShipData)?.traffic?.mobileAi == true;
-
-        // A mod opted-in fighter keeps its flight controller even when it is an
-        // escort, scripted ship or under an order. Fixed structures, freighters
-        // and capital hulls were excluded at initialization.
+        // Check runtime state as well as the spawn-time filter for non-fighters.
         bool SmepHullEligible => smepFighterAi && Spec != null && !IsFreighter && !IsFixed && !IsTurret
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec);
         // Mobile protection applies only to non-capital player hulls.
-        bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(ProtectedMobileTarget(target), SmepMobileOptIn);
+        bool SmepEnabledForTarget => SmepHullEligible && !ProtectedMobileTarget(target);
         bool SmepEligible => SmepEnabledForTarget;
 
         static bool MobilePlatformTarget(Target t)

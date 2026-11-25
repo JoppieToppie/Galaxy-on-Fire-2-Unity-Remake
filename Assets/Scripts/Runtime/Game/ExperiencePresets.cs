@@ -60,6 +60,7 @@ namespace GoF2Remake.Data
             new Value("npcDogfight", SessionRules.DogfightOriginalMode, SessionRules.DefaultDogfight),
             new Value("es2Aiming", 0f, 0f),
             new Value("es2NpcFlight", 0f, 0f),
+            new Value("smepFighterAi", 0f, 0f),
             new Value("turretLeadAim", 0f, 1f),
             new Value("remakeFreeLook", 0f, 1f),
             new Value("shipCollision", SessionRules.CollisionOriginal, SessionRules.CollisionMixed),
