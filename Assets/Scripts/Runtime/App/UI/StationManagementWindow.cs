@@ -19,6 +19,11 @@ namespace GoF2Remake.UI
         readonly VisualElement stationRoot, overlay, panel;
         readonly ScrollView stationList;
         readonly ScrollView body;
+        readonly VisualElement pageBar;
+        NetPlayerStations.ManagementCatalogue managementCatalogue;
+        int directoryPage;
+        float nextManagementQuery;
+        string pageBarSignature;
         readonly Label heading, feedback;
         readonly Button openButton, closeButton;
         readonly Dictionary<string, string> drafts = new Dictionary<string, string>();
@@ -99,7 +104,11 @@ namespace GoF2Remake.UI
             stationList = new ScrollView(ScrollViewMode.Vertical); stationList.AddToClassList("player-station-list");
             split.Add(stationList);
             body = new ScrollView(ScrollViewMode.Vertical); body.AddToClassList("player-station-body");
-            split.Add(body); panel.Add(split);
+            var workspace = new VisualElement();
+            workspace.style.flexGrow = 1; workspace.style.flexBasis = 0; workspace.style.minWidth = 0; workspace.style.minHeight = 0;
+            pageBar = new VisualElement(); pageBar.style.flexDirection = FlexDirection.Row; pageBar.style.flexWrap = Wrap.Wrap;
+            pageBar.style.marginBottom = 8; pageBar.style.flexShrink = 0;
+            workspace.Add(pageBar); workspace.Add(body); split.Add(workspace); panel.Add(split);
             feedback = new Label(); feedback.AddToClassList("player-station-feedback"); panel.Add(feedback);
             panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
             panel.RegisterCallback<PointerCancelEvent>(_ => pressedAt = -10f, TrickleDown.TrickleDown);
@@ -177,7 +186,8 @@ namespace GoF2Remake.UI
             ApplyResponsiveLayout();
             int nearby = LocalDeliveryProject()?.id ?? -1;
             if (nearby != deliveryProjectId) { deliveryProjectId = nearby; refresh = 0; }
-            if (Time.unscaledTime >= nextMarketQuery) RefreshMarketCatalogue();
+            if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();
+            if (Time.unscaledTime >= nextMarketQuery && managementPage == "market") RefreshMarketCatalogue();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (StarMap.IsOpen || modelPickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
@@ -204,6 +214,8 @@ namespace GoF2Remake.UI
             RebuildStationList();
             marketPage = 0;
             marketCatalogue = null;
+            managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
+            RefreshManagementCatalogue();
             RefreshMarketCatalogue();
             RebuildBody();
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) closeButton.Focus();
@@ -236,6 +248,7 @@ namespace GoF2Remake.UI
             plannerOrbits = null;
             plannerRequestPending = false;
             marketCatalogue = null;
+            managementCatalogue = null; pageBarSignature = null; pageBar.Clear();
             confirmBuilderRelinquish = -1;
         }
 
@@ -273,7 +286,7 @@ namespace GoF2Remake.UI
             int previousId = selected?.id ?? -1;
             selected = records.FirstOrDefault(x => x.id == previousId)
                 ?? records.FirstOrDefault(x => x.stationIndex == CurrentOrbit) ?? records[0];
-            if (previousId != selected.id) drafts.Clear();
+            if (previousId != selected.id) { drafts.Clear(); managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0; managementPage = "overview"; }
         }
 
         void SelectStation(PlayerStationRecord record)
@@ -286,11 +299,14 @@ namespace GoF2Remake.UI
                 marketCatalogue = null;
                 marketPage = 0;
                 nextMarketQuery = 0;
+                managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
+                managementPage = "overview";
                 drafts.Clear();
                 body.scrollOffset = Vector2.zero;
             }
             selected = record;
             RebuildStationList();
+            RefreshManagementCatalogue();
             RebuildBody();
         }
 
@@ -323,6 +339,7 @@ namespace GoF2Remake.UI
                 if (focusLabel != null && panel.focusController?.focusedElement == null)
                     body.Query<Button>().ToList().Find(button => button.text == focusLabel)?.Focus();
             }).ExecuteLater(1);
+            RebuildPageBar();
             var dataStatus = StationDataStatus();
             if (dataStatus != null)
             {
@@ -330,17 +347,7 @@ namespace GoF2Remake.UI
                 return;
             }
 
-            if (inFlight)
-            {
-                AddSection("ORBIT MANAGEMENT", "Manage projects while flying. Facilities that require docking still enforce their normal access rules.");
-                AddAction("Orbit projects, deliveries and salvage", MultiplayerWindow.OpenOrbitProjectsAny);
-            }
-            AddAction("Station overview", () => ChangeManagementPage("overview"));
-            if (Modding.ModPlayerInfrastructure.Current.Enabled)
-                AddAction("Build station", () => ChangeManagementPage("build"));
             var localProject = LocalDeliveryProject();
-            if (localProject != null) AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
-            AddAction("Resource buy orders", () => ChangeManagementPage("orders"));
             if (managementPage == "build")
             {
                 if (Modding.ModPlayerInfrastructure.Current.Enabled) BuildNewStationControls();
@@ -358,154 +365,189 @@ namespace GoF2Remake.UI
                 else if (!selected.underConstruction && string.IsNullOrEmpty(selected.moduleConstructionKind))
                     AddInfo("Project", "This station has no active construction project.");
                 else BuildConstructionProcurement(selected.id.ToString(), NetPlayer.Local?.CanFundStationProjectInUi(selected.id) == true,
-                    canManageModule: !selected.underConstruction && (NetPlayerStations.CanViewManagement(selected) ||
+                    canManageModule: !selected.underConstruction && (managementCatalogue?.canConstruction == true ||
                         NetPlayer.Local?.AvailableStationActions.HasFlag(StationProjectActions.ViewStationManagement) == true));
                 return;
             }
-            var current = NetGame.Db.Stations.Find(station => station != null && station.index == CurrentOrbit);
-            if (current != null) BuildSystemGates(current.system);
-            if (selected == null) return;
-            AddSection("STATION OVERVIEW", "");
-            if (selected != null)
+            if (managementPage == "orbit") { AddSection("ORBIT PROJECTS", "Deliver materials, manage wrecks and inspect orbital projects."); AddAction("Open orbit projects", MultiplayerWindow.OpenOrbitProjectsAny); return; }
+            if (managementPage == "gates")
             {
+                int system = selected?.system ?? NetGame.Db.Stations.Find(station => station != null && station.index == CurrentOrbit)?.system ?? -1;
+                BuildSystemGates(system);
+                if (selected != null && !selected.underConstruction && managementCatalogue?.canConstruction == true &&
+                    Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled) BuildNewJumpgateControls(selected.id.ToString());
+                return;
+            }
+            if (selected == null) { AddSection("STATION OVERVIEW", "Select a station or begin a construction project."); return; }
+            string id = selected.id.ToString();
+            bool operational = !selected.underConstruction && selected.offeredForClaimUtc == 0;
+            bool docked = !inFlight && selected.stationIndex == CurrentOrbit;
+            bool manager = managementCatalogue?.canManage == true;
+            bool ownership = managementCatalogue?.canOwnership == true;
+            bool HasModule(string module) => selected.addons?.Any(addon => addon != null && addon.kind == module && addon.level > 0) == true;
+            if (managementPage == "overview" || !operational || !docked)
+            {
+                AddSection("STATION OVERVIEW", "");
                 AddInfo("Station", selected.name);
                 AddStationLocation(selected);
                 if (selected.offeredForClaimUtc > 0)
                 {
                     AddInfo("Claim price", NetPlayerStations.StationClaimPrice.ToString("N0") + " credits");
-                    AddAction("Claim station", "/station claim " + selected.id);
+                    AddAction("Claim station", "/station claim " + id);
                     return;
                 }
                 if (selected.underConstruction)
                 {
-                    AddInfo("Project", selected.name);
-                    if (localProject?.id == selected.id)
-                        AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
+                    AddInfo("State", "Under construction");
+                    if (localProject?.id == selected.id) AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
                     else AddInfo("Delivery", "Dock at this construction site to deliver materials.");
                     if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
-                        AddAction("View construction contribution ledger", "/station contributions " + selected.id);
+                        AddAction("View construction contribution ledger", "/station contributions " + id);
                     AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
                 }
                 AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
-                AddInfo("Owner", selected.ownershipType == PlayerStationOwnershipType.Faction
-                    ? (selected.ownerName ?? selected.ownerFactionId ?? "Unknown faction") : (selected.ownerName ?? "Unknown"));
-                AddInfo("State", selected.underConstruction ? "Under construction" : "Operational");
-                AddInfo("Construction settlement", selected.ownershipType == PlayerStationOwnershipType.Faction
-                    ? "Deposits are paid immediately from the faction bank at the fixed catalogue minimum value. If the bank cannot cover a payout, the deposit is rejected and your cargo stays with you."
-                    : "Deposits are personal contributions. Individually owned stations do not draw from faction funds.");
+                AddInfo("Owner", selected.ownerName ?? "Unknown");
+                AddInfo("State", "Operational");
+                AddInfo("Installed facilities", selected.addons == null || selected.addons.Count == 0 ? "None" :
+                    string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind))));
+                if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddInfo("Active module project", ModuleLabel(selected.moduleConstructionKind));
                 if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
-                    AddAction("View construction contribution ledger", "/station contributions " + selected.id);
-                if (inFlight || CurrentOrbit != selected.stationIndex)
-                {
-                    AddInfo("Facilities", "Dock at this station to manage or use its facilities.");
-                    if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
-                    return;
-                }
-                AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
-                AddChoice("transferKind", "Transfer recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Pilot’s faction") });
-                AddAccountField("transferAccount", "Recipient pilot");
-                AddAction("Propose ownership transfer", () => Send("/station transfer " + selected.id + " " + Value("transferKind") + " " + Value("transferAccount")));
-                AddAction("Accept pending transfer", "/station transfer-accept " + selected.id);
-                AddAction("Cancel pending transfer", "/station transfer-cancel " + selected.id);
-                if (selected.ownershipType == PlayerStationOwnershipType.Individual && NetCommands.IsAdmin(NetPlayer.Local))
-                {
-                    AddField("recoveryNote", "Recovery verification note", "");
-                    AddAction("Authorise successor recovery", () => Send("/station recover " + selected.id + " " + Value("recoveryNote")));
-                }
-
-                string installed = selected.addons == null || selected.addons.Count == 0
-                    ? "None" : string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind)));
-                AddInfo("Installed facilities", installed);
-                AddAction("Refresh station project status", "/station status " + selected.id);
-                AddAction("Show marketplace", "/station market " + selected.id);
-                AddAction("Show station storage", "/station storage " + selected.id);
-                AddAction("Show ship hangar", "/station ships " + selected.id);
-                AddAction("Show dry-dock status", "/station drydock " + selected.id);
-                if (NetPlayer.Local?.AvailableStationActions.HasFlag(StationProjectActions.OfferForClaim) == true)
-                {
-                    int stationId = selected.id;
-                    if (confirmRetirementId == stationId)
+                    AddAction("View construction contribution ledger", "/station contributions " + id);
+                if (!docked) AddInfo("Facilities", "Dock at this station to manage or use its facilities.");
+                else AddAction("Refresh station project status", "/station status " + id);
+                return;
+            }
+            switch (managementPage)
+            {
+                case "news":
+                    AddSection("STATION NEWS", "Recent announcements from the owning faction.");
+                    var announcements = NetNews.StationAnnouncements(selected.stationIndex);
+                    if (announcements.Count == 0) AddInfo("Announcements", "No recent announcements.");
+                    foreach (string announcement in announcements) AddInfo("Announcement", announcement);
+                    if (managementCatalogue?.canAnnounce == true)
                     {
-                        AddInfo("Public claim", $"Anyone with {NetPlayerStations.StationClaimPrice:N0} credits can claim the station. Private facilities and sponsored gate construction pause.");
-                        AddAction("Confirm retirement", () =>
-                        {
-                            confirmRetirementId = -1;
-                            Send("/station retire " + stationId);
-                            RebuildBody();
-                        });
-                        AddAction("Keep station", () => { confirmRetirementId = -1; RebuildBody(); });
+                        AddField("stationAnnouncement", "New announcement", "");
+                        AddAction("Publish to station news", () => Send(("/station announce " + id + " " + Value("stationAnnouncement")).TrimEnd()));
                     }
-                    else AddAction("Retire station for public claim", () => { confirmRetirementId = stationId; RebuildBody(); });
-                }
-                if (!NetPlayerStations.CanViewManagement(selected) &&
-                    NetPlayer.Local?.AvailableStationActions.HasFlag(StationProjectActions.ViewStationManagement) != true)
-                {
-                    BuildVisitorMarket(selected.id.ToString());
-                    if (selected.addons?.Any(addon => addon != null && addon.kind == "storage") == true)
-                        BuildVisitorStorage(selected.id.ToString());
-                    if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                    break;
+                case "ownership":
+                    AddSection("OWNERSHIP & SUCCESSION", "Transfer ownership, nominate successors and manage builder rights.");
+                    AddAction("View ownership transfer status", "/station transfer-status " + id);
+                    AddAction("Accept pending transfer", "/station transfer-accept " + id);
+                    if (ownership)
                     {
-                        string recoveryId = selected.id.ToString();
-                        if (selected.addons?.Any(addon => addon?.kind == "hangar") == true)
-                        {
-                            AddAction("List station hangar ships", "/station ships " + recoveryId);
-                            AddField("recoveryHangarIndex", "Station hangar index", "1");
-                            AddAction("Retrieve your stored ship", () =>
-                                Send("/station retrieve-ship " + recoveryId + " " + Value("recoveryHangarIndex")));
-                        }
-                        if (selected.addons?.Any(addon => addon?.kind == "drydock") == true)
-                        {
-                            AddAction("List dry-dock ships", "/station drydock " + recoveryId);
-                            AddField("recoveryDryDockIndex", "Dry-dock index", "1");
-                            AddAction("Retrieve your stored large hull", () =>
-                                Send("/station drydock-retrieve " + recoveryId + " " + Value("recoveryDryDockIndex")));
-                        }
+                        AddChoice("transferKind", "Recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Faction") }, _ => { drafts.Remove("transferAccount"); RebuildBody(); });
+                        AddAccountField("transferAccount", "Recipient");
+                        AddAction("Propose ownership transfer", () => Send("/station transfer " + id + " " + Value("transferKind") + " " + Value("transferAccount")));
+                        AddAction("Cancel pending transfer", "/station transfer-cancel " + id);
                     }
-                    if (!string.IsNullOrEmpty(selected.moduleConstructionKind))
-                        AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
+                    BuildSuccessionControls(selected);
+                    if (NetPlayer.Local?.AvailableStationActions.HasFlag(StationProjectActions.OfferForClaim) == true)
+                    {
+                        if (confirmRetirementId == selected.id)
+                        {
+                            AddInfo("Public claim", $"Anyone with {NetPlayerStations.StationClaimPrice:N0} credits can claim the station. Private facilities pause.");
+                            AddAction("Confirm retirement", () => { confirmRetirementId = -1; Send("/station retire " + id); RebuildBody(); });
+                            AddAction("Keep station", () => { confirmRetirementId = -1; RebuildBody(); });
+                        }
+                        else AddAction("Retire station for public claim", () => { confirmRetirementId = selected.id; RebuildBody(); });
+                    }
+                    break;
+                case "appearance":
+                    AddSection("STATION APPEARANCE", "Choose an available model preset.");
+                    AddStationModelPicker("stationAppearance");
+                    if (!string.IsNullOrEmpty(Value("stationAppearance"))) AddAction("Apply station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
+                    break;
+                case "security": BuildStationGovernance(selected); break;
+                case "modules":
+                    AddSection("STATION MODULES", "Install facilities from cargo or open a procurement project.");
+                    AddAction("Module costs and requirements", "/station modules");
+                    foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
+                    {
+                        if (HasModule(module)) { AddInfo(ModuleLabel(module), "Installed"); continue; }
+                        AddAction("Install " + ModuleLabel(module) + " from cargo", "/station install " + id + " " + module);
+                        if (string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Open " + ModuleLabel(module) + " project", "/station module-project " + id + " " + module);
+                    }
+                    if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Manage active module procurement", () => ChangeManagementPage("orders"));
                     if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
-                    return;
-                }
+                    break;
+                case "defenses": BuildOrbitalStructureControls(id); break;
+                case "market":
+                    if (manager)
+                    {
+                        AddSection("MARKETPLACE SETTINGS", "");
+                        AddNumber("salesTax", "Sales tax (%)", selected.marketplaceTaxPercent, 0, 10);
+                        AddAction("Set marketplace tax", () => Send("/station tax " + id + " " + Value("salesTax")));
+                        AddCatalogueChoice("marketFleetIndex", "Personal stored hull", "fleet");
+                        AddNumber("marketHullPrice", "Hull price (credits)", 10000, 1, 1000000000);
+                        if (!string.IsNullOrEmpty(Value("marketFleetIndex"))) AddAction("List selected hull for sale", () => Send("/station list-ship " + id + " " + Value("marketFleetIndex") + " " + Value("marketHullPrice")));
+                        BuildFacilityControls(id);
+                    }
+                    else BuildVisitorMarket(id);
+                    break;
+                case "storage": if (manager) BuildFacilityControls(id); else BuildVisitorStorage(id); break;
+                case "refinery": case "factory": BuildFacilityControls(id); break;
+                case "hangar": case "drydock": BuildFacilityControls(id); break;
+                default: ChangeManagementPage("overview"); break;
             }
+        }
 
-            if (selected != null)
+        void RebuildPageBar()
+        {
+            var pages = new List<(string key, string label)> { ("overview", "Overview") };
+            if (Modding.ModPlayerInfrastructure.Current.Enabled) pages.Add(("build", "Build station"));
+            if (LocalDeliveryProject() != null) pages.Add(("contribute", "Contribute"));
+            pages.Add(("orders", "Buy orders"));
+            if (inFlight) pages.Add(("orbit", "Orbit projects"));
+            if (Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled) pages.Add(("gates", "Jumpgates"));
+            if (selected != null && !selected.underConstruction && selected.offeredForClaimUtc <= 0 && !inFlight && selected.stationIndex == CurrentOrbit)
             {
-                AddField("stationName", "New station name", selected.name);
-                AddAction("Rename station", () => SendStationName("rename " + selected.id, Value("stationName")));
-                AddSection("MARKETPLACE", "Ship sales use the personal stored fleet and the station's sales tax.");
-                AddField("salesTax", "Sales tax (0–10%)", selected.marketplaceTaxPercent.ToString());
-                AddAction("Set marketplace tax", () => Send("/station tax " + selected.id + " " + Value("salesTax")));
-                AddAction("List personal stored hulls", "/station fleet");
-                AddField("marketFleetIndex", "Personal stored hull number", "1");
-                AddField("marketHullPrice", "Hull price in credits", "");
-                AddAction("List hull for sale", () => Send("/station list-ship " + selected.id + " " +
-                    Value("marketFleetIndex") + " " + Value("marketHullPrice")));
-
-                if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
-                BuildStationGovernance(selected);
-            }
-
-            if (selected == null) return;
-            string id = selected.id.ToString();
-            AddSection("STATION MODULES", "Install facilities using materials from your controlling profile while docked at the station.");
-            AddAction("Module costs and requirements", "/station modules");
-            if (!selected.underConstruction)
-            {
-                foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
+                bool HasModule(string kind) => selected.addons?.Any(addon => addon != null && addon.kind == kind && addon.level > 0) == true;
+                pages.Add(("news", "News")); pages.Add(("market", "Market"));
+                if (HasModule("storage")) pages.Add(("storage", "Storage"));
+                if (HasModule("hangar")) pages.Add(("hangar", "Hangar"));
+                if (HasModule("drydock")) pages.Add(("drydock", "Dry dock"));
+                if (managementCatalogue?.canManage == true)
                 {
-                    if (selected.addons?.Any(addon => addon != null && addon.kind == module) == true) continue;
-                    AddAction("Install " + ModuleLabel(module) + " from cargo", "/station install " + id + " " + module);
-                    if (string.IsNullOrEmpty(selected.moduleConstructionKind))
-                        AddAction("Open " + ModuleLabel(module) + " project", "/station module-project " + id + " " + module);
+                    if (HasModule("refinery")) pages.Add(("refinery", "Refinery"));
+                    if (HasModule("factory")) pages.Add(("factory", "Factory"));
                 }
+                if (managementCatalogue?.canOwnership == true || NetPlayer.Local?.CanRelinquishBuilderRightsInUi == true)
+                    pages.Add(("ownership", "Ownership"));
+                else pages.Add(("ownership", "Transfers"));
+                if (managementCatalogue?.canSecurity == true || managementCatalogue?.canOwnership == true) pages.Add(("security", "Security"));
+                if (managementCatalogue?.canAppearance == true) pages.Add(("appearance", "Appearance"));
+                if (managementCatalogue?.canConstruction == true) { pages.Add(("modules", "Modules")); pages.Add(("defenses", "Defenses")); }
             }
+            if (!pages.Any(page => page.key == managementPage)) managementPage = "overview";
+            string signature = managementPage + ":" + string.Join(",", pages.Select(page => page.key + page.label));
+            pageBar.style.display = modelPickerKey == null ? DisplayStyle.Flex : DisplayStyle.None;
+            if (signature == pageBarSignature) return;
+            pageBarSignature = signature;
+            pageBar.Clear();
+            foreach (var page in pages)
+            {
+                var button = new Button(() => ChangeManagementPage(page.key)) { text = page.label };
+                button.AddToClassList("player-station-action");
+                button.EnableInClassList("player-station-row--selected", managementPage == page.key);
+                button.style.flexGrow = 0; button.style.minHeight = 36; button.style.marginRight = 4; button.style.marginBottom = 4;
+                pageBar.Add(button);
+            }
+        }
 
-            if (Modding.ModPlayerInfrastructure.Current.Enabled && Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled)
-                BuildNewJumpgateControls(id);
-
-            BuildOrbitalStructureControls(id);
-            BuildFacilityControls(id);
+        void RefreshManagementCatalogue()
+        {
+            nextManagementQuery = Time.unscaledTime + 8f;
+            if (!open || inFlight || selected == null || selected.underConstruction || selected.stationIndex != CurrentOrbit || selected.offeredForClaimUtc > 0) return;
+            int stationId = selected.id;
+            NetPlayer.Local?.RequestManagementCatalogue(stationId, directoryPage, catalogue =>
+            {
+                if (!open || selected?.id != stationId || catalogue == null) return;
+                managementCatalogue = catalogue;
+                directoryPage = catalogue.directoryPage;
+                refresh = 0;
+            });
         }
 
         void BuildNewJumpgateControls(string id)
@@ -987,24 +1029,23 @@ namespace GoF2Remake.UI
         void OpenModelPicker(string key, List<(string value, string label, string race)> models)
         {
             modelPickerKey = key;
+            pageBar.style.display = DisplayStyle.None;
             modelPickerReturnScroll = body.scrollOffset;
             panel.AddToClassList("player-station-picking-model");
             heading.text = "CHOOSE STATION MODEL";
             string selectedModel = Value(key);
             body.Clear();
             fields.Clear();
-            var search = new TextField("Filter by race or model");
-            search.AddToClassList("player-station-field");
-            body.Add(search);
+            var races = new List<string> { "All races" }; races.AddRange(models.Select(model => model.race).Distinct().OrderBy(race => race));
+            var raceFilter = new DropdownField("Filter by race", races, 0);
+            raceFilter.AddToClassList("player-station-field"); body.Add(raceFilter);
             var results = new VisualElement();
             body.Add(results);
 
             void ShowMatches(string query)
             {
                 results.Clear();
-                var words = (query ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var group in models.Where(model => words.All(word =>
-                             model.label.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0)).GroupBy(model => model.race))
+                foreach (var group in models.Where(model => query == "All races" || model.race == query).GroupBy(model => model.race))
                 {
                     var label = new Label(group.Key);
                     label.AddToClassList("player-station-section-title");
@@ -1030,8 +1071,8 @@ namespace GoF2Remake.UI
                 }
             }
 
-            search.RegisterValueChangedCallback(change => ShowMatches(change.newValue));
-            ShowMatches("");
+            raceFilter.RegisterValueChangedCallback(change => ShowMatches(change.newValue));
+            ShowMatches("All races");
             body.scrollOffset = Vector2.zero;
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing)
                 results.Q<Button>()?.Focus();
@@ -1040,6 +1081,7 @@ namespace GoF2Remake.UI
         void CloseModelPicker()
         {
             modelPickerKey = null;
+            pageBar.style.display = DisplayStyle.Flex;
             panel.RemoveFromClassList("player-station-picking-model");
             heading.text = "PLAYER STATIONS";
             RebuildBody(modelPickerReturnScroll);
@@ -1053,7 +1095,10 @@ namespace GoF2Remake.UI
 
         void ChangeManagementPage(string page)
         {
+            if (managementPage == page) return;
             managementPage = page;
+            if (page == "market") RefreshMarketCatalogue();
+            if (page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
             RebuildBody(Vector2.zero);
         }
 
@@ -1404,6 +1449,7 @@ namespace GoF2Remake.UI
                 refresh = 0;
                 nextPlannerQuery = 0;
                 nextMarketQuery = 0;
+                nextManagementQuery = 0;
             }) != true)
             {
                 feedback.text = "A station request is already pending, or the server is unavailable.";
