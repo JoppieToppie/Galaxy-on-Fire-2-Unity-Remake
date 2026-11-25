@@ -482,6 +482,13 @@ namespace GoF2Remake.Multiplayer
                 if (!int.TryParse(words[2], out int orbit)) return "Choose a valid orbit.";
                 return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, sponsor, orbit, words[6], new UnityEngine.Vector3Int(x, y, z));
             }
+            if (args.StartsWith("defense-build ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[1], out int sponsorId) || !int.TryParse(words[2], out int slot) || slot < 1)
+                    return "/station defense-build <station> <slot>";
+                return NetPlayerStations.StartPlannedDefense(by as NetPlayer, sponsorId, slot - 1);
+            }
             if (args.StartsWith("orbital-build ", StringComparison.OrdinalIgnoreCase) ||
                 args.StartsWith("orbital-deliver ", StringComparison.OrdinalIgnoreCase) ||
                 args.StartsWith("orbital-fund ", StringComparison.OrdinalIgnoreCase) ||
