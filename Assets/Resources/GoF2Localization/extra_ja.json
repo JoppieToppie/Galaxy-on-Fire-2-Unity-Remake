@@ -1317,7 +1317,7 @@
  "showStoryStep": "ストーリーのステップを表示",
  "showStoryStepHelp": "右下に現在のストーリーステップを表示（バグ報告用）。",
  "slot": "スロット",
-  "slotDeleteHintKeys": "Deleteキーを長押し、またはセーブデータを長押しして削除",
+  "slotDeleteHintKeys": "セーブデータを削除するには、その上でマウスの左ボタンを押し続けるか、Deleteキーを長押ししてください。",
   "slotDeleteHintPad": "セーブデータでXを長押しして削除",
   "slotDeleteHintTouch": "セーブデータを長押しして削除",
   "slotHoldDelete": "長押しで削除...",

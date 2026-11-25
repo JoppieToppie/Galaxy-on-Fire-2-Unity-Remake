@@ -1239,7 +1239,7 @@
   "cursorSizeHelp": "游戏鼠标光标的大小（图形 > 游戏鼠标光标）。",
   "showStoryStep": "显示剧情步骤",
   "slot": "槽位",
-  "slotDeleteHintKeys": "按住 Delete 键或按住存档即可删除",
+  "slotDeleteHintKeys": "要删除存档，请将鼠标移到该存档上并按住左键，或长按 Delete 键。",
   "slotDeleteHintPad": "在存档上按住 X 即可删除",
   "slotDeleteHintTouch": "按住存档即可删除",
   "slotHoldDelete": "按住以删除……",

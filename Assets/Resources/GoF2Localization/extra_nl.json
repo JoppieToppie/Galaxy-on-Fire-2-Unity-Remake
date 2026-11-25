@@ -1328,7 +1328,7 @@
  "showStoryStep": "Verhaalstap tonen",
  "showStoryStepHelp": "De huidige verhaalstap rechtsonder, voor bugmeldingen.",
  "slot": "Plek",
-  "slotDeleteHintKeys": "Houd Delete ingedrukt of klik en houd een opslag vast om hem te wissen",
+  "slotDeleteHintKeys": "Houd de linkermuisknop op een opgeslagen spel of de Delete-toets ingedrukt om het te wissen.",
   "slotDeleteHintPad": "Houd X ingedrukt op een opslag om hem te wissen",
   "slotDeleteHintTouch": "Houd een opslag vast om hem te wissen",
   "slotHoldDelete": "Vasthouden om te wissen...",

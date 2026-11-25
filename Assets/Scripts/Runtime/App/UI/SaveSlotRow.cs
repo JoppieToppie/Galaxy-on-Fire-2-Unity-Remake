@@ -79,7 +79,7 @@ namespace GoF2Remake.UI
             parent.Insert(parent.IndexOf(list) + 1, hint);
             void Refresh() => hint.text = InputMode.Current == InputKind.Gamepad ? Localization.Extra("slotDeleteHintPad", "Hold X on a save to delete it")
                 : InputMode.Current == InputKind.Touch ? Localization.Extra("slotDeleteHintTouch", "Hold a save to delete it")
-                : Localization.Extra("slotDeleteHintKeys", "Hold Delete or click and hold a save to delete it");
+                : Localization.Extra("slotDeleteHintKeys", "To delete a save, hold the left mouse button over it or hold Delete.");
             Refresh();
             hint.schedule.Execute(Refresh).Every(500);
         }

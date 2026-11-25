@@ -1317,7 +1317,7 @@
  "showStoryStep": "스토리 단계 표시",
  "showStoryStepHelp": "오른쪽 아래에 현재 스토리 단계 표시(버그 신고용).",
  "slot": "슬롯",
-  "slotDeleteHintKeys": "Delete 키를 누르고 있거나 저장 파일을 길게 눌러 삭제",
+  "slotDeleteHintKeys": "저장을 삭제하려면 해당 저장에 마우스 왼쪽 버튼을 길게 누르거나 Delete 키를 길게 누르세요.",
   "slotDeleteHintPad": "저장 파일에서 X를 길게 눌러 삭제",
   "slotDeleteHintTouch": "저장 파일을 길게 눌러 삭제",
   "slotHoldDelete": "길게 눌러 삭제...",

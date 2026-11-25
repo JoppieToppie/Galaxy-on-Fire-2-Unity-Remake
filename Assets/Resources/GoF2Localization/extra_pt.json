@@ -1328,7 +1328,7 @@
  "showStoryStep": "Mostrar etapa da história",
  "showStoryStepHelp": "A etapa atual da história no canto inferior direito, para relatar bugs.",
  "slot": "Espaço",
-  "slotDeleteHintKeys": "Segure Delete ou clique e segure um save para apagá-lo",
+  "slotDeleteHintKeys": "Para excluir um jogo salvo, mantenha pressionado o botão esquerdo do mouse sobre ele ou segure Delete.",
   "slotDeleteHintPad": "Segure X em um save para apagá-lo",
   "slotDeleteHintTouch": "Segure um save para apagá-lo",
   "slotHoldDelete": "Segure para apagar...",

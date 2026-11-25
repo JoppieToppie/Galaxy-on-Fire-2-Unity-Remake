@@ -1329,7 +1329,7 @@
  "showStoryStep": "Story-Schritt anzeigen",
  "showStoryStepHelp": "Der aktuelle Story-Schritt unten rechts, für Fehlerberichte.",
  "slot": "Platz",
-  "slotDeleteHintKeys": "Entf halten oder einen Spielstand gedrückt halten, um ihn zu löschen",
+  "slotDeleteHintKeys": "Zum Löschen eines Spielstands die linke Maustaste darauf oder Entf gedrückt halten.",
   "slotDeleteHintPad": "X auf einem Spielstand halten, um ihn zu löschen",
   "slotDeleteHintTouch": "Einen Spielstand gedrückt halten, um ihn zu löschen",
   "slotHoldDelete": "Halten zum Löschen...",

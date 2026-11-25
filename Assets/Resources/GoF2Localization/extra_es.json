@@ -1329,7 +1329,7 @@
  "showStoryStep": "Mostrar paso de la historia",
  "showStoryStepHelp": "El paso de la historia actual abajo a la derecha, para informes de errores.",
  "slot": "Ranura",
-  "slotDeleteHintKeys": "Mantén Supr o mantén pulsada una partida para borrarla",
+  "slotDeleteHintKeys": "Para borrar una partida, mantén pulsado el botón izquierdo del ratón sobre ella o mantén pulsada Supr.",
   "slotDeleteHintPad": "Mantén X sobre una partida para borrarla",
   "slotDeleteHintTouch": "Mantén pulsada una partida para borrarla",
   "slotHoldDelete": "Mantén para borrar...",

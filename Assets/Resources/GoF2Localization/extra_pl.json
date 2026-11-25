@@ -1328,7 +1328,7 @@
  "showStoryStep": "Pokaż krok fabuły",
  "showStoryStepHelp": "Bieżący krok fabuły w prawym dolnym rogu, do zgłoszeń błędów.",
  "slot": "Miejsce",
-  "slotDeleteHintKeys": "Przytrzymaj Delete lub kliknij i przytrzymaj zapis, aby go usunąć",
+  "slotDeleteHintKeys": "Aby usunąć zapis, przytrzymaj na nim lewy przycisk myszy lub przytrzymaj klawisz Delete.",
   "slotDeleteHintPad": "Przytrzymaj X na zapisie, aby go usunąć",
   "slotDeleteHintTouch": "Przytrzymaj zapis, aby go usunąć",
   "slotHoldDelete": "Przytrzymaj, aby usunąć...",

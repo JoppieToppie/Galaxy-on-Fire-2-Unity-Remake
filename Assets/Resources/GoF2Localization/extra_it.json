@@ -1328,7 +1328,7 @@
  "showStoryStep": "Mostra passo della storia",
  "showStoryStepHelp": "Il passo della storia in basso a destra, per le segnalazioni di bug.",
  "slot": "Slot",
-  "slotDeleteHintKeys": "Tieni premuto Canc o tieni premuto su un salvataggio per eliminarlo",
+  "slotDeleteHintKeys": "Per eliminare un salvataggio, tieni premuto il tasto sinistro del mouse su di esso o tieni premuto Canc.",
   "slotDeleteHintPad": "Tieni premuto X su un salvataggio per eliminarlo",
   "slotDeleteHintTouch": "Tieni premuto un salvataggio per eliminarlo",
   "slotHoldDelete": "Tieni premuto per eliminare...",

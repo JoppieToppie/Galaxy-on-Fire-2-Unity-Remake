@@ -1239,7 +1239,7 @@
   "cursorSizeHelp": "गेम के माउस कर्सर का आकार (ग्राफ़िक्स > गेम माउस कर्सर)।",
   "showStoryStep": "कहानी का चरण दिखाएँ",
   "slot": "स्लॉट",
-  "slotDeleteHintKeys": "सेव हटाने के लिए Delete दबाए रखें या उस पर क्लिक करके दबाए रखें",
+  "slotDeleteHintKeys": "सेव हटाने के लिए उस पर बायाँ माउस बटन या Delete कुंजी दबाए रखें।",
   "slotDeleteHintPad": "सेव हटाने के लिए उस पर X दबाए रखें",
   "slotDeleteHintTouch": "सेव हटाने के लिए उसे दबाए रखें",
   "slotHoldDelete": "हटाने के लिए दबाए रखें...",

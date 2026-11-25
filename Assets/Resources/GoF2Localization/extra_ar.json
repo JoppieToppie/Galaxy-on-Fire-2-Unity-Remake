@@ -1318,7 +1318,7 @@
  "showStoryStep": "إظهار خطوة القصة",
  "showStoryStepHelp": "خطوة القصة الحالية أسفل اليمين، لتقارير الأخطاء.",
  "slot": "خانة",
-  "slotDeleteHintKeys": "اضغط مطولاً على Delete أو على حفظ لحذفه",
+  "slotDeleteHintKeys": "لحذف حفظ، اضغط مطولًا عليه بزر الفأرة الأيسر أو اضغط مطولًا على Delete.",
   "slotDeleteHintPad": "اضغط مطولاً على X فوق حفظ لحذفه",
   "slotDeleteHintTouch": "اضغط مطولاً على حفظ لحذفه",
   "slotHoldDelete": "اضغط مطولاً للحذف...",

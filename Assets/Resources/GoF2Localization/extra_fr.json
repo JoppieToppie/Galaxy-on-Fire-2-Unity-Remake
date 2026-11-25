@@ -1329,7 +1329,7 @@
  "showStoryStep": "Afficher l'étape de l'histoire",
  "showStoryStepHelp": "L'étape de l'histoire en bas à droite, pour les rapports de bug.",
  "slot": "Emplacement",
-  "slotDeleteHintKeys": "Maintenez Suppr ou maintenez le clic sur une sauvegarde pour la supprimer",
+  "slotDeleteHintKeys": "Pour supprimer une sauvegarde, maintenez le bouton gauche de la souris dessus ou maintenez la touche Suppr.",
   "slotDeleteHintPad": "Maintenez X sur une sauvegarde pour la supprimer",
   "slotDeleteHintTouch": "Maintenez une sauvegarde pour la supprimer",
   "slotHoldDelete": "Maintenir pour supprimer...",
