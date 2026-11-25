@@ -55,6 +55,11 @@ namespace GoF2Remake.Multiplayer
             return WithBlacklistReason(fallback, rule?.reason);
         }
 
+        static string FacilityUseRefusal(PlayerStationRecord station, string account, string facility, string fallback) =>
+            !AllowsStationRace(station, account, "docking")
+                ? FacilityRaceRefusal(station, account, "docking", fallback)
+                : FacilityRaceRefusal(station, account, facility, fallback);
+
         static int MarketPolicyPercent(PlayerStationRecord station, string account, string facility)
         {
             var settings = ModPlayerInfrastructure.Current;
