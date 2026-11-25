@@ -376,6 +376,9 @@ namespace GoF2Remake.Multiplayer
             save.equipment = new List<ItemStack>();
             save.cargo = new List<ItemStack>();
             save.selectedSecondary = -1;
+            int respawn = NetFactions.DeathRespawnStation(pilot, save.lastDockedStation);
+            if (respawn < 0) { droppedItem = -1; return false; }
+            save.station = save.lastDockedStation = respawn;
             if (!PersistRecoveryProfile(account, save)) { droppedItem = -1; return false; }
             if (host)
             {
@@ -386,6 +389,7 @@ namespace GoF2Remake.Multiplayer
                 Session.Cargo = save.cargo;
                 Session.SelectedSecondary = -1;
                 Session.DeathRecoveries = save.deathRecoveries;
+                Session.LastDockedStation = respawn;
             }
             else RefreshProfile(client);
             NetState.Instance?.Notify(client, $"Ship recovery scheduled in {Modding.ModPvpPiracy.ShipRecoverySeconds} seconds. Your emergency {NetGame.Db.Ship(emergencyShip).name} has no trade-in value.");
