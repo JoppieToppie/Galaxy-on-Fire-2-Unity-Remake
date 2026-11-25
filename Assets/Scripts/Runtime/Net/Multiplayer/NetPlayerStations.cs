@@ -762,12 +762,15 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanDeliverAtConstructionSite(NetPlayer pilot, PlayerStationRecord record) =>
             pilot != null && record?.underConstruction == true && pilot.InSpace &&
             pilot.Station == record.stationIndex && pilot.Hull > 0 && pilot.HasCurrentWreckClaimPose &&
+            (record.reconstructing || pilot.DockedAtObject) &&
             (pilot.Position - StationPosition(record.stationIndex)).sqrMagnitude <= WreckControlRadiusMetres * WreckControlRadiusMetres;
 
         static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record)
         {
             if (record.underConstruction)
-                return CanDeliverAtConstructionSite(by, record) ? null : "Fly within 5 km of the construction site to deliver materials.";
+                return CanDeliverAtConstructionSite(by, record) ? null : record.reconstructing
+                    ? "Fly within 5 km of the reconstruction site to deliver materials."
+                    : "Dock at the construction site to deliver materials.";
             if (!by.InHangar || by.Station != record.stationIndex || StationClosedByCombat(by.Station))
                 return "Dock at the station commissioning this module to deliver materials.";
             return null;
