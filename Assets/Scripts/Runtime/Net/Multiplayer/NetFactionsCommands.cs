@@ -74,6 +74,10 @@ namespace GoF2Remake.Multiplayer
                 case "siege": return DeclareSiege(client, me);
                 case "sieges": return SiegesText();
                 case "bounties": return BountiesText();
+                case "rival": return SetPiracyRelation(client, me, arg, rival: true, enabled: true);
+                case "unrival": return SetPiracyRelation(client, me, arg, rival: true, enabled: false);
+                case "hostile": return SetPiracyRelation(client, me, arg, rival: false, enabled: true);
+                case "unhostile": return SetPiracyRelation(client, me, arg, rival: false, enabled: false);
                 case "protect": return SetBountyProtection(client, me, arg, true);
                 case "unprotect": return SetBountyProtection(client, me, arg, false);
                 case "garrison": return SetGarrison(client, me, arg);
@@ -87,6 +91,7 @@ namespace GoF2Remake.Multiplayer
                                                             "promote / demote <pilot>, leader <pilot>, disband, info [TAG], list; deposit N, withdraw N; " +
                                                             "claim, unclaim, home, claims [TAG] (docked at the station); garrison <ships> <level> [station]; vat <0-20> [station]; siege (in another faction's orbit), sieges; " +
                                                             "bounties lists wanted pilots; protect / unprotect faction <TAG> or pilot <NAME> changes bounty protection; " +
+                                                            "rival / unrival <TAG> and hostile / unhostile <NAME> change piracy relations; " +
                                                             "gate-race <race> <inherit|allow|deny> sets race defaults for faction-owned jumpgates; broadcast <message> posts official GalNet news. /f <text> talks to your faction.");
             }
         }

@@ -488,6 +488,8 @@ namespace GoF2Remake.Multiplayer
             EventRunner.Tick();   // a running event
             if ((sweepTimer -= Time.unscaledDeltaTime) > 0f) return;
             sweepTimer = SweepSeconds;
+            NetFactions.RefreshPiracyFlags();
+            TickPiracyDeaths();
             NetRateLimit.Tick();   // the clients that kept flooding go
             NetStock.HostTick(this);   // the stock resets
             if ((pirateTimer -= SweepSeconds) <= 0f)
@@ -509,7 +511,7 @@ namespace GoF2Remake.Multiplayer
                 var proxy = obj.GetComponent<NetProxy>();
                 var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
                 if (proxy != null) station = proxy.Station;
-                else if (crate != null) station = crate.Station;
+                else if (crate != null && !crate.IsBountyDrop) station = crate.Station;
                 else continue;
                 owned.TryGetValue(obj.OwnerClientId, out var n);
                 if (proxy != null) n.proxies++; else n.crates++;

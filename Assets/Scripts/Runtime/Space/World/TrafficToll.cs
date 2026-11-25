@@ -45,6 +45,7 @@ namespace GoF2Remake.World
         void SetupLoma()
         {
             if (!blackMarket) { Session.LomaTollPaid = Session.LomaTollRefused = false; return; }
+            if (GameHooks.LocalPilotIsPirate?.Invoke() == true) return;
             if (Session.LomaTollRefused) { Radio(455, 456, Standing.Pirate); return; }
             SetPiratesArmed(false);
             if (Session.LomaTollPaid) return;
@@ -61,6 +62,7 @@ namespace GoF2Remake.World
         {
             if (!lomaAskPending || chatter != null || chatterQueue.Count > 0 || Player == null || !Player.Alive) return;
             lomaAskPending = false;
+            if (GameHooks.LocalPilotIsPirate?.Invoke() == true) return;
             int value = 0;
             int priceStation = Session.PreviousStationIndex >= 0 ? Session.PreviousStationIndex : StationIndex;
             var items = Session.Cargo.ConvertAll(c => c.item);
@@ -77,6 +79,7 @@ namespace GoF2Remake.World
         /// <summary>Yes: with the credits, pay (radio 10: 451 / 452), the pirates stay quiet; without, 203 and they attack.</summary>
         void PayLomaToll()
         {
+            if (GameHooks.LocalPilotIsPirate?.Invoke() == true) return;
             if (Session.Credits < lomaToll)
             {
                 ChoiceRequested?.Invoke(Localization.Get(203).Replace("#C", GoF2Remake.UI.ItemInfo.Credits(lomaToll - Session.Credits)), null, null, null, null);
@@ -91,6 +94,7 @@ namespace GoF2Remake.World
         /// <summary>No (or too poor): the pirates arm, the refusal is remembered (+0x111), radio 0xb (453 / 454).</summary>
         void RefuseLomaToll()
         {
+            if (GameHooks.LocalPilotIsPirate?.Invoke() == true) return;
             SetPiratesArmed(true);
             Session.LomaTollRefused = true;
             Radio(453, 454, Standing.Pirate);

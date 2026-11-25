@@ -92,6 +92,13 @@ namespace GoF2Remake.Flight
             Session.Standing[axis] = Mathf.Clamp(sign * Mathf.Clamp(toward, -100, 100), -100, 100);
         }
 
+        /// <summary>Restore diplomatic relations to the neutral band.</summary>
+        public static void Rehabilitate(int race)
+        {
+            if (Modding.ModRaces.Is(race)) Modding.ModRaces.SetStanding(race, 0);
+            else Move(race, -35, true);
+        }
+
         /// <summary>Standing::isEnemy (plus the always-hostile pirates and Void).</summary>
         public static bool IsEnemy(int race) => Modding.ModRaces.Is(race) ? ModRaceEnemy(race, Session.ModRaceStanding) : race == Pirate || race == Void || (race >= 0 && race <= 3 && Toward(race) <= -71);
 

@@ -371,13 +371,84 @@ namespace GoF2Remake.Multiplayer
             var victim = NetSquad.Find(client);
             var by = NetSquad.Find(killer);
             if (victim == null || by == null || !HitRecently(victim.NetworkObjectId, killer, 30f)) return;
-            if (ConsumeBountyCombat(victim, by) && !NetArena.InMatch(client) && !NetArena.InMatch(killer))
-                NetFactions.RecordBountyPvpKill(victim, by);
+            if (ConsumeBountyCombat(victim, by, out bool initiated) && !NetArena.InMatch(client) && !NetArena.InMatch(killer))
+            {
+                pendingPiracyDeaths[victim.NetworkObjectId] = (by, victim.Station, initiated, Time.unscaledTime + 5f);
+                ProcessPiracyDeath(victim);
+            }
             NetArena.OnKill(victim.OwnerClientId, by.OwnerClientId);   // an arena match's score
             NetFactions.OnPilotKilled(victim, by);                     // a siege fight: the killer repaired
             NoticeRpc(string.Format(Localization.Extra("mpDestroyedBy", "{0} was destroyed by {1}."), victim.DisplayName, by.DisplayName));
             EventRunner.OnPlayerKilled(by, victim);   // an event's "on pvpkill"
         }
+        readonly Dictionary<ulong, (NetPlayer killer, int station, bool initiated, float deadline)> pendingPiracyDeaths =
+            new Dictionary<ulong, (NetPlayer, int, bool, float)>();
+        readonly HashSet<ulong> registeredPiracyDeaths = new HashSet<ulong>();
+        readonly HashSet<ulong> attemptedBountyDrops = new HashSet<ulong>();
+
+        void TickPiracyDeaths()
+        {
+            if (!Modding.ModPvpPiracy.Enabled || !NetProfiles.Enabled) return;
+            foreach (var pilot in NetPlayer.All)
+                if (pilot != null && pilot.IsSpawned) ProcessPiracyDeath(pilot);
+            if (pendingPiracyDeaths.Count > 0)
+            {
+                var expired = new List<ulong>();
+                foreach (var death in pendingPiracyDeaths)
+                    if (death.Value.deadline < Time.unscaledTime) expired.Add(death.Key);
+                foreach (ulong id in expired) pendingPiracyDeaths.Remove(id);
+            }
+            registeredPiracyDeaths.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
+            attemptedBountyDrops.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
+        }
+
+        void ProcessPiracyDeath(NetPlayer victim)
+        {
+            if (victim == null || !victim.IsSpawned) return;
+            ulong id = victim.NetworkObjectId;
+            if (victim.Hull > 0f)
+            {
+                registeredPiracyDeaths.Remove(id);
+                attemptedBountyDrops.Remove(id);
+                return;
+            }
+            if (!victim.InSpace || !victim.HasCurrentWreckClaimPose ||
+                NetArena.InMatch(victim.OwnerClientId)) return;
+            if (victim.IsPirate && victim.IsWanted && !attemptedBountyDrops.Contains(id) && DropBountyEquipment(victim))
+                attemptedBountyDrops.Add(id);
+
+            if (!pendingPiracyDeaths.TryGetValue(id, out var death)) return;
+            pendingPiracyDeaths.Remove(id);
+            if (death.killer == null || !death.killer.IsSpawned || death.station != victim.Station ||
+                death.deadline < Time.unscaledTime || !registeredPiracyDeaths.Add(id)) return;
+            bool secure = NetFactions.SecureForBounties(death.station);
+            if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
+            if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
+        }
+
+        bool DropBountyEquipment(NetPlayer victim)
+        {
+            if (cratePrefab == null || !victim.HasCurrentWreckClaimPose ||
+                !victim.CurrentPose(out var position, out var rotation, out _, out _)) return false;
+            if (!NetProfiles.TakeBountyEquipment(victim, out int item)) return false;
+
+            int orbit = victim.Station;
+            var go = Instantiate(cratePrefab);
+            go.GetComponent<NetCrate>().InitBountyDrop(orbit, item, position, rotation);
+            var obj = go.GetComponent<NetworkObject>();
+            obj.CheckObjectVisibility = client => NetInterest.Sees(client, obj.OwnerClientId, orbit);
+            obj.Spawn(false);
+            BountyEquipmentLostRpc(victim.ShipIndex, item, RpcTarget.Single(victim.OwnerClientId, RpcTargetUse.Temp));
+            return true;
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void BountyEquipmentLostRpc(int ship, int item, RpcParams rpc = default)
+        {
+            if (!IsServer && Session.ShipIndex == ship) NetProfiles.RemoveBountyEquipment(Session.Equipment, item);
+            NetChat.Notice("A piece of equipped gear was lost as bounty loot.");
+        }
+
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
         void NoticeRpc(string text) => NetChat.Notice(text);
         /// <summary>A player's answer to an event's question (EventScreen): checked and run by the server (EventRunner.OnAnswer).</summary>
@@ -474,6 +545,42 @@ namespace GoF2Remake.Multiplayer
             NetProfileClient.ReceiveModJump(sequence, accepted
                 ? new GameHooks.ModJumpResult(station, cells, lostItem, hullLimit, misjump)
                 : (GameHooks.ModJumpResult?)null);
+        }
+
+        float npcDiplomacyReplyDeadline;
+
+        public bool RequestNpcDiplomacy(int station, int race, int price)
+        {
+            if (!IsSpawned || !NetProfileClient.Controller || Time.realtimeSinceStartup < npcDiplomacyReplyDeadline) return false;
+            int uploadSequence = IsHost && NetGame.PersistentHost ? 0 : NetProfileClient.UploadForStationStorage();
+            if (uploadSequence == 0 && !(IsHost && NetGame.PersistentHost)) return false;
+            npcDiplomacyReplyDeadline = Time.realtimeSinceStartup + 8f;
+            RequestNpcDiplomacyRpc(station, race, price, uploadSequence);
+            return true;
+        }
+
+        // The purchase follows its profile upload on the same reliable network object.
+        [Rpc(SendTo.Server)]
+        void RequestNpcDiplomacyRpc(int station, int race, int quote, int uploadSequence, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command)) return;
+            bool accepted = NetFactions.TryCompleteNpcDiplomacy(NetSquad.Find(client), station, race, quote, uploadSequence,
+                out int price, out int forgiven, out string refusal);
+            NpcDiplomacyResultRpc(accepted, race, price, forgiven, refusal ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void NpcDiplomacyResultRpc(bool accepted, int race, int price, int forgiven, string refusal, RpcParams rpc = default)
+        {
+            npcDiplomacyReplyDeadline = 0f;
+            if (!accepted) { NetChat.Notice(refusal); return; }
+            Session.Credits = System.Math.Max(0L, Session.Credits - price);
+            if (Flight.Standing.RawToward(race) <= -71) Flight.Standing.Rehabilitate(race);
+            GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+            NetChat.Notice(forgiven > 0
+                ? $"Diplomacy deal completed. {forgiven} NPC kills forgiven."
+                : "Diplomacy deal completed.");
         }
 
         // Keep this request on the same reliable network object as UploadChunkRpc.

@@ -31,6 +31,11 @@ namespace GoF2Remake.World
             else if (territory < 0) { hostile = true; friend = false; }
             if (alwaysFriend) { hostile = false; friend = true; }
             if (mindControlMs > 0f) { hostile = true; friend = false; }   // remake mods: a boss's mind control (NpcDevices)
+            if (GameHooks.LocalPilotIsPirate?.Invoke() == true && !alwaysFriend && !IsWingman)
+            {
+                friend = r == Standing.Pirate;
+                hostile = !friend && r >= 0;
+            }
             Target.hostileToPlayer = hostile;
             Target.friendToPlayer = friend;
         }

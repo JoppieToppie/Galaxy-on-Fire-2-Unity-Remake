@@ -150,7 +150,7 @@ namespace GoF2Remake.Data
             if (R(100) < 35)
                 foreach (int race in new[] { 2, 3, 0, 1 })
                 {
-                    if (!Standing.IsEnemy(race)) continue;
+                    if (!CanUseDiplomat(race)) continue;
                     int i = agents.FindIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat);
                     if (i < 0) continue;
                     agents[i] = new Agent { name = RandomName(race, true), race = race, station = station, offer = AgentOffer.Diplomat,
@@ -277,8 +277,13 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>SpaceLounge::startChat, diplomat: int(|standing axis| / 100 * 16000) (a mod race: its own standing).</summary>
+        public static bool CanUseDiplomat(int race) => Standing.IsEnemy(race) || GameHooks.LocalPilotIsPirate?.Invoke() == true;
+
         public static int DiplomatCosts(int race) =>
-            (int)(Math.Abs(Modding.ModRaces.Is(race) ? Modding.ModRaces.Standing(race) : Session.Standing[race <= 1 ? 0 : 1]) / 100f * 16000f);
+            DiplomatCostsForStanding(Standing.RawToward(race), GameHooks.LocalPilotIsPirate?.Invoke() == true);
+
+        public static int DiplomatCostsForStanding(int standing, bool pirate) =>
+            pirate && standing > -71 ? 16000 : (int)(Math.Abs(standing) / 100f * 16000f);
 
         /// <summary>Remake mods: in the lounges of a mod race's system, like the game's diplomats (35 %, replacing the first
         /// generic visitor), one for each mod race of that mod the player is hostile with whose "diplomats" allow it: talking
@@ -289,7 +294,7 @@ namespace GoF2Remake.Data
             if (owner == null || R(100) >= 35) return;
             foreach (var f in Modding.ModRaces.All)
             {
-                if (f.mod != owner.mod || !f.diplomats || f.hostile || !Standing.IsEnemy(f.race)) continue;
+                if (f.mod != owner.mod || !f.diplomats || f.hostile || !CanUseDiplomat(f.race)) continue;
                 int i = agents.FindIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat);
                 if (i < 0) return;
                 agents[i] = new Agent { name = RandomName(f.look, true), race = f.look, modRace = f.race, station = station, offer = AgentOffer.Diplomat,

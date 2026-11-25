@@ -168,6 +168,7 @@ namespace GoF2Remake.Multiplayer
         public class Faction
         {
             public List<string> bountyProtectedFactions, bountyProtectedPilots;
+            public List<string> piracyRivals, piracyHostilePilots;
             public List<StationRaceAccessRule> jumpgateRaceAccess;
             public List<StationFacilityRaceRule> stationRaceRules;
             public string id, name, tag, leader, created;

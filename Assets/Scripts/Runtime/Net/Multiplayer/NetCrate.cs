@@ -28,6 +28,8 @@ namespace GoF2Remake.Multiplayer
     public sealed class NetCrate : NetworkBehaviour, World.IOrbitCrate, INetPosed
     {
         const ulong NoClaim = ulong.MaxValue;
+        const int BountyDropId = int.MinValue;
+        const float BountyDropSeconds = 60f;
 
         static readonly NetworkVariableReadPermission Read = NetworkVariableReadPermission.Everyone;
         static readonly NetworkVariableWritePermission Owner = NetworkVariableWritePermission.Owner;
@@ -168,9 +170,10 @@ namespace GoF2Remake.Multiplayer
         {
             if (crate != null) Destroy(crate.gameObject);
         }
-        int pendingStation = -1, pendingId = -1;
+        int pendingStation = -1, pendingId = -1, pendingBountyItem = -1;
 
         public int Station => station.Value;
+        internal bool IsBountyDrop => localId.Value == BountyDropId;
         /// <summary>Host: when it was spawned (NetState's sweep waits for its owner's position to arrive).</summary>
         public float SpawnedAt { get; private set; }
 
@@ -179,6 +182,16 @@ namespace GoF2Remake.Multiplayer
         {
             pendingStation = stationIndex;
             pendingId = id;
+        }
+
+        internal void InitBountyDrop(int orbit, int item, Vector3 position, Quaternion rotation)
+        {
+            Init(orbit, BountyDropId);
+            pendingBountyItem = item;
+            posePosition = position;
+            poseRotation = rotation;
+            hasPose = true;
+            smoothing.Push(position);
         }
 
         public override void OnNetworkSpawn()
@@ -190,8 +203,9 @@ namespace GoF2Remake.Multiplayer
                 station.Value = pendingStation;
                 localId.Value = pendingId;
                 SpawnedAt = Time.unscaledTime;
+                if (IsBountyDrop) data.Value = $"{Standing.Pirate}|{Crate.LookContainer}|0|0|{pendingBountyItem}:1|";
             }
-            if (!IsOwner) return;
+            if (!IsOwner || IsBountyDrop) return;
             crate = NetOrbit.Current != null && NetOrbit.Current.Station == station.Value ? NetOrbit.Current.Crate(localId.Value) : null;
             if (crate == null)
             {
@@ -209,7 +223,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkDespawn()
         {
             NetPoses.Unregister(this);
-            if (!IsOwner && crate != null) Destroy(crate.gameObject);
+            if ((!IsOwner || IsBountyDrop) && crate != null) Destroy(crate.gameObject);
         }
 
         /// <summary>A beam started pulling it: the claim, if nobody has it yet.</summary>
@@ -239,7 +253,9 @@ namespace GoF2Remake.Multiplayer
         void CapturedRpc(RpcParams rpc = default)
         {
             ulong who = rpc.Receive.SenderClientId;
-            if (NetRateLimit.Allow(who, NetRateLimit.Kind.Claim) && claimant.Value == who) RemoveRpc();
+            if (!NetRateLimit.Allow(who, NetRateLimit.Kind.Claim) || claimant.Value != who) return;
+            if (IsBountyDrop) NetworkObject.Despawn();
+            else RemoveRpc();
         }
 
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
@@ -290,7 +306,12 @@ namespace GoF2Remake.Multiplayer
             ulong me = NetworkManager.LocalClientId;
             // A claimant who left (the session or the crate's orbit: docked, jumped, dead) loses the claim.
             if (IsServer && claimant.Value != NoClaim && !NetOrbit.InOrbit(claimant.Value, station.Value)) claimant.Value = NoClaim;
-            if (IsOwner)
+            if (IsServer && IsBountyDrop && Time.unscaledTime - SpawnedAt >= BountyDropSeconds)
+            {
+                NetworkObject.Despawn();
+                return;
+            }
+            if (IsOwner && !IsBountyDrop)
             {
                 if (crate != null && crate.remote) TakeOverCopy();
                 if (crate == null || crate.remote)
@@ -344,7 +365,7 @@ namespace GoF2Remake.Multiplayer
             bool otherClaims = claimant.Value != NoClaim && claimant.Value != me;
             crate.claimedByOther = outsider || otherClaims;
             // The owner's own crate: only another player's claim holds it back (its capture needs no confirmation).
-            crate.captureBlocked = outsider || (IsOwner ? otherClaims : claimant.Value != me);
+            crate.captureBlocked = outsider || (IsOwner && !IsBountyDrop ? otherClaims : claimant.Value != me);
         }
 
         /// <summary>This player's beam let go of it without capturing it: the claim goes back.</summary>

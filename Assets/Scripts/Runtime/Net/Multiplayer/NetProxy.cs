@@ -1019,6 +1019,11 @@ namespace GoF2Remake.Multiplayer
             // ... and this player's own standing toward its race (Standing.IsEnemy / IsFriend), which the owner's AI uses too.
             target.hostileToPlayer = st.Has(NetProxyStatus.AlwaysHostile) || shotBySquad || Standing.IsEnemy(st.race) || (mateOwner && st.relation == Hostile);
             target.friendToPlayer = !target.hostileToPlayer && Standing.IsFriend(st.race);
+            if (NetPlayer.Local != null && NetPlayer.Local.IsPirate && !IsWingman)
+            {
+                target.friendToPlayer = st.race == Standing.Pirate;
+                target.hostileToPlayer = st.race >= 0 && !target.friendToPlayer;
+            }
             if (empDisabled && sparks == null) sparks = new EmpSparks(transform);
             sparks?.SetEmitting(empDisabled);
             if (empDisabled != enginesEmpOff && visual != null)

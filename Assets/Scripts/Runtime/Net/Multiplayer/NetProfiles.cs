@@ -265,6 +265,34 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static bool TakeBountyEquipment(NetPlayer pilot, out int item)
+        {
+            item = -1;
+            ulong client = pilot.OwnerClientId;
+            if (!Controls(client) || NetPlayerStations.ProfileWritesBlocked) return false;
+            string account = AccountOf(client);
+            bool host = IsHostClient(client);
+            var save = host ? null : ReadSave(account);
+            if (!host && (save == null || save.ship != pilot.ShipIndex)) return false;
+            var equipment = host ? Session.Equipment : save.equipment;
+            var mount = equipment?.Find(s => s != null && s.amount > 0 && NetGuard.Item(s.item));
+            if (mount == null) return false;
+            item = mount.item;
+            if (!RemoveBountyEquipment(equipment, item)) return false;
+            if (!host && !Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
+            if (!host) InvalidateEconomyUploads(account);
+            AdjustWorth(account, -Math.Max(0, NetGame.Db.Item(item)?.minPrice ?? 0));
+            return true;
+        }
+
+        internal static bool RemoveBountyEquipment(List<ItemStack> equipment, int item)
+        {
+            var mount = equipment?.Find(s => s != null && s.item == item && s.amount > 0);
+            if (mount == null) return false;
+            if (--mount.amount == 0) equipment.Remove(mount);
+            return true;
+        }
+
         /// <summary>Server-moved cargo for a docked station project or marketplace. The active host's live hold is the
         /// authority for its own save; another player's last uploaded profile is changed before its game is updated.</summary>
         internal static bool MoveCargo(ulong client, string id, int item, int delta)

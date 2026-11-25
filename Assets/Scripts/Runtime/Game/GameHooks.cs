@@ -71,6 +71,7 @@ namespace GoF2Remake.Data
         public static Action ProfileUpload;
         /// <summary>The session's pirate board as JSON (NetState.PirateBoardJson), null = none.</summary>
         public static Func<string> SharedPirateBoard;
+        public static Func<bool> LocalPilotIsPirate;
 
         public delegate bool RuleQuery(int bit, out bool on);
         /// <summary>The session's value of a gameplay rule (NetRules.TryGet); false = no session, the player's own option.</summary>

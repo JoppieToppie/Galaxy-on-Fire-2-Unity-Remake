@@ -326,6 +326,19 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: NetProfiles' role for this device.</summary>
         public void SetObserver(bool on) { if (IsServer && observer.Value != on) observer.Value = on; }
         /// <summary>The player's faction tag (NetFactions), "" = no faction.</summary>
+        readonly NetworkVariable<bool> piratePilot = new NetworkVariable<bool>();
+        readonly NetworkVariable<bool> wantedPilot = new NetworkVariable<bool>();
+
+        public bool IsPirate => piratePilot.Value;
+        public bool IsWanted => wantedPilot.Value;
+
+        internal void SetPiracyFlags(bool pirate, bool wanted)
+        {
+            if (!IsServer) return;
+            if (piratePilot.Value != pirate) piratePilot.Value = pirate;
+            if (wantedPilot.Value != wanted) wantedPilot.Value = wanted;
+        }
+
         public string FactionTag => factionTag.Value.ToString();
         /// <summary>Profile identity visible only to this player and the server, for owner-bound station infrastructure.</summary>
         public string ProfileAccount => profileAccount.Value.ToString();
@@ -349,7 +362,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: NetFactions' home for this player.</summary>
         public void SetFactionHome(int station) { if (IsServer && factionHome.Value != station) factionHome.Value = station; }
         /// <summary>The name with the faction's tag before it ("[TAG] Name"): the lock plate and the chat.</summary>
-        public string TaggedName => FactionTag.Length > 0 ? $"[{FactionTag}] {DisplayName}" : DisplayName;
+        public string TaggedName => (IsPirate ? "[Pirate] " : IsWanted ? "[Wanted] " : "") +
+            (FactionTag.Length > 0 ? $"[{FactionTag}] {DisplayName}" : DisplayName);
         public string DisplayName
         {
             get
@@ -763,6 +777,8 @@ namespace GoF2Remake.Multiplayer
             ApplyName();
             pilot.OnValueChanged += (_, _) => ApplyName();
             factionTag.OnValueChanged += (_, _) => ApplyName();
+            piratePilot.OnValueChanged += (_, _) => ApplyName();
+            wantedPilot.OnValueChanged += (_, _) => ApplyName();
             NetModRaceStandings.Decode(modRaceStanding.Value, modRaceStandings);
             modRaceStanding.OnValueChanged += (_, v) => NetModRaceStandings.Decode(v, modRaceStandings);
             Target.NetShips.Add(target);
@@ -902,7 +918,8 @@ namespace GoF2Remake.Multiplayer
         /// (NetState.FreePvp), or while an event's free for all runs (NetState.FreeForAll: /pvp on, the Free For All node; the
         /// Free For All / King of the Hill templates had stopped working). Squadmates never (NetSquad).</summary>
         static bool PvpWith(NetPlayer other) =>
-            other != null && ((NetState.Instance != null && NetState.Instance.FreePvp) || NetState.FreeForAll || NetArena.IsArenaOrbit(other.Station)
+            other != null && (other.IsPirate || other.IsWanted || (Local != null && (Local.IsPirate || Local.IsWanted)) ||
+                               (NetState.Instance != null && NetState.Instance.FreePvp) || NetState.FreeForAll || NetArena.IsArenaOrbit(other.Station)
                               || (Local != null && NetFactionsClient.SiegePvp(other.Station, Local.FactionTag, other.FactionTag)));   // a faction siege
 
         /// <summary>This player's shots pass through their squadmates (the local player's ship included).</summary>
@@ -983,7 +1000,11 @@ namespace GoF2Remake.Multiplayer
             var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
             own.lastPlayerWeapon = byNpc ? -1 : weaponItem;
             own.Damage(amount, byNpc, hitVector, shieldFactor, damageType);
-            if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
+            if (alive && !own.Alive && !byNpc && NetState.Instance != null)
+            {
+                if (IsPirate && IsWanted) NetProfileClient.UploadForStationStorage();
+                NetState.Instance.DestroyedByRpc(shooter);
+            }
         }
 
         /// <summary>Client: an explosive or EMP blast reached a precise gate mesh.</summary>
@@ -1338,7 +1359,8 @@ namespace GoF2Remake.Multiplayer
                     target.playerProof = mate || !PvpWith(this);   // free roam: no player hurts another (NetArena)
                     // An enemy after attacking this player, until one of them is destroyed (NetAggression): a red marker, the
                     // turrets and sentries fire at them (only where players may fight).
-                    target.hostileToPlayer = !mate && PvpWith(this) && NetAggression.IsHostile(OwnerClientId);
+                    target.hostileToPlayer = !mate && PvpWith(this) &&
+                ((Local != null && Local.IsPirate != IsPirate) || NetAggression.IsHostile(OwnerClientId));
                 }
                 mirror?.Update(Time.deltaTime * 1000f);
                 return;
@@ -1450,6 +1472,8 @@ namespace GoF2Remake.Multiplayer
             hasPose = true;
             var hp = level.Health != null && level.Health.Target != null ? level.Health.Target.hitpoints : null;
             float h = level.Health != null && level.Health.Target != null ? level.Health.Target.HullFraction : 1f;
+            if (h <= 0f && look.hull > 0 && IsPirate && IsWanted)
+                NetProfileClient.UploadForStationStorage();
             look.hull = WireQuant.Fraction(h);
             // The look the others see: the engine glow (off while mining, docking at an object, cloaked, dead), boost, cloak.
             var ownAsm = level.Player.visualModel != null ? level.Player.visualModel.GetComponent<AssembledObject>() : null;

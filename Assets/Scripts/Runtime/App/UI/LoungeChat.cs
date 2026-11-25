@@ -179,7 +179,7 @@ namespace GoF2Remake.Data
                 switch (a.offer)
                 {
                     case AgentOffer.SmallTalk: return false;
-                    case AgentOffer.Diplomat: return Standing.IsEnemy(a.Side);
+                    case AgentOffer.Diplomat: return AgentGenerator.CanUseDiplomat(a.Side);
                     case AgentOffer.Mission: case AgentOffer.Purchase: return a.HasMission;
                     case AgentOffer.SellMod: return ModForSale(a.sellMod);   // at its cap on this hull: 858
                     case AgentOffer.EventMission: return EventMissions.OfferOf(a) != null;
@@ -526,6 +526,8 @@ namespace GoF2Remake.Data
                 case AgentOffer.Diplomat:
                     if (a.costs > Session.Credits) return Refuse(T(203).Replace("#C", C(a.costs - Session.Credits)));
                     ConfirmText = T(885).Replace("#C", C(a.costs));
+                    if (Modding.ModPvpPiracy.Enabled && NetProfileClient.Active && !NetProfileClient.Guest)
+                        ConfirmText += "\nThis deal clears NPC kills with this faction and revokes pirate status.";
                     return Outcome.Confirm;
                 case AgentOffer.SellShip:
                 {
@@ -613,8 +615,20 @@ namespace GoF2Remake.Data
                     a.accepted = true;
                     break;
                 case AgentOffer.Diplomat:
+                    if (a.accepted || Session.Credits < a.costs)
+                    {
+                        thanks = Localization.Extra("mpDiplomacyUnavailable", "The diplomacy deal is unavailable right now.");
+                        break;
+                    }
+                    if (Modding.ModPvpPiracy.Enabled && NetProfileClient.Active && !NetProfileClient.Guest)
+                    {
+                        thanks = NetState.Instance.RequestNpcDiplomacy(station, a.Side, a.costs)
+                            ? "The diplomat is waiting for the server to confirm the deal."
+                            : "The diplomacy deal is unavailable right now. Try again shortly.";
+                        break;
+                    }
                     Session.Credits -= a.costs;
-                    Rehabilitate(a.Side);
+                    Standing.Rehabilitate(a.Side);
                     a.accepted = true;
                     break;
                 case AgentOffer.SellSystem:
@@ -710,16 +724,6 @@ namespace GoF2Remake.Data
                         : a.offer == AgentOffer.SellItem || a.offer == AgentOffer.SellShip ? T(305)
                         : a.offer == AgentOffer.Diplomat ? T(884) : "";
             return (a.name, role);
-        }
-
-        /// <summary>Standing::rehabilitate 0x14289c: the race's axis just inside the neutral band (+-35).</summary>
-        static void Rehabilitate(int race)
-        {
-            if (Modding.ModRaces.Is(race)) { Modding.ModRaces.SetStanding(race, 0); return; }   // remake mods: a mod race back to neutral
-            if (race == 0) Session.Standing[0] = -35;
-            else if (race == 1) Session.Standing[0] = 35;
-            else if (race == 2) Session.Standing[1] = -35;
-            else if (race == 3) Session.Standing[1] = 35;
         }
 
         /// <summary>Bought items go to the hold; secondaries join a mounted stack of the same item.</summary>
