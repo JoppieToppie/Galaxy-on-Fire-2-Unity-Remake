@@ -218,7 +218,7 @@ namespace GoF2Remake.Multiplayer
             pilot.SetPiracyFlags(pirate, wanted);
         }
 
-        static bool TrackPiracyKill(string account, long now, out int count, out int threshold, out int windowSeconds)
+        static bool TrackPiracyKill(string account, long now, bool secure, out int count, out int threshold, out int windowSeconds)
         {
             count = threshold = windowSeconds = 0;
             var record = bountyFile.piracy.Find(r => r.account == account);
@@ -233,6 +233,7 @@ namespace GoF2Remake.Multiplayer
             // Retain enough timestamps to apply a changed rule on the next qualifying kill.
             record.kills.RemoveAll(k => k < now - MaxPiracyWindowSeconds);
             record.kills.Add(now);
+            if (secure) record.kills.Add(now);
             if (record.kills.Count > MaxPiracyKillThreshold)
                 record.kills.RemoveRange(0, record.kills.Count - MaxPiracyKillThreshold);
             long cutoff = now - windowSeconds;
@@ -284,7 +285,7 @@ namespace GoF2Remake.Multiplayer
                  (siege.defender == victimFaction.id && siege.attacker == killerFaction.id))))) return;
 
             long now = UnixNow;
-            bool becamePirate = TrackPiracyKill(account, now, out int count, out int threshold, out int windowSeconds);
+            bool becamePirate = TrackPiracyKill(account, now, secure, out int count, out int threshold, out int windowSeconds);
             var issuedBy = new List<string>();
             foreach (var faction in list.factions)
                 if (ProtectsForBounties(faction, victimFaction, victimAccount)) CountKill("faction:" + faction.id);
