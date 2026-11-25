@@ -53,16 +53,7 @@ namespace GoF2Remake.UI
                 if (constructionShortcut != null) constructionShortcut.style.display = DisplayStyle.None;
                 return;
             }
-            if (constructionMarker == null && constructionNavigation != null)
-            {
-                constructionMarker = new Navigation.Target { kind = Navigation.Kind.Marker };
-                constructionNavigation.Targets.Add(constructionMarker);
-            }
-            if (constructionMarker != null)
-            {
-                constructionMarker.fixedPosition = NetPlayerStations.StationPosition(site.stationIndex);
-                constructionMarker.name = site.name + " construction site";
-            }
+            // Navigation already exposes the cube itself as a dockable target. Do not add a competing generic marker.
             if (flightColumn == null) return;
             if (constructionShortcut?.parent != flightColumn)
             {
