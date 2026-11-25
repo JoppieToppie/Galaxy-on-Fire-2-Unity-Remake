@@ -385,6 +385,7 @@ namespace GoF2Remake.Multiplayer
             new Dictionary<ulong, (NetPlayer, int, bool, float)>();
         readonly HashSet<ulong> registeredPiracyDeaths = new HashSet<ulong>();
         readonly HashSet<ulong> attemptedBountyDrops = new HashSet<ulong>();
+        readonly HashSet<ulong> witnessedLiveFlight = new HashSet<ulong>();
 
         void TickPiracyDeaths()
         {
@@ -400,6 +401,7 @@ namespace GoF2Remake.Multiplayer
             }
             registeredPiracyDeaths.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
             attemptedBountyDrops.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
+            witnessedLiveFlight.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
         }
 
         void ProcessPiracyDeath(NetPlayer victim)
@@ -408,11 +410,14 @@ namespace GoF2Remake.Multiplayer
             ulong id = victim.NetworkObjectId;
             if (victim.Hull > 0f)
             {
+                if (victim.InSpace && victim.HasCurrentWreckClaimPose) witnessedLiveFlight.Add(id);
+                else if (!victim.InSpace) witnessedLiveFlight.Remove(id);
                 registeredPiracyDeaths.Remove(id);
                 attemptedBountyDrops.Remove(id);
                 return;
             }
-            if (victim.Hull != 0f || !victim.InSpace || NetArena.InMatch(victim.OwnerClientId)) return;
+            if (victim.Hull != 0f || !victim.InSpace || NetArena.InMatch(victim.OwnerClientId) ||
+                (!witnessedLiveFlight.Contains(id) && !victim.HasCurrentWreckClaimPose)) return;
             if (victim.HasCurrentWreckClaimPose && pendingPiracyDeaths.TryGetValue(id, out var death))
             {
                 pendingPiracyDeaths.Remove(id);
@@ -427,25 +432,26 @@ namespace GoF2Remake.Multiplayer
             EnsureDeathPenalty(victim);
         }
 
-        internal bool EnsureDeathPenalty(NetPlayer victim)
+        internal bool EnsureDeathPenalty(NetPlayer victim, bool refresh = true)
         {
             if (!IsServer || victim == null || victim.Hull != 0f) return false;
             if (NetArena.InMatch(victim.OwnerClientId) ||
                 !NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId)) return true;
             ulong id = victim.NetworkObjectId;
             if (attemptedBountyDrops.Contains(id)) return true;
+            if (!witnessedLiveFlight.Contains(id) && !victim.HasCurrentWreckClaimPose) return false;
             // Mark in-flight to prevent re-entry when a successful profile refresh loads the station.
             attemptedBountyDrops.Add(id);
-            if (BeginDeathRecovery(victim)) return true;
+            if (BeginDeathRecovery(victim, refresh)) return true;
             attemptedBountyDrops.Remove(id);
             return false;
         }
 
-        bool BeginDeathRecovery(NetPlayer victim)
+        bool BeginDeathRecovery(NetPlayer victim, bool refresh)
         {
             int orbit = victim.Station;
             bool pose = victim.CurrentPose(out var position, out var rotation, out _, out _);
-            if (!NetProfiles.BeginDeathRecovery(victim, cratePrefab != null && pose, out int item)) return false;
+            if (!NetProfiles.BeginDeathRecovery(victim, refresh && cratePrefab != null && pose, out int item, refresh)) return false;
             if (item < 0) return true;
             var go = Instantiate(cratePrefab);
             go.GetComponent<NetCrate>().InitBountyDrop(orbit, item, position, rotation);
