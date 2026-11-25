@@ -50,16 +50,16 @@ namespace GoF2Remake.Tests
             var go = new GameObject("test asteroid");
             try
             {
-                go.transform.position = new Vector3(400, 400, 400);
+                go.transform.position = new Vector3(2600, 2600, 2600);
                 var rock = go.AddComponent<Target>();
                 rock.isAsteroid = true;
                 rock.hp = 100;
                 rock.radius = 1;
                 AsteroidTargetGrid.Register(rock);
-                rock.radius = 405;
+                rock.radius = 605;
                 AsteroidTargetGrid.Register(rock);
                 var candidates = new System.Collections.Generic.List<Target>();
-                AsteroidTargetGrid.Query(Vector3.zero, 0, candidates);
+                AsteroidTargetGrid.Query(new Vector3(2000, 2000, 2000), 0, candidates);
                 Assert.Contains(rock, candidates);
             }
             finally { Object.DestroyImmediate(go); }

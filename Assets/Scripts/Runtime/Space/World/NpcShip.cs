@@ -586,7 +586,7 @@ namespace GoF2Remake.World
             // ship: Original ship collision hits it on its cube (HullBody.flyableShip).
             if (modelGo != null) HullCollision.Attach(modelGo, Target, obstacle, !IsFreighter && !IsFixed && !IsTurret && HullCollision.FlyableShip(spec.ship));
             // Native asteroid destruction for explicitly classified large ships; no player-style push-out.
-            AsteroidVolumeCollision.Attach(gameObject, database, spec.ship, Target, obstacle);
+            AsteroidVolumeCollision.Attach(gameObject, database, spec.ship, Target, obstacle, modelGo);
             if (spec.deadButSelectable) ShowWreckAtEnd();
             Target.Damaged += OnDamaged;
             Target.Died += OnDied;

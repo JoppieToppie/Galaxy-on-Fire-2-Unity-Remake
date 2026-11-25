@@ -27,6 +27,8 @@ namespace GoF2Remake.World
         readonly List<Target> nearby = new List<Target>();
         Target owner;
         Obstacle obstacle;
+        Transform measuredModel;
+        List<CollisionVolume> measuredVolumes;
         float reach;
         int refreshFrame = -30;
         Vector3 refreshPosition;
@@ -36,24 +38,50 @@ namespace GoF2Remake.World
         bool hasLastPosition;
         const float MaxTravelBeforeRefresh = 10f;
 
-        public static void Attach(GameObject host, Database database, int shipIndex, Target target, Obstacle volumes)
+        public static void Attach(GameObject host, Database database, int shipIndex, Target target, Obstacle volumes, GameObject model = null)
         {
-            if (host == null || database == null || target == null || volumes == null || !volumes.Active) return;
+            if (host == null || database == null || target == null) return;
             var ship = database.Ship(shipIndex);
             // Unclassified ships remain untouched; only a mod-assigned canonical class opts in.
             if (!ShipClassRules.Matches(ship, EnabledClasses)) return;
 
+            // A mod may classify an ordinary traffic hull without giving it a legacy freighter/fixed-object obstacle.
+            // Measure that hull once, without adding a solid Obstacle or changing any other collision or docking rules.
+            List<CollisionVolume> measured = null;
+            if (volumes == null || !volumes.Active)
+            {
+                if (model == null) return;
+                measured = ModCapitalShips.Measure(model, Quaternion.identity);
+                if (measured == null || measured.Count == 0) return;
+            }
             var collision = host.AddComponent<AsteroidVolumeCollision>();
             collision.owner = target;
-            collision.obstacle = volumes;
+            collision.obstacle = measured == null ? volumes : null;
+            collision.measuredModel = measured != null ? model.transform : null;
+            collision.measuredVolumes = measured;
             collision.MeasureReach();
         }
 
         void MeasureReach()
         {
             reach = 0f;
-            if (obstacle == null || obstacle.volumes == null) return;
-            foreach (var volume in obstacle.volumes)
+            var volumes = measuredVolumes ?? obstacle?.volumes;
+            if (volumes == null) return;
+            if (measuredModel != null)
+            {
+                var scale = AsteroidHullContact.Abs(measuredModel.lossyScale);
+                foreach (var volume in volumes)
+                {
+                    if (volume == null) continue;
+                    float radius = volume.sphere
+                        ? volume.radius * Mathf.Max(scale.x, Mathf.Max(scale.y, scale.z))
+                        : Vector3.Scale(volume.half, scale).magnitude;
+                    reach = Mathf.Max(reach, Vector3.Scale(volume.centre, scale).magnitude + radius);
+                }
+                reach += (measuredModel.position - transform.position).magnitude;
+                return;
+            }
+            foreach (var volume in volumes)
             {
                 if (volume == null) continue;
                 reach = Mathf.Max(reach, volume.centre.magnitude +
@@ -61,9 +89,17 @@ namespace GoF2Remake.World
             }
         }
 
+        void OnDisable()
+        {
+            nearby.Clear();
+            hasLastPosition = false;
+            refreshFrame = -30;
+        }
+
         void LateUpdate()
         {
-            if (owner == null || !owner.Alive || obstacle == null || !obstacle.Active)
+            if (owner == null || !owner.Alive || owner.phased ||
+                (measuredModel == null && (obstacle == null || !obstacle.Active)))
             { hasLastPosition = false; return; }
             Vector3 position = transform.position;
             Vector3 movement = hasLastPosition ? position - lastPosition : Vector3.zero;
@@ -113,6 +149,20 @@ namespace GoF2Remake.World
         {
             worldBoxes.Clear();
             worldSpheres.Clear();
+            if (measuredModel != null)
+            {
+                Quaternion modelRotation = measuredModel.rotation;
+                Vector3 scale = AsteroidHullContact.Abs(measuredModel.lossyScale);
+                foreach (var volume in measuredVolumes)
+                {
+                    if (volume == null) continue;
+                    Vector3 centre = measuredModel.TransformPoint(volume.centre);
+                    if (volume.sphere)
+                        worldSpheres.Add((centre, volume.radius * Mathf.Max(scale.x, Mathf.Max(scale.y, scale.z))));
+                    else worldBoxes.Add(new AsteroidHullContact.Box(centre, Vector3.Scale(volume.half, scale), modelRotation));
+                }
+                return;
+            }
             Quaternion rotation = obstacle.rotates
                 ? transform.rotation * Quaternion.Inverse(obstacle.baseRotation) : Quaternion.identity;
             foreach (var volume in obstacle.volumes)
