@@ -213,7 +213,8 @@ namespace GoF2Remake.World
         NpcShip Create(SpawnSpec spec)
         {
             var entry = AssemblyOf(db, spec);
-            var prefab = AssembledObject.LoadPrefab(entry);
+            // A construction site supplies its own generated cube; never instantiate a stock pad model behind it.
+            var prefab = spec.dockingType == ObjectDocking.ConstructionSite ? null : AssembledObject.LoadPrefab(entry);
             // Remake: a turret object built from a turret item shows the item's turret (a mod's own model too).
             var itemTurret = spec.turretAssembly != null && spec.turretItem >= 0 ? WeaponFx.Load(spec.turretItem)?.turretMounted : null;
             if (itemTurret != null) prefab = itemTurret;
