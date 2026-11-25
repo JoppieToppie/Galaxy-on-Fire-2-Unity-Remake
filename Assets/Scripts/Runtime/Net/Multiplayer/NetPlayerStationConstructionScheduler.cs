@@ -16,12 +16,19 @@ namespace GoF2Remake.Multiplayer
         readonly Dictionary<(int kind, int id, long deadline), long> retryTimes =
             new Dictionary<(int, int, long), long>();
 
+        long nextReady = long.MaxValue;
         internal int Count => pending.Count;
+
+        void Add((long ready, int kind, int id, long deadline) job)
+        {
+            if (pending.Add(job)) nextReady = Math.Min(nextReady, job.ready);
+        }
 
         internal void Reset()
         {
             pending.Clear();
             retryTimes.Clear();
+            nextReady = long.MaxValue;
         }
 
         internal void BeginRebuild(long now)
@@ -31,6 +38,7 @@ namespace GoF2Remake.Multiplayer
                 if (job.ready > now && job.ready > job.deadline)
                     retryTimes[(job.kind, job.id, job.deadline)] = job.ready;
             pending.Clear();
+            nextReady = long.MaxValue;
         }
 
         internal void Schedule(ConstructionJobKind kind, int id, long deadline, long now)
@@ -38,7 +46,7 @@ namespace GoF2Remake.Multiplayer
             var key = ((int)kind, id, deadline);
             long ready = deadline > 0 ? deadline : now;
             if (retryTimes.TryGetValue(key, out long retry)) ready = Math.Max(ready, retry);
-            pending.Add((ready, (int)kind, id, deadline));
+            Add((ready, (int)kind, id, deadline));
         }
 
         internal void EndRebuild() => retryTimes.Clear();
@@ -46,15 +54,17 @@ namespace GoF2Remake.Multiplayer
         internal bool TryTakeDue(long now, out (long ready, int kind, int id, long deadline) job)
         {
             job = default;
-            if (pending.Count == 0 || pending.Min.ready > now) return false;
+            // Constant-time idle check; only a due removal traverses the ordered set.
+            if (pending.Count == 0 || nextReady > now) return false;
             job = pending.Min;
             pending.Remove(job);
+            nextReady = pending.Count == 0 ? long.MaxValue : pending.Min.ready;
             return true;
         }
 
         internal void Retry((long ready, int kind, int id, long deadline) job, long now)
         {
-            pending.Add((now + 5, job.kind, job.id, job.deadline));
+            Add((now + 5, job.kind, job.id, job.deadline));
         }
     }
 
@@ -82,7 +92,7 @@ namespace GoF2Remake.Multiplayer
         static bool AwaitingModuleDonations(PlayerStationRecord station) =>
             AvailableForConstruction(station) && !station.underConstruction &&
             station.moduleBuildCompletesUtc <= 0 && !string.IsNullOrEmpty(station.moduleConstructionKind) &&
-            station.moduleConstructionMaterials?.Count > 0 && station.donatedConstructionStock?.Count > 0;
+            station.moduleConstructionMaterials?.Count > 0 && station.donatedConstructionStock != null;
 
         static bool ScheduledGate(PlayerJumpgateRecord gate) =>
             gate != null && gate.building && gate.startedUtc > 0 && gate.completesUtc > 0 &&
