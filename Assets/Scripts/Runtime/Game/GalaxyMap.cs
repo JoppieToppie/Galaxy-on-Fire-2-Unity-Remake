@@ -248,7 +248,7 @@ namespace GoF2Remake.Data
 
         /// <summary>The system's race (an owned system's: HasOwner) is the player's enemy now (Standing.IsEnemy: beyond -70 on
         /// its axis, or against a signature; a mod race's own rule).</summary>
-        public static bool EnemyTerritory(SystemData s) => s != null && HasOwner(s.index) && Flight.Standing.IsEnemy(s.raceId);
+        public static bool EnemyTerritory(SystemData s) => s != null && HasOwner(s.index) && Flight.Standing.IsEnemy(NpcFactionWar.SystemOwner(s));
 
         /// <summary>The danger of a route: the Danger of the systems it enters (0 = all Secure and none an enemy's).</summary>
         public static int RouteDanger(Database db, List<int> path)

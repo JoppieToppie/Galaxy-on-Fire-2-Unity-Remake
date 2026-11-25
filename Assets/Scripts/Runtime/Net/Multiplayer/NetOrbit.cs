@@ -219,7 +219,7 @@ namespace GoF2Remake.Multiplayer
         static int Territory(NpcShip ship, int station, string tag, int tollAt)
         {
             var orbit = Current;
-            if (orbit == null || orbit.level == null || orbit.level.Layout == null || ship.Race != orbit.level.Layout.raceId) return 0;
+            if (orbit == null || orbit.level == null || orbit.level.Layout == null || ship.Race != (orbit.level.Traffic?.SystemRace ?? orbit.level.Layout.raceId)) return 0;
             if (ship.Spec.eventTag == GarrisonTag || ship.Spec.eventTag == SiegeDefenderTag) return NetFactionsClient.GarrisonRelation(station, tag);
             return NetFactionsClient.Relation(station, tag, tollAt);
         }
@@ -490,6 +490,7 @@ namespace GoF2Remake.Multiplayer
             UpdateHeldAsteroids();
             UpdateGarrison();
             FollowRunner();
+            RequestFactionBattle(state);
             UpdateDerelictStandIns();
             // This player's own NPCs: the orbit's traffic (the authority) or a freelance mission's (anyone).
             bool ownNpcs = Authority || (level.Traffic != null && level.Traffic.Ships.Count > 0) || level.FreelanceOrbit != null
@@ -503,6 +504,22 @@ namespace GoF2Remake.Multiplayer
             ScanShips(state);
             ScanJunk(state);
             ScanCrates(state);
+        }
+
+        float factionWarRequestAt;
+
+        void RequestFactionBattle(NetState state)
+        {
+            var me = NetPlayer.Local;
+            if (!Authority || level.Traffic?.CanHostFactionBattle != true || me == null || NetState.RunnerOf(Station) != me ||
+                Time.unscaledTime < factionWarRequestAt) return;
+            factionWarRequestAt = Time.unscaledTime + 20f;
+            state.RequestFactionBattleRpc(Station);
+        }
+
+        internal void BeginFactionBattle(NpcFactionWar.Battle battle)
+        {
+            if (Authority && level.Traffic != null && battle.orbit == Station) level.Traffic.BeginFactionBattle(battle);
         }
 
         /// <summary>The server's word on who runs this orbit (NetPlayer.RunsOrbit): this player takes it over when it is them,

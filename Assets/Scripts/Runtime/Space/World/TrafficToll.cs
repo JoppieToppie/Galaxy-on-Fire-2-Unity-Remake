@@ -211,6 +211,7 @@ namespace GoF2Remake.World
         }
         public void OnShipDied(NpcShip ship, bool byPlayer)
         {
+            RecordLocalFactionWarCasualty(ship);
             ShipDied?.Invoke(ship, byPlayer);
             GoF2Remake.Modding.ModScripts.Raise("shipDestroyed", ship, byPlayer);
             // Informer mission (PlayerFighter::update ~0xf1cb0): the spy dead -> Status+0xf0; the player shooting another

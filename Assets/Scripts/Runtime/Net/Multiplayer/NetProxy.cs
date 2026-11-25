@@ -253,6 +253,7 @@ namespace GoF2Remake.Multiplayer
                 SpawnedAt = Time.unscaledTime;
                 bountyKillRecorded = false;
                 status.OnValueChanged += RecordOwnerBountyKill;
+                status.OnValueChanged += ReportFactionWarCasualty;
             }
             if (IsOwner && creator.Value == NetworkManager.LocalClientId && !handedOver.Value)
             {
@@ -476,6 +477,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkDespawn()
         {
             status.OnValueChanged -= RecordOwnerBountyKill;
+            status.OnValueChanged -= ReportFactionWarCasualty;
             NetPoses.Unregister(this);
             if (target != null) { Target.NetShips.Remove(target); Target.RadarObjects.Remove(target); }
             sender?.Unhook();
@@ -811,6 +813,12 @@ namespace GoF2Remake.Multiplayer
 
         bool bountyKillRecorded;
 
+        void ReportFactionWarCasualty(NetProxyStatus before, NetProxyStatus after)
+        {
+            if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))
+                NetState.Instance?.RecordFactionWarCasualty(this);
+        }
+
         void RecordOwnerBountyKill(NetProxyStatus before, NetProxyStatus after)
         {
             if (before.life == Flying && after.life != Flying && after.killer == OwnerClientId &&
@@ -820,7 +828,7 @@ namespace GoF2Remake.Multiplayer
 
         void RecordNpcBountyKill(int race, ulong killer)
         {
-            if (bountyKillRecorded || IsJunk || IsWingman || EventTag == NetOrbit.GarrisonTag || EventTag == NetOrbit.SiegeDefenderTag) return;
+            if (bountyKillRecorded || IsJunk || IsWingman || NpcFactionWar.IsWarTag(EventTag) || EventTag == NetOrbit.GarrisonTag || EventTag == NetOrbit.SiegeDefenderTag) return;
             bountyKillRecorded = true;
             NetFactions.RecordBountyNpcKill(race, killer);
         }

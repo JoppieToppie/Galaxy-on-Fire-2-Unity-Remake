@@ -355,7 +355,8 @@ namespace GoF2Remake.Data
         public static Agent CreateAgent(Database db, int station)
         {
             int campaign = Session.CampaignMission;
-            int race = Standing.Look(Sys(db, SystemOf(db, station))?.raceId ?? 0);   // (a mod race's system: its look race's visitors)
+            int owner = NpcFactionWar.OrbitOwner(Sys(db, SystemOf(db, station)), station);
+            int race = Standing.Look(owner >= 0 ? owner : 0);   // (a mod race's system: its look race's visitors)
             if (R(100) < 20) race = R(8);
             int offer;
             do offer = R(7); while ((race == 1 && offer == AgentOffer.Wingmen) || offer == 3 || offer == 4);   // Vossk never offer wingmen

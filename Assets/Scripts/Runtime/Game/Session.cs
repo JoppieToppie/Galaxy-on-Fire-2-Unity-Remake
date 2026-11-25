@@ -102,6 +102,7 @@ namespace GoF2Remake.Data
         /// ("station:entry", World.LootContainer), so each comes once.</summary>
         public static HashSet<string> FixedLootTaken = new HashSet<string>();
         /// <summary>Remake mods (2026-11-14): each script mod's game.saved table as JSON, by mod id (Modding.ModScripts).</summary>
+        public static string NpcFactionWarJson;
         public static Dictionary<string, string> ScriptData = new Dictionary<string, string>();
         /// <summary>Remake: the repeatable quests finished ("mission repeat"), each with the playing time (PlaySeconds) from which
         /// it may start again (EventRunner.CheckQuestStarts).</summary>
@@ -607,6 +608,8 @@ namespace GoF2Remake.Data
             ShipBuilds = new Dictionary<string, string>();
             GraphQuestsDone = new HashSet<string>();
             FixedLootTaken = new HashSet<string>();
+            NpcFactionWarJson = null;
+            NpcFactionWar.ResetLocal();
             ScriptData = new Dictionary<string, string>();
             Modding.ModScripts.RestoreSaved(false);   // the running scripts' game.saved: empty again
             GraphQuestRepeats = new Dictionary<string, float>();

@@ -120,6 +120,7 @@ namespace GoF2Remake.Data
         public List<string> fixedLootTaken;
         // (remake, no version of its own: older saves have none) the script mods' game.saved tables (Session.ScriptData)
         public List<Modding.SaveScriptData> scriptData;
+        public string npcFactionWar;
         // (remake, no version of its own: older saves have none) the repeatable quests finished, "name|playing seconds"
         public List<string> graphQuestRepeats;
         // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipDiscount)
@@ -434,6 +435,7 @@ namespace GoF2Remake.Data
                 graphQuests = new List<GraphQuestState>(Session.GraphQuests),
                 graphQuestsDone = new List<string>(Session.GraphQuestsDone),
                 fixedLootTaken = new List<string>(Session.FixedLootTaken),
+                npcFactionWar = Session.NpcFactionWarJson,
                 scriptData = Session.ScriptData.Select(kv => new Modding.SaveScriptData { id = kv.Key, json = kv.Value }).ToList(),
                 graphQuestRepeats = Session.GraphQuestRepeats.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 modCampaign = Session.ModCampaign ?? "",
@@ -619,6 +621,7 @@ namespace GoF2Remake.Data
             Session.PlayerIdentityPortrait = s.playerIdentityPortrait;
             Session.Hardcore = s.hardcore;
             Session.NoMedals = s.noMedals;
+            Session.NpcFactionWarJson = s.npcFactionWar;
             if (!string.IsNullOrEmpty(s.runId)) Session.RunId = s.runId;   // an older save keeps the new id ResetNewGame made
             Session.PlaySeconds = s.playSeconds;
             Session.Campaign = (Campaign)s.campaign;

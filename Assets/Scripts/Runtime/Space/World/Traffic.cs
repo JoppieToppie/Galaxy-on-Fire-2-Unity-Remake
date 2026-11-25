@@ -65,7 +65,8 @@ namespace GoF2Remake.World
             this.storyOrbit = storyOrbit;
             var sys = db.Systems.Find(s => s.index == layout.systemIndex);
             // (a mod race's system keeps its mod race: its locals, kills and alarms; the tables use its look, Standing.Look)
-            SystemRace = Modding.ModRaces.Is(sys?.raceId ?? 0) ? sys.raceId : Mathf.Clamp(sys?.raceId ?? 0, 0, 3);
+            int owner = NpcFactionWar.OrbitOwner(sys, StationIndex);
+            SystemRace = Modding.ModRaces.Is(owner) ? owner : Mathf.Clamp(owner, 0, 3);
             AttackRace = Standing.EnemyRaceOf(SystemRace);
             Security = sys?.securityLevel ?? 0;
             blackMarket = layout.systemIndex == 25;
@@ -454,6 +455,7 @@ namespace GoF2Remake.World
             float dtMs = Time.deltaTime * 1000f;
             Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu
             UpdateOrbit(dtMs);
+            UpdateFactionWar();
             UpdateAlienAttackers(dtMs);
             UpdateChatter(dtMs);
             UpdateLomaToll();
@@ -475,6 +477,86 @@ namespace GoF2Remake.World
                     if (t != null && t.enabled && !t.untargetable && !t.isPlayer && t.Alive && t.hostileToPlayer) hostiles++;
             HostileCount = hostiles;
             if (!MenuBackdrop) UpdateMusic(Time.unscaledDeltaTime);   // the menu plays its own theme
+        }
+
+        NpcFactionWar.Battle? factionBattle;
+        float nextWarCheck;
+
+        public bool CanHostFactionBattle => Modding.ModNpcFactionWar.Enabled && !MenuBackdrop && !IsStoryOrbit &&
+            !VoidAttack && !holdEnemies && waiting.Count == 0 && Player != null && Player.Alive &&
+            !TrafficPlan.InformerOrbit(StationIndex);
+
+        public void BeginFactionBattle(NpcFactionWar.Battle battle)
+        {
+            if (battle.orbit != StationIndex || !CanHostFactionBattle || factionBattle?.id == battle.id) return;
+            RetireFactionBattle();
+            factionBattle = battle;
+            for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
+            {
+                bool defender = slot < battle.shipsPerSide;
+                int race = defender ? battle.defender : battle.attacker;
+                int column = slot % battle.shipsPerSide;
+                float x = (defender ? -1 : 1) * (14000f + column % 4 * 2200f);
+                float y = 7000f + column / 4 * 1800f;
+                float z = 85000f + column % 4 * 2600f;
+                var p = new Vector3(x, y, z);
+                var route = new Route(true);
+                route.points.Add(new Vector3(-x, y, z));
+                route.points.Add(new Vector3(-x, y, z + 12000f));
+                route.points.Add(p);
+                SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = race, ship = NpcTables.RandomFighter(race),
+                    position = p, route = route, eventTag = battle.Tag(slot), noLoot = true });
+            }
+            ConnectPlayers();
+            Message?.Invoke($"{Standing.RaceName(battle.attacker)} and {Standing.RaceName(battle.defender)} fleets are fighting for this orbit.");
+        }
+
+        void RetireFactionBattle()
+        {
+            if (!factionBattle.HasValue) return;
+            var battle = factionBattle.Value;
+            factionBattle = null;
+            foreach (var ship in Ships)
+            {
+                if (ship == null || ship.Gone || !ship.Target.Alive) continue;
+                int slot = battle.Slot(ship.Spec.eventTag);
+                if (slot >= 0 && slot < 2 * battle.shipsPerSide) ship.Vanish();
+            }
+        }
+
+        void UpdateFactionWar()
+        {
+            if (!Modding.ModNpcFactionWar.Enabled || Time.unscaledTime < nextWarCheck) return;
+            nextWarCheck = Time.unscaledTime + 5f;
+            var system = db.Systems.Find(s => s.index == systemIndex);
+            int owner = NpcFactionWar.OrbitOwner(system, StationIndex);
+            if (owner >= 0 && owner != SystemRace)
+            {
+                SystemRace = owner;
+                AttackRace = Standing.EnemyRaceOf(owner);
+            }
+            long now = NpcFactionWar.Now;
+            if (factionBattle.HasValue && factionBattle.Value.expires < now) RetireFactionBattle();
+            if (NetSession.Active || !CanHostFactionBattle) return;
+            var campaign = NpcFactionWar.LocalCampaign;
+            if (campaign.TryStart(db, StationIndex, now, out var battle))
+            {
+                NpcFactionWar.SaveLocal();
+                BeginFactionBattle(battle);
+            }
+        }
+
+        public void RecordLocalFactionWarCasualty(NpcShip ship)
+        {
+            if (NetSession.Active || !factionBattle.HasValue || !NpcFactionWar.IsWarTag(ship.Spec.eventTag)) return;
+            var battle = factionBattle.Value;
+            if (!NpcFactionWar.LocalCampaign.RecordCasualty(battle, ship.Spec.eventTag, ship.Race, NpcFactionWar.Now, out int winner)) return;
+            NpcFactionWar.SaveLocal();
+            Message?.Invoke($"{Standing.RaceName(winner)} won the battle for this orbit.");
+            int owner = NpcFactionWar.OrbitOwner(db.Systems.Find(s => s.index == battle.system), StationIndex);
+            SystemRace = owner;
+            AttackRace = Standing.EnemyRaceOf(owner);
+            Modding.ModScripts.Raise("npcFactionBattleResolved", battle.orbit, battle.system, winner, winner == battle.attacker);
         }
 
         /// <summary>The main menu's backdrop (CutScene(2)): the orbit's traffic without the level's music.</summary>

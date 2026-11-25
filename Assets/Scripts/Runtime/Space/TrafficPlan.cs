@@ -220,10 +220,12 @@ namespace GoF2Remake.Flight
             }
             if (system == null) return list;
             // Remake mods: a mod race's system keeps its mod race (ModRaces); "traffic": "mod" flies mods' ships only.
-            int sysRace = Modding.ModRaces.Is(system.raceId) ? system.raceId : Mathf.Clamp(system.raceId, 0, 3);
+            int owner = NpcFactionWar.OrbitOwner(system, station);
+            int sysRace = Modding.ModRaces.Is(owner) ? owner : Mathf.Clamp(owner, 0, 3);
             bool modOnly = Modding.ModWorld.ModTrafficOnly(system.index);
             var localRaces = Modding.ModWorld.Locals(system.index, station);   // (an orbit's own, else its system's)
             var raiderRaces = Modding.ModWorld.Raiders(system.index, station);
+            if (NpcFactionWar.HasCapturedOrbit(system, station) && !modOnly) localRaces = null;
             bool hardcore = Session.IsExtreme;
             int rank = Session.Rank;
             int cm = Session.CampaignMission;
@@ -241,6 +243,8 @@ namespace GoF2Remake.Flight
                 : modOnly || Modding.ModRaces.Is(sysRace) ? Standing.EnemyRaceOf(sysRace)   // a mod race's: its hostile enemies
                 : Random.Range(0, 100) < 75 ? Standing.Pirate : Standing.EnemyRaceOf(sysRace);
             // (the game's pirates where a mod system has mods' ships only: its raiders instead)
+            if (Modding.ModNpcFactionWar.Enabled && raiderRaces == null && !modOnly && raiderRace >= 0 && raiderRace <= 3)
+                raiderRace = Standing.Pirate;
             int pirateRace = modOnly && raiderRace != Standing.Void ? raiderRace : Standing.Pirate;
             int raiders = raidersOn ? Random.Range(0, 4) : 0;
             if (raiders > 0)
@@ -270,7 +274,7 @@ namespace GoF2Remake.Flight
             // trigger the vanilla four-patrol empty-orbit fallback and add ships back.
             if (Session.AttackedStations.Contains(station)) local = Mathf.Max(local, 7);
             // The "big battle" is random ambient traffic too, so population zero suppresses its roll.
-            if (population > 0f && raidersOn && cm > 0x1f && Random.Range(0, 100) < 8) raiders = local = 9;
+            if (!Modding.ModNpcFactionWar.Enabled && population > 0f && raidersOn && cm > 0x1f && Random.Range(0, 100) < 8) raiders = local = 9;
             int unscaledAmbientCount = jumpers + local + freighters + raiders;
             raiders = ScaleAmbientCount(raiders, population);
             jumpers = ScaleAmbientCount(jumpers, population);
@@ -350,7 +354,7 @@ namespace GoF2Remake.Flight
             if (story && system.index == 27 && cm < 0x9e) { local = jumpers = freighters = raiders = 0; raidersOn = terran = vossk = false; }
             // Remake (CapitalShips): now and then a fleet battle (a Terran and a Vossk capital ship with their wings) instead of
             // the single capital ship special.
-            bool fleetBattle = population > 0f && FleetBattleHere(station, system, sysRace, baseSystem, story);
+            bool fleetBattle = !Modding.ModNpcFactionWar.Enabled && population > 0f && FleetBattleHere(station, system, sysRace, baseSystem, story);
             if (fleetBattle) terran = vossk = false;
             // Remake mods (Modding.ModCapitalShips): a mod's capital ship of the system's race in the special's place (Terran /
             // Vossk at the "Mod ships in traffic" chance), or in a Nivelian / Midorian system, which has none, at the same 30 %.

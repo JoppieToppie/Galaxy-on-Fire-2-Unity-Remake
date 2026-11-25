@@ -320,6 +320,7 @@ namespace GoF2Remake.Multiplayer
                 NetRateLimit.Reset();
                 NetTrade.Reset();
                 PublishPlayerStations(NetPlayerStations.Snapshot);
+                EnsureFactionWar();
             }
             if (!IsServer)
             {
@@ -339,7 +340,8 @@ namespace GoF2Remake.Multiplayer
                 // A session mod's scripts this player hasn't allowed: the join ends here, before anything of it runs.
                 refuseJoin = NetMods.ScriptRefusal(sessionMods.Value.ToString());
                 if (refuseJoin != null) return;
-                NetMods.ApplyFromServer(sessionMods.Value.ToString());   // the session's mods before the world is built
+                NetMods.ApplyFromServer(sessionMods.Value.ToString());
+                if (Modding.ModNpcFactionWar.Enabled) RequestFactionWarSnapshotRpc();   // the session's mods before the world is built
                 if (coop.Value) NetCoop.OnJoined(coopStory.Value.ToString());   // a co-op guest: the crew's story before the profile
                 // A server with profiles: the world waits for this player's profile (NetProfileClient.Begin -> EnterWorld).
                 if (profilesOn.Value) NetProfileClient.Begin(serverId.Value.ToString(), seed.Value);
@@ -350,6 +352,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkDespawn()
         {
             if (Instance == this) { Instance = null; NetProfileClient.ClearIdentitySetup(); }
+            NpcFactionWar.SetNetworkCampaign(null);
             playerStationJson = "";
             appliedPlayerStationRevision = 0;
             playerStationSnapshotDirty = false;
@@ -488,6 +491,7 @@ namespace GoF2Remake.Multiplayer
             EventRunner.Tick();   // a running event
             if ((sweepTimer -= Time.unscaledDeltaTime) > 0f) return;
             sweepTimer = SweepSeconds;
+            FlushFactionWar();
             NetFactions.RefreshPiracyFlags();
             TickPiracyDeaths();
             NetRateLimit.Tick();   // the clients that kept flooding go

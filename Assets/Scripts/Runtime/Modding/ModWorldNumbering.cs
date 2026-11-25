@@ -82,6 +82,8 @@ namespace GoF2Remake.Modding
         public static int SystemIndexOf(string key) { EnsureMapping(); return systemIndex.TryGetValue(key, out int i) ? i : -1; }
         /// <summary>A mod's system's key ("mod_id:id"), null for an original one.</summary>
         public static string SystemKey(int i) { EnsureMapping(); return systemAt.TryGetValue(i, out var d) ? d.key : null; }
+        /// <summary>A mod's stable station key, or null for an original station.</summary>
+        public static string StationKey(int index) { EnsureMapping(); return stationAt.TryGetValue(index, out var d) ? d.key : null; }
         public static int StationIndexOf(string key) { EnsureMapping(); return stationIndex.TryGetValue(key, out int i) ? i : -1; }
         public static IEnumerable<KeyValuePair<int, string>> ActiveSystemKeys() { EnsureMapping(); return systemAt.Select(kv => new KeyValuePair<int, string>(kv.Key, kv.Value.key)).ToList(); }
         public static IEnumerable<KeyValuePair<int, string>> ActiveStationKeys() { EnsureMapping(); return stationAt.Select(kv => new KeyValuePair<int, string>(kv.Key, kv.Value.key)).ToList(); }
