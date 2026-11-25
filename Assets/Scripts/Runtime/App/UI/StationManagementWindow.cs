@@ -682,20 +682,21 @@ namespace GoF2Remake.UI
                     var order = activeOrders[i];
                     if (order == null || order.remaining <= 0) continue;
                     string itemName = NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item);
-                    AddInfo("BUY ORDER #" + i, itemName + "  ·  " + order.remaining.ToString("N0") +
+                    AddInfo("BUY ORDER #" + order.id, itemName + "  ·  " + order.remaining.ToString("N0") +
                         " remaining at " + order.unitPrice.ToString("N0") + " cr each");
                     AddInfo("Escrow", order.reservedCredits.ToString("N0") + " credits reserved");
-                    int orderIndex = i;
+                    int orderIndex = order.id;
+                    if (orderIndex <= 0) continue;
                     if (selected.underConstruction ? LocalDeliveryProject()?.id == selected.id :
                         !inFlight && CurrentOrbit == selected.stationIndex)
                     {
-                        AddField("procureSellAmount" + i, "Units to sell into order #" + i, "1");
-                        AddAction("Sell " + itemName + " to order #" + i, () =>
-                            Send("/station sell-order " + id + " " + orderIndex + " " + Value("procureSellAmount" + orderIndex)));
+                        AddField("procureSellAmount" + orderIndex, "Units to sell into order #" + orderIndex, "1");
+                        AddAction("Sell " + itemName + " to order #" + orderIndex, () =>
+                            Send("/station sell-order-id " + id + " " + orderIndex + " " + Value("procureSellAmount" + orderIndex)));
                     }
                     if (allowManagement)
-                        AddAction("Cancel order #" + i + " and refund unused escrow", () =>
-                            Send("/station cancel-order " + id + " " + orderIndex));
+                        AddAction("Cancel order #" + orderIndex + " and refund unused escrow", () =>
+                            Send("/station cancel-order-id " + id + " " + orderIndex));
                 }
             }
             if (selected.underConstruction && LocalDeliveryProject()?.id != selected.id)
