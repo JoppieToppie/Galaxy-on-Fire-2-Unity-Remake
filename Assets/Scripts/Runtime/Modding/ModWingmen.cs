@@ -21,8 +21,11 @@ namespace GoF2Remake.Modding
     {
         public const string File = "wingmen.json";
 
-        static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "ships", "radio", "multipleGroups", "minGroupSize", "maxGroupSize", "maxTotal" };
+        static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "ships", "radio", "multipleGroups", "minGroupSize", "maxGroupSize", "maxTotal", "extendContracts", "extensionPricePercent", "extensionSeconds" };
 
+        public static bool ExtendContracts { get; private set; }
+        public static int ExtensionPricePercent { get; private set; } = 50;
+        public static int ExtensionSeconds { get; private set; } = 600;
         public static bool MultipleGroups { get; private set; }
         public static int MinGroupSize { get; private set; } = 1;
         public static int MaxGroupSize { get; private set; } = 3;
@@ -30,6 +33,7 @@ namespace GoF2Remake.Modding
         public static void Apply(Database db)
         {
             db.WingmanCrews.Clear();
+            ExtendContracts = false; ExtensionPricePercent = 50; ExtensionSeconds = 600;
             MultipleGroups = false; MinGroupSize = 1; MaxGroupSize = 3; MaxTotal = 3;
             var devices = new Dictionary<ModInfo, List<int>>();
             foreach (var (mod, ship) in ModContent.ActiveShips())
@@ -51,6 +55,9 @@ namespace GoF2Remake.Modding
                 if (token == null) continue;
                 if (!(token is JObject o)) { Warn(mod, $"{File}: must be an object {{ \"chance\", \"ships\", \"radio\" }}"); continue; }
                 if (ModJson.Get(o, "multipleGroups") is JToken multiple && multiple.Type == JTokenType.Boolean) MultipleGroups = (bool)multiple;
+                if (ModJson.Get(o, "extendContracts") is JToken extend && extend.Type == JTokenType.Boolean) ExtendContracts = (bool)extend;
+                ExtensionPricePercent = Mathf.Clamp(ModJson.Int(o, "extensionPricePercent", ExtensionPricePercent, File), 1, 99);
+                ExtensionSeconds = Mathf.Clamp(ModJson.Int(o, "extensionSeconds", ExtensionSeconds, File), 60, 86400);
                 MinGroupSize = Mathf.Clamp(ModJson.Int(o, "minGroupSize", MinGroupSize, File), 1, 24);
                 MaxGroupSize = Mathf.Clamp(ModJson.Int(o, "maxGroupSize", MaxGroupSize, File), MinGroupSize, 24);
                 MaxTotal = Mathf.Clamp(ModJson.Int(o, "maxTotal", MultipleGroups ? Mathf.Max(12, MaxTotal) : MaxGroupSize, File), MaxGroupSize, 48);
