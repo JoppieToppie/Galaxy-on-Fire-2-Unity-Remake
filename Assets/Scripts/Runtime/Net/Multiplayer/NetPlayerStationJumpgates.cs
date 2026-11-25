@@ -208,8 +208,12 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || pilot == null || pilot.Station != orbit || !pilot.InSpace) return null;
             string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            var entry = MatchingJumpgateBlacklist(FindJumpgate(orbit), account, NetFactions.Of(account)?.id);
-            return entry == null ? null : WithBlacklistReason("Access denied: you or your faction are blacklisted at this jumpgate.", entry.reason);
+            var gate = FindJumpgate(orbit);
+            var entry = MatchingJumpgateBlacklist(gate, account, NetFactions.Of(account)?.id);
+            if (entry != null) return WithBlacklistReason("Access denied: you or your faction are blacklisted at this jumpgate.", entry.reason);
+            if (gate == null || AllowsJumpgateRace(gate, account)) return null;
+            var rule = EffectiveRaceRule(NetProfiles.StationPolicyRaceOf(account), gate.raceAccess, JumpgateRaceDefaults(gate));
+            return WithBlacklistReason("Access denied: this jumpgate restricts your race.", rule?.reason);
         }
 
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
