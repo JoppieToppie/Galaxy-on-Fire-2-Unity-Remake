@@ -801,8 +801,10 @@ namespace GoF2Remake.UI
                             ("allow", "Allow under race policy"),
                             ("deny", "Deny under race policy")
                         });
+                        string raceReasonKey = "gateRaceReason_" + orbitId;
+                        AddField(raceReasonKey, "Race denial reason (optional)", "");
                         AddAction("Apply gate race rule", () =>
-                            Send("/station jumpgate-race " + orbitId + " " + Value(raceKey) + " " + Value(raceStateKey)));
+                            Send(("/station jumpgate-race " + orbitId + " " + Value(raceKey) + " " + Value(raceStateKey) + " " + Value(raceReasonKey)).TrimEnd()));
                         AddAction("View gate and faction race rules", () => Send("/station jumpgate-race " + orbitId));
                         if (Modding.ModPlayerInfrastructure.Current.JumpgateRaceExemptionsEnabled)
                         {
@@ -1264,8 +1266,9 @@ namespace GoF2Remake.UI
                 {
                     ("inherit", "Inherit faction policy"), ("allow", "Allow under race policy"), ("deny", "Deny under race policy")
                 });
-                AddAction("Apply station race rule", () => Send("/station race-policy " + id + " " +
-                    Value("raceFacility") + " " + Value("stationPolicyRace") + " " + Value("racePolicyState")));
+                AddField("raceDenialReason", "Race denial reason (optional)", "");
+                AddAction("Apply station race rule", () => Send(("/station race-policy " + id + " " +
+                    Value("raceFacility") + " " + Value("stationPolicyRace") + " " + Value("racePolicyState") + " " + Value("raceDenialReason")).TrimEnd()));
                 if (Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
                 {
                     AddChoice("raceMarketAction", "Price adjustment", new List<(string, string)>
