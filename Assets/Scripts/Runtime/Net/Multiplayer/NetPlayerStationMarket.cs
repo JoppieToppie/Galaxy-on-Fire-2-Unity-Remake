@@ -549,21 +549,40 @@ namespace GoF2Remake.Multiplayer
             result.storage = StorageSnapshotFor(pilot, stationId);
             long Quote(long price, string seller) => StationMarketSettlement(station, account, seller, price,
                 (price * Math.Clamp(station.marketplaceTaxPercent, 0, 10) + 99) / 100).charge;
+            const int pageSize = 64;
+            // Count the visible rows without allocating quotes or row objects. Preserve the
+            // existing goods-then-hulls order, including clamping an out-of-range page.
+            int count = 0;
+            bool VisibleGoods(PlayerStationListing listing) => listing != null && listing.id > 0 &&
+                listing.amount > 0 && (canTrade || listing.sellerProfile == account);
+            bool VisibleHull(PlayerStationShipListing listing) => listing?.hull != null && listing.id > 0 &&
+                (canTrade || listing.sellerProfile == account);
+            if (station.listings != null)
+                foreach (var listing in station.listings) if (VisibleGoods(listing)) count++;
+            if (station.shipListings != null)
+                foreach (var listing in station.shipListings) if (VisibleHull(listing)) count++;
+            result.pageCount = Math.Max(1, (count + pageSize - 1) / pageSize);
+            result.page = Math.Clamp(page, 0, result.pageCount - 1);
+            int skip = result.page * pageSize;
+            result.rows = new List<MarketUiRow>(Math.Min(pageSize, count - skip));
             if (station.listings != null)
                 foreach (var listing in station.listings)
-                    if (listing != null && listing.id > 0 && listing.amount > 0 && (canTrade || listing.sellerProfile == account))
-                        result.rows.Add(new MarketUiRow { id = listing.id, item = listing.item, amount = listing.amount,
-                            price = listing.unitPrice, quotedPrice = Quote(listing.unitPrice, listing.sellerProfile), mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                {
+                    if (!VisibleGoods(listing)) continue;
+                    if (skip > 0) { skip--; continue; }
+                    result.rows.Add(new MarketUiRow { id = listing.id, item = listing.item, amount = listing.amount,
+                        price = listing.unitPrice, quotedPrice = Quote(listing.unitPrice, listing.sellerProfile), mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                    if (result.rows.Count == pageSize) return result;
+                }
             if (station.shipListings != null)
                 foreach (var listing in station.shipListings)
-                    if (listing?.hull != null && listing.id > 0 && (canTrade || listing.sellerProfile == account))
-                        result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
-                            price = listing.price, quotedPrice = Quote(listing.price, listing.sellerProfile), hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
-            const int pageSize = 64;
-            result.pageCount = Math.Max(1, (result.rows.Count + pageSize - 1) / pageSize);
-            result.page = Math.Clamp(page, 0, result.pageCount - 1);
-            int start = result.page * pageSize;
-            result.rows = result.rows.GetRange(start, Math.Min(pageSize, result.rows.Count - start));
+                {
+                    if (!VisibleHull(listing)) continue;
+                    if (skip > 0) { skip--; continue; }
+                    result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
+                        price = listing.price, quotedPrice = Quote(listing.price, listing.sellerProfile), hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                    if (result.rows.Count == pageSize) break;
+                }
             return result;
         }
 
