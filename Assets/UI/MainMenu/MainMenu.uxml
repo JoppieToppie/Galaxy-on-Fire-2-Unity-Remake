@@ -153,6 +153,7 @@
                     <ui:Label name="loadTitle" class="panel-title gof-semibold" />
                     <ui:VisualElement class="panel-accent" />
                     <ui:ScrollView name="slotList" class="slot-list" />
+                    <ui:Label name="campaignEditHint" class="slot-delete-hint" picking-mode="Ignore" />
                     <!-- Remake: Import / Export saves (SaveTransfer); the exports on the right in both rows; the delete hint (SaveSlotRow.AttachHint) goes above. -->
                     <ui:VisualElement name="saveTransferRow" class="mods-actions save-transfer-row">
                         <ui:Button name="importSavesButton" class="mods-action gof-semibold" />
@@ -164,7 +165,6 @@
                         <ui:Button name="exportOriginalButton" class="mods-action gof-semibold" />
                     </ui:VisualElement>
                     <ui:Label name="saveTransferNote" class="save-transfer-note" />
-                    <ui:Label name="campaignEditHint" class="slot-delete-hint" picking-mode="Ignore" />
                     <ui:Button name="loadBack" class="menu-button back-button gof-semibold" />
                 </ui:VisualElement>
 

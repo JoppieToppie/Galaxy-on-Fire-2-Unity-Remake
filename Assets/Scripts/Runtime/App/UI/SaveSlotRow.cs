@@ -73,8 +73,8 @@ namespace GoF2Remake.UI
         public static void AttachHint(ScrollView list)
         {
             var parent = list.parent;
-            if (parent == null || parent.Q<Label>(className: "slot-delete-hint") != null) return;
-            var hint = new Label { pickingMode = PickingMode.Ignore };
+            if (parent == null || parent.Q<Label>("slotDeleteHint") != null) return;
+            var hint = new Label { name = "slotDeleteHint", pickingMode = PickingMode.Ignore };
             hint.AddToClassList("slot-delete-hint");
             parent.Insert(parent.IndexOf(list) + 1, hint);
             void Refresh() => hint.text = InputMode.Current == InputKind.Gamepad ? Localization.Extra("slotDeleteHintPad", "Hold X on a save to delete it")
