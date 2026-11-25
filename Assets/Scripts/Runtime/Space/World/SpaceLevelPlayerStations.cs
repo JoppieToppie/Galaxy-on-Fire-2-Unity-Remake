@@ -7,6 +7,74 @@ namespace GoF2Remake.World
 {
     public partial class SpaceLevel
     {
+        NpcShip constructionPort;
+        Material constructionPortMaterial;
+
+        void RemoveConstructionPort()
+        {
+            if (constructionPort != null)
+            {
+                if (Docking != null && Docking.Target == constructionPort) Docking.Abort();
+                Traffic?.Ships.Remove(constructionPort);
+                constructionPort.gameObject.SetActive(false);
+                Destroy(constructionPort.gameObject);
+                constructionPort = null;
+            }
+            if (constructionPortMaterial != null) Destroy(constructionPortMaterial);
+            constructionPortMaterial = null;
+        }
+
+        void UpdateConstructionPort(int orbit)
+        {
+            if (GameHooks.StationConstructionPlaceholder?.Invoke(orbit) != true)
+            {
+                RemoveConstructionPort();
+                return;
+            }
+            if (Traffic == null || Docking == null) return;
+            if (constructionPort != null)
+            {
+                constructionPort.transform.position = SpaceHooks.StationPosition(orbit);
+                return;
+            }
+            var anchor = db.Stations.Find(entry => entry != null && entry.index == orbit);
+            constructionPort = Traffic.SpawnShip(new SpawnSpec
+            {
+                group = NpcGroup.Special, race = Layout.raceId, ship = 15,
+                fixedObject = "station_pads", stationPort = true, stationary = true,
+                alwaysFriend = true, noLoot = true, hitpoints = 9999999, hitRadius = 1f,
+                collisionId = -1, dockingType = ObjectDocking.ConstructionSite,
+                position = Vector3.zero, rotation = new Vector3(0f, Mathf.PI, 0f),
+                name = (anchor?.name ?? "Station") + " construction site"
+            });
+            if (constructionPort == null) return;
+            constructionPort.LocalOnly = true;
+            constructionPort.Target.untargetable = true;
+            constructionPort.DockingName = (anchor?.name ?? "Station") + " construction site";
+            constructionPort.transform.position = SpaceHooks.StationPosition(orbit);
+            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.name = "Temporary construction dock";
+            cube.transform.SetParent(constructionPort.transform, false);
+            cube.transform.localScale = Vector3.one * (ObjectDocking.ConstructionCubeHalf * 2f);
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            if (shader != null)
+            {
+                constructionPortMaterial = new Material(shader);
+                var tint = new Color(0.2f, 0.75f, 1f, 0.35f);
+                constructionPortMaterial.color = tint;
+                if (constructionPortMaterial.HasProperty("_BaseColor")) constructionPortMaterial.SetColor("_BaseColor", tint);
+                if (constructionPortMaterial.HasProperty("_Surface")) constructionPortMaterial.SetFloat("_Surface", 1f);
+                if (constructionPortMaterial.HasProperty("_SrcBlend")) constructionPortMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                if (constructionPortMaterial.HasProperty("_DstBlend")) constructionPortMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                if (constructionPortMaterial.HasProperty("_ZWrite")) constructionPortMaterial.SetFloat("_ZWrite", 0f);
+                constructionPortMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                constructionPortMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                cube.GetComponent<Renderer>().sharedMaterial = constructionPortMaterial;
+            }
+            // The docking animation owns contact; avoid blocking it with a solid physics collider.
+            cube.GetComponent<Collider>().isTrigger = true;
+        }
+
         bool playerStationDockPointsSpawned;
         int visiblePlayerStationState = -1;
         int visiblePlayerStationModel = -1;
@@ -146,6 +214,7 @@ namespace GoF2Remake.World
         {
             if (Layout == null || Navigation == null) return;
             int orbit = Layout.stationIndex;
+            UpdateConstructionPort(orbit);
             UpdateOrbitalStructures(orbit);
             UpdateWreckSalvage(orbit);
             if (GameHooks.IsPlayerStation?.Invoke(orbit) != true) return;
