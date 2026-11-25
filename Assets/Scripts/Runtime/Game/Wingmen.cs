@@ -15,16 +15,31 @@ namespace GoF2Remake.Data
         public static bool Hired => Session.Wingmen.Count > 0;
         public static bool Expired => Hired && Session.WingmanContractMs < 1f;
 
+        public static bool CanHire(Agent agent) => agent != null && (!Hired || Modding.ModWingmen.MultipleGroups && !Expired) &&
+            Session.Wingmen.Count + agent.wingmen.Count + 1 <= Modding.ModWingmen.MaxTotal;
+
         /// <summary>setWingmen(names), race, contract 600 000 ms, the agent's portrait, hired += friends + 1.</summary>
         public static void Hire(Agent agent)
         {
             var names = new List<string> { agent.name };
             names.AddRange(agent.wingmen);
-            Session.Wingmen = names;
-            Session.WingmanShips = agent.wingmanShips != null ? new List<int>(agent.wingmanShips) : new List<int>();
-            Session.WingmanRace = agent.race;
-            Session.WingmanContractMs = ContractMs;
-            Session.WingmanPortrait = agent.portrait != null ? (int[])agent.portrait.Clone() : new int[5];
+            if (!CanHire(agent)) return;
+            bool append = Hired;
+            if (!append)
+            {
+                Session.Wingmen.Clear(); Session.WingmanShips.Clear(); Session.WingmanRaces.Clear();
+                Session.WingmanRace = agent.race;
+                Session.WingmanContractMs = ContractMs;
+                Session.WingmanPortrait = agent.portrait != null ? (int[])agent.portrait.Clone() : new int[5];
+            }
+            while (Session.WingmanShips.Count < Session.Wingmen.Count) Session.WingmanShips.Add(-1);
+            while (Session.WingmanRaces.Count < Session.Wingmen.Count) Session.WingmanRaces.Add(Session.WingmanRace);
+            for (int i = 0; i < names.Count; i++)
+            {
+                Session.Wingmen.Add(names[i]);
+                Session.WingmanShips.Add(agent.wingmanShips != null && i < agent.wingmanShips.Count ? agent.wingmanShips[i] : -1);
+                Session.WingmanRaces.Add(agent.race);
+            }
             Session.WingmenHired += names.Count;
         }
 
@@ -33,6 +48,7 @@ namespace GoF2Remake.Data
         {
             int i = Session.Wingmen.IndexOf(name);
             if (i >= 0 && i < Session.WingmanShips.Count) Session.WingmanShips.RemoveAt(i);
+            if (i >= 0 && i < Session.WingmanRaces.Count) Session.WingmanRaces.RemoveAt(i);
             Session.Wingmen.Remove(name);
             if (Session.Wingmen.Count == 0) Dismiss();
         }
@@ -42,6 +58,7 @@ namespace GoF2Remake.Data
         {
             Session.Wingmen = new List<string>();
             Session.WingmanShips = new List<int>();
+            Session.WingmanRaces = new List<int>();
             Session.WingmanContractMs = 0f;
         }
     }
