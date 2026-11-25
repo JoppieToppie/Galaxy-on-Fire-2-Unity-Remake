@@ -35,6 +35,7 @@ namespace GoF2Remake.Data
         public List<ItemStack> equipment, cargo;
         public bool deathLoaner;
         public List<DeathRecovery> deathRecoveries;
+        public string lastDeathPenaltyId;
         public List<StationStock> recentStations;
         public List<int> seenItems, visitedStations, attackedStations;
         public List<KnownPrice> lowestPrices, highestPrices;
