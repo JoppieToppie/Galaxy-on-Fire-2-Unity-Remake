@@ -333,39 +333,69 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        // A single durable profile write both removes the flown assets and creates the recovery record.
-        internal static bool BeginDeathRecovery(NetPlayer pilot, bool canSpawnLoot, out int droppedItem)
+        [Serializable]
+        sealed class PendingDeathPenalty
+        {
+            public string id;
+            public long dueUtc;
+            public int origin, respawn, emergencyShip;
+        }
+
+        static string PendingDeathPath(string account) => ProfilePath(account) + ".pending-death";
+        static bool HasPendingDeath(string account) => !string.IsNullOrEmpty(account) && File.Exists(PendingDeathPath(account));
+
+        static bool ReadPendingDeath(string account, out PendingDeathPenalty pending)
+        {
+            pending = null;
+            try
+            {
+                if (!HasPendingDeath(account)) return true;
+                pending = JsonUtility.FromJson<PendingDeathPenalty>(File.ReadAllText(PendingDeathPath(account)));
+                return pending != null && !string.IsNullOrEmpty(pending.id) && pending.dueUtc > 0;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"NetProfiles: pending death for {account} could not be read: {e.Message}");
+                return false;
+            }
+        }
+
+        static bool ClearPendingDeath(string account)
+        {
+            try { File.Delete(PendingDeathPath(account)); return true; }
+            catch (Exception e)
+            {
+                Debug.LogError($"NetProfiles: pending death for {account} could not be cleared: {e.Message}");
+                return false;
+            }
+        }
+
+        // The intent is durable before any assets change. The profile's transaction ID makes
+        // replay safe even if the server stopped after writing the profile but before cleanup.
+        static bool SettlePendingDeath(string account, SaveData save, PendingDeathPenalty pending,
+            bool canSpawnLoot, out int droppedItem)
         {
             droppedItem = -1;
-            if (pilot == null || !Controls(pilot.OwnerClientId) || NetPlayerStations.ProfileWritesBlocked) return false;
-            ulong client = pilot.OwnerClientId;
-            string account = AccountOf(client);
-            bool host = IsHostClient(client);
-            var persisted = ReadSave(account);
-            var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : persisted;
-            int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
-            if (save == null || emergencyShip < 0) return false;
-            // Story and event loaners are not the player's property.
-            if (save.hasParkedShip) return true;
-            save.deathRecoveries = persisted?.deathRecoveries ?? new List<DeathRecovery>();
+            if (save == null || pending == null || NetPlayerStations.ProfileWritesBlocked) return false;
+            if (save.lastDeathPenaltyId == pending.id) return ClearPendingDeath(account);
+            int emergencyShip = pending.emergencyShip;
+            if (!NetGuard.Ship(emergencyShip)) emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
+            if (!NetGuard.Ship(emergencyShip)) return false;
+            save.deathRecoveries ??= new List<DeathRecovery>();
             save.equipment ??= new List<ItemStack>();
-            var drop = save.equipment.Find(s => s != null && !s.builtIn && s.amount > 0 && NetGuard.Item(s.item) &&
-                save.unsaleable?.Contains(s.item) != true);
+            var drop = save.equipment.Find(x => x != null && !x.builtIn && x.amount > 0 && NetGuard.Item(x.item) &&
+                save.unsaleable?.Contains(x.item) != true);
             if (drop != null)
             {
-                // A missing pose must not waive the penalty; only the physical loot crate is omitted.
                 if (canSpawnLoot) droppedItem = drop.item;
                 if (--drop.amount == 0) save.equipment.Remove(drop);
             }
             var recovery = new DeathRecovery
             {
-                id = Guid.NewGuid().ToString("N"),
-                dueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Modding.ModPvpPiracy.ShipRecoverySeconds,
-                originStation = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.Station,
+                id = pending.id, dueUtc = pending.dueUtc, originStation = pending.origin,
                 hasHull = !save.deathLoaner,
                 hull = !save.deathLoaner ? new StoredShip(save.ship, 0, save.shipMods) : null,
-                cargo = RecoveryStacks(save.cargo),
-                equipment = RecoveryStacks(save.equipment)
+                cargo = RecoveryStacks(save.cargo), equipment = RecoveryStacks(save.equipment)
             };
             recovery.refundCredits = RecoveryRefund(save.ship, recovery.hasHull, recovery.cargo);
             if (recovery.hasHull || recovery.cargo.Count > 0 || recovery.equipment.Count > 0)
@@ -376,23 +406,66 @@ namespace GoF2Remake.Multiplayer
             save.equipment = new List<ItemStack>();
             save.cargo = new List<ItemStack>();
             save.selectedSecondary = -1;
-            int respawn = NetFactions.DeathRespawnStation(pilot, save.lastDockedStation);
-            if (respawn < 0) { droppedItem = -1; return false; }
-            save.station = save.lastDockedStation = respawn;
+            save.station = save.lastDockedStation = pending.respawn;
+            save.lastDeathPenaltyId = pending.id;
             if (!PersistRecoveryProfile(account, save)) { droppedItem = -1; return false; }
+            // A failed cleanup is safe: the persisted ID prevents replay from charging again.
+            ClearPendingDeath(account);
+            return true;
+        }
+
+        static bool ReplayPendingDeath(string account)
+        {
+            if (!HasPendingDeath(account)) return true;
+            return ReadPendingDeath(account, out var pending) &&
+                SettlePendingDeath(account, ReadSave(account), pending, false, out _);
+        }
+
+        internal static bool BeginDeathRecovery(NetPlayer pilot, bool canSpawnLoot, out int droppedItem, bool refresh = true)
+        {
+            droppedItem = -1;
+            if (pilot == null || !Controls(pilot.OwnerClientId)) return false;
+            ulong client = pilot.OwnerClientId;
+            string account = AccountOf(client);
+            bool host = IsHostClient(client);
+            var persisted = ReadSave(account);
+            var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : persisted;
+            if (save == null) return false;
+            save.deathRecoveries = persisted?.deathRecoveries ?? new List<DeathRecovery>();
+            save.lastDeathPenaltyId = persisted?.lastDeathPenaltyId;
+            if (!ReadPendingDeath(account, out var pending)) return false;
+            if (pending == null)
+            {
+                // Story and event loaners are not the player's property.
+                if (save.hasParkedShip) return true;
+                int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
+                int respawn = NetFactions.DeathRespawnStation(pilot, save.lastDockedStation);
+                if (emergencyShip < 0 || respawn < 0) return false;
+                pending = new PendingDeathPenalty
+                {
+                    id = Guid.NewGuid().ToString("N"),
+                    dueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Modding.ModPvpPiracy.ShipRecoverySeconds,
+                    origin = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.Station,
+                    respawn = respawn, emergencyShip = emergencyShip
+                };
+                if (!Write(PendingDeathPath(account), JsonUtility.ToJson(pending))) return false;
+            }
+            // If the profile transaction previously completed, restore the authoritative copy.
+            if (persisted?.lastDeathPenaltyId == pending.id) save = persisted;
+            if (!SettlePendingDeath(account, save, pending, canSpawnLoot, out droppedItem)) return false;
             if (host)
             {
                 Session.ShipIndex = save.ship;
-                Session.DeathLoaner = true;
+                Session.DeathLoaner = save.deathLoaner;
                 Session.ShipMods = save.shipMods;
                 Session.Equipment = save.equipment;
                 Session.Cargo = save.cargo;
                 Session.SelectedSecondary = -1;
                 Session.DeathRecoveries = save.deathRecoveries;
-                Session.LastDockedStation = respawn;
+                Session.LastDockedStation = save.lastDockedStation;
             }
-            else RefreshProfile(client);
-            NetState.Instance?.Notify(client, $"Ship recovery scheduled in {Modding.ModPvpPiracy.ShipRecoverySeconds} seconds. Your emergency {NetGame.Db.Ship(emergencyShip).name} has no trade-in value.");
+            else if (refresh) RefreshProfile(client);
+            if (refresh) NetState.Instance?.Notify(client, "Ship recovery scheduled. Your emergency hull has no trade-in value.");
             return true;
         }
 
