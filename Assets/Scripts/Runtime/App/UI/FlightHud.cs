@@ -601,6 +601,10 @@ namespace GoF2Remake.UI
             // (NetChat.SetTyping: the binding's key is a letter there).
             if (MultiplayerWindow.IsOpenAny)
             {
+                touch?.ReleaseAll();
+                ship?.SetSteer(Vector2.zero);
+                ship?.SetTouchFree(Vector2.zero, 0f, false);
+                weapons?.SetPrimaryHeld(false);
                 var k = GoF2Remake.Multiplayer.NetChat.Keys;
                 if ((k != null && k.escapeKey.wasPressedThisFrame) || (Gamepad.current != null && (Gamepad.current.buttonEast.wasPressedThisFrame || Gamepad.current.startButton.wasPressedThisFrame))
                     || (!MultiplayerWindow.TypingAny && GameControls.MultiplayerWindow.WasPressedThisFrame()))

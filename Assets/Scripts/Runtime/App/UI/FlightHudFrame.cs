@@ -186,7 +186,7 @@ namespace GoF2Remake.UI
         {
             if (nav == null) return;
             if (nav.MenuOpen) CloseAutopilotMenu();
-            else if (nav.CanOpenActions && nav.MenuEntries(true).Count > 0) OpenAutopilotMenu(true);
+            else if (nav.CanOpenActions && (nav.MenuEntries(true).Count > 0 || MultiplayerWindow.CanOpenOrbitManagementAny)) OpenAutopilotMenu(true);
         }
     }
 }

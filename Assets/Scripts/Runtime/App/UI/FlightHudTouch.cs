@@ -55,7 +55,7 @@ namespace GoF2Remake.UI
             var picked = root.panel.Pick(RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(sp.x, Screen.height - sp.y)));
             for (var e = picked; e != null && e != root; e = e.parent)
                 if (e.ClassListContains("touch-abs") || e.ClassListContains("nav-button") || e == autopilotMenu || e == dockPrompt
-                    || e.ClassListContains("chat") || e.ClassListContains("squad") || e.ClassListContains("squad-invite")) return true;
+                    || e.ClassListContains("chat") || e.ClassListContains("squad") || e.ClassListContains("squad-invite") || e.ClassListContains("mp-hud-button")) return true;
             return false;
         }
         /// <summary>Modified: FreeLookCamera.pointerOverHud: a HUD control (MouseOverControls) or the hacking puzzle's click area
@@ -114,7 +114,7 @@ namespace GoF2Remake.UI
             cursorMode = InputMode.Current == InputKind.KeyboardMouse && !Settings.MouseSteering
                          && (!Application.isMobilePlatform || Mouse.current != null);
             root.EnableInClassList("hud-cursor", cursorMode);
-            bool flying = ship != null && level != null && !StarMap.IsOpen && !pauseMenu.IsOpen && !storyDialogue.IsOpen
+            bool flying = ship != null && level != null && !StarMap.IsOpen && !pauseMenu.IsOpen && !storyDialogue.IsOpen && !MultiplayerWindow.IsOpenAny
                           && (health == null || !health.Dead);
             if ((touchMode || cursorMode) && flying)
             {
@@ -140,7 +140,7 @@ namespace GoF2Remake.UI
                 if (Time.unscaledTime >= quickMenuCheck && nav != null)
                 {
                     quickMenuCheck = Time.unscaledTime + 0.5f;
-                    quickMenuEntries = nav.MenuEntries(true).Count > 0;
+                    quickMenuEntries = nav.MenuEntries(true).Count > 0 || MultiplayerWindow.CanOpenOrbitManagementAny;
                 }
                 f.menu = quickMenuEntries;
                 var fl = level.FreeLook;

@@ -35,6 +35,28 @@ namespace GoF2Remake.UI
                 if (t.disabled) b.AddToClassList("autopilot-menu-item--disabled");
                 autopilotMenuItems.Add(b);
                 menuButtons.Add((b, target));
+                menuActions.Add(null);
+            }
+            if (actions && MultiplayerWindow.CanOpenOrbitManagementAny)
+            {
+                System.Action open = () =>
+                {
+                    CloseAutopilotMenu();
+                    touch?.ReleaseAll();
+                    ship?.SetSteer(Vector2.zero);
+                    ship?.SetTouchFree(Vector2.zero, 0f, false);
+                    weapons?.SetPrimaryHeld(false);
+                    MultiplayerWindow.OpenOrbitManagementAny();
+                    UpdateMouseSteering();
+                };
+                var button = new Button { text = MenuLabel(menuButtons.Count, "Station management") };
+                button.AddToClassList("autopilot-menu-item");
+                button.AddToClassList("gof-semibold");
+                button.focusable = false;
+                button.clicked += open;
+                autopilotMenuItems.Add(button);
+                menuButtons.Add((button, null));
+                menuActions.Add(open);
             }
             if (actions) AddEnergyCellCount();
             menuIndex = 0;

@@ -54,9 +54,29 @@ namespace GoF2Remake.UI
         static MultiplayerWindow current;
 
         /// <summary>The window is open (StationMenu: Esc closes it, its keys wait).</summary>
-        public static bool IsOpenAny => current != null && current.isOpen;
+        public static bool IsOpenAny => current != null && (current.isOpen || current.orbitManagement?.IsOpen == true);
 
-        public static void CloseAny() { if (current != null) current.Close(); }
+        public static void CloseAny()
+        {
+            if (current?.orbitManagement?.IsOpen == true) current.orbitManagement.Back();
+            else current?.Close();
+        }
+
+        public static bool CanOpenOrbitManagementAny => current != null && current.flight && current.orbitManagement?.CanOpen == true;
+
+        public static void OpenOrbitManagementAny()
+        {
+            if (!CanOpenOrbitManagementAny) return;
+            current.Close();
+            current.orbitManagement.Open();
+        }
+
+        public static void OpenOrbitProjectsAny()
+        {
+            if (current != null && current.flight) current.OpenTab(Tab.OrbitProjects);
+        }
+
+        StationManagementWindow orbitManagement;
 
         VisualElement plate, window, tabs, body, chatPane, flightColumn;
         Button sosButton;
@@ -106,7 +126,8 @@ namespace GoF2Remake.UI
         public static void ToggleAny() { if (current != null) current.Toggle(); }
 
         /// <summary>A text field of the window has the focus (its keys aren't the game's: FlightHud leaves N alone).</summary>
-        public static bool TypingAny => current != null && current.isOpen && TextFieldKeys.InTextField(current.window?.focusController?.focusedElement);
+        public static bool TypingAny => current != null && (current.orbitManagement?.IsTyping == true ||
+            current.isOpen && TextFieldKeys.InTextField(current.window?.focusController?.focusedElement));
 
         void OnEnable()
         {
@@ -118,6 +139,7 @@ namespace GoF2Remake.UI
 
         void OnDisable()
         {
+            orbitManagement?.Close();
             if (current == this) current = null;
             NetPanel.Changed -= OnChanged;
             NetChat.Added -= OnChat;
@@ -132,6 +154,7 @@ namespace GoF2Remake.UI
 
         void OpenTab(Tab t)
         {
+            orbitManagement?.Close();
             tab = t;
             confirmLeave = false;
             BuildTabs();
@@ -141,6 +164,8 @@ namespace GoF2Remake.UI
 
         void OnDestroy()
         {
+            orbitManagement?.Dispose();
+            orbitManagement = null;
             if (typing) { typing = false; NetChat.DropTyping(); }   // the scene's actions go with it (ChatView does the same)
             sosButton?.RemoveFromHierarchy();
             plate?.RemoveFromHierarchy();
@@ -163,6 +188,7 @@ namespace GoF2Remake.UI
         void Open()
         {
             if (!NetGame.Active) return;
+            orbitManagement?.Close();
             isOpen = true;
             confirmLeave = false;
             window.style.display = DisplayStyle.Flex;
@@ -187,6 +213,7 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (plate == null) return;
+            orbitManagement?.Update();
             // The window's text fields: the game's own keys (the station's 1 / 2 / M / L, the flight controls, the hangar's
             // A / D) are off while one has the focus.
             bool fieldFocused = TypingAny;

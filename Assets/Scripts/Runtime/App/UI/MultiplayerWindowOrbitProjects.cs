@@ -172,6 +172,8 @@ namespace GoF2Remake.UI
             if (stationSalvage?.Count > 0) BuildSalvageReadout("Station salvage", stationSalvage);
             if (gateSalvage?.Count > 0) BuildSalvageReadout("Jumpgate salvage", gateSalvage);
             if (body.childCount == 0) body.Add(Text("No active projects or salvage in this orbit.", 16, Dim));
+            if (CanOpenOrbitManagementAny)
+                body.Add(Btn("Station management", OpenOrbitManagementAny, null));
 
             if (station?.destroyed == true && !station.retired && NetCommands.IsAdmin(pilot))
                 body.Add(Btn("Release destroyed station orbit", () => Send("/station retire " + station.id), null));

@@ -6,7 +6,7 @@
     <ui:Style src="../Dialogue/Dialogue.uss" />
     <ui:Style src="Lounge.uss" />
     <ui:Style src="Status.uss" />
-    <ui:Style src="PlayerStationWindow.uss" />
+    <ui:Style src="../../Resources/GoF2Net/PlayerStationWindow.uss" />
     <ui:VisualElement name="stationRoot" class="station-root" picking-mode="Ignore">
         <ui:VisualElement class="side-shade" picking-mode="Ignore" />
         <ui:VisualElement class="bottom-shade" picking-mode="Ignore" />

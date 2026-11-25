@@ -15,6 +15,7 @@ namespace GoF2Remake.UI
     {
         readonly StationMenu menu;
         readonly StationLevel level;
+        readonly bool inFlight;
         readonly VisualElement stationRoot, overlay, panel;
         readonly ScrollView stationList;
         readonly ScrollView body;
@@ -42,6 +43,7 @@ namespace GoF2Remake.UI
         float pressedAt = -10f;
 
         public bool IsOpen => open;
+        internal bool IsTyping => open && TextFieldKeys.InTextField(panel.focusController?.focusedElement);
         internal Button MenuButton => openButton;
         internal void FocusFirst() => closeButton.Focus();
         public VisualElement[] NavItems() => panel.Query<VisualElement>().ToList()
@@ -49,9 +51,9 @@ namespace GoF2Remake.UI
                 element.ClassListContains("player-station-close") || element.ClassListContains("player-station-field"))
             .Where(element => element.focusable).ToArray();
 
-        public StationManagementWindow(StationMenu menu, StationLevel level, VisualElement root)
+        public StationManagementWindow(StationMenu menu, StationLevel level, VisualElement root, bool flight = false)
         {
-            this.menu = menu; this.level = level;
+            this.menu = menu; this.level = level; inFlight = flight;
             stationRoot = root;
             var safeArea = root.Q("safeArea") ?? root;
             openButton = new Button(Open) { name = "playerStationsButton", text = "STATION MANAGEMENT" };
@@ -59,15 +61,23 @@ namespace GoF2Remake.UI
             openButton.AddToClassList("gof-semibold");
             var buttons = root.Q("sidePanel")?.Q(className: "station-buttons");
             var inspectButton = buttons?.Q<Button>("inspectButton");
-            if (inspectButton != null) buttons.Insert(buttons.IndexOf(inspectButton), openButton);
-            else if (buttons != null) buttons.Add(openButton);
-            else safeArea.Add(openButton);
+            if (!inFlight)
+            {
+                if (inspectButton != null) buttons.Insert(buttons.IndexOf(inspectButton), openButton);
+                else if (buttons != null) buttons.Add(openButton);
+                else safeArea.Add(openButton);
+            }
             openButton.style.display = DisplayStyle.None;
-            openButton.clicked += menu.PlayRelease;
-            openButton.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+            openButton.clicked += () => menu?.PlayRelease();
+            openButton.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
 
             overlay = new VisualElement { name = "playerStationOverlay" };
             overlay.AddToClassList("player-station-overlay");
+            if (inFlight)
+            {
+                var sheet = Resources.Load<StyleSheet>("GoF2Net/PlayerStationWindow");
+                if (sheet != null) overlay.styleSheets.Add(sheet);
+            }
             overlay.style.display = DisplayStyle.None;
             safeArea.Add(overlay);
             panel = new VisualElement { name = "playerStationManagement" };
@@ -79,8 +89,8 @@ namespace GoF2Remake.UI
             var top = new VisualElement(); top.AddToClassList("player-station-header");
             heading = new Label("PLAYER STATIONS"); heading.AddToClassList("player-station-title"); top.Add(heading);
             closeButton = new Button(Back) { text = "BACK" }; closeButton.AddToClassList("player-station-close");
-            closeButton.clicked += menu.PlayRelease;
-            closeButton.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+            closeButton.clicked += () => menu?.PlayRelease();
+            closeButton.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
             top.Add(closeButton); panel.Add(top);
 
             var split = new VisualElement(); split.AddToClassList("player-station-content");
@@ -90,6 +100,12 @@ namespace GoF2Remake.UI
             split.Add(body); panel.Add(split);
             feedback = new Label(); feedback.AddToClassList("player-station-feedback"); panel.Add(feedback);
             panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
+            panel.RegisterCallback<PointerCancelEvent>(_ => pressedAt = -10f, TrickleDown.TrickleDown);
+            if (inFlight)
+            {
+                panel.RegisterCallback<NavigationMoveEvent>(NavigateFlight, TrickleDown.TrickleDown);
+                UiFocus.SkipScrollBars(panel);
+            }
             panel.RegisterCallback<FocusInEvent>(evt =>
             {
                 if (evt.target is VisualElement target)
@@ -99,6 +115,23 @@ namespace GoF2Remake.UI
                 }
             });
 
+        }
+
+        void NavigateFlight(NavigationMoveEvent evt)
+        {
+            if (!open || StarMap.IsOpen) return;
+            var from = panel.focusController?.focusedElement as VisualElement;
+            if (TextFieldKeys.IsTyping(evt, from)) return;
+            bool Usable(VisualElement element) => element.enabledInHierarchy && element.visible &&
+                element.resolvedStyle.display != DisplayStyle.None && element.worldBound.width > 0.5f && element.worldBound.height > 0.5f;
+            var items = NavItems().Where(Usable).ToList();
+            if (items.Count == 0) return;
+            int dx = evt.direction == NavigationMoveEvent.Direction.Left ? -1 : evt.direction == NavigationMoveEvent.Direction.Right ? 1 : 0;
+            int dy = evt.direction == NavigationMoveEvent.Direction.Up ? -1 : evt.direction == NavigationMoveEvent.Direction.Down ? 1 : 0;
+            var next = from == null || !items.Contains(from) ? items[0] : SpatialNav.Next(items, from, dx, dy, Usable);
+            next?.Focus();
+            evt.StopPropagation();
+            panel.focusController?.IgnoreEvent(evt);
         }
 
         public void Dispose()
@@ -119,7 +152,8 @@ namespace GoF2Remake.UI
             stationList.contentContainer.style.flexDirection = small ? FlexDirection.Row : FlexDirection.Column;
         }
 
-        bool CanOpen => NetGame.Active && level?.Layout != null;
+        int CurrentOrbit => inFlight ? NetPlayer.Local?.Station ?? -1 : level?.Layout?.stationIndex ?? -1;
+        internal bool CanOpen => NetGame.Active && CurrentOrbit >= 0 && (!inFlight || NetPlayer.Local?.InSpace == true);
 
         static string StationDataStatus()
         {
@@ -134,9 +168,10 @@ namespace GoF2Remake.UI
 
         public void Update()
         {
-            openButton.style.display = CanOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            openButton.style.display = !inFlight && CanOpen ? DisplayStyle.Flex : DisplayStyle.None;
             if (!CanOpen) { if (open) Close(); return; }
             if (!open) return;
+            if (inFlight) overlay.style.display = StarMap.IsOpen ? DisplayStyle.None : DisplayStyle.Flex;
             ApplyResponsiveLayout();
             if (Time.unscaledTime >= nextMarketQuery) RefreshMarketCatalogue();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
@@ -150,10 +185,10 @@ namespace GoF2Remake.UI
             }
         }
 
-        void Open()
+        internal void Open()
         {
-            if (!CanOpen) return;
-            menu.CloseHangar();
+            if (!CanOpen || open) return;
+            menu?.CloseHangar();
             overlay.style.display = DisplayStyle.Flex;
             overlay.BringToFront();
             open = true;
@@ -180,6 +215,7 @@ namespace GoF2Remake.UI
             if (!open) return;
             overlay.style.display = DisplayStyle.None;
             open = false;
+            if (panel.focusController?.focusedElement is VisualElement focused && panel.Contains(focused)) focused.Blur();
             if (plannerMap != null)
             {
                 stationRoot.RemoveFromClassList("station-map-open");
@@ -207,7 +243,7 @@ namespace GoF2Remake.UI
                 return;
             }
             // Away from a project, show it only to its funders or when it has public orders.
-            int currentStation = level?.Layout != null ? level.Layout.stationIndex : -1;
+            int currentStation = CurrentOrbit;
             var records = NetPlayerStations.Stations?.Where(x => x != null && !x.retired && !x.destroyed && !x.wreckClaimOpen &&
                 (x.stationIndex == currentStation || x.underConstruction &&
                     (NetPlayer.Local?.CanFundStationProjectInUi(x.id) == true ||
@@ -231,7 +267,7 @@ namespace GoF2Remake.UI
             }
             int previousId = selected?.id ?? -1;
             selected = records.FirstOrDefault(x => x.id == previousId)
-                ?? records.FirstOrDefault(x => x.stationIndex == level.Layout.stationIndex) ?? records[0];
+                ?? records.FirstOrDefault(x => x.stationIndex == CurrentOrbit) ?? records[0];
             if (previousId != selected.id) drafts.Clear();
         }
 
@@ -272,8 +308,13 @@ namespace GoF2Remake.UI
                 return;
             }
 
+            if (inFlight)
+            {
+                AddSection("ORBIT MANAGEMENT", "Manage projects while flying. Facilities that require docking still enforce their normal access rules.");
+                AddAction("Orbit projects, deliveries and salvage", MultiplayerWindow.OpenOrbitProjectsAny);
+            }
             BuildStationPlanner();
-            var current = NetGame.Db.Stations.Find(station => station != null && station.index == level.Layout.stationIndex);
+            var current = NetGame.Db.Stations.Find(station => station != null && station.index == CurrentOrbit);
             if (current != null) BuildSystemGates(current.system);
             if (selected == null) return;
             AddSection("STATION OVERVIEW", "");
@@ -533,7 +574,7 @@ namespace GoF2Remake.UI
             AddAction("Retrieve a ship to your fleet", () => Send("/station retrieve-ship " + id + " " + Value("hangarIndex")));
 
             AddSection("DRY DOCK & SHIPYARD", "Dedicated large-hull storage and timed construction of dry-dock-restricted ship blueprints.");
-            if (!selected.underConstruction && (selected.addons?.Any(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
+            if (!inFlight && !selected.underConstruction && (selected.addons?.Any(a => a != null && a.kind == "drydock" && a.level > 0) ?? false))
                 AddAction("Open dry-dock shipyard", () => { Close(); menu.OpenPlayerDryDock(); });
             AddAction("List dry-dock hulls and build status", "/station drydock " + id);
             AddField("dryFleetIndex", "Personal fleet index", "1");
@@ -847,7 +888,7 @@ namespace GoF2Remake.UI
                         }) { text = model.label };
                         button.AddToClassList("player-station-row");
                         button.EnableInClassList("player-station-row--selected", model.value == selectedModel);
-                        button.clicked += menu.PlayRelease;
+                        button.clicked += () => menu?.PlayRelease();
                         results.Add(button);
                     }
                 }
@@ -996,8 +1037,13 @@ namespace GoF2Remake.UI
                     ?? new List<(string, string)>();
                 AddChoice("contributeItem", "Required material", remaining);
                 AddField("contributeAmount", "Units", "10");
-                if (remaining.Count > 0) AddAction("Deliver construction cargo", () =>
-                    Send("/station contribute " + id + " " + Value("contributeItem") + " " + Value("contributeAmount")));
+                if (remaining.Count > 0)
+                {
+                    if (!inFlight || NetPlayerStations.CanDeliverAtConstructionSite(NetPlayer.Local, project))
+                        AddAction("Deliver construction cargo", () =>
+                            Send("/station contribute " + id + " " + Value("contributeItem") + " " + Value("contributeAmount")));
+                    else AddInfo("Deliveries", "Fly within 5 km of the construction site to deliver cargo.");
+                }
             }
             AddAction("View contribution ledger", "/station contributions " + id);
             AddInfo("Shared project ID", project.id.ToString());
@@ -1014,7 +1060,7 @@ namespace GoF2Remake.UI
         void RefreshMarketCatalogue()
         {
             nextMarketQuery = Time.unscaledTime + 8f;
-            if (selected == null || selected.underConstruction || selected.stationIndex != level.Layout.stationIndex ||
+            if (inFlight || selected == null || selected.underConstruction || selected.stationIndex != CurrentOrbit ||
                 selected.offeredForClaimUtc > 0) return;
             int stationId = selected.id;
             NetPlayer.Local?.RequestStationMarket(stationId, marketPage, catalogue =>
@@ -1028,6 +1074,7 @@ namespace GoF2Remake.UI
 
         void BuildMarketCatalogue(string id)
         {
+            if (inFlight) { AddInfo("Listings", "Dock at the station to browse and purchase marketplace goods."); return; }
             if (marketCatalogue == null || marketCatalogue.stationId.ToString() != id)
             {
                 AddInfo("Listings", "Waiting for the server marketplace catalogue…");
@@ -1195,8 +1242,8 @@ namespace GoF2Remake.UI
         {
             var button = new Button(action) { text = label };
             button.AddToClassList("player-station-action");
-            button.clicked += menu.PlayRelease;
-            button.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+            button.clicked += () => menu?.PlayRelease();
+            button.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
             body.Add(button);
         }
 

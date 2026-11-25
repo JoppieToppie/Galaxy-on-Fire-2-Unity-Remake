@@ -15,6 +15,8 @@ namespace GoF2Remake.UI
     {
         void Build(VisualElement parent)
         {
+            orbitManagement?.Dispose();
+            orbitManagement = null;
             sosButton?.RemoveFromHierarchy();
             sosButton = null;
             plate?.RemoveFromHierarchy();
@@ -182,6 +184,7 @@ namespace GoF2Remake.UI
             scrim.RegisterCallback<PointerDownEvent>(e => { Close(); e.StopPropagation(); });
             parent.Add(scrim);
             parent.Add(window);
+            if (flight) orbitManagement = new StationManagementWindow(null, null, parent, true);
             BuildTabs();
         }
         void LookLike(Button chatTab, Button neighbour)
