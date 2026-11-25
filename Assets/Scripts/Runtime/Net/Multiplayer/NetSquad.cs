@@ -17,6 +17,16 @@ namespace GoF2Remake.Multiplayer
     public static class NetSquad
     {
         public const float InviteSeconds = 45f;
+        public const int MaxMembers = 6;
+        public static int MemberCount(NetPlayer pilot)
+        {
+            if (pilot == null) return 0;
+            if (pilot.SquadId == 0) return 1;
+            int count = 0;
+            foreach (var p in NetPlayer.All) if (p != null && p.IsSpawned && p.SquadId == pilot.SquadId) count++;
+            return count;
+        }
+        public static bool IsFull(NetPlayer pilot) => MemberCount(pilot) >= MaxMembers;
 
         public sealed class Invite
         {
@@ -70,6 +80,7 @@ namespace GoF2Remake.Multiplayer
         public static void InviteTo(NetPlayer p)
         {
             if (p == null || NetState.Instance == null || !NetState.Instance.IsSpawned) return;
+            if (IsFull(NetPlayer.Local)) { NetChat.Notice("Your squad is full (6/6)."); return; }
             invited[p.OwnerClientId] = Time.unscaledTime;
             NetState.Instance.InviteRpc(p.OwnerClientId);
         }
