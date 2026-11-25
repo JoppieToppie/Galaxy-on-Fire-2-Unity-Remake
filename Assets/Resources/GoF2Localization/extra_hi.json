@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "सेव की सेटिंग बदलें",
+  "editCampaignFailed": "सेव अपडेट नहीं हुआ। उसे फिर से खोलें और दोबारा कोशिश करें।",
+  "editCampaignHint": "सेटिंग बदलने के लिए किसी सेव पर राइट-क्लिक करें।",
   "presentationPresetHelp": "कैमरा दृश्यों, संवाद और मानचित्र ऐनिमेशन की गति को सेट करता है।",
   "presentationPreset": "प्रस्तुति प्रीसेट",
   "presentationFast": "तेज़",

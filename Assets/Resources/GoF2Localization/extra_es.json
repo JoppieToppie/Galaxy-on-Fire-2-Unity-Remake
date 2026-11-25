@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Editar ajustes de la partida",
+  "editCampaignFailed": "No se pudo actualizar la partida. Vuelve a abrirla e inténtalo de nuevo.",
+  "editCampaignHint": "Haz clic derecho en una partida para editar sus ajustes.",
   "presentationPresetHelp": "Ajusta las secuencias de cámara, el diálogo y la velocidad de animación del mapa.",
   "presentationPreset": "Preajuste de presentación",
   "presentationFast": "Rápido",

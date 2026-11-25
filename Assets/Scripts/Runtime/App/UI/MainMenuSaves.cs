@@ -59,10 +59,112 @@ namespace GoF2Remake.UI
                     row.schedule.Execute(() => row.RemoveFromClassList("slot-row--chosen")).ExecuteLater(SlotFlashMs);
                     row.schedule.Execute(() => { slotChosen = false; if (coopSlotPick) PickCoopSlot(slot); else LoadSlot(slot); }).ExecuteLater(SlotFlashMs * 2);
                 };
+                row.RegisterCallback<PointerUpEvent>(ev =>
+                {
+                    if (ev.button != 1 || save == null || coopSlotPick || slotChosen
+                        || openPanel != panels["loadPanel"] || dialog.ClassListContains("dialog-backdrop--shown")) return;
+                    ev.StopPropagation();
+                    EditCampaignRules(slot);
+                });
                 HookFocusSound(row);
                 list.Add(row);
             }
             SaveSlotRow.AttachHint(list);
+            var editHint = root.Q<Label>("campaignEditHint");
+            editHint.text = X("editCampaignHint", "Right-click a save to edit its settings.");
+            editHint.style.display = !coopSlotPick && InputMode.Current == InputKind.KeyboardMouse ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        int editingCampaignSlot;
+        string campaignSnapshot;
+        SaveGame.CampaignRules campaignEdit;
+
+        static string CampaignEditorTitle => X("editCampaignSettings", "Edit save settings");
+
+        void EditCampaignRules(int slot)
+        {
+            if (!SaveGame.TryReadCampaignRules(slot, out campaignSnapshot, out campaignEdit))
+            {
+                CampaignEditFailed();
+                return;
+            }
+            editingCampaignSlot = slot;
+            BuildCampaignEditor();
+            OpenPanel("editCampaignPanel");
+        }
+
+        void CampaignEditFailed() => ShowNotice(CampaignEditorTitle,
+            X("editCampaignFailed", "The save could not be updated. Reopen it and try again."));
+
+        void ApplyCampaignEdit()
+        {
+            if (!SaveGame.TryWriteCampaignRules(editingCampaignSlot, campaignSnapshot, campaignEdit))
+            {
+                CampaignEditFailed();
+                return;
+            }
+            BuildSlots();
+            Back();
+        }
+
+        void BuildCampaignEditor()
+        {
+            root.Q<Label>("campaignRulesTitle").text = CampaignEditorTitle.UiCaps();
+            root.Q<Button>("campaignRulesApply").text = OptionsCatalog.ApplyLabel.UiCaps();
+            root.Q<Button>("campaignRulesCancel").text = X("kbCancel", "Cancel").UiCaps();
+            var list = root.Q<ScrollView>("campaignRuleList");
+            list.Clear();
+            string off = X("kaamoVipOff", "Off");
+            string on = X("on", "On");
+            var vip = new ChoiceRow(false) { LabelText = X("kaamoVip", "Kaamo Club VIP Card") };
+            var vipValues = new[] { off, X("kaamoVipCard", "Buy at the club") };
+            void RefreshVip()
+            {
+                vip.SetEnabled(campaignEdit.UpgradeLimit > 0);
+                vip.SetWithoutNotify(vipValues, campaignEdit.UpgradeLimit > 0 && campaignEdit.VipAvailable ? 1 : 0);
+            }
+            void Add(ChoiceRow row)
+            {
+                HookFocusSound(row);
+                row.RegisterCallback<FocusInEvent>(_ => list.ScrollTo(row));
+                list.Add(row);
+            }
+            void Choice(string title, string[] values, int index, Action<int> change)
+            {
+                var row = new ChoiceRow(false) { LabelText = title };
+                row.SetWithoutNotify(values, index);
+                row.Changed += change;
+                Add(row);
+            }
+            void Toggle(string title, SavedGameRules rule)
+            {
+                Choice(title, new[] { off, on }, (campaignEdit.Rules & rule) != 0 ? 1 : 0, i =>
+                {
+                    if (i == 0) campaignEdit.Rules &= ~rule;
+                    else campaignEdit.Rules |= rule;
+                });
+            }
+            float[] difficulties = { Session.DifficultyEasy, Session.DifficultyNormal, Session.DifficultyHard, Session.DifficultyExtreme };
+            Choice(X("difficulty", "Difficulty"), Array.ConvertAll(difficulties, Session.DifficultyName),
+                Array.IndexOf(difficulties, campaignEdit.Difficulty), i => campaignEdit.Difficulty = difficulties[i]);
+            vip.Changed += i => campaignEdit.VipAvailable = i == 1;
+            RefreshVip();
+            Add(vip);
+            string[] limits = campaignEdit.UpgradeLimit > 5
+                ? new[] { off, "1", "2", "3", "4", "5", campaignEdit.UpgradeLimit.ToString() }
+                : new[] { off, "1", "2", "3", "4", "5" };
+            int legacyLimit = campaignEdit.UpgradeLimit;
+            Choice(X("kaamoUpgradeRules", "Kaamo Club upgrades"), limits, Math.Min(6, legacyLimit), i =>
+            {
+                campaignEdit.UpgradeLimit = i == 6 ? legacyLimit : i;
+                RefreshVip();
+            });
+            Toggle(X("blueprintAutocomplete", "Blueprint autocomplete"), SavedGameRules.BlueprintAutocomplete);
+            Toggle(X("cloakBay", "Cloak bay"), SavedGameRules.CloakBay);
+            Toggle(X("pirateEvents", "Pirate outposts and bosses"), SavedGameRules.PirateEvents);
+            Toggle(X("capitalShips", "Capital ship enhancements"), SavedGameRules.CapitalShips);
+            Toggle(X("derelictWrecks", "Derelict freighters"), SavedGameRules.DerelictWrecks);
+            Toggle(X("khadorSlipstream", "Khador Slipstream"), SavedGameRules.KhadorSlipstream);
         }
 
         /// <summary>The Load panel as itself, or as the co-op host's save picker (coopSlotPick, OpenCoopSlots): its own title,

@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "セーブ設定を編集",
+  "editCampaignFailed": "セーブを更新できませんでした。開き直して再試行してください。",
+  "editCampaignHint": "セーブを右クリックすると設定を編集できます。",
   "presentationPresetHelp": "カメラ演出、会話、マップのアニメーション速度を設定します。",
   "presentationPreset": "演出プリセット",
   "presentationFast": "高速",

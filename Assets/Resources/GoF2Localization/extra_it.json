@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Modifica impostazioni del salvataggio",
+  "editCampaignFailed": "Impossibile aggiornare il salvataggio. Riaprilo e riprova.",
+  "editCampaignHint": "Fai clic destro su un salvataggio per modificarne le impostazioni.",
   "presentationPresetHelp": "Imposta le sequenze della telecamera, i dialoghi e la velocità di animazione della mappa.",
   "presentationPreset": "Preimpostazione di presentazione",
   "presentationFast": "Rapida",

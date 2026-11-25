@@ -2446,8 +2446,12 @@
 }
 
 #gameOptionsPanel,
-#remakeOptionsPanel {
+#remakeOptionsPanel, #editCampaignPanel {
     height: 80%;
+}
+
+#campaignRuleList .choice-row:disabled {
+    opacity: 0.45;
 }
 
 .remake-options-scroll {

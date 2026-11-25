@@ -117,12 +117,12 @@ namespace GoF2Remake.UI
             updateRow = root.Q("updateRow");
             updateButton = Bind("updateButton", UpdatePressed);   // in place where it can (MainMenuUpdate), else the release page
 
-            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "gameOptionsPanel", "remakeOptionsPanel", "loadPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
+            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "gameOptionsPanel", "remakeOptionsPanel", "loadPanel", "editCampaignPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
             {
                 panels[n] = root.Q(n);
                 panels[n].usageHints = UsageHints.DynamicTransform;
             }
-            foreach (var n in new[] { "aboutScroll", "slotList" })
+            foreach (var n in new[] { "aboutScroll", "slotList", "campaignRuleList" })
             {
                 var sv = root.Q<ScrollView>(n);
                 sv.mode = ScrollViewMode.Vertical;
@@ -141,13 +141,14 @@ namespace GoF2Remake.UI
                 sv.verticalScrollerVisibility = ScrollerVisibility.Hidden;
                 sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             }
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" })
+            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "campaignRulesCancel", "optionsBack", "aboutBack", "multiplayerBack" })
             {
                 var b = root.Q<Button>(n);
                 b.clicked += Back;   // Back() plays the release sound itself (also used by Esc)
                 HookFocusSound(b);
             }
 
+            Bind("campaignRulesApply", ApplyCampaignEdit);
             Bind("cardGof2", () => PickCampaign(Campaign.GalaxyOnFire2));
             Bind("cardValkyrie", () => PickCampaign(Campaign.Valkyrie));
             Bind("cardSupernova", () => PickCampaign(Campaign.Supernova));

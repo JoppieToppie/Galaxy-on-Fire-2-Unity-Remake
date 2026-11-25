@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Edytuj ustawienia zapisu",
+  "editCampaignFailed": "Nie udało się zaktualizować zapisu. Otwórz go ponownie i spróbuj jeszcze raz.",
+  "editCampaignHint": "Kliknij zapis prawym przyciskiem myszy, aby zmienić jego ustawienia.",
   "presentationPresetHelp": "Ustawia sekwencje kamery, dialogi i szybkość animacji mapy.",
   "presentationPreset": "Profil prezentacji",
   "presentationFast": "Szybki",

@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Editar configurações do jogo salvo",
+  "editCampaignFailed": "Não foi possível atualizar o jogo salvo. Abra-o novamente e tente outra vez.",
+  "editCampaignHint": "Clique com o botão direito em um jogo salvo para editar suas configurações.",
   "presentationPresetHelp": "Define as sequências de câmera, os diálogos e a velocidade de animação do mapa.",
   "presentationPreset": "Predefinição de apresentação",
   "presentationFast": "Rápida",

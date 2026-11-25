@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "编辑存档设置",
+  "editCampaignFailed": "无法更新存档。请重新打开后再试。",
+  "editCampaignHint": "右键点击存档可编辑其设置。",
   "presentationPresetHelp": "设置镜头演出、对话和地图动画速度。",
   "presentationPreset": "演出预设",
   "presentationFast": "快速",

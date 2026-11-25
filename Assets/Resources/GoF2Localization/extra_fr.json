@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Modifier les paramètres de la sauvegarde",
+  "editCampaignFailed": "Impossible de mettre à jour la sauvegarde. Rouvrez-la et réessayez.",
+  "editCampaignHint": "Faites un clic droit sur une sauvegarde pour modifier ses paramètres.",
   "presentationPresetHelp": "Règle les séquences de caméra, les dialogues et la vitesse d’animation de la carte.",
   "presentationPreset": "Préréglage de présentation",
   "presentationFast": "Rapide",

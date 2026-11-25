@@ -174,14 +174,14 @@ namespace GoF2Remake.Data
             if (!KaamoUpgradesEnabled) return 0;
             int n = 0;   // the List itself, not the IEnumerable overload: that boxed its enumerator (MaxLoad, every HUD frame)
             if (ShipMods != null) foreach (int m in ShipMods) if (m == mod) n++;
-            return n;
+            return NetSession.SessionGame ? n : Mathf.Min(n, KaamoUpgradeLimit);
         }
         public static int ModLevel(IEnumerable<int> mods, int mod)
         {
             if (!KaamoUpgradesEnabled) return 0;
             int n = 0;
             if (mods != null) foreach (int m in mods) if (m == mod) n++;
-            return n;
+            return NetSession.SessionGame ? n : Mathf.Min(n, KaamoUpgradeLimit);
         }
 
         /// <summary>Status+0x114 (Reference/research/kaamo_club.md 2): the Kaamo Club, 0 not owned, 1 Mkkt Bkkt's call

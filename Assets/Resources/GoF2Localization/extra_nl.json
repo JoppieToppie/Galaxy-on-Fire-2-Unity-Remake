@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Instellingen van opgeslagen spel wijzigen",
+  "editCampaignFailed": "Het opgeslagen spel kon niet worden bijgewerkt. Open het opnieuw en probeer het nog eens.",
+  "editCampaignHint": "Klik met de rechtermuisknop op een opgeslagen spel om de instellingen te wijzigen.",
   "presentationPresetHelp": "Stelt camerascènes, dialoog en de animatiesnelheid van de kaart in.",
   "presentationPreset": "Presentatievoorinstelling",
   "presentationFast": "Snel",

@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "Spielstand-Einstellungen bearbeiten",
+  "editCampaignFailed": "Der Spielstand konnte nicht aktualisiert werden. Öffne ihn erneut und versuche es noch einmal.",
+  "editCampaignHint": "Rechtsklick auf einen Spielstand, um seine Einstellungen zu bearbeiten.",
   "presentationPresetHelp": "Legt Kamerasequenzen, Dialoge und die Kartenanimationsgeschwindigkeit fest.",
   "presentationPreset": "Präsentationsprofil",
   "presentationFast": "Schnell",

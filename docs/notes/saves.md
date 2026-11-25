@@ -118,6 +118,12 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   Old slots without Kaamo rule fields also import the former stacking limit and VIP purchase availability.
   The retired Always on setting becomes Buy at the club. Purchased cards and fitted upgrades remain saved.
   Settings presets and resets leave these save values intact.
+- **Edit save settings**: right-click an occupied local slot in Load Game to change difficulty, Blueprint
+  Autocomplete, Cloak Bay, the four Remake Options, the Kaamo upgrade limit and VIP availability. Apply
+  updates that slot and keeps its previous contents in a sibling `.rules.bak` file. Cancel leaves the slot
+  untouched. The Kaamo limit caps active levels while retaining all purchases. A purchased VIP card
+  works again when its availability is re-enabled. When lost equipment slots leave a ship over capacity,
+  docking moves the excess mounted equipment into cargo.
 - **New Game+** (remake, GitHub #4, `NewGamePlus`): with a finished game in the slots (main game past 44, Valkyrie past
   83, Supernova at 162; the newest one) the campaign panel shows a "New Game+" toggle (off each time it opens). Turned
   on, the new game (after the campaign's first step) gets the old credits added, the unlocked blueprints and the medals

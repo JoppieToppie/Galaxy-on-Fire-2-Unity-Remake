@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "تعديل إعدادات الحفظ",
+  "editCampaignFailed": "تعذّر تحديث الحفظ. افتحه مجددًا وحاول مرة أخرى.",
+  "editCampaignHint": "انقر بزر الفأرة الأيمن على ملف حفظ لتعديل إعداداته.",
   "presentationPresetHelp": "يضبط مشاهد الكاميرا والحوار وسرعة حركة الخريطة.",
   "presentationPreset": "إعداد العرض",
   "presentationFast": "سريع",

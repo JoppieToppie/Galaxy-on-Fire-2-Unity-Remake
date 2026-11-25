@@ -290,6 +290,21 @@ namespace GoF2Remake.Data
             }
         }
 
+        /// <summary>Keep cached Kaamo mechanics in sync when a local save's upgrade rules change.</summary>
+        public static void RefreshKaamoMechanics(Database db, int station, List<Agent> agents)
+        {
+            if (station != KaamoClub.Station || NetSession.SessionGame) return;
+            if (!Session.KaamoUpgradesEnabled)
+            {
+                agents.RemoveAll(a => a.offer == AgentOffer.SellMod);
+                return;
+            }
+            if (Session.CampaignMission <= 16 || Shop.InSupernovaSystem(SystemOf(db, station), station)) return;
+            foreach (var seller in AgentData.StoryAgents)
+                if (seller.station == station && seller.sellMod >= 0 && !agents.Exists(a => a.storyIndex == seller.index))
+                    agents.Add(StoryAgent(db, seller));
+        }
+
         /// <summary>Modified (mods): a story character selling a blueprint a mod took over (blueprints.json, the same item) waits
         /// for that blueprint's "available" condition, like the mod's own sources (Gunant's drill at Var Hastra held back until
         /// the Khador Drive's blueprint is known). One the player already knows still stands there with nothing left.</summary>

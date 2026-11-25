@@ -1,4 +1,7 @@
 {
+  "editCampaignSettings": "저장 설정 편집",
+  "editCampaignFailed": "저장을 업데이트할 수 없습니다. 다시 열고 시도하세요.",
+  "editCampaignHint": "저장을 오른쪽 클릭하여 설정을 편집하세요.",
   "presentationPresetHelp": "카메라 연출, 대화 및 지도 애니메이션 속도를 설정합니다.",
   "presentationPreset": "연출 프리셋",
   "presentationFast": "빠르게",
