@@ -1001,10 +1001,7 @@ namespace GoF2Remake.Multiplayer
             own.lastPlayerWeapon = byNpc ? -1 : weaponItem;
             own.Damage(amount, byNpc, hitVector, shieldFactor, damageType);
             if (alive && !own.Alive && !byNpc && NetState.Instance != null)
-            {
-                if (IsPirate && IsWanted) NetProfileClient.UploadForStationStorage();
                 NetState.Instance.DestroyedByRpc(shooter);
-            }
         }
 
         /// <summary>Client: an explosive or EMP blast reached a precise gate mesh.</summary>
@@ -1472,7 +1469,7 @@ namespace GoF2Remake.Multiplayer
             hasPose = true;
             var hp = level.Health != null && level.Health.Target != null ? level.Health.Target.hitpoints : null;
             float h = level.Health != null && level.Health.Target != null ? level.Health.Target.HullFraction : 1f;
-            if (h <= 0f && look.hull > 0 && IsPirate && IsWanted)
+            if (h == 0f && look.hull > 0 && NetFactions.DropsEquipmentOnDeath(Station, IsPirate))
                 NetProfileClient.UploadForStationStorage();
             look.hull = WireQuant.Fraction(h);
             // The look the others see: the engine glow (off while mining, docking at an object, cloaked, dead), boost, cloak.

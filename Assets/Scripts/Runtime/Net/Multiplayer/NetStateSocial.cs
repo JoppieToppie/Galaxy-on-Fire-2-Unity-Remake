@@ -412,9 +412,10 @@ namespace GoF2Remake.Multiplayer
                 attemptedBountyDrops.Remove(id);
                 return;
             }
-            if (!victim.InSpace || !victim.HasCurrentWreckClaimPose ||
+            if (victim.Hull != 0f || !victim.InSpace || !victim.HasCurrentWreckClaimPose ||
                 NetArena.InMatch(victim.OwnerClientId)) return;
-            if (victim.IsPirate && victim.IsWanted && !attemptedBountyDrops.Contains(id) && DropBountyEquipment(victim))
+            if (!attemptedBountyDrops.Contains(id) && NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate) &&
+                DropBountyEquipment(victim))
                 attemptedBountyDrops.Add(id);
 
             if (!pendingPiracyDeaths.TryGetValue(id, out var death)) return;
@@ -446,7 +447,7 @@ namespace GoF2Remake.Multiplayer
         void BountyEquipmentLostRpc(int ship, int item, RpcParams rpc = default)
         {
             if (!IsServer && Session.ShipIndex == ship) NetProfiles.RemoveBountyEquipment(Session.Equipment, item);
-            NetChat.Notice("A piece of equipped gear was lost as bounty loot.");
+            NetChat.Notice("One equipped item was lost and can be salvaged from your wreck.");
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]

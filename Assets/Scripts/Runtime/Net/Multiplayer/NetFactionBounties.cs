@@ -154,12 +154,19 @@ namespace GoF2Remake.Multiplayer
         internal static bool SecureForBounties(int station) =>
             PiracyEnabled && PiracySystemAt(station)?.securityLevel >= 3;
 
+        internal static bool DropsEquipmentOnDeath(int station, bool pirate)
+        {
+            if (!Modding.ModPvpPiracy.Enabled || NetState.Instance?.ProfilesOn != true || NetArena.IsArenaOrbit(station))
+                return false;
+            var system = PiracySystemAt(station);
+            return system != null && (pirate || system.securityLevel < 3);
+        }
+
         static SystemData PiracySystemAt(int station)
         {
             var db = NetGame.Db;
-            if (db?.Systems == null) return null;
-            int system = Shop.SystemOf(db, station);
-            return db.Systems.Find(s => s.index == system);
+            var orbit = db?.Stations?.Find(s => s != null && s.index == station);
+            return orbit == null ? null : db.Systems?.Find(s => s != null && s.index == orbit.system);
         }
 
         static bool ProtectsForBounties(Faction faction, Faction pilotFaction, string account) =>
