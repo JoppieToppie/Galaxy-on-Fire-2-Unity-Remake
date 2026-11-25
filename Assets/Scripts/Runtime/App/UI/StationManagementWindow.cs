@@ -119,6 +119,7 @@ namespace GoF2Remake.UI
             split.Add(stationList);
             body = new ScrollView(ScrollViewMode.Vertical); body.AddToClassList("player-station-body");
             var workspace = new VisualElement();
+            workspace.AddToClassList("player-station-workspace");
             workspace.style.flexGrow = 1; workspace.style.flexBasis = 0; workspace.style.minWidth = 0; workspace.style.minHeight = 0;
             pageBar = new VisualElement(); pageBar.style.flexDirection = FlexDirection.Row; pageBar.style.flexWrap = Wrap.Wrap;
             pageBar.style.marginBottom = 8; pageBar.style.flexShrink = 0;
@@ -354,7 +355,7 @@ namespace GoF2Remake.UI
                 confirmBuilderRelinquish = -1;
                 confirmOrbitalRemoval = 0;
                 managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
-                managementPage = "overview";
+                if (managementPage != "directory" && managementPage != "orders") managementPage = "overview";
                 drafts.Clear();
                 body.scrollOffset = Vector2.zero;
             }
@@ -414,6 +415,13 @@ namespace GoF2Remake.UI
             }
 
             var localProject = LocalDeliveryProject();
+            if (managementPage == "directory")
+            {
+                AddSection("STATION DIRECTORY", "Select an accessible station or construction project from the directory.");
+                if (selected != null) { AddInfo("Selected station", selected.name); AddStationLocation(selected); AddAction("Open overview", () => ChangeManagementPage("overview")); }
+                if (Modding.ModPlayerInfrastructure.Current.Enabled) AddAction("Plan new station", () => ChangeManagementPage("build"));
+                return;
+            }
             if (managementPage == "build")
             {
                 if (Modding.ModPlayerInfrastructure.Current.Enabled) BuildNewStationControls();
@@ -453,7 +461,7 @@ namespace GoF2Remake.UI
             bool HasModule(string module) => selected.addons?.Any(addon => addon != null && addon.kind == module && addon.level > 0) == true;
             if (managementPage == "overview" || !operational || !docked)
             {
-                AddSection("STATION OVERVIEW", "");
+                AddSection(selected.name, selected.underConstruction ? "CONSTRUCTION PROJECT" : selected.offeredForClaimUtc > 0 ? "OPEN TO CLAIM" : "STATION OVERVIEW");
                 AddInfo("Station", selected.name);
                 AddStationLocation(selected);
                 if (selected.offeredForClaimUtc > 0)
@@ -477,6 +485,7 @@ namespace GoF2Remake.UI
                 AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
                 AddInfo("Owner", selected.ownerName ?? "Unknown");
                 AddInfo("State", "Operational");
+                AddInfo("Installed facility count", (selected.addons?.Count(a => a != null && a.level > 0) ?? 0).ToString());
                 AddInfo("Installed facilities", selected.addons == null || selected.addons.Count == 0 ? "None" :
                     string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind))));
                 if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddInfo("Active module project", ModuleLabel(selected.moduleConstructionKind));
@@ -529,7 +538,8 @@ namespace GoF2Remake.UI
                     AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
                     foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" })
                     {
-                        if (HasModule(module)) { AddInfo(ModuleLabel(module), "Installed"); continue; }
+                        if (HasModule(module)) { AddSection(ModuleLabel(module), "OPERATIONAL"); if (module == "refinery" || module == "factory" || module == "hangar" || module == "drydock") AddAction("Open " + ModuleLabel(module), () => ChangeManagementPage(module)); continue; }
+                        AddSection(ModuleLabel(module), "INFRASTRUCTURE");
                         if (selected.moduleConstructionKind == module && selected.moduleBuildCompletesUtc > 0)
                         {
                             AddInfo(ModuleLabel(module), "Building · " + ConstructionTime(Math.Max(1, selected.moduleBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
@@ -558,12 +568,13 @@ namespace GoF2Remake.UI
 
         void RebuildPageBar()
         {
+            stationList.style.display = !marketplaceOnly && (managementPage == "directory" || managementPage == "orders") ? DisplayStyle.Flex : DisplayStyle.None;
             if (marketplaceOnly)
             {
                 pageBar.style.display = DisplayStyle.None;
                 return;
             }
-            var pages = new List<(string key, string label)> { ("overview", "Overview") };
+            var pages = new List<(string key, string label)> { ("overview", "Overview"), ("directory", "Station directory") };
             if (Modding.ModPlayerInfrastructure.Current.Enabled) pages.Add(("build", "Build station"));
             if (LocalDeliveryProject() != null) pages.Add(("contribute", "Contribute"));
             pages.Add(("orders", "Buy orders"));
@@ -598,10 +609,13 @@ namespace GoF2Remake.UI
             if (!pages.Any(page => page.key == managementPage)) managementPage = "overview";
             string Group(string key) => key switch
             {
-                "overview" or "news" => "Station",
-                "hangar" or "drydock" or "refinery" or "factory" => "Services",
-                "ownership" or "security" or "blacklist" or "race-policies" or "market" or "modules" => "Management",
-                _ => "Projects"
+                "overview" => "Overview",
+                "modules" or "defenses" or "placement" or "gates" => "Infrastructure",
+                "security" or "blacklist" or "race-policies" => "Security & Access",
+                "market" or "orders" => "Economy",
+                "ownership" or "news" => "Governance",
+                "hangar" or "drydock" or "refinery" or "factory" => "Facilities",
+                _ => "Directory"
             };
             string activeGroup = Group(managementPage);
             string signature = managementPage + ":" + string.Join(",", pages.Select(page => page.key + page.label));
@@ -628,13 +642,21 @@ namespace GoF2Remake.UI
                 row.Add(button);
             }
             var groups = NavigationRow();
-            foreach (var group in pages.GroupBy(page => Group(page.key)))
-                Tab(groups, group.Key, group.First().key, group.Key == activeGroup);
+            groups.AddToClassList("player-station-primary-nav");
+            string[] groupOrder = { "Overview", "Infrastructure", "Security & Access", "Economy", "Governance", "Facilities", "Directory" };
+            foreach (string groupName in groupOrder)
+            {
+                var entries = pages.Where(page => Group(page.key) == groupName).ToList();
+                if (entries.Count == 0) continue;
+                string first = entries.Any(page => page.key == "modules") ? "modules" : entries[0].key;
+                Tab(groups, groupName, first, groupName == activeGroup);
+            }
 
             var visiblePages = pages.Where(page => Group(page.key) == activeGroup).ToList();
             if (visiblePages.Count > 1)
             {
                 var tabs = NavigationRow();
+                tabs.AddToClassList("player-station-secondary-nav");
                 foreach (var page in visiblePages)
                     Tab(tabs, page.label, page.key, managementPage == page.key);
             }
@@ -798,7 +820,7 @@ namespace GoF2Remake.UI
             placementActions.style.flexWrap = Wrap.Wrap;
             body.Add(placementActions);
             var viewport = new VisualElement();
-            viewport.style.height = compact ? 270 : 360;
+            viewport.style.height = compact ? 300 : Mathf.Clamp(panel.resolvedStyle.height * 0.55f, 360f, 720f);
             viewport.style.flexShrink = 0;
             body.Add(viewport);
             var coordinateLabel = new Label();
