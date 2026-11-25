@@ -81,6 +81,7 @@ namespace GoF2Remake.Data
         public static List<int> WingmanRaces = new List<int>();
         public static int WingmanRace;
         public static float WingmanContractMs;
+        public static List<int> WingmanContractPrices = new List<int>();
         /// <summary>Status+0x28: the hiring agent's portrait (the goodbye dialogue); +0xd4 wingmen hired (statistic, medal 27);
         /// +0xf8 the menu shows "Use EMP blaster" (reset on every station visit, not saved).</summary>
         public static int[] WingmanPortrait = new int[5];
@@ -588,6 +589,7 @@ namespace GoF2Remake.Data
             WingmanRaces = new List<int>();
             WingmanRace = 0;
             WingmanContractMs = 0f;
+            WingmanContractPrices = new List<int>();
             WingmanPortrait = new int[5];
             PlayerIdentityRace = PlayerIdentityPortrait = null;
             WingmenHired = 0;
