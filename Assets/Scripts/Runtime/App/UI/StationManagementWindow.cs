@@ -526,6 +526,29 @@ namespace GoF2Remake.UI
                     AddAction("Accept pending transfer", "/station transfer-accept " + id);
                     if (ownership)
                     {
+                        AddSection("STATION NAME", "Renaming costs " + NetPlayerStations.StationRenamePrice.ToString("N0") + " credits from your personal balance.");
+                        AddInfo("Current name", selected.name);
+                        AddField("renameStationName", "New station name", selected.name);
+                        if (Value("renameConfirmed") == "true")
+                        {
+                            AddInfo("Confirm rename", "The fee is charged only if the rename succeeds.");
+                            AddAction("Confirm rename — " + NetPlayerStations.StationRenamePrice.ToString("N0") + " CR", () =>
+                            {
+                                drafts.Remove("renameConfirmed");
+                                Send("/station rename " + id + " " + Value("renameStationName"));
+                                RebuildBody();
+                            });
+                            AddAction("Cancel rename", () => { drafts.Remove("renameConfirmed"); RebuildBody(); });
+                        }
+                        else AddAction("Rename station", () =>
+                        {
+                            if (string.IsNullOrWhiteSpace(Value("renameStationName")) || Value("renameStationName") == selected.name)
+                            {
+                                feedback.text = "Enter a different station name."; feedbackTime = 8f; return;
+                            }
+                            drafts["renameConfirmed"] = "true"; RebuildBody();
+                        });
+                        AddSection("OWNERSHIP TRANSFER", "");
                         AddChoice("transferKind", "Recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Faction") }, _ => drafts.Remove("transferAccount"));
                         AddAccountField("transferAccount", "Recipient");
                         AddAction("Propose ownership transfer", () => Send("/station transfer " + id + " " + Value("transferKind") + " " + Value("transferAccount")));
@@ -2448,7 +2471,7 @@ namespace GoF2Remake.UI
         void AddField(string key, string label, string initial)
         {
             var field = new TextField(label) { value = drafts.TryGetValue(key, out string draft) ? draft : initial ?? "" };
-            if (key == "newStationName") field.maxLength = NetPlayerStations.StationNameMaxLength;
+            if (key == "newStationName" || key == "renameStationName") field.maxLength = NetPlayerStations.StationNameMaxLength;
             else if (key == "stationAnnouncement" || key.IndexOf("Reason", StringComparison.OrdinalIgnoreCase) >= 0)
             { field.maxLength = 160; field.multiline = true; field.style.minHeight = 76; }
             field.RegisterValueChangedCallback(change => drafts[key] = change.newValue);
