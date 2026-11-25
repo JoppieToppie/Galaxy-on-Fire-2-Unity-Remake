@@ -22,7 +22,7 @@ namespace GoF2Remake.Multiplayer
             if (siege == null) return true;
             var faction = Of(account);
             return (faction != null && faction.id == siege.defender &&
-                (faction.leader == account || faction.officers?.Contains(account) == true)) ||
+                (faction.leader == account || (Modding.ModPlayerInfrastructure.Current.SiegeRespawnFactionOfficers && faction.officers?.Contains(account) == true))) ||
                 NetPlayerStations.HasSiegeRespawnPrivilege(station, account);
         }
 
