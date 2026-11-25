@@ -476,6 +476,8 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
+        internal static int LastDeathDock(ulong client) => IsHostClient(client) ? Session.LastDockedStation : ReadSave(AccountOf(client))?.lastDockedStation ?? -1;
+
         internal static int KaamoStateFor(ulong client) => IsHostClient(client) ? Session.KaamoState : ReadSave(AccountOf(client))?.kaamoState ?? 0;
 
         internal static bool TakeBountyEquipment(NetPlayer pilot, out int item)
