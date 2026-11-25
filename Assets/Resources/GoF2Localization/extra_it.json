@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "Tieni premuto ELIMINA per confermare.",
+  "deleteSaveFailed": "Impossibile eliminare il salvataggio. Riaprilo e riprova.",
   "editCampaignSettings": "Modifica impostazioni del salvataggio",
   "editCampaignFailed": "Impossibile aggiornare il salvataggio. Riaprilo e riprova.",
   "editCampaignHint": "Fai clic destro su un salvataggio per modificarne le impostazioni.",
@@ -1540,7 +1542,7 @@
  "exportOriginalSaves": "Esporta per il gioco originale",
  "originalImportFailed": "Impossibile importare il salvataggio:",
  "originalImportHint": "Scegli un file gof2_save_game_N dalla cartella dei salvataggi del gioco originale.",
- "originalImportNoSlot": "Nessuno slot libero: tieni premuto un salvataggio per eliminarlo.",
+ "originalImportNoSlot": "Nessuno slot libero. Fai clic destro su un salvataggio e scegli Elimina.",
  "originalImportAsk": "{0}\nda {1}.\nImportarlo nello slot {2}?",
  "originalImportDone": "Importato nello slot {0}. Caricalo dall'elenco.",
  "originalExportAsk": "Scrivere ogni slot come salvataggi Android originali in una nuova cartella? Si caricano nelle build della community; gli oggetti delle mod sono esclusi.",

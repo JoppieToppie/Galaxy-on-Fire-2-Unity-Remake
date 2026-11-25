@@ -2450,6 +2450,28 @@
     height: 80%;
 }
 
+.campaign-rules-footer {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.campaign-rules-actions {
+    flex-direction: row;
+}
+
+.campaign-rules-footer .menu-button,
+.can-hover .campaign-rules-footer .menu-button:hover,
+.campaign-rules-footer .menu-button:focus {
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: var(--text-body);
+    -unity-text-align: middle-center;
+}
+
+.campaign-rules-delete {
+    color: #ff7272;
+}
+
 #campaignRuleList .choice-row:disabled {
     opacity: 0.45;
 }

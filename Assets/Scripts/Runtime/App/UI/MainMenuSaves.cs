@@ -45,10 +45,9 @@ namespace GoF2Remake.UI
             {
                 int slot = i;
                 var save = SaveGame.Preview(i);
-                var row = SaveSlotRow.Build(db, i, save, Localization.Extra("autosaveHint", "Saved automatically when you dock"), DeleteSlot);
+                var row = SaveSlotRow.Build(db, i, save, Localization.Extra("autosaveHint", "Saved automatically when you dock"));
                 row.clicked += () =>
                 {
-                    if (SaveSlotRow.HoldUsed(row)) return;
                     if (save == null) { Play(buttonPush); return; }
                     if (slotChosen) return;
                     // Modified: a save chosen to load sounds and flashes like the menu buttons (their click sound; the pressed
@@ -69,7 +68,6 @@ namespace GoF2Remake.UI
                 HookFocusSound(row);
                 list.Add(row);
             }
-            SaveSlotRow.AttachHint(list);
             var editHint = root.Q<Label>("campaignEditHint");
             editHint.text = X("editCampaignHint", "Right-click a save to edit its settings.");
             editHint.style.display = !coopSlotPick && InputMode.Current == InputKind.KeyboardMouse ? DisplayStyle.Flex : DisplayStyle.None;
@@ -110,6 +108,7 @@ namespace GoF2Remake.UI
         void BuildCampaignEditor()
         {
             root.Q<Label>("campaignRulesTitle").text = CampaignEditorTitle.UiCaps();
+            root.Q<Button>("campaignRulesDelete").text = DeleteSaveLabel.UiCaps();
             root.Q<Button>("campaignRulesApply").text = OptionsCatalog.ApplyLabel.UiCaps();
             root.Q<Button>("campaignRulesCancel").text = X("kbCancel", "Cancel").UiCaps();
             var list = root.Q<ScrollView>("campaignRuleList");
@@ -180,19 +179,74 @@ namespace GoF2Remake.UI
             Show("saveTransferNote", !coopSlotPick && !SaveTransfer.HasFileDialog && !SavesPicker);
         }
 
-        /// <summary>Remake: a slot held down (SaveSlotRow): deleted, the list rebuilt with the same row selected.</summary>
-        void DeleteSlot(int slot)
+        static string DeleteSaveLabel => X("modsDelete", "Delete");
+        Action pendingSaveDeletion;
+        int deleteHoldPointer = -1;
+        int deleteHoldAttempt;
+
+        void AskDeleteCampaignSave()
         {
-            if (!SaveGame.Delete(slot)) return;
-            Play(buttonRelease);
-            root.schedule.Execute(() =>
+            int slot = editingCampaignSlot;
+            string snapshot = campaignSnapshot;
+            pendingSaveDeletion = () =>
             {
+                if (!SaveGame.TryReadCampaignRules(slot, out var current, out _) || current != snapshot || !SaveGame.Delete(slot))
+                {
+                    ShowNotice(DeleteSaveLabel, X("deleteSaveFailed", "The save could not be deleted. Reopen it and try again."));
+                    return;
+                }
                 BuildSlots();
-                var list = root.Q<ScrollView>("slotList");
-                if (slot < list.contentContainer.childCount) Select(list.contentContainer.ElementAt(slot));
                 resumeButton.EnableInClassList("menu-button--gone", SaveGame.MostRecentSlot() < 0);
                 UpdateColumnFit();
+                Back();
+            };
+            ShowDialog(DeleteSaveLabel, X("deleteSaveHoldHint", "Press and hold DELETE to confirm."), pendingSaveDeletion);
+            dialogCheck = () => false;
+            dialogRelabelled = true;
+            InputGlyph.SetText(root.Q<Button>("dialogYes"), DeleteSaveLabel.UiCaps());
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), X("kbCancel", "Cancel").UiCaps());
+        }
+
+        void RegisterDeleteHold(Button button)
+        {
+            button.RegisterCallback<PointerDownEvent>(ev =>
+            {
+                if (ev.button != 0 || deleteHoldPointer >= 0 || pendingSaveDeletion == null || dialogYes != pendingSaveDeletion) return;
+                deleteHoldPointer = ev.pointerId;
+                StartCoroutine(HoldDeleteConfirmation(pendingSaveDeletion, ++deleteHoldAttempt));
+            }, TrickleDown.TrickleDown);
+            void EndHold(int pointerId) { if (deleteHoldPointer == pointerId) deleteHoldPointer = -1; }
+            button.RegisterCallback<PointerMoveEvent>(ev =>
+            {
+                if (!button.ContainsPoint(ev.localPosition)) EndHold(ev.pointerId);
             });
+            button.RegisterCallback<PointerUpEvent>(ev => EndHold(ev.pointerId), TrickleDown.TrickleDown);
+            button.RegisterCallback<PointerCancelEvent>(ev => EndHold(ev.pointerId));
+            button.RegisterCallback<PointerCaptureOutEvent>(ev => EndHold(ev.pointerId));
+        }
+
+        IEnumerator HoldDeleteConfirmation(Action delete, int attempt)
+        {
+            var bar = root.Q("dialogProgress");
+            var fill = root.Q("dialogProgressFill");
+            float start = Time.unscaledTime;
+            bar.AddToClassList("dialog-progress--shown");
+            while (attempt == deleteHoldAttempt && dialogYes == delete && deleteHoldPointer >= 0 && Application.isFocused)
+            {
+                float progress = (Time.unscaledTime - start) / SaveSlotRow.HoldSeconds;
+                fill.style.width = Length.Percent(Mathf.Min(1f, progress) * 100f);
+                if (progress >= 1f)
+                {
+                    deleteHoldPointer = -1;
+                    dialogCheck = null;
+                    ConfirmDialog();
+                    yield break;
+                }
+                yield return null;
+            }
+            if (attempt != deleteHoldAttempt) yield break;
+            deleteHoldPointer = -1;
+            if (dialogYes == delete) bar.RemoveFromClassList("dialog-progress--shown");
         }
 
         /// <summary>Android: Export / Import saves go through the system's document picker (ModImportActivity), as the
@@ -334,7 +388,7 @@ namespace GoF2Remake.UI
             int slot = OriginalSaveTransfer.FreeSlot();
             if (slot < 0)
             {
-                ShowNotice(OriginalImportTitle, Localization.Extra("originalImportNoSlot", "No empty save slot: hold a save in the list to delete it."));
+                ShowNotice(OriginalImportTitle, Localization.Extra("originalImportNoSlot", "No empty save slot. Right-click a save and choose Delete to free a slot."));
                 return;
             }
             string notes = imported.notes.Count > 0 ? "\n(" + string.Join("; ", imported.notes) + ")" : "";

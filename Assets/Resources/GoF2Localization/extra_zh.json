@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "长按“删除”按钮确认。",
+  "deleteSaveFailed": "无法删除存档。请重新打开后再试。",
   "editCampaignSettings": "编辑存档设置",
   "editCampaignFailed": "无法更新存档。请重新打开后再试。",
   "editCampaignHint": "右键点击存档可编辑其设置。",
@@ -1437,7 +1439,7 @@
  "exportOriginalSaves": "导出到原版游戏",
  "originalImportFailed": "无法导入存档：",
  "originalImportHint": "从原版游戏存档文件夹中选择 gof2_save_game_N 文件。",
- "originalImportNoSlot": "没有空存档位：在列表中长按存档以删除。",
+ "originalImportNoSlot": "没有空存档位。右键点击一个存档并选择“删除”。",
  "originalImportAsk": "{0}\n来自{1}。\n导入到存档位 {2}？",
  "originalImportDone": "已导入到存档位 {0}。请从列表中读取。",
  "originalExportAsk": "将每个存档位写成原版安卓存档到新文件夹？可在社区版中加载；模组物品不包含。",

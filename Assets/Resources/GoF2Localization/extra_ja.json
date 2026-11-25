@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "削除ボタンを長押しして確定します。",
+  "deleteSaveFailed": "セーブを削除できませんでした。開き直して再試行してください。",
   "editCampaignSettings": "セーブ設定を編集",
   "editCampaignFailed": "セーブを更新できませんでした。開き直して再試行してください。",
   "editCampaignHint": "セーブを右クリックすると設定を編集できます。",
@@ -1529,7 +1531,7 @@
  "exportOriginalSaves": "オリジナル版用にエクスポート",
  "originalImportFailed": "セーブをインポートできませんでした：",
  "originalImportHint": "元のゲームのセーブフォルダーからgof2_save_game_Nを選択。",
- "originalImportNoSlot": "空きスロットなし：リストのセーブを長押しで削除。",
+ "originalImportNoSlot": "空きスロットがありません。セーブを右クリックして「削除」を選択してください。",
  "originalImportAsk": "{0}\n{1}から。\nセーブスロット {2} にインポートしますか？",
  "originalImportDone": "セーブスロット {0} にインポートしました。リストからロードしてください。",
  "originalExportAsk": "全スロットを元のAndroidセーブとして新フォルダーに書き出す？コミュニティ版で読み込めます。MODアイテムは除外。",

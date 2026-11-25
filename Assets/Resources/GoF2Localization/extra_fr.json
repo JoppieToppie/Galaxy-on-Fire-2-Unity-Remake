@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "Maintenez SUPPRIMER pour confirmer.",
+  "deleteSaveFailed": "Impossible de supprimer la sauvegarde. Rouvrez-la et réessayez.",
   "editCampaignSettings": "Modifier les paramètres de la sauvegarde",
   "editCampaignFailed": "Impossible de mettre à jour la sauvegarde. Rouvrez-la et réessayez.",
   "editCampaignHint": "Faites un clic droit sur une sauvegarde pour modifier ses paramètres.",
@@ -1540,7 +1542,7 @@
  "exportOriginalSaves": "Exporter pour le jeu original",
  "originalImportFailed": "La sauvegarde n'a pas pu être importée :",
  "originalImportHint": "Choisis un fichier gof2_save_game_N du dossier de sauvegardes du jeu original.",
- "originalImportNoSlot": "Aucun emplacement libre : maintiens une sauvegarde pour la supprimer.",
+ "originalImportNoSlot": "Aucun emplacement libre. Faites un clic droit sur une sauvegarde et choisissez Supprimer.",
  "originalImportAsk": "{0}\nde {1}.\nL'importer dans l'emplacement {2} ?",
  "originalImportDone": "Importée dans l'emplacement {0}. Chargez-la depuis la liste.",
  "originalExportAsk": "Écrire chaque emplacement en sauvegardes Android originales dans un nouveau dossier ? Elles se chargent dans les builds communautaires ; les objets de mods sont omis.",

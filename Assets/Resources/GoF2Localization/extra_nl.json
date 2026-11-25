@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "Houd VERWIJDEREN ingedrukt om te bevestigen.",
+  "deleteSaveFailed": "Het opgeslagen spel kon niet worden verwijderd. Open het opnieuw en probeer het nog eens.",
   "editCampaignSettings": "Instellingen van opgeslagen spel wijzigen",
   "editCampaignFailed": "Het opgeslagen spel kon niet worden bijgewerkt. Open het opnieuw en probeer het nog eens.",
   "editCampaignHint": "Klik met de rechtermuisknop op een opgeslagen spel om de instellingen te wijzigen.",
@@ -1540,7 +1542,7 @@
  "exportOriginalSaves": "Exporteren voor het originele spel",
  "originalImportFailed": "De save kon niet worden geïmporteerd:",
  "originalImportHint": "Kies een bestand gof2_save_game_N uit de opslagmap van het originele spel.",
- "originalImportNoSlot": "Geen lege plek: houd een opslag in de lijst ingedrukt om hem te wissen.",
+ "originalImportNoSlot": "Geen vrije plek. Klik met de rechtermuisknop op een opgeslagen spel en kies Verwijderen.",
  "originalImportAsk": "{0}\nuit {1}.\nImporteren in opslagvak {2}?",
  "originalImportDone": "Geïmporteerd in opslagvak {0}. Laad hem vanuit de lijst.",
  "originalExportAsk": "Elke plek als originele Android-opslagbestanden in een nieuwe map schrijven? Ze laden in de communitybuilds; mod-voorwerpen vallen weg.",

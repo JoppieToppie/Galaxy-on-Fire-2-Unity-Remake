@@ -149,6 +149,7 @@ namespace GoF2Remake.UI
             }
 
             Bind("campaignRulesApply", ApplyCampaignEdit);
+            Bind("campaignRulesDelete", AskDeleteCampaignSave);
             Bind("cardGof2", () => PickCampaign(Campaign.GalaxyOnFire2));
             Bind("cardValkyrie", () => PickCampaign(Campaign.Valkyrie));
             Bind("cardSupernova", () => PickCampaign(Campaign.Supernova));
@@ -187,7 +188,7 @@ namespace GoF2Remake.UI
             Bind("ngPlusToggle", () => { newGamePlus = !newGamePlus && ngPlusSave != null; RefreshNgPlus(false); });
             // The Supernova Challenge (293, SupernovaChallenge): its description (298) asks "Start Supernova Challenge?".
             Bind("challengeButton", ShowChallengeStart);
-            Bind("dialogYes", ConfirmDialog);
+            RegisterDeleteHold(Bind("dialogYes", ConfirmDialog));
             Bind("dialogNo", () => { var a = dialogNo; CloseDialog(); a?.Invoke(); });
             Bind("dialogAlt", () => { var a = dialogAlt; CloseDialog(); a?.Invoke(); });
 

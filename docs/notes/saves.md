@@ -56,12 +56,9 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   community, 192 store-build, 2 PC) convert and pass TryParse; three imported (a Valkyrie loaner at 56, Supernova 128,
   the PC save) loaded docked in Play mode without errors; an export of four slots read back signed with every field
   matching. Not yet: an exported save loaded in the original game on a phone.
-- **Deleting saves** (remake, players' suggestion; `SaveSlotRow`, the main menu's Load list and the station's Save /
-  Load lists): holding a used slot for 3 s (`SaveSlotRow.HoldSeconds`; a tap / click held without dragging, or Delete /
-  the controller's X held while the row is selected) fills it red from the left ("Hold to delete...") and deletes it; a
-  line under the list says how (`AttachHint`, by input mode); a key must be let go before the next row can start (the
-  selection stays on the emptied row); the click that ends a hold doesn't load / save (`HoldUsed`). `SaveGame.Delete`
-  moves the file to `Saves/Deleted` (time-stamped, the newest 20 kept) so a slip can be undone by hand.
+- **Deleting saves**: in the main menu's Load Game list, right-click a slot, choose Delete and hold Delete in
+  the confirmation for 3 seconds. Cancel or an early release stops the deletion. The station's save picker still
+  uses the hold gesture on its slot rows. `SaveGame.Delete` moves the file to `Saves/Deleted` (newest 20 kept).
 - **Save export / import** (remake, `SaveTransfer`, main menu only: the Export saves / Import saves buttons under the
   Load game list, `MainMenu`; the list is rebuilt after an import; without a file dialog a note under them names the
   Transfer folder): Export writes every slot's file unchanged into one `.gof2saves` JSON (format tag, format version,

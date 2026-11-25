@@ -942,6 +942,9 @@ namespace GoF2Remake.UI
             root.Q("dialogProgress")?.RemoveFromClassList("dialog-progress--shown");   // the updater's (MainMenuUpdate)
             dialog.RemoveFromClassList("dialog-backdrop--shown");
             dialogYes = dialogNo = null;
+            pendingSaveDeletion = null;
+            deleteHoldPointer = -1;
+            ++deleteHoldAttempt;
             dialogCheck = null;
             var back = dialogReturn;
             dialogReturn = null;

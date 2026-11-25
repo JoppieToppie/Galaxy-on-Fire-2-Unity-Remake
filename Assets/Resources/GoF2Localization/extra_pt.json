@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "Mantenha pressionado EXCLUIR para confirmar.",
+  "deleteSaveFailed": "Não foi possível excluir o jogo salvo. Abra-o novamente e tente outra vez.",
   "editCampaignSettings": "Editar configurações do jogo salvo",
   "editCampaignFailed": "Não foi possível atualizar o jogo salvo. Abra-o novamente e tente outra vez.",
   "editCampaignHint": "Clique com o botão direito em um jogo salvo para editar suas configurações.",
@@ -1545,7 +1547,7 @@
  "exportOriginalSaves": "Exportar para o jogo original",
  "originalImportFailed": "Não foi possível importar o save:",
  "originalImportHint": "Escolha um arquivo gof2_save_game_N da pasta de saves do jogo original.",
- "originalImportNoSlot": "Nenhum espaço vazio: segure um save na lista para apagá-lo.",
+ "originalImportNoSlot": "Não há espaços livres. Clique com o botão direito em um jogo salvo e escolha Excluir.",
  "originalImportAsk": "{0}\nde {1}.\nImportar no espaço {2}?",
  "originalImportDone": "Importado no espaço {0}. Carregue-o pela lista.",
  "originalExportAsk": "Gravar cada espaço como saves Android originais numa pasta nova? Carregam nas builds da comunidade; itens de mods ficam de fora.",

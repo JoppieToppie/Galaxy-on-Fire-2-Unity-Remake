@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "Zum Bestätigen LÖSCHEN gedrückt halten.",
+  "deleteSaveFailed": "Der Spielstand konnte nicht gelöscht werden. Öffne ihn erneut und versuche es noch einmal.",
   "editCampaignSettings": "Spielstand-Einstellungen bearbeiten",
   "editCampaignFailed": "Der Spielstand konnte nicht aktualisiert werden. Öffne ihn erneut und versuche es noch einmal.",
   "editCampaignHint": "Rechtsklick auf einen Spielstand, um seine Einstellungen zu bearbeiten.",
@@ -1540,7 +1542,7 @@
  "exportOriginalSaves": "Für das Originalspiel exportieren",
  "originalImportFailed": "Der Spielstand konnte nicht importiert werden:",
  "originalImportHint": "Wähle eine Datei gof2_save_game_N aus dem Spielstandordner des Originalspiels.",
- "originalImportNoSlot": "Kein freier Speicherplatz: halte einen Spielstand gedrückt, um ihn zu löschen.",
+ "originalImportNoSlot": "Kein freier Speicherplatz. Klicke mit der rechten Maustaste auf einen Spielstand und wähle Löschen.",
  "originalImportAsk": "{0}\naus {1}.\nIn Speicherplatz {2} importieren?",
  "originalImportDone": "In Speicherplatz {0} importiert. Lade ihn aus der Liste.",
  "originalExportAsk": "Jeden Platz als originale Android-Spielstände in einen neuen Ordner schreiben? Sie laden in den Community-Builds; Mod-Gegenstände entfallen.",

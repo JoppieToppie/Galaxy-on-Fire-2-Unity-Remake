@@ -1,4 +1,6 @@
 {
+  "deleteSaveHoldHint": "Przytrzymaj przycisk USUŃ, aby potwierdzić.",
+  "deleteSaveFailed": "Nie udało się usunąć zapisu. Otwórz go ponownie i spróbuj jeszcze raz.",
   "editCampaignSettings": "Edytuj ustawienia zapisu",
   "editCampaignFailed": "Nie udało się zaktualizować zapisu. Otwórz go ponownie i spróbuj jeszcze raz.",
   "editCampaignHint": "Kliknij zapis prawym przyciskiem myszy, aby zmienić jego ustawienia.",
@@ -1540,7 +1542,7 @@
  "exportOriginalSaves": "Eksportuj do oryginalnej gry",
  "originalImportFailed": "Nie udało się zaimportować zapisu:",
  "originalImportHint": "Wybierz plik gof2_save_game_N z folderu zapisów oryginalnej gry.",
- "originalImportNoSlot": "Brak wolnego miejsca: przytrzymaj zapis na liście, by go usunąć.",
+ "originalImportNoSlot": "Brak wolnego miejsca. Kliknij zapis prawym przyciskiem myszy i wybierz Usuń.",
  "originalImportAsk": "{0}\nz {1}.\nZaimportować do miejsca {2}?",
  "originalImportDone": "Zaimportowano do miejsca {0}. Wczytaj go z listy.",
  "originalExportAsk": "Zapisać każde miejsce jako oryginalne zapisy Androida w nowym folderze? Wczytują się w wersjach społeczności; przedmioty z modów są pomijane.",
