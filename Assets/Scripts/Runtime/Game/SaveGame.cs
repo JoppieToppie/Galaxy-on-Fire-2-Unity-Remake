@@ -470,6 +470,7 @@ namespace GoF2Remake.Data
                 khadorCronusGift = Session.KhadorCronusGift ? 1 : 0,
                 ship = Session.ShipIndex,
                 deathLoaner = Session.DeathLoaner,
+                lastDeathPenaltyId = Session.LastDeathPenaltyId,
                 deathRecoveries = new List<DeathRecovery>(Session.DeathRecoveries),
                 credits = Session.Credits,
                 equipment = Session.Equipment.ConvertAll(e => e.Clone()),
@@ -650,6 +651,7 @@ namespace GoF2Remake.Data
             Session.LastDockedStation = s.lastDockedStation;
             Session.ShipIndex = s.ship;
             Session.DeathLoaner = s.deathLoaner;
+            Session.LastDeathPenaltyId = s.lastDeathPenaltyId;
             Session.DeathRecoveries = s.deathRecoveries ?? new List<DeathRecovery>();
             Session.Credits = s.credits;
             Session.Equipment = s.equipment ?? new List<ItemStack>();
