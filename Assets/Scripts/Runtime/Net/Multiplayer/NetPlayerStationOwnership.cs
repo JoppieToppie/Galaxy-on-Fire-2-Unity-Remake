@@ -492,7 +492,13 @@ namespace GoF2Remake.Multiplayer
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManage(by, record, out _)) return "Only the station owner or owning faction managers can view construction contributions.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || !NetProfiles.Enabled ||
+                !NetProfiles.Controls(by.OwnerClientId)) return "Use a controlled profile to view the ledger.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (!HasBuilderRights(record, account) && !IsStationOwnerAccount(record, account) &&
+                !(record.ownershipType == PlayerStationOwnershipType.Faction && IsFactionManager(record, account)) &&
+                !CanManage(by, record, out _))
+                return "Only the station owner, original builder or authorised managers can view construction contributions.";
             var lines = new List<string>
             {
                 "Construction contributions for " + record.name + ":",
