@@ -43,7 +43,9 @@ namespace GoF2Remake.Multiplayer
         static byte[][] inParts;
         static string inToken;
         static bool inController, inGuest, inIdentityRequired;
-        static string inSavedRace;
+        static string inSavedRace, inSavedPortrait;
+        internal static string SelectedRace { get; private set; }
+        internal static string SelectedPortrait { get; private set; }
         internal static bool IdentityRequired { get; private set; }
         internal static string IdentityRace { get; private set; }
         internal static string IdentityMessage { get; private set; }
@@ -93,6 +95,7 @@ namespace GoF2Remake.Multiplayer
         static void ResetStatics()
         {
             waiting = false;
+            SelectedRace = SelectedPortrait = null;
             ClearIdentitySetup();
             uploadTimer = UploadSeconds;
             outSeq = 0;
@@ -126,6 +129,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>NetState reached this client on a server with profiles: sign in, the world waits for the profile.</summary>
         public static void Begin(string server, int worldSeed)
         {
+            SelectedRace = SelectedPortrait = null;
             ClearIdentitySetup();
             economyRevision = 0;
             outSeq = 0;
@@ -165,7 +169,7 @@ namespace GoF2Remake.Multiplayer
 
         // ---- the profile coming in --------------------------------------------------------------------------
 
-        internal static void OnProfileHeader(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace)
+        internal static void OnProfileHeader(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace, string savedPortrait)
         {
             inSeq = seq;
             inGot = 0;
@@ -175,6 +179,7 @@ namespace GoF2Remake.Multiplayer
             inGuest = guest;
             inIdentityRequired = identityRequired;
             inSavedRace = savedRace;
+            inSavedPortrait = savedPortrait;
             if (count <= 0) Complete(null);
         }
 
@@ -191,6 +196,8 @@ namespace GoF2Remake.Multiplayer
             if (!string.IsNullOrEmpty(inToken)) { PlayerPrefs.SetString(TokenKey, inToken); PlayerPrefs.Save(); }
             Controller = inController;
             Guest = inGuest;
+            SelectedRace = !inIdentityRequired && !inGuest ? inSavedRace : null;
+            SelectedPortrait = !inIdentityRequired && !inGuest ? inSavedPortrait : null;
             if (inIdentityRequired)
             {
                 IdentityRequired = true;

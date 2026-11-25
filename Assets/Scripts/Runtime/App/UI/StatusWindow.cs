@@ -117,7 +117,18 @@ namespace GoF2Remake.UI
             var portrait = new VisualElement { pickingMode = PickingMode.Ignore };
             portrait.AddToClassList("portrait");
             pilot.Add(portrait);
-            Portrait.ShowSpeaker(portrait, 0, false);
+            string raceKey = GoF2Remake.Multiplayer.NetGame.Active
+                ? GoF2Remake.Multiplayer.NetProfileClient.SelectedRace : Session.PlayerIdentityRace;
+            string portraitKey = GoF2Remake.Multiplayer.NetGame.Active
+                ? GoF2Remake.Multiplayer.NetProfileClient.SelectedPortrait : Session.PlayerIdentityPortrait;
+            if (Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled &&
+                GoF2Remake.Multiplayer.PlayerIdentity.TryResolveRace(raceKey, out int portraitRace) &&
+                GoF2Remake.Multiplayer.PlayerIdentity.TryResolvePortrait(portraitRace, portraitKey, out var parts, out var character))
+            {
+                if (character != null) Portrait.ShowCharacter(portrait, character, false);
+                else Portrait.Show(portrait, parts, false);
+            }
+            else Portrait.ShowSpeaker(portrait, 0, false);
             var lines = new VisualElement { pickingMode = PickingMode.Ignore };
             lines.AddToClassList("status-pilot-lines");
             pilot.Add(lines);

@@ -14,7 +14,18 @@ namespace GoF2Remake.Multiplayer
             !IsComplete(savedRace, savedPortrait) && (string.IsNullOrEmpty(savedRace) || string.Equals(savedRace, race, StringComparison.Ordinal));
 
         // Void and Specters remain valid world/policy races, but cannot be chosen by players.
-        internal static bool IsSelectableRace(int race) => race != 9 && race != 10;
+        internal static bool IsSelectableRace(int race)
+        {
+            if (race == 9 || race == 10) return false;
+            if (!ModRaces.Is(race)) return true;
+            foreach (var character in ModCharacters.All())
+                if (OwnPortrait(character, race)) return true;
+            return false;
+        }
+
+        static bool OwnPortrait(ModCharacters.Def character, int race) =>
+            character != null && character.playerPortrait && character.hasRace &&
+            character.race == race && !string.IsNullOrEmpty(character.portrait);
 
         internal static bool TryResolveSelectableRace(string key, out int race) =>
             TryResolveRace(key, out race) && IsSelectableRace(race);
@@ -49,13 +60,24 @@ namespace GoF2Remake.Multiplayer
         internal static IEnumerable<(string Key, string Name)> Portraits(int race)
         {
             int label = 1;
-            foreach (int body in Bodies(race))
-                for (int variant = 0; variant < BuiltInCount(body); variant++)
-                    yield return (BuiltInKey(race, body, variant), $"Portrait {label++}");
+            if (!ModRaces.Is(race))
+                foreach (int body in Bodies(race))
+                    for (int variant = 0; variant < BuiltInCount(body); variant++)
+                        yield return (BuiltInKey(race, body, variant), $"Portrait {label++}");
 
             foreach (var character in ModCharacters.All())
-                if (character.playerPortrait && character.hasRace && character.race == race)
+                if (OwnPortrait(character, race))
                     yield return (character.key, character.Name);
+        }
+
+        // A new choice must come from this race's own selection pool. Older saved inherited portraits
+        // remain renderable by TryResolvePortrait so completed identities are not silently changed.
+        internal static bool TryResolveSelectionPortrait(int race, string key, out int[] descriptor, out ModCharacters.Def character)
+        {
+            descriptor = null;
+            character = null;
+            if (!IsSelectableRace(race) || !TryResolvePortrait(race, key, out descriptor, out character)) return false;
+            return !ModRaces.Is(race) || OwnPortrait(character, race);
         }
 
         internal static bool TryResolvePortrait(int race, string key, out int[] descriptor, out ModCharacters.Def character)

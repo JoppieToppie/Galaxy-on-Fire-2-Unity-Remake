@@ -30,20 +30,22 @@ namespace GoF2Remake.UI
         List<(string Key, string Name)> identityRaces, identityPortraits;
         string identityRace, identityPortrait, identityPreset;
         bool identityController;
+        Action<string, string> singlePlayerIdentity;
 
         bool UpdatePlayerIdentitySetup()
         {
-            if (!NetGame.Active || !NetProfileClient.IdentityRequired)
+            bool local = singlePlayerIdentity != null;
+            if (!local && (!NetGame.Active || !NetProfileClient.IdentityRequired))
             {
                 identityOverlay?.RemoveFromHierarchy();
                 identityOverlay = null;
                 return false;
             }
-            if (identityOverlay == null || identityOverlay.parent != root || identityPreset != NetProfileClient.IdentityRace ||
-                identityController != NetProfileClient.Controller) BuildIdentitySetup();
+            if (identityOverlay == null || identityOverlay.parent != root || (!local &&
+                (identityPreset != NetProfileClient.IdentityRace || identityController != NetProfileClient.Controller))) BuildIdentitySetup();
             identityOverlay.BringToFront();
-            bool pending = NetProfileClient.IdentitySubmitting;
-            identityFeedback.text = NetProfileClient.IdentityMessage ?? "";
+            bool pending = !local && NetProfileClient.IdentitySubmitting;
+            identityFeedback.text = local ? "" : NetProfileClient.IdentityMessage ?? "";
             identityConsent.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityPortrait));
             identityCode.SetEnabled(!pending);
             identityConfirm.SetEnabled(identityController && !pending && identityConsent.value &&
@@ -90,8 +92,9 @@ namespace GoF2Remake.UI
         void BuildIdentitySetup()
         {
             identityOverlay?.RemoveFromHierarchy();
-            identityPreset = NetProfileClient.IdentityRace;
-            identityController = NetProfileClient.Controller;
+            bool local = singlePlayerIdentity != null;
+            identityPreset = local ? null : NetProfileClient.IdentityRace;
+            identityController = local || NetProfileClient.Controller;
             identityRace = string.IsNullOrEmpty(identityPreset) ? null : identityPreset;
             identityPortrait = null;
             identityOverlay = new VisualElement { name = "firstJoinIdentity" };
@@ -114,7 +117,7 @@ namespace GoF2Remake.UI
             identityOverlay.Add(scroll);
             scroll.Add(IdentityLabel("CREATE YOUR PILOT", 32));
             scroll.Add(IdentityLabel(identityController
-                ? "Choose your race, then a portrait. Both choices are permanent on this server and affect station and jumpgate policies."
+                ? (local ? "Choose your race, then a portrait for this game." : "Choose your race, then a portrait. Both choices are permanent on this server and affect station and jumpgate policies.")
                 : "This profile is being set up on another device. Wait for confirmation, link an existing profile, or disconnect.", 18));
 
             identityRaces = ModRefs.RaceWords.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
@@ -170,20 +173,46 @@ namespace GoF2Remake.UI
             scroll.Add(identityConsent);
             identityConfirm = new Button(() =>
             {
-                if (identityController && !NetProfileClient.IdentitySubmitting && identityConsent.value &&
+                if (identityController && (local || !NetProfileClient.IdentitySubmitting) && identityConsent.value &&
                     !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait))
-                    NetProfileClient.ChooseIdentity(identityRace, identityPortrait);
-            }) { text = "CONFIRM PERMANENT IDENTITY & JOIN" };
+                {
+                    if (singlePlayerIdentity != null)
+                    {
+                        var complete = singlePlayerIdentity;
+                        singlePlayerIdentity = null;
+                        identityOverlay?.RemoveFromHierarchy();
+                        identityOverlay = null;
+                        complete(identityRace, identityPortrait);
+                    }
+                    else NetProfileClient.ChooseIdentity(identityRace, identityPortrait);
+                }
+            }) { text = local ? "CONFIRM IDENTITY & START" : "CONFIRM PERMANENT IDENTITY & JOIN" };
             scroll.Add(identityConfirm);
             identityFeedback = IdentityLabel("", 16);
             scroll.Add(identityFeedback);
-            scroll.Add(IdentityLabel("Already have a profile on this server? Link it instead.", 16));
+            var linkHint = IdentityLabel("Already have a profile on this server? Link it instead.", 16);
+            scroll.Add(linkHint);
             identityCode = new TextField("Link code") { maxLength = 16 };
             identityCode.style.minHeight = 40;
             scroll.Add(identityCode);
             identityLink = new Button(() => NetProfileClient.LinkIdentity(identityCode.value.Trim())) { text = "LINK EXISTING PROFILE" };
             scroll.Add(identityLink);
-            var cancel = new Button(() => NetGame.RefuseJoin("Pilot setup cancelled.")) { text = "DISCONNECT" };
+            if (local)
+            {
+                linkHint.style.display = DisplayStyle.None;
+                identityCode.style.display = DisplayStyle.None;
+                identityLink.style.display = DisplayStyle.None;
+            }
+            var cancel = new Button(() =>
+            {
+                if (singlePlayerIdentity != null)
+                {
+                    singlePlayerIdentity = null;
+                    identityOverlay?.RemoveFromHierarchy();
+                    identityOverlay = null;
+                }
+                else NetGame.RefuseJoin("Pilot setup cancelled.");
+            }) { text = local ? "BACK" : "DISCONNECT" };
             scroll.Add(cancel);
             foreach (var button in new[] { identityConfirm, identityLink, cancel })
             {
@@ -217,7 +246,7 @@ namespace GoF2Remake.UI
                     if (!string.IsNullOrWhiteSpace(filter) &&
                         entry.Name.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) < 0 &&
                         entry.Key.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) < 0) continue;
-                    if (!PlayerIdentity.TryResolvePortrait(race, entry.Key, out var parts, out var character)) continue;
+                    if (!PlayerIdentity.TryResolveSelectionPortrait(race, entry.Key, out var parts, out var character)) continue;
                     string key = entry.Key;
                     var card = new Button(() =>
                     {
@@ -225,8 +254,8 @@ namespace GoF2Remake.UI
                         identityConsent.SetValueWithoutNotify(false);
                         UpdateSelection();
                     }) { userData = key };
-                    card.style.width = 150;
-                    card.style.minHeight = 172;
+                    card.style.width = 184;
+                    card.style.minHeight = 244;
                     card.style.marginRight = card.style.marginBottom = 8;
                     card.style.paddingTop = card.style.paddingBottom = 6;
                     card.style.flexShrink = 0;
@@ -234,7 +263,9 @@ namespace GoF2Remake.UI
                     card.style.alignItems = Align.Center;
                     card.style.justifyContent = Justify.Center;
                     var preview = new VisualElement { pickingMode = PickingMode.Ignore };
-                    preview.style.width = preview.style.height = 118;
+                    preview.AddToClassList("portrait");
+                    preview.style.width = 160;
+                    preview.style.height = 200;
                     preview.style.flexShrink = 0;
                     card.Add(preview);
                     if (character == null) Portrait.Show(preview, parts, false);

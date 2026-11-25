@@ -43,10 +43,13 @@ namespace GoF2Remake.Multiplayer
             if (login.account == null || !login.controller) return "Take control of a persistent profile first.";
             if (NetPlayerStations.ProfileWritesBlocked) return "Profile changes are paused during station transaction recovery.";
             if (words.Length != 3 || !PlayerIdentity.TryResolveSelectableRace(words[1], out int race) ||
-                !PlayerIdentity.TryResolvePortrait(race, words[2], out _, out _))
+                !PlayerIdentity.TryResolveSelectionPortrait(race, words[2], out _, out _))
                 return "Choose a playable race and a matching portrait. Void and Specters are not playable.";
             string raceKey = PlayerIdentity.RaceKey(race);
-            if (!PlayerIdentity.CanChoose(login.account.stationPolicyRace, login.account.playerPortrait, raceKey))
+            string savedRace = login.account.stationPolicyRace;
+            if (!PlayerIdentity.IsComplete(savedRace, login.account.playerPortrait) &&
+                !PlayerIdentity.TryResolveSelectableRace(savedRace, out _)) savedRace = null;
+            if (!PlayerIdentity.CanChoose(savedRace, login.account.playerPortrait, raceKey))
                 return "Your pilot identity is permanent and cannot be changed.";
             if (!SavePlayerIdentity(login.account, raceKey, words[2])) return "Pilot appearance could not be saved. Try again.";
             foreach (var device in logins.Values)

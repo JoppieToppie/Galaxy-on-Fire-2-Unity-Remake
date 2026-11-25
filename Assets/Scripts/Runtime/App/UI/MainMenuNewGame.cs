@@ -356,6 +356,22 @@ namespace GoF2Remake.UI
             // Remake mods (#313): the campaign is known before its database loads, so a script's "database" handler can tell.
             if (pendingModCampaign != null) Session.ModCampaign = pendingModCampaign.Id;
             var db = Database.Load();
+            if (!GoF2Remake.Multiplayer.NetGame.Active && Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled)
+            {
+                singlePlayerIdentity = (race, portrait) =>
+                {
+                    Session.PlayerIdentityRace = race;
+                    Session.PlayerIdentityPortrait = portrait;
+                    StartSelectedGame(db);
+                };
+                BuildIdentitySetup();
+                return;
+            }
+            StartSelectedGame(db);
+        }
+
+        void StartSelectedGame(Database db)
+        {
             // Remake mods: a mod's campaign (Modding.ModCampaigns): its start, docked at its station; no GoF2 story.
             // Remake mods: a DLC (Modding.ModDlcs): the end of the whole story, then its quest.
             if (pendingDlc != null)

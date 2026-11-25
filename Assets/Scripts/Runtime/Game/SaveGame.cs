@@ -65,6 +65,7 @@ namespace GoF2Remake.Data
         public int wingmanRace;
         public float wingmanContractMs;
         public int[] wingmanPortrait;
+        public string playerIdentityRace, playerIdentityPortrait;
         public int wingmenHired;
         public List<int> unlockedBlueprints, shipMods;
         public List<BlueprintState> blueprints;
@@ -484,6 +485,7 @@ namespace GoF2Remake.Data
                 informerKilled = Session.InformerKilled,
                 wingmen = Session.Wingmen, wingmanShips = Session.WingmanShips, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs,
                 wingmanPortrait = Session.WingmanPortrait, wingmenHired = Session.WingmenHired,
+                playerIdentityRace = Session.PlayerIdentityRace, playerIdentityPortrait = Session.PlayerIdentityPortrait,
                 unlockedBlueprints = new List<int>(Session.UnlockedBlueprints), shipMods = Session.ShipMods,
                 blueprints = Session.Blueprints, pendingProducts = Session.PendingProducts, goodsProduced = Session.GoodsProduced,
                 medals = Session.Medals, asteroidsDestroyed = Session.AsteroidsDestroyed, oreMined = Session.OreMined, coresMined = Session.CoresMined,
@@ -611,6 +613,8 @@ namespace GoF2Remake.Data
                 return d;
             }
             Session.ResetNewGame();
+            Session.PlayerIdentityRace = s.playerIdentityRace;
+            Session.PlayerIdentityPortrait = s.playerIdentityPortrait;
             Session.Hardcore = s.hardcore;
             Session.NoMedals = s.noMedals;
             if (!string.IsNullOrEmpty(s.runId)) Session.RunId = s.runId;   // an older save keeps the new id ResetNewGame made

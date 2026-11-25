@@ -190,7 +190,9 @@ namespace GoF2Remake.Multiplayer
             }
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
             NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home,
-                NeedsIdentity(login.account), login.account?.stationPolicyRace);
+                NeedsIdentity(login.account),
+                NeedsIdentity(login.account) && !PlayerIdentity.TryResolveSelectableRace(login.account?.stationPolicyRace, out _) ? null : login.account?.stationPolicyRace,
+                Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled ? login.account?.playerPortrait : null);
             if (!NetPlayerStations.ProfileWritesBlocked && !IsHostClient(login.client))
             {
                 login.economyRevisionDirty = false;

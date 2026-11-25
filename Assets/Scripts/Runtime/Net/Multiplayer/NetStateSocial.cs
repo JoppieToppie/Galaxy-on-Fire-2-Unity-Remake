@@ -406,17 +406,17 @@ namespace GoF2Remake.Multiplayer
         }
         /// <summary>Server: a profile to one player: the header (its new token, if any; its role), then the gzipped chunks
         /// (none = a fresh start). Reliable RPCs to one client arrive in order.</summary>
-        internal void SendProfile(ulong client, string token, bool controller, bool guest, string json, int home, bool identityRequired, string savedRace)
+        internal void SendProfile(ulong client, string token, bool controller, bool guest, string json, int home, bool identityRequired, string savedRace, string savedPortrait)
         {
             if (!IsServer) return;
             var parts = NetProfiles.Pack(json);
             int seq = ++profileSeq;
-            ProfileHeaderRpc(seq, parts.Count, token ?? "", controller, guest, home, identityRequired, savedRace ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
+            ProfileHeaderRpc(seq, parts.Count, token ?? "", controller, guest, home, identityRequired, savedRace ?? "", savedPortrait ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
             for (int i = 0; i < parts.Count; i++) ProfileChunkRpc(seq, i, parts[i], RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void ProfileHeaderRpc(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace, RpcParams rpc = default)
-            => NetProfileClient.OnProfileHeader(seq, count, token, controller, guest, home, identityRequired, savedRace);
+        void ProfileHeaderRpc(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace, string savedPortrait, RpcParams rpc = default)
+            => NetProfileClient.OnProfileHeader(seq, count, token, controller, guest, home, identityRequired, savedRace, savedPortrait);
 
         [Rpc(SendTo.Server)]
         internal void ChoosePlayerIdentityRpc(string race, string portrait, RpcParams rpc = default)
