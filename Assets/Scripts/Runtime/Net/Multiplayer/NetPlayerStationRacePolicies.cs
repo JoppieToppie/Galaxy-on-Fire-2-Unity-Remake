@@ -8,7 +8,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class StationRaceAccessRule
     {
-        public string race;
+        public string race, reason;
         public PlayerStationPermissionState state;
     }
 
@@ -23,28 +23,31 @@ namespace GoF2Remake.Multiplayer
             return !string.IsNullOrEmpty(key);
         }
 
-        internal static bool TryReadRaceAccess(string text, out string race, out PlayerStationPermissionState state)
+        internal static bool TryReadRaceAccess(string text, out string race, out PlayerStationPermissionState state) => TryReadRaceAccess(text, out race, out state, out _);
+
+        internal static bool TryReadRaceAccess(string text, out string race, out PlayerStationPermissionState state, out string reason)
         {
-            var words = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var words = text.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+            reason = words.Length == 3 ? NormalizeBlacklistReason(words[2]) : "";
             race = null;
             state = PlayerStationPermissionState.Inherit;
-            if (words.Length != 2 || !TryPolicyRaceKey(words[0], out race)) return false;
+            if (words.Length < 2 || !TryPolicyRaceKey(words[0], out race)) return false;
             switch (words[1].ToLowerInvariant())
             {
-                case "inherit": return true;
-                case "allow": state = PlayerStationPermissionState.Allow; return true;
+                case "inherit": reason = ""; return true;
+                case "allow": reason = ""; state = PlayerStationPermissionState.Allow; return true;
                 case "deny": state = PlayerStationPermissionState.Deny; return true;
                 default: return false;
             }
         }
 
         internal static List<StationRaceAccessRule> WithRaceAccess(List<StationRaceAccessRule> rules,
-            string race, PlayerStationPermissionState state)
+            string race, PlayerStationPermissionState state, string reason = null)
         {
             var updated = rules == null ? new List<StationRaceAccessRule>() : new List<StationRaceAccessRule>(rules);
             updated.RemoveAll(rule => rule != null && string.Equals(rule.race, race, StringComparison.Ordinal));
             if (state != PlayerStationPermissionState.Inherit)
-                updated.Add(new StationRaceAccessRule { race = race, state = state });
+                updated.Add(new StationRaceAccessRule { race = race, state = state, reason = state == PlayerStationPermissionState.Deny ? NormalizeBlacklistReason(reason) : "" });
             return updated.Count == 0 ? null : updated;
         }
 
@@ -56,6 +59,13 @@ namespace GoF2Remake.Multiplayer
             if (state == PlayerStationPermissionState.Inherit)
                 state = defaults?.Find(rule => rule?.race == race)?.state ?? PlayerStationPermissionState.Inherit;
             return state != PlayerStationPermissionState.Deny;
+        }
+
+        static StationRaceAccessRule EffectiveRaceRule(string race, List<StationRaceAccessRule> local, List<StationRaceAccessRule> defaults)
+        {
+            if (string.IsNullOrEmpty(race)) return null;
+            var rule = local?.Find(entry => entry != null && entry.race == race);
+            return rule == null || rule.state == PlayerStationPermissionState.Inherit ? defaults?.Find(entry => entry != null && entry.race == race) : rule;
         }
 
         static List<StationRaceAccessRule> JumpgateRaceDefaults(PlayerJumpgateRecord gate) =>
@@ -105,10 +115,10 @@ namespace GoF2Remake.Multiplayer
             if (ProfileWritesBlocked) return "Gate policy changes are paused during station transaction recovery.";
             if (words[1].StartsWith("exempt ", StringComparison.OrdinalIgnoreCase))
                 return SetJumpgateRaceExemption(gate, words[1].Substring("exempt ".Length));
-            if (!TryReadRaceAccess(words[1], out string race, out var state))
+            if (!TryReadRaceAccess(words[1], out string race, out var state, out string reason))
                 return "/station jumpgate-race <orbit> <race> <inherit|allow|deny>";
             var previous = gate.raceAccess;
-            gate.raceAccess = WithRaceAccess(previous, race, state);
+            gate.raceAccess = WithRaceAccess(previous, race, state, reason);
             if (Save()) return "Jumpgate race rule saved.";
             gate.raceAccess = previous;
             return "The jumpgate race rule could not be saved.";
@@ -139,7 +149,7 @@ namespace GoF2Remake.Multiplayer
             for (int i = 0; i < rules.Count && i < 12; i++)
             {
                 var rule = rules[i];
-                if (rule != null) lines.Append('\n').Append(scope).Append(" · ").Append(rule.race).Append(" · ").Append(rule.state);
+                if (rule != null) lines.Append('\n').Append(scope).Append(" · ").Append(rule.race).Append(" · ").Append(WithBlacklistReason(rule.state.ToString(), rule.reason));
             }
         }
     }
