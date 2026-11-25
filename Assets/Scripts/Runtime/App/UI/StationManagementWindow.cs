@@ -700,6 +700,15 @@ namespace GoF2Remake.UI
             }
             if (Building(current))
             {
+                if (station.moduleBuildCompletesUtc <= 0)
+                {
+                    AddInfo("Funding", "Donated construction stock is used automatically once all outstanding materials are available.");
+                    foreach (var material in station.moduleConstructionMaterials ?? new List<PlayerStationMaterial>())
+                        if (material != null) AddInfo(NetGame.Db.Item(material.item)?.name ?? ("Item " + material.item), $"{material.delivered:N0} / {material.required:N0} delivered");
+                    if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
+                    AddAction("Install remaining materials from cargo", "/station install " + id + " " + current);
+                    AddAction("Install remaining materials from personal storage", "/station install-storage " + id + " " + current);
+                }
                 AddAction("Manage active module procurement", () => ChangeManagementPage("orders"));
                 return;
             }
@@ -2065,7 +2074,7 @@ namespace GoF2Remake.UI
             AddItemChoice("stockItem", "Required construction material", allowed);
             if (!int.TryParse(Value("stockItem"), out int item) || !allowed.Contains(item)) return;
             int remaining = required.Where(entry => entry != null && entry.item == item).Sum(entry => Math.Max(0, entry.required - entry.delivered));
-            AddNumber("stockQuantity", "Units", 1, 1, Math.Min(10000, remaining));
+            AddNumber("stockQuantity", "Units", 1, 1, Math.Min(500, remaining));
             AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity")));
         }
 
