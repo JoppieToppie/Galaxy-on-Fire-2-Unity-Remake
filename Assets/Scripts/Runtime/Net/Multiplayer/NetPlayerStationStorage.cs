@@ -41,6 +41,99 @@ namespace GoF2Remake.Multiplayer
             return HasStationPermission(record, account, PlayerStationPermission.Hangar);
         }
 
+        [Serializable] internal sealed class ManagementOption
+        {
+            public string group, value, label;
+        }
+        [Serializable] internal sealed class ManagementCatalogue
+        {
+            public int stationId, directoryPage, directoryPages;
+            public bool canAnnounce, canManage, canSecurity, canOwnership, canAppearance, canConstruction;
+            public List<ManagementOption> options = new List<ManagementOption>();
+        }
+
+        // Hull selectors carry a fingerprint as well as the index. The server checks the live hull before interpreting the index.
+        static string HullFingerprint(StoredShip hull)
+        {
+            using var hash = System.Security.Cryptography.SHA256.Create();
+            return Convert.ToBase64String(hash.ComputeHash(System.Text.Encoding.UTF8.GetBytes(UnityEngine.JsonUtility.ToJson(hull))));
+        }
+
+        internal static bool ResolveManagementHull(NetPlayer pilot, int stationId, string token, out string indexText)
+        {
+            indexText = null;
+            var parts = token.Split(':');
+            if (parts.Length != 3 || !int.TryParse(parts[1], out int index) || index < 1 || pilot == null) return false;
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            if (!NetProfiles.Controls(pilot.OwnerClientId)) return false;
+            var station = Find(stationId);
+            if (!IsStationContext(pilot, station, out _, recoverProperty: true)) return false;
+            List<StoredShip> ships;
+            if (parts[0] == "fleet-hull") ships = NetProfiles.StoredShipsOf(account, pilot.OwnerClientId);
+            else if (parts[0] == "hangar-hull") ships = station.storedShips;
+            else if (parts[0] == "drydock-hull") ships = station.dryDockShips;
+            else return false;
+            if (ships == null || index > ships.Count || ships[index - 1] == null || HullFingerprint(ships[index - 1]) != parts[2]) return false;
+            indexText = index.ToString(); return true;
+        }
+
+        internal static ManagementCatalogue ManagementCatalogueFor(NetPlayer pilot, int stationId, int directoryPage, Func<string, string> token)
+        {
+            var result = new ManagementCatalogue { stationId = stationId };
+            var record = Find(stationId);
+            if (!IsStationContext(pilot, record, out string account, recoverProperty: true) || record.underConstruction) return result;
+            bool normal = IsStationContext(pilot, record, out _);
+            result.canManage = normal && HasStationPermission(record, account, PlayerStationPermission.StationOperations);
+            result.canOwnership = normal && IsStationAuthority(pilot, record, out _);
+            result.canSecurity = normal && HasStationPermission(record, account, PlayerStationPermission.Security);
+            result.canAppearance = normal && HasStationPermission(record, account, PlayerStationPermission.Appearance);
+            result.canConstruction = normal && HasStationPermission(record, account, PlayerStationPermission.Construction);
+            result.canAnnounce = CanPublishStationAnnouncement(pilot, record);
+            void Add(string group, string value, string label) => result.options.Add(new ManagementOption { group = group, value = value, label = label });
+            void Hulls(List<StoredShip> ships, List<string> owners, string group, string prefix)
+            {
+                if (ships == null) return;
+                for (int i = 0; i < ships.Count && i < 100; i++)
+                {
+                    var hull = ships[i];
+                    if (hull == null || (owners != null && (i >= owners.Count || owners[i] != account))) continue;
+                    string label = (NetGame.Db?.Ship(hull.ship)?.name ?? "Unknown hull") + " · Slot " + (i + 1) + " · " + (hull.mods?.Count ?? 0) + " upgrades";
+                    string value = prefix + ":" + (i + 1) + ":" + HullFingerprint(hull);
+                    Add(group, value, label);
+                    if (group == "fleet") Add(IsDryDockHull(hull) ? "largeFleet" : "smallFleet", value, label);
+                }
+            }
+            Hulls(NetProfiles.StoredShipsOf(account, pilot.OwnerClientId), null, "fleet", "fleet-hull");
+            if (CanManageHangar(pilot, record, out _, recoverProperty: true))
+            {
+                Hulls(record.storedShips, record.storedShipOwners ?? new List<string>(), "hangar", "hangar-hull");
+                Hulls(record.dryDockShips, record.dryDockShipOwners ?? new List<string>(), "drydock", "drydock-hull");
+            }
+            if (result.canManage)
+            {
+                foreach (var recipe in EffectiveFactoryRecipes())
+                    Add("recipe", recipe.id.ToString(), (NetGame.Db?.Item(recipe.output)?.name ?? "Recipe " + recipe.id) + " × " + recipe.outputAmount + " · " + string.Join(" + ", Array.ConvertAll(recipe.inputs, input => input.amount + " × " + (NetGame.Db?.Item(input.item)?.name ?? "Material"))));
+                foreach (var order in record.factoryRepeatOrders ?? new List<PlayerFactoryRepeatOrder>())
+                    if (order != null) Add("repeat", order.id.ToString(), (NetGame.Db?.Item(FindFactoryRecipe(order.recipeId)?.output ?? -1)?.name ?? "Recipe") + " · " + (order.continuous ? "Continuous" : order.remainingBatches + " remaining") + " · Order " + order.id);
+            }
+            bool managesGate = registry?.jumpgates?.Exists(gate => gate != null && gate.system == record.system && CanManageJumpgate(pilot, gate, out _) && JumpgateManagementDocked(pilot, gate)) == true;
+            if (result.canOwnership || result.canSecurity || managesGate)
+            {
+                var pilots = NetProfiles.StationPilotDirectory(); var factions = NetFactions.StationFactionDirectory();
+                const int size = 40;
+                result.directoryPages = Math.Max(1, (Math.Max(pilots.Count, factions.Count) + size - 1) / size);
+                result.directoryPage = Math.Clamp(directoryPage, 0, result.directoryPages - 1);
+                int start = result.directoryPage * size;
+                for (int i = start; i < Math.Min(start + size, pilots.Count); i++) Add("pilot", token(pilots[i].id), pilots[i].name + " · " + (i + 1));
+                for (int i = start; i < Math.Min(start + size, factions.Count); i++)
+                {
+                    var faction = factions[i]; Add("faction", token(faction.id), faction.name);
+                    if (!string.IsNullOrEmpty(faction.leader)) Add("factionLeader", token(faction.leader), faction.name);
+                }
+            }
+            return result;
+        }
+
         internal static string PersonalFleet(NetPlayer by)
         {
             if (by == null || !by.IsSpawned || !by.InHangar || !NetProfiles.Controls(by.OwnerClientId))
