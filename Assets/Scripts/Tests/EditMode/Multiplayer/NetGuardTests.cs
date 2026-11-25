@@ -483,5 +483,29 @@ namespace GoF2Remake.Tests
             }
         }
 
+
+        [Test]
+        public void InfrastructureDefaultsPreserveExistingBalance()
+        {
+            var rules = new GoF2Remake.Modding.ModPlayerInfrastructure();
+            Assert.AreEqual(2000, rules.StorageCapacityPerLevel);
+            Assert.AreEqual(64, rules.StorageItemTypes);
+            Assert.AreEqual(300000, rules.StationRenamePrice);
+            Assert.AreEqual(25000000, rules.StationClaimPrice);
+            Assert.IsTrue(rules.SiegeRespawnFactionOfficers);
+        }
+
+        [Test]
+        public void InfrastructureModOverridesAreBounded()
+        {
+            var rules = GoF2Remake.Modding.ModPlayerInfrastructure.Parse(
+                Newtonsoft.Json.Linq.JObject.Parse("{\"storageCapacityPerLevel\":4000,\"storageItemTypes\":128,\"stationRenamePrice\":500000,\"siegeRespawnFactionOfficers\":false}"));
+            Assert.AreEqual(4000, rules.StorageCapacityPerLevel);
+            Assert.AreEqual(128, rules.StorageItemTypes);
+            Assert.AreEqual(500000, rules.StationRenamePrice);
+            Assert.IsFalse(rules.SiegeRespawnFactionOfficers);
+            Assert.IsTrue(rules.SiegeRespawnStationAdministrators);
+        }
+
     }
 }
