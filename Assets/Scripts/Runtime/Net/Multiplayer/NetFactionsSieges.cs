@@ -19,25 +19,25 @@ namespace GoF2Remake.Multiplayer
         internal static bool CanRespawnAt(int station, string account)
         {
             var siege = SiegeAt(station);
-            if (siege == null || !siege.started) return true;
+            if (siege == null) return true;
             var faction = Of(account);
             return (faction != null && faction.id == siege.defender &&
                 (faction.leader == account || faction.officers?.Contains(account) == true)) ||
                 NetPlayerStations.HasSiegeRespawnPrivilege(station, account);
         }
 
-        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked)
+        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked, int deathOrigin = -1)
         {
             var db = NetGame.Db;
             if (pilot == null || db?.Stations == null || db.Systems == null) return -1;
             string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            int origin = pilot.Station;
+            int origin = deathOrigin >= 0 ? deathOrigin : pilot.Station;
             var faction = Of(account);
             bool Allowed(int orbit) => orbit >= 0 && CanRespawnAt(orbit, account) &&
                 !NetPlayerStations.StationClosedByCombat(orbit) && NetPlayerStations.CanVisitStation(orbit, account) &&
                 db.Stations.Exists(s => s != null && s.index == orbit) && OrbitLayout.Build(db, orbit).hasStation;
             var siege = SiegeAt(origin);
-            bool defending = siege != null && siege.started && faction != null && faction.id == siege.defender;
+            bool defending = siege != null && faction != null && faction.id == siege.defender;
             if (defending && Allowed(origin)) return origin;
             if (!defending && Allowed(lastDocked)) return lastDocked;
             int system = db.Stations.Find(s => s != null && s.index == origin)?.system ?? -1;
