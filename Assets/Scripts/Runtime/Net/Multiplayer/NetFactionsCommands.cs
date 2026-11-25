@@ -48,6 +48,12 @@ namespace GoF2Remake.Multiplayer
                 return "Faction changes are paused while a station transaction is being recovered.";
             switch (sub)
             {
+                case "broadcast":
+                    var broadcaster = Of(me);
+                    if (!NetGame.IsServer || !NetProfiles.Controls(client) || broadcaster == null || !IsOfficer(broadcaster, me))
+                        return "Only the faction leader and officers using a controlled profile may broadcast.";
+                    return NetNews.PostOfficial(NetNews.Kind.FactionBroadcast, "faction:" + broadcaster.id,
+                        NetNews.FactionName(broadcaster.tag, broadcaster.name), me, arg);
                 case "create": return Create(me, arg);
                 case "invite": return Invite(me, arg);
                 case "join": return Join(me, arg);
@@ -77,7 +83,7 @@ namespace GoF2Remake.Multiplayer
                     return Localization.Extra("mpFactionHelp", "Faction commands: /faction create TAG Name, invite <pilot>, join TAG, leave, kick <pilot>, " +
                                                             "promote / demote <pilot>, leader <pilot>, disband, info [TAG], list; deposit N, withdraw N; " +
                                                             "claim, unclaim, home, claims [TAG] (docked at the station); garrison <ships> <level> [station]; vat <0-20> [station]; siege (in another faction's orbit), sieges; " +
-                                                            "gate-race <race> <inherit|allow|deny> sets race defaults for faction-owned jumpgates. /f <text> talks to your faction.");
+                                                            "gate-race <race> <inherit|allow|deny> sets race defaults for faction-owned jumpgates; broadcast <message> posts official GalNet news. /f <text> talks to your faction.");
             }
         }
         static string SetFactionStationRace(string account, string arg)
