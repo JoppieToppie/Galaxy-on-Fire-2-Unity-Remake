@@ -21,6 +21,7 @@ namespace GoF2Remake.Multiplayer
     {
         public PlayerJumpgateBlockType type;
         public string id;
+        public string reason;
     }
 
     [Serializable]
