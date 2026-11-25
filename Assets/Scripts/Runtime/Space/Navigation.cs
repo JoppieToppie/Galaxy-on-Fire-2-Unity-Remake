@@ -241,6 +241,17 @@ namespace GoF2Remake.Flight
         [NonSerialized] public List<NpcShip> Ships;
 
         // A loop, not Targets.Exists(t => t.dockingShip == s): that closure was allocated per traffic ship per frame.
+        internal void RemoveDockingTarget(NpcShip ship)
+        {
+            if (Locked?.dockingShip == ship || Candidate?.dockingShip == ship)
+            {
+                Locked = Candidate = null;
+                LockTimer = 0f;
+            }
+            if (AutopilotTarget?.dockingShip == ship) SetAutopilot(null);
+            Targets.RemoveAll(target => target.dockingShip == ship);
+        }
+
         bool HasDockingTarget(NpcShip s)
         {
             foreach (var t in Targets) if (t.dockingShip == s) return true;
