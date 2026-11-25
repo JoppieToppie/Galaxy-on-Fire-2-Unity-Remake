@@ -27,6 +27,7 @@ namespace GoF2Remake.Modding
         public const int MaxSmokePoints = 4;
         public const float MinExplosion = 0.25f, MaxExplosion = 20f;
         public const float DefaultOrbitDistance = 3800f, MinOrbitDistance = 1500f, MaxOrbitDistance = 70000f;
+        public const float LargeShipMinOrbitDistance = 50000f;
 
         /// <summary>The original's chase camera (TargetFollowCamera): distance, height, look height, look ahead.</summary>
         public static readonly float[] DefaultCamera = { 1338f, 600f, 600f, -650f };
@@ -102,8 +103,13 @@ namespace GoF2Remake.Modding
             if (ModJson.Get(o, "explosionScale") is JToken e && IsNumber(e)) s.explosionScale = Mathf.Clamp((float)e, MinExplosion, MaxExplosion);
         }
 
-        /// <summary>The free-look orbit's default radius in game units; absent = the original's 3800.</summary>
-        public static float OrbitDistance(ShipData s) => s?.orbitCameraDistance ?? DefaultOrbitDistance;
+        /// <summary>Large class hulls default to at least 50,000; unclassified and small ships retain their configured radius.</summary>
+        public static float OrbitDistance(ShipData s) => ShipClassRules.IsLargeShipClass(s)
+            ? Mathf.Max(LargeShipMinOrbitDistance, s.orbitCameraDistance) : s?.orbitCameraDistance ?? DefaultOrbitDistance;
+
+        /// <summary>Classified ships use camera-centered targeting only on large hulls. Vanilla behavior stays unchanged.</summary>
+        public static bool FreeLookTargeting(ShipData s, bool vanillaSetting) => ShipClassRules.ClassOf(s) == null
+            ? vanillaSetting : ShipClassRules.IsLargeShipClass(s);
 
         /// <summary>The chase camera's offsets in the ship's frame (metres; game units x 'metersPerUnit'): the ship's own
         /// "camera", else the original's.</summary>

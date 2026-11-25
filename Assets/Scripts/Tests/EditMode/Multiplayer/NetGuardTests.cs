@@ -563,5 +563,22 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(queue.TryTakeDue(long.MaxValue, out _));
         }
 
+        [Test]
+        public void StockDefenseMaintenanceModOverridesAllThreeModels()
+        {
+            var rules = GoF2Remake.Modding.ModPlayerInfrastructure.Parse(Newtonsoft.Json.Linq.JObject.Parse(
+                "{\"stockDefenseMaintenanceSeconds\":86400,\"stockDefenseDecayPercentPerDay\":2,\"stockDefenseMinimumIntegrityPercent\":20}"));
+            Assert.AreEqual(3, rules.OrbitalStructures.Count);
+            foreach (var preset in rules.OrbitalStructures)
+            {
+                Assert.AreEqual(86400, preset.MaintenanceIntervalSeconds);
+                Assert.AreEqual(2f, preset.MaintenanceDecayPercentPerDay);
+                Assert.AreEqual(20f, preset.MinimumMaintenanceIntegrityPercent);
+                Assert.Greater(preset.MaintenanceMaterials.Count, 0);
+            }
+            Assert.Throws<GoF2Remake.Modding.ModJsonException>(() =>
+                GoF2Remake.Modding.ModPlayerInfrastructure.Parse(Newtonsoft.Json.Linq.JObject.Parse("{\"stockDefenseMaintenanceSeconds\":0}")));
+        }
+
     }
 }

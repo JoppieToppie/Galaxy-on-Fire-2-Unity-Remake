@@ -442,6 +442,13 @@ namespace GoF2Remake.Multiplayer
             save.deathRecoveries = persisted?.deathRecoveries ?? new List<DeathRecovery>();
             save.lastDeathPenaltyId = persisted?.lastDeathPenaltyId;
             if (!ReadPendingDeath(account, out var pending)) return false;
+            // A reconnect or startup replay may have settled this same recorded death already.
+            if (pending == null && !string.IsNullOrEmpty(pilot.RecordedDeathPenaltyId) &&
+                persisted?.lastDeathPenaltyId == pilot.RecordedDeathPenaltyId)
+            {
+                pilot.SetRecordedDeathDestination(persisted.lastDockedStation);
+                return true;
+            }
             if (pending == null)
             {
                 // Story and event loaners are not the player's property.
@@ -453,7 +460,7 @@ namespace GoF2Remake.Multiplayer
                 // Recovery will retry when the world/mod configuration becomes usable again.
                 pending = new PendingDeathPenalty
                 {
-                    id = Guid.NewGuid().ToString("N"),
+                    id = pilot.RecordedDeathPenaltyId ?? Guid.NewGuid().ToString("N"),
                     dueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Modding.ModPvpPiracy.ShipRecoverySeconds,
                     origin = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.DeathOrigin,
                     respawn = respawn, emergencyShip = emergencyShip,
@@ -461,6 +468,7 @@ namespace GoF2Remake.Multiplayer
                 };
                 if (!Write(PendingDeathPath(account), JsonUtility.ToJson(pending))) return false;
             }
+            pilot.SetRecordedDeathPenaltyId(pending.id);
             // If the profile transaction previously completed, restore the authoritative copy.
             if (persisted?.lastDeathPenaltyId == pending.id) save = persisted;
             if (!SettlePendingDeath(account, save, pending, canSpawnLoot, out droppedItem)) return false;

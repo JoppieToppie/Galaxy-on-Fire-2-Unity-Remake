@@ -109,6 +109,9 @@ namespace GoF2Remake.Modding
         /// <summary>The ship's class id (the machine identity), null for a ship without one (tags alone are not a class).</summary>
         public static string ClassOf(ShipData ship) => string.IsNullOrEmpty(ship?.shipClass) ? null : ship.shipClass;
 
+        /// <summary>Canonical large hull roles; tags alone cannot grant capital-only capabilities.</summary>
+        public static bool IsLargeShipClass(ShipData ship) => ClassOf(ship)?.ToLowerInvariant() is Frigate or Freighter or Cruiser or Carrier;
+
         /// <summary>The class as a scanner shows it: the mod's display text, else the id with its words capitalised
         /// ("light_fighter" = "Light Fighter"); null for a ship without a class.</summary>
         public static string ClassLabel(ShipData ship)

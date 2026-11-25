@@ -281,7 +281,8 @@ namespace GoF2Remake.Flight
             if (!blocked && cam != null)
             {
                 // (Remake free look, #302: the middle of the view in free look; else the ship's crosshair, as the original)
-                var c = LockCrosshairPoint(cam, transform, Settings.RemakeFreeLook && freeLook != null && freeLook.FreeLookActive);
+                bool cameraTargeting = GoF2Remake.Modding.ModShipView.FreeLookTargeting(db?.Ship(Session.ShipIndex), Settings.RemakeFreeLook);
+                var c = LockCrosshairPoint(cam, transform, cameraTargeting && freeLook != null && freeLook.FreeLookActive);
                 float box = Screen.width / 16f, bestD = float.MaxValue, stealD = float.MaxValue;
                 if (c.z > 0f)
                 {

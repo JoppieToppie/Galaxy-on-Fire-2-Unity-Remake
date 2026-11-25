@@ -1,5 +1,5 @@
 // ExternalDockingRules.cs
-// External docking is explicitly opt-in per ship. The hardpoint and station attachment are also required.
+// External docking follows canonical large ship classes. The hardpoint and station attachment are also required.
 using System;
 using GoF2Remake.Data;
 using Newtonsoft.Json.Linq;
@@ -8,11 +8,10 @@ namespace GoF2Remake.Modding
 {
     public static class ExternalDockingRules
     {
-        /// <summary>External role is explicit; ordinary ships retain their size-based internal-docking rule.</summary>
-        public static bool CanDockExternally(ShipData ship) =>
-            string.Equals(ship?.dockingRole, "external", StringComparison.OrdinalIgnoreCase);
+        /// <summary>Only the four canonical large classes may dock externally, including when a legacy role field is absent.</summary>
+        public static bool CanDockExternally(ShipData ship) => ShipClassRules.IsLargeShipClass(ship);
 
-        /// <summary>Legacy hull size remains the physical limit for internal docking; external role never falls back to a hangar.</summary>
+        /// <summary>Noncapital roles remain internal only. Legacy hull geometry remains a physical safety limit.</summary>
         public static bool CanDockInternally(ShipData ship, bool largeHull) =>
             !largeHull && !CanDockExternally(ship);
 

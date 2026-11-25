@@ -232,5 +232,26 @@ namespace GoF2Remake.Tests
             Assert.Throws<ModJsonException>(() => ShipClassRules.CheckItem(JObject.Parse("{ 'allowedClasses': { 'a': 1 } }"), "items.json", null, "items.json"));
             Assert.DoesNotThrow(() => ShipClassRules.CheckItem(JObject.Parse("{ 'allowedClasses': ['a'], 'excludedClasses': 'b' }"), "items.json", null, "items.json"));
         }
+        [Test]
+        public void ClassDockingAndCameraPolicyDoesNotChangeVanillaShips()
+        {
+            foreach (string id in ShipClassRules.CanonicalClassIds)
+            {
+                var ship = new ShipData { shipClass = id, dockingRole = "external" };
+                bool large = id == ShipClassRules.Frigate || id == ShipClassRules.Freighter ||
+                    id == ShipClassRules.Cruiser || id == ShipClassRules.Carrier;
+                Assert.AreEqual(large, ExternalDockingRules.CanDockExternally(ship), id);
+                Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship, false), id);
+                Assert.AreEqual(large, ModShipView.FreeLookTargeting(ship, !large), id);
+                if (large) Assert.GreaterOrEqual(ModShipView.OrbitDistance(ship), 50000f, id);
+            }
+            var vanilla = new ShipData { dockingRole = "external" };
+            Assert.IsFalse(ExternalDockingRules.CanDockExternally(vanilla));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(vanilla, false));
+            Assert.IsFalse(ExternalDockingRules.CanDockInternally(vanilla, true));
+            Assert.IsTrue(ModShipView.FreeLookTargeting(vanilla, true));
+            Assert.IsFalse(ModShipView.FreeLookTargeting(vanilla, false));
+        }
+
     }
 }

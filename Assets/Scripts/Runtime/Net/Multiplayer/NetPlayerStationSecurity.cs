@@ -7,6 +7,11 @@ namespace GoF2Remake.Multiplayer
     {
         int deathRespawnDestination = -1, deathOrigin = -1;
         bool deathRespawnProtected, deathRecorded, deathPenaltyRequired;
+        internal string RecordedDeathPenaltyId { get; private set; }
+        internal void SetRecordedDeathPenaltyId(string id)
+        {
+            if (IsServer && deathRecorded) RecordedDeathPenaltyId = id;
+        }
         internal bool HasRecordedDeath => deathRecorded;
         internal bool RecordedDeathRequiresPenalty => deathPenaltyRequired;
         float deathRespawnArrivalAt;
@@ -64,6 +69,7 @@ namespace GoF2Remake.Multiplayer
             if (deathRespawnDestination >= 0 && Station == deathRespawnDestination)
             {
                 deathRecorded = deathPenaltyRequired = false;
+                RecordedDeathPenaltyId = null;
                 deathOrigin = deathRespawnDestination = -1;
                 NetState.Instance?.FinishRecordedDeath(this);
                 return;

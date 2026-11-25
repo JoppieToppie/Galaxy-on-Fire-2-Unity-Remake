@@ -49,3 +49,7 @@ end)
 The rules default to 30 kills and 345,600 seconds. The server evaluates both on each qualifying kill while the pilot is building toward pirate status. Nonpositive values use the defaults. The limits are 1,000 kills and 365 days. The hooks affect pirate status. Faction bounty thresholds use their own rules.
 
 Both events fire on the server after saving. The IDs are session client IDs. The kill event fires while the pirate tally is building, including the kill that sets pirate status. The status event also fires when a diplomat revokes pirate status.
+
+### Reliable fatal-hull reporting and recovery enforcement
+
+A server-observed fatal hull transition is latched immediately and supplemented by a reliable owner death report. Delayed or reordered unreliable pose batches cannot replace a newer server pose. Death intent is journalled even if a valid emergency hull or respawn destination is temporarily unavailable. A replay recognizes the same penalty ID and a profile upload must acknowledge the latest server-owned death ID before it can replace the saved profile. Secure and arena exemptions remain in force. The server still depends on the owner's combat simulation; disconnects before any evidence arrives cannot be treated as a confirmed death.
