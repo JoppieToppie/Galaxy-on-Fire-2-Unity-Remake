@@ -320,6 +320,7 @@ namespace GoF2Remake.Data
         public static int ShipIndex = 10;
         // Emergency hulls are not owned assets: they cannot be kept or sold for a trade-in credit.
         public static bool DeathLoaner;
+        public static string LastDeathPenaltyId;
         public static List<DeathRecovery> DeathRecoveries = new List<DeathRecovery>();
 
         /// <summary>Mounted items (Ship+0x6c), one entry per occupied slot; secondaries carry their ammo as the amount.</summary>
@@ -574,6 +575,7 @@ namespace GoF2Remake.Data
         public static void ResetNewGame()
         {
             DeathLoaner = false;
+            LastDeathPenaltyId = null;
             DeathRecoveries = new List<DeathRecovery>();
             PlaySeconds = 0f;
             StationIndex = 78;
