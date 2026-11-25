@@ -87,6 +87,7 @@ namespace GoF2Remake.UI
             UpdateVipTools();   // remake: the free Kaamo Ships tab and tools (a Ships tab without them falls back to the Store)
             tabShip.EnableInClassList("hangar-tab--active", tab == Tab.Ship);
             tabShop.EnableInClassList("hangar-tab--active", tab == Tab.Shop);
+            tabStorage.EnableInClassList("hangar-tab--active", tab == Tab.Storage);
             tabBlueprints.EnableInClassList("hangar-tab--active", tab == Tab.Blueprints);
             var keep = selected;
             int keepIndex = pendingKeepIndex ?? (keep != null ? rows.IndexOf(keep) : -1);
@@ -98,7 +99,9 @@ namespace GoF2Remake.UI
             string T(int id) => Localization.Get(id).UiCaps();
             int[] typeHeaders = { 265, 266, 267, 269, 270 };
 
-            if (tab == Tab.Shop)
+            if (PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage))
+                BuildPlayerMarketRows(typeHeaders);
+            else if (tab == Tab.Shop)
             {
                 if (hangar.Storage)
                 {
@@ -327,6 +330,80 @@ namespace GoF2Remake.UI
         }
         /// <summary>Remake: "+N mounted" (a secondary's N is its remaining ammo).</summary>
         static string MountedNote(int units) => string.Format(Localization.Extra("shopMountedCount", "+{0} mounted"), units);
+        void BuildPlayerMarketRows(int[] typeHeaders)
+        {
+            string T(int id) => Localization.Get(id).UiCaps();
+            var storage = playerMarket?.storage;
+            if (PlayerStorageTab)
+            {
+                if (storage == null || storage.error != null)
+                {
+                    AddNote(storage?.error ?? "Loading station storage…");
+                    return;
+                }
+                var stacks = storage.items.ToDictionary(stack => stack.item, stack => stack.amount);
+                var items = new HashSet<int>(stacks.Keys);
+                if (storage.canDeposit)
+                    foreach (var stack in Session.Cargo)
+                        if (stack.amount > 0) items.Add(stack.item);
+                for (int type = 0; type < typeHeaders.Length; type++)
+                {
+                    var group = items.Where(item => hangar.TypeOf(item) == type && level.Database.Item(item) != null)
+                        .OrderBy(item => level.Database.Item(item).name).ToList();
+                    if (group.Count == 0) continue;
+                    AddHeader(T(typeHeaders[type]));
+                    foreach (int item in group)
+                        AddRow(new Row { kind = RowKind.ShopItem, item = item, type = type,
+                            stationUnits = stacks.TryGetValue(item, out int owned) ? owned : 0 });
+                }
+                if (items.Count == 0) AddNote("No stored goods.");
+                return;
+            }
+
+            if (hangar.StockOf(Freelance.Documents) > 0 && Freelance.Active && Freelance.Mission.status == 0 && !Freelance.HasDocuments)
+            {
+                AddHeader("MISSION");
+                AddRow(new Row { kind = RowKind.ShopItem, item = Freelance.Documents, type = hangar.TypeOf(Freelance.Documents),
+                    stationUnits = hangar.StockOf(Freelance.Documents), listingPrice = hangar.BuyPriceOf(Freelance.Documents) });
+            }
+            if (playerMarket == null) { AddNote("Loading marketplace listings…"); return; }
+            var listings = playerMarket.rows;
+            var hulls = listings.Where(entry => entry.hull && level.Database.Ship(entry.item) != null).ToList();
+            if (hulls.Count > 0) AddHeader(T(173));
+            foreach (var entry in hulls)
+                AddRow(new Row { kind = RowKind.ShopShip, ship = entry.item, listingId = entry.id,
+                    listingPrice = entry.mine ? entry.price : entry.quotedPrice, ownListing = entry.mine });
+            if (!string.IsNullOrEmpty(playerMarket.accessMessage)) AddNote(playerMarket.accessMessage);
+            else if (listings.Count == 0) AddNote("No player listings.");
+            for (int type = 0; type < typeHeaders.Length; type++)
+            {
+                var group = listings.Where(entry => !entry.hull && level.Database.Item(entry.item) != null &&
+                    hangar.TypeOf(entry.item) == type).OrderBy(entry => level.Database.Item(entry.item).name)
+                    .ThenBy(entry => entry.price).ToList();
+                var cargo = playerMarket.canListGoods ? Session.Cargo.Where(stack => stack.amount > 0 &&
+                    level.Database.Item(stack.item) != null && Hangar.IsSaleable(stack.item) && hangar.TypeOf(stack.item) == type &&
+                    !group.Any(entry => entry.item == stack.item)).Select(stack => stack.item).Distinct().ToArray() : Array.Empty<int>();
+                if (group.Count == 0 && cargo.Length == 0) continue;
+                AddHeader(T(typeHeaders[type]));
+                foreach (var entry in group)
+                    AddRow(new Row { kind = RowKind.ShopItem, item = entry.item, type = type, listingId = entry.id,
+                        stationUnits = entry.amount, listingPrice = entry.mine ? entry.price : entry.quotedPrice, ownListing = entry.mine });
+                foreach (int item in cargo) AddRow(new Row { kind = RowKind.ShopItem, item = item, type = type });
+            }
+            if (playerMarket.canListHulls)
+                AddRow(new Row { kind = RowKind.MarketAction, marketLabel = "List a stored ship",
+                    marketAction = () => menu.OpenMarketplaceListing(-1) });
+            if (playerMarketPage > 0) AddMarketPage("Previous listings page", -1);
+            if (playerMarketPage + 1 < playerMarket.pageCount) AddMarketPage("Next listings page", 1);
+        }
+
+        void AddMarketPage(string label, int delta) =>
+            AddRow(new Row { kind = RowKind.MarketAction, marketLabel = label, marketAction = () =>
+            {
+                playerMarketPage += delta;
+                RefreshPlayerMarket();
+            } });
+
         void AddRow(Row row)
         {
             var db = level.Database;
@@ -355,6 +432,9 @@ namespace GoF2Remake.UI
             VisualElement bpAmount = null;   // Remake: an ingredient's blueprint amount, at the row's right edge
             switch (row.kind)
             {
+                case RowKind.MarketAction:
+                    name.text = row.marketLabel;
+                    break;
                 case RowKind.ShopItem:
                 {
                     var it = db.Item(row.item);
@@ -374,6 +454,12 @@ namespace GoF2Remake.UI
                     subText.text = ItemInfo.Category(it);
                     int mountedUnits = hangar.MountedOf(row.item);
                     if (mountedUnits > 0) subText.text += "  " + MountedNote(mountedUnits);
+                    if (PlayerMarketplace)
+                    {
+                        if (row.ownListing) subText.text += " · Your listing";
+                        if (!PlayerStorageTab && row.listingPrice > 0) price.text = ItemInfo.Credits(row.listingPrice);
+                        break;
+                    }
                     if (hangar.Storage) break;   // the storage draws no prices
                     int p = hangar.BuyPriceOf(row.item);   // 0 for step 67's gifted mines
                     price.text = ItemInfo.Credits(p);
@@ -398,6 +484,13 @@ namespace GoF2Remake.UI
                 {
                     tex = ItemInfo.ShipIcon(row.ship);
                     name.text = ItemInfo.TaggedShipName(row.ship);
+                    if (PlayerMarketplace)
+                    {
+                        subText.text = row.ownListing ? "Your listing" : ItemInfo.ShipRaceText(row.ship);
+                        price.text = ItemInfo.Credits(row.listingPrice);
+                        price.EnableInClassList("row-price--expensive", !row.ownListing && row.listingPrice > Session.Credits);
+                        break;
+                    }
                     subText.text = ItemInfo.ShipRaceText(row.ship) + (hangar.Stock.ModsOf(row.ship).Count > 0 ? "  (+)" : "");
                     // Remake (the VIP Card): a type already parked at the Kaamo Club carries the map's house.
                     if (MarkAtKaamo(row.ship)) sub.Add(KaamoBadge());

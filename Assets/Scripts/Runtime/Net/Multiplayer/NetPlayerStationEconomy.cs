@@ -17,6 +17,7 @@ namespace GoF2Remake.Multiplayer
                 { "factory", new[] { (156, 150), (155, 100), (118, 50), (127, 50) } },
                 { "hangar", new[] { (156, 100), (155, 100), (118, 80), (127, 50) } },
                 { "drydock", new[] { (156, 200), (155, 150), (118, 100), (127, 80) } },
+                { "dockarm", new[] { (156, 100), (155, 50), (118, 30), (127, 20) } },
             };
 
         static readonly Dictionary<string, (int item, int amount)[]> economyCosts =

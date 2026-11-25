@@ -477,6 +477,7 @@ namespace GoF2Remake.World
             // Ship combat: the player's Player object, the orbit's NPC traffic, the ship / salvage locks.
             Health = Player.gameObject.AddComponent<PlayerHealth>();
             Health.Setup(db, Player, chase, Weapons);
+            SystemJump.ApplyArrivalFailure(station, Health);
             if (Navigation != null) Health.Hit += Navigation.InterruptDrive;   // remake: a hit drops a cruise drive
             if (Player.visualModel != null)   // NPC shots hit its real shape (with Original ship collision its cube)
                 HullCollision.Attach(Player.visualModel.gameObject, Health.Target, null, HullCollision.FlyableShip(Session.ShipIndex));

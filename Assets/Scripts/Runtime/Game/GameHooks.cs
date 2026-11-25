@@ -115,6 +115,7 @@ namespace GoF2Remake.Data
 
         public static Action<Database> ApplyPlayerStations;
         public static Func<int, string> PlayerStationName;
+        public static Func<int, bool?> PlayerStationTraffic;
         public static Func<int, bool> IsPlayerStation, StationSceneryPresent, StationClosedByCombat, HasDryDockAtStation;
         public static Func<int, bool> StationConstructionPlaceholder;
         public static Func<int, bool> HasPlayerJumpgate, HasPlayerJumpgateWreck;

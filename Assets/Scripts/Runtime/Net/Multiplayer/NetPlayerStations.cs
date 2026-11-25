@@ -189,6 +189,7 @@ namespace GoF2Remake.Multiplayer
             visible.pendingTransfer = null;
             visible.history = null;
             visible.permissionOverrides = null;
+            visible.marketplacePilotRules = null;
             visible.facilityRaceRules = null;
             visible.facilityRaceExemptions = null;
             visible.roleAssignments = null;
@@ -238,6 +239,8 @@ namespace GoF2Remake.Multiplayer
         public bool reconstructing, destroyed, retired, stationIntegrityInitialized;
         public float stationIntegrity, stationIntegrityCapacity;
         public int marketplaceTaxPercent;
+        public List<PlayerStationMarketRule> marketplacePilotRules;
+        public List<PlayerStationPlacement> placements;
         public long offeredForClaimUtc;
         public float stationOffsetX;
         public List<PlayerStationMaterial> wreckBlueprintSalvage = new List<PlayerStationMaterial>();
@@ -318,6 +321,13 @@ namespace GoF2Remake.Multiplayer
     {
         public string kind;
         public int level;
+    }
+
+    [Serializable]
+    public sealed class PlayerStationPlacement
+    {
+        public string kind, preset;
+        public int x, y, z;
     }
 
     [Serializable]
@@ -506,6 +516,8 @@ namespace GoF2Remake.Multiplayer
                 station.jumpgateMaterials ??= new List<PlayerStationMaterial>();
                 station.jumpgateContributions ??= new List<PlayerStationContribution>();
                 station.storage ??= new List<PlayerStationStorage>();
+                if (!station.underConstruction && !station.retired && !station.destroyed && station.moduleConstructionKind != "storage")
+                    AddStarterStorage(station);
                 NormalizeStorageLots(station);
                 station.storedShips ??= new List<StoredShip>();
                 station.dryDockShips ??= new List<StoredShip>();
@@ -813,6 +825,7 @@ namespace GoF2Remake.Multiplayer
             bool integrityInitialized = record.stationIntegrityInitialized;
             float previousIntegrity = record.stationIntegrity;
             float previousIntegrityCapacity = record.stationIntegrityCapacity;
+            var starterStorage = AddStarterStorage(record);
             record.underConstruction = false;
             record.reconstructing = false;
             record.stationIntegrityInitialized = false;
@@ -821,6 +834,7 @@ namespace GoF2Remake.Multiplayer
             if (wasReconstructing) SyncJumpgatesForStation(record);
             return () =>
             {
+                if (starterStorage != null) record.addons.Remove(starterStorage);
                 record.underConstruction = wasUnderConstruction;
                 record.reconstructing = wasReconstructing;
                 record.stationIntegrityInitialized = integrityInitialized;

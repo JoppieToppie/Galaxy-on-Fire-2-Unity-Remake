@@ -197,7 +197,7 @@ namespace GoF2Remake.World
                 {
                     if (pair.Value != null)
                     {
-                        Explosion.Spawn(pair.Value.transform.position, 3f);
+                        if (pair.Key > 0) Explosion.Spawn(pair.Value.transform.position, 3f);
                         pair.Value.SetActive(false);
                         Destroy(pair.Value);
                     }
@@ -237,6 +237,7 @@ namespace GoF2Remake.World
             int orbit = Layout.stationIndex;
             UpdateConstructionPort(orbit);
             UpdateOrbitalStructures(orbit);
+            UpdatePlannedDockPoints(orbit);
             UpdateWreckSalvage(orbit);
             string ownerName = GameHooks.PlayerStationName?.Invoke(orbit);
             if (ownerName == null && GameHooks.IsPlayerStation?.Invoke(orbit) != true) return;

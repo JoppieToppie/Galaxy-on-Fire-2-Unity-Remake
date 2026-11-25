@@ -493,6 +493,48 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
+        internal static bool? PlayerStationTraffic(int orbit)
+        {
+            if (!sessionActive || StationAt(orbit) is not PlayerStationRecord station) return null;
+            if (!StationSceneryPresent(orbit) || StationClosedByCombat(orbit)) return false;
+            var db = NetGame.Db;
+            if (db == null) return false;
+            int primary = db.Stations.Find(entry => entry != null && entry.index == NetSession.StartStation)?.system ?? -1;
+            if (primary < 0) return false;
+
+            var gateAvailability = new Dictionary<int, bool>();
+            bool HasGate(int index)
+            {
+                if (gateAvailability.TryGetValue(index, out bool available)) return available;
+                var system = db.Systems.Find(entry => entry != null && entry.index == index);
+                available = system != null && system.jumpgateStation >= 0 &&
+                    World.OrbitLayout.Build(db, system.jumpgateStation)?.hasJumpgate == true && !JumpgateOffline(system.jumpgateStation);
+                if (!available && registry?.jumpgates != null)
+                    available = registry.jumpgates.Exists(gate => gate != null && gate.system == index &&
+                        HasJumpgateAtStation(gate.orbitStationIndex) && !JumpgateOffline(gate.orbitStationIndex));
+                gateAvailability[index] = available;
+                return available;
+            }
+            if (!HasGate(station.system) || !HasGate(primary)) return false;
+
+            // The jumpgate network anchored at the primary starting system. A live connection
+            // needs a usable route both ways, including across any player-built systems.
+            var visited = new HashSet<int> { station.system };
+            var queue = new Queue<int>();
+            queue.Enqueue(station.system);
+            while (queue.Count > 0)
+            {
+                int system = queue.Dequeue();
+                foreach (var next in db.Systems)
+                {
+                    if (next == null || !JumpgateLinkOperational(system, next.index) || !HasGate(next.index)) continue;
+                    if (next.index == primary || system == primary) return true;
+                    if (visited.Add(next.index)) queue.Enqueue(next.index);
+                }
+            }
+            return false;
+        }
+
         /// <summary>Returns the arrival orbit in the gate's fixed destination system.</summary>
         internal static int JumpgateDestinationStation(int stationIndex)
         {

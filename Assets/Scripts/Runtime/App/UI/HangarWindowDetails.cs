@@ -123,6 +123,14 @@ namespace GoF2Remake.UI
             tradeBox.RemoveFromClassList("trade-box--ingredient");
             if (selected == null) return;
             string T(int id) => Localization.Get(id);
+            if (selected.kind == RowKind.MarketAction)
+            {
+                detailIcon.style.backgroundImage = StyleKeyword.None;
+                detailName.text = selected.marketLabel;
+                detailSub.text = "";
+                ShowAction(selected.marketLabel, true);
+                return;
+            }
             if (selected.kind == RowKind.VipCard) { ShowVipDetails(); return; }   // remake: the Kaamo Club VIP Card
 
             int item = selected.kind == RowKind.Slot && selected.equipment >= 0 ? Session.Equipment[selected.equipment].item : selected.item;
@@ -153,6 +161,21 @@ namespace GoF2Remake.UI
                     tradeCargo.text = $"{cargo} t";
                     // Remake: the hold's amount leaves out what is mounted (a launcher's remaining missiles): shown under it.
                     int mounted = hangar.MountedOf(item);
+                    if (PlayerMarketplace)
+                    {
+                        store = PlayerStorageTab;
+                        stock = selected.stationUnits;
+                        tradeStock.text = $"{stock} t";
+                        sellLabel.text = store ? "‹ STORE" : selected.ownListing ? "‹ CANCEL" : "‹ LIST";
+                        buyLabel.text = store ? "TAKE ›" : "BUY ›";
+                        sellButton.EnableInClassList("trade-arrow--disabled", store ? cargo <= 0 || playerMarket?.storage?.canDeposit != true :
+                            !selected.ownListing && (cargo <= 0 || !Hangar.IsSaleable(item) || playerMarket?.canListGoods != true));
+                        buyButton.EnableInClassList("trade-arrow--disabled", selected.ownListing || stock <= 0);
+                        tradePrice.text = !store && selected.listingPrice > 0 ? ItemInfo.Credits(selected.listingPrice) : "";
+                        tradePrice.EnableInClassList("trade-price--expensive", !selected.ownListing && selected.listingPrice > Session.Credits);
+                        if (tradeMounted != null) tradeMounted.style.display = DisplayStyle.None;
+                        return;
+                    }
                     if (tradeMounted != null)
                     {
                         tradeMounted.text = mounted > 0 ? MountedNote(mounted) : "";
@@ -200,6 +223,11 @@ namespace GoF2Remake.UI
                 if (selected.kind == RowKind.OwnShip) ItemInfo.FillModLines(detailMods, Session.ShipMods);
                 if (selected.kind == RowKind.ShopShip)
                 {
+                    if (PlayerMarketplace)
+                    {
+                        ShowAction(selected.ownListing ? "CANCEL LISTING" : $"BUY   {ItemInfo.Credits(selected.listingPrice)}", true);
+                        return;
+                    }
                     int delta = hangar.BuyShipPrice(selected.ship) - hangar.ShipPrice(Session.ShipIndex);
                     ShowAction($"{T(301).UiCaps()}   {ItemInfo.Credits(delta)}", true);
                     ItemInfo.FillModLines(detailMods, hangar.Stock.ModsOf(selected.ship));   // a traded-in hull's mods

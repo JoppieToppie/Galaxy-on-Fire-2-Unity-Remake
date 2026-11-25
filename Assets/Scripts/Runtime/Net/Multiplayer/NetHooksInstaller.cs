@@ -113,6 +113,7 @@ namespace GoF2Remake.Multiplayer
             GameHooks.ApplyPlayerStations = NetPlayerStations.Apply;
             GameHooks.IsPlayerStation = NetPlayerStations.IsPlayerStation;
             GameHooks.PlayerStationName = NetPlayerStations.DisplayNameAt;
+            GameHooks.PlayerStationTraffic = NetPlayerStations.PlayerStationTraffic;
             GameHooks.StationSceneryPresent = NetPlayerStations.StationSceneryPresent;
             GameHooks.StationConstructionPlaceholder = orbit => NetPlayerStations.StationAt(orbit) is PlayerStationRecord project &&
                 project.underConstruction && !project.reconstructing && !project.destroyed && !project.retired && !project.wreckClaimOpen;
@@ -137,11 +138,13 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.PlayerJumpgateRefusalMessage = () => NetPlayer.Local?.LastPlayerGateRefusal;
             SpaceHooks.RequestPlayerJumpgateTravel = (orbit, done) => NetPlayer.Local?.RequestPlayerJumpgateTravel(orbit, done) == true;
             SpaceHooks.PlayerInfrastructureSnapshot = () => NetState.Instance?.PlayerStations;
-            SpaceHooks.PlayerOrbitalModels = (db, orbit) => NetPlayerStations.OrbitalStructures?
+            SpaceHooks.PlayerDockArms = NetPlayerStations.PlacedDockArms;
+            SpaceHooks.PlayerOrbitalModels = (db, orbit) => (NetPlayerStations.OrbitalStructures ?? System.Array.Empty<PlayerOrbitalStructure>())
                 .Where(structure => structure != null && structure.orbit == orbit && structure.operational)
                 .Select(structure => (structure.id, structure.name,
                     NetPlayerStations.OrbitalStructureAssembly(structure.assembly, structure.stationModel, db),
-                    NetPlayerStations.OrbitalStructurePosition(structure), structure.modelScale, structure.hitRadius)).ToArray();
+                    NetPlayerStations.OrbitalStructurePosition(structure), structure.modelScale, structure.hitRadius))
+                .Concat(NetPlayerStations.PlacedModuleModels(db, orbit)).ToArray();
             SpaceHooks.PlayerWreckSalvage = WreckSalvageAt;
             SpaceHooks.PlayerWreckSalvagePosition = (orbit, jumpgate) =>
                 jumpgate ? NetPlayerStations.JumpgateSalvagePosition(orbit) : NetPlayerStations.StationSalvagePosition(orbit);

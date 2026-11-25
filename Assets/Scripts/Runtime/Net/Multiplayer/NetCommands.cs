@@ -466,6 +466,18 @@ namespace GoF2Remake.Multiplayer
                 var models = NetPlayerStations.JumpgateModelChoices().Select(model => model.id + ": " + model.label);
                 return "Jumpgate model IDs\n" + string.Join("\n", models);
             }
+            if (args.StartsWith("place ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-place ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 7 || !int.TryParse(words[1], out int sponsor) ||
+                    !int.TryParse(words[3], out int x) || !int.TryParse(words[4], out int y) || !int.TryParse(words[5], out int z))
+                    return "/station place <station> <module> <x> <y> <z> <preset> or /station orbital-place <station> <orbit> <x> <y> <z> <preset>";
+                if (words[0].Equals("place", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.PlanModulePlacement(by as NetPlayer, sponsor, words[2], x, y, z, words[6]);
+                if (!int.TryParse(words[2], out int orbit)) return "Choose a valid orbit.";
+                return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, sponsor, orbit, words[6], new UnityEngine.Vector3Int(x, y, z));
+            }
             if (args.StartsWith("orbital-build ", StringComparison.OrdinalIgnoreCase) ||
                 args.StartsWith("orbital-deliver ", StringComparison.OrdinalIgnoreCase) ||
                 args.StartsWith("orbital-fund ", StringComparison.OrdinalIgnoreCase) ||
@@ -483,6 +495,12 @@ namespace GoF2Remake.Multiplayer
                 bool fromStock = words[0].Equals("orbital-fund", StringComparison.OrdinalIgnoreCase) ||
                     words[0].Equals("orbital-maintain-stock", StringComparison.OrdinalIgnoreCase);
                 return NetPlayerStations.ContributeOrbitalStructure(by as NetPlayer, structureId, orbitOrItem, quantity, fromStock, maintenance);
+            }
+            if (args.StartsWith("orbital-finish-storage ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring("orbital-finish-storage ".Length), out int structureId))
+                    return "/station orbital-finish-storage <structure id>";
+                return NetPlayerStations.FinishOrbitalFromStorage(by as NetPlayer, structureId);
             }
             if (args.StartsWith("orbital-remove ", StringComparison.OrdinalIgnoreCase))
             {
@@ -740,6 +758,14 @@ namespace GoF2Remake.Multiplayer
                     ? NetPlayerStations.CancelModuleProject(by as NetPlayer, stationId)
                     : NetPlayerStations.StartModuleProject(by as NetPlayer, stationId, words[1]);
             }
+            const string installStorage = "install-storage ";
+            if (args.StartsWith(installStorage, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(installStorage.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId))
+                    return "/station install-storage <station id> <module>";
+                return NetPlayerStations.InstallModuleFromStorage(by as NetPlayer, stationId, words[1]);
+            }
             const string install = "install ";
             if (args.StartsWith(install, StringComparison.OrdinalIgnoreCase))
             {
@@ -884,10 +910,30 @@ namespace GoF2Remake.Multiplayer
                     return "/station buy <station id> <listing index> <amount>";
                 return NetPlayerStations.BuyListing(by as NetPlayer, stationId, listingIndex, amount);
             }
-            const string listItem = "list-item ";
-            if (args.StartsWith(listItem, StringComparison.OrdinalIgnoreCase))
+            const string pilotMarketRules = "pilot-market-rules ";
+            if (args.StartsWith(pilotMarketRules, StringComparison.OrdinalIgnoreCase))
             {
-                string[] words = args.Substring(listItem.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (!int.TryParse(args.Substring(pilotMarketRules.Length), out int stationId))
+                    return "/station pilot-market-rules <station id>";
+                return NetPlayerStations.PilotMarketRulesStatus(by as NetPlayer, stationId);
+            }
+            const string pilotTax = "pilot-tax ", pilotMarketAccess = "pilot-market-access ";
+            bool marketAccess = args.StartsWith(pilotMarketAccess, StringComparison.OrdinalIgnoreCase);
+            if (marketAccess || args.StartsWith(pilotTax, StringComparison.OrdinalIgnoreCase))
+            {
+                int fields = marketAccess ? 3 : 4;
+                var words = args.Substring((marketAccess ? pilotMarketAccess : pilotTax).Length)
+                    .Split(new[] { ' ' }, fields + 1, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < fields || !int.TryParse(words[0], out int stationId))
+                    return "/station pilot-tax <station id> <pilot> <purchase|sale> <percent|inherit> [reason] or /station pilot-market-access <station id> <pilot> <deny|inherit> [reason]";
+                return NetPlayerStations.SetPilotMarketRule(by as NetPlayer, stationId, words[1],
+                    marketAccess ? "access" : words[2], words[fields - 1], words.Length > fields ? words[fields] : null);
+            }
+            const string listItem = "list-item ", listCargo = "list-cargo ";
+            bool fromCargo = args.StartsWith(listCargo, StringComparison.OrdinalIgnoreCase);
+            if (fromCargo || args.StartsWith(listItem, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring((fromCargo ? listCargo : listItem).Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if ((words.Length != 4 && words.Length != 5) || !int.TryParse(words[0], out int stationId) ||
                     !int.TryParse(words[1], out int item) || !int.TryParse(words[2], out int amount) ||
                     !long.TryParse(words[3], out long unitPrice))
@@ -895,7 +941,7 @@ namespace GoF2Remake.Multiplayer
                 bool payFaction = words.Length == 5 && string.Equals(words[4], "faction", StringComparison.OrdinalIgnoreCase);
                 if (words.Length == 5 && !payFaction && !string.Equals(words[4], "personal", StringComparison.OrdinalIgnoreCase))
                     return "Choose personal or faction for listing proceeds.";
-                return NetPlayerStations.CreateListing(by as NetPlayer, stationId, item, amount, unitPrice, payFaction);
+                return NetPlayerStations.CreateListing(by as NetPlayer, stationId, item, amount, unitPrice, payFaction, fromCargo);
             }
             const string delist = "delist ";
             if (args.StartsWith(delist, StringComparison.OrdinalIgnoreCase))

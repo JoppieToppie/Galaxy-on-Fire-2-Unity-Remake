@@ -48,7 +48,7 @@ namespace GoF2Remake.Multiplayer
         [Serializable] internal sealed class ManagementCatalogue
         {
             public int stationId, directoryPage, directoryPages;
-            public bool canAnnounce, canManage, canSecurity, canOwnership, canAppearance, canConstruction;
+            public bool canAnnounce, canManage, canSecurity, canOwnership, canAppearance, canConstruction, canManageMarket;
             public StorageUiSnapshot storage;
             public List<ManagementOption> options = new List<ManagementOption>();
         }
@@ -84,6 +84,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(stationId);
             if (!IsStationContext(pilot, record, out string account, recoverProperty: true) || record.underConstruction) return result;
             bool normal = IsStationContext(pilot, record, out _);
+            result.canManageMarket = normal && CanManageMarketPolicy(record, account);
             result.canManage = normal && HasStationPermission(record, account, PlayerStationPermission.StationOperations);
             result.canOwnership = normal && IsStationAuthority(pilot, record, out _);
             result.canSecurity = normal && HasStationPermission(record, account, PlayerStationPermission.Security);
@@ -119,7 +120,7 @@ namespace GoF2Remake.Multiplayer
                     if (order != null) Add("repeat", order.id.ToString(), (NetGame.Db?.Item(FindFactoryRecipe(order.recipeId)?.output ?? -1)?.name ?? "Recipe") + " · " + (order.continuous ? "Continuous" : order.remainingBatches + " remaining") + " · Order " + order.id);
             }
             bool managesGate = registry?.jumpgates?.Exists(gate => gate != null && gate.system == record.system && CanManageJumpgate(pilot, gate, out _) && JumpgateManagementDocked(pilot, gate)) == true;
-            if (result.canOwnership || result.canSecurity || managesGate)
+            if (result.canOwnership || result.canSecurity || result.canManageMarket || managesGate)
             {
                 var pilots = NetProfiles.StationPilotDirectory(); var factions = NetFactions.StationFactionDirectory();
                 const int size = 40;

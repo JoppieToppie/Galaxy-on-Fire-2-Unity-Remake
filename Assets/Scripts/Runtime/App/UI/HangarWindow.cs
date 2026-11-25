@@ -42,8 +42,8 @@ namespace GoF2Remake.UI
 {
     public partial class HangarWindow
     {
-        public enum Tab { Ship, Shop, Blueprints, Ships }   // Ships: the Kaamo Club VIP Card's tab (HangarWindowKaamoVip)
-        enum RowKind { Header, ShopItem, ShopShip, OwnShip, Slot, CargoItem, Blueprint, Pending, Ingredient, Autocomplete, StoredShip, ShopLink, Complete, VipCard }
+        public enum Tab { Ship, Shop, Blueprints, Ships, Storage }   // Ships: the Kaamo Club VIP Card's tab (HangarWindowKaamoVip)
+        enum RowKind { Header, ShopItem, ShopShip, OwnShip, Slot, CargoItem, Blueprint, Pending, Ingredient, Autocomplete, StoredShip, ShopLink, Complete, VipCard, MarketAction }
 
         class Row
         {
@@ -52,8 +52,14 @@ namespace GoF2Remake.UI
             /// <summary>A Ship tab slot row's slot among its type's (Hangar.SlotsOfType), -1 for any other row.</summary>
             public int place = -1;
             public VisualElement element;
+            public int listingId, stationUnits;
+            public long listingPrice;
+            public bool ownListing;
+            public string marketLabel;
+            public Action marketAction;
             public bool Selectable => kind != RowKind.Header;
             public bool Same(Row o) => o != null && o.kind == kind && o.item == item && o.ship == ship && o.type == type
+                                       && o.listingId == listingId && o.marketLabel == marketLabel
                                        && (kind != RowKind.Slot || o.equipment == equipment);
         }
 
@@ -67,7 +73,7 @@ namespace GoF2Remake.UI
         readonly ScrollView list, detailScroll;
         readonly VisualElement detailMods = ItemInfo.NewModBlock();   // a ship's Kaamo Club mods, under its description
         readonly Label detailName, detailSub, detailText, tradeStock, tradeCargo, tradeMounted, tradePrice, cargoLabel, creditsLabel, tradeStockLabel, tradeCargoLabel, sellLabel, buyLabel;
-        readonly Button tabShip, tabShop, tabBlueprints, actionButton, actionButton2;
+        readonly Button tabShip, tabShop, tabBlueprints, tabStorage, actionButton, actionButton2;
         readonly Button closeButton;   // Modified: RefreshTexts relabels it (root is the constructor's, not a field)
         /// <summary>Tab 4: the blueprint whose ingredients are listed (-1 = the blueprint list).</summary>
         int editing = -1;
@@ -172,6 +178,10 @@ namespace GoF2Remake.UI
             tabShip = root.Q<Button>("tabShip");
             tabShop = root.Q<Button>("tabShop");
             tabBlueprints = root.Q<Button>("tabBlueprints");
+            tabStorage = new Button(() => { menu.PlayRelease(); SetTab(Tab.Storage); }) { text = "STORAGE", focusable = false };
+            foreach (string style in tabShop.GetClasses()) tabStorage.AddToClassList(style);
+            tabStorage.style.display = DisplayStyle.None;
+            tabBlueprints.parent.Insert(tabBlueprints.parent.IndexOf(tabBlueprints), tabStorage);
             actionButton = root.Q<Button>("actionButton");
             actionButton2 = root.Q<Button>("actionButton2");
             tradeStockLabel = root.Q<Label>("tradeStockLabel");
@@ -468,21 +478,55 @@ namespace GoF2Remake.UI
             {
                 // Not SetTab: it commits pending trades and auto-equips (game actions, not a re-label). Rebuild only lays
                 // the rows out again, keeping the selection and the scroll.
-                tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
+                tabShop.text = PlayerMarketplace ? "MARKETPLACE" : Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
                 Rebuild();
             }
         }
 
         bool PlayerMarketplace => Shop.UsesPlayerMarketplace(level.Station?.index ?? -1);
+        internal bool HasFourthTab => PlayerMarketplace || VipTools;
+        bool PlayerStorageTab => PlayerMarketplace && tab == Tab.Storage;
+        GoF2Remake.Multiplayer.NetPlayerStations.MarketUiCatalogue playerMarket;
+        int playerMarketPage;
+        float nextPlayerMarketQuery;
+
+        void RefreshPlayerMarket()
+        {
+            nextPlayerMarketQuery = Time.unscaledTime + 5f;
+            var station = GoF2Remake.Multiplayer.NetPlayerStations.StationAt(level.Station?.index ?? -1);
+            if (station == null) return;
+            GoF2Remake.Multiplayer.NetPlayer.Local?.RequestStationMarket(station.id, playerMarketPage, result =>
+            {
+                if (!IsOpen || result?.stationId != station.id) return;
+                playerMarket = result;
+                playerMarketPage = result.page;
+                if (tab == Tab.Shop || tab == Tab.Storage) Rebuild();
+            });
+        }
+
+        bool SendPlayerMarketCommand(string command)
+        {
+            if (playerMarket == null) return false;
+            return GoF2Remake.Multiplayer.NetPlayer.Local?.RequestStationUiCommand("/station " + command, result =>
+            {
+                if (!IsOpen) return;
+                menu.ShowToast(result);
+                nextPlayerMarketQuery = 0f;
+            }) == true;
+        }
 
         public void Open()
         {
             IsOpen = true;
-            tabShop.style.display = PlayerMarketplace ? DisplayStyle.None : StyleKeyword.Null;
-            if (PlayerMarketplace && tab == Tab.Shop) tab = Tab.Ship;
+            tabStorage.style.display = PlayerMarketplace ? DisplayStyle.Flex : DisplayStyle.None;
+            if (PlayerMarketplace) tab = Tab.Shop;
+            else if (tab == Tab.Storage) tab = Tab.Shop;
+            playerMarket = null;
+            playerMarketPage = 0;
+            nextPlayerMarketQuery = 0f;
             PlaceBack();
             hangar = new Hangar(level.Database, level.Stock);   // prices are recomputed on every open, like the original
-            tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
+            tabShop.text = PlayerMarketplace ? "MARKETPLACE" : Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
             ResetVipTools();
             ClearBlueprintShopHighlight();
             selected = null;
@@ -568,12 +612,6 @@ namespace GoF2Remake.UI
         public void SetTab(Tab t)
         {
             EndSearchEntry();
-            if (t == Tab.Shop && PlayerMarketplace)
-            {
-                if (HasPending) Commit(() => SetTab(t));
-                else menu.OpenPlayerMarketplace();
-                return;
-            }
             if (t == Tab.Ships && !VipTools) return;   // the extra tab, only with the free UI tools at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();
@@ -639,6 +677,9 @@ namespace GoF2Remake.UI
         /// of credits just stops.</summary>
         public void Update(float dtMs)
         {
+            if (IsOpen && PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage) &&
+                Time.unscaledTime >= nextPlayerMarketQuery)
+                RefreshPlayerMarket();
             UpdateRestock();
             if (!IsOpen || heldDirection == 0) return;
             int dir = heldDirection;

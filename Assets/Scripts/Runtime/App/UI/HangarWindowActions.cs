@@ -26,6 +26,9 @@ namespace GoF2Remake.UI
                 return moved;
             }
             if (selected == null || selected.kind != RowKind.ShopItem) return false;
+            if (PlayerMarketplace && (selected.item != Freelance.Documents || PlayerStorageTab))
+                return TradePlayerMarket(direction, units);
+            if (PlayerMarketplace && direction < 0) return false;
             bool changed = false;
             for (int n = 0; n < units; n++)
             {
@@ -53,6 +56,30 @@ namespace GoF2Remake.UI
             Rebuild();
             return true;
         }
+        bool TradePlayerMarket(int direction, int units)
+        {
+            if (playerMarket == null) return false;
+            int id = playerMarket.stationId;
+            int item = selected.item;
+            if (PlayerStorageTab)
+            {
+                if (direction < 0 && playerMarket.storage?.canDeposit != true) return false;
+                int available = direction < 0 ? hangar.CargoOf(item) : selected.stationUnits;
+                int amount = Math.Min(500, Math.Min(available, units));
+                return amount > 0 && SendPlayerMarketCommand($"{(direction < 0 ? "deposit" : "withdraw")} {id} {item} {amount}");
+            }
+            if (direction < 0)
+            {
+                if (selected.ownListing) return SendPlayerMarketCommand($"cancel-listing {id} {selected.listingId}");
+                if (!playerMarket.canListGoods || hangar.CargoOf(item) <= 0 || !Hangar.IsSaleable(item)) return false;
+                menu.OpenMarketplaceListing(item);
+                return true;
+            }
+            int count = Math.Min(500, Math.Min(selected.stationUnits, units));
+            return selected.listingId > 0 && !selected.ownListing && count > 0 &&
+                SendPlayerMarketCommand($"buy-listing {id} {selected.listingId} {count}");
+        }
+
         /// <summary>Enter / A / the action button: mount, demount or buy the selected ship; on a shop row buy one unit.</summary>
         public void Action() => Action(false);
 
@@ -64,6 +91,9 @@ namespace GoF2Remake.UI
             {
                 // Remake (#24): A / Enter buys (takes, adds) one unit like the right arrow, X sells (stores) one like the left;
                 // the original only has the arrows, and a confirm that did nothing on a shop row read as a dead button.
+                case RowKind.MarketAction:
+                    selected.marketAction?.Invoke();
+                    break;
                 case RowKind.ShopItem:
                 case RowKind.Ingredient:
                     Trade(1);
@@ -140,6 +170,15 @@ namespace GoF2Remake.UI
                 case RowKind.ShopShip:
                 {
                     int ship = selected.ship;
+                    if (PlayerMarketplace)
+                    {
+                        if (playerMarket == null) break;
+                        int marketStation = playerMarket.stationId, listing = selected.listingId;
+                        if (selected.ownListing) SendPlayerMarketCommand($"delist-ship {marketStation} {listing}");
+                        else menu.ShowDialog($"Buy {ItemInfo.ShipName(ship)} for {ItemInfo.Credits(selected.listingPrice)}? The ship will go to your personal fleet.",
+                            () => SendPlayerMarketCommand($"buy-ship {marketStation} {listing}"));
+                        break;
+                    }
                     if (KaamoClub.Owned && !NetSession.Active && !shipDestinationChosen)
                     {
                         menu.ShowDialog(Localization.Get(304), () => menu.ShowChoice(
@@ -358,6 +397,12 @@ namespace GoF2Remake.UI
             heldMs = 0f;
             holdDone = 1;
             holdTotal = 1;
+            if (PlayerMarketplace && selected?.kind == RowKind.ShopItem)
+            {
+                Trade(direction);
+                ReleaseArrow();
+                return;
+            }
             if (selected != null && selected.kind == RowKind.ShopItem)
             {
                 holdTotal = direction < 0 ? hangar.CargoOf(selected.item)

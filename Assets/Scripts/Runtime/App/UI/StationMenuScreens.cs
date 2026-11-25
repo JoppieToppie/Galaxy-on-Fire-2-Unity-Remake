@@ -21,15 +21,10 @@ namespace GoF2Remake.UI
         {
             if (HangarOpen || level == null || !Story.HangarUnlocked || ArrivalPending) return;
             if (RefuseObserver()) return;
-            if (Shop.UsesPlayerMarketplace(level.Station?.index ?? -1))
-            {
-                OpenPlayerMarketplace();
-                return;
-            }
             OpenOutfitting();
         }
 
-        internal void OpenPlayerMarketplace() => stationManagement?.OpenMarketplace();
+        internal void OpenMarketplaceListing(int item) => stationManagement?.OpenListing(item);
 
         internal void OpenOutfitting()
         {

@@ -178,7 +178,8 @@ namespace GoF2Remake.UI
             tabShip.tooltip = "1";
             tabShop.tooltip = "2";
             tabShips.tooltip = "3";
-            tabBlueprints.tooltip = on ? "4" : "3";
+            tabBlueprints.tooltip = on || PlayerMarketplace ? "4" : "3";
+            tabStorage.tooltip = "3";
             RefreshVipTexts();
         }
 
@@ -217,7 +218,7 @@ namespace GoF2Remake.UI
             ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints }
             : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
 
-        Tab[] CurrentTabOrder() => PlayerMarketplace ? new[] { Tab.Ship, Tab.Blueprints } : VisibleTabOrder(VipTools);
+        Tab[] CurrentTabOrder() => PlayerMarketplace ? new[] { Tab.Ship, Tab.Shop, Tab.Storage, Tab.Blueprints } : VisibleTabOrder(VipTools);
 
         /// <summary>Numeric shortcuts follow visible order; the ordinary three-tab layout keeps 1/2/3.</summary>
         public void SelectTabNumber(int number)

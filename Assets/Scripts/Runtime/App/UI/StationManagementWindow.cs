@@ -46,9 +46,14 @@ namespace GoF2Remake.UI
         Vector2 choiceReturnScroll;
         int bodyRevision;
         Vector2 modelPickerReturnScroll;
-        NetPlayerStations.MarketUiCatalogue marketCatalogue;
-        int marketPage;
-        float nextMarketQuery;
+        int listingItem;
+        GameObject placementRoot;
+        RenderTexture placementTexture;
+        bool placementDragging;
+        float nextPlacementRefresh;
+        string placementSnapshot;
+        int placementOrbit;
+        readonly Dictionary<string, Vector3Int> placementDrafts = new Dictionary<string, Vector3Int>();
         bool compact;
         float feedbackTime;
         float pressedAt = -10f;
@@ -192,9 +197,22 @@ namespace GoF2Remake.UI
             int nearby = LocalDeliveryProject()?.id ?? -1;
             if (nearby != deliveryProjectId) { deliveryProjectId = nearby; refresh = 0; }
             if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();
-            if (Time.unscaledTime >= nextMarketQuery && managementPage == "market") RefreshMarketCatalogue();
             if (!marketplaceOnly && Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
+            if (placementRoot != null)
+            {
+                if (!placementDragging && Time.unscaledTime >= nextPlacementRefresh)
+                {
+                    nextPlacementRefresh = Time.unscaledTime + 1f;
+                    var live = NetPlayerStations.StationAt(CurrentOrbit);
+                    if (live?.id == selected?.id && PlacementSnapshotOf(live, placementOrbit) != placementSnapshot)
+                    {
+                        selected = live;
+                        RebuildBody();
+                    }
+                }
+                return;
+            }
             if (StarMap.IsOpen || modelPickerKey != null || choicePickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
             {
@@ -205,14 +223,19 @@ namespace GoF2Remake.UI
         }
 
         internal void Open() => Open(marketplace: false);
-        internal void OpenMarketplace() => Open(marketplace: true);
+        internal void OpenListing(int item)
+        {
+            if (open) return;
+            listingItem = item;
+            Open(marketplace: true);
+        }
 
         void Open(bool marketplace)
         {
             if (!CanOpen || open) return;
             marketplaceOnly = marketplace;
             stationList.style.display = marketplace ? DisplayStyle.None : StyleKeyword.Null;
-            heading.text = marketplace ? "MARKETPLACE" : "PLAYER STATIONS";
+            heading.text = marketplace ? "CREATE LISTING" : "PLAYER STATIONS";
             menu?.CloseHangar();
             overlay.style.display = DisplayStyle.Flex;
             overlay.BringToFront();
@@ -223,11 +246,8 @@ namespace GoF2Remake.UI
             plannerRequestPending = false;
             if (!marketplaceOnly) RefreshPlannerLocations();
             RebuildStationList();
-            marketPage = 0;
-            marketCatalogue = null;
             managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
             RefreshManagementCatalogue();
-            RefreshMarketCatalogue();
             RebuildBody();
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) closeButton.Focus();
         }
@@ -236,13 +256,16 @@ namespace GoF2Remake.UI
         {
             if (choicePickerKey != null) CloseChoicePicker();
             else if (modelPickerKey != null) CloseModelPicker();
-            else if (!marketplaceOnly && managementPage != "overview") ChangeManagementPage("overview");
+            else if (marketplaceOnly) { Close(); menu?.OpenOutfitting(); }
+            else if (managementPage != "overview") ChangeManagementPage("overview");
             else Close();
         }
 
         public void Close()
         {
             if (!open) return;
+            DestroyPlacementPreview();
+            placementDrafts.Clear();
             overlay.style.display = DisplayStyle.None;
             open = false;
             marketplaceOnly = false;
@@ -262,7 +285,6 @@ namespace GoF2Remake.UI
             drafts.Clear();
             plannerOrbits = null;
             plannerRequestPending = false;
-            marketCatalogue = null;
             managementCatalogue = null; pageBarSignature = null; pageBar.Clear();
             confirmBuilderRelinquish = -1;
         }
@@ -316,9 +338,6 @@ namespace GoF2Remake.UI
                 confirmRetirementId = -1;
                 confirmBuilderRelinquish = -1;
                 confirmOrbitalRemoval = 0;
-                marketCatalogue = null;
-                marketPage = 0;
-                nextMarketQuery = 0;
                 managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
                 managementPage = "overview";
                 drafts.Clear();
@@ -350,6 +369,7 @@ namespace GoF2Remake.UI
         void RebuildBody(Vector2? scrollPosition = null)
         {
             if (choicePickerKey != null || modelPickerKey != null) return;
+            DestroyPlacementPreview();
             int revision = ++bodyRevision;
             var before = scrollPosition ?? body.scrollOffset;
             var focused = panel.focusController?.focusedElement as VisualElement;
@@ -374,10 +394,7 @@ namespace GoF2Remake.UI
             {
                 if (selected == null || selected.underConstruction || selected.offeredForClaimUtc > 0)
                     AddInfo("Marketplace", "The marketplace is closed.");
-                else BuildMarketPage(selected.id.ToString(), managementCatalogue?.canManage == true);
-                BuildMissionDocuments();
-                if (menu != null)
-                    AddAction("Manage loadout and blueprints", () => { Close(); menu.OpenOutfitting(); });
+                else BuildListingForm(selected.id.ToString());
                 return;
             }
 
@@ -417,7 +434,6 @@ namespace GoF2Remake.UI
             string id = selected.id.ToString();
             bool operational = !selected.underConstruction && selected.offeredForClaimUtc == 0;
             bool docked = !inFlight && selected.stationIndex == CurrentOrbit;
-            bool manager = managementCatalogue?.canManage == true;
             bool ownership = managementCatalogue?.canOwnership == true;
             bool HasModule(string module) => selected.addons?.Any(addon => addon != null && addon.kind == module && addon.level > 0) == true;
             if (managementPage == "overview" || !operational || !docked)
@@ -489,26 +505,27 @@ namespace GoF2Remake.UI
                         else AddAction("Retire station for public claim", () => { confirmRetirementId = selected.id; RebuildBody(); });
                     }
                     break;
-                case "appearance":
-                    AddSection("STATION APPEARANCE", "Choose an available model preset.");
-                    AddStationModelPicker("stationAppearance");
-                    if (!string.IsNullOrEmpty(Value("stationAppearance"))) AddAction("Apply station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
-                    break;
                 case "security": case "blacklist": case "race-policies": BuildStationGovernance(selected); break;
                 case "modules":
                     AddSection("STATION MODULES", "Install facilities from cargo or open a procurement project.");
                     AddAction("Module costs and requirements", "/station modules");
-                    foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock" })
+                    AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
+                    foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" })
                     {
                         if (HasModule(module)) { AddInfo(ModuleLabel(module), "Installed"); continue; }
                         AddAction("Install " + ModuleLabel(module) + " from cargo", "/station install " + id + " " + module);
+                        AddAction("Install " + ModuleLabel(module) + " from your storage", "/station install-storage " + id + " " + module);
                         if (string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Open " + ModuleLabel(module) + " project", "/station module-project " + id + " " + module);
                     }
                     if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Manage active module procurement", () => ChangeManagementPage("orders"));
                     if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
                     break;
-                case "defenses": BuildOrbitalStructureControls(id); break;
-                case "market": BuildMarketPage(id, manager); break;
+                case "defenses":
+                    AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
+                    BuildOrbitalStructureControls(id);
+                    break;
+                case "placement": BuildOrbitPlacement(); break;
+                case "market": BuildMarketSettings(id); break;
                 case "storage": BuildStorage(id); break;
                 case "refinery": case "factory": BuildFacilityControls(id); break;
                 case "hangar": case "drydock": BuildFacilityControls(id); break;
@@ -532,7 +549,9 @@ namespace GoF2Remake.UI
             if (selected != null && !selected.underConstruction && selected.offeredForClaimUtc <= 0 && !inFlight && selected.stationIndex == CurrentOrbit)
             {
                 bool HasModule(string kind) => selected.addons?.Any(addon => addon != null && addon.kind == kind && addon.level > 0) == true;
-                pages.Add(("news", "News")); pages.Add(("market", "Market"));
+                pages.Add(("news", "News"));
+                if (managementCatalogue?.canManageMarket == true || managementCatalogue?.canSecurity == true)
+                    pages.Add(("market", "Marketplace policy"));
                 if (HasModule("storage")) pages.Add(("storage", "Storage"));
                 if (HasModule("hangar")) pages.Add(("hangar", "Hangar"));
                 if (HasModule("drydock")) pages.Add(("drydock", "Dry dock"));
@@ -549,17 +568,17 @@ namespace GoF2Remake.UI
                     pages.Add(("security", "Permissions"));
                     pages.Add(("blacklist", "Blacklist"));
                 }
-                if (managementCatalogue?.canOwnership == true && Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                if ((managementCatalogue?.canOwnership == true || managementCatalogue?.canManageMarket == true) &&
+                    Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
                     pages.Add(("race-policies", "Race policies"));
-                if (managementCatalogue?.canAppearance == true) pages.Add(("appearance", "Appearance"));
-                if (managementCatalogue?.canConstruction == true) { pages.Add(("modules", "Modules")); pages.Add(("defenses", "Defenses")); }
+                if (managementCatalogue?.canConstruction == true) { pages.Add(("modules", "Modules")); pages.Add(("defenses", "Defenses")); pages.Add(("placement", "Orbit editor")); }
             }
             if (!pages.Any(page => page.key == managementPage)) managementPage = "overview";
             string Group(string key) => key switch
             {
                 "overview" or "news" => "Station",
-                "market" or "storage" or "hangar" or "drydock" or "refinery" or "factory" => "Services",
-                "ownership" or "security" or "blacklist" or "race-policies" or "appearance" or "modules" => "Management",
+                "storage" or "hangar" or "drydock" or "refinery" or "factory" => "Services",
+                "ownership" or "security" or "blacklist" or "race-policies" or "market" or "modules" => "Management",
                 _ => "Projects"
             };
             string activeGroup = Group(managementPage);
@@ -651,6 +670,231 @@ namespace GoF2Remake.UI
 
         }
 
+        void DestroyPlacementPreview()
+        {
+            if (placementRoot != null)
+            {
+                placementRoot.SetActive(false);
+                UnityEngine.Object.Destroy(placementRoot);
+            }
+            placementRoot = null;
+            placementDragging = false;
+            if (placementTexture != null)
+            {
+                placementTexture.Release();
+                UnityEngine.Object.Destroy(placementTexture);
+            }
+            placementTexture = null;
+        }
+
+        static string PlacementSnapshotOf(PlayerStationRecord station, int orbit)
+        {
+            if (station == null) return "";
+            var modules = station.placements?.Where(p => p != null)
+                .Select(p => $"{p.kind}:{p.preset}:{p.x}:{p.y}:{p.z}") ?? Enumerable.Empty<string>();
+            var orbital = NetPlayerStations.OrbitalStructures?.Where(p => p != null && p.orbit == orbit)
+                .Select(p => $"{p.id}:{p.operational}:{p.placementX}:{p.placementY}:{p.placementZ}") ?? Enumerable.Empty<string>();
+            return string.Join("|", modules.Concat(orbital));
+        }
+
+        void BuildOrbitPlacement()
+        {
+            var db = NetGame.Db;
+            var station = selected;
+            var types = new List<(string, string)> { ("orbital", "Orbital defense or other structure"), ("refinery", "Refinery"), ("drydock", "Dry dock") };
+            for (int i = 1; i <= 4; i++) types.Add(("dockarm-" + i, "Docking arm " + i));
+            AddChoice("placementType", "Project", types, _ => drafts.Remove("placementPreset"));
+            string kind = Value("placementType");
+            bool orbital = kind == "orbital";
+            var system = db.Systems.Find(entry => entry.index == station.system);
+            int previewOrbit = station.stationIndex;
+            if (orbital && system?.stations != null)
+            {
+                var orbits = db.Stations.Where(entry => entry != null && system.stations.Contains(entry.index))
+                    .OrderBy(entry => entry.index != station.stationIndex).ThenBy(entry => entry.name)
+                    .Select(entry => (entry.index.ToString(), entry.name)).ToList();
+                AddChoice("placementOrbit", "Target orbit", orbits);
+                if (int.TryParse(Value("placementOrbit"), out int chosen)) previewOrbit = chosen;
+            }
+            placementOrbit = previewOrbit;
+            placementSnapshot = PlacementSnapshotOf(station, previewOrbit);
+            var layout = OrbitLayout.Build(db, previewOrbit);
+            if (layout == null) { AddInfo("Orbit editor", "The orbit preview is unavailable."); return; }
+            int race = system?.raceId ?? -1;
+            var settings = Modding.ModPlayerInfrastructure.Current;
+            var presets = (orbital ? settings.OrbitalStructures.Where(preset =>
+                NetPlayerStations.OrbitalPresetAvailable(preset, race) &&
+                (preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit) > 0) :
+                NetPlayerStations.ModuleExteriorChoices(station, kind)).ToList();
+            var existing = station.placements?.Find(entry => entry?.kind == kind);
+            if (!drafts.ContainsKey("placementPreset") && existing != null) drafts["placementPreset"] = existing.preset;
+            AddChoice("placementPreset", "Exterior model", presets.Select(preset => (preset.Id, preset.Name)).ToList());
+            var preset = presets.Find(value => value.Id == Value("placementPreset"));
+            if (preset == null) return;
+
+            Vector3 stationPosition = NetPlayerStations.StationPosition(previewOrbit);
+            string draftKey = station.id + ":" + previewOrbit + ":" + kind;
+            if (!placementDrafts.TryGetValue(draftKey, out Vector3Int position))
+                position = existing != null ? new Vector3Int(existing.x, existing.y, existing.z) :
+                    new Vector3Int(0, 0, orbital ? 8000 : Mathf.Clamp(Mathf.RoundToInt(layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale), 300, 9000));
+
+            AddSection("ORBIT PLACEMENT", "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl for snapping.");
+            var viewport = new VisualElement();
+            viewport.style.height = compact ? 270 : 360;
+            viewport.style.flexShrink = 0;
+            body.Add(viewport);
+            var coordinateLabel = new Label();
+            coordinateLabel.AddToClassList("player-station-note");
+            body.Add(coordinateLabel);
+            AddAction(orbital ? "Order construction here" : "Save planned position", () =>
+            {
+                Vector3Int point = orbital ? Vector3Int.RoundToInt(stationPosition) + position : position;
+                string command = orbital ? $"/station orbital-place {station.id} {previewOrbit}" : $"/station place {station.id} {kind}";
+                Send($"{command} {point.x} {point.y} {point.z} {preset.Id}");
+            });
+
+            const int previewLayer = 31;
+            placementRoot = new GameObject("Station placement preview");
+            placementRoot.transform.position = new Vector3(0, -1000000f, 0);
+            var frame = new GameObject("Placement coordinates").transform;
+            frame.SetParent(placementRoot.transform, false);
+            var model = OrbitBuilder.SpawnStation(db, layout, frame);
+            if (model != null) model.transform.localPosition = Vector3.zero;
+            var ghost = OrbitBuilder.Spawn(db, NetPlayerStations.OrbitalStructureAssembly(preset.Assembly, preset.StationModel, db),
+                Vector3.zero, Quaternion.identity, "Proposed structure", frame);
+            if (ghost != null) ghost.transform.localScale *= preset.ModelScale;
+            void SetLayer(Transform rootTransform)
+            {
+                foreach (var part in rootTransform.GetComponentsInChildren<Transform>(true))
+                    if (part.gameObject.layer != ModBuilderGizmo.PickLayer) part.gameObject.layer = previewLayer;
+            }
+            SetLayer(placementRoot.transform);
+            foreach (var collider in frame.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            var cameraObject = new GameObject("Placement camera");
+            cameraObject.transform.SetParent(placementRoot.transform, false);
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(.025f, .045f, .07f);
+            camera.cullingMask = 1 << previewLayer;
+            camera.nearClipPlane = 1;
+            camera.farClipPlane = 240000;
+            placementTexture = new RenderTexture(1024, 512, 24);
+            placementTexture.Create();
+            camera.targetTexture = placementTexture;
+            viewport.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(placementTexture));
+            var lightObject = new GameObject("Placement light");
+            lightObject.transform.SetParent(placementRoot.transform, false);
+            lightObject.transform.rotation = Quaternion.Euler(35, -45, 0);
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.cullingMask = 1 << previewLayer;
+            light.intensity = 1.4f;
+
+            int[] Units(Vector3 point) => new[] { Mathf.RoundToInt(-point.x / OrbitLayout.MetersPerUnit),
+                Mathf.RoundToInt(point.y / OrbitLayout.MetersPerUnit), Mathf.RoundToInt(point.z / OrbitLayout.MetersPerUnit) };
+            var mounts = new List<WeaponMount>();
+            foreach (var entry in station.placements ?? new List<PlayerStationPlacement>())
+                if (previewOrbit == station.stationIndex && entry != null && entry.kind != kind)
+                    mounts.Add(new WeaponMount { slotType = 8, position_engine = Units(new Vector3(entry.x, entry.y, entry.z)) });
+            if (NetPlayerStations.OrbitalStructures != null)
+                foreach (var structure in NetPlayerStations.OrbitalStructures)
+                    if (structure != null && structure.orbit == previewOrbit)
+                        mounts.Add(new WeaponMount { slotType = 2, position_engine = Units(NetPlayerStations.OrbitalStructurePosition(structure) - stationPosition) });
+            int active = mounts.Count;
+            mounts.Add(new WeaponMount { slotType = orbital ? 2 : 8, position_engine = Units(position) });
+            var handles = new GameObject("Placement handles");
+            handles.transform.SetParent(placementRoot.transform, false);
+            var gizmo = handles.AddComponent<ModBuilderGizmo>();
+            gizmo.cam = camera;
+            gizmo.Selected = active;
+            gizmo.Bind(frame, mounts);
+            SetLayer(handles.transform);
+            float distance = Mathf.Max(1800f, position.magnitude * 1.8f);
+            float yaw = 34, pitch = 29;
+            void SetCamera()
+            {
+                camera.transform.position = frame.position + Quaternion.Euler(pitch, yaw, 0) * new Vector3(0, 0, -distance);
+                camera.transform.LookAt(frame.position);
+            }
+            void UpdatePoint()
+            {
+                position = Vector3Int.RoundToInt(frame.InverseTransformPoint(gizmo.WorldOf(mounts[active])));
+                placementDrafts[draftKey] = position;
+                if (ghost != null) ghost.transform.localPosition = position;
+                coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
+            }
+            Vector2 ScreenPoint(Vector2 panelPosition)
+            {
+                Vector2 p = viewport.WorldToLocal(panelPosition);
+                return new Vector2(p.x / viewport.layout.width * camera.pixelWidth,
+                    (1f - p.y / viewport.layout.height) * camera.pixelHeight);
+            }
+            SetCamera();
+            UpdatePoint();
+            bool orbiting = false, movingInPlane = false;
+            Plane dragPlane = default;
+            Vector3 grabOffset = Vector3.zero;
+            viewport.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 0) return;
+                var point = ScreenPoint(evt.position);
+                bool axis = gizmo.PickAxis(point) >= 0;
+                bool marker = gizmo.PickMarker(point) == active;
+                if (orbital && marker && !axis)
+                {
+                    var markerWorld = gizmo.WorldOf(mounts[active]);
+                    dragPlane = new Plane(camera.transform.forward, markerWorld);
+                    var ray = camera.ScreenPointToRay(point);
+                    movingInPlane = dragPlane.Raycast(ray, out float hit);
+                    if (movingInPlane) grabOffset = markerWorld - ray.GetPoint(hit);
+                }
+                orbiting = !movingInPlane && (!(axis || marker) || !gizmo.BeginDrag(point));
+                placementDragging = true;
+                viewport.CapturePointer(evt.pointerId);
+                evt.StopPropagation();
+            });
+            viewport.RegisterCallback<PointerMoveEvent>(evt =>
+            {
+                var point = ScreenPoint(evt.position);
+                if (movingInPlane)
+                {
+                    var ray = camera.ScreenPointToRay(point);
+                    if (dragPlane.Raycast(ray, out float hit))
+                    {
+                        Vector3 desired = frame.InverseTransformPoint(ray.GetPoint(hit) + grabOffset);
+                        if (evt.ctrlKey) desired = new Vector3(Mathf.Round(desired.x / 100f), Mathf.Round(desired.y / 100f), Mathf.Round(desired.z / 100f)) * 100f;
+                        mounts[active].position_engine = Units(desired);
+                        UpdatePoint();
+                    }
+                }
+                else if (gizmo.Dragging)
+                {
+                    gizmo.Drag(point, evt.ctrlKey, Mathf.RoundToInt(100f / OrbitLayout.MetersPerUnit));
+                    UpdatePoint();
+                }
+                else if (orbiting)
+                {
+                    yaw += evt.deltaPosition.x * .4f;
+                    pitch = Mathf.Clamp(pitch - evt.deltaPosition.y * .4f, -80, 80);
+                    SetCamera();
+                }
+                else gizmo.Hover(point);
+            });
+            viewport.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                gizmo.EndDrag();
+                orbiting = movingInPlane = placementDragging = false;
+                if (viewport.HasPointerCapture(evt.pointerId)) viewport.ReleasePointer(evt.pointerId);
+            });
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = placementDragging = false; });
+            viewport.RegisterCallback<WheelEvent>(evt =>
+            {
+                distance = Mathf.Clamp(distance * Mathf.Pow(1.12f, evt.delta.y), 300, 170000);
+                SetCamera();
+                evt.StopPropagation();
+            });
+        }
+
         void BuildOrbitalStructureControls(string id)
         {
             var settings = Modding.ModPlayerInfrastructure.Current;
@@ -693,6 +937,8 @@ namespace GoF2Remake.UI
             {
                 if (structure == null || structure.sponsorStationId != selected.id) continue;
                 AddInfo($"{structure.name} #{structure.id}", $"Orbit {structure.orbit} · " + (structure.operational ? "Operational" : "Construction"));
+                if (!structure.operational && structure.completesUtc <= 0)
+                    AddAction("Deliver remaining materials from your storage", "/station orbital-finish-storage " + structure.id);
                 if (confirmOrbitalRemoval == structure.id)
                 {
                     AddAction("Confirm dismantling", () =>
@@ -1027,6 +1273,7 @@ namespace GoF2Remake.UI
 
         void OpenChoicePicker(string key, string label, List<(string value, string label)> options, Action<string> changed, bool items)
         {
+            DestroyPlacementPreview();
             choicePickerKey = key;
             choiceReturnScroll = body.scrollOffset;
             heading.text = label.ToUpperInvariant();
@@ -1220,7 +1467,6 @@ namespace GoF2Remake.UI
         {
             if (managementPage == page) return;
             managementPage = page;
-            if (page == "market") RefreshMarketCatalogue();
             if (page == "storage" || page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
             RebuildBody(Vector2.zero);
         }
@@ -1338,102 +1584,61 @@ namespace GoF2Remake.UI
                 AddAction("View contribution ledger", "/station contributions " + id);
         }
 
-        void BuildMissionDocuments()
+        void BuildListingForm(string id)
         {
-            bool Available() => Freelance.Active && Freelance.Mission.type == MissionType.StolenGoods &&
-                Freelance.Mission.target == CurrentOrbit && Freelance.Mission.status == 0 && !Freelance.HasDocuments &&
-                level?.Stock?.items?.Any(stack => stack.item == Freelance.Documents && stack.amount > 0) == true;
-            if (!Available()) return;
-
-            var hangar = new Hangar(level.Database, level.Stock);
-            int price = Cheats.FreeShopping ? 0 : hangar.BuyPriceOf(Freelance.Documents);
-            price = GameHooks.FactionBuyPrice?.Invoke(hangar.Station, price) ?? price;
-            AddAction($"Recover mission documents ({price:N0} cr)", () =>
+            if (listingItem < 0)
             {
-                if (!Available()) { RebuildBody(); return; }
-                var result = hangar.Buy(Freelance.Documents, out int need);
-                feedback.text = result == Hangar.Result.Ok ? "Mission documents moved to your cargo hold." :
-                    result == Hangar.Result.NoCredits ? $"You need {need:N0} more credits." : "The mission documents are unavailable.";
-                feedbackTime = 8f;
-                if (result == Hangar.Result.Ok)
-                {
-                    menu?.CargoChanged();
-                    RebuildBody();
-                }
-            });
-        }
-
-        void BuildMarketPage(string id, bool manager)
-        {
-            AddSection("AVAILABLE LISTINGS", "");
-            BuildMarketCatalogue(id);
-            if (!manager) return;
-            AddSection("MARKETPLACE SETTINGS", "");
-            AddNumber("salesTax", "Sales tax (%)", selected.marketplaceTaxPercent, 0, 10);
-            AddAction("Set marketplace tax", () => Send("/station tax " + id + " " + Value("salesTax")));
-            AddCatalogueChoice("marketFleetIndex", "Personal stored hull", "fleet");
-            AddNumber("marketHullPrice", "Hull price (credits)", 10000, 1, 1000000000);
-            if (!string.IsNullOrEmpty(Value("marketFleetIndex")))
-                AddAction("List selected hull for sale", () => Send("/station list-ship " + id + " " + Value("marketFleetIndex") + " " + Value("marketHullPrice")));
-            AddSection("CREATE ITEM LISTING", "List goods from station storage. Buyers must dock here.");
-            AddItemChoice("marketItem", "Item to sell");
-            AddNumber("marketAmount", "Units", 1, 1, 500);
-            AddNumber("marketPrice", "Price per unit (credits)", 100, 1, 1000000000);
-            AddChoice("marketPayout", "Listing proceeds", new List<(string, string)> { ("personal", "Personal credits"), ("faction", "Faction treasury") });
-            AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice") + " " + Value("marketPayout")));
-        }
-
-        void RefreshMarketCatalogue()
-        {
-            nextMarketQuery = Time.unscaledTime + 8f;
-            if (inFlight || selected == null || selected.underConstruction || selected.stationIndex != CurrentOrbit ||
-                selected.offeredForClaimUtc > 0) return;
-            int stationId = selected.id;
-            NetPlayer.Local?.RequestStationMarket(stationId, marketPage, catalogue =>
-            {
-                if (!open || selected?.id != stationId || catalogue == null) return;
-                marketCatalogue = catalogue;
-                marketPage = catalogue.page;
-                refresh = 0;
-            });
-        }
-
-        void BuildMarketCatalogue(string id)
-        {
-            if (inFlight) { AddInfo("Listings", "Dock at the station to browse and purchase marketplace goods."); return; }
-            if (marketCatalogue == null || marketCatalogue.stationId.ToString() != id)
-            {
-                AddInfo("Listings", "Waiting for the server marketplace catalogue…");
-                AddAction("Refresh listings", RefreshMarketCatalogue);
+                AddCatalogueChoice("marketFleetIndex", "Personal stored hull", "fleet");
+                AddNumber("marketHullPrice", "Hull price (credits)", 10000, 1, 1000000000);
+                if (!string.IsNullOrEmpty(Value("marketFleetIndex")))
+                    AddAction("List selected hull", () => Send("/station list-ship " + id + " " + Value("marketFleetIndex") + " " + Value("marketHullPrice")));
                 return;
             }
-            var entries = marketCatalogue.rows ?? new List<NetPlayerStations.MarketUiRow>();
-            if (entries.Count == 0) { AddInfo("Listings", "No available listings."); return; }
-            if (marketCatalogue.pageCount > 1)
+            var item = NetGame.Db?.Item(listingItem);
+            int available = Shop.CargoOf(listingItem);
+            if (item == null || available <= 0) { AddInfo("Cargo", "This item is no longer in your cargo hold."); return; }
+            AddInfo("Item", item.name);
+            AddNumber("marketAmount", "Units", 1, 1, Math.Min(500, available));
+            AddNumber("marketPrice", "Price per unit (credits)", Math.Max(1, item.minPrice), 1, 1000000000);
+            AddAction("List from cargo", () => Send($"/station list-cargo {id} {listingItem} {Value("marketAmount")} {Value("marketPrice")}"));
+        }
+
+        void BuildMarketSettings(string id)
+        {
+            if (managementCatalogue?.canManageMarket == true)
             {
-                AddInfo("Marketplace page", (marketPage + 1) + " / " + marketCatalogue.pageCount);
-                if (marketPage > 0) AddAction("Previous page", () => { marketPage--; drafts.Remove("marketSelection"); RefreshMarketCatalogue(); });
-                if (marketPage + 1 < marketCatalogue.pageCount) AddAction("Next page", () => { marketPage++; drafts.Remove("marketSelection"); RefreshMarketCatalogue(); });
+                AddSection("MARKETPLACE TAX", "");
+                AddNumber("salesTax", "Sales tax (%)", selected.marketplaceTaxPercent, 0, 10);
+                AddAction("Set marketplace tax", () => Send("/station tax " + id + " " + Value("salesTax")));
             }
-            string Key(NetPlayerStations.MarketUiRow entry) => (entry.hull ? "h" : "i") + entry.id;
-            var choices = new List<(string value, string label)> { ("", "Select a listing") };
-            foreach (var entry in entries)
+            AddDirectoryPager();
+            AddAccountField("marketPilot", "Pilot");
+            AddAction("View pilot marketplace rules", "/station pilot-market-rules " + id);
+            if (managementCatalogue?.canSecurity == true || managementCatalogue?.canOwnership == true)
             {
-                string name = entry.hull ? NetGame.Db.Ship(entry.item)?.name : NetGame.Db.Item(entry.item)?.name;
-                choices.Add((Key(entry), (name ?? "Unknown") + " · " + entry.amount + " × " + entry.price.ToString("N0") + " cr" + (entry.mine ? " (yours)" : "") + " [" + Key(entry) + "]"));
+                AddSection("PILOT MARKETPLACE ACCESS", "");
+                AddField("marketAccessReason", "Reason for denying access", "");
+                AddAction("Deny marketplace access", () => SendWithReason(
+                    $"/station pilot-market-access {id} {Value("marketPilot")} deny", "marketAccessReason"));
+                AddAction("Restore inherited access", () => Send($"/station pilot-market-access {id} {Value("marketPilot")} inherit"));
             }
-            AddChoice("marketSelection", "Listing", choices);
-            var chosen = entries.Find(entry => Key(entry) == Value("marketSelection"));
-            if (chosen == null) return;
-            if (chosen.mine)
-                AddAction("Cancel my listing", () => Send("/station " + (chosen.hull ? "delist-ship" : "cancel-listing") + " " + id + " " + chosen.id));
-            else if (chosen.hull)
-                AddAction("Buy selected hull", () => Send("/station buy-ship " + id + " " + chosen.id));
-            else
+            if (managementCatalogue?.canManageMarket != true) return;
+            AddSection("PILOT TAX", "");
+            AddChoice("marketPilotOperation", "Transaction", new List<(string, string)> { ("purchase", "Purchase"), ("sale", "Sale") },
+                _ => drafts.Remove("marketPilotPercent"));
+            int limit = NetPlayerStations.PilotMarketLimit;
+            AddNumber("marketPilotPercent", "Percentage", 0, Value("marketPilotOperation") == "purchase" ? -limit : 0, limit);
+            AddField("marketPilotReason", "Reason for the surcharge or deduction", "");
+            string Command() => $"/station pilot-tax {id} {Value("marketPilot")} {Value("marketPilotOperation")}";
+            AddAction("Apply pilot tax", () =>
             {
-                AddNumber("marketBuyQuantity", "Units to purchase", 1, 1, Math.Max(1, chosen.amount));
-                AddAction("Buy selected goods", () => Send("/station buy-listing " + id + " " + chosen.id + " " + Value("marketBuyQuantity")));
-            }
+                string percent = Value("marketPilotPercent");
+                if (int.TryParse(percent, out int rate) && rate > 0) SendWithReason(Command() + " " + percent, "marketPilotReason");
+                else Send(Command() + " " + percent);
+            });
+            AddAction("Remove pilot tax override", () => Send(Command() + " inherit"));
+            if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                AddAction("Race policies", () => ChangeManagementPage("race-policies"));
         }
 
         void BuildStorage(string id)
@@ -1550,8 +1755,11 @@ namespace GoF2Remake.UI
             if (managementPage == "race-policies")
             {
                 AddSection("RACE POLICIES", "");
-                AddChoice("raceFacility", "Facility", NetPlayerStations.RacePolicyFacilities.Select(value => (value, value)).ToList());
+                if (owner)
+                    AddChoice("raceFacility", "Facility", NetPlayerStations.RacePolicyFacilities.Select(value => (value, value)).ToList());
                 AddRaceChoice("stationPolicyRace", "Race");
+                if (owner)
+                {
                 AddChoice("racePolicyState", "Race access", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("allow", "Allow"), ("deny", "Deny") });
                 if (Value("racePolicyState") == "deny") AddField("raceDenialReason", "Denial reason", "");
                 AddAction("Apply race access rule", () =>
@@ -1560,7 +1768,8 @@ namespace GoF2Remake.UI
                     if (Value("racePolicyState") == "deny") SendWithReason(command, "raceDenialReason");
                     else Send(command);
                 });
-                if (Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
+                }
+                if (managementCatalogue?.canManageMarket == true && Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
                 {
                     AddChoice("raceMarketAction", "Price adjustment", new List<(string, string)> { ("purchase", "Purchase surcharge or discount"), ("sale", "Seller proceeds deduction") }, _ => drafts.Remove("raceMarketPercent"));
                     AddChoice("raceMarketMode", "Adjustment", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("custom", "Set percentage") });
@@ -1581,7 +1790,7 @@ namespace GoF2Remake.UI
                     });
                 }
                 AddAction("View station and faction race rules", "/station race-policy " + id);
-                if (Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
+                if (owner && Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
                 {
                     AddAccountField("stationRaceExemption", "Exemption target");
                     AddAction("Grant exemption", () => Send("/station race-policy " + id + " exempt add " + Value("stationRaceExemption")));
@@ -1804,7 +2013,6 @@ namespace GoF2Remake.UI
                 feedbackTime = 12f;
                 refresh = 0;
                 nextPlannerQuery = 0;
-                nextMarketQuery = 0;
                 nextManagementQuery = 0;
             }) != true)
             {
@@ -1816,7 +2024,7 @@ namespace GoF2Remake.UI
         static string ModuleLabel(string id)
         {
             if (string.IsNullOrEmpty(id)) return "Unknown module";
-            return id == "drydock" ? "Dry Dock" : id == "hangar" ? "Ship Hangar" :
+            return id == "drydock" ? "Dry Dock" : id == "hangar" ? "Ship Hangar" : id == "dockarm" ? "Docking arms" :
                 char.ToUpperInvariant(id[0]) + id.Substring(1);
         }
     }

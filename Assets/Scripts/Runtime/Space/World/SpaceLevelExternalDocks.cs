@@ -31,8 +31,35 @@ namespace GoF2Remake.World
             }
         }
 
-        bool ExternalDockInRange => Station != null && StationShown && Player != null
-            && (Player.transform.position - Station.transform.position).sqrMagnitude < DockMeters * DockMeters;
+        bool ExternalDockInRange => Station != null && StationShown && Player != null &&
+            ((Player.transform.position - Station.transform.position).sqrMagnitude < DockMeters * DockMeters ||
+                plannedDockPoints.Exists(point => point != null && (point.position - Player.transform.position).sqrMagnitude < DockMeters * DockMeters));
+
+        readonly System.Collections.Generic.List<Transform> plannedDockPoints = new System.Collections.Generic.List<Transform>();
+        string dockArmSnapshot;
+        void UpdatePlannedDockPoints(int orbit)
+        {
+            if (Station == null || DockedInOrbit || Es2Busy || SpaceHooks.PlayerDockArms == null) return;
+            string snapshot = SpaceHooks.PlayerInfrastructureSnapshot?.Invoke();
+            if (ReferenceEquals(snapshot, dockArmSnapshot) && plannedDockPoints.TrueForAll(point => point != null && externalDockPoints.Contains(point))) return;
+            dockArmSnapshot = snapshot;
+            foreach (var point in plannedDockPoints)
+            {
+                externalDockPoints.Remove(point);
+                if (point != null) Destroy(point.gameObject);
+            }
+            plannedDockPoints.Clear();
+            foreach (var position in SpaceHooks.PlayerDockArms(orbit))
+            {
+                var point = new GameObject("Player station docking arm").transform;
+                point.SetParent(Station.transform, false);
+                point.position = position;
+                var direction = position - Station.transform.position;
+                if (direction.sqrMagnitude > 0f) point.rotation = Quaternion.LookRotation(direction.normalized);
+                plannedDockPoints.Add(point);
+                externalDockPoints.Add(point);
+            }
+        }
         bool CanDockExternally => ExternalDockEligible && externalDockPoints.Count > 0;
 
         /// <summary>The range used by the selected class's docking route at the orbit's fixed station.</summary>

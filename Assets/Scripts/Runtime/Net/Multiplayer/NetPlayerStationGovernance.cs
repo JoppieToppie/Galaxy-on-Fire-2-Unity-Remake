@@ -854,42 +854,8 @@ namespace GoF2Remake.Multiplayer
             return HasStationPermission(record, account, PlayerStationPermission.Appearance);
         }
 
-        /// <summary>Change the station's visual/collision preset using an existing non-player station model.</summary>
-        internal static string SetStationAppearance(NetPlayer by, int stationId, int modelStationIndex)
-        {
-            var record = Find(stationId);
-            if (record == null) return "No player station with that id exists.";
-            if (!CanManageAppearance(by, record, out string account))
-                return "The original builder controls appearance while present; otherwise an authorised owner or construction manager must be docked here.";
-            var db = NetGame.Db;
-            var model = db?.Stations?.Find(x => x != null && x.index == modelStationIndex);
-            if (model == null || !IsStationModelPreset(modelStationIndex))
-                return "Choose an enabled station model from the construction catalogue.";
-            var live = db.Stations.Find(x => x != null && x.index == record.stationIndex);
-            if (live == null) return "The station's live model record is unavailable.";
-            int previousLook = record.looksLike;
-            string previousReference = record.stationModelReference;
-            int previousTech = live.techLevel;
-            int previousTexture = live.textureIndex;
-            record.looksLike = modelStationIndex;
-            record.stationModelReference = StationModelReference(modelStationIndex);
-            live.techLevel = model.techLevel;
-            if (!record.existingOrbit) live.textureIndex = model.textureIndex;
-            RecordHistory(record, account, "station-appearance-changed", null,
-                "Station visual/collision preset changed from " + previousLook + " to " + modelStationIndex + ".");
-            if (Save())
-            {
-                NetGuard.RefreshStations();
-                return "Station appearance preset updated. Model preset " + modelStationIndex + " is now active.";
-            }
-            record.looksLike = previousLook;
-            record.stationModelReference = previousReference;
-            live.techLevel = previousTech;
-            live.textureIndex = previousTexture;
-            record.history?.RemoveAt(record.history.Count - 1);
-            record.nextHistorySequence = Math.Max(1, record.nextHistorySequence - 1);
-            return "The appearance change could not be saved; the previous preset remains active.";
-        }
+        internal static string SetStationAppearance(NetPlayer by, int stationId, int modelStationIndex) =>
+            "A completed station keeps the model chosen at construction.";
 
         internal static string SetIndividualSuccessor(NetPlayer by, int stationId, string target)
         {

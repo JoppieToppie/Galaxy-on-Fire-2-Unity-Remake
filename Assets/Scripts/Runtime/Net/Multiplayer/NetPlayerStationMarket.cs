@@ -4,6 +4,13 @@ using GoF2Remake.Data;
 
 namespace GoF2Remake.Multiplayer
 {
+    [Serializable]
+    public sealed class PlayerStationMarketRule
+    {
+        public string account, operation, reason;
+        public int percent;
+    }
+
     public static partial class NetPlayerStations
     {
         const int MaxStationListings = 64;
@@ -263,12 +270,80 @@ namespace GoF2Remake.Multiplayer
         }
 
 
+        internal static bool CanManageMarketPolicy(PlayerStationRecord station, string account) =>
+            IsOwnershipAuthority(station, account) || HasStationPermission(station, account, PlayerStationPermission.Finance);
+
+        static PlayerStationMarketRule PilotMarketRule(PlayerStationRecord station, string account, string operation) =>
+            station.marketplacePilotRules?.Find(rule => rule != null && rule.account == account && rule.operation == operation);
+
+        internal static bool CanTradeAtMarket(PlayerStationRecord station, string account) =>
+            AllowsFacilityUse(station, account, "market") && PilotMarketRule(station, account, "access") == null &&
+            FindPermissionOverride(station, account, PlayerStationPermission.Marketplace)?.state != PlayerStationPermissionState.Deny;
+
+        internal static string MarketRefusal(PlayerStationRecord station, string account, string fallback) =>
+            WithBlacklistReason(FacilityUseRefusal(station, account, "market", fallback), PilotMarketRule(station, account, "access")?.reason);
+
+        internal static int PilotMarketLimit => Math.Max(10, Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent);
+
+        internal static string PilotMarketRulesStatus(NetPlayer by, int id)
+        {
+            var station = Find(id);
+            if (!IsStationContext(by, station, out string account))
+                return "Dock at the station to view marketplace rules.";
+            bool finance = CanManageMarketPolicy(station, account);
+            bool security = HasStationPermission(station, account, PlayerStationPermission.Security);
+            if (!finance && !security) return "Marketplace rules require finance or security authority.";
+            var directory = NetProfiles.StationPilotDirectory();
+            var lines = new List<string> { "Pilot marketplace rules" };
+            foreach (var rule in station.marketplacePilotRules ?? new List<PlayerStationMarketRule>())
+            {
+                if (rule == null || (rule.operation == "access" ? !security : !finance)) continue;
+                string name = directory.Find(pilot => pilot.id == rule.account).name ?? rule.account;
+                string setting = rule.operation == "access" ? "Denied" : $"{rule.operation} {rule.percent}%";
+                lines.Add(WithBlacklistReason(name + " · " + setting, rule.reason));
+                if (lines.Count >= 21) break;
+            }
+            if (lines.Count == 1) lines.Add("No pilot overrides.");
+            return string.Join("\n", lines);
+        }
+
+        internal static string SetPilotMarketRule(NetPlayer by, int id, string target, string operation, string value, string reason = null)
+        {
+            var station = Find(id);
+            bool access = operation == "access";
+            if (!IsStationContext(by, station, out string account) ||
+                (access ? !IsOwnershipAuthority(station, account) && !HasStationPermission(station, account, PlayerStationPermission.Security) :
+                    !CanManageMarketPolicy(station, account)))
+                return access ? "Dock at the station with security authority to manage marketplace access." :
+                    "Dock at the station with finance authority to set pilot taxes.";
+            string pilot = ResolveStationAccount(target);
+            if (string.IsNullOrEmpty(pilot)) return "Choose a valid pilot.";
+            if (!access && operation != "purchase" && operation != "sale") return "Choose purchase or sale.";
+            bool inherit = value == "inherit";
+            reason = NormalizeBlacklistReason(reason);
+            if (access && !inherit && (value != "deny" || string.IsNullOrEmpty(reason)))
+                return "A marketplace denial requires a reason.";
+            int percent = 0;
+            int limit = PilotMarketLimit;
+            if (!access && !inherit && (!int.TryParse(value, out percent) || percent < (operation == "purchase" ? -limit : 0) || percent > limit))
+                return "Choose a percentage within the supported limits.";
+            if (!access && percent > 0 && string.IsNullOrEmpty(reason)) return "Enter a reason for the surcharge or deduction.";
+            var previous = station.marketplacePilotRules;
+            var rules = previous == null ? new List<PlayerStationMarketRule>() : new List<PlayerStationMarketRule>(previous);
+            rules.RemoveAll(rule => rule != null && rule.account == pilot && rule.operation == operation);
+            if (!inherit) rules.Add(new PlayerStationMarketRule { account = pilot, operation = operation, percent = percent, reason = reason });
+            station.marketplacePilotRules = rules.Count == 0 ? null : rules;
+            if (Save()) return access ? "Pilot marketplace access updated." : "Pilot tax rule updated.";
+            station.marketplacePilotRules = previous;
+            return "The pilot tax rule could not be saved.";
+        }
+
         internal static string SetMarketplaceTax(NetPlayer by, int id, int percent)
         {
             var station = Find(id);
             if (percent < 0 || percent > 10) return "Choose a marketplace tax from 0% to 10%.";
-            if (!IsStationContext(by, station, out string account) || !IsOwnershipAuthority(station, account))
-                return "Dock at the station as its owner or owning faction leader to set marketplace tax.";
+            if (!IsStationContext(by, station, out string account) || !CanManageMarketPolicy(station, account))
+                return "Dock at the station with finance authority to set marketplace tax.";
             if (station.marketplaceTaxPercent == percent) return $"Marketplace tax is already {percent}%.";
             int previous = station.marketplaceTaxPercent;
             station.marketplaceTaxPercent = percent;
@@ -310,13 +385,13 @@ namespace GoF2Remake.Multiplayer
             return string.Join("\n", lines);
         }
 
-        internal static string CreateListing(NetPlayer by, int id, int item, int amount, long unitPrice, bool payFactionTreasury = false)
+        internal static string CreateListing(NetPlayer by, int id, int item, int amount, long unitPrice, bool payFactionTreasury = false, bool fromCargo = false)
         {
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
-            if (!CanManageStorage(by, record, out string account))
-                return "Dock at this station using an authorised profile to list your own stored goods.";
-            if (!AllowsFacilityUse(record, account, "market")) return FacilityUseRefusal(record, account, "market", "Station race policy restricts marketplace listings.");
+            bool allowed = fromCargo ? IsStationContext(by, record, out string account) : CanManageStorage(by, record, out account);
+            if (!allowed) return "Dock at this station using an authorised profile to list your own goods.";
+            if (!CanTradeAtMarket(record, account)) return MarketRefusal(record, account, "Station policy restricts marketplace listings.");
             if (record.underConstruction) return "Finish station construction before opening listings.";
             if (StorageCapacity(record) <= 0) return "Install a storage module before listing station goods.";
             if (!NetGuard.Item(item) || !Hangar.IsSaleable(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice)
@@ -331,6 +406,23 @@ namespace GoF2Remake.Multiplayer
                 var sellerFaction = NetFactions.Of(account);
                 if (sellerFaction == null) return "Join a faction before directing listing proceeds to its treasury.";
                 payoutFactionId = sellerFaction.id;
+            }
+            if (fromCargo)
+            {
+                if (NetProfiles.CargoAmount(account, item) < amount) return "Your cargo hold does not have enough of this item.";
+                int next = record.nextItemListingId++;
+                var listing = new PlayerStationListing { id = next, item = item, amount = amount, unitPrice = unitPrice,
+                    sellerProfile = account, payoutFactionId = payoutFactionId };
+                record.listings.Add(listing);
+                if (!CommitCargoTransaction(account, (item, -amount)))
+                {
+                    record.listings.Remove(listing);
+                    record.nextItemListingId = next;
+                    return "The listing could not be saved. Your cargo was kept.";
+                }
+                if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Marketplace listing");
+                return $"Listing #{next} created. {amount} units are held in marketplace escrow.";
             }
             record.storage ??= new List<PlayerStationStorage>();
             EnsureStorageLots(record);
@@ -386,30 +478,43 @@ namespace GoF2Remake.Multiplayer
         [Serializable] internal sealed class MarketUiRow
         {
             public int id, item, amount;
-            public long price;
+            public long price, quotedPrice;
             public bool hull, mine;
         }
         [Serializable] internal sealed class MarketUiCatalogue
         {
             public int stationId, page, pageCount;
+            public bool canListGoods, canListHulls;
+            public string accessMessage;
+            public StorageUiSnapshot storage;
             public List<MarketUiRow> rows = new List<MarketUiRow>();
         }
         internal static MarketUiCatalogue MarketCatalogueFor(NetPlayer pilot, int stationId, int page)
         {
             var result = new MarketUiCatalogue { stationId = stationId };
             var station = Find(stationId);
-            if (!IsStationContext(pilot, station, out string account, recoverProperty: true) || station.underConstruction) return result;
-            bool canTrade = AllowsFacilityUse(station, account, "market");
+            if (!IsStationContext(pilot, station, out string account, recoverProperty: true) || station.underConstruction)
+            {
+                result.accessMessage = "The marketplace is closed or your profile lacks access.";
+                return result;
+            }
+            bool canTrade = CanTradeAtMarket(station, account);
+            if (!canTrade) result.accessMessage = MarketRefusal(station, account, "Station policy restricts marketplace access.");
+            result.canListGoods = canTrade && IsStationContext(pilot, station, out _);
+            result.canListHulls = result.canListGoods && HasStationPermission(station, account, PlayerStationPermission.Marketplace);
+            result.storage = StorageSnapshotFor(pilot, stationId);
+            long Quote(long price, string seller) => StationMarketSettlement(station, account, seller, price,
+                (price * Math.Clamp(station.marketplaceTaxPercent, 0, 10) + 99) / 100).charge;
             if (station.listings != null)
                 foreach (var listing in station.listings)
                     if (listing != null && listing.id > 0 && listing.amount > 0 && (canTrade || listing.sellerProfile == account))
                         result.rows.Add(new MarketUiRow { id = listing.id, item = listing.item, amount = listing.amount,
-                            price = listing.unitPrice, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                            price = listing.unitPrice, quotedPrice = Quote(listing.unitPrice, listing.sellerProfile), mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
             if (station.shipListings != null)
                 foreach (var listing in station.shipListings)
                     if (listing?.hull != null && listing.id > 0 && (canTrade || listing.sellerProfile == account))
                         result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
-                            price = listing.price, hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                            price = listing.price, quotedPrice = Quote(listing.price, listing.sellerProfile), hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
             const int pageSize = 64;
             result.pageCount = Math.Max(1, (result.rows.Count + pageSize - 1) / pageSize);
             result.page = Math.Clamp(page, 0, result.pageCount - 1);
@@ -425,7 +530,7 @@ namespace GoF2Remake.Multiplayer
             if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
             if (!IsStationContext(by, record, out string buyer))
                 return "Dock at this station with visitor permission and use a controlled player profile to buy goods.";
-            if (!AllowsFacilityUse(record, buyer, "market")) return FacilityUseRefusal(record, buyer, "market", "Station race policy restricts marketplace purchases.");
+            if (!CanTradeAtMarket(record, buyer)) return MarketRefusal(record, buyer, "Station policy restricts marketplace purchases.");
             if (record.underConstruction) return "This station is not operational yet.";
             if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
                 return "No listing exists at that index.";

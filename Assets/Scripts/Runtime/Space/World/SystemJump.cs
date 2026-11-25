@@ -165,6 +165,22 @@ namespace GoF2Remake.World
         GoF2Remake.Modding.ModJumpFx.Spec networkDrive;
         int networkDestination;
         GameHooks.ModJumpResult? networkMisjump;
+        static (int destination, GameHooks.ModJumpResult? network, GoF2Remake.Modding.ModJumpFx.Spec drive)? pendingFailureArrival;
+        string arrivalFailureNotice;
+
+        void ReportFailure(string message) =>
+            arrivalFailureNotice = arrivalFailureNotice == null ? message : arrivalFailureNotice + "\n" + message;
+
+        internal void ApplyArrivalFailure(int station, PlayerHealth arrivalHealth)
+        {
+            var pending = pendingFailureArrival;
+            pendingFailureArrival = null;
+            if (!pending.HasValue || pending.Value.destination != station || !Session.ArrivedByTravel) return;
+            health = arrivalHealth;
+            if (health == null || health.Target == null || health.Dead) return;
+            if (pending.Value.network is GameHooks.ModJumpResult outcome) ApplyNetworkFailure(outcome);
+            else ApplyFailureConsequences(pending.Value.drive);
+        }
 
         /// <summary>Set by the level: the gate refuses the jump (the Kaamo siege).</summary>
         public System.Func<bool> GateBlocked;
@@ -180,6 +196,11 @@ namespace GoF2Remake.World
 
         void Update()
         {
+            if (arrivalFailureNotice != null && Message != null)
+            {
+                Message.Invoke(arrivalFailureNotice);
+                arrivalFailureNotice = null;
+            }
             if (ship == null) return;
             float dtMs = Time.deltaTime * 1000f;
             // Remake (#37): a destroyed ship neither takes the gate nor finishes a Khador charge (shot down on its way into
@@ -725,25 +746,6 @@ namespace GoF2Remake.World
 
             var outcome = result.Value;
             SpendJumpCells(outcome.Cells);
-            if (outcome.LostItem >= 0)
-            {
-                var item = Session.Equipment.Find(entry => entry.item == outcome.LostItem && !entry.builtIn);
-                if (item != null)
-                {
-                    if (item.amount > 1) item.amount--;
-                    else Session.Equipment.Remove(item);
-                    if (health != null && !health.Dead) health.RefreshLoadout(db, true);
-                    Message?.Invoke($"Misjump equipment lost: {GameNames.Item(outcome.LostItem)}");
-                }
-            }
-            if (health != null && health.Target != null && !health.Dead && outcome.HullLimit > 0)
-            {
-                var hp = health.Hp;
-                hp.hull = Mathf.Min(hp.hull, outcome.HullLimit);
-                health.Target.hp = hp.hull;
-                Session.PlayerHull = hp.hull;
-                Message?.Invoke($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
-            }
             if (health != null && health.Dead)
             {
                 state = State.None;
@@ -761,6 +763,29 @@ namespace GoF2Remake.World
                 jumpFailed = false;
                 Session.ProgrammedStation = outcome.Station;
                 StartKhadorScene();
+            }
+        }
+
+        void ApplyNetworkFailure(GameHooks.ModJumpResult outcome)
+        {
+            if (outcome.LostItem >= 0)
+            {
+                var item = Session.Equipment.Find(entry => entry.item == outcome.LostItem && !entry.builtIn);
+                if (item != null)
+                {
+                    if (item.amount > 1) item.amount--;
+                    else Session.Equipment.Remove(item);
+                    if (health != null && !health.Dead) health.RefreshLoadout(db, true);
+                    ReportFailure($"Misjump equipment lost: {GameNames.Item(outcome.LostItem)}");
+                }
+            }
+            if (health != null && health.Target != null && !health.Dead && outcome.HullLimit > 0)
+            {
+                var hp = health.Hp;
+                hp.hull = Mathf.Min(hp.hull, outcome.HullLimit);
+                health.Target.hp = hp.hull;
+                Session.PlayerHull = hp.hull;
+                ReportFailure($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
             }
         }
 
@@ -1046,7 +1071,6 @@ namespace GoF2Remake.World
             if (networkMisjump.HasValue)
             {
                 Session.ProgrammedStation = networkMisjump.Value.Station;
-                networkMisjump = null;
                 jumpFailed = true;
                 StartKhadorScene();
                 return;
@@ -1055,7 +1079,6 @@ namespace GoF2Remake.World
             // If no safe escape destination remains, complete the intended jump without penalties.
             bool hasEscape = d == null || !d.requireConnectedFailureDestination || FailCandidates(true).Count > 0;
             int target = hasEscape ? FailTarget() : Session.ProgrammedStation;
-            if (hasEscape) ApplyFailureConsequences(d);   // once, before unloading the scene
             Session.ProgrammedStation = target;
             jumpFailed = hasEscape;
             StartKhadorScene();
@@ -1152,7 +1175,7 @@ namespace GoF2Remake.World
                     if (item.amount > 1) item.amount--;
                     else Session.Equipment.RemoveAt(slot);
                     health.RefreshLoadout(db, true);
-                    Message?.Invoke($"Misjump equipment lost: {name}");
+                    ReportFailure($"Misjump equipment lost: {name}");
                 }
             }
             var hp = health.Hp;
@@ -1163,7 +1186,7 @@ namespace GoF2Remake.World
                     hp.hull, hp.maxHull, d.failHullDamage, d.failMinimumHull);
                 health.Target.hp = hp.hull;
                 Session.PlayerHull = hp.hull;
-                Message?.Invoke($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
+                ReportFailure($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
             }
         }
 
@@ -1195,6 +1218,7 @@ namespace GoF2Remake.World
             Session.PreviousStationIndex = Session.StationIndex;
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;
+            pendingFailureArrival = jumpFailed && !viaGate ? (targetStation, networkMisjump, failDrive) : null;
             Session.DriveFailArrival = jumpFailed;   // Modified: a failed mod jump comes out somewhere near the station
             Session.DriveArrivalSpec = khadorModFx && !viaGate ? sceneDrive : null;
             Session.DriveArrival = khadorModFx && !viaGate;   // Modified: a mod drive's jump arrives with its effect (ModJumpFx "arrivalFx")

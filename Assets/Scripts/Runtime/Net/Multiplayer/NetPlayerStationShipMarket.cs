@@ -40,7 +40,7 @@ namespace GoF2Remake.Multiplayer
             if (!ShipMarketContext(pilot, station, out string seller) ||
                 !HasStationPermission(station, seller, PlayerStationPermission.Marketplace))
                 return "Dock at an operational station with marketplace permission.";
-            if (!AllowsFacilityUse(station, seller, "market")) return FacilityUseRefusal(station, seller, "market", "Station race policy restricts marketplace listings.");
+            if (!CanTradeAtMarket(station, seller)) return MarketRefusal(station, seller, "Station policy restricts marketplace listings.");
             if (price <= 0 || price > MaxStationUnitPrice) return "Choose a supported positive ship price.";
             station.shipListings ??= new List<PlayerStationShipListing>();
             if (station.shipListings.Count >= MaxStationListings) return "The station's ship marketplace is full.";
@@ -77,7 +77,7 @@ namespace GoF2Remake.Multiplayer
             var station = Find(stationId);
             if (!ShipMarketContext(pilot, station, out string buyer, recoverProperty: cancel))
                 return "Dock at the operational station with a controlled profile.";
-            if (!cancel && !AllowsFacilityUse(station, buyer, "market")) return FacilityUseRefusal(station, buyer, "market", "Station race policy restricts marketplace purchases.");
+            if (!cancel && !CanTradeAtMarket(station, buyer)) return MarketRefusal(station, buyer, "Station policy restricts marketplace purchases.");
             int index = station.shipListings?.FindIndex(value => value != null && value.id == listingId) ?? -1;
             if (listingId < 1 || index < 0) return "No ship listing with that number.";
             var listing = station.shipListings[index];

@@ -263,7 +263,9 @@ namespace GoF2Remake.Flight
             int local = (mido ? Random.Range(0, 2) : secEff) + x + freighters / 4;
             // Modder-controlled ambient traffic only. Apply before scripted encounter rules below so their
             // minimums and explicit spawns (missions, pirate events, Void raids, sieges, rifts, etc.) remain untouched.
-            float population = Mathf.Clamp(system.ambientPopulation, 0f, 4f);
+            bool? playerStationTraffic = GameHooks.PlayerStationTraffic?.Invoke(station);
+            float population = playerStationTraffic == false ? 0f :
+                Mathf.Clamp(playerStationTraffic == true && system.ambientPopulation <= 0f ? 1f : system.ambientPopulation, 0f, 4f);
             // Remember the original random ambient plan so rounding a small population down to zero does not
             // trigger the vanilla four-patrol empty-orbit fallback and add ships back.
             if (Session.AttackedStations.Contains(station)) local = Mathf.Max(local, 7);

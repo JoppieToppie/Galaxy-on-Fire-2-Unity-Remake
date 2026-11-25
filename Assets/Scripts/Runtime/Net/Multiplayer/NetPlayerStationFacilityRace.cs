@@ -63,6 +63,8 @@ namespace GoF2Remake.Multiplayer
         static int MarketPolicyPercent(PlayerStationRecord station, string account, string facility)
         {
             var settings = ModPlayerInfrastructure.Current;
+            var pilotRule = station.marketplacePilotRules?.Find(rule => rule != null && rule.account == account && rule.operation == facility);
+            if (pilotRule != null) return Math.Clamp(pilotRule.percent, facility == "purchase" ? -PilotMarketLimit : 0, PilotMarketLimit);
             int limit = settings.StationRaceMarketLimitPercent;
             if (!settings.StationRacePoliciesEnabled || limit == 0 ||
                 (settings.StationRaceExemptionsEnabled && station.facilityRaceExemptions?.Contains(account) == true)) return 0;
@@ -149,8 +151,13 @@ namespace GoF2Remake.Multiplayer
             var words = arg.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
             if (words.Length == 0 || !int.TryParse(words[0], out int id)) return usage;
             var station = Find(id);
-            if (!IsStationContext(pilot, station, out string account) || !IsOwnershipAuthority(station, account))
-                return "Dock here with station ownership authority to manage race policies.";
+            if (!IsStationContext(pilot, station, out string account))
+                return "Dock here with station authority to manage race policies.";
+            bool owner = IsOwnershipAuthority(station, account);
+            bool marketRule = words.Length > 1 && (words[1].StartsWith("purchase ", StringComparison.OrdinalIgnoreCase) ||
+                words[1].StartsWith("sale ", StringComparison.OrdinalIgnoreCase));
+            if (!owner && (!(words.Length == 1 || marketRule) || !CanManageMarketPolicy(station, account)))
+                return "Station ownership authority is required for race access, and finance authority for race taxes.";
             if (words.Length == 1)
             {
                 var summary = new StringBuilder("Station and faction race rules (first 16 per scope)");

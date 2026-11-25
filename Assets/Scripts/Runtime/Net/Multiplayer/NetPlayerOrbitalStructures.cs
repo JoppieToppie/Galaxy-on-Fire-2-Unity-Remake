@@ -13,7 +13,8 @@ namespace GoF2Remake.Multiplayer
     {
         public int id, orbit, sponsorStationId, slot, buildSeconds, fireIntervalSeconds;
         public string name, assembly, stationModel;
-        public bool defense;
+        public bool defense, hasPlacement;
+        public int placementX, placementY, placementZ;
         public bool ignorePlayers, ignoreNpcs;
         public float modelScale, hitRadius, integrity, maxIntegrity, range, damage;
         public long completesUtc, maintenanceDueUtc, maintenanceDecayUtc;
@@ -78,6 +79,8 @@ namespace GoF2Remake.Multiplayer
 
         internal static Vector3 OrbitalStructurePosition(PlayerOrbitalStructure structure)
         {
+            if (structure.hasPlacement)
+                return new Vector3(structure.placementX, structure.placementY, structure.placementZ);
             if (structure.defense)
             {
                 int ring = structure.slot / DefenseSlotsPerRing;
@@ -87,7 +90,7 @@ namespace GoF2Remake.Multiplayer
             return Quaternion.Euler(0f, 22.5f + structure.slot * 45f, 0f) * new Vector3(0, 3000f, 14000f);
         }
 
-        internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId)
+        internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId, Vector3Int? placement = null)
         {
             var settings = ModPlayerInfrastructure.Current;
             if (!settings.Enabled) return "New infrastructure projects are disabled.";
@@ -100,6 +103,20 @@ namespace GoF2Remake.Multiplayer
                 if (entry.Id == presetId) { preset = entry; break; }
             if (preset == null || !OrbitalPresetAvailable(preset, OrbitalSponsorRace(sponsor))) return "That structure preset is unavailable.";
             var structures = registry.orbitalStructures;
+            if (placement is Vector3Int point)
+            {
+                Vector3 position = point;
+                var layout = OrbitLayout.Build(NetGame.Db, orbit);
+                float radius = layout != null && layout.stationObject
+                    ? layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale : 0f;
+                float clearance = Math.Max(1000f, radius + preset.HitRadius);
+                if ((position - StationPosition(orbit)).sqrMagnitude < clearance * clearance || position.sqrMagnitude > 120000f * 120000f)
+                    return "Choose a position clear of the station and within 120 km of the orbit centre.";
+                foreach (var other in structures)
+                    if (other != null && other.orbit == orbit &&
+                        (OrbitalStructurePosition(other) - position).sqrMagnitude < Mathf.Pow(Math.Max(200f, other.hitRadius + preset.HitRadius), 2))
+                        return "That placement overlaps another orbital structure.";
+            }
             if (structures.Count >= MaxOrbitalStructures || registry.nextOrbitalStructureId >= int.MaxValue)
                 return "This persistent world has reached its orbital project limit.";
             int capacity = preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit;
@@ -124,6 +141,13 @@ namespace GoF2Remake.Multiplayer
                 maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay,
                 minimumMaintenanceIntegrityPercent = preset.MinimumMaintenanceIntegrityPercent
             };
+            if (placement is Vector3Int placed)
+            {
+                structure.hasPlacement = true;
+                structure.placementX = placed.x;
+                structure.placementY = placed.y;
+                structure.placementZ = placed.z;
+            }
             foreach (var cost in preset.Materials)
                 structure.materials.Add(new PlayerStationMaterial { item = cost.item, required = cost.amount });
             foreach (var cost in preset.MaintenanceMaterials)
@@ -211,6 +235,57 @@ namespace GoF2Remake.Multiplayer
             if (maintenance) return complete ? $"{structure.name} maintenance complete." : "Delivered maintenance materials.";
             if (paid) NotifyProfileCreditChange(account, payout, "Orbital construction contribution");
             return structure.operational ? $"{structure.name} is operational." : "Delivered orbital construction materials.";
+        }
+
+        internal static string FinishOrbitalFromStorage(NetPlayer pilot, int id)
+        {
+            var structure = FindOrbitalStructure(id);
+            var sponsor = structure == null ? null : Find(structure.sponsorStationId);
+            if (structure == null || structure.operational || structure.completesUtc > 0 || !OperationalSponsor(sponsor))
+                return "That orbital project is not accepting construction materials.";
+            if (!CanManageConstruction(pilot, sponsor, out string account) ||
+                !CanManageStorage(pilot, sponsor, out _) || !AllowsFacilityUse(sponsor, account, "storage"))
+                return "Dock at the sponsor station with construction and storage access.";
+            if (structure.materials == null || structure.materials.Count == 0 ||
+                structure.materials.Exists(material => material == null || material.delivered < 0 || material.delivered > material.required))
+                return "The project has invalid material requirements.";
+            var delivered = structure.materials.ConvertAll(material => material.delivered);
+            var needed = new Dictionary<int, int>();
+            foreach (var material in structure.materials)
+            {
+                int remaining = material.required - material.delivered;
+                if (remaining <= 0) continue;
+                needed.TryGetValue(material.item, out int amount);
+                needed[material.item] = checked(amount + remaining);
+            }
+            EnsureStorageLots(sponsor);
+            foreach (var entry in needed)
+                if (OwnedStorageAmount(sponsor, account, entry.Key) < entry.Value)
+                    return "Insufficient " + ConstructionItemName(entry.Key) + " in your station storage.";
+            var previousLots = CloneStorageLots(sponsor);
+            var previousStorage = sponsor.storage.ConvertAll(stack => stack == null ? null :
+                new PlayerStationStorage { item = stack.item, amount = stack.amount });
+            foreach (var entry in needed)
+            {
+                RemoveStorageLots(sponsor, account, entry.Key, entry.Value);
+                var stack = sponsor.storage.Find(row => row != null && row.item == entry.Key);
+                stack.amount -= entry.Value;
+                if (stack.amount == 0) sponsor.storage.Remove(stack);
+            }
+            foreach (var material in structure.materials) material.delivered = material.required;
+            long due = structure.maintenanceDueUtc, decay = structure.maintenanceDecayUtc;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (structure.buildSeconds == 0) ActivateOrbitalStructure(structure, now);
+            else structure.completesUtc = now + structure.buildSeconds;
+            if (Save()) return structure.operational ? $"{structure.name} is operational." : $"{structure.name} construction has started.";
+            sponsor.storage = previousStorage;
+            sponsor.storageLots = previousLots;
+            for (int i = 0; i < delivered.Count; i++) structure.materials[i].delivered = delivered[i];
+            structure.operational = false;
+            structure.completesUtc = 0;
+            structure.maintenanceDueUtc = due;
+            structure.maintenanceDecayUtc = decay;
+            return "The project could not be saved. Your stored goods were kept.";
         }
 
         internal static string RemoveOrbitalStructure(NetPlayer pilot, int id)

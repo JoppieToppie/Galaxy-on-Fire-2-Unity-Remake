@@ -1,20 +1,33 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using GoF2Remake.Data;
+using GoF2Remake.Modding;
+using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
-        static readonly string[] ModuleKinds = { "storage", "refinery", "factory", "hangar", "drydock" };
+        static readonly string[] ModuleKinds = { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" };
+
+        static PlayerStationAddon AddStarterStorage(PlayerStationRecord station)
+        {
+            if (station.addons?.Exists(module => module?.kind == "storage") == true) return null;
+            station.addons ??= new List<PlayerStationAddon>();
+            var storage = new PlayerStationAddon { kind = "storage", level = 1 };
+            station.addons.Add(storage);
+            return storage;
+        }
 
         static string ModuleName(string kind) => kind == "hangar" ? "Ship hangar" :
-            kind == "drydock" ? "Dry dock" : char.ToUpperInvariant(kind[0]) + kind.Substring(1);
+            kind == "drydock" ? "Dry dock" : kind == "dockarm" ? "Docking arms" : char.ToUpperInvariant(kind[0]) + kind.Substring(1);
 
         static string ModuleInstallationError(NetPlayer pilot, PlayerStationRecord station, string kind, out string account)
         {
             account = null;
             if (station == null) return "No player station with that id exists.";
-            if (Array.IndexOf(ModuleKinds, kind) < 0) return "Choose storage, refinery, factory, hangar or drydock.";
+            if (Array.IndexOf(ModuleKinds, kind) < 0) return "Choose storage, refinery, factory, hangar, drydock or dockarm.";
             if (!CanManageConstruction(pilot, station, out account))
                 return "Dock here as the builder or authorised construction manager to install modules.";
             if (station.underConstruction) return "Finish station construction before installing modules.";
@@ -113,6 +126,141 @@ namespace GoF2Remake.Multiplayer
                 foreach (var change in changes)
                     NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Take, change.item, -change.delta, 0, "", "Station module");
             return ModuleName(kind) + " installed at " + station.name + ".";
+        }
+
+        internal static string InstallModuleFromStorage(NetPlayer pilot, int id, string kind)
+        {
+            var station = Find(id);
+            kind = (kind ?? "").Trim().ToLowerInvariant();
+            string error = ModuleInstallationError(pilot, station, kind, out string account);
+            if (error != null) return error;
+            if (!CanManageStorage(pilot, station, out _) || !AllowsFacilityUse(station, account, "storage"))
+                return FacilityUseRefusal(station, account, "storage", "You need storage access to fund a module from storage.");
+            bool activeProject = station.moduleConstructionKind == kind;
+            if (activeProject && station.buyOrders?.Count > 0)
+                return "Cancel active buy orders before finishing this module from storage.";
+            var materials = activeProject ? station.moduleConstructionMaterials : ConstructionCost(kind);
+            if (materials == null || materials.Count == 0) return "The module's material list is unavailable.";
+            EnsureStorageLots(station);
+            var required = new Dictionary<int, int>();
+            foreach (var material in materials)
+            {
+                if (material == null || material.delivered < 0 || material.delivered > material.required)
+                    return "The module has an invalid material requirement.";
+                int remaining = material.required - material.delivered;
+                if (remaining == 0) continue;
+                required.TryGetValue(material.item, out int prior);
+                required[material.item] = checked(prior + remaining);
+            }
+            foreach (var pair in required)
+                if (OwnedStorageAmount(station, account, pair.Key) < pair.Value)
+                    return "Insufficient " + ConstructionItemName(pair.Key) + " in your station storage.";
+
+            var previousLots = CloneStorageLots(station);
+            var previousStorage = station.storage.ConvertAll(stack => stack == null ? null :
+                new PlayerStationStorage { item = stack.item, amount = stack.amount });
+            foreach (var pair in required)
+            {
+                RemoveStorageLots(station, account, pair.Key, pair.Value);
+                var stack = station.storage.Find(row => row != null && row.item == pair.Key);
+                stack.amount -= pair.Value;
+                if (stack.amount == 0) station.storage.Remove(stack);
+            }
+            var rollback = CompleteModuleConstruction(station, kind);
+            if (Save()) return ModuleName(kind) + " installed using your station storage.";
+            rollback();
+            station.storage = previousStorage;
+            station.storageLots = previousLots;
+            return "The module installation could not be saved. Your stored goods were kept.";
+        }
+
+        internal static readonly string[] PlacementKinds = { "refinery", "drydock", "dockarm-1", "dockarm-2", "dockarm-3", "dockarm-4" };
+
+        static readonly ModPlayerInfrastructure.OrbitalDefinition[] ModuleExteriorDefaults =
+        {
+            new ModPlayerInfrastructure.OrbitalDefinition { Id = "builtin:refinery", Name = "Refinery exterior",
+                Assembly = "station_055_terran", ModelScale = .25f, HitRadius = 400f },
+            new ModPlayerInfrastructure.OrbitalDefinition { Id = "builtin:drydock", Name = "Dry dock exterior",
+                Assembly = "station_068_terran", ModelScale = .35f, HitRadius = 650f },
+            new ModPlayerInfrastructure.OrbitalDefinition { Id = "builtin:dockarm", Name = "Docking arm exterior",
+                Assembly = "container_003_terran", ModelScale = 1f, HitRadius = 100f }
+        };
+
+        internal static IEnumerable<ModPlayerInfrastructure.OrbitalDefinition> ModuleExteriorChoices(PlayerStationRecord station, string kind)
+        {
+            int key = Array.IndexOf(PlacementKinds, kind);
+            if (key < 0) yield break;
+            var stock = ModuleExteriorDefaults[Math.Min(key, 2)];
+            if (NetGame.Db?.AssemblyByName(stock.Assembly) != null) yield return stock;
+            int race = OrbitalSponsorRace(station);
+            foreach (var preset in ModPlayerInfrastructure.Current.OrbitalStructures)
+                if (!preset.Defense && OrbitalPresetAvailable(preset, race)) yield return preset;
+        }
+
+        static ModPlayerInfrastructure.OrbitalDefinition SavedModuleExterior(string id) =>
+            Array.Find(ModuleExteriorDefaults, preset => preset.Id == id) ??
+                ModPlayerInfrastructure.Current.OrbitalStructures.FirstOrDefault(preset => !preset.Defense && preset.Id == id);
+
+        internal static string PlanModulePlacement(NetPlayer pilot, int id, string kind, int x, int y, int z, string presetId)
+        {
+            var station = Find(id);
+            if (!CanManageConstruction(pilot, station, out _) || station.underConstruction)
+                return "Dock at the operational station with construction authority.";
+            int key = Array.IndexOf(PlacementKinds, kind);
+            if (key < 0) return "Choose a refinery, dry dock or docking arm.";
+            var offset = new Vector3(x, y, z);
+            if (offset.sqrMagnitude < 1f || offset.sqrMagnitude > 12000f * 12000f)
+                return "Choose a placement within 12 km of the station.";
+            var preset = ModuleExteriorChoices(station, kind).FirstOrDefault(entry => entry.Id == presetId);
+            if (preset == null)
+                return "Choose an exterior model available to this station.";
+            var previous = station.placements;
+            var updated = previous == null ? new List<PlayerStationPlacement>() : new List<PlayerStationPlacement>(previous);
+            string module = key >= 2 ? "dockarm" : kind;
+            if (updated.Exists(entry => entry?.kind == kind) &&
+                station.addons?.Exists(addon => addon != null && addon.kind == module && addon.level > 0) == true)
+                return "That installed structure already has a fixed position.";
+            updated.RemoveAll(entry => entry?.kind == kind);
+            if (updated.Exists(entry => entry != null && (new Vector3(entry.x, entry.y, entry.z) - offset).sqrMagnitude < 150f * 150f))
+                return "Choose a position at least 150 m from the other planned modules.";
+            updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = x, y = y, z = z });
+            station.placements = updated;
+            if (Save()) return ModuleName(module) + " placement saved.";
+            station.placements = previous;
+            return "The placement could not be saved.";
+        }
+
+        internal static IEnumerable<(int id, string name, string assembly, Vector3 position, float scale, float radius)>
+            PlacedModuleModels(Database db, int orbit)
+        {
+            var station = StationAt(orbit);
+            if (!OperationalSponsor(station) || station.placements == null) yield break;
+            foreach (var placement in station.placements)
+            {
+                int key = Array.IndexOf(PlacementKinds, placement?.kind);
+                if (key < 0) continue;
+                string module = key >= 2 ? "dockarm" : placement.kind;
+                if (station.addons?.Exists(addon => addon != null && addon.level > 0 && addon.kind == module) != true) continue;
+                var preset = SavedModuleExterior(placement.preset);
+                if (preset == null) continue;
+                yield return (-1 - key, ModuleName(module), OrbitalStructureAssembly(preset.Assembly, preset.StationModel, db),
+                    StationPosition(orbit) + new Vector3(placement.x, placement.y, placement.z), preset.ModelScale, preset.HitRadius);
+            }
+        }
+
+        internal static IEnumerable<Vector3> PlacedDockArms(int orbit)
+        {
+            var station = StationAt(orbit);
+            if (!OperationalSponsor(station) || station.placements == null ||
+                station.addons?.Exists(addon => addon?.kind == "dockarm" && addon.level > 0) != true) yield break;
+            foreach (var entry in station.placements)
+                if (entry?.kind is "dockarm-1" or "dockarm-2" or "dockarm-3" or "dockarm-4")
+                {
+                    var preset = SavedModuleExterior(entry.preset);
+                    if (preset == null || OrbitalStructureAssembly(preset.Assembly, preset.StationModel, NetGame.Db) == null) continue;
+                    var offset = new Vector3(entry.x, entry.y, entry.z);
+                    yield return StationPosition(orbit) + offset + offset.normalized * preset.HitRadius;
+                }
         }
 
         static List<PlayerStationMaterial> ProcurementMaterials(PlayerStationRecord station)
