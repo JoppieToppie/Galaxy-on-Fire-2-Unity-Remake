@@ -448,5 +448,40 @@ namespace GoF2Remake.Tests
             NetRateLimit.Reset();
             Assert.IsTrue(NetRateLimit.Allow(2005, NetRateLimit.Kind.Chat));
         }
+
+        [TestCase(false, 1)]
+        [TestCase(true, 2)]
+        public void PiracyAndBountyKillsShareSecureWeight(bool secure, int weight)
+        {
+            Assert.AreEqual(weight, NetFactions.PiracyKillWeight(secure));
+        }
+
+        [Test]
+        public void StockOrbitalSentriesRequireMaintenanceAndDecayOnlyAboveFloor()
+        {
+            var rules = new GoF2Remake.Modding.ModPlayerInfrastructure();
+            Assert.AreEqual(3, rules.OrbitalStructures.Count);
+            foreach (var preset in rules.OrbitalStructures)
+            {
+                Assert.IsTrue(preset.Defense);
+                Assert.Greater(preset.MaintenanceIntervalSeconds, 0);
+                Assert.IsNotEmpty(preset.MaintenanceMaterials);
+                Assert.Greater(preset.MaintenanceDecayPercentPerDay, 0f);
+                var defense = new PlayerOrbitalStructure
+                {
+                    operational = true, defense = true, maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds,
+                    maintenanceDueUtc = 1000, maxIntegrity = 100, integrity = 100,
+                    hasMaintenanceDecayRate = true, maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay,
+                    minimumMaintenanceIntegrityPercent = preset.MinimumMaintenanceIntegrityPercent
+                };
+                Assert.IsFalse(defense.MaintenanceDue(999));
+                Assert.IsTrue(defense.MaintenanceDue(1000));
+                Assert.IsTrue(defense.CanLoseIntegrityToMaintenance);
+                Assert.AreEqual(15f, defense.MaintenanceIntegrityFloor, 0.001f);
+                defense.integrity = defense.MaintenanceIntegrityFloor;
+                Assert.IsFalse(defense.CanLoseIntegrityToMaintenance);
+            }
+        }
+
     }
 }
