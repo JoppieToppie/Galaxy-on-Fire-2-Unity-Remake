@@ -373,15 +373,17 @@ namespace GoF2Remake.Multiplayer
             }
             long worth = Worth(save);
             string why = !NetGame.HostAllowsDebug && !IsHostClient(client) ? Implausible(login, save, worth) : null;
-            // The money log (NetAudit): big growth since the last accepted upload, per part, and every refusal.
-            if (why != null || worth - account.worth >= 100_000) NetAudit.Upload(account.id, account.name, client, ReadSaved(account.id), save,
-                account.worth, Mathf.Max(0f, now - login.acceptedAt) / 60f, why);
+            // Audit every accepted upload for provenance, not merely large credit-value changes.
+            // Refused uploads must not consume receipts; failed disk writes are not accepted.
+            float minutes = Mathf.Max(0f, now - login.acceptedAt) / 60f;
             if (why != null)
             {
+                NetAudit.Upload(account.id, account.name, client, prior, save, account.worth, minutes, why);
                 Reject(login, why);
                 return;
             }
             if (!Write(ProfilePath(account.id), json)) return;
+            NetAudit.Upload(account.id, account.name, client, prior, save, account.worth, minutes, null);
             login.acceptedUploadSequence = acceptedSequence;
             if (acceptedSequence != 0) login.lastAcceptedUploadSequence = acceptedSequence;
             account.worth = worth;

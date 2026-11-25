@@ -339,6 +339,8 @@ namespace GoF2Remake.Multiplayer
             public string id;
             public long dueUtc;
             public int origin, respawn, emergencyShip;
+            public int deathOrbit;
+            public bool hasDeathOrbit;
         }
 
         static string PendingDeathPath(string account) => ProfilePath(account) + ".pending-death";
@@ -381,6 +383,12 @@ namespace GoF2Remake.Multiplayer
             int emergencyShip = pending.emergencyShip;
             if (!NetGuard.Ship(emergencyShip)) emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
             if (!NetGuard.Ship(emergencyShip)) return false;
+            int respawn = pending.respawn;
+            if (!NetFactions.CanUseDeathRespawnStation(account, respawn))
+                respawn = NetFactions.DeathRespawnStationForAccount(account, pending.origin,
+                    pending.hasDeathOrbit ? pending.deathOrbit : pending.origin);
+            // Keep the durable intent even if every possible respawn is currently unavailable.
+            if (respawn < 0) return false;
             save.deathRecoveries ??= new List<DeathRecovery>();
             save.equipment ??= new List<ItemStack>();
             var drop = save.equipment.Find(x => x != null && !x.builtIn && x.amount > 0 && NetGuard.Item(x.item) &&
@@ -406,7 +414,7 @@ namespace GoF2Remake.Multiplayer
             save.equipment = new List<ItemStack>();
             save.cargo = new List<ItemStack>();
             save.selectedSecondary = -1;
-            save.station = save.lastDockedStation = pending.respawn;
+            save.station = save.lastDockedStation = respawn;
             save.lastDeathPenaltyId = pending.id;
             if (!PersistRecoveryProfile(account, save)) { droppedItem = -1; return false; }
             // A failed cleanup is safe: the persisted ID prevents replay from charging again.
@@ -441,19 +449,22 @@ namespace GoF2Remake.Multiplayer
                 int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
                 int respawn = pilot.DeathRespawnDestination >= 0 ? pilot.DeathRespawnDestination :
                     NetFactions.DeathRespawnStation(pilot, save.lastDockedStation, pilot.DeathOrigin);
-                if (emergencyShip < 0 || respawn < 0) return false;
+                // Record the death before requiring a valid emergency hull or docking destination.
+                // Recovery will retry when the world/mod configuration becomes usable again.
                 pending = new PendingDeathPenalty
                 {
                     id = Guid.NewGuid().ToString("N"),
                     dueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Modding.ModPvpPiracy.ShipRecoverySeconds,
                     origin = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.DeathOrigin,
-                    respawn = respawn, emergencyShip = emergencyShip
+                    respawn = respawn, emergencyShip = emergencyShip,
+                    deathOrbit = pilot.DeathOrigin, hasDeathOrbit = true
                 };
                 if (!Write(PendingDeathPath(account), JsonUtility.ToJson(pending))) return false;
             }
             // If the profile transaction previously completed, restore the authoritative copy.
             if (persisted?.lastDeathPenaltyId == pending.id) save = persisted;
             if (!SettlePendingDeath(account, save, pending, canSpawnLoot, out droppedItem)) return false;
+            pilot.SetRecordedDeathDestination(save.lastDockedStation);
             if (host)
             {
                 Session.ShipIndex = save.ship;

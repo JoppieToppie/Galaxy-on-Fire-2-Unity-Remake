@@ -26,16 +26,24 @@ namespace GoF2Remake.Multiplayer
                 NetPlayerStations.HasSiegeRespawnPrivilege(station, account);
         }
 
-        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked, int deathOrigin = int.MinValue)
+        internal static bool CanUseDeathRespawnStation(string account, int orbit)
         {
             var db = NetGame.Db;
-            if (pilot == null || db?.Stations == null || db.Systems == null) return -1;
-            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            int origin = deathOrigin != int.MinValue ? deathOrigin : pilot.Station;
-            var faction = Of(account);
-            bool Allowed(int orbit) => orbit >= 0 && CanRespawnAt(orbit, account) &&
+            return orbit >= 0 && db?.Stations != null && CanRespawnAt(orbit, account) &&
                 !NetPlayerStations.StationClosedByCombat(orbit) && NetPlayerStations.CanVisitStation(orbit, account) &&
-                db.Stations.Exists(s => s != null && s.index == orbit) && OrbitLayout.Build(db, orbit).hasStation;
+                db.Stations.Exists(s => s != null && s.index == orbit) && OrbitLayout.Build(db, orbit)?.hasStation == true;
+        }
+
+        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked, int deathOrigin = int.MinValue) =>
+            pilot == null ? -1 : DeathRespawnStationForAccount(NetProfiles.AccountOf(pilot.OwnerClientId), lastDocked,
+                deathOrigin != int.MinValue ? deathOrigin : pilot.Station);
+
+        internal static int DeathRespawnStationForAccount(string account, int lastDocked, int origin)
+        {
+            var db = NetGame.Db;
+            if (db?.Stations == null || db.Systems == null) return -1;
+            var faction = Of(account);
+            bool Allowed(int orbit) => CanUseDeathRespawnStation(account, orbit);
             var siege = SiegeAt(origin);
             bool defending = siege != null && faction != null && faction.id == siege.defender;
             if (defending && Allowed(origin)) return origin;

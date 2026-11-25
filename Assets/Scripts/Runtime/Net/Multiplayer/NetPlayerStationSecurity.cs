@@ -12,6 +12,10 @@ namespace GoF2Remake.Multiplayer
         float deathRespawnArrivalAt;
         internal int DeathRespawnDestination => deathRespawnDestination;
         internal int DeathOrigin => deathRecorded ? deathOrigin : Station;
+        internal void SetRecordedDeathDestination(int orbit)
+        {
+            if (IsServer && deathRecorded) deathRespawnDestination = orbit;
+        }
 
         internal void RecordDeathRespawn(int origin)
         {
