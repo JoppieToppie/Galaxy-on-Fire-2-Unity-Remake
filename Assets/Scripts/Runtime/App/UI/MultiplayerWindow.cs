@@ -37,6 +37,7 @@
 
 using System;
 using System.Collections.Generic;
+using GoF2Remake.Flight;
 using GoF2Remake.Data;
 using GoF2Remake.Multiplayer;
 using UnityEngine;
@@ -88,12 +89,13 @@ namespace GoF2Remake.UI
                               Dim = new Color(0.85f, 0.92f, 0.97f, 0.65f), Good = new Color(0.47f, 0.9f, 0.55f), Bad = new Color(1f, 0.55f, 0.47f);
 
         /// <summary>The window's button and window on 'parent' (the station menu's or the flight HUD's safe area).</summary>
-        public static void Attach(GameObject host, VisualElement parent, bool flight = false)
+        public static void Attach(GameObject host, VisualElement parent, bool flight = false, Navigation navigation = null)
         {
             if (parent == null) return;
             var view = host.GetComponent<MultiplayerWindow>();
             if (view == null) view = host.AddComponent<MultiplayerWindow>();
             view.flight = flight;
+            view.SetConstructionNavigation(navigation);
             view.Build(parent);
         }
 
@@ -144,6 +146,7 @@ namespace GoF2Remake.UI
             plate?.RemoveFromHierarchy();
             window?.RemoveFromHierarchy();
             flightColumn?.RemoveFromHierarchy();
+            SetConstructionNavigation(null);
         }
 
         // ---- building -------------------------------------------------------------------------------------
@@ -197,6 +200,7 @@ namespace GoF2Remake.UI
             // In the top bar: the new button takes the bar's free space on its left while it shows.
             if (plate == plateButton && menuButton != null)
                 menuButton.style.marginLeft = session ? new StyleLength(0f) : new StyleLength(StyleKeyword.Null);
+            if (flight) UpdateConstructionShortcut(session ? NetPlayer.Local : null);
             if (!session) { if (isOpen) Close(); return; }
             var s = NetPanel.Latest;
             bool waiting = (s != null && (s.factionInvites.Count > 0 || s.duelFrom.Length > 0))

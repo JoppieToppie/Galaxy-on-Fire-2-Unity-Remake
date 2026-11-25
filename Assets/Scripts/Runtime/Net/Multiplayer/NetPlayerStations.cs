@@ -759,16 +759,20 @@ namespace GoF2Remake.Multiplayer
         internal static bool UnderConstruction(int stationIndex) =>
             StationAt(stationIndex)?.underConstruction == true;
 
-        static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record)
+        internal static bool CanDeliverAtConstructionSite(NetPlayer pilot, PlayerStationRecord record) =>
+            pilot != null && record?.underConstruction == true && pilot.InSpace &&
+            pilot.Station == record.stationIndex && pilot.Hull > 0 && pilot.HasCurrentWreckClaimPose &&
+            (pilot.Position - StationPosition(record.stationIndex)).sqrMagnitude <= WreckControlRadiusMetres * WreckControlRadiusMetres;
+
+        static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record, bool allowNewSite = false)
         {
             if (record.reconstructing)
-            {
-                if (!by.InSpace || by.Station != record.stationIndex || by.Hull <= 0 || !by.HasCurrentWreckClaimPose ||
-                    (by.Position - StationPosition(record.stationIndex)).sqrMagnitude > WreckControlRadiusMetres * WreckControlRadiusMetres)
-                    return "Fly within 5 km of the reconstruction site to deliver materials.";
-            }
-            else if (!by.InHangar || StationClosedByCombat(by.Station))
-                return "Dock at any operational station to deposit construction materials.";
+                return CanDeliverAtConstructionSite(by, record) ? null : "Fly within 5 km of the reconstruction site to deliver materials.";
+            if (allowNewSite && CanDeliverAtConstructionSite(by, record)) return null;
+            if (!by.InHangar || StationClosedByCombat(by.Station))
+                return allowNewSite
+                    ? "Fly within 5 km of the construction site or dock at any operational station to deliver materials."
+                    : "Dock at any operational station to deposit construction materials.";
             return null;
         }
 
@@ -807,7 +811,7 @@ namespace GoF2Remake.Multiplayer
             if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Deposit between 1 and 500 units of a valid item.";
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
-            string locationError = ConstructionDeliveryError(by, record);
+            string locationError = ConstructionDeliveryError(by, record, allowNewSite: true);
             if (locationError != null) return locationError;
             var resource = record.materials?.Find(m => m != null && m.item == item);
             if (resource == null) return "That item is not required for this station project.";
@@ -968,40 +972,16 @@ namespace GoF2Remake.Multiplayer
                 !Modding.ModPlayerInfrastructure.Current.Enabled || ProfileWritesBlocked || persistenceFaulted ||
                 registry.stations.FindAll(station => station != null && !station.retired).Count >= MaxStations)
                 return Array.Empty<int>();
-            var reachable = NetProfiles.ConstructionReachableSystems(pilot);
+            var discovered = NetProfiles.DiscoveredConstructionSystems(pilot.OwnerClientId);
             var orbits = new List<int>();
             foreach (var system in NetGame.Db.Systems)
             {
-                if (system == null || system.stations == null || !reachable.Contains(system.index)) continue;
+                if (system == null || system.stations == null || !discovered.Contains(system.index)) continue;
                 int count = registry.stations.FindAll(record => record != null && !record.retired && !record.destroyed && record.system == system.index).Count;
                 if (count >= MaxStationsPerSystem) continue;
                 foreach (int orbit in system.stations) if (CanBuildStationInOrbit(orbit)) orbits.Add(orbit);
             }
             return orbits.ToArray();
-        }
-
-        internal static HashSet<int> ReachableConstructionSystems(int origin, Func<int, bool> discovered, Func<PlayerJumpgateRecord, bool> gateAllowed)
-        {
-            var result = new HashSet<int>();
-            var db = NetGame.Db;
-            if (origin < 0 || db?.Systems == null) return result;
-            var queue = new Queue<int>();
-            result.Add(origin); queue.Enqueue(origin);
-            void Add(int next)
-            {
-                if (next >= 0 && discovered(next) && db.Systems.Exists(system => system != null && system.index == next) && result.Add(next)) queue.Enqueue(next);
-            }
-            while (queue.Count > 0)
-            {
-                int current = queue.Dequeue();
-                var system = db.Systems.Find(entry => entry != null && entry.index == current);
-                if (system?.jumpRoutesTo != null)
-                    foreach (int next in system.jumpRoutesTo) Add(next);
-                if (registry?.jumpgates != null)
-                    foreach (var gate in registry.jumpgates)
-                        if (gate != null && gate.system == current && gateAllowed(gate)) Add(gate.destinationSystem);
-            }
-            return result;
         }
 
         /// <summary>Reserve a vacant orbital site and start its long-running, server-owned material project.</summary>
@@ -1029,10 +1009,8 @@ namespace GoF2Remake.Multiplayer
 
             string owner = NetProfiles.AccountOf(by.OwnerClientId);
             if (string.IsNullOrEmpty(owner)) return "Your controlled profile has no account identity.";
-            if (!NetProfiles.HasDiscoveredSystem(owner, systemIndex))
+            if (!NetProfiles.DiscoveredConstructionSystems(by.OwnerClientId).Contains(systemIndex))
                 return "Discover the selected system before planning station construction.";
-            if (!NetProfiles.CanReachConstructionSystem(by, systemIndex))
-                return "The selected system cannot be reached with your current gate access or drive.";
             int stationIndex = requestedOrbit >= 0 ? requestedOrbit : system.stations.FindIndex(CanBuildStationInOrbit);
             if (requestedOrbit < 0 && stationIndex >= 0) stationIndex = system.stations[stationIndex];
             if (stationIndex < 0 || !system.stations.Contains(stationIndex) || !CanBuildStationInOrbit(stationIndex))
@@ -1087,7 +1065,7 @@ namespace GoF2Remake.Multiplayer
             }
             Apply(db);
             NetGuard.RefreshStations();
-            return $"Construction project {record.id} started for {name} in {system.name}. Dock at any station to deposit materials over time with /station contribute {record.id} <item id> <amount>.";
+            return $"Construction project {record.id} started for {name} in {system.name}. Deliver cargo within 5 km of the construction site or deposit materials from any operational station.";
         }
 
         static List<PlayerStationMaterial> RequiredMaterials() => ConstructionCost("station");

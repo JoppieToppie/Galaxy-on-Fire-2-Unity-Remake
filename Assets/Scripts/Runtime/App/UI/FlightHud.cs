@@ -265,7 +265,7 @@ namespace GoF2Remake.UI
                 SquadView.Attach(gameObject, safeArea ?? root);   // the squad window, invitations
                 ArenaView.Attach(gameObject, safeArea ?? root);   // an arena match: score, timer, respawn, result
                 TerritoryView.Attach(gameObject, safeArea ?? root);   // a faction station's toll, a siege's banner
-                MultiplayerWindow.Attach(gameObject, safeArea ?? root, true);   // the multiplayer window (N): chat, squad, distress, admin
+                MultiplayerWindow.Attach(gameObject, safeArea ?? root, true, level?.Navigation);   // the multiplayer window (N): chat, squad, distress, admin
             }
 
             InputGlyph.TrackHintsOption(hints);

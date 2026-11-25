@@ -919,12 +919,12 @@ namespace GoF2Remake.UI
             bool Available(int orbit) => plannerOrbits?.Contains(orbit) == true && NetPlayerStations.CanBuildStationInOrbit(orbit);
             var systems = db.Systems.Where(system => system != null && system.stations?.Any(Available) == true)
                 .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
-            if (systems.Count == 0) AddInfo("Build location", "No reachable discovered system has a vacant orbit.");
+            if (systems.Count == 0) AddInfo("Build location", "No revealed system has a vacant orbit available for construction.");
             else
             {
                 var choices = new List<(string value, string label)> { ("", "Select a system") };
                 choices.AddRange(systems);
-                AddChoice("system", "Reachable build system", choices, _ => { drafts.Remove("buildOrbit"); RebuildBody(); });
+                AddChoice("system", "Revealed build system", choices, _ => { drafts.Remove("buildOrbit"); RebuildBody(); });
                 var orbitChoices = new List<(string value, string label)> { ("", "Select a vacant orbit") };
                 if (int.TryParse(Value("system"), out int chosenSystem))
                     orbitChoices.AddRange(db.Stations.Where(station => station != null && station.system == chosenSystem && Available(station.index))
@@ -958,11 +958,11 @@ namespace GoF2Remake.UI
                         feedback.text = "The star map could not be opened.";
                         feedbackTime = 8f;
                     }
-                    else map.SetHelp("Only discovered systems you can reach with your current gate access or drive and fuel, and with a vacant orbit, are shown.");
+                    else map.SetHelp("Select a revealed system and a vacant orbit. You can reserve the site before travelling there.");
                 });
                 AddInfo("Orbit placement", "The selected planet keeps its orbit. Construction reserves its vacant station site.");
             }
-            AddInfo("Eligible build systems", $"{systems.Count}. A system must be discovered, reachable with your gate access or drive and fuel, and have a vacant orbit.");
+            AddInfo("Eligible build systems", $"{systems.Count}. Revealed systems with a vacant orbit. You can reserve a site before travelling there.");
             AddStationModelPicker("newStationModel");
             AddField("newStationName", "Station name", "");
             if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))

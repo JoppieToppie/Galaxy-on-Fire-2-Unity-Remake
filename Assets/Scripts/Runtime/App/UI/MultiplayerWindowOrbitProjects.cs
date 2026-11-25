@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GoF2Remake.Multiplayer;
+using GoF2Remake.Flight;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -8,6 +9,10 @@ namespace GoF2Remake.UI
 {
     public sealed partial class MultiplayerWindow
     {
+        Navigation constructionNavigation;
+        Navigation.Target constructionMarker;
+        Button constructionShortcut;
+        bool constructionDeliveryInRange;
         int projectOrbit = -1;
         string projectSnapshot;
         StationProjectActions projectActions;
@@ -23,6 +28,56 @@ namespace GoF2Remake.UI
         int reclaimModel, reclaimDestination = -1;
         string wreckMaterial = "", wreckAmount = "1", gateMaterial = "", gateAmount = "1";
 
+        void SetConstructionNavigation(Navigation navigation)
+        {
+            if (constructionNavigation == navigation) return;
+            if (constructionNavigation != null && constructionMarker != null)
+                constructionNavigation.Targets.Remove(constructionMarker);
+            constructionNavigation = navigation;
+            constructionMarker = null;
+        }
+
+        static PlayerStationRecord NewConstructionInOrbit(NetPlayer pilot)
+        {
+            var station = pilot?.InSpace == true ? NetPlayerStations.StationAt(pilot.Station) : null;
+            return station?.underConstruction == true && !station.reconstructing && !station.destroyed ? station : null;
+        }
+
+        void UpdateConstructionShortcut(NetPlayer pilot)
+        {
+            var site = NewConstructionInOrbit(pilot);
+            if (site == null)
+            {
+                if (constructionMarker != null) constructionNavigation?.Targets.Remove(constructionMarker);
+                constructionMarker = null;
+                if (constructionShortcut != null) constructionShortcut.style.display = DisplayStyle.None;
+                return;
+            }
+            if (constructionMarker == null && constructionNavigation != null)
+            {
+                constructionMarker = new Navigation.Target { kind = Navigation.Kind.Marker };
+                constructionNavigation.Targets.Add(constructionMarker);
+            }
+            if (constructionMarker != null)
+            {
+                constructionMarker.fixedPosition = NetPlayerStations.StationPosition(site.stationIndex);
+                constructionMarker.name = site.name + " construction site";
+            }
+            if (flightColumn == null) return;
+            if (constructionShortcut?.parent != flightColumn)
+            {
+                constructionShortcut = Btn("Station construction", () => OpenTab(Tab.OrbitProjects), null);
+                constructionShortcut.AddToClassList("mp-hud-button");
+                if (sheet != null) constructionShortcut.styleSheets.Add(sheet);
+                constructionShortcut.focusable = false;
+                constructionShortcut.style.marginLeft = 0;
+                constructionShortcut.style.marginTop = 6;
+                flightColumn.Add(constructionShortcut);
+            }
+            constructionShortcut.EnableInClassList("squad-button--big", large);
+            constructionShortcut.style.display = DisplayStyle.Flex;
+        }
+
         void UpdateOrbitProjects()
         {
             var pilot = NetPlayer.Local;
@@ -31,6 +86,7 @@ namespace GoF2Remake.UI
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             if (!Busy && (now >= nextMaintenanceRefreshUtc || orbit != projectOrbit || actions != projectActions ||
                 (pilot?.WreckControlProgress ?? 0) != wreckControlProgress ||
+                constructionDeliveryInRange != NetPlayerStations.CanDeliverAtConstructionSite(pilot, NewConstructionInOrbit(pilot)) ||
                 !ReferenceEquals(projectSnapshot, NetState.Instance?.PlayerStations)))
                 Rebuild();
 
@@ -51,6 +107,8 @@ namespace GoF2Remake.UI
             projectSnapshot = NetState.Instance?.PlayerStations;
             projectActions = pilot?.AvailableStationActions ?? StationProjectActions.None;
             wreckControlProgress = pilot?.WreckControlProgress ?? 0;
+            var construction = NewConstructionInOrbit(pilot);
+            constructionDeliveryInRange = NetPlayerStations.CanDeliverAtConstructionSite(pilot, construction);
             wreckCountdown = gateCountdown = null;
             timedClaim = null;
             nextProjectClockUtc = 0;
@@ -84,6 +142,24 @@ namespace GoF2Remake.UI
                     body.Add(row);
                 }
                 BuildReconstructionOrders(station);
+            }
+
+            else if (construction != null)
+            {
+                Section("Building " + construction.name);
+                BuildMaterialProgress(construction.materials);
+                body.Add(Text(constructionDeliveryInRange
+                    ? "Construction site in range. Deliver the requested cargo here."
+                    : "Fly within 5 km of the construction site marker to deliver cargo.", 16, Dim));
+                var row = ProjectDeliveryFields(construction.materials, wreckMaterial, wreckAmount,
+                    value => wreckMaterial = value, value => wreckAmount = value);
+                if (row != null)
+                {
+                    var deliver = Btn("Deliver cargo", () => SendProjectDelivery("contribute", construction.id, wreckMaterial, wreckAmount), null);
+                    deliver.SetEnabled(constructionDeliveryInRange);
+                    row.Add(deliver);
+                    body.Add(row);
+                }
             }
 
             if (gate?.building == true)
