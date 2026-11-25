@@ -22,13 +22,11 @@ namespace GoF2Remake.UI
 {
     public partial class MainMenu
     {
-        VisualElement identityOverlay;
-        Label identityFeedback;
-        DropdownField identityRacePicker, identityPortraitPicker;
+        VisualElement identityOverlay, identityRacePicker, identityPortraitPicker;
+        Label identityFeedback, identitySelection;
         Button identityConfirm, identityLink;
         Toggle identityConsent;
-        TextField identityCode;
-        VisualElement identityPreview;
+        TextField identityCode, identityPortraitSearch;
         List<(string Key, string Name)> identityRaces, identityPortraits;
         string identityRace, identityPortrait, identityPreset;
         bool identityController;
@@ -46,18 +44,46 @@ namespace GoF2Remake.UI
             identityOverlay.BringToFront();
             bool pending = NetProfileClient.IdentitySubmitting;
             identityFeedback.text = NetProfileClient.IdentityMessage ?? "";
-            identityConsent.SetEnabled(identityController && !pending);
+            identityConsent.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityPortrait));
             identityCode.SetEnabled(!pending);
             identityConfirm.SetEnabled(identityController && !pending && identityConsent.value &&
                 !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait));
             identityLink.SetEnabled(!pending && !string.IsNullOrWhiteSpace(identityCode.value));
-            identityRacePicker?.SetEnabled(identityController && !pending && string.IsNullOrEmpty(identityPreset));
-            identityPortraitPicker?.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityRace));
-            if (root.focusController?.focusedElement is not VisualElement focused || !identityOverlay.Contains(focused))
-            {
-                if (InputMode.Current == InputKind.Gamepad) (identityRacePicker?.enabledSelf == true ? (VisualElement)identityRacePicker : identityPortraitPicker?.enabledSelf == true ? identityPortraitPicker : identityCode).Focus();
-            }
+            identityRacePicker.SetEnabled(identityController && !pending && string.IsNullOrEmpty(identityPreset));
+            identityPortraitPicker.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityRace));
+            identityPortraitSearch.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityRace));
+            if (InputMode.Current == InputKind.Gamepad &&
+                (root.focusController?.focusedElement is not VisualElement focused || !identityOverlay.Contains(focused) || !focused.enabledInHierarchy))
+                FocusIdentityChoice();
             return true;
+        }
+
+        void FocusIdentityChoice()
+        {
+            var first = identityRacePicker.enabledInHierarchy ? identityRacePicker.Q<Button>() : null;
+            if (first == null && identityPortraitPicker.enabledInHierarchy) first = identityPortraitPicker.Q<Button>();
+            if (first != null) first.Focus();
+            else identityCode.Focus();
+        }
+
+        static void HighlightIdentityChoice(Button button, bool selected)
+        {
+            var border = selected ? new Color(0.52f, 0.87f, 1f) : new Color(0.20f, 0.34f, 0.44f);
+            button.style.backgroundColor = selected ? new Color(0.12f, 0.29f, 0.39f) : new Color(0.045f, 0.10f, 0.15f);
+            button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = border;
+            button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = 2;
+            button.style.color = Color.white;
+        }
+
+        static Label IdentityLabel(string value, int size)
+        {
+            var label = new Label(value);
+            label.style.fontSize = size;
+            label.style.whiteSpace = WhiteSpace.Normal;
+            label.style.color = Color.white;
+            label.style.marginBottom = 8;
+            label.style.flexShrink = 0;
+            return label;
         }
 
         void BuildIdentitySetup()
@@ -74,69 +100,84 @@ namespace GoF2Remake.UI
             identityOverlay.style.alignItems = Align.Center;
             identityOverlay.style.justifyContent = Justify.Center;
             root.Add(identityOverlay);
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.width = new Length(90, LengthUnit.Percent);
-            scroll.style.maxWidth = 850;
-            scroll.style.maxHeight = new Length(94, LengthUnit.Percent);
-            scroll.style.paddingLeft = scroll.style.paddingRight = 24;
+
+            // Explicit dimensions: max-height alone allowed the ScrollView to collapse to its minimum layout size.
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "identitySetupScroll" };
+            scroll.style.width = Length.Percent(96);
+            scroll.style.height = Length.Percent(94);
+            scroll.style.maxWidth = 1600;
+            scroll.style.flexShrink = 0;
+            scroll.contentContainer.style.paddingLeft = scroll.contentContainer.style.paddingRight = 20;
+            scroll.contentContainer.style.paddingTop = scroll.contentContainer.style.paddingBottom = 12;
             identityOverlay.Add(scroll);
-            Label Line(string value, int size)
-            {
-                var label = new Label(value);
-                label.style.fontSize = size;
-                label.style.whiteSpace = WhiteSpace.Normal;
-                label.style.color = Color.white;
-                label.style.marginBottom = 10;
-                scroll.Add(label);
-                return label;
-            }
-            Line("CREATE YOUR PILOT", 30);
-            Line(identityController ? "Choose your race, then a portrait belonging to that race. Both choices are permanent on this server and affect station and jumpgate policies." :
-                "This profile is being set up on another device. Wait for its identity to be confirmed, link an existing profile, or disconnect.", 18);
+            scroll.Add(IdentityLabel("CREATE YOUR PILOT", 32));
+            scroll.Add(IdentityLabel(identityController
+                ? "Choose your race, then a portrait. Both choices are permanent on this server and affect station and jumpgate policies."
+                : "This profile is being set up on another device. Wait for confirmation, link an existing profile, or disconnect.", 18));
+
             identityRaces = ModRefs.RaceWords.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
                 .Concat(ModRaces.All.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: race.key, Name: ModRaces.Name(race.race))))
                 .GroupBy(race => race.Key).Select(group => group.First()).ToList();
-            var raceLabels = new List<string> { "Choose your race…" };
-            raceLabels.AddRange(identityRaces.Select(race => race.Name + " [" + race.Key + "]"));
-            DropdownField IdentityPicker(string label, List<string> choices, int selected)
+            var split = new VisualElement();
+            split.style.flexDirection = FlexDirection.Row;
+            split.style.flexShrink = 0;
+            scroll.Add(split);
+            var races = new VisualElement();
+            races.style.width = 270;
+            races.style.flexShrink = 0;
+            races.style.marginRight = 20;
+            races.Add(IdentityLabel("1. CHOOSE RACE", 21));
+            identityRacePicker = new VisualElement { name = "identityRaceChoices" };
+            identityRacePicker.style.flexDirection = FlexDirection.Column;
+            races.Add(identityRacePicker);
+            split.Add(races);
+
+            var portraits = new VisualElement();
+            portraits.style.flexGrow = 1;
+            portraits.style.flexBasis = 0;
+            portraits.style.minWidth = 0;
+            portraits.Add(IdentityLabel("2. CHOOSE PORTRAIT", 21));
+            identityPortraitSearch = new TextField { name = "identityPortraitSearch", label = "Filter portraits" };
+            identityPortraitSearch.style.minHeight = 38;
+            identityPortraitSearch.style.marginBottom = 8;
+            portraits.Add(identityPortraitSearch);
+            identityPortraitPicker = new VisualElement { name = "identityPortraitChoices" };
+            identityPortraitPicker.style.flexDirection = FlexDirection.Row;
+            identityPortraitPicker.style.flexWrap = Wrap.Wrap;
+            portraits.Add(identityPortraitPicker);
+            split.Add(portraits);
+
+            // On narrow windows, keep the portrait cards usable by stacking the two panels.
+            split.RegisterCallback<GeometryChangedEvent>(evt =>
             {
-                var picker = new DropdownField(label, choices, selected);
-                picker.style.marginTop = 8;
-                picker.style.marginBottom = 12;
-                picker.style.flexShrink = 0;
-                picker.labelElement.style.fontSize = 17;
-                picker.labelElement.style.marginBottom = 6;
-                picker.labelElement.style.color = Color.white;
-                var input = picker.Q<VisualElement>(className: BaseField<string>.inputUssClassName);
-                if (input != null)
-                {
-                    input.style.minHeight = 56;
-                    input.style.paddingLeft = input.style.paddingRight = 14;
-                    input.style.fontSize = 20;
-                    input.style.backgroundColor = new Color(0.055f, 0.12f, 0.18f);
-                    if (input.Q<TextElement>() is TextElement text)
-                    {
-                        text.style.fontSize = 20;
-                        text.style.unityTextAlign = TextAnchor.MiddleLeft;
-                    }
-                }
-                scroll.Add(picker);
-                return picker;
-            }
-            identityRacePicker = IdentityPicker("1. Race", raceLabels, identityRaces.FindIndex(race => race.Key == identityRace) + 1);
-            identityPortraitPicker = IdentityPicker("2. Portrait", new List<string> { "Choose a race first" }, 0);
-            identityPreview = new VisualElement();
-            identityPreview.style.width = 220;
-            identityPreview.style.height = 220;
-            identityPreview.style.alignSelf = Align.Center;
-            scroll.Add(identityPreview);
+                bool narrow = evt.newRect.width < 720;
+                split.style.flexDirection = narrow ? FlexDirection.Column : FlexDirection.Row;
+                races.style.width = narrow ? new StyleLength(Length.Percent(100)) : new StyleLength(270f);
+                races.style.marginRight = narrow ? 0 : 20;
+                races.style.marginBottom = narrow ? 12 : 0;
+                identityRacePicker.style.flexDirection = narrow ? FlexDirection.Row : FlexDirection.Column;
+                identityRacePicker.style.flexWrap = narrow ? Wrap.Wrap : Wrap.NoWrap;
+                portraits.style.flexBasis = narrow ? new StyleLength(StyleKeyword.Auto) : new StyleLength(0f);
+            });
+
+            identitySelection = IdentityLabel("", 19);
+            identitySelection.style.marginTop = 14;
+            scroll.Add(identitySelection);
             identityConsent = new Toggle("I understand that neither choice can be changed later.");
+            identityConsent.style.minHeight = 42;
             scroll.Add(identityConsent);
-            identityConfirm = new Button(() => NetProfileClient.ChooseIdentity(identityRace, identityPortrait)) { text = "CONFIRM PERMANENT IDENTITY & JOIN" };
+            identityConfirm = new Button(() =>
+            {
+                if (identityController && !NetProfileClient.IdentitySubmitting && identityConsent.value &&
+                    !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait))
+                    NetProfileClient.ChooseIdentity(identityRace, identityPortrait);
+            }) { text = "CONFIRM PERMANENT IDENTITY & JOIN" };
             scroll.Add(identityConfirm);
-            identityFeedback = Line("", 16);
-            Line("Already have a profile on this server? Link it instead.", 16);
+            identityFeedback = IdentityLabel("", 16);
+            scroll.Add(identityFeedback);
+            scroll.Add(IdentityLabel("Already have a profile on this server? Link it instead.", 16));
             identityCode = new TextField("Link code") { maxLength = 16 };
+            identityCode.style.minHeight = 40;
             scroll.Add(identityCode);
             identityLink = new Button(() => NetProfileClient.LinkIdentity(identityCode.value.Trim())) { text = "LINK EXISTING PROFILE" };
             scroll.Add(identityLink);
@@ -144,48 +185,113 @@ namespace GoF2Remake.UI
             scroll.Add(cancel);
             foreach (var button in new[] { identityConfirm, identityLink, cancel })
             {
-                button.style.minHeight = 44;
+                button.style.minHeight = 46;
                 button.style.marginTop = 8;
                 button.style.whiteSpace = WhiteSpace.Normal;
+                button.style.flexShrink = 0;
             }
+
+            void UpdateSelection()
+            {
+                var race = identityRaces.Find(entry => entry.Key == identityRace).Name;
+                var portrait = identityPortraits.Find(entry => entry.Key == identityPortrait).Name;
+                identitySelection.text = "Selected: " + (race ?? "No race") + " / " + (portrait ?? "No portrait");
+                foreach (var button in identityRacePicker.Query<Button>().ToList())
+                    HighlightIdentityChoice(button, (string)button.userData == identityRace);
+                foreach (var button in identityPortraitPicker.Query<Button>().ToList())
+                    HighlightIdentityChoice(button, (string)button.userData == identityPortrait);
+            }
+
+            void ShowPortraits(string filter)
+            {
+                identityPortraitPicker.Clear();
+                if (!PlayerIdentity.TryResolveRace(identityRace, out int race))
+                {
+                    identityPortraitPicker.Add(IdentityLabel("Select a race to display its available portraits.", 18));
+                    return;
+                }
+                foreach (var entry in identityPortraits)
+                {
+                    if (!string.IsNullOrWhiteSpace(filter) &&
+                        entry.Name.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) < 0 &&
+                        entry.Key.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (!PlayerIdentity.TryResolvePortrait(race, entry.Key, out var parts, out var character)) continue;
+                    string key = entry.Key;
+                    var card = new Button(() =>
+                    {
+                        identityPortrait = key;
+                        identityConsent.SetValueWithoutNotify(false);
+                        UpdateSelection();
+                    }) { userData = key };
+                    card.style.width = 150;
+                    card.style.minHeight = 172;
+                    card.style.marginRight = card.style.marginBottom = 8;
+                    card.style.paddingTop = card.style.paddingBottom = 6;
+                    card.style.flexShrink = 0;
+                    card.style.alignItems = Align.Center;
+                    card.style.justifyContent = Justify.Center;
+                    var preview = new VisualElement { pickingMode = PickingMode.Ignore };
+                    preview.style.width = preview.style.height = 118;
+                    preview.style.flexShrink = 0;
+                    card.Add(preview);
+                    if (character == null) Portrait.Show(preview, parts, false);
+                    else Portrait.ShowCharacter(preview, character, false);
+                    preview.Query<VisualElement>().ForEach(element => element.pickingMode = PickingMode.Ignore);
+                    var name = IdentityLabel(entry.Name, 16);
+                    name.pickingMode = PickingMode.Ignore;
+                    name.style.unityTextAlign = TextAnchor.MiddleCenter;
+                    name.style.alignSelf = Align.Stretch;
+                    card.Add(name);
+                    HighlightIdentityChoice(card, key == identityPortrait);
+                    identityPortraitPicker.Add(card);
+                }
+                if (identityPortraitPicker.childCount == 0)
+                    identityPortraitPicker.Add(IdentityLabel("No matching portraits.", 18));
+            }
+
             void UpdatePortraits()
             {
                 identityPortrait = null;
                 identityConsent.SetValueWithoutNotify(false);
-                identityPreview.Clear();
-                identityPortraits = PlayerIdentity.TryResolveRace(identityRace, out int race) ? PlayerIdentity.Portraits(race).ToList() : new List<(string, string)>();
-                var labels = new List<string> { identityPortraits.Count == 0 ? "Choose a race first" : "Choose your portrait…" };
-                labels.AddRange(identityPortraits.Select(entry => entry.Name + " [" + entry.Key + "]"));
-                identityPortraitPicker.choices = labels;
-                identityPortraitPicker.index = 0;
+                identityPortraits = PlayerIdentity.TryResolveRace(identityRace, out int race)
+                    ? PlayerIdentity.Portraits(race).ToList() : new List<(string, string)>();
+                identityPortraitSearch.SetValueWithoutNotify("");
+                ShowPortraits("");
+                UpdateSelection();
             }
-            identityRacePicker.RegisterValueChangedCallback(_ =>
+
+            foreach (var entry in identityRaces)
             {
-                identityRace = identityRacePicker.index > 0 ? identityRaces[identityRacePicker.index - 1].Key : null;
-                UpdatePortraits();
-            });
-            identityPortraitPicker.RegisterValueChangedCallback(_ =>
-            {
-                identityPortrait = identityPortraitPicker.index > 0 && identityPortraitPicker.index <= identityPortraits.Count ? identityPortraits[identityPortraitPicker.index - 1].Key : null;
-                identityConsent.SetValueWithoutNotify(false);
-                identityPreview.Clear();
-                if (PlayerIdentity.TryResolveRace(identityRace, out int race) && PlayerIdentity.TryResolvePortrait(race, identityPortrait, out var parts, out var character))
+                string key = entry.Key;
+                var button = new Button(() =>
                 {
-                    if (character == null) Portrait.Show(identityPreview, parts, false);
-                    else Portrait.ShowCharacter(identityPreview, character, false);
-                }
-            });
+                    if (identityRace == key) return;
+                    identityRace = key;
+                    UpdatePortraits();
+                }) { text = entry.Name, userData = key };
+                button.style.minHeight = 46;
+                button.style.minWidth = 130;
+                button.style.marginBottom = 6;
+                button.style.marginRight = 6;
+                button.style.fontSize = 18;
+                button.style.whiteSpace = WhiteSpace.Normal;
+                HighlightIdentityChoice(button, key == identityRace);
+                identityRacePicker.Add(button);
+            }
+            identityPortraitSearch.RegisterValueChangedCallback(evt => ShowPortraits(evt.newValue));
             UpdatePortraits();
+            identityRacePicker.SetEnabled(identityController && string.IsNullOrEmpty(identityPreset));
+            identityPortraitPicker.SetEnabled(identityController && !string.IsNullOrEmpty(identityRace));
+            identityPortraitSearch.SetEnabled(identityController && !string.IsNullOrEmpty(identityRace));
             scroll.RegisterCallback<FocusInEvent>(evt =>
             {
-                // The scrollbar and other ScrollView controls can also receive focus.
                 var content = scroll.contentContainer;
                 if (evt.target is VisualElement element && element != content && content.Contains(element))
                     scroll.ScrollTo(element);
             });
-            identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => { evt.StopPropagation(); });
+            identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => evt.StopPropagation());
             identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
-            identityRacePicker.Focus();
+            if (InputMode.Current == InputKind.Gamepad) FocusIdentityChoice();
         }
 
         /// <summary>The name a public game is listed under: the Game name field, else "<pilot>'s universe".</summary>
