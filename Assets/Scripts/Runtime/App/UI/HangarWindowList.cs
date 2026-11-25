@@ -341,7 +341,8 @@ namespace GoF2Remake.UI
                     AddNote(storage?.error ?? "Loading station storage…");
                     return;
                 }
-                var stacks = storage.items.ToDictionary(stack => stack.item, stack => stack.amount);
+                AddNote($"PERSONAL STORAGE · {storage.used:N0} / {storage.capacity:N0} t used at this station");
+                var stacks = storage.items?.Where(stack => stack != null).GroupBy(stack => stack.item).ToDictionary(group => group.Key, group => group.Sum(stack => stack.amount)) ?? new Dictionary<int, int>();
                 var items = new HashSet<int>(stacks.Keys);
                 if (storage.canDeposit)
                     foreach (var stack in Session.Cargo)
@@ -479,7 +480,8 @@ namespace GoF2Remake.UI
                     if (PlayerMarketplace)
                     {
                         if (row.ownListing) subText.text += " · Your listing";
-                        if (!PlayerStorageTab && row.listingPrice > 0) price.text = ItemInfo.Credits(row.listingPrice);
+                        if (PlayerStorageTab) price.text = $"{hangar.CargoOf(row.item):N0} C / {row.stationUnits:N0} S";
+                        else if (row.listingPrice > 0) price.text = ItemInfo.Credits(row.listingPrice);
                         break;
                     }
                     if (hangar.Storage) break;   // the storage draws no prices
