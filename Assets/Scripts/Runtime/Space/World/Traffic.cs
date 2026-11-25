@@ -543,6 +543,7 @@ namespace GoF2Remake.World
             {
                 NpcFactionWar.SaveLocal();
                 BeginFactionBattle(battle);
+                Modding.ModScripts.Raise("npcFactionBattleStarted", battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide);
             }
         }
 

@@ -158,7 +158,7 @@ namespace GoF2Remake.Data
                 battle = default;
                 if (!ModNpcFactionWar.Enabled || db?.Systems == null || !ModNpcFactionWar.IsWarOrbit(orbit) ||
                     now < nextBattle || nextBattleId == LastBattleId) return false;
-                var system = db.Systems.Find(s => s.stations != null && s.stations.Contains(orbit));
+                var system = db.Systems.Find(s => s != null && s.stations != null && s.stations.Contains(orbit));
                 if (!ModNpcFactionWar.CanContest(system)) return false;
                 if (battles.TryGetValue(system.index, out var existing) && existing.battle.expires >= now) return false;
                 int defender = OrbitOwner(system, orbit);
@@ -190,21 +190,18 @@ namespace GoF2Remake.Data
             {
                 if (system.stations.Exists(station => ModNpcFactionWar.IsWarOrbit(station) && OrbitOwner(system, station) == attacker))
                     return true;
+                int nearest = system.jumpRoutesTo == null || system.jumpRoutesTo.Count == 0 ? Nearest(db, system) : -1;
                 foreach (var other in db.Systems)
                 {
                     if (other == null || other.index == system.index || !Major(other.raceId)) continue;
                     bool adjacent = system.jumpRoutesTo?.Contains(other.index) == true || other.jumpRoutesTo?.Contains(system.index) == true;
-                    if (!adjacent && !UngatedNeighbors(db, system, other)) continue;
-                    if (SystemOwner(other) == attacker) return true;
-                    if (other.stations?.Exists(station => ModNpcFactionWar.IsWarOrbit(station) && OrbitOwner(other, station) == attacker) == true)
-                        return true;
+                    if (!adjacent && other.index != nearest && other.jumpRoutesTo?.Count > 0) continue;
+                    bool foothold = other.stations?.Exists(station => ModNpcFactionWar.IsWarOrbit(station) && OrbitOwner(other, station) == attacker) == true;
+                    if (!foothold && SystemOwner(other) != attacker) continue;
+                    if (adjacent || other.index == nearest || Nearest(db, other) == system.index) return true;
                 }
                 return false;
             }
-
-            static bool UngatedNeighbors(Database db, SystemData a, SystemData b) =>
-                ((a.jumpRoutesTo == null || a.jumpRoutesTo.Count == 0) && Nearest(db, a) == b.index) ||
-                ((b.jumpRoutesTo == null || b.jumpRoutesTo.Count == 0) && Nearest(db, b) == a.index);
 
             static int Nearest(Database db, SystemData from)
             {
@@ -230,6 +227,7 @@ namespace GoF2Remake.Data
                 winner = -1;
                 if (!battles.TryGetValue(battle.system, out var active) || active.battle.id != battle.id ||
                     active.battle.expires < now) return false;
+                battle = active.battle;
                 int slot = battle.Slot(tag);
                 if (slot < 0 || slot >= 2 * battle.shipsPerSide) return false;
                 bool defending = slot < battle.shipsPerSide;

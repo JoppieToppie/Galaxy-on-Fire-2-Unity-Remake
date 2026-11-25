@@ -828,7 +828,10 @@ namespace GoF2Remake.Multiplayer
 
         void RecordNpcBountyKill(int race, ulong killer)
         {
-            if (bountyKillRecorded || IsJunk || IsWingman || NpcFactionWar.IsWarTag(EventTag) || EventTag == NetOrbit.GarrisonTag || EventTag == NetOrbit.SiegeDefenderTag) return;
+            if (bountyKillRecorded || IsJunk || IsWingman) return;
+            int tag = EventTag;
+            if (tag == NetOrbit.GarrisonTag || tag == NetOrbit.SiegeDefenderTag ||
+                (NpcFactionWar.IsWarTag(tag) && NetState.Instance?.IsFactionWarShip(this, race) == true)) return;
             bountyKillRecorded = true;
             NetFactions.RecordBountyNpcKill(race, killer);
         }

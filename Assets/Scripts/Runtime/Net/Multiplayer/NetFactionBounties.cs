@@ -13,8 +13,6 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetFactions
     {
-        const int PvpKillsForBounty = 5, PveKillsForBounty = 100;
-        const int PveKillsPerPvpKill = PveKillsForBounty / PvpKillsForBounty;
         const long BountyWindowSeconds = 7 * 86400, BountyDurationSeconds = 7 * 86400;
 
         [Serializable]
@@ -140,7 +138,9 @@ namespace GoF2Remake.Multiplayer
             record.pveKills.RemoveAll(k => k <= now - BountyWindowSeconds);
             var history = pvp ? record.pvpKills : record.pveKills;
             for (int i = 0; i < weight; i++) history.Add(now);
-            bool issued = (long)record.pvpKills.Count * PveKillsPerPvpKill + record.pveKills.Count >= PveKillsForBounty;
+            int players = Modding.ModPvpPiracy.PlayerKillsForBounty;
+            int npcs = Modding.ModPvpPiracy.NpcKillsForBounty;
+            bool issued = (long)record.pvpKills.Count * npcs + (long)record.pveKills.Count * players >= (long)players * npcs;
             if (issued)
             {
                 record.pvpKills.Clear();

@@ -40,9 +40,17 @@ namespace GoF2Remake.Modding
                     int ships = Mathf.Clamp(ModJson.Int(options, "shipsPerSide", ShipsPerSide, File), 4, 24);
                     int interval = Mathf.Clamp(ModJson.Int(options, "intervalSeconds", IntervalSeconds, File), 60, 86400);
                     int duration = Mathf.Clamp(ModJson.Int(options, "battleSeconds", BattleSeconds, File), 60, 3600);
-                    if (ModJson.Get(options, "coreSystems") is JArray cores)
+                    var coreList = ModJson.Get(options, "coreSystems");
+                    if (coreList != null && !(coreList is JArray))
+                        throw new ModJsonException($"{File}: coreSystems must be an array of system IDs or keys.");
+                    if (coreList is JArray cores)
                         foreach (var core in cores)
                         {
+                            if (core.Type != JTokenType.Integer && core.Type != JTokenType.String)
+                            {
+                                Debug.LogWarning($"[{mod.Id}] {File}: skipping invalid core system {core}.");
+                                continue;
+                            }
                             string key = core.Type == JTokenType.Integer ? core.ToString() : (string)core;
                             if (ModWorld.TryResolveSystem(key, out int id)) ExtraCores.Add(id);
                             else if (!string.IsNullOrEmpty(key) && !key.Contains(":") &&

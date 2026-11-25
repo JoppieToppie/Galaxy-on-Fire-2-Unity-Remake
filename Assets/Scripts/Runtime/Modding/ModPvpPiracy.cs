@@ -10,19 +10,29 @@ namespace GoF2Remake.Modding
         public const string File = "piracy.json";
         public static bool Enabled { get; private set; }
 
+        public static int PlayerKillsForBounty { get; private set; }
+        public static int NpcKillsForBounty { get; private set; }
+
         internal static void Apply()
         {
             Enabled = false;
+            PlayerKillsForBounty = 5;
+            NpcKillsForBounty = 100;
             foreach (var mod in ModManager.Active)
             {
                 try
                 {
                     var config = ModJson.Read(mod.Source, File);
                     if (config == null) continue;
-                    if (config is JObject options && ModJson.Get(options, "enabled") is JValue value &&
-                        value.Type == JTokenType.Boolean)
-                        Enabled |= (bool)value;
-                    else Debug.LogWarning($"[{mod.Id}] {File} needs an explicit boolean enabled field.");
+                    if (!(config is JObject options)) throw new ModJsonException($"{File} must contain an object.");
+                    var flag = ModJson.Get(options, "enabled");
+                    if (flag != null && flag.Type != JTokenType.Boolean)
+                        throw new ModJsonException($"{File}: enabled must be true or false.");
+                    int players = Mathf.Clamp(ModJson.Int(options, "playerKillsForBounty", PlayerKillsForBounty, File), 1, 1000);
+                    int npcs = Mathf.Clamp(ModJson.Int(options, "npcKillsForBounty", NpcKillsForBounty, File), 1, 10000);
+                    Enabled |= flag != null && (bool)flag;
+                    PlayerKillsForBounty = players;
+                    NpcKillsForBounty = npcs;
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
             }

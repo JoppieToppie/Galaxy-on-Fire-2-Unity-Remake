@@ -19,3 +19,5 @@ Secure systems and the protected hubs V'ikka, Wolf-Reiser, Weymire, Mido, Loma, 
 Players can join a battle by fighting either fleet. Kills affect ordinary reputation and are exempt from the separate PvE bounty count. Timed-out battles leave ownership intact. Single-player saves and profile-enabled multiplayer servers retain territorial control, while servers without profiles retain it for the session.
 
 Host or single-player Lua scripts can listen for `npcFactionBattleResolved(orbit, system, winnerRace, captured)`.
+
+Use `game.on("npcFactionBattleStarted", function(orbit, system, defenderRace, attackerRace, shipsPerSide) ... end)` for a campaign announcement or participation objective. The host or single-player game emits it once when it starts the encounter. Fleet sizes range from 4 to 24 ships per side. The minimum interval ranges from 60 to 86,400 seconds and the battle time limit ranges from 60 to 3,600 seconds.

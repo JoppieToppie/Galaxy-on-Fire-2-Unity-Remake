@@ -12,8 +12,15 @@ namespace GoF2Remake.Multiplayer
     public partial class NetState
     {
         NpcFactionWar.Campaign factionWar;
-        readonly Dictionary<int, (int id, ulong creator)> factionBattleCreators =
-            new Dictionary<int, (int, ulong)>();
+        sealed class FleetRoster
+        {
+            public NpcFactionWar.Battle battle;
+            public ulong creator;
+            public float startedAt, endsAt;
+            public readonly Dictionary<int, ulong> ships = new Dictionary<int, ulong>();
+        }
+
+        readonly Dictionary<int, FleetRoster> fleetByOrbit = new Dictionary<int, FleetRoster>();
         bool factionWarDirty;
         float retryWarSaveAt;
 
@@ -27,7 +34,11 @@ namespace GoF2Remake.Multiplayer
             {
                 if (WarPath != null && File.Exists(WarPath)) snapshot = File.ReadAllText(WarPath);
             }
-            catch (IOException e) { Debug.LogError($"NPC faction war could not be loaded: {e.Message}"); }
+            catch (System.Exception e) when (e is IOException || e is System.UnauthorizedAccessException)
+            {
+                Debug.LogError($"NPC faction war could not be loaded: {e.Message}");
+                return;
+            }
             factionWar = NpcFactionWar.Campaign.Read(snapshot);
             NpcFactionWar.SetNetworkCampaign(factionWar);
         }
@@ -35,8 +46,8 @@ namespace GoF2Remake.Multiplayer
         void FlushFactionWar()
         {
             if (!factionWarDirty || Time.unscaledTime < retryWarSaveAt) return;
-            retryWarSaveAt = Time.unscaledTime + 10f;
             if (WarPath == null || NetProfiles.Write(WarPath, factionWar.Snapshot())) factionWarDirty = false;
+            else retryWarSaveAt = Time.unscaledTime + 10f;
         }
 
         [Rpc(SendTo.Server)]
@@ -70,11 +81,14 @@ namespace GoF2Remake.Multiplayer
                 NetArena.IsArenaOrbit(orbit) || NetPlayerStations.StationClosedByCombat(orbit)) return;
             EnsureFactionWar();
             if (factionWar == null || !factionWar.TryStart(NetGame.Db, orbit, NpcFactionWar.Now, out var battle)) return;
-            factionBattleCreators[orbit] = (battle.id, client);
+            float started = Time.unscaledTime;
+            fleetByOrbit[orbit] = new FleetRoster { battle = battle, creator = client, startedAt = started,
+                endsAt = started + ModNpcFactionWar.BattleSeconds };
             factionWarDirty = true;
             FlushFactionWar();
             StartFactionBattleRpc(battle.id, battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide,
                 battle.expires, RpcTarget.Single(client, RpcTargetUse.Temp));
+            ModScripts.Raise("npcFactionBattleStarted", battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide);
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
@@ -82,15 +96,25 @@ namespace GoF2Remake.Multiplayer
             RpcParams rpc = default) =>
             NetOrbit.Current?.BeginFactionBattle(new NpcFactionWar.Battle(id, orbit, system, defender, attacker, ships, expires));
 
+        internal bool IsFactionWarShip(NetProxy ship, int race)
+        {
+            if (!IsServer || !ModNpcFactionWar.Enabled || !fleetByOrbit.TryGetValue(ship.Station, out var roster) ||
+                roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt || ship.SpawnedAt > roster.endsAt) return false;
+            var battle = roster.battle;
+            int slot = battle.Slot(ship.EventTag);
+            if (slot < 0 || slot >= 2 * battle.shipsPerSide || race != (slot < battle.shipsPerSide ? battle.defender : battle.attacker))
+                return false;
+            if (roster.ships.TryGetValue(slot, out ulong id)) return id == ship.NetworkObjectId;
+            roster.ships.Add(slot, ship.NetworkObjectId);
+            return true;
+        }
+
         internal void RecordFactionWarCasualty(NetProxy ship)
         {
-            if (!IsServer || !ModNpcFactionWar.Enabled || factionWar == null || ship == null ||
-                !factionBattleCreators.TryGetValue(ship.Station, out var creator) || creator.creator != ship.Creator) return;
-            long now = NpcFactionWar.Now;
-            if (!factionWar.TryGetBattle(ship.Station, now, out var battle) || battle.id != creator.id ||
-                !factionWar.RecordCasualty(battle, ship.EventTag, ship.Race, now, out int winner)) return;
+            if (factionWar == null || !IsFactionWarShip(ship, ship.Race)) return;
+            var battle = fleetByOrbit[ship.Station].battle;
+            if (!factionWar.RecordCasualty(battle, ship.EventTag, ship.Race, NpcFactionWar.Now, out int winner)) return;
 
-            factionBattleCreators.Remove(battle.orbit);
             bool captured = winner == battle.attacker;
             factionWarDirty = true;
             FlushFactionWar();

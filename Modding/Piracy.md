@@ -3,10 +3,10 @@
 Add `piracy.json` to the root of an active mod to opt in on a multiplayer server with profiles.
 
 ```json
-{ "enabled": true }
+{ "enabled": true, "playerKillsForBounty": 5, "npcKillsForBounty": 100 }
 ```
 
-Piracy and faction bounties are disabled by default.
+Piracy and faction bounties are disabled by default. A mod can set `playerKillsForBounty` (1–1,000) and `npcKillsForBounty` (1–10,000) independently. Each qualifying kill contributes one fraction of its category's threshold. Later active mods override individual thresholds. The rules below use the defaults.
 
 - A pilot becomes a pirate after 30 registered PvP kills in a rolling four-day window. Outside secure systems, retaliation, active siege opponents, pirates, and the faction diplomacy exemptions below are excluded. Arena matches are excluded everywhere.
 - Faction bounties last seven days and require five qualifying player kills or 100 qualifying NPC kills within seven days. Mixed kills combine at 20 NPC kills per player kill. Secure systems register hostile and retaliatory PvP alike and count each PvP kill twice toward a faction bounty.

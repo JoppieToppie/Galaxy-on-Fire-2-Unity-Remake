@@ -352,6 +352,8 @@ namespace GoF2Remake.Multiplayer
         public override void OnNetworkDespawn()
         {
             if (Instance == this) { Instance = null; NetProfileClient.ClearIdentitySetup(); }
+            retryWarSaveAt = 0f;
+            FlushFactionWar();
             NpcFactionWar.SetNetworkCampaign(null);
             playerStationJson = "";
             appliedPlayerStationRevision = 0;
