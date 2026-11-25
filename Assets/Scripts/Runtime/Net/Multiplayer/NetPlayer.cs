@@ -481,6 +481,8 @@ namespace GoF2Remake.Multiplayer
                 result = "Invalid station command.";
             else if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Command))
                 result = "Too many station requests. Try again shortly.";
+            else if (!ResolveManagementCommand(ref args))
+                result = "This selection is no longer available. Refresh the page and select again.";
             else
                 result = NetCommands.RunOnServer("station", args, this) ?? "Station command unavailable.";
             StationUiResultRpc(sequence, result ?? "");
@@ -494,6 +496,65 @@ namespace GoF2Remake.Multiplayer
             stationUiReply = null;
             if (!string.IsNullOrEmpty(result)) NetChat.Notice(result);
             reply?.Invoke(result);
+        }
+
+        readonly System.Collections.Generic.Dictionary<string, string> managementTargets = new System.Collections.Generic.Dictionary<string, string>();
+        readonly System.Collections.Generic.Dictionary<string, string> managementTokens = new System.Collections.Generic.Dictionary<string, string>();
+        string ManagementToken(string id)
+        {
+            if (managementTokens.TryGetValue(id, out string value)) return value;
+            value = "target:" + System.Guid.NewGuid().ToString("N");
+            managementTokens[id] = value; managementTargets[value] = id; return value;
+        }
+        int managementCatalogueSequence;
+        System.Action<NetPlayerStations.ManagementCatalogue> managementCatalogueReply;
+        internal bool RequestManagementCatalogue(int station, int page, System.Action<NetPlayerStations.ManagementCatalogue> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null) return false;
+            managementCatalogueReply = reply;
+            managementCatalogueSequence = managementCatalogueSequence == int.MaxValue ? 1 : managementCatalogueSequence + 1;
+            ManagementCatalogueRequestRpc(managementCatalogueSequence, station, page); return true;
+        }
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void ManagementCatalogueRequestRpc(int sequence, int station, int page, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            ManagementCatalogueReplyRpc(sequence, JsonUtility.ToJson(NetPlayerStations.ManagementCatalogueFor(this, station, page, ManagementToken)));
+        }
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void ManagementCatalogueReplyRpc(int sequence, string json)
+        {
+            if (!IsOwner || sequence != managementCatalogueSequence) return;
+            var reply = managementCatalogueReply; managementCatalogueReply = null;
+            try { reply?.Invoke(JsonUtility.FromJson<NetPlayerStations.ManagementCatalogue>(json)); }
+            catch (System.Exception e) { Debug.LogWarning("Station management catalogue: " + e.Message); }
+        }
+        bool ResolveManagementCommand(ref string args)
+        {
+            // Never interpret words in announcement or denial text as selector tokens.
+            var words = args.Split(' ');
+            if (words.Length < 3) return true;
+            int last = words[0] switch {
+                "transfer" or "successor" => 3, "jumpgate-blacklist" => 4,
+                "jumpgate-race" or "race-policy" => words.Length > 2 && words[2] == "exempt" ? 4 : -1,
+                "role" or "permission" or "ban" or "unban" or "successor-delegate" or "individual-successor" => 2,
+                "store-ship" or "retrieve-ship" or "drydock-store" or "drydock-retrieve" or "list-ship" => 2,
+                _ => -1 };
+            if (last < 0 || last >= words.Length) return true;
+            string selected = words[last];
+            if (selected.StartsWith("target:", System.StringComparison.Ordinal))
+            {
+                if (!managementTargets.TryGetValue(selected, out string resolved)) return false;
+                words[last] = resolved;
+            }
+            else if (selected.StartsWith("fleet-hull:") || selected.StartsWith("hangar-hull:") || selected.StartsWith("drydock-hull:"))
+            {
+                string expected = words[0] == "retrieve-ship" ? "hangar-hull:" : words[0] == "drydock-retrieve" ? "drydock-hull:" : "fleet-hull:";
+                if (!selected.StartsWith(expected) || !int.TryParse(words[1], out int station) ||
+                    !NetPlayerStations.ResolveManagementHull(this, station, selected, out string index)) return false;
+                words[last] = index;
+            }
+            args = string.Join(" ", words); return true;
         }
 
         int stationMarketSequence;
