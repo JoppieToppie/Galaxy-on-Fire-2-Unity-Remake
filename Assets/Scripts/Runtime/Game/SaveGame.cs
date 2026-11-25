@@ -212,7 +212,12 @@ namespace GoF2Remake.Data
             return best;
         }
 
-        public static bool Save(int slot)
+        public static bool Save(int slot) => Save(slot, null);
+
+        /// <summary>Save the current live progress at a valid respawn station without changing the dying orbit or its scene.</summary>
+        public static bool SaveProtectedDeath(int station) => Save(AutoSaveSlot, station);
+
+        static bool Save(int slot, int? protectedRespawn)
         {
             // Multiplayer: a session is a separate free-play game; it never overwrites the single-player saves (also not
             // after its connection went, while its game is still loaded); the co-op campaign's host saves its own (HostSaves).
@@ -224,6 +229,12 @@ namespace GoF2Remake.Data
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
             var s = Capture();
+            if (protectedRespawn.HasValue)
+            {
+                s.previousStation = s.station;
+                s.station = s.lastDockedStation = protectedRespawn.Value;
+                s.lastArrivalHullPercent = 100;
+            }
             if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; }   // the game's own, not the session's
             Modding.ModSaves.Record(s, Database.Load());
             try
@@ -628,6 +639,7 @@ namespace GoF2Remake.Data
             Session.Difficulty = s.difficulty;
             Session.Economy = SaveEconomy(s);
             Session.CampaignMission = s.campaignMission;
+            Session.SkipRespawnDockingFine = false;
             Session.StationIndex = s.station;
             Session.PreviousStationIndex = s.previousStation;
             Session.LastDockedStation = s.lastDockedStation;

@@ -15,24 +15,34 @@ namespace GoF2Remake.UI
     public partial class FlightHud
     {
         int secureRespawnStation = -1;
+        bool protectedDeath;
+
+        bool IsProtectedDeath()
+        {
+            if (!Modding.ModPvpPiracy.Enabled || GoF2Remake.Events.EventRespawn.Active ||
+                level == null || level.Challenge != null || Modding.ModBuilder.TestFlying || Modding.ModBuilder.PlayTesting) return false;
+            var system = level.Database?.Systems?.Find(s => s != null && s.index == level.Layout.systemIndex);
+            bool pirate = GoF2Remake.Multiplayer.NetGame.Active && GoF2Remake.Multiplayer.NetPlayer.Local?.IsPirate == true;
+            return !pirate && GalaxyMap.SecurityOf(system) >= 3;
+        }
 
         int SecureRespawnStation()
         {
-            if (!Modding.ModPvpPiracy.Enabled || GoF2Remake.Multiplayer.NetGame.Active ||
-                GoF2Remake.Events.EventRespawn.Active || level == null || level.Challenge != null ||
-                Modding.ModBuilder.TestFlying || Modding.ModBuilder.PlayTesting) return -1;
+            if (!protectedDeath || GoF2Remake.Multiplayer.NetGame.Active) return -1;
             var db = level.Database;
-            var system = db?.Systems?.Find(s => s != null && s.index == level.Layout.systemIndex);
-            if (GalaxyMap.SecurityOf(system) < 3) return -1;
             int last = Session.LastDockedStation;
             if (db.Stations.Exists(s => s != null && s.index == last)) return last;
-            return level.Layout.hasStation && level.StationInfo != null ? level.StationInfo.index : -1;
+            if (level.Layout.hasStation && level.StationInfo != null) return level.StationInfo.index;
+            return GalaxyMap.FallbackStation(db, level.Layout.systemIndex);
         }
 
         void OnGameOver()
         {
             if (GoF2Remake.Multiplayer.NetArenaClient.InMatch) return;   // an arena match respawns the ship instead
+            protectedDeath = IsProtectedDeath();
             secureRespawnStation = SecureRespawnStation();
+            // Keep the protected progress even if the player closes the game before tapping the respawn prompt.
+            if (secureRespawnStation >= 0) SaveGame.SaveProtectedDeath(secureRespawnStation);
             gameOverMs = 0f;
             gameOver.AddToClassList("game-over--shown");
             // Remake (hardcore): the run's saves go at once (closing the game now can't keep them), Tap leaves to the menu.
@@ -92,6 +102,7 @@ namespace GoF2Remake.UI
                 bool defending = GoF2Remake.Multiplayer.NetFactionsClient.DefendsSiegeHere(Session.StationIndex);
                 if (!defending && docked >= 0 && docked < GoF2Remake.Multiplayer.NetGame.Db.Stations.Count) Session.StationIndex = docked;
                 Session.DockedFromSpace = false;
+                Session.SkipRespawnDockingFine = protectedDeath;
                 SceneManager.LoadScene("Station");
                 return;
             }
@@ -99,7 +110,7 @@ namespace GoF2Remake.UI
             {
                 Session.StationIndex = secureRespawnStation;
                 Session.DockedFromSpace = false;
-                Session.ArrivedByLoad = true; // no docking fine for the protected death
+                Session.SkipRespawnDockingFine = true; // still autosave this respawn, unlike loading a save
                 SceneManager.LoadScene("Station");
                 return;
             }

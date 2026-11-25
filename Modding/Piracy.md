@@ -1,6 +1,6 @@
 # Multiplayer piracy and faction bounties
 
-Add `piracy.json` to the root of an active mod to opt in on a multiplayer server with profiles.
+Add `piracy.json` to the root of an active mod to opt in. Bounties and equipment drops require a multiplayer server with profiles; protected Secure-system respawns also apply to single-player.
 
 ```json
 { "enabled": true, "playerKillsForBounty": 5, "npcKillsForBounty": 100 }
@@ -12,7 +12,7 @@ Piracy and faction bounties are disabled by default. A mod can set `playerKillsF
 - Faction bounties last seven days and require five qualifying player kills or 100 qualifying NPC kills within seven days. Mixed kills combine at 20 NPC kills per player kill. Secure systems register hostile and retaliatory PvP alike and count each PvP kill twice toward a faction bounty.
 - Officers can use `/faction rival TAG` and `/faction unrival TAG`. Rivalry exempts fights outside secure systems once both factions declare it. `/faction hostile NAME` and `/faction unhostile NAME` mark a pilot as hostile to your faction. Your members and protected pilots can fight that pilot without registering a kill outside secure systems.
 - A lounge diplomat can clear your pending NPC kills with their faction and revoke pirate status. PvP kill history for faction bounties and existing bounties survive the deal.
-- `/faction bounties` lists active bounties. A verified player kill claims the target's active bounties and removes them from the board. Outside Secure systems, a pilot who dies with equipment fitted loses one equipped item. In Secure systems, only pilots with active pirate status lose equipment. The rule applies to PvP and other deaths regardless of bounty status. Organized arena matches are exempt. Other pilots can tractor the dropped item using the normal loot controls.
+- `/faction bounties` lists active bounties. A verified player kill claims the target's active bounties and removes them from the board. Outside Secure systems, a pilot who dies with removable, saleable equipment fitted loses one equipped item. In Secure systems, only pilots with active pirate status lose equipment. Security is effective security (including Shima after the pilot's Kaamo siege), not only the initial galaxy table. A protected death does not charge a respawn docking fine; in single-player it saves current progress at the respawn station rather than loading the old autosave or deleting the hardcore run. The rule applies to PvP and other deaths regardless of bounty status. Organized arena matches are exempt. Other pilots can tractor the dropped item using the normal loot controls.
 
 ## Lua hooks
 

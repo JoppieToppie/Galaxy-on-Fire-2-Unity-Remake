@@ -389,6 +389,8 @@ namespace GoF2Remake.Data
         /// <summary>The station was opened by loading a save (ModStation::setGameLoaded, +0xac): no docking fine then
         /// (StationMenu.CheckDockingFine takes and clears it; SpaceLevel clears it too).</summary>
         public static bool ArrivedByLoad;
+        /// <summary>A protected death is a respawn, not a fresh voluntary docking. Do autosave but do not charge a docking fine.</summary>
+        public static bool SkipRespawnDockingFine;
 
         /// <summary>Arrived through a jumpgate or the Khador Drive: the arrival camera shows the orbit information
         /// (Hud::drawOrbitInformation, not after a planet jump).</summary>
@@ -680,6 +682,7 @@ namespace GoF2Remake.Data
             Es2StartDocked = false;
             Es2NoRedirect = false;
             ArrivedByLoad = false;
+            SkipRespawnDockingFine = false;
             ArrivedBySystemJump = false;
             SystemVisible = null;
             SystemShown = new Dictionary<int, bool>();

@@ -277,7 +277,9 @@ namespace GoF2Remake.Multiplayer
             var save = host ? null : ReadSave(account);
             if (!host && (save == null || save.ship != pilot.ShipIndex)) return false;
             var equipment = host ? Session.Equipment : save.equipment;
-            var mount = equipment?.Find(s => s != null && s.amount > 0 && NetGuard.Item(s.item));
+            // Integrated equipment is part of the hull and regenerated when docking. Dropping it would mint loot.
+            var mount = equipment?.Find(s => s != null && !s.builtIn && s.amount > 0 && NetGuard.Item(s.item) &&
+                !(host ? Session.Unsaleable.Contains(s.item) : save.unsaleable?.Contains(s.item) == true));
             if (mount == null) return false;
             item = mount.item;
             if (!RemoveBountyEquipment(equipment, item)) return false;
@@ -289,7 +291,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool RemoveBountyEquipment(List<ItemStack> equipment, int item)
         {
-            var mount = equipment?.Find(s => s != null && s.item == item && s.amount > 0);
+            var mount = equipment?.Find(s => s != null && !s.builtIn && s.item == item && s.amount > 0);
             if (mount == null) return false;
             if (--mount.amount == 0) equipment.Remove(mount);
             return true;
