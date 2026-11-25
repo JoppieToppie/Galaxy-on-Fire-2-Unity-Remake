@@ -327,7 +327,6 @@ namespace GoF2Remake.Multiplayer
             int limit = PilotMarketLimit;
             if (!access && !inherit && (!int.TryParse(value, out percent) || percent < (operation == "purchase" ? -limit : 0) || percent > limit))
                 return "Choose a percentage within the supported limits.";
-            if (!access && percent > 0 && string.IsNullOrEmpty(reason)) return "Enter a reason for the surcharge or deduction.";
             var previous = station.marketplacePilotRules;
             var rules = previous == null ? new List<PlayerStationMarketRule>() : new List<PlayerStationMarketRule>(previous);
             rules.RemoveAll(rule => rule != null && rule.account == pilot && rule.operation == operation);
