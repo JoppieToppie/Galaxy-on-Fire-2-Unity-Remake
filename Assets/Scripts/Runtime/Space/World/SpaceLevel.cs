@@ -564,7 +564,7 @@ namespace GoF2Remake.World
             if (plainOrbit && !prologue && !interstellar && Station != null &&
                 (Layout.hasStation || GameHooks.IsPlayerStation?.Invoke(station) != true))
                 SpawnPlayerStationDockPoints(station);
-            Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active) ||
+            Docking.Refusal = t => (t.DockingType == ObjectDocking.StationPad || t.DockingType == ObjectDocking.ConstructionSite) && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active) ||
                     GameHooks.StationClosedByCombat?.Invoke(Layout.stationIndex) == true)
                 ? Localization.Get(525) : null;
             Docking.Docked += () =>
@@ -978,6 +978,7 @@ namespace GoF2Remake.World
 
         void OnDestroy()
         {
+            RemoveConstructionPort();
             if (DockedInOrbit) SpaceHooks.DockedInOrbit = false;   // (a scene loaded over both: a save, the menu)
         }
 
