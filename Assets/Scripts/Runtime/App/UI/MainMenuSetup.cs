@@ -181,9 +181,15 @@ namespace GoF2Remake.UI
             Bind("optionsApply", ApplyOptions);          // the Graphics tab's staged changes (Settings.ApplyStaged)
             SetupOptions();
 
-            root.RegisterCallback<NavigationCancelEvent>(_ =>
+            root.RegisterCallback<NavigationCancelEvent>(e =>
             {
                 cancelFrame = Time.frameCount;
+                if (identityOverlay != null && identityOverlay.parent == root)
+                {
+                    e.StopPropagation();
+                    root.focusController?.IgnoreEvent(e);
+                    return;
+                }
                 if (ChoicePopup.IsOpen) { ChoicePopup.Close(); return; }   // an option's open list closes first
                 Back();
             }, TrickleDown.TrickleDown);

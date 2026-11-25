@@ -63,12 +63,13 @@ namespace GoF2Remake.UI
             var first = identityRacePicker.enabledInHierarchy ? identityRacePicker.Q<Button>() : null;
             if (first == null && identityPortraitPicker.enabledInHierarchy) first = identityPortraitPicker.Q<Button>();
             if (first != null) first.Focus();
-            else identityCode.Focus();
+            else if (identityCode.enabledInHierarchy) identityCode.Focus();
+            else Focusables(identityOverlay).Find(element => element is Button)?.Focus();
         }
 
-        static void HighlightIdentityChoice(Button button, bool selected)
+        static void HighlightIdentityChoice(Button button, bool selected, bool focused = false)
         {
-            var border = selected ? new Color(0.52f, 0.87f, 1f) : new Color(0.20f, 0.34f, 0.44f);
+            var border = focused ? Color.white : selected ? new Color(0.52f, 0.87f, 1f) : new Color(0.20f, 0.34f, 0.44f);
             button.style.backgroundColor = selected ? new Color(0.12f, 0.29f, 0.39f) : new Color(0.045f, 0.10f, 0.15f);
             button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = border;
             button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = 2;
@@ -107,6 +108,7 @@ namespace GoF2Remake.UI
             scroll.style.height = Length.Percent(94);
             scroll.style.maxWidth = 1600;
             scroll.style.flexShrink = 0;
+            scroll.AddManipulator(new DragScroll(scroll));
             scroll.contentContainer.style.paddingLeft = scroll.contentContainer.style.paddingRight = 20;
             scroll.contentContainer.style.paddingTop = scroll.contentContainer.style.paddingBottom = 12;
             identityOverlay.Add(scroll);
@@ -197,9 +199,9 @@ namespace GoF2Remake.UI
                 var portrait = identityPortraits.Find(entry => entry.Key == identityPortrait).Name;
                 identitySelection.text = "Selected: " + (race ?? "No race") + " / " + (portrait ?? "No portrait");
                 foreach (var button in identityRacePicker.Query<Button>().ToList())
-                    HighlightIdentityChoice(button, (string)button.userData == identityRace);
+                    HighlightIdentityChoice(button, (string)button.userData == identityRace, button.focusController?.focusedElement == button);
                 foreach (var button in identityPortraitPicker.Query<Button>().ToList())
-                    HighlightIdentityChoice(button, (string)button.userData == identityPortrait);
+                    HighlightIdentityChoice(button, (string)button.userData == identityPortrait, button.focusController?.focusedElement == button);
             }
 
             void ShowPortraits(string filter)
@@ -228,6 +230,7 @@ namespace GoF2Remake.UI
                     card.style.marginRight = card.style.marginBottom = 8;
                     card.style.paddingTop = card.style.paddingBottom = 6;
                     card.style.flexShrink = 0;
+                    card.style.flexDirection = FlexDirection.Column;
                     card.style.alignItems = Align.Center;
                     card.style.justifyContent = Justify.Center;
                     var preview = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -243,6 +246,8 @@ namespace GoF2Remake.UI
                     name.style.alignSelf = Align.Stretch;
                     card.Add(name);
                     HighlightIdentityChoice(card, key == identityPortrait);
+                    card.RegisterCallback<FocusInEvent>(_ => HighlightIdentityChoice(card, key == identityPortrait, true));
+                    card.RegisterCallback<FocusOutEvent>(_ => HighlightIdentityChoice(card, key == identityPortrait));
                     identityPortraitPicker.Add(card);
                 }
                 if (identityPortraitPicker.childCount == 0)
@@ -276,6 +281,8 @@ namespace GoF2Remake.UI
                 button.style.fontSize = 18;
                 button.style.whiteSpace = WhiteSpace.Normal;
                 HighlightIdentityChoice(button, key == identityRace);
+                button.RegisterCallback<FocusInEvent>(_ => HighlightIdentityChoice(button, key == identityRace, true));
+                button.RegisterCallback<FocusOutEvent>(_ => HighlightIdentityChoice(button, key == identityRace));
                 identityRacePicker.Add(button);
             }
             identityPortraitSearch.RegisterValueChangedCallback(evt => ShowPortraits(evt.newValue));
@@ -289,6 +296,7 @@ namespace GoF2Remake.UI
                 if (evt.target is VisualElement element && element != content && content.Contains(element))
                     scroll.ScrollTo(element);
             });
+            UiFocus.SkipScrollBars(identityOverlay);
             identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => evt.StopPropagation());
             identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
             if (InputMode.Current == InputKind.Gamepad) FocusIdentityChoice();
