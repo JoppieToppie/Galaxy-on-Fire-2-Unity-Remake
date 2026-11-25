@@ -11,6 +11,7 @@ namespace GoF2Remake.Modding
         public const int DefaultOrbitalDefenseLimit = 3;
         public const int MaxOrbitalDefenseLimit = 12;
         public const float DefaultOrbitalDecayPercentPerDay = 1f;
+        public const int DefaultDefenseMaintenanceSeconds = 7 * 86400;
         public const float MinimumOrbitalDecayIntegrityPercent = 15f;
         public const int MaxOtherOrbitalStructureLimit = 8;
         public const float MaxStructureScale = 6f;
@@ -106,7 +107,9 @@ namespace GoF2Remake.Modding
             Id = model == 0 ? "orbital-defense" : "orbital-defense-" + (model + 1),
             Name = "Orbital Sentry " + (model + 1), Defense = true, Assembly = SentryAssemblies[model],
             ModelScale = DefenseModelScale, HitRadius = 250f, Integrity = 12000f, Range = 5000f, Damage = 120f,
-            FireIntervalSeconds = 3, Materials = new List<(int, int)> { (156, 200), (155, 100), (118, 80), (127, 50) }
+            FireIntervalSeconds = 3, Materials = new List<(int, int)> { (156, 200), (155, 100), (118, 80), (127, 50) },
+            MaintenanceIntervalSeconds = DefaultDefenseMaintenanceSeconds,
+            MaintenanceMaterials = new List<(int, int)> { (156, 20), (155, 10), (118, 8), (127, 5) }
         };
 
         static readonly OrbitalDefinition[] StockStructures = { StockDefense(0), StockDefense(1), StockDefense(2) };
