@@ -348,7 +348,7 @@ namespace GoF2Remake.UI
         {
             into.Clear();
             var sorted = new List<int>();
-            if (mods != null) foreach (int m in mods) if (m >= 0 && !sorted.Contains(m)) sorted.Add(m);
+            if (Session.KaamoUpgradesEnabled && mods != null) foreach (int m in mods) if (m >= 0 && !sorted.Contains(m)) sorted.Add(m);
             sorted.Sort();
             into.style.display = sorted.Count > 0 ? UnityEngine.UIElements.DisplayStyle.Flex : UnityEngine.UIElements.DisplayStyle.None;
             foreach (int m in sorted)

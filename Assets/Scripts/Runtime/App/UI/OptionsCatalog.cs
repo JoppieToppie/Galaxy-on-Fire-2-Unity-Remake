@@ -94,7 +94,7 @@ namespace GoF2Remake.UI
                 };
             }
             rows.Add(def);
-            if (def.group == OptionGroup.None) { Body.Add(row); RefreshGroups(); return; }
+            if (section == OptionSection.GameRules || def.group == OptionGroup.None) { Body.Add(row); RefreshGroups(); return; }
             if (!groups.TryGetValue(def.group, out var body))
             {
                 var label = new Label(OptionsCatalog.GroupTitle(def.group).UiCaps()) { pickingMode = PickingMode.Ignore };
@@ -592,7 +592,7 @@ namespace GoF2Remake.UI
             {
                 id = id, page = page, kind = OptionKind.Choice, label = label, segmented = segmented, choices = choices, getIndex = get,
                 setIndex = set, description = description,
-                defaultValue = id == "cosmeticExperience" || id == "gameplayExperience" ? () => 1f : null,
+                defaultValue = id == "gameplayExperience" || id == "presentationPreset" ? () => 1f : null,
             };
     }
 }

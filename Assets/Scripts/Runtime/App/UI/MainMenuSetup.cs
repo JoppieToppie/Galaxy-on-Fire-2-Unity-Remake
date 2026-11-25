@@ -117,7 +117,7 @@ namespace GoF2Remake.UI
             updateRow = root.Q("updateRow");
             updateButton = Bind("updateButton", UpdatePressed);   // in place where it can (MainMenuUpdate), else the release page
 
-            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "economyPanel", "gameOptionsPanel", "loadPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
+            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "gameOptionsPanel", "remakeOptionsPanel", "loadPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
             {
                 panels[n] = root.Q(n);
                 panels[n].usageHints = UsageHints.DynamicTransform;
@@ -141,7 +141,7 @@ namespace GoF2Remake.UI
                 sv.verticalScrollerVisibility = ScrollerVisibility.Hidden;
                 sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             }
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" })
+            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" })
             {
                 var b = root.Q<Button>(n);
                 b.clicked += Back;   // Back() plays the release sound itself (also used by Esc)
@@ -161,11 +161,25 @@ namespace GoF2Remake.UI
             Bind("hardButton", () => PickDifficulty(Session.DifficultyHard));
             Bind("extremeButton", () => ShowDialog(Localization.Get(25), Localization.Get(26),
                 () => PickDifficulty(Session.DifficultyExtreme)));
-            Bind("economyDefaultButton", () => PickEconomy(Economy.Default));
-            Bind("economyAndroidButton", () => PickEconomy(Economy.Android));
-            Bind("gameOptionsStart", () => BeginGame(pendingEconomy));
-            Bind("tutorialToggle", () => { Settings.TutorialHints = !Settings.TutorialHints; RefreshTutorialToggle(); });
-            Bind("capitalToggle", () => { Settings.CapitalShips = !Settings.CapitalShips; RefreshCapitalToggle(); });
+            Bind("economyToggle", () =>
+            {
+                if (pendingModCampaign?.economy != null) return;
+                pendingEconomy = pendingEconomy == Economy.Android ? Economy.Default : Economy.Android;
+                RefreshEconomyToggle();
+            });
+            Bind("gameOptionsStart", () => OpenPanel("remakeOptionsPanel"));
+            Bind("remakeOptionsStart", () => BeginGame(pendingEconomy));
+            Bind("tutorialToggle", () => { tutorialsNext = !tutorialsNext; RefreshTutorialToggle(); });
+            Bind("kaamoStackingToggle", () => { kaamoStackLimitNext = (kaamoStackLimitNext + 1) % (SessionRules.DefaultKaamoLevel + 1); RefreshKaamoRules(); });
+            Bind("kaamoVipToggle", () => { kaamoVipNext = !kaamoVipNext; RefreshKaamoRules(); });
+            void BindRemakeRule(string id, SavedGameRules rule) =>
+                Bind(id + "Toggle", () => { remakeRulesNext ^= rule; RefreshSavedRuleToggles(); });
+            BindRemakeRule("pirateEvents", SavedGameRules.PirateEvents);
+            BindRemakeRule("capitalShips", SavedGameRules.CapitalShips);
+            BindRemakeRule("derelictWrecks", SavedGameRules.DerelictWrecks);
+            BindRemakeRule("khadorSlipstream", SavedGameRules.KhadorSlipstream);
+            Bind("blueprintAutocompleteToggle", () => { autocompleteNext = !autocompleteNext; RefreshSavedRuleToggles(); });
+            Bind("cloakBayToggle", () => { cloakBayNext = !cloakBayNext; RefreshSavedRuleToggles(); });
             Bind("kaamoToggle", () => { KaamoFromStart = !KaamoFromStart; RefreshKaamoToggle(); });
             Bind("hardcoreToggle", () => { hardcoreNext = !hardcoreNext; RefreshHardcoreToggle(); });
             Bind("medalsToggle", () => { noMedalsNext = !noMedalsNext; RefreshMedalsToggle(); });

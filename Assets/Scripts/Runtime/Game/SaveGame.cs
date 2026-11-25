@@ -24,6 +24,10 @@ namespace GoF2Remake.Data
         public float playSeconds;
         public int campaign;
         public float difficulty;
+        public int savedGameRules;   // 0 = older save, otherwise one plus the rule mask
+        public bool stackKaamoUpgrades;
+        public int kaamoUpgradeLimit;
+        public int kaamoVipRule;   // 0 = legacy save, 1 = purchasable, 2 = off
         public int campaignMission;
         public int station, previousStation, ship;
         public long credits;   // remake: 64-bit (Session.Credits); older saves' ints read the same
@@ -158,7 +162,7 @@ namespace GoF2Remake.Data
         // Remake (co-op campaign, NetCoop.PrepareHost): the hosting player's session game is its single-player game.
         static bool hostSaves;
         static float hostDifficulty;
-        static int hostEconomy;
+        static int hostEconomy, hostSavedGameRules;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => hostSaves = false;
@@ -175,6 +179,7 @@ namespace GoF2Remake.Data
             hostSaves = true;
             hostDifficulty = from != null ? from.difficulty : Session.DifficultyNormal;
             hostEconomy = (int)CoopCampaign.HostEconomy(from, newGame);
+            hostSavedGameRules = from?.savedGameRules ?? 1;
         }
 
         public static void EndHostSaves() => hostSaves = false;
@@ -220,7 +225,7 @@ namespace GoF2Remake.Data
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
             var s = Capture();
-            if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; }   // the game's own, not the session's
+            if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; s.savedGameRules = hostSavedGameRules; }   // the game's own, not the session's
             Modding.ModSaves.Record(s, Database.Load());
             try
             {
@@ -392,6 +397,7 @@ namespace GoF2Remake.Data
             Apply(s);
             Modding.ModScripts.RestoreSaved(true);
             Session.Difficulty = Session.DifficultyNormal;
+            Session.GameRules = SavedGameRules.None;
             Session.Economy = NetSession.Economy;
             // The session's world, whatever index the profile was saved with; a co-op campaign's is the story's own (its
             // guests follow the leader's step, CoopCampaign).
@@ -426,6 +432,10 @@ namespace GoF2Remake.Data
                 playSeconds = Session.PlaySeconds,
                 campaign = (int)Session.Campaign,
                 difficulty = Session.Difficulty,
+                savedGameRules = 1 + (int)Session.GameRules,
+                stackKaamoUpgrades = Session.StackKaamoUpgrades,
+                kaamoUpgradeLimit = Session.KaamoUpgradeLimit,
+                kaamoVipRule = Settings.KaamoVipMode == Settings.KaamoVipCard ? 1 : 2,
                 economy = (int)Session.Economy,
                 storyAgentsAccepted = new List<int>(Session.StoryAgentsAccepted),
                 graphQuests = new List<GraphQuestState>(Session.GraphQuests),
@@ -617,6 +627,14 @@ namespace GoF2Remake.Data
             Session.PlaySeconds = s.playSeconds;
             Session.Campaign = (Campaign)s.campaign;
             Session.Difficulty = s.difficulty;
+            Session.GameRules = s.savedGameRules == 0 ? Settings.LegacySaveRules() : (SavedGameRules)(s.savedGameRules - 1) & SavedGameRules.All;
+            bool legacyKaamo = s.kaamoVipRule == 0 && s.kaamoUpgradeLimit == 0;
+            Session.StackKaamoUpgrades = legacyKaamo ? Settings.LegacyKaamoStacking : s.stackKaamoUpgrades;
+            Session.KaamoUpgradeLimit = legacyKaamo
+                ? (Session.StackKaamoUpgrades ? Settings.LegacyKaamoLimit : 1)
+                : Mathf.Clamp(s.kaamoUpgradeLimit, 0, SessionRules.MaxKaamoLevel);
+            bool cardAvailable = legacyKaamo ? s.kaamoVip || Settings.LegacyKaamoCardAvailable : s.kaamoVipRule == 1;
+            Settings.KaamoVipMode = cardAvailable && Session.KaamoUpgradesEnabled ? Settings.KaamoVipCard : Settings.KaamoVipOff;
             Session.Economy = SaveEconomy(s);
             Session.CampaignMission = s.campaignMission;
             Session.StationIndex = s.station;

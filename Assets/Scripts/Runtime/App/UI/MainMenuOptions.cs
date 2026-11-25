@@ -194,7 +194,7 @@ namespace GoF2Remake.UI
             Set("aboutButton", T(43));
             Set("exitButton", T(33));
             Set("debugButton", Localization.Extra("debugButton", "Debug").UiCaps());
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "economyBack", "gameOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" }) Set(n, (Settings.OriginalUi ? "" : "‹  ") + T(170));   // Original: the arrow is the button's own pointed end
+            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" }) Set(n, (Settings.OriginalUi ? "" : "‹  ") + T(170));   // Original: the arrow is the button's own pointed end
             string mp = Localization.Extra("multiplayer", "Multiplayer").UiCaps();
             Set("multiplayerButton", mp);
             Set("coopButton", Localization.Extra("coopTitle", "Co-op campaign").UiCaps());
@@ -252,26 +252,23 @@ namespace GoF2Remake.UI
             Set("debugMissionsTitle", Localization.Extra("missionSelect", "Start at mission").UiCaps());
             if (missionFilter != null) missionFilter.textEdition.placeholder = Localization.Extra("missionSearch", "Search: a step number, a station, a word...");
             Set("difficultyTitle", T(517));
+            Set("difficultyAdditional", Localization.Extra("difficultyAdditional", "Additional:"));
             Set("easyLabel", T(518));
             Set("easyDesc", Localization.Extra("easyDesc", "Weaker enemies in smaller groups."));
             Set("normalLabel", T(519));
             Set("normalDesc", Localization.Extra("normalDesc", "The classic Galaxy on Fire 2 experience."));
             Set("hardLabel", T(520));
             Set("hardDesc", Localization.Extra("hardDesc", "Tougher enemies in bigger groups; the economy as on Normal."));
-            Set("economyTitle", Localization.Extra("economyTitle", "Select the economy").UiCaps());
             Set("gameOptionsTitle", Localization.Extra("gameOptionsTitle", "Game options").UiCaps());
-            Set("gameOptionsStartLabel", Localization.Extra("gameOptionsStart", "Start game").UiCaps());
-            Set("economyDefaultLabel", Session.EconomyName(Economy.Default).UiCaps());
-            Set("economyDefaultDesc", Localization.Extra("economyDefaultDesc",
-                "PC / Mac / iPhone prices: cheaper goods and blueprints, dearer ships."));
-            Set("economyAndroidLabel", Session.EconomyName(Economy.Android).UiCaps());
-            Set("economyAndroidDesc", Localization.Extra("economyAndroidDesc",
-                "Android prices: dearer goods and gear, bigger blueprints, cheaper ships."));
+            Set("gameOptionsStartLabel", Localization.Extra("newGameContinue", "Continue").UiCaps());
+            Set("remakeOptionsTitle", Localization.Extra("remakeOptionsTitle", "Remake options").UiCaps());
+            Set("remakeOptionsStartLabel", Localization.Extra("gameOptionsStart", "Start game").UiCaps());
+            RefreshEconomyToggle();
             RefreshKaamoToggle();
             RefreshHardcoreToggle();
             RefreshMedalsToggle();
             RefreshTutorialToggle();
-            RefreshCapitalToggle();
+            RefreshSavedRuleToggles();
             Set("extremeLabel", T(25));
             Set("extremeDesc", Localization.Extra("extremeDesc", "For veterans: tougher enemies and a harsher economy."));
             Set("loadTitle", T(29));

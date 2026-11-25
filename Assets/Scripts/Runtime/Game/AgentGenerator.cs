@@ -295,6 +295,7 @@ namespace GoF2Remake.Data
         /// the Khador Drive's blueprint is known). One the player already knows still stands there with nothing left.</summary>
         static bool StorySellerAvailable(StoryAgentData s)
         {
+            if (s.sellMod >= 0 && !Session.KaamoUpgradesEnabled) return false;
             if (s.sellBlueprint < 0 || Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
             var mod = Modding.ModBlueprints.Of(s.sellBlueprint);
             return mod == null || Modding.ModBlueprints.Available(mod);

@@ -26,6 +26,7 @@ namespace GoF2Remake.Tests
 
         static void AllDefaults()
         {
+            Session.GameRules = SavedGameRules.None;
             Settings.Reset(DataUiTestKit.SettingFloatKeys.Concat(Settings.LanguageKeys));
         }
 
@@ -275,7 +276,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("flightStyle", combat[0]);
             Assert.Less(combat.IndexOf("targetLock"), combat.IndexOf("smarterNpcTargeting"), "your own aiming before the NPCs'");
             var progression = all.Where(o => o.group == GoF2Remake.UI.OptionGroup.Progression).Select(o => o.id).ToList();
-            Assert.AreEqual(progression.IndexOf("kaamoStacking") + 1, progression.IndexOf("kaamoMaxLevel"), "the limit under the option it belongs to");
+            CollectionAssert.DoesNotContain(progression, "kaamoMaxLevel");
             Assert.AreEqual("resetBindings", all.First(o => o.page == GoF2Remake.UI.OptionPage.Bindings).id);
             Assert.IsFalse(GoF2Remake.UI.OptionsCatalog.HasCategories(GoF2Remake.UI.OptionPage.Language), "two rows: no headings");
             foreach (var row in all.Where(o => o.page == GoF2Remake.UI.OptionPage.Language))
@@ -492,11 +493,11 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Settings.KaamoKeepsEquipment, "stored equipment is opt-in");
             Settings.AutoJumpgate = false;
             Assert.IsFalse(Settings.AutoJumpgate);
-            CollectionAssert.Contains(Settings.GameplayKeys, "autoJumpgate");
-            Settings.Reset(Settings.GameplayKeys);
+            CollectionAssert.Contains(Settings.CosmeticsKeys, "autoJumpgate");
+            Settings.Reset(Settings.CosmeticsKeys);
             Assert.IsTrue(Settings.AutoJumpgate, "back on after Default settings");
             var row = GoF2Remake.UI.OptionsCatalog.All().Single(o => o.id == "autoJumpgate");
-            Assert.AreEqual(GoF2Remake.UI.OptionPage.Gameplay, row.page);
+            Assert.AreEqual(GoF2Remake.UI.OptionPage.Cosmetics, row.page);
             Assert.AreEqual(GoF2Remake.UI.OptionKind.Toggle, row.kind);
 
             Assert.IsTrue(GoF2Remake.World.SystemJump.GateJumpsUnasked(30, 4, -1, true), "the first gate, option on");
@@ -626,18 +627,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void KaamoUpgradeLimitIsClampedAndResets()
+        public void KaamoUpgradeLimitIsClampedAndSurvivesReset()
         {
             AllDefaults();
+            using var limit = new SettingsScope<int>(() => Settings.KaamoMaxLevel, v => Settings.KaamoMaxLevel = v);
             Settings.KaamoMaxLevel = 99;
             Assert.AreEqual(SessionRules.MaxKaamoLevel, Settings.KaamoMaxLevel);
             Settings.KaamoMaxLevel = 0;
             Assert.AreEqual(SessionRules.MinKaamoLevel, Settings.KaamoMaxLevel, "1 would be stacking off: that's the toggle");
             Settings.KaamoMaxLevel = 3;
             Assert.AreEqual(3, Settings.LocalKaamoLevel());
-            CollectionAssert.Contains(Settings.GameplayKeys, "kaamoMaxLevel");
+            CollectionAssert.DoesNotContain(Settings.GameplayKeys, "kaamoMaxLevel");
             Settings.Reset(Settings.GameplayKeys);
-            Assert.AreEqual(SessionRules.DefaultKaamoLevel, Settings.KaamoMaxLevel, "Default settings on the Gameplay tab");
+            Assert.AreEqual(3, Settings.KaamoMaxLevel, "Gameplay reset preserves the save limit");
         }
 
         [Test]
@@ -809,10 +811,10 @@ namespace GoF2Remake.Tests
             Settings.BloomStrength = 5f; Assert.AreEqual(2f, Settings.BloomStrength);
             Settings.BloomStrength = 0f; Assert.AreEqual(0.25f, Settings.BloomStrength);
             var row = GoF2Remake.UI.OptionsCatalog.All().First(o => o.id == "bloomStrength");
-            Settings.BloomStyle = Settings.BloomOff; Assert.IsFalse(row.visible());
-            Settings.BloomStyle = Settings.BloomOriginal; Assert.IsFalse(row.visible());
-            Settings.BloomStyle = Settings.BloomRemake; Assert.IsTrue(row.visible());
-            Settings.BloomStyle = Settings.BloomBoth; Assert.IsTrue(row.visible());
+            Settings.BloomStyle = Settings.BloomOff; Assert.IsFalse(row.enabled());
+            Settings.BloomStyle = Settings.BloomOriginal; Assert.IsFalse(row.enabled());
+            Settings.BloomStyle = Settings.BloomRemake; Assert.IsTrue(row.enabled());
+            Settings.BloomStyle = Settings.BloomBoth; Assert.IsTrue(row.enabled());
         }
 
         [Test]

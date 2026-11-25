@@ -82,7 +82,7 @@ namespace GoF2Remake.UI
             texts ??= Array.Empty<string>();
             bool rebuild = segments != null && segments.childCount != texts.Length;
             choices = texts;
-            index = texts.Length == 0 ? 0 : Math.Clamp(current, 0, texts.Length - 1);
+            index = texts.Length == 0 ? 0 : Math.Clamp(current, -1, texts.Length - 1);
             if (rebuild)
             {
                 segments.Clear();
@@ -125,7 +125,7 @@ namespace GoF2Remake.UI
                     b.EnableInClassList("choice-segment--active", i == index);
                 }
             }
-            else if (value != null) value.text = choices.Length > 0 ? choices[index] : "";
+            else if (value != null) value.text = choices.Length == 0 ? "" : index < 0 ? "—" : choices[index];
         }
     }
 }

@@ -1824,12 +1824,26 @@
 
 /* The game options panel holds four toggles (the Kaamo Club, Hardcore, Tutorials, Capital ships) and Start: tighter so it
    fits the panel's 80 % height. */
-#gameOptionsPanel .choice-button--toggle {
+#difficultyPanel .choice-button {
+    margin-top: var(--space-s);
+    margin-bottom: 0;
+}
+
+.difficulty-additional {
+    margin-top: var(--space-m);
+    color: var(--gof-text-dim);
+    font-size: var(--text-small);
+}
+
+#difficultyPanel .choice-button--toggle,
+#gameOptionsPanel .choice-button--toggle,
+#remakeOptionsPanel .choice-button--toggle {
     margin-top: var(--space-s);
     margin-bottom: 0;
     padding: 12px 20px;
 }
 
+#difficultyPanel .choice-desc,
 #gameOptionsPanel .choice-desc {
     margin-top: 3px;
     font-size: var(--text-small);
@@ -1841,6 +1855,16 @@
 
 .choice-button--on .choice-title {
     color: var(--gof-amber);
+}
+
+.choice-button--unavailable {
+    background-color: #25282B;
+    border-color: #545A60;
+}
+
+.choice-button--unavailable .choice-title,
+.choice-button--unavailable .choice-desc {
+    color: #A2A8AE;
 }
 
 .choice-title {
@@ -2421,12 +2445,26 @@
     -unity-text-align: middle-center;
 }
 
+#gameOptionsPanel,
+#remakeOptionsPanel {
+    height: 80%;
+}
+
+.remake-options-scroll {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
 .game-options-body {
     flex-direction: row;
-    flex-shrink: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
 }
 
 .game-options-left {
+    min-height: 0;
     flex-grow: 1;
     flex-shrink: 1;
     flex-basis: 0;

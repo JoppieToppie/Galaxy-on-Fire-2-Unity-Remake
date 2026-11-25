@@ -117,7 +117,7 @@ namespace GoF2Remake.Tests
             using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
             {
                 Settings.OriginalUi = originalUi;
-                Settings.KaamoVipMode = Settings.KaamoVipAlways;
+                Settings.KaamoVipMode = Settings.KaamoVipCard;
                 FreePlayAt(KaamoClub.Station);
                 Session.KaamoState = 3;
                 Session.KaamoItems.Add(new ItemStack(109, 5));

@@ -223,7 +223,7 @@ namespace GoF2Remake.UI
         {
             pendingStartIndex = index;
             pendingCampaign = CampaignOf(index);
-            OpenPanel("difficultyPanel");
+            OpenDifficultyForNewGame();
         }
 
         /// <summary>Rows whose index, title, station or summary contain every word typed (a number matches the index

@@ -68,7 +68,7 @@ namespace GoF2Remake.UI
             // An action that really writes a Settings value marks its scope through Settings.Set itself.
             if (def.kind != OptionKind.Button && def.section != OptionSection.Tools)
             {
-                if (def.page == OptionPage.Cosmetics && def.id != "cosmeticExperience") Settings.SelectCustomExperience(true);
+                if (def.page == OptionPage.Cosmetics) Settings.SelectCustomExperience(true);
                 if (def.page == OptionPage.Gameplay && def.id != "gameplayExperience" && def.id != "difficulty") Settings.SelectCustomExperience(false);
             }
             Changed?.Invoke();
@@ -84,6 +84,7 @@ namespace GoF2Remake.UI
             def = d;
             Root = new VisualElement();
             Root.AddToClassList("option-item");
+            if (d.id == "gameplayExperience" || d.id == "presentationPreset") Root.AddToClassList("option-item--preset");
             Root.RegisterCallback<AttachToPanelEvent>(_ => refreshShown += Refresh);
             Root.RegisterCallback<DetachFromPanelEvent>(_ => refreshShown -= Refresh);
             switch (d.kind)
@@ -170,7 +171,12 @@ namespace GoF2Remake.UI
         public void Refresh()
         {
             if (def.visible != null) Root.style.display = Shown ? DisplayStyle.Flex : DisplayStyle.None;
-            if (def.enabled != null) Field.SetEnabled(Enabled);
+            if (def.enabled != null)
+            {
+                bool enabled = Enabled;
+                Field.SetEnabled(enabled);
+                Root.EnableInClassList("option-item--unavailable", !enabled);
+            }
             if (slider != null)
             {
                 slider.SetValueWithoutNotify(def.get());

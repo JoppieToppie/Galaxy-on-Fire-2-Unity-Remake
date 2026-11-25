@@ -45,7 +45,7 @@ namespace GoF2Remake.UI
                 var ship = db.Ship(save.ship);
                 subText = $"{st?.name} · {st?.systemName}  ·  {ship?.name}  ·  {Session.DifficultyName(save.difficulty)}, {Session.EconomyName(SaveGame.SaveEconomy(save))}"
                           + (save.hardcore ? "  ·  " + Localization.Extra("hardcoreTag", "HARDCORE").OgCase() : "")
-                          + (save.noMedals ? "  ·  " + Localization.Extra("noMedalsTag", "NO MEDALS").OgCase() : "");
+                          + (save.noMedals ? ", " + Localization.Extra("noMedalsTag", "No medals") : "");
             }
             else if (slot == SaveGame.AutoSaveSlot) subText = emptyAutoSaveHint;
             if (subText != null)

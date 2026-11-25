@@ -14,6 +14,57 @@ namespace GoF2Remake.Tests
     public class BlueprintSaveTests : SavesModsTest
     {
         [Test]
+        public void NewGameRulesRoundTripAndStayIndependentOfPresets()
+        {
+            const SavedGameRules rules = SavedGameRules.CapitalShips |
+                SavedGameRules.CloakBay | SavedGameRules.BlueprintAutocomplete | SavedGameRules.Tutorials;
+            Session.GameRules = rules;
+            Session.Difficulty = Session.DifficultyExtreme;
+            Session.StackKaamoUpgrades = true;
+            Session.KaamoUpgradeLimit = 3;
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
+            Assert.IsTrue(SaveGame.Save(5));
+            Session.ResetNewGame();
+            using (new DataUiTestKit.PrefsSnapshot())
+            {
+                Settings.ApplyScopedExperience(false, 1);
+                Assert.AreEqual(SavedGameRules.None, Session.GameRules);
+                Assert.IsTrue(SaveGame.Load(5));
+                Settings.ResetToDefaults();
+            }
+            Assert.AreEqual(rules, Session.GameRules);
+            Assert.AreEqual(Session.DifficultyExtreme, Session.Difficulty);
+            Assert.IsTrue(Session.StackKaamoUpgrades);
+            Assert.AreEqual(3, Session.KaamoUpgradeLimit);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+        }
+
+        [Test]
+        public void OldSlotKeepsLegacyKaamoPreferencesOnItsFirstSave()
+        {
+            using var prefs = new DataUiTestKit.PrefsSnapshot();
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoStacking", 1);
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoMaxLevel", 7);
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoVip", 0);
+            DataUiTestKit.ClearSettingsCache();
+            Assert.IsTrue(SaveGame.Save(5));
+            var path = SaveGame.SlotPath(5);
+            File.WriteAllText(path, Regex.Replace(File.ReadAllText(path),
+                @"""(?:stackKaamoUpgrades|kaamoUpgradeLimit|kaamoVipRule)""\s*:\s*[^,]+,", ""));
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.IsTrue(Session.StackKaamoUpgrades);
+            Assert.AreEqual(7, Session.KaamoUpgradeLimit);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+            Assert.IsTrue(SaveGame.Save(5));
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoStacking", 0);
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoVip", 2);
+            DataUiTestKit.ClearSettingsCache();
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.IsTrue(Session.StackKaamoUpgrades);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+        }
+
+        [Test]
         public void ThePlayersShareIsSavedWithTheGame()
         {
             Blueprints.Invest(Db, 11, 155, 20, 70, true);
