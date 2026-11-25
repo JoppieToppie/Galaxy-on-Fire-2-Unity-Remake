@@ -409,8 +409,8 @@ namespace GoF2Remake.UI
             foreach (var material in materials)
             {
                 if (material == null) continue;
-                string name = NetGame.Db?.Item(material.item)?.name ?? "Item";
-                body.Add(Text($"{name} [{material.item}] · {material.delivered:N0}/{material.required:N0}", 16, Dim));
+                string name = NetGame.Db?.Item(material.item)?.name ?? "Unavailable material";
+                body.Add(Text($"{name} · {material.delivered:N0}/{material.required:N0}", 16, Dim));
             }
         }
 
@@ -418,8 +418,8 @@ namespace GoF2Remake.UI
         {
             var outstanding = materials?.FindAll(entry => entry != null && entry.delivered < entry.required);
             if (outstanding == null || outstanding.Count == 0) return null;
-            var labels = outstanding.ConvertAll(entry => (NetGame.Db?.Item(entry.item)?.name ?? ("Item " + entry.item)) +
-                " [" + entry.item + "] · " + (entry.required - entry.delivered).ToString("N0") + " needed");
+            var labels = outstanding.ConvertAll(entry => (NetGame.Db?.Item(entry.item)?.name ?? ("Unavailable material")) +
+                " · " + (entry.required - entry.delivered).ToString("N0") + " needed");
             int index = Math.Max(0, outstanding.FindIndex(entry => entry.item.ToString() == material));
             updateMaterial(outstanding[index].item.ToString());
             var row = Row();
@@ -441,7 +441,7 @@ namespace GoF2Remake.UI
             if (!int.TryParse(itemText, out int item) || item < 0 || !int.TryParse(amountText, out int amount) ||
                 amount < 1 || amount > 500)
             {
-                status.text = "Enter a valid item ID and 1–500 units.";
+                status.text = "Select a valid item or order and enter 1–500 units.";
                 return;
             }
             Send($"/station {command} {project} {item} {amount}");
