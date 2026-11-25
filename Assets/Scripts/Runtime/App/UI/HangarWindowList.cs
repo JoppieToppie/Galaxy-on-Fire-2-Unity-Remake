@@ -336,7 +336,7 @@ namespace GoF2Remake.UI
             var storage = playerMarket?.storage;
             if (PlayerStorageTab)
             {
-                if (storage == null || !storage.canDeposit || !string.IsNullOrEmpty(storage.error))
+                if (storage == null || (!storage.canDeposit && !storage.canWithdraw) || !string.IsNullOrEmpty(storage.error))
                 {
                     AddNote(storage == null ? "Loading station storage…" : string.IsNullOrEmpty(storage.error) ? "Storage access unavailable." : storage.error);
                     return;
