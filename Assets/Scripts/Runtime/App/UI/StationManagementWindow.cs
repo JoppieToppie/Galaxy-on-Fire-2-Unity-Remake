@@ -53,6 +53,11 @@ namespace GoF2Remake.UI
         float nextPlacementRefresh;
         string placementSnapshot;
         int placementOrbit;
+        string placementCameraKey;
+        float placementYaw, placementPitch, placementDistance;
+        int placementRequestVersion;
+        bool placementOrderPending;
+        float placementRequestDeadline;
         readonly Dictionary<string, Vector3Int> placementDrafts = new Dictionary<string, Vector3Int>();
         bool compact;
         float feedbackTime;
@@ -201,6 +206,13 @@ namespace GoF2Remake.UI
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (placementRoot != null)
             {
+                if (placementOrderPending && !placementDragging && Time.unscaledTime >= placementRequestDeadline)
+                {
+                    placementOrderPending = false;
+                    placementRequestVersion++;
+                    RebuildBody();
+                    return;
+                }
                 if (!placementDragging && Time.unscaledTime >= nextPlacementRefresh)
                 {
                     nextPlacementRefresh = Time.unscaledTime + 1f;
@@ -266,6 +278,9 @@ namespace GoF2Remake.UI
             if (!open) return;
             DestroyPlacementPreview();
             placementDrafts.Clear();
+            placementCameraKey = null;
+            placementRequestVersion++;
+            placementOrderPending = false;
             overlay.style.display = DisplayStyle.None;
             open = false;
             marketplaceOnly = false;
@@ -740,11 +755,48 @@ namespace GoF2Remake.UI
 
             Vector3 stationPosition = NetPlayerStations.StationPosition(previewOrbit);
             string draftKey = station.id + ":" + previewOrbit + ":" + kind;
-            if (!placementDrafts.TryGetValue(draftKey, out Vector3Int position))
+            bool hasDraft = placementDrafts.TryGetValue(draftKey, out Vector3Int position);
+            if (!hasDraft)
                 position = existing != null ? new Vector3Int(existing.x, existing.y, existing.z) :
                     new Vector3Int(0, 0, orbital ? 8000 : Mathf.Clamp(Mathf.RoundToInt(layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale), 300, 9000));
 
-            AddSection("ORBIT PLACEMENT", "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl for snapping.");
+            Vector3Int Absolute(Vector3Int point) => Vector3Int.RoundToInt(stationPosition) + point;
+            string PlacementError(Vector3Int point) =>
+                NetPlayerStations.OrbitalPlacementError(previewOrbit, layout, Absolute(point), preset.HitRadius);
+
+            bool TryNextClearPosition(Vector3Int start, out Vector3Int next)
+            {
+                float angle = Mathf.Atan2(start.x, start.z) * Mathf.Rad2Deg;
+                float baseRadius = Mathf.Max(8000f, NetPlayerStations.OrbitalStationClearance(layout, preset.HitRadius) + 500f);
+                const int positionsPerRing = 12;
+                for (int ring = 0; ring < 5; ring++)
+                {
+                    float radius = baseRadius + ring * Mathf.Max(2500f, preset.HitRadius * 2f + 500f);
+                    for (int slot = 1; slot <= positionsPerRing; slot++)
+                    {
+                        Vector3 offset = Quaternion.Euler(0, angle + slot * (360f / positionsPerRing), 0) * new Vector3(0, 0, radius);
+                        next = Vector3Int.RoundToInt(offset);
+                        if (next != start && PlacementError(next) == null) return true;
+                    }
+                }
+                next = start;
+                return false;
+            }
+
+            int slotLimit = preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit;
+            int slotsTaken = orbital ? NetPlayerStations.OrbitalStructures?.Count(entry =>
+                entry != null && entry.orbit == previewOrbit && entry.defense == preset.Defense) ?? 0 : 0;
+            if (orbital && PlacementError(position) != null && TryNextClearPosition(position, out var initialClear))
+                position = initialClear;
+
+            AddSection("ORBIT PLACEMENT", orbital
+                ? "Drag the cyan marker or use Next clear position. Amber markers show projects already placed. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
+                : "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap.");
+            if (orbital) AddInfo(preset.Defense ? "Defense slots" : "Structure slots", $"{slotsTaken} / {slotLimit} used");
+            var placementActions = new VisualElement();
+            placementActions.style.flexDirection = FlexDirection.Row;
+            placementActions.style.flexWrap = Wrap.Wrap;
+            body.Add(placementActions);
             var viewport = new VisualElement();
             viewport.style.height = compact ? 270 : 360;
             viewport.style.flexShrink = 0;
@@ -752,12 +804,10 @@ namespace GoF2Remake.UI
             var coordinateLabel = new Label();
             coordinateLabel.AddToClassList("player-station-note");
             body.Add(coordinateLabel);
-            AddAction(orbital ? "Order construction here" : "Save planned position", () =>
-            {
-                Vector3Int point = orbital ? Vector3Int.RoundToInt(stationPosition) + position : position;
-                string command = orbital ? $"/station orbital-place {station.id} {previewOrbit}" : $"/station place {station.id} {kind}";
-                Send($"{command} {point.x} {point.y} {point.z} {preset.Id}");
-            });
+            var placementStatus = new Label();
+            placementStatus.AddToClassList("player-station-note");
+            placementStatus.style.whiteSpace = WhiteSpace.Normal;
+            if (orbital) body.Add(placementStatus);
 
             const int previewLayer = 31;
             placementRoot = new GameObject("Station placement preview");
@@ -767,7 +817,7 @@ namespace GoF2Remake.UI
             var model = OrbitBuilder.SpawnStation(db, layout, frame);
             if (model != null) model.transform.localPosition = Vector3.zero;
             var ghost = OrbitBuilder.Spawn(db, NetPlayerStations.OrbitalStructureAssembly(preset.Assembly, preset.StationModel, db),
-                Vector3.zero, Quaternion.identity, "Proposed structure", frame);
+                Vector3.zero, Quaternion.identity, "Proposed structure", placementRoot.transform);
             if (ghost != null) ghost.transform.localScale *= preset.ModelScale;
             void SetLayer(Transform rootTransform)
             {
@@ -805,7 +855,7 @@ namespace GoF2Remake.UI
             if (NetPlayerStations.OrbitalStructures != null)
                 foreach (var structure in NetPlayerStations.OrbitalStructures)
                     if (structure != null && structure.orbit == previewOrbit)
-                        mounts.Add(new WeaponMount { slotType = 2, position_engine = Units(NetPlayerStations.OrbitalStructurePosition(structure) - stationPosition) });
+                        mounts.Add(new WeaponMount { slotType = 1, position_engine = Units(NetPlayerStations.OrbitalStructurePosition(structure) - stationPosition) });
             int active = mounts.Count;
             mounts.Add(new WeaponMount { slotType = orbital ? 2 : 8, position_engine = Units(position) });
             var handles = new GameObject("Placement handles");
@@ -815,20 +865,82 @@ namespace GoF2Remake.UI
             gizmo.Selected = active;
             gizmo.Bind(frame, mounts);
             SetLayer(handles.transform);
-            float distance = Mathf.Max(1800f, position.magnitude * 1.8f);
-            float yaw = 34, pitch = 29;
+            if (placementCameraKey != draftKey)
+            {
+                placementCameraKey = draftKey;
+                placementDistance = Mathf.Max(1800f, position.magnitude * 1.8f);
+                placementYaw = 34;
+                placementPitch = 29;
+            }
             void SetCamera()
             {
-                camera.transform.position = frame.position + Quaternion.Euler(pitch, yaw, 0) * new Vector3(0, 0, -distance);
+                camera.transform.position = frame.position + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
                 camera.transform.LookAt(frame.position);
+            }
+            var orderButton = new Button { text = orbital ? "Order construction here" : "Save planned position" };
+            void AddPlacementControl(Button button)
+            {
+                StyleChoice(button, false);
+                button.AddToClassList("player-station-action");
+                button.style.flexGrow = 1;
+                button.clicked += () => menu?.PlayRelease();
+                placementActions.Add(button);
             }
             void UpdatePoint()
             {
                 position = Vector3Int.RoundToInt(frame.InverseTransformPoint(gizmo.WorldOf(mounts[active])));
                 placementDrafts[draftKey] = position;
-                if (ghost != null) ghost.transform.localPosition = position;
+                if (ghost != null) ghost.transform.position = frame.TransformPoint(position);
                 coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
+                if (!orbital) return;
+                string error = PlacementError(position);
+                placementStatus.text = slotsTaken >= slotLimit ? "All slots of this type are in use." :
+                    error ?? "Position clear.";
+                orderButton.SetEnabled(error == null && slotsTaken < slotLimit && !placementOrderPending);
             }
+            if (orbital)
+                AddPlacementControl(new Button(() =>
+                {
+                    if (TryNextClearPosition(position, out var clear))
+                    {
+                        mounts[active].position_engine = Units(clear);
+                        UpdatePoint();
+                    }
+                    else placementStatus.text = "No clear position found nearby. Try moving the marker manually.";
+                }) { text = "Next clear position" });
+            AddPlacementControl(new Button(() =>
+            {
+                placementDistance = Mathf.Max(1800f, position.magnitude * 1.8f);
+                SetCamera();
+            }) { text = "Frame orbit" });
+            AddPlacementControl(orderButton);
+            orderButton.clicked += () =>
+            {
+                if (orbital && (placementOrderPending || slotsTaken >= slotLimit || PlacementError(position) != null)) return;
+                Vector3Int point = orbital ? Absolute(position) : position;
+                string command = orbital ? $"/station orbital-place {station.id} {previewOrbit}" : $"/station place {station.id} {kind}";
+                string request = $"{command} {point.x} {point.y} {point.z} {preset.Id}";
+                if (!orbital) { Send(request); return; }
+                int version = ++placementRequestVersion;
+                placementOrderPending = true;
+                placementRequestDeadline = Time.unscaledTime + 10f;
+                Vector3Int submitted = position;
+                orderButton.SetEnabled(false);
+                if (!Dispatch(request, result =>
+                {
+                    if (version != placementRequestVersion) return;
+                    placementOrderPending = false;
+                    if (result?.StartsWith("Started ", StringComparison.Ordinal) == true &&
+                        placementDrafts.TryGetValue(draftKey, out var current) && current == submitted &&
+                        TryNextClearPosition(submitted, out var next))
+                        placementDrafts[draftKey] = next;
+                    if (managementPage == "placement" && !placementDragging) RebuildBody();
+                }))
+                {
+                    placementOrderPending = false;
+                    UpdatePoint();
+                }
+            };
             Vector2 ScreenPoint(Vector2 panelPosition)
             {
                 Vector2 p = viewport.WorldToLocal(panelPosition);
@@ -880,8 +992,8 @@ namespace GoF2Remake.UI
                 }
                 else if (orbiting)
                 {
-                    yaw += evt.deltaPosition.x * .4f;
-                    pitch = Mathf.Clamp(pitch - evt.deltaPosition.y * .4f, -80, 80);
+                    placementYaw += evt.deltaPosition.x * .4f;
+                    placementPitch = Mathf.Clamp(placementPitch - evt.deltaPosition.y * .4f, -80, 80);
                     SetCamera();
                 }
                 else gizmo.Hover(point);
@@ -890,12 +1002,13 @@ namespace GoF2Remake.UI
             {
                 gizmo.EndDrag();
                 orbiting = movingInPlane = placementDragging = false;
+                UpdatePoint();
                 if (viewport.HasPointerCapture(evt.pointerId)) viewport.ReleasePointer(evt.pointerId);
             });
             viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = placementDragging = false; });
             viewport.RegisterCallback<WheelEvent>(evt =>
             {
-                distance = Mathf.Clamp(distance * Mathf.Pow(1.12f, evt.delta.y), 300, 170000);
+                placementDistance = Mathf.Clamp(placementDistance * Mathf.Pow(1.12f, evt.delta.y), 300, 170000);
                 SetCamera();
                 evt.StopPropagation();
             });
@@ -1947,7 +2060,7 @@ namespace GoF2Remake.UI
             Dispatch(command);
         }
 
-        void Dispatch(string command)
+        bool Dispatch(string command, Action<string> onResult = null)
         {
             feedback.text = "Request sent. The server response will appear here.";
             feedbackTime = 8f;
@@ -1959,11 +2072,11 @@ namespace GoF2Remake.UI
                 refresh = 0;
                 nextPlannerQuery = 0;
                 nextManagementQuery = 0;
-            }) != true)
-            {
-                feedback.text = "A station request is already pending, or the server is unavailable.";
-                feedbackTime = 8f;
-            }
+                onResult?.Invoke(result);
+            }) == true) return true;
+            feedback.text = "A station request is already pending, or the server is unavailable.";
+            feedbackTime = 8f;
+            return false;
         }
 
         static string ModuleLabel(string id)

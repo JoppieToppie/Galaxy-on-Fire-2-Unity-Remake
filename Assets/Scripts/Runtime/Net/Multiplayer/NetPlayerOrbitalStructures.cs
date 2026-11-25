@@ -90,6 +90,26 @@ namespace GoF2Remake.Multiplayer
             return Quaternion.Euler(0f, 22.5f + structure.slot * 45f, 0f) * new Vector3(0, 3000f, 14000f);
         }
 
+        internal static float OrbitalStationClearance(OrbitLayout layout, float hitRadius) =>
+            Math.Max(1000f, (layout != null && layout.stationObject
+                ? layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale : 0f) + hitRadius);
+
+        internal static string OrbitalPlacementError(int orbit, OrbitLayout layout, Vector3 position, float hitRadius)
+        {
+            float clearance = OrbitalStationClearance(layout, hitRadius);
+            if ((position - StationPosition(orbit)).sqrMagnitude < clearance * clearance || position.sqrMagnitude > 120000f * 120000f)
+                return "Place the structure clear of the station and within 120 km of the orbit centre.";
+            if (OrbitalStructures != null)
+                foreach (var other in OrbitalStructures)
+                {
+                    if (other == null || other.orbit != orbit) continue;
+                    float separation = Math.Max(200f, other.hitRadius + hitRadius);
+                    if ((OrbitalStructurePosition(other) - position).sqrMagnitude < separation * separation)
+                        return "This position overlaps " + other.name + " #" + other.id + ".";
+                }
+            return null;
+        }
+
         internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId, Vector3Int? placement = null)
         {
             var settings = ModPlayerInfrastructure.Current;
@@ -103,20 +123,9 @@ namespace GoF2Remake.Multiplayer
                 if (entry.Id == presetId) { preset = entry; break; }
             if (preset == null || !OrbitalPresetAvailable(preset, OrbitalSponsorRace(sponsor))) return "That structure preset is unavailable.";
             var structures = registry.orbitalStructures;
-            if (placement is Vector3Int point)
-            {
-                Vector3 position = point;
-                var layout = OrbitLayout.Build(NetGame.Db, orbit);
-                float radius = layout != null && layout.stationObject
-                    ? layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale : 0f;
-                float clearance = Math.Max(1000f, radius + preset.HitRadius);
-                if ((position - StationPosition(orbit)).sqrMagnitude < clearance * clearance || position.sqrMagnitude > 120000f * 120000f)
-                    return "Choose a position clear of the station and within 120 km of the orbit centre.";
-                foreach (var other in structures)
-                    if (other != null && other.orbit == orbit &&
-                        (OrbitalStructurePosition(other) - position).sqrMagnitude < Mathf.Pow(Math.Max(200f, other.hitRadius + preset.HitRadius), 2))
-                        return "That placement overlaps another orbital structure.";
-            }
+            if (placement is Vector3Int point &&
+                OrbitalPlacementError(orbit, OrbitLayout.Build(NetGame.Db, orbit), point, preset.HitRadius) is string placementError)
+                return placementError;
             if (structures.Count >= MaxOrbitalStructures || registry.nextOrbitalStructureId >= int.MaxValue)
                 return "This persistent world has reached its orbital project limit.";
             int capacity = preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit;
