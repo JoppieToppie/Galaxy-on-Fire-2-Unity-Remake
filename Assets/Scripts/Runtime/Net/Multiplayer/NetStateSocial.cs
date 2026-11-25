@@ -412,9 +412,8 @@ namespace GoF2Remake.Multiplayer
                 attemptedBountyDrops.Remove(id);
                 return;
             }
-            if (victim.Hull != 0f || !victim.InSpace || !victim.HasCurrentWreckClaimPose ||
-                NetArena.InMatch(victim.OwnerClientId)) return;
-            if (pendingPiracyDeaths.TryGetValue(id, out var death))
+            if (victim.Hull != 0f || !victim.InSpace || NetArena.InMatch(victim.OwnerClientId)) return;
+            if (victim.HasCurrentWreckClaimPose && pendingPiracyDeaths.TryGetValue(id, out var death))
             {
                 pendingPiracyDeaths.Remove(id);
                 if (death.killer != null && death.killer.IsSpawned && death.station == victim.Station &&
@@ -425,9 +424,21 @@ namespace GoF2Remake.Multiplayer
                     if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
                 }
             }
-            if (!attemptedBountyDrops.Contains(id) &&
-                (!NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId) || BeginDeathRecovery(victim)))
-                attemptedBountyDrops.Add(id);
+            EnsureDeathPenalty(victim);
+        }
+
+        internal bool EnsureDeathPenalty(NetPlayer victim)
+        {
+            if (!IsServer || victim == null || victim.Hull != 0f) return false;
+            if (NetArena.InMatch(victim.OwnerClientId) ||
+                !NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId)) return true;
+            ulong id = victim.NetworkObjectId;
+            if (attemptedBountyDrops.Contains(id)) return true;
+            // Mark in-flight to prevent re-entry when a successful profile refresh loads the station.
+            attemptedBountyDrops.Add(id);
+            if (BeginDeathRecovery(victim)) return true;
+            attemptedBountyDrops.Remove(id);
+            return false;
         }
 
         bool BeginDeathRecovery(NetPlayer victim)
