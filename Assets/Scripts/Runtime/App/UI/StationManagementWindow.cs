@@ -1406,7 +1406,8 @@ namespace GoF2Remake.UI
         {
             var row = new VisualElement(); row.AddToClassList("player-station-info");
             row.style.flexWrap = Wrap.Wrap; row.style.minHeight = 32; row.style.flexShrink = 0;
-            var name = new Label(label); name.style.whiteSpace = WhiteSpace.Normal; name.style.flexShrink = 1;
+            var name = new Label(label.TrimEnd().TrimEnd(':') + ":") { enableRichText = false };
+            name.style.whiteSpace = WhiteSpace.Normal; name.style.flexShrink = 0; name.style.marginRight = 8;
             var detail = new Label(value ?? ""); detail.enableRichText = false; detail.style.whiteSpace = WhiteSpace.Normal;
             detail.style.flexShrink = 1; detail.style.minWidth = 0; detail.style.flexGrow = 1;
             row.Add(name); row.Add(detail); parent.Add(row);
