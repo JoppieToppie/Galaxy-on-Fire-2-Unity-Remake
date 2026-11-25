@@ -439,13 +439,14 @@ namespace GoF2Remake.Multiplayer
                 // Story and event loaners are not the player's property.
                 if (save.hasParkedShip) return true;
                 int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
-                int respawn = NetFactions.DeathRespawnStation(pilot, save.lastDockedStation);
+                int respawn = pilot.DeathRespawnDestination >= 0 ? pilot.DeathRespawnDestination :
+                    NetFactions.DeathRespawnStation(pilot, save.lastDockedStation, pilot.DeathOrigin);
                 if (emergencyShip < 0 || respawn < 0) return false;
                 pending = new PendingDeathPenalty
                 {
                     id = Guid.NewGuid().ToString("N"),
                     dueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Modding.ModPvpPiracy.ShipRecoverySeconds,
-                    origin = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.Station,
+                    origin = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.DeathOrigin,
                     respawn = respawn, emergencyShip = emergencyShip
                 };
                 if (!Write(PendingDeathPath(account), JsonUtility.ToJson(pending))) return false;
