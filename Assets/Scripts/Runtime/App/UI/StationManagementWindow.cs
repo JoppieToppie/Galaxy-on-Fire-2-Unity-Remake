@@ -25,6 +25,7 @@ namespace GoF2Remake.UI
         readonly Dictionary<string, TextField> fields = new Dictionary<string, TextField>();
         PlayerStationRecord selected;
         bool open;
+        string managementPage = "overview";
         int confirmOrbitalRemoval;
         int confirmRetirementId = -1;
         int confirmBuilderRelinquish = -1;
@@ -192,6 +193,7 @@ namespace GoF2Remake.UI
             overlay.style.display = DisplayStyle.Flex;
             overlay.BringToFront();
             open = true;
+            managementPage = "overview";
             refresh = 0;
             plannerOrbits = null;
             plannerRequestPending = false;
@@ -313,7 +315,31 @@ namespace GoF2Remake.UI
                 AddSection("ORBIT MANAGEMENT", "Manage projects while flying. Facilities that require docking still enforce their normal access rules.");
                 AddAction("Orbit projects, deliveries and salvage", MultiplayerWindow.OpenOrbitProjectsAny);
             }
-            BuildStationPlanner();
+            AddAction("Station overview", () => ChangeManagementPage("overview"));
+            if (Modding.ModPlayerInfrastructure.Current.Enabled)
+                AddAction("Build station", () => ChangeManagementPage("build"));
+            AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
+            AddAction("Resource buy orders", () => ChangeManagementPage("orders"));
+            if (managementPage == "build")
+            {
+                if (Modding.ModPlayerInfrastructure.Current.Enabled) BuildNewStationControls();
+                return;
+            }
+            if (managementPage == "contribute")
+            {
+                BuildSharedContribution();
+                if (selected?.underConstruction == true) BuildStationConstruction(selected);
+                return;
+            }
+            if (managementPage == "orders")
+            {
+                if (selected == null) AddInfo("Project", "Select a construction project from the station list.");
+                else if (!selected.underConstruction && string.IsNullOrEmpty(selected.moduleConstructionKind))
+                    AddInfo("Project", "This station has no active construction project.");
+                else BuildConstructionProcurement(selected.id.ToString(), NetPlayer.Local?.CanFundStationProjectInUi(selected.id) == true,
+                    canManageModule: !selected.underConstruction);
+                return;
+            }
             var current = NetGame.Db.Stations.Find(station => station != null && station.index == CurrentOrbit);
             if (current != null) BuildSystemGates(current.system);
             if (selected == null) return;
@@ -329,7 +355,9 @@ namespace GoF2Remake.UI
                 }
                 if (selected.underConstruction)
                 {
-                    BuildStationConstruction(selected);
+                    AddInfo("Project", selected.name);
+                    AddAction("Open contribution menu", () => ChangeManagementPage("contribute"));
+                    AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
                 }
                 AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
@@ -400,7 +428,8 @@ namespace GoF2Remake.UI
                                 Send("/station drydock-retrieve " + recoveryId + " " + Value("recoveryDryDockIndex")));
                         }
                     }
-                    BuildConstructionProcurement(selected.id.ToString(), false);
+                    if (!string.IsNullOrEmpty(selected.moduleConstructionKind))
+                        AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
                     return;
                 }
@@ -541,7 +570,7 @@ namespace GoF2Remake.UI
         void BuildFacilityControls(string id)
         {
             AddSection("STORAGE & ACCESS", "Move goods between your cargo hold and shared station storage. Access can be restricted to the owner or shared with current faction members.");
-            AddField("storageItem", "Item ID", "156");
+            AddItemChoice("storageItem", "Item");
             AddField("storageAmount", "Amount", "10");
             AddAction("Deposit cargo", () => Send("/station deposit " + id + " " + Value("storageItem") + " " + Value("storageAmount")));
             AddAction("Withdraw cargo", () => Send("/station withdraw " + id + " " + Value("storageItem") + " " + Value("storageAmount")));
@@ -549,7 +578,7 @@ namespace GoF2Remake.UI
             AddAction("Set owner-only access", "/station access " + id + " owner");
 
             AddSection("REFINERY", "Convert supported raw ore stored at the station into its matching core.");
-            AddField("oreItem", "Raw ore item ID", "156");
+            AddItemChoice("oreItem", "Raw ore");
             AddField("oreAmount", "Ore units (multiples of 10)", "10");
             AddAction("Refine ore", () => Send("/station refine " + id + " " + Value("oreItem") + " " + Value("oreAmount")));
 
@@ -585,13 +614,14 @@ namespace GoF2Remake.UI
 
             AddSection("MARKETPLACE", "Listings escrow goods from station storage. Buyers must be docked at this station; purchases transfer credits and goods through the server.");
             AddAction("View active listings", "/station market " + id);
-            AddField("marketItem", "Sale item ID", "156");
+            AddItemChoice("marketItem", "Item to sell");
             AddField("marketAmount", "Units to list (1–500)", "1");
             AddField("marketPrice", "Price per unit (credits)", "100");
             AddField("marketPayout", "Listing proceeds (personal/faction)", "personal");
             AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice") + " " + Value("marketPayout")));
             BuildMarketCatalogue(id);
-            BuildConstructionProcurement(id, NetPlayer.Local?.CanFundStationProjectInUi(selected.id) == true, canManageModule: true);
+            if (!string.IsNullOrEmpty(selected.moduleConstructionKind))
+                AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
 
 
         }
@@ -645,8 +675,10 @@ namespace GoF2Remake.UI
             AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
                 ? "Faction treasury. Orders require leader/officer authority." : "Station owner's personal credits.");
             var requirements = selected.underConstruction ? selected.materials : selected.moduleConstructionMaterials;
-            var firstOutstanding = requirements?.Find(material => material != null && material.required > material.delivered);
-            AddField("buyOrderItem", "Required material item ID", firstOutstanding?.item.ToString() ?? "");
+            var outstanding = requirements?.Where(material => material != null && material.required > material.delivered)
+                .Select(material => material.item).ToHashSet() ?? new HashSet<int>();
+            if (outstanding.Count == 0) { AddInfo("Materials", "No outstanding requirements."); return; }
+            AddItemChoice("buyOrderItem", "Required material", outstanding);
             AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
             AddField("buyOrderPrice", "Offer per unit (credits)", "100");
             AddAction("Create construction buy order", () => Send("/station buy-order " + id + " " +
@@ -782,6 +814,18 @@ namespace GoF2Remake.UI
                     });
                 }
             }
+        }
+
+        void AddItemChoice(string key, string label, HashSet<int> allowed = null)
+        {
+            var items = NetGame.Db?.Items;
+            var options = new List<(string value, string label)> { ("", "Select an item") };
+            if (items != null)
+                options.AddRange(items.Where(item => item != null && !string.IsNullOrWhiteSpace(item.name) &&
+                    (allowed == null || allowed.Contains(item.index)))
+                    .OrderBy(item => item.name, StringComparer.CurrentCultureIgnoreCase).ThenBy(item => item.index)
+                    .Select(item => (item.index.ToString(), item.name)));
+            AddChoice(key, label, options);
         }
 
         void AddChoice(string key, string label, List<(string value, string label)> options, Action<string> changed = null)
@@ -921,13 +965,17 @@ namespace GoF2Remake.UI
         static List<(string value, string label)> GateModelChoices() =>
             NetPlayerStations.JumpgateModelChoices().Select(model => (model.id.ToString(), model.label)).ToList();
 
-        void BuildStationPlanner()
+        void ChangeManagementPage(string page)
         {
-            if (Modding.ModPlayerInfrastructure.Current.Enabled)
-                BuildNewStationControls();
+            managementPage = page;
+            RebuildBody(Vector2.zero);
+        }
 
+        void BuildSharedContribution()
+        {
+            AddSection("CONTRIBUTE TO STATION", "Select an accessible project from the station list or use a shared project reference.");
             AddField("sharedProject", "Shared project ID", "");
-            AddField("sharedMaterial", "Material item ID", "");
+            AddItemChoice("sharedMaterial", "Material");
             AddField("sharedAmount", "Units", "1");
             AddAction("Deliver to a shared project", () =>
                 Send("/station contribute " + Value("sharedProject") + " " + Value("sharedMaterial") + " " + Value("sharedAmount")));
@@ -1025,7 +1073,7 @@ namespace GoF2Remake.UI
             if (project.materials != null)
                 foreach (var material in project.materials)
                     if (material != null)
-                        AddInfo((NetGame.Db.Item(material.item)?.name ?? "Item") + " [" + material.item + "]",
+                        AddInfo((NetGame.Db.Item(material.item)?.name ?? "Unavailable material"),
                             material.delivered + "/" + material.required);
             if (project.reconstructing)
                 AddInfo("Deliveries", "Fly within 5 km of the reconstruction site and open Multiplayer → Orbit Projects.");
@@ -1047,7 +1095,7 @@ namespace GoF2Remake.UI
             }
             AddAction("View contribution ledger", "/station contributions " + id);
             AddInfo("Shared project ID", project.id.ToString());
-            BuildConstructionProcurement(id, NetPlayer.Local?.CanFundStationProjectInUi(project.id) == true);
+
         }
 
         void BuildVisitorMarket(string id)
@@ -1114,7 +1162,7 @@ namespace GoF2Remake.UI
         {
             AddSection("PERSONAL STORAGE", "");
             AddAction("View stored holdings", "/station storage " + id);
-            AddField("visitorStoredItem", "Item ID", "");
+            AddItemChoice("visitorStoredItem", "Stored item");
             AddField("visitorStoredQuantity", "Units", "1");
             AddAction("Withdraw own items", () => Send("/station withdraw " + id + " " +
                 Value("visitorStoredItem") + " " + Value("visitorStoredQuantity")));
@@ -1124,7 +1172,7 @@ namespace GoF2Remake.UI
         {
             AddSection("DONATED CONSTRUCTION STOCK", "");
             AddAction("View construction stock", "/station faction-materials");
-            AddField("stockItem", "Material item ID", "");
+            AddItemChoice("stockItem", "Material");
             AddField("stockQuantity", "Units", "1");
             AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity")));
         }
@@ -1262,7 +1310,7 @@ namespace GoF2Remake.UI
 
         void Send(string command)
         {
-            if (string.IsNullOrWhiteSpace(command) || command.Contains("  "))
+            if (string.IsNullOrWhiteSpace(command) || command.TrimEnd() != command || command.Contains("  "))
             {
                 feedback.text = "Complete the required fields before submitting.";
                 feedbackTime = 8f;
