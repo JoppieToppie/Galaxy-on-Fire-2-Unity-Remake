@@ -1965,13 +1965,12 @@ namespace GoF2Remake.UI
                 _ => drafts.Remove("marketPilotPercent"));
             int limit = NetPlayerStations.PilotMarketLimit;
             AddNumber("marketPilotPercent", "Percentage", 0, Value("marketPilotOperation") == "purchase" ? -limit : 0, limit);
-            AddField("marketPilotReason", "Reason for the surcharge or deduction", "");
+            AddField("marketPilotReason", "Reason (optional)", "");
             string Command() => $"/station pilot-tax {id} {Value("marketPilot")} {Value("marketPilotOperation")}";
             AddAction("Apply pilot tax", () =>
             {
                 string percent = Value("marketPilotPercent");
-                if (int.TryParse(percent, out int rate) && rate > 0) SendWithReason(Command() + " " + percent, "marketPilotReason");
-                else Send(Command() + " " + percent);
+                SendWithOptionalReason(Command() + " " + percent, "marketPilotReason");
             });
             AddAction("Remove pilot tax override", () => Send(Command() + " inherit"));
             if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
@@ -2063,8 +2062,8 @@ namespace GoF2Remake.UI
         {
             string id = station.id.ToString();
             AddSection("RACE POLICIES", "Select a race to inspect inherited and station-specific policies. Changes apply only when confirmed.");
-            var races = Modding.ModRefs.RaceWords.Select(entry => (value: PlayerIdentity.RaceKey(entry.race), label: entry.name))
-                .Concat(Modding.ModRaces.All.Select(entry => (value: entry.key, label: Modding.ModRaces.Name(entry.race))))
+            var races = Modding.ModRefs.RaceWords.Where(entry => PlayerIdentity.IsSelectableRace(entry.race)).Select(entry => (value: PlayerIdentity.RaceKey(entry.race), label: entry.name))
+                .Concat(Modding.ModRaces.All.Where(entry => PlayerIdentity.IsSelectableRace(entry.race)).Select(entry => (value: entry.key, label: Modding.ModRaces.Name(entry.race))))
                 .GroupBy(race => race.value).Select(group => group.First()).OrderBy(race => race.label).ToList();
             if (races.Count == 0) { AddInfo("Race directory", "No races are configured."); return; }
             string race = Value("stationPolicyRace");
@@ -2169,13 +2168,13 @@ namespace GoF2Remake.UI
                 {
                     int limit = Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
                     AddNumber("raceMarketPercent", "Percentage", 0, operation == "purchase" ? -limit : 0, limit);
-                    AddField("raceMarketReason", "Reason for the price adjustment", "");
+                    AddField("raceMarketReason", "Reason (optional)", "");
                 }
                 AddAction("Apply price adjustment", () =>
                 {
                     string adjustment = custom ? Value("raceMarketPercent") : "inherit";
                     string command = $"/station race-policy {id} {operation} {race} {adjustment}";
-                    if (custom && int.TryParse(adjustment, out int percent) && percent > 0) SendWithReason(command, "raceMarketReason");
+                    if (custom) SendWithOptionalReason(command, "raceMarketReason");
                     else Send(command);
                 });
             }
@@ -2259,8 +2258,8 @@ namespace GoF2Remake.UI
 
         void AddRaceChoice(string key, string label)
         {
-            var races = Modding.ModRefs.RaceWords.Select(race => (value: PlayerIdentity.RaceKey(race.race), label: race.name))
-                .Concat(Modding.ModRaces.All.Select(race => (value: race.key, label: Modding.ModRaces.Name(race.race))))
+            var races = Modding.ModRefs.RaceWords.Where(entry => PlayerIdentity.IsSelectableRace(entry.race)).Select(race => (value: PlayerIdentity.RaceKey(race.race), label: race.name))
+                .Concat(Modding.ModRaces.All.Where(entry => PlayerIdentity.IsSelectableRace(entry.race)).Select(race => (value: race.key, label: Modding.ModRaces.Name(race.race))))
                 .GroupBy(race => race.value).Select(group => group.First()).OrderBy(race => race.label).ToList();
             races.Insert(0, ("", "Choose race…"));
             AddChoice(key, label, races);
@@ -2389,6 +2388,12 @@ namespace GoF2Remake.UI
                 return;
             }
             Dispatch("/station " + action + " " + name);
+        }
+
+        void SendWithOptionalReason(string command, string reasonKey)
+        {
+            string reason = System.Text.RegularExpressions.Regex.Replace(NetPlayerStations.NormalizeBlacklistReason(Value(reasonKey)) ?? "", @"\s+", " ").Trim();
+            Send(string.IsNullOrEmpty(reason) ? command : command + " " + reason);
         }
 
         void SendWithReason(string command, string reasonKey, string separator = " ")
