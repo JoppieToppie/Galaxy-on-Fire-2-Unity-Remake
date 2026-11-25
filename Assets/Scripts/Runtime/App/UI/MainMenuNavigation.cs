@@ -31,9 +31,9 @@ namespace GoF2Remake.UI
                 {
                     int dx = e.direction == NavigationMoveEvent.Direction.Left ? -1 : e.direction == NavigationMoveEvent.Direction.Right ? 1 : 0;
                     int dy = e.direction == NavigationMoveEvent.Direction.Up ? -1 : e.direction == NavigationMoveEvent.Direction.Down ? 1 : 0;
-                    var next = current == null || !choices.Contains(current) ? choices[0] :
+                    var identityNext = current == null || !choices.Contains(current) ? choices[0] :
                         (dx == 0 && dy == 0 ? current : SpatialNav.Next(choices, current, dx, dy));
-                    next?.Focus();
+                    identityNext?.Focus();
                 }
                 Swallow(e);
                 return;
