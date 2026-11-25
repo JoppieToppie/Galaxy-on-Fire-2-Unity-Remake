@@ -308,6 +308,36 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(10, station.nextItemListingId);
         }
 
+        [Test]
+        public void ConstructionDockRequiresAContactFaceNotJustNearbyFlight()
+        {
+            var centre = new Vector3(3500f, 0f, -1000f);
+            Assert.IsTrue(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.right * 120f, centre, 20f));
+            Assert.IsTrue(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.back * 120f, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.forward * 2500f, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.up * 120f, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.right * 120f, centre, float.NaN));
+        }
+
+        [Test]
+        public void ConstructionOrderIdentitySurvivesRemovalAndLegacyMigration()
+        {
+            var station = new PlayerStationRecord();
+            station.buyOrders.Add(new PlayerStationBuyOrder { id = 7, item = 156 });
+            station.buyOrders.Add(new PlayerStationBuyOrder { item = 155 });
+            station.buyOrders.Add(new PlayerStationBuyOrder { id = 7, item = 118 });
+            NetPlayerStations.NormalizeConstructionOrderIds(station);
+            Assert.AreEqual(7, station.buyOrders[0].id);
+            Assert.AreEqual(8, station.buyOrders[1].id);
+            Assert.AreEqual(9, station.buyOrders[2].id);
+            station.buyOrders.RemoveAt(0);
+            NetPlayerStations.NormalizeConstructionOrderIds(station);
+            Assert.AreEqual(8, station.buyOrders[0].id);
+            Assert.AreEqual(9, station.buyOrders[1].id);
+            Assert.AreEqual(10, station.nextConstructionOrderId);
+        }
+
         // ---- NetRateLimit ----
 
         [SetUp]
