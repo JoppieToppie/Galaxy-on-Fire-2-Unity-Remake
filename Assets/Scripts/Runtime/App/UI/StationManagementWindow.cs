@@ -349,7 +349,7 @@ namespace GoF2Remake.UI
             if (managementPage == "contribute")
             {
                 if (localProject != null) BuildStationConstruction(localProject);
-                else AddInfo("Delivery", "Fly within 5 km of a station construction site to contribute materials.");
+                else AddInfo("Delivery", "Dock at a station construction site to contribute materials.");
                 return;
             }
             if (managementPage == "orders")
@@ -381,7 +381,7 @@ namespace GoF2Remake.UI
                     AddInfo("Project", selected.name);
                     if (localProject?.id == selected.id)
                         AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
-                    else AddInfo("Delivery", "Fly within 5 km of this construction site to deliver materials.");
+                    else AddInfo("Delivery", "Dock at this construction site to deliver materials.");
                     AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                     AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
@@ -699,7 +699,7 @@ namespace GoF2Remake.UI
                 }
             }
             if (selected.underConstruction && LocalDeliveryProject()?.id != selected.id)
-                AddInfo("Delivery", "Travel within 5 km of this construction site to fulfil orders.");
+                AddInfo("Delivery", "Dock at this construction site to fulfil orders.");
             if (!allowManagement) return;
             AddInfo("Procurement funding", selected.ownershipType == PlayerStationOwnershipType.Faction
                 ? "Faction treasury. Orders require leader/officer authority." : "Station owner's personal credits.");
