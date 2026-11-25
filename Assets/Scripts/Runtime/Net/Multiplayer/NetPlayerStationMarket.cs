@@ -337,6 +337,25 @@ namespace GoF2Remake.Multiplayer
             return "The pilot tax rule could not be saved.";
         }
 
+        internal static string DonateStationCredits(NetPlayer pilot, int id, long amount)
+        {
+            var station = Find(id);
+            if (!IsStationContext(pilot, station, out string account) || station.underConstruction || station.retired || station.destroyed || station.offeredForClaimUtc > 0)
+                return "Dock at an operational station with a controlled profile to donate credits.";
+            if (amount <= 0 || amount > int.MaxValue || NetProfiles.CreditAmount(account) < amount)
+                return "Choose a positive donation within your available credits.";
+            long previous = station.stationBankCredits;
+            if (previous < 0 || previous > long.MaxValue - amount) return "The station bank cannot accept that amount.";
+            station.stationBankCredits += amount;
+            if (!CommitProfileTransaction(null, new List<(string account, long delta)> { (account, -amount) }, null))
+            {
+                station.stationBankCredits = previous;
+                return "The donation could not be committed.";
+            }
+            NotifyProfileCreditChange(account, -amount, "Station bank donation");
+            return $"Donated {amount:N0} credits to {station.name}'s station bank.";
+        }
+
         internal static string SetMarketplaceTax(NetPlayer by, int id, int percent)
         {
             var station = Find(id);
@@ -562,6 +581,9 @@ namespace GoF2Remake.Multiplayer
             if (NetProfiles.WreckSalvageCargoRoom(by, buyer) < amount)
                 return "Your ship does not have enough free cargo space for this purchase.";
 
+            long previousBank = record.stationBankCredits;
+            if (tax < 0 || previousBank < 0 || previousBank > long.MaxValue - tax) return "The station bank cannot accept this tax.";
+            record.stationBankCredits += tax;
             bool removeListing = amount == listing.amount;
             if (removeListing) record.listings.RemoveAt(listingIndex);
             else listing.amount -= amount;
@@ -573,16 +595,11 @@ namespace GoF2Remake.Multiplayer
                 if (paidToFaction) banks.Add((listing.payoutFactionId, proceeds));
                 else payments.Add((seller, proceeds));
             }
-            bool factionTax = record.ownershipType == PlayerStationOwnershipType.Faction;
-            if (tax > 0)
-            {
-                if (factionTax) banks.Add((record.ownerFactionId, tax));
-                else payments.Add((record.ownerProfile, tax));
-            }
             bool committed = CommitProfileTransaction(
                 new List<(string account, int item, int delta)> { (buyer, listing.item, amount) }, payments, banks);
             if (!committed)
             {
+                record.stationBankCredits = previousBank;
                 if (removeListing) record.listings.Insert(listingIndex, listing);
                 else listing.amount += amount;
                 return "The purchase could not be journalled; no credits or goods were transferred.";
@@ -592,7 +609,7 @@ namespace GoF2Remake.Multiplayer
             if (!buyerIsHost)
             {
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits,
-                    -(int)(charge - (!factionTax && record.ownerProfile == buyer ? tax : 0)), 0, 0, "", "Station marketplace");
+                    -(int)charge, 0, 0, "", "Station marketplace");
                 NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, amount, 0, "", "Station marketplace");
             }
 
@@ -604,8 +621,6 @@ namespace GoF2Remake.Multiplayer
                 break;
             }
 
-            if (tax > 0 && !factionTax && record.ownerProfile != buyer)
-                NotifyProfileCreditChange(record.ownerProfile, tax, "Station marketplace tax");
             string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
             return "Purchased " + amount + " x " + itemName + " for " + charge.ToString("N0") +
                 " credits" +
