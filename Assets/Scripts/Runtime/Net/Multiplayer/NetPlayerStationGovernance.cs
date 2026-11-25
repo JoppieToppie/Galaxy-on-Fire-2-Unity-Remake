@@ -372,6 +372,26 @@ namespace GoF2Remake.Multiplayer
                 string.Equals(faction.leader, account, StringComparison.Ordinal);
         }
 
+        internal static bool CanPublishStationAnnouncement(NetPlayer pilot, PlayerStationRecord record)
+        {
+            return record != null && record.ownershipType == PlayerStationOwnershipType.Faction &&
+                !record.underConstruction && !record.retired && !record.destroyed && record.offeredForClaimUtc <= 0 &&
+                IsStationAuthority(pilot, record, out _);
+        }
+
+        internal static string PublishStationAnnouncement(NetPlayer pilot, int id, string message)
+        {
+            var record = Find(id);
+            if (!CanPublishStationAnnouncement(pilot, record)) return "Only the owning faction leader may publish announcements while docked here.";
+            message = (message ?? "").Trim();
+            if (message.Length == 0 || message.Length > 160) return "Write an announcement of 1–160 characters.";
+            string faction = NetFactions.FindById(record.ownerFactionId)?.tag ?? "Faction";
+            string text = NetNews.Safe("[" + faction + "] " + message);
+            return NetNews.Post(NetNews.Kind.StationAnnouncement, text, record.stationIndex, "station-announcement:" + record.id, 60f)
+                ? "Announcement published to this station's news."
+                : "Announcement could not be published. Wait one minute between announcements.";
+        }
+
         internal static string SetStationRole(NetPlayer by, int stationId, string target, string roleName)
         {
             var record = Find(stationId);
