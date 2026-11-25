@@ -891,7 +891,7 @@ namespace GoF2Remake.UI
             var db = NetGame.Db;
             var station = selected;
             int firstControl = body.contentContainer.childCount;
-            var types = new List<(string, string)> { ("orbital", "Orbital defense or other structure"), ("refinery", "Refinery"), ("drydock", "Dry dock") };
+            var types = new List<(string, string)> { ("orbital", "Orbital defense"), ("factory", "Factory"), ("refinery", "Refinery"), ("drydock", "Dry dock") };
             for (int i = 1; i <= 4; i++) types.Add(("dockarm-" + i, "Docking arm " + i));
             AddChoice("placementType", "Project", types, _ => drafts.Remove("placementPreset"));
             string kind = Value("placementType");
@@ -913,8 +913,8 @@ namespace GoF2Remake.UI
             int race = system?.raceId ?? -1;
             var settings = Modding.ModPlayerInfrastructure.Current;
             var presets = (orbital ? settings.OrbitalStructures.Where(preset =>
-                NetPlayerStations.OrbitalPresetAvailable(preset, race) &&
-                (preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit) > 0) :
+                preset.Defense && NetPlayerStations.OrbitalPresetAvailable(preset, race) &&
+                settings.OrbitalDefenseLimit > 0) :
                 NetPlayerStations.ModuleExteriorChoices(station, kind)).ToList();
             var existing = station.placements?.Find(entry => entry?.kind == kind);
             if (!drafts.ContainsKey("placementPreset") && existing != null) drafts["placementPreset"] = existing.preset;
