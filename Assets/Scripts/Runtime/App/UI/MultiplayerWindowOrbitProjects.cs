@@ -75,7 +75,7 @@ namespace GoF2Remake.UI
                 flightColumn.Add(constructionShortcut);
             }
             constructionShortcut.EnableInClassList("squad-button--big", large);
-            constructionShortcut.style.display = pilot.DockedAtObject ? DisplayStyle.Flex : DisplayStyle.None;
+            constructionShortcut.style.display = NetPlayerStations.CanDeliverAtConstructionSite(pilot, site) ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         void UpdateOrbitProjects()
