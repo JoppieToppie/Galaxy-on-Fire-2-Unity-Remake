@@ -31,6 +31,17 @@ namespace GoF2Remake.Modding
         public const int DefaultStationBuildSeconds = 12 * 60 * 60;
         public const int MaxBuildSeconds = 30 * 24 * 60 * 60;
         internal static readonly string[] TimedModules = { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" };
+        public const int DefaultStorageCapacityPerLevel = 2000;
+        public const int DefaultStorageItemTypes = 64;
+        public const int DefaultStationClaimPrice = 25_000_000;
+        public const int DefaultStationRenamePrice = 300_000;
+        public int StorageCapacityPerLevel { get; private set; } = DefaultStorageCapacityPerLevel;
+        public int StorageItemTypes { get; private set; } = DefaultStorageItemTypes;
+        public int StationClaimPrice { get; private set; } = DefaultStationClaimPrice;
+        public int StationRenamePrice { get; private set; } = DefaultStationRenamePrice;
+        public bool SiegeRespawnFactionOfficers { get; private set; } = true;
+        public bool SiegeRespawnStationAdministrators { get; private set; } = true;
+        public bool SiegeRespawnOriginalBuilders { get; private set; } = true;
         public int StationBuildSeconds { get; private set; } = DefaultStationBuildSeconds;
         public int JumpgateBuildSeconds { get; private set; }
         public IReadOnlyDictionary<int, (int Output, int InputUnits, int OutputUnits)> RefineryRecipes { get; private set; } =
@@ -187,6 +198,13 @@ namespace GoF2Remake.Modding
                 IncludeStockStations = ReadToggle(settings, "includeStockStations"),
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,
+                StorageCapacityPerLevel = StructureInt(settings, "storageCapacityPerLevel", DefaultStorageCapacityPerLevel, 1, 1000000),
+                StorageItemTypes = StructureInt(settings, "storageItemTypes", DefaultStorageItemTypes, 1, 4096),
+                StationClaimPrice = StructureInt(settings, "stationClaimPrice", DefaultStationClaimPrice, 0, int.MaxValue),
+                StationRenamePrice = StructureInt(settings, "stationRenamePrice", DefaultStationRenamePrice, 0, int.MaxValue),
+                SiegeRespawnFactionOfficers = ReadToggle(settings, "siegeRespawnFactionOfficers"),
+                SiegeRespawnStationAdministrators = ReadToggle(settings, "siegeRespawnStationAdministrators"),
+                SiegeRespawnOriginalBuilders = ReadToggle(settings, "siegeRespawnOriginalBuilders"),
                 StationBuildSeconds = StructureInt(settings, "stationBuildSeconds", DefaultStationBuildSeconds, 0, MaxBuildSeconds),
                 JumpgateBuildSeconds = StructureInt(settings, "jumpgateBuildSeconds", 0, 0, MaxBuildSeconds),
                 MinimumStationScale = ReadMinimumScale(settings, "minimumStationScale"),
