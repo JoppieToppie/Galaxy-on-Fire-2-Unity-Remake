@@ -581,6 +581,27 @@ namespace GoF2Remake.Multiplayer
             return "The faction default could not be saved; the previous setting remains active.";
         }
 
+        internal const int MaxBlacklistReasonLength = 160;
+        internal static string NormalizeBlacklistReason(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason)) return "";
+            var clean = new System.Text.StringBuilder();
+            foreach (char ch in reason.Trim())
+            {
+                if (clean.Length >= MaxBlacklistReasonLength) break;
+                if (char.IsControl(ch)) clean.Append(' ');
+                else if (ch != '<' && ch != '>') clean.Append(ch);
+            }
+            if (clean.Length > 0 && char.IsHighSurrogate(clean[clean.Length - 1])) clean.Length--;
+            return clean.ToString().Trim();
+        }
+
+        internal static string WithBlacklistReason(string message, string reason)
+        {
+            reason = NormalizeBlacklistReason(reason);
+            return string.IsNullOrEmpty(reason) ? message : message + " Reason: " + reason;
+        }
+
         internal static string SetStationBan(NetPlayer by, int stationId, string target,
             string reason, bool ban)
         {
@@ -607,11 +628,20 @@ namespace GoF2Remake.Multiplayer
             record.bans ??= new List<PlayerStationBan>();
             var source = builder ? PlayerStationBanSource.OriginalBuilder : PlayerStationBanSource.OwnerAuthority;
             var existing = record.bans.Find(x => x != null && string.Equals(x.account, targetAccount, StringComparison.Ordinal) && x.source == source);
+            reason = NormalizeBlacklistReason(reason);
             if (ban)
             {
-                if (existing != null) return "That player is already banned by this authority.";
+                if (existing != null)
+                {
+                    if (string.IsNullOrEmpty(reason) || existing.reason == reason) return "That player is already banned by this authority.";
+                    string previousReason = existing.reason;
+                    existing.reason = reason;
+                    if (Save()) { EjectDeniedVisitors(record); return "Station blacklist reason updated."; }
+                    existing.reason = previousReason;
+                    return "The blacklist reason could not be saved.";
+                }
                 record.bans.Add(new PlayerStationBan
-                { account = targetAccount, source = source, imposedBy = account, reason = (reason ?? "").Trim(),
+                { account = targetAccount, source = source, imposedBy = account, reason = reason,
                     createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             }
             else
