@@ -35,10 +35,16 @@ namespace GoF2Remake.Multiplayer
         static string StationBlacklistRefusal(PlayerStationRecord record, string account, string fallback)
         {
             if (record == null || record.offeredForClaimUtc > 0 || IsStationOwnerAccount(record, account)) return fallback;
-            var ban = record.bans?.Find(entry => entry != null && entry.account == account && entry.source == PlayerStationBanSource.OriginalBuilder);
+            var ban = FindEffectiveBan(record, account, PlayerStationBanSource.OriginalBuilder);
             if (ban == null && !HasBuilderRights(record, account))
-                ban = record.bans?.Find(entry => entry != null && entry.account == account && entry.source == PlayerStationBanSource.OwnerAuthority);
-            return ban == null ? FacilityRaceRefusal(record, account, "docking", fallback) : WithBlacklistReason("Access denied: you are blacklisted at " + record.name + ".", ban.reason);
+                ban = FindEffectiveBan(record, account, PlayerStationBanSource.OwnerAuthority);
+            if (ban != null) return WithBlacklistReason("Access denied: " + (ban.faction ? "your faction is" : "you are") + " blacklisted at " + record.name + ".", ban.reason);
+            var permission = FindPermissionOverride(record, account, PlayerStationPermission.Visit);
+            if (permission?.builderState == PlayerStationPermissionState.Deny)
+                return WithBlacklistReason(fallback, permission.builderReason);
+            if (permission?.state == PlayerStationPermissionState.Deny && permission.builderState != PlayerStationPermissionState.Allow)
+                return WithBlacklistReason(fallback, permission.reason);
+            return FacilityRaceRefusal(record, account, "docking", fallback);
         }
 
         internal static void ValidateDockedStationAccess(NetPlayer player)

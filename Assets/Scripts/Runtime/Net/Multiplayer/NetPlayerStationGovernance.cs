@@ -26,6 +26,7 @@ namespace GoF2Remake.Multiplayer
         public string setBy;
         public PlayerStationPermissionState builderState = PlayerStationPermissionState.Inherit;
         public string builderSetBy;
+        public string reason, builderReason;
     }
 
     [Serializable]
@@ -41,6 +42,7 @@ namespace GoF2Remake.Multiplayer
     public sealed class PlayerStationBan
     {
         public string account;
+        public bool faction;
         public PlayerStationBanSource source;
         public string imposedBy;
         public string reason;
@@ -166,7 +168,7 @@ namespace GoF2Remake.Multiplayer
             string owner = record.ownershipType == PlayerStationOwnershipType.Individual
                 ? record.ownerProfile : NetFactions.FindById(record.ownerFactionId)?.leader;
             if (string.IsNullOrEmpty(owner)) return;
-            record.bans?.RemoveAll(x => x != null && string.Equals(x.account, owner, StringComparison.Ordinal));
+            record.bans?.RemoveAll(x => x != null && !x.faction && string.Equals(x.account, owner, StringComparison.Ordinal));
             record.permissionOverrides?.RemoveAll(x => x != null &&
                 string.Equals(x.account, owner, StringComparison.Ordinal) &&
                 x.permission == PlayerStationPermission.Visit);
@@ -245,7 +247,8 @@ namespace GoF2Remake.Multiplayer
                 if (item != null) copy.Add(new PlayerStationPermissionOverride
                 {
                     account = item.account, permission = item.permission, state = item.state, setBy = item.setBy,
-                    builderState = item.builderState, builderSetBy = item.builderSetBy
+                    builderState = item.builderState, builderSetBy = item.builderSetBy,
+                    reason = item.reason, builderReason = item.builderReason
                 });
             return copy;
         }
@@ -256,7 +259,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var item in record?.bans ?? new List<PlayerStationBan>())
                 if (item != null) copy.Add(new PlayerStationBan
                 {
-                    account = item.account, source = item.source, imposedBy = item.imposedBy,
+                    account = item.account, faction = item.faction, source = item.source, imposedBy = item.imposedBy,
                     reason = item.reason, createdUtc = item.createdUtc
                 });
             return copy;
@@ -270,6 +273,8 @@ namespace GoF2Remake.Multiplayer
                 if (item == null || item.builderState == PlayerStationPermissionState.Inherit) continue;
                 item.state = item.builderState;
                 item.setBy = item.builderSetBy;
+                item.reason = item.builderReason;
+                item.builderReason = null;
                 item.builderState = PlayerStationPermissionState.Inherit;
                 item.builderSetBy = null;
             }
@@ -278,11 +283,20 @@ namespace GoF2Remake.Multiplayer
                     ban.source = PlayerStationBanSource.OwnerAuthority;
         }
 
-        static bool HasBan(PlayerStationRecord record, string account, PlayerStationBanSource source)
+        static PlayerStationBan FindBan(PlayerStationRecord record, string target, PlayerStationBanSource source, bool faction)
         {
-            return record?.bans?.Exists(x => x != null && x.source == source &&
-                string.Equals(x.account, account, StringComparison.Ordinal)) == true;
+            return string.IsNullOrEmpty(target) ? null : record?.bans?.Find(entry => entry != null &&
+                entry.source == source && entry.faction == faction && string.Equals(entry.account, target, StringComparison.Ordinal));
         }
+
+        static PlayerStationBan FindEffectiveBan(PlayerStationRecord record, string account, PlayerStationBanSource source)
+        {
+            return FindBan(record, account, source, false) ??
+                FindBan(record, NetFactions.Of(account)?.id, source, true);
+        }
+
+        static bool HasBan(PlayerStationRecord record, string account, PlayerStationBanSource source) =>
+            FindEffectiveBan(record, account, source) != null;
 
         internal static bool HasStationPermission(PlayerStationRecord record, string account,
             PlayerStationPermission permission)
@@ -442,7 +456,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         internal static string SetStationPermission(NetPlayer by, int stationId, string target,
-            string permissionName, string stateName)
+            string permissionName, string stateName, string reason = null)
         {
             var record = Find(stationId);
             if (record == null) return "No player station with that id exists.";
@@ -482,7 +496,8 @@ namespace GoF2Remake.Multiplayer
             var previous = FindPermissionOverride(record, targetAccount, permission);
             PlayerStationPermissionOverride savedPrevious = previous == null ? null : new PlayerStationPermissionOverride
             { account = previous.account, permission = previous.permission, state = previous.state, setBy = previous.setBy,
-                builderState = previous.builderState, builderSetBy = previous.builderSetBy };
+                builderState = previous.builderState, builderSetBy = previous.builderSetBy,
+                reason = previous.reason, builderReason = previous.builderReason };
             int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
             var current = previous;
             if (current == null)
@@ -490,13 +505,16 @@ namespace GoF2Remake.Multiplayer
                 current = new PlayerStationPermissionOverride { account = targetAccount, permission = permission };
                 record.permissionOverrides.Add(current);
             }
+            reason = state == PlayerStationPermissionState.Deny ? NormalizeBlacklistReason(reason) : null;
             if (builder)
             {
+                current.builderReason = reason;
                 current.builderState = state;
                 current.builderSetBy = state == PlayerStationPermissionState.Inherit ? null : account;
             }
             else
             {
+                current.reason = reason;
                 current.state = state;
                 current.setBy = state == PlayerStationPermissionState.Inherit ? null : account;
             }
@@ -504,7 +522,7 @@ namespace GoF2Remake.Multiplayer
                 current.builderState == PlayerStationPermissionState.Inherit)
                 record.permissionOverrides.Remove(current);
             RecordHistory(record, account, "station-permission-changed", targetAccount,
-                permission + " set to " + state + (builder ? " by original builder." : "."));
+                WithBlacklistReason(permission + " set to " + state + (builder ? " by original builder." : "."), reason));
             if (Save())
             {
                 if (permission == PlayerStationPermission.Visit) EjectDeniedVisitors(record);
@@ -623,7 +641,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         internal static string SetStationBan(NetPlayer by, int stationId, string target,
-            string reason, bool ban)
+            string reason, bool ban, bool faction = false)
         {
             var record = Find(stationId);
             if (record == null) return "No player station with that id exists.";
@@ -632,28 +650,34 @@ namespace GoF2Remake.Multiplayer
             bool builder = HasBuilderRights(record, account);
             if (!builder && !HasStationPermission(record, account, PlayerStationPermission.Security))
                 return "Only the original builder or an authorised station security role may manage station bans.";
-            string targetAccount = ResolveStationAccount(target);
-            if (string.IsNullOrEmpty(targetAccount)) return "Supply a valid target account.";
-            if (IsStationOwnerAccount(record, targetAccount))
-                return "The current station owner cannot be banned from their own station.";
-            if (!builder && HasBuilderRights(record, targetAccount))
-                return "The original builder's reserved station access cannot be revoked by station governance.";
-            var targetFaction = NetFactions.Of(targetAccount);
-            if (!builder && record.ownershipType == PlayerStationOwnershipType.Faction &&
-                targetFaction != null && string.Equals(targetFaction.id, record.ownerFactionId, StringComparison.Ordinal) &&
-                string.Equals(targetFaction.leader, targetAccount, StringComparison.Ordinal))
-                return "Only the original builder may impose a visitor ban on the owning faction leader.";
-            if (string.Equals(targetAccount, account, StringComparison.Ordinal))
-                return "You cannot ban yourself from the station.";
+            string targetAccount = faction ? NetFactions.FindById(target)?.id : ResolveStationAccount(target);
+            if (string.IsNullOrEmpty(targetAccount)) return faction ? "Choose a valid faction." : "Supply a valid target account.";
+            if (faction)
+            {
+                if (ban && (targetAccount == StationFactionId(record) || targetAccount == NetFactions.Of(account)?.id))
+                    return "You cannot blacklist the station's faction or your own faction.";
+            }
+            else
+            {
+                if (IsStationOwnerAccount(record, targetAccount))
+                    return "The current station owner cannot be banned from their own station.";
+                if (!builder && HasBuilderRights(record, targetAccount))
+                    return "The original builder's reserved station access cannot be revoked by station governance.";
+                var targetFaction = NetFactions.Of(targetAccount);
+                if (!builder && record.ownershipType == PlayerStationOwnershipType.Faction &&
+                    targetFaction != null && targetFaction.id == record.ownerFactionId && targetFaction.leader == targetAccount)
+                    return "Only the original builder may impose a visitor ban on the owning faction leader.";
+                if (targetAccount == account) return "You cannot ban yourself from the station.";
+            }
             record.bans ??= new List<PlayerStationBan>();
             var source = builder ? PlayerStationBanSource.OriginalBuilder : PlayerStationBanSource.OwnerAuthority;
-            var existing = record.bans.Find(x => x != null && string.Equals(x.account, targetAccount, StringComparison.Ordinal) && x.source == source);
+            var existing = FindBan(record, targetAccount, source, faction);
             reason = NormalizeBlacklistReason(reason);
             if (ban)
             {
                 if (existing != null)
                 {
-                    if (string.IsNullOrEmpty(reason) || existing.reason == reason) return "That player is already banned by this authority.";
+                    if (string.IsNullOrEmpty(reason) || existing.reason == reason) return "That target is already banned by this authority.";
                     string previousReason = existing.reason;
                     existing.reason = reason;
                     if (Save()) { EjectDeniedVisitors(record); return "Station blacklist reason updated."; }
@@ -661,29 +685,29 @@ namespace GoF2Remake.Multiplayer
                     return "The blacklist reason could not be saved.";
                 }
                 record.bans.Add(new PlayerStationBan
-                { account = targetAccount, source = source, imposedBy = account, reason = reason,
+                { account = targetAccount, faction = faction, source = source, imposedBy = account, reason = reason,
                     createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
             }
             else
             {
                 if (existing == null)
                 {
-                    if (!builder && HasBan(record, targetAccount, PlayerStationBanSource.OriginalBuilder))
+                    if (!builder && FindBan(record, targetAccount, PlayerStationBanSource.OriginalBuilder, faction) != null)
                         return "The original builder imposed that ban and only they can lift it.";
-                    return "No ban imposed by your authority exists for that player.";
+                    return "No ban imposed by your authority exists for that target.";
                 }
                 record.bans.Remove(existing);
             }
             int oldHistoryCount = record.history?.Count ?? 0, oldSequence = record.nextHistorySequence;
             RecordHistory(record, account, ban ? "visitor-banned" : "visitor-unbanned", targetAccount,
                 (builder ? "Original builder" : "Station owner authority") + (ban ? " imposed" : " lifted") +
-                " the station ban." + (string.IsNullOrEmpty(reason) ? "" : " Reason: " + reason.Trim()));
+                (faction ? " the station faction ban." : " the station ban.") + (string.IsNullOrEmpty(reason) ? "" : " Reason: " + reason.Trim()));
             if (Save())
             {
                 if (ban) EjectDeniedVisitors(record);
                 return ban ? "Station ban applied to " + targetAccount + "." : "Station ban lifted for " + targetAccount + ".";
             }
-            if (ban) record.bans.RemoveAll(x => x != null && x.source == source && string.Equals(x.account, targetAccount, StringComparison.Ordinal));
+            if (ban) record.bans.Remove(FindBan(record, targetAccount, source, faction));
             else record.bans.Add(existing);
             if (record.history != null && record.history.Count > oldHistoryCount)
                 record.history.RemoveRange(oldHistoryCount, record.history.Count - oldHistoryCount);

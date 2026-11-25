@@ -49,6 +49,7 @@ namespace GoF2Remake.Multiplayer
         {
             public int stationId, directoryPage, directoryPages;
             public bool canAnnounce, canManage, canSecurity, canOwnership, canAppearance, canConstruction;
+            public StorageUiSnapshot storage;
             public List<ManagementOption> options = new List<ManagementOption>();
         }
 
@@ -89,6 +90,7 @@ namespace GoF2Remake.Multiplayer
             result.canAppearance = normal && HasStationPermission(record, account, PlayerStationPermission.Appearance);
             result.canConstruction = normal && HasStationPermission(record, account, PlayerStationPermission.Construction);
             result.canAnnounce = CanPublishStationAnnouncement(pilot, record);
+            if (StorageCapacity(record) > 0) result.storage = StorageSnapshotFor(pilot, stationId);
             void Add(string group, string value, string label) => result.options.Add(new ManagementOption { group = group, value = value, label = label });
             void Hulls(List<StoredShip> ships, List<string> owners, string group, string prefix)
             {
@@ -510,6 +512,45 @@ namespace GoF2Remake.Multiplayer
         {
             int level = record?.addons?.Find(a => a != null && a.kind == "storage")?.level ?? 0;
             return Math.Max(0, level) * StorageCapacityPerLevel;
+        }
+
+        [Serializable]
+        internal sealed class StorageUiSnapshot
+        {
+            public int stationId, capacity, used, cargoRoom;
+            public bool canDeposit;
+            public string error;
+            public List<PlayerStationStorage> items = new List<PlayerStationStorage>();
+        }
+
+        internal static StorageUiSnapshot StorageSnapshotFor(NetPlayer by, int id)
+        {
+            var snapshot = new StorageUiSnapshot { stationId = id };
+            var record = Find(id);
+            if (record == null || record.underConstruction || record.offeredForClaimUtc > 0 ||
+                !IsStationContext(by, record, out string account, recoverProperty: true))
+            {
+                snapshot.error = "Dock at an operational station with a controlled profile to view storage.";
+                return snapshot;
+            }
+            snapshot.capacity = StorageCapacity(record);
+            if (snapshot.capacity <= 0)
+            {
+                snapshot.error = "This station has no storage module.";
+                return snapshot;
+            }
+
+            EnsureStorageLots(record);
+            snapshot.canDeposit = CanManageStorage(by, record, out _) && AllowsFacilityUse(record, account, "storage");
+            snapshot.cargoRoom = NetProfiles.WreckSalvageCargoRoom(by, account);
+            foreach (var stack in record.storage)
+            {
+                if (stack == null || stack.amount <= 0) continue;
+                if (snapshot.canDeposit) snapshot.used += stack.amount;
+                int owned = OwnedStorageAmount(record, account, stack.item);
+                if (owned > 0) snapshot.items.Add(new PlayerStationStorage { item = stack.item, amount = owned });
+            }
+            return snapshot;
         }
 
         internal static string StorageStatus(NetPlayer by, int id)

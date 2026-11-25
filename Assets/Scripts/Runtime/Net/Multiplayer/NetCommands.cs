@@ -615,10 +615,11 @@ namespace GoF2Remake.Multiplayer
             const string permission = "permission ";
             if (args.StartsWith(permission, StringComparison.OrdinalIgnoreCase))
             {
-                string[] words = args.Substring(permission.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (words.Length != 4 || !int.TryParse(words[0], out int permissionStationId))
-                    return "/station permission <station id> <account id> <permission> <inherit|allow|deny>";
-                return NetPlayerStations.SetStationPermission(by as NetPlayer, permissionStationId, words[1], words[2], words[3]);
+                string[] words = args.Substring(permission.Length).Split(new[] { ' ' }, 5, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 4 || !int.TryParse(words[0], out int permissionStationId))
+                    return "/station permission <station id> <account id> <permission> <inherit|allow|deny> [reason]";
+                return NetPlayerStations.SetStationPermission(by as NetPlayer, permissionStationId, words[1], words[2], words[3],
+                    words.Length == 5 ? words[4] : null);
             }
             const string permissionDefault = "default ";
             if (args.StartsWith(permissionDefault, StringComparison.OrdinalIgnoreCase))
@@ -627,6 +628,17 @@ namespace GoF2Remake.Multiplayer
                 if (words.Length != 4 || !int.TryParse(words[0], out int defaultStationId))
                     return "/station default <station id> <member|officer> <permission> <allow|deny>";
                 return NetPlayerStations.SetFactionPermissionDefault(by as NetPlayer, defaultStationId, words[1], words[2], words[3]);
+            }
+            const string banFaction = "ban-faction ", unbanFaction = "unban-faction ";
+            bool addFactionBan = args.StartsWith(banFaction, StringComparison.OrdinalIgnoreCase);
+            if (addFactionBan || args.StartsWith(unbanFaction, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring((addFactionBan ? banFaction : unbanFaction).Length)
+                    .Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 2 || !int.TryParse(words[0], out int factionStationId))
+                    return "/station ban-faction <station id> <faction id> [reason] or /station unban-faction <station id> <faction id>";
+                return NetPlayerStations.SetStationBan(by as NetPlayer, factionStationId, words[1],
+                    words.Length == 3 ? words[2] : "", addFactionBan, faction: true);
             }
             const string ban = "ban ";
             if (args.StartsWith(ban, StringComparison.OrdinalIgnoreCase))

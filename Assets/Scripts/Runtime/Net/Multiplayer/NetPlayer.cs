@@ -537,7 +537,7 @@ namespace GoF2Remake.Multiplayer
             int last = words[0] switch {
                 "transfer" or "successor" => 3, "jumpgate-blacklist" => 4,
                 "jumpgate-race" or "race-policy" => words.Length > 2 && words[2] == "exempt" ? 4 : -1,
-                "role" or "permission" or "ban" or "unban" or "successor-delegate" or "individual-successor" => 2,
+                "role" or "permission" or "ban" or "unban" or "ban-faction" or "unban-faction" or "successor-delegate" or "individual-successor" => 2,
                 "store-ship" or "retrieve-ship" or "drydock-store" or "drydock-retrieve" or "list-ship" => 2,
                 _ => -1 };
             if (last < 0 || last >= words.Length) return true;

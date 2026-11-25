@@ -43,7 +43,7 @@ namespace GoF2Remake.UI
         string modelPickerKey;
         string choicePickerKey;
         Vector2 choiceReturnScroll;
-        Button choiceReturnButton;
+        int bodyRevision;
         Vector2 modelPickerReturnScroll;
         NetPlayerStations.MarketUiCatalogue marketCatalogue;
         int marketPage;
@@ -246,7 +246,6 @@ namespace GoF2Remake.UI
                 plannerMap = null;
             }
             choicePickerKey = null;
-            choiceReturnButton = null;
             modelPickerKey = null;
             panel.RemoveFromClassList("player-station-picking-model");
             heading.text = "PLAYER STATIONS";
@@ -337,12 +336,15 @@ namespace GoF2Remake.UI
 
         void RebuildBody(Vector2? scrollPosition = null)
         {
+            if (choicePickerKey != null || modelPickerKey != null) return;
+            int revision = ++bodyRevision;
             var before = scrollPosition ?? body.scrollOffset;
             var focused = panel.focusController?.focusedElement as VisualElement;
             string focusLabel = (focused as Button)?.text;
             body.Clear(); fields.Clear();
             body.schedule.Execute(() =>
             {
+                if (revision != bodyRevision || choicePickerKey != null || modelPickerKey != null) return;
                 body.scrollOffset = before;
                 if (focusLabel != null && panel.focusController?.focusedElement == null)
                     body.Query<Button>().ToList().Find(button => button.text == focusLabel)?.Focus();
@@ -446,7 +448,7 @@ namespace GoF2Remake.UI
                     AddAction("Accept pending transfer", "/station transfer-accept " + id);
                     if (ownership)
                     {
-                        AddChoice("transferKind", "Recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Faction") }, _ => { drafts.Remove("transferAccount"); RebuildBody(); });
+                        AddChoice("transferKind", "Recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Faction") }, _ => drafts.Remove("transferAccount"));
                         AddAccountField("transferAccount", "Recipient");
                         AddAction("Propose ownership transfer", () => Send("/station transfer " + id + " " + Value("transferKind") + " " + Value("transferAccount")));
                         AddAction("Cancel pending transfer", "/station transfer-cancel " + id);
@@ -468,7 +470,7 @@ namespace GoF2Remake.UI
                     AddStationModelPicker("stationAppearance");
                     if (!string.IsNullOrEmpty(Value("stationAppearance"))) AddAction("Apply station model", () => Send("/station appearance " + id + " " + Value("stationAppearance")));
                     break;
-                case "security": BuildStationGovernance(selected); break;
+                case "security": case "blacklist": case "race-policies": BuildStationGovernance(selected); break;
                 case "modules":
                     AddSection("STATION MODULES", "Install facilities from cargo or open a procurement project.");
                     AddAction("Module costs and requirements", "/station modules");
@@ -495,7 +497,7 @@ namespace GoF2Remake.UI
                     }
                     else BuildVisitorMarket(id);
                     break;
-                case "storage": if (manager) BuildFacilityControls(id); else BuildVisitorStorage(id); break;
+                case "storage": BuildStorage(id); break;
                 case "refinery": case "factory": BuildFacilityControls(id); break;
                 case "hangar": case "drydock": BuildFacilityControls(id); break;
                 default: ChangeManagementPage("overview"); break;
@@ -525,29 +527,65 @@ namespace GoF2Remake.UI
                 if (managementCatalogue?.canOwnership == true || NetPlayer.Local?.CanRelinquishBuilderRightsInUi == true)
                     pages.Add(("ownership", "Ownership"));
                 else pages.Add(("ownership", "Transfers"));
-                if (managementCatalogue?.canSecurity == true || managementCatalogue?.canOwnership == true) pages.Add(("security", "Security"));
+                if (managementCatalogue?.canSecurity == true || managementCatalogue?.canOwnership == true)
+                {
+                    pages.Add(("security", "Permissions"));
+                    pages.Add(("blacklist", "Blacklist"));
+                }
+                if (managementCatalogue?.canOwnership == true && Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                    pages.Add(("race-policies", "Race policies"));
                 if (managementCatalogue?.canAppearance == true) pages.Add(("appearance", "Appearance"));
                 if (managementCatalogue?.canConstruction == true) { pages.Add(("modules", "Modules")); pages.Add(("defenses", "Defenses")); }
             }
             if (!pages.Any(page => page.key == managementPage)) managementPage = "overview";
+            string Group(string key) => key switch
+            {
+                "overview" or "news" => "Station",
+                "market" or "storage" or "hangar" or "drydock" or "refinery" or "factory" => "Services",
+                "ownership" or "security" or "blacklist" or "race-policies" or "appearance" or "modules" => "Management",
+                _ => "Projects"
+            };
+            string activeGroup = Group(managementPage);
             string signature = managementPage + ":" + string.Join(",", pages.Select(page => page.key + page.label));
             pageBar.style.display = modelPickerKey == null ? DisplayStyle.Flex : DisplayStyle.None;
             if (signature == pageBarSignature) return;
             pageBarSignature = signature;
             pageBar.Clear();
-            foreach (var page in pages)
+            pageBar.style.flexDirection = FlexDirection.Column;
+            VisualElement NavigationRow()
             {
-                var button = new Button(() => ChangeManagementPage(page.key)) { text = page.label };
+                var row = new VisualElement();
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.flexWrap = Wrap.Wrap;
+                pageBar.Add(row);
+                return row;
+            }
+            void Tab(VisualElement row, string title, string key, bool active)
+            {
+                var button = new Button(() => ChangeManagementPage(key)) { text = title };
                 button.AddToClassList("player-station-action");
-                button.EnableInClassList("player-station-row--selected", managementPage == page.key);
-                button.style.flexGrow = 0; button.style.minHeight = 36; button.style.marginRight = 4; button.style.marginBottom = 4;
-                pageBar.Add(button);
+                button.EnableInClassList("player-station-row--selected", active);
+                button.style.minHeight = 36;
+                button.style.marginRight = 4;
+                row.Add(button);
+            }
+            var groups = NavigationRow();
+            foreach (var group in pages.GroupBy(page => Group(page.key)))
+                Tab(groups, group.Key, group.First().key, group.Key == activeGroup);
+
+            var visiblePages = pages.Where(page => Group(page.key) == activeGroup).ToList();
+            if (visiblePages.Count > 1)
+            {
+                var tabs = NavigationRow();
+                foreach (var page in visiblePages)
+                    Tab(tabs, page.label, page.key, managementPage == page.key);
             }
         }
 
         void RefreshManagementCatalogue()
         {
             nextManagementQuery = Time.unscaledTime + 8f;
+            if (choicePickerKey != null || modelPickerKey != null) return;
             if (!open || inFlight || selected == null || selected.underConstruction || selected.stationIndex != CurrentOrbit || selected.offeredForClaimUtc > 0) return;
             int stationId = selected.id;
             NetPlayer.Local?.RequestManagementCatalogue(stationId, directoryPage, catalogue =>
@@ -656,19 +694,6 @@ namespace GoF2Remake.UI
         {
             switch (managementPage)
             {
-                case "storage":
-                    AddSection("STORAGE & ACCESS", "Move goods between your cargo hold and shared station storage.");
-                    AddAction("View stored holdings", "/station storage " + id);
-                    AddItemChoice("storageItem", "Item");
-                    AddNumber("storageAmount", "Units", 10, 1, 500);
-                    AddAction("Deposit cargo", () => Send("/station deposit " + id + " " + Value("storageItem") + " " + Value("storageAmount")));
-                    AddAction("Withdraw cargo", () => Send("/station withdraw " + id + " " + Value("storageItem") + " " + Value("storageAmount")));
-                    if (managementCatalogue?.canOwnership == true)
-                    {
-                        AddAction("Allow current faction access", "/station access " + id + " faction");
-                        AddAction("Set owner-only access", "/station access " + id + " owner");
-                    }
-                    break;
                 case "refinery":
                     AddSection("REFINERY", "Convert raw ore stored at the station into its matching core.");
                     AddItemChoice("oreItem", "Raw ore", NetPlayerStations.RefinableOreItems());
@@ -682,7 +707,7 @@ namespace GoF2Remake.UI
                     if (!string.IsNullOrEmpty(Value("recipe")))
                     {
                         AddAction("Manufacture once", () => Send("/station manufacture " + id + " " + Value("recipe") + " " + Value("batches")));
-                        AddChoice("repeatMode", "Repeat mode", new List<(string, string)> { ("continuous", "Continuous"), ("fixed", "Fixed total") }, _ => RebuildBody());
+                        AddChoice("repeatMode", "Repeat mode", new List<(string, string)> { ("continuous", "Continuous"), ("fixed", "Fixed total") });
                         if (Value("repeatMode") == "fixed") AddNumber("repeatTotal", "Total batches", 10, 1, 100000);
                         AddAction("Schedule repeat production", () => Send("/station repeat " + id + " " + Value("recipe") + " " +
                             (Value("repeatMode") == "fixed" ? Value("repeatTotal") : "continuous") + " " + Value("batches")));
@@ -777,11 +802,14 @@ namespace GoF2Remake.UI
             var outstanding = new HashSet<int>(requirements?.Where(material => material != null && material.required > material.delivered)
                 .Select(material => material.item) ?? Enumerable.Empty<int>());
             if (outstanding.Count == 0) { AddInfo("Materials", "No outstanding requirements."); return; }
-            AddChoice("buyOrderItem", "Required material", requirements.Where(material => material != null &&
+            var materialChoices = new List<(string value, string label)> { ("", "Select a required material") };
+            materialChoices.AddRange(requirements.Where(material => material != null &&
                 outstanding.Contains(material.item) && NetGame.Db?.Item(material.item) != null)
                 .OrderBy(material => NetGame.Db.Item(material.item).name, StringComparer.CurrentCultureIgnoreCase)
                 .Select(material => (material.item.ToString(), NetGame.Db.Item(material.item).name +
-                    " · " + (material.required - material.delivered).ToString("N0") + " needed")).ToList());
+                    " · " + (material.required - material.delivered).ToString("N0") + " needed")));
+            AddChoice("buyOrderItem", "Required material", materialChoices, items: true);
+            if (string.IsNullOrEmpty(Value("buyOrderItem"))) return;
             if (selected.underConstruction)
             {
                 AddField("buyOrderAmount", "Units to purchase (1–500)", "10");
@@ -855,13 +883,12 @@ namespace GoF2Remake.UI
                     AddChoice(modeKey, "Access policy", new List<(string, string)> { ("everyone", "Everyone"), ("faction", "Owning faction"), ("blacklist", "Blacklist"), ("owner", "Owner only") });
                     AddAction("Set gate access · orbit " + orbitId, () =>
                         Send("/station jumpgate-access " + orbitId + " " + Value(modeKey)));
-                    AddChoice(typeKey, "Blacklist entry type", new List<(string, string)> { ("player", "Pilot"), ("faction", "Faction") }, _ => { drafts.Remove(targetKey); RebuildBody(); });
+                    AddChoice(typeKey, "Blacklist entry type", new List<(string, string)> { ("player", "Pilot"), ("faction", "Faction") }, _ => drafts.Remove(targetKey));
                     AddAccountField(targetKey, "Blacklist target");
                     string reasonKey = "gateBlockReason_" + orbitId;
-                    AddField(reasonKey, "Reason shown to denied pilots (optional)", "");
+                    AddField(reasonKey, "Reason shown to denied pilots", "");
                     AddAction("Add / update gate blacklist", () =>
-                        Send("/station jumpgate-blacklist " + orbitId + " add " + Value(typeKey) + " " + Value(targetKey) +
-                            (string.IsNullOrWhiteSpace(Value(reasonKey)) ? "" : " | " + Value(reasonKey))));
+                        SendWithReason($"/station jumpgate-blacklist {orbitId} add {Value(typeKey)} {Value(targetKey)}", reasonKey, " | "));
                     AddAction("Remove from gate blacklist", () =>
                         Send("/station jumpgate-blacklist " + orbitId + " remove " + Value(typeKey) + " " + Value(targetKey)));
                     if (Modding.ModPlayerInfrastructure.Current.JumpgateRacePoliciesEnabled)
@@ -876,9 +903,13 @@ namespace GoF2Remake.UI
                             ("deny", "Deny under race policy")
                         });
                         string raceReasonKey = "gateRaceReason_" + orbitId;
-                        AddField(raceReasonKey, "Race denial reason (optional)", "");
+                        if (Value(raceStateKey) == "deny") AddField(raceReasonKey, "Race denial reason", "");
                         AddAction("Apply gate race rule", () =>
-                            Send(("/station jumpgate-race " + orbitId + " " + Value(raceKey) + " " + Value(raceStateKey) + " " + Value(raceReasonKey)).TrimEnd()));
+                        {
+                            string command = $"/station jumpgate-race {orbitId} {Value(raceKey)} {Value(raceStateKey)}";
+                            if (Value(raceStateKey) == "deny") SendWithReason(command, raceReasonKey);
+                            else Send(command);
+                        });
                         AddAction("View gate and faction race rules", () => Send("/station jumpgate-race " + orbitId));
                         if (Modding.ModPlayerInfrastructure.Current.JumpgateRaceExemptionsEnabled)
                         {
@@ -961,6 +992,10 @@ namespace GoF2Remake.UI
             button.style.whiteSpace = WhiteSpace.Normal;
             button.style.minHeight = 48; button.style.height = StyleKeyword.Auto; button.style.flexShrink = 0;
             button.style.marginBottom = 6;
+            button.style.alignSelf = Align.Stretch;
+            button.style.minWidth = 0;
+            button.style.maxWidth = StyleKeyword.None;
+            button.style.unityTextAlign = TextAnchor.MiddleLeft;
         }
 
         void AddChoice(string key, string label, List<(string value, string label)> options, Action<string> changed = null, bool items = false)
@@ -970,7 +1005,7 @@ namespace GoF2Remake.UI
             index = Math.Max(0, index);
             drafts[key] = options[index].value;
             var caption = new Label(label); caption.AddToClassList("player-station-note"); caption.style.whiteSpace = WhiteSpace.Normal; body.Add(caption);
-            var button = new Button { text = options[index].label + "  ▾", name = "choice-" + key };
+            var button = new Button { text = options[index].label + "  ▾", name = "choice-" + key, enableRichText = false };
             button.AddToClassList("player-station-field"); button.AddToClassList("player-station-action");
             StyleChoice(button, false);
             button.clicked += () => OpenChoicePicker(key, label, options, changed, items);
@@ -985,16 +1020,16 @@ namespace GoF2Remake.UI
 
         void OpenChoicePicker(string key, string label, List<(string value, string label)> options, Action<string> changed, bool items)
         {
-            choicePickerKey = key; choiceReturnScroll = body.scrollOffset;
-            choiceReturnButton = body.Q<Button>("choice-" + key);
+            choicePickerKey = key;
+            choiceReturnScroll = body.scrollOffset;
             heading.text = label.ToUpperInvariant();
             pageBar.style.display = DisplayStyle.None;
             panel.AddToClassList("player-station-picking-model");
             body.Clear(); fields.Clear();
             var toolbar = new VisualElement(); toolbar.style.flexDirection = FlexDirection.Row; toolbar.style.flexWrap = Wrap.Wrap; body.Add(toolbar);
             var results = new VisualElement(); body.Add(results);
-            int page = Math.Max(0, options.FindIndex(option => option.value == Value(key))) / 24;
             const int pageSize = 24;
+            int page = Math.Max(0, options.FindIndex(option => option.value == Value(key))) / pageSize;
             int pages = Math.Max(1, (options.Count + pageSize - 1) / pageSize);
             void Show()
             {
@@ -1003,39 +1038,52 @@ namespace GoF2Remake.UI
                 {
                     var b = new Button(action) { text = text }; b.AddToClassList("player-station-action"); StyleChoice(b, false); b.SetEnabled(enabled); toolbar.Add(b);
                 }
-                Tool("Previous", () => { page--; Show(); }, page > 0);
-                var count = new Label($"{page + 1} / {pages}"); count.style.unityTextAlign = TextAnchor.MiddleCenter; count.style.flexGrow = 1; toolbar.Add(count);
-                Tool("Next", () => { page++; Show(); }, page + 1 < pages);
+                if (pages > 1)
+                {
+                    Tool("Previous", () => { page--; Show(); }, page > 0);
+                    var count = new Label($"{page + 1} / {pages}");
+                    count.style.unityTextAlign = TextAnchor.MiddleCenter;
+                    count.style.flexGrow = 1;
+                    toolbar.Add(count);
+                    Tool("Next", () => { page++; Show(); }, page + 1 < pages);
+                }
                 foreach (var option in options.Skip(page * pageSize).Take(pageSize))
                 {
                     bool selected = Value(key) == option.value;
                     var b = new Button(() =>
                     {
                         drafts[key] = option.value;
-                        CloseChoicePicker();
                         changed?.Invoke(option.value);
-                        RebuildBody(choiceReturnScroll);
+                        CloseChoicePicker();
                     }) { text = option.label, enableRichText = false };
+                    if (selected) b.name = "selected-choice";
                     b.AddToClassList("player-station-row"); StyleChoice(b, selected);
                     if (items && int.TryParse(option.value, out int item))
                     {
                         var icon = new VisualElement { pickingMode = PickingMode.Ignore };
-                        icon.style.width = 72; icon.style.height = 36; icon.style.flexShrink = 0;
-                        icon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item)); b.Add(icon);
+                        b.style.paddingLeft = 64;
+                        icon.style.position = Position.Absolute;
+                        icon.style.left = 8;
+                        icon.style.top = 6;
+                        icon.style.bottom = 6;
+                        icon.style.width = 48;
+                        icon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item));
+                        b.Add(icon);
                     }
                     b.RegisterCallback<FocusInEvent>(_ => StyleChoice(b, selected, true));
                     b.RegisterCallback<FocusOutEvent>(_ => StyleChoice(b, selected));
                     results.Add(b);
                 }
                 body.scrollOffset = Vector2.zero;
-                if (InputMode.Current == InputKind.Gamepad) results.Q<Button>()?.Focus();
+                if (InputMode.Current == InputKind.Gamepad)
+                    (results.Q<Button>("selected-choice") ?? results.Q<Button>())?.Focus();
             }
             Show();
         }
 
         void CloseChoicePicker()
         {
-            string key = choicePickerKey; choicePickerKey = null; choiceReturnButton = null;
+            string key = choicePickerKey; choicePickerKey = null;
             panel.RemoveFromClassList("player-station-picking-model");
             heading.text = "PLAYER STATIONS"; pageBar.style.display = DisplayStyle.Flex;
             RebuildBody(choiceReturnScroll);
@@ -1166,7 +1214,7 @@ namespace GoF2Remake.UI
             if (managementPage == page) return;
             managementPage = page;
             if (page == "market") RefreshMarketCatalogue();
-            if (page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
+            if (page == "storage" || page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
             RebuildBody(Vector2.zero);
         }
 
@@ -1202,7 +1250,7 @@ namespace GoF2Remake.UI
             {
                 var choices = new List<(string value, string label)> { ("", "Select a system") };
                 choices.AddRange(systems);
-                AddChoice("system", "Revealed build system", choices, _ => { drafts.Remove("buildOrbit"); RebuildBody(); });
+                AddChoice("system", "Revealed build system", choices, _ => drafts.Remove("buildOrbit"));
                 var orbitChoices = new List<(string value, string label)> { ("", "Select a vacant orbit") };
                 if (int.TryParse(Value("system"), out int chosenSystem))
                     orbitChoices.AddRange(db.Stations.Where(station => station != null && station.system == chosenSystem && Available(station.index))
@@ -1329,7 +1377,7 @@ namespace GoF2Remake.UI
                 string name = entry.hull ? NetGame.Db.Ship(entry.item)?.name : NetGame.Db.Item(entry.item)?.name;
                 choices.Add((Key(entry), (name ?? "Unknown") + " · " + entry.amount + " × " + entry.price.ToString("N0") + " cr" + (entry.mine ? " (yours)" : "") + " [" + Key(entry) + "]"));
             }
-            AddChoice("marketSelection", "Listing", choices, _ => RebuildBody());
+            AddChoice("marketSelection", "Listing", choices);
             var chosen = entries.Find(entry => Key(entry) == Value("marketSelection"));
             if (chosen == null) return;
             if (chosen.mine)
@@ -1343,14 +1391,86 @@ namespace GoF2Remake.UI
             }
         }
 
-        void BuildVisitorStorage(string id)
+        void BuildStorage(string id)
         {
-            AddSection("PERSONAL STORAGE", "");
-            AddAction("View stored holdings", "/station storage " + id);
-            AddItemChoice("visitorStoredItem", "Stored item");
-            AddNumber("visitorStoredQuantity", "Units", 1, 1, 500);
-            AddAction("Withdraw own items", () => Send("/station withdraw " + id + " " +
-                Value("visitorStoredItem") + " " + Value("visitorStoredQuantity")));
+            AddSection("STATION STORAGE", "");
+            var storage = managementCatalogue?.storage;
+            if (storage?.stationId != selected.id)
+            {
+                AddInfo("Storage", managementCatalogue?.stationId == selected.id
+                    ? "Station inventory is unavailable." : "Loading station inventory…");
+                return;
+            }
+            if (!string.IsNullOrEmpty(storage.error))
+            {
+                AddInfo("Storage", storage.error);
+                return;
+            }
+
+            if (storage.canDeposit)
+                AddInfo("Storage space", storage.used.ToString("N0") + " / " + storage.capacity.ToString("N0") + " units");
+            var inventories = new VisualElement();
+            inventories.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+            body.Add(inventories);
+
+            string selection = Value("storageSelection");
+            int limit = 0;
+            bool deposit = false;
+            int item = -1;
+            void Inventory(string title, string prefix, IEnumerable<(int item, int amount)> stacks, int room)
+            {
+                var column = new VisualElement();
+                column.style.flexGrow = 1;
+                column.style.flexBasis = compact ? new StyleLength(StyleKeyword.Auto) : new StyleLength(0f);
+                column.style.minWidth = 0;
+                column.style.marginRight = 8;
+                inventories.Add(column);
+                var label = new Label(title);
+                label.AddToClassList("player-station-section-title");
+                column.Add(label);
+                var entries = stacks.OrderBy(stack => NetGame.Db?.Item(stack.item)?.name).ThenBy(stack => stack.item).ToList();
+                if (entries.Count == 0) column.Add(new Label("Empty"));
+                foreach (var stack in entries)
+                {
+                    string key = prefix + stack.item;
+                    bool active = selection == key;
+                    if (active)
+                    {
+                        item = stack.item;
+                        deposit = prefix == "cargo:";
+                        limit = Math.Min(500, Math.Min(room, stack.amount));
+                    }
+                    string name = NetGame.Db?.Item(stack.item)?.name ?? ("Item " + stack.item);
+                    var row = new Button(() =>
+                    {
+                        drafts["storageSelection"] = key;
+                        drafts.Remove("storageQuantity");
+                        RebuildBody();
+                    }) { text = name + " · " + stack.amount.ToString("N0"), enableRichText = false };
+                    row.AddToClassList("player-station-action");
+                    StyleChoice(row, active);
+                    column.Add(row);
+                }
+            }
+            Inventory("STORED GOODS", "stored:", storage.items.Select(stack => (stack.item, stack.amount)), storage.cargoRoom);
+            Inventory("SHIP CARGO", "cargo:", Session.Cargo.Where(stack => stack.amount > 0)
+                .GroupBy(stack => stack.item).Select(group => (group.Key, group.Sum(stack => stack.amount))),
+                storage.canDeposit ? storage.capacity - storage.used : 0);
+
+            if (limit > 0)
+            {
+                AddNumber("storageQuantity", "Units to transfer", 1, 1, limit);
+                AddAction(deposit ? "Store selected cargo" : "Take selected goods", () =>
+                    Send("/station " + (deposit ? "deposit" : "withdraw") + " " + id + " " + item + " " + Value("storageQuantity")));
+            }
+            else if (item >= 0)
+                AddInfo("Transfer", deposit && !storage.canDeposit ? "This profile cannot deposit at this station." : "The destination has no free space.");
+
+            if (managementCatalogue?.canOwnership == true && selected.ownershipType == PlayerStationOwnershipType.Individual)
+            {
+                AddAction("Allow current faction access", "/station access " + id + " faction");
+                AddAction("Set owner-only access", "/station access " + id + " owner");
+            }
         }
 
         void BuildStationStock()
@@ -1365,36 +1485,64 @@ namespace GoF2Remake.UI
         void BuildStationGovernance(PlayerStationRecord station)
         {
             string id = station.id.ToString();
-            AddSection("SECURITY & ACCESS", "Assign access and record denial reasons.");
             AddDirectoryPager();
             bool owner = managementCatalogue?.canOwnership == true;
-            if (owner)
+            if (managementPage == "blacklist")
             {
-                AddAction("View station history", "/station history " + id);
-                if (Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                AddSection("STATION BLACKLIST", "");
+                AddChoice("banTargetType", "Target type", new List<(string, string)> { ("pilot", "Pilot"), ("faction", "Faction") },
+                    _ => drafts.Remove("banTarget"));
+                bool faction = Value("banTargetType") == "faction";
+                AddCatalogueChoice("banTarget", faction ? "Faction" : "Pilot", faction ? "faction" : "pilot");
+                AddField("banReason", "Reason shown to denied pilots", "");
+                AddAction("Add or update blacklist entry", () =>
+                    SendWithReason($"/station {(faction ? "ban-faction" : "ban")} {id} {Value("banTarget")}", "banReason"));
+                AddAction("Remove blacklist entry", () =>
+                    Send($"/station {(faction ? "unban-faction" : "unban")} {id} {Value("banTarget")}"));
+                if (owner) AddAction("View station history", "/station history " + id);
+                return;
+            }
+            if (managementPage == "race-policies")
+            {
+                AddSection("RACE POLICIES", "");
+                AddChoice("raceFacility", "Facility", NetPlayerStations.RacePolicyFacilities.Select(value => (value, value)).ToList());
+                AddRaceChoice("stationPolicyRace", "Race");
+                AddChoice("racePolicyState", "Race access", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("allow", "Allow"), ("deny", "Deny") });
+                if (Value("racePolicyState") == "deny") AddField("raceDenialReason", "Denial reason", "");
+                AddAction("Apply race access rule", () =>
                 {
-                    AddSection("RACE POLICIES", "");
-                    AddChoice("raceFacility", "Facility", NetPlayerStations.RacePolicyFacilities.Select(value => (value, value)).ToList());
-                    AddRaceChoice("stationPolicyRace", "Race");
-                    AddChoice("racePolicyState", "Race access", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("allow", "Allow"), ("deny", "Deny") });
-                    AddField("raceDenialReason", "Denial reason (optional)", "");
-                    AddAction("Apply race access rule", () => Send(("/station race-policy " + id + " " + Value("raceFacility") + " " + Value("stationPolicyRace") + " " + Value("racePolicyState") + " " + Value("raceDenialReason")).TrimEnd()));
-                    if (Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
+                    string command = $"/station race-policy {id} {Value("raceFacility")} {Value("stationPolicyRace")} {Value("racePolicyState")}";
+                    if (Value("racePolicyState") == "deny") SendWithReason(command, "raceDenialReason");
+                    else Send(command);
+                });
+                if (Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
+                {
+                    AddChoice("raceMarketAction", "Price adjustment", new List<(string, string)> { ("purchase", "Purchase surcharge or discount"), ("sale", "Seller proceeds deduction") }, _ => drafts.Remove("raceMarketPercent"));
+                    AddChoice("raceMarketMode", "Adjustment", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("custom", "Set percentage") });
+                    int limit = Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
+                    bool custom = Value("raceMarketMode") == "custom";
+                    if (custom)
                     {
-                        AddChoice("raceMarketAction", "Price adjustment", new List<(string, string)> { ("purchase", "Purchase surcharge or discount"), ("sale", "Seller proceeds deduction") }, _ => { drafts.Remove("raceMarketPercent"); RebuildBody(); });
-                        AddChoice("raceMarketMode", "Adjustment", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("custom", "Set percentage") }, _ => RebuildBody());
-                        int limit = Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
-                        if (Value("raceMarketMode") == "custom") AddNumber("raceMarketPercent", "Percentage", 0, Value("raceMarketAction") == "purchase" ? -limit : 0, limit);
-                        AddAction("Apply race price adjustment", () => Send("/station race-policy " + id + " " + Value("raceMarketAction") + " " + Value("stationPolicyRace") + " " + (Value("raceMarketMode") == "custom" ? Value("raceMarketPercent") : "inherit")));
+                        AddNumber("raceMarketPercent", "Percentage", 0, Value("raceMarketAction") == "purchase" ? -limit : 0, limit);
+                        AddField("raceMarketReason", "Reason for the price adjustment", "");
                     }
-                    AddAction("View station and faction race rules", "/station race-policy " + id);
-                    if (Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
+                    AddAction("Apply race price adjustment", () =>
                     {
-                        AddAccountField("stationRaceExemption", "Exemption target");
-                        AddAction("Grant exemption", () => Send("/station race-policy " + id + " exempt add " + Value("stationRaceExemption")));
-                        AddAction("Revoke exemption", () => Send("/station race-policy " + id + " exempt remove " + Value("stationRaceExemption")));
-                    }
+                        string adjustment = custom ? Value("raceMarketPercent") : "inherit";
+                        string command = $"/station race-policy {id} {Value("raceMarketAction")} {Value("stationPolicyRace")} {adjustment}";
+                        if (custom && int.TryParse(adjustment, out int percent) && percent > 0)
+                            SendWithReason(command, "raceMarketReason");
+                        else Send(command);
+                    });
                 }
+                AddAction("View station and faction race rules", "/station race-policy " + id);
+                if (Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
+                {
+                    AddAccountField("stationRaceExemption", "Exemption target");
+                    AddAction("Grant exemption", () => Send("/station race-policy " + id + " exempt add " + Value("stationRaceExemption")));
+                    AddAction("Revoke exemption", () => Send("/station race-policy " + id + " exempt remove " + Value("stationRaceExemption")));
+                }
+                return;
             }
             AddSection("PILOT ACCESS", "");
             AddAccountField("governanceAccount", "Target pilot");
@@ -1405,16 +1553,20 @@ namespace GoF2Remake.UI
             }
             AddChoice("governancePermission", "Permission", Enum.GetNames(typeof(PlayerStationPermission)).Select(value => (value, value)).ToList());
             AddChoice("governanceOverride", "Account override", new[] { "inherit", "allow", "deny" }.Select(value => (value, value)).ToList());
-            AddAction("Set account override", () => Send("/station permission " + id + " " + Value("governanceAccount") + " " + Value("governancePermission") + " " + Value("governanceOverride")));
+            if (Value("governanceOverride") == "deny") AddField("permissionReason", "Reason for denying permission", "");
+            AddAction("Set account override", () =>
+            {
+                string command = $"/station permission {id} {Value("governanceAccount")} {Value("governancePermission")} {Value("governanceOverride")}";
+                if (Value("governanceOverride") == "deny") SendWithReason(command, "permissionReason");
+                else Send(command);
+            });
             if (owner && station.ownershipType == PlayerStationOwnershipType.Faction)
             {
                 AddChoice("governanceRank", "Faction rank", new[] { "member", "officer" }.Select(value => (value, value)).ToList());
                 AddChoice("governanceDefault", "Default permission", new[] { "allow", "deny" }.Select(value => (value, value)).ToList());
                 AddAction("Set faction default", () => Send("/station default " + id + " " + Value("governanceRank") + " " + Value("governancePermission") + " " + Value("governanceDefault")));
             }
-            AddField("banReason", "Blacklist reason (optional)", "");
-            AddAction("Blacklist selected pilot", () => Send(("/station ban " + id + " " + Value("governanceAccount") + " " + Value("banReason")).TrimEnd()));
-            AddAction("Remove pilot blacklist", () => Send("/station unban " + id + " " + Value("governanceAccount")));
+
         }
 
         void BuildSuccessionControls(PlayerStationRecord station)
@@ -1426,7 +1578,7 @@ namespace GoF2Remake.UI
                 AddSection("SUCCESSION", "");
                 if (station.ownershipType == PlayerStationOwnershipType.Faction)
                 {
-                    AddChoice("successorType", "Successor type", new[] { "player", "faction" }.Select(value => (value, value)).ToList(), _ => { drafts.Remove("successorAccount"); RebuildBody(); });
+                    AddChoice("successorType", "Successor type", new[] { "player", "faction" }.Select(value => (value, value)).ToList(), _ => drafts.Remove("successorAccount"));
                     AddAccountField("successorAccount", "Successor");
                     AddAction("Set faction successor", () => Send("/station successor " + id + " " + Value("successorType") + " " + Value("successorAccount")));
                     AddAction("Clear faction successor", "/station successor " + id + " clear");
@@ -1473,7 +1625,7 @@ namespace GoF2Remake.UI
             var options = new List<(string value, string label)> { ("", "Select " + label.ToLowerInvariant() + "…") };
             if (managementCatalogue?.stationId == selected?.id)
                 options.AddRange(managementCatalogue.options.Where(option => option.group == group).Select(option => (option.value, option.label)));
-            AddChoice(key, label, options, _ => RebuildBody());
+            AddChoice(key, label, options);
             if (options.Count == 1) AddInfo(label, managementCatalogue == null ? "Waiting for server data." : "No eligible entries available.");
         }
 
@@ -1564,6 +1716,24 @@ namespace GoF2Remake.UI
                 return;
             }
             Dispatch("/station " + action + " " + name);
+        }
+
+        void SendWithReason(string command, string reasonKey, string separator = " ")
+        {
+            string reason = System.Text.RegularExpressions.Regex.Replace(
+                NetPlayerStations.NormalizeBlacklistReason(Value(reasonKey)), @"\s+", " ");
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                feedback.text = "Enter a reason before applying this restriction.";
+                feedbackTime = 8f;
+                return;
+            }
+            if (command.TrimEnd() != command)
+            {
+                Send(command);
+                return;
+            }
+            Send(command + separator + reason);
         }
 
         void Send(string command)

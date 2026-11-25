@@ -112,14 +112,15 @@ namespace GoF2Remake.Multiplayer
             string facility = words[0].ToLowerInvariant();
             if (facility == "purchase" || facility == "sale")
             {
-                var args = words[1].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (args.Length != 2 || !TryPolicyRaceKey(args[0], out string key)) return false;
+                var args = words[1].Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (args.Length < 2 || !TryPolicyRaceKey(args[0], out string key)) return false;
                 int limit = ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
                 bool inherit = args[1].Equals("inherit", StringComparison.OrdinalIgnoreCase);
                 int percent = 0;
                 if (!inherit && (limit == 0 || !int.TryParse(args[1], out percent) ||
                     percent < (facility == "purchase" ? -limit : 0) || percent > limit)) return false;
                 rule = new StationFacilityRaceRule { facility = facility, race = key, percent = percent,
+                    reason = !inherit && args.Length == 3 ? NormalizeBlacklistReason(args[2]) : null,
                     state = inherit ? PlayerStationPermissionState.Inherit : PlayerStationPermissionState.Allow };
                 return true;
             }
@@ -202,7 +203,7 @@ namespace GoF2Remake.Multiplayer
             {
                 var rule = rules[i];
                 if (rule != null) lines.Append('\n').Append(scope).Append(" · ").Append(rule.facility)
-                    .Append(" · ").Append(rule.race).Append(" · ").Append(rule.facility == "purchase" || rule.facility == "sale" ? rule.percent + "%" : WithBlacklistReason(rule.state.ToString(), rule.reason));
+                    .Append(" · ").Append(rule.race).Append(" · ").Append(WithBlacklistReason(rule.facility == "purchase" || rule.facility == "sale" ? rule.percent + "%" : rule.state.ToString(), rule.reason));
             }
         }
     }
