@@ -128,6 +128,10 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<float> missionClock = new NetworkVariable<float>(0f, Read, Write);
         readonly NetworkVariable<int> missionScore = new NetworkVariable<int>(0, Read, Write);
         readonly NetworkVariable<bool> siegeRun = new NetworkVariable<bool>(false, Read, Write);   // KaamoSiege: builds the siege here
+        readonly NetworkVariable<int> constructionDockProject = new NetworkVariable<int>(-1, Read, Write);
+        internal int ConstructionDockProject => IsOwner && level != null && level.Docking?.IsDocked == true &&
+            level.Docking.Target?.DockingType == ObjectDocking.ConstructionSite
+            ? NetPlayerStations.StationAt(level.Layout.stationIndex)?.id ?? -1 : IsOwner ? -1 : constructionDockProject.Value;
         readonly NetworkVariable<bool> atObject = new NetworkVariable<bool>(false, Read, Write);   // docked at an object (ObjectDocking)
         readonly NetworkVariable<int> turretItem = new NetworkVariable<int>(-1, Read, Write);   // the mounted turrets (PackTurrets)
         readonly NetworkVariable<FixedString128Bytes> weapons = new NetworkVariable<FixedString128Bytes>(default, Read, Write);   // primaries | secondaries (PackWeapons)
@@ -1311,6 +1315,8 @@ namespace GoF2Remake.Multiplayer
             if (NetGame.TestAccept && now == Place.Hangar && NetSquad.Invites.Count > 0) NetSquad.Accept(NetSquad.Invites[NetSquad.Invites.Count - 1]);
             if (level == null)
             {
+                if (constructionDockProject.Value != -1) constructionDockProject.Value = -1;
+                if (atObject.Value) atObject.Value = false;
                 // Docked: repaired (the pools' presence stays as last seen in space).
                 if (dock != null) { look.hull = WireQuant.Fraction(1f); WritePools(Shield < 0f ? -1f : 1f, Armor < 0f ? -1f : 1f); }
                 return;
@@ -1324,6 +1330,8 @@ namespace GoF2Remake.Multiplayer
             foreach (var t in level.Turrets) if (t != null && t.Gun != null) sender?.Hook(new[] { t.Gun });
             foreach (var sentry in SentryGun.All) if (sentry != null && sentry.Gun != null) sender?.Hook(new[] { sentry.Gun });
             if (atObject.Value != ObjectDocking.PlayerDocked) atObject.Value = ObjectDocking.PlayerDocked;
+            int constructionProject = ConstructionDockProject;
+            if (constructionDockProject.Value != constructionProject) constructionDockProject.Value = constructionProject;
             transform.SetPositionAndRotation(localShip.position, localShip.rotation);
             posePosition = localShip.position;
             poseRotation = localShip.rotation;
