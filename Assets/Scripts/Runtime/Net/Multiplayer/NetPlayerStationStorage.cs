@@ -49,7 +49,7 @@ namespace GoF2Remake.Multiplayer
         {
             public int stationId, directoryPage, directoryPages;
             public bool canAnnounce, canManage, canSecurity, canOwnership, canAppearance, canConstruction, canManageMarket;
-            public long stationBroadcastReadyUtc;
+            public long stationBroadcastReadyUtc, stationBankCredits;
             public List<StationFacilityRaceRule> stationRaceRules, factionRaceRules;
             public StorageUiSnapshot storage;
             public List<ManagementOption> options = new List<ManagementOption>();
@@ -87,6 +87,7 @@ namespace GoF2Remake.Multiplayer
             if (!IsStationContext(pilot, record, out string account, recoverProperty: true) || record.underConstruction) return result;
             bool normal = IsStationContext(pilot, record, out _);
             result.canManageMarket = normal && CanManageMarketPolicy(record, account);
+            if (result.canManageMarket || (normal && IsStationAuthority(pilot, record, out _))) result.stationBankCredits = record.stationBankCredits;
             result.canManage = normal && HasStationPermission(record, account, PlayerStationPermission.StationOperations);
             result.canOwnership = normal && IsStationAuthority(pilot, record, out _);
             result.canSecurity = normal && HasStationPermission(record, account, PlayerStationPermission.Security);
