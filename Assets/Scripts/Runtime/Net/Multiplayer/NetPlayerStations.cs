@@ -548,6 +548,26 @@ namespace GoF2Remake.Multiplayer
                     structure.assembly = Modding.ModPlayerInfrastructure.DefenseAssembly(structure.assembly);
                     structure.stationModel = null;
                     structure.modelScale = Modding.ModPlayerInfrastructure.DefenseModelScale;
+                    // Previously built stock sentries had no maintenance schedule. Match the
+                    // active preset so a mod-defined replacement retains its own settings.
+                    if (structure.maintenanceIntervalSeconds <= 0)
+                    {
+                        foreach (var preset in Modding.ModPlayerInfrastructure.Current.OrbitalStructures)
+                        {
+                            if (!preset.Defense || preset.Name != structure.name || preset.Assembly != structure.assembly ||
+                                preset.MaintenanceIntervalSeconds <= 0) continue;
+                            structure.maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds;
+                            structure.hasMaintenanceDecayRate = true;
+                            structure.maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay;
+                            structure.minimumMaintenanceIntegrityPercent = preset.MinimumMaintenanceIntegrityPercent;
+                            structure.maintenanceMaterials = new List<PlayerStationMaterial>();
+                            foreach (var material in preset.MaintenanceMaterials)
+                                structure.maintenanceMaterials.Add(new PlayerStationMaterial { item = material.item, required = material.amount });
+                            if (structure.operational)
+                                structure.maintenanceDueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + structure.maintenanceIntervalSeconds;
+                            break;
+                        }
+                    }
                 }
                 registry.nextOrbitalStructureId = Math.Max(registry.nextOrbitalStructureId,
                     structure.id < int.MaxValue ? structure.id + 1 : int.MaxValue);
