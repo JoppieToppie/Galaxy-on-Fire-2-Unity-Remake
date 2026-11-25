@@ -45,6 +45,29 @@ namespace GoF2Remake.Multiplayer
 
         static BountyFile bountyFile;
         static bool bountyDirty;
+        static readonly Dictionary<string, PiracyRecord> piracyByAccount = new Dictionary<string, PiracyRecord>(StringComparer.Ordinal);
+        static readonly Dictionary<string, List<BountyRecord>> bountiesByAccount = new Dictionary<string, List<BountyRecord>>(StringComparer.Ordinal);
+
+        static void IndexBounty(BountyRecord record)
+        {
+            if (!bountiesByAccount.TryGetValue(record.account, out var records))
+                bountiesByAccount.Add(record.account, records = new List<BountyRecord>());
+            records.Add(record);
+        }
+
+        static void ReindexBounties()
+        {
+            piracyByAccount.Clear();
+            bountiesByAccount.Clear();
+            if (bountyFile == null) return;
+            foreach (var record in bountyFile.piracy)
+                if (!piracyByAccount.ContainsKey(record.account)) piracyByAccount.Add(record.account, record);
+            foreach (var record in bountyFile.records) IndexBounty(record);
+        }
+
+        static BountyRecord FindBounty(string account, string issuer) =>
+            account != null && bountiesByAccount.TryGetValue(account, out var records) ? records.Find(r => r.issuer == issuer) : null;
+
         static string BountyPath => Path.Combine(NetProfiles.Folder, "faction-bounties.json");
 
         static void LoadBounties()
@@ -71,11 +94,13 @@ namespace GoF2Remake.Multiplayer
                     record.kills = null;
                     bountyDirty = true;
                 }
+                ReindexBounties();
                 TickBounties();
             }
             catch (Exception e)
             {
                 bountyFile = null;
+                ReindexBounties();
                 Debug.LogError($"NetFactions: could not load faction bounties ({e.Message}).");
             }
         }
@@ -90,10 +115,12 @@ namespace GoF2Remake.Multiplayer
         {
             if (bountyFile == null) return;
             long now = UnixNow;
+            int before = bountyFile.records.Count + bountyFile.piracy.Count;
             bountyDirty |= bountyFile.records.RemoveAll(r => r.wantedUntil <= now &&
                 !r.pvpKills.Exists(k => k > now - BountyWindowSeconds) &&
                 !r.pveKills.Exists(k => k > now - BountyWindowSeconds)) > 0;
             bountyDirty |= bountyFile.piracy.RemoveAll(r => !r.pirate && !r.kills.Exists(k => k >= now - MaxPiracyWindowSeconds)) > 0;
+            if (before != bountyFile.records.Count + bountyFile.piracy.Count) ReindexBounties();
             SaveBounties();
         }
 
@@ -122,16 +149,20 @@ namespace GoF2Remake.Multiplayer
         {
             if (!PiracyEnabled || bountyFile == null || bountyDirty) yield break;
             long now = UnixNow;
-            foreach (var r in bountyFile.records)
-                if (r.account == account && r.wantedUntil > now && BountyIssuerName(r.issuer) != null)
+            if (account == null || !bountiesByAccount.TryGetValue(account, out var records)) yield break;
+            foreach (var r in records)
+                if (r.wantedUntil > now && BountyIssuerName(r.issuer) != null)
                     yield return r.issuer;
         }
 
         static bool AddBountyKill(string account, string issuer, long now, bool pvp, int weight = 1)
         {
-            var record = bountyFile.records.Find(r => r.account == account && r.issuer == issuer);
+            var record = FindBounty(account, issuer);
             if (record == null)
+            {
                 bountyFile.records.Add(record = new BountyRecord { account = account, issuer = issuer });
+                IndexBounty(record);
+            }
             if (record.wantedUntil > now) return false;
 
             record.pvpKills.RemoveAll(k => k <= now - BountyWindowSeconds);
@@ -211,9 +242,9 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            bool pirate = bountyFile.piracy.Exists(r => r.account == account && r.pirate);
+            bool pirate = account != null && piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
             long now = UnixNow;
-            bool wanted = bountyFile.records.Exists(r => r.account == account && r.wantedUntil > now &&
+            bool wanted = account != null && bountiesByAccount.TryGetValue(account, out var records) && records.Exists(r => r.wantedUntil > now &&
                 BountyIssuerName(r.issuer) != null);
             pilot.SetPiracyFlags(pirate, wanted);
         }
@@ -223,8 +254,11 @@ namespace GoF2Remake.Multiplayer
         static bool TrackPiracyKill(string account, long now, bool secure, out int count, out int threshold, out int windowSeconds)
         {
             count = threshold = windowSeconds = 0;
-            var record = bountyFile.piracy.Find(r => r.account == account);
-            if (record == null) bountyFile.piracy.Add(record = new PiracyRecord { account = account });
+            if (!piracyByAccount.TryGetValue(account, out var record))
+            {
+                bountyFile.piracy.Add(record = new PiracyRecord { account = account });
+                piracyByAccount.Add(account, record);
+            }
             if (record.pirate) return false;
 
             threshold = GameHooks.PiracyKillThreshold?.Invoke() ?? GameHooks.DefaultPiracyKillThreshold;
@@ -255,7 +289,8 @@ namespace GoF2Remake.Multiplayer
             string account = NetProfiles.AccountOf(victim.OwnerClientId);
             if (account == null || account == NetProfiles.AccountOf(hunter.OwnerClientId)) return false;
             long now = UnixNow;
-            var claimed = bountyFile.records.FindAll(r => r.account == account && r.wantedUntil > now &&
+            if (!bountiesByAccount.TryGetValue(account, out var records)) return false;
+            var claimed = records.FindAll(r => r.wantedUntil > now &&
                 BountyIssuerName(r.issuer) != null);
             if (claimed.Count == 0 || !SaveBounties()) return false;
             foreach (var record in claimed) bountyFile.records.Remove(record);
@@ -266,6 +301,7 @@ namespace GoF2Remake.Multiplayer
                 bountyDirty = false;
                 return false;
             }
+            ReindexBounties();
             RefreshPiracyFlag(victim);
             NetState.Instance?.Notify(hunter.OwnerClientId, $"Claimed {claimed.Count} faction bounty record(s) on {victim.DisplayName}.");
             return true;
@@ -370,8 +406,8 @@ namespace GoF2Remake.Multiplayer
             refusal = "The server could not collect the diplomacy fee.";
             if ((host && Session.Credits < price) || !NetProfiles.MoveCredits(client, account, -price)) return false;
 
-            var record = bountyFile.records.Find(r => r.account == account && r.issuer == issuer);
-            var piracy = bountyFile.piracy.Find(r => r.account == account && r.pirate);
+            var record = FindBounty(account, issuer);
+            var piracy = piracyByAccount.TryGetValue(account, out var indexedPiracy) && indexedPiracy.pirate ? indexedPiracy : null;
             var pveKills = record?.pveKills;
             if (pveKills?.Count > 0 || piracy != null)
             {
