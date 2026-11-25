@@ -15,6 +15,35 @@ namespace GoF2Remake.Data
         public static bool Hired => Session.Wingmen.Count > 0;
         public static bool Expired => Hired && Session.WingmanContractMs < 1f;
 
+        // A shared renewal covers all recruited groups, priced from their original contracts.
+        // Older saves have no prices; use a modest estimate per surviving pilot.
+        static void EnsureContractPrices()
+        {
+            if (Session.WingmanContractPrices.Count == 0 && Hired)
+                Session.WingmanContractPrices.Add(Session.Wingmen.Count * 1350 * (Session.IsExtreme ? 7 : 1));
+        }
+
+        public static long ExtensionPrice
+        {
+            get
+            {
+                EnsureContractPrices();
+                long total = 0;
+                foreach (int price in Session.WingmanContractPrices) if (price > 0) total += price;
+                return System.Math.Max(1L, (total * Modding.ModWingmen.ExtensionPricePercent + 99) / 100);
+            }
+        }
+
+        public static bool TryExtend()
+        {
+            if (!Modding.ModWingmen.ExtendContracts || !Expired) return false;
+            long price = ExtensionPrice;
+            if (Session.Credits < price) return false;
+            Session.Credits -= price;
+            Session.WingmanContractMs = Modding.ModWingmen.ExtensionSeconds * 1000f;
+            return true;
+        }
+
         public static bool CanHire(Agent agent) => agent != null && (!Hired || Modding.ModWingmen.MultipleGroups && !Expired) &&
             Session.Wingmen.Count + agent.wingmen.Count + 1 <= Modding.ModWingmen.MaxTotal;
 
@@ -25,6 +54,8 @@ namespace GoF2Remake.Data
             names.AddRange(agent.wingmen);
             if (!CanHire(agent)) return;
             bool append = Hired;
+            if (append) EnsureContractPrices();
+            else Session.WingmanContractPrices.Clear();
             if (!append)
             {
                 Session.Wingmen.Clear(); Session.WingmanShips.Clear(); Session.WingmanRaces.Clear();
@@ -40,6 +71,7 @@ namespace GoF2Remake.Data
                 Session.WingmanShips.Add(agent.wingmanShips != null && i < agent.wingmanShips.Count ? agent.wingmanShips[i] : -1);
                 Session.WingmanRaces.Add(agent.race);
             }
+            Session.WingmanContractPrices.Add(System.Math.Max(1, agent.costs));
             Session.WingmenHired += names.Count;
         }
 
@@ -60,6 +92,7 @@ namespace GoF2Remake.Data
             Session.WingmanShips = new List<int>();
             Session.WingmanRaces = new List<int>();
             Session.WingmanContractMs = 0f;
+            Session.WingmanContractPrices.Clear();
         }
     }
 }
