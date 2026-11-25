@@ -893,6 +893,17 @@ namespace GoF2Remake.Multiplayer
                     return "/station buy-order <station id> <item id> <amount> <unit price>";
                 return NetPlayerStations.CreateConstructionBuyOrder(by as NetPlayer, stationId, itemId, amount, unitPrice);
             }
+            bool sellStableOrder = args.StartsWith("sell-order-id ", StringComparison.OrdinalIgnoreCase);
+            bool cancelStableOrder = args.StartsWith("cancel-order-id ", StringComparison.OrdinalIgnoreCase);
+            if (sellStableOrder || cancelStableOrder)
+            {
+                var words = args.Substring(sellStableOrder ? "sell-order-id ".Length : "cancel-order-id ".Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                int quantity = 0;
+                if (words.Length != (sellStableOrder ? 3 : 2) || !int.TryParse(words[0], out int projectId) ||
+                    !int.TryParse(words[1], out int orderId) || (sellStableOrder && !int.TryParse(words[2], out quantity)))
+                    return "Choose a construction order and valid quantity.";
+                return NetPlayerStations.SettleConstructionOrderById(by as NetPlayer, projectId, orderId, quantity, cancelStableOrder);
+            }
             const string sellOrder = "sell-order ";
             if (args.StartsWith(sellOrder, StringComparison.OrdinalIgnoreCase))
             {
