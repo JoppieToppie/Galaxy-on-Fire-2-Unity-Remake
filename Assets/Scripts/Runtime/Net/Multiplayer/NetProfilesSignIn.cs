@@ -151,7 +151,7 @@ namespace GoF2Remake.Multiplayer
         static void Promote(Login login)
         {
             if (login.account != null && ControllerOf(login.account) != null) return;
-            if (NetPlayerStations.ProfileWritesBlocked) return;
+            if (NetPlayerStations.ProfileWritesBlocked || (login.account != null && !ReplayPendingDeath(login.account.id))) return;
             login.controller = true;
             login.acceptedUploadSequence = 0;
             incoming.Remove(login.client);
