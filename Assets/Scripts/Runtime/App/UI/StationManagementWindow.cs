@@ -41,6 +41,9 @@ namespace GoF2Remake.UI
         bool plannerRequestPending;
         StarMap plannerMap;
         string modelPickerKey;
+        string choicePickerKey;
+        Vector2 choiceReturnScroll;
+        Button choiceReturnButton;
         Vector2 modelPickerReturnScroll;
         NetPlayerStations.MarketUiCatalogue marketCatalogue;
         int marketPage;
@@ -156,11 +159,12 @@ namespace GoF2Remake.UI
         void ApplyResponsiveLayout()
         {
             bool small = InputMode.Current == InputKind.Touch || panel.resolvedStyle.width < 850f;
-            if (compact == small) return;
             compact = small;
             panel.EnableInClassList("player-station-compact", small);
             stationList.mode = small ? ScrollViewMode.Horizontal : ScrollViewMode.Vertical;
             stationList.contentContainer.style.flexDirection = small ? FlexDirection.Row : FlexDirection.Column;
+            pageBar.style.flexWrap = Wrap.Wrap;
+            body.style.flexGrow = 1; body.style.flexBasis = 0; body.style.minHeight = 0; body.style.minWidth = 0;
         }
 
         int CurrentOrbit => inFlight ? NetPlayer.Local?.Station ?? -1 : level?.Layout?.stationIndex ?? -1;
@@ -190,7 +194,7 @@ namespace GoF2Remake.UI
             if (Time.unscaledTime >= nextMarketQuery && managementPage == "market") RefreshMarketCatalogue();
             if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
-            if (StarMap.IsOpen || modelPickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
+            if (StarMap.IsOpen || modelPickerKey != null || choicePickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
             {
                 refresh = 2f;
@@ -223,7 +227,9 @@ namespace GoF2Remake.UI
 
         internal void Back()
         {
-            if (modelPickerKey != null) CloseModelPicker();
+            if (choicePickerKey != null) CloseChoicePicker();
+            else if (modelPickerKey != null) CloseModelPicker();
+            else if (managementPage != "overview") ChangeManagementPage("overview");
             else Close();
         }
 
@@ -239,6 +245,8 @@ namespace GoF2Remake.UI
                 if (StarMap.Current == plannerMap) plannerMap.CloseBuilder();
                 plannerMap = null;
             }
+            choicePickerKey = null;
+            choiceReturnButton = null;
             modelPickerKey = null;
             panel.RemoveFromClassList("player-station-picking-model");
             heading.text = "PLAYER STATIONS";
@@ -652,7 +660,7 @@ namespace GoF2Remake.UI
                     AddSection("STORAGE & ACCESS", "Move goods between your cargo hold and shared station storage.");
                     AddAction("View stored holdings", "/station storage " + id);
                     AddItemChoice("storageItem", "Item");
-                    AddNumber("storageAmount", "Units", 10, 1, 10000);
+                    AddNumber("storageAmount", "Units", 10, 1, 500);
                     AddAction("Deposit cargo", () => Send("/station deposit " + id + " " + Value("storageItem") + " " + Value("storageAmount")));
                     AddAction("Withdraw cargo", () => Send("/station withdraw " + id + " " + Value("storageItem") + " " + Value("storageAmount")));
                     if (managementCatalogue?.canOwnership == true)
@@ -804,7 +812,11 @@ namespace GoF2Remake.UI
         void AddInfo(string label, string value)
         {
             var row = new VisualElement(); row.AddToClassList("player-station-info");
-            row.Add(new Label(label)); row.Add(new Label(value ?? "")); body.Add(row);
+            row.style.flexWrap = Wrap.Wrap; row.style.minHeight = 32; row.style.flexShrink = 0;
+            var name = new Label(label); name.style.whiteSpace = WhiteSpace.Normal; name.style.flexShrink = 1;
+            var detail = new Label(value ?? ""); detail.enableRichText = false; detail.style.whiteSpace = WhiteSpace.Normal;
+            detail.style.flexShrink = 1; detail.style.minWidth = 0; detail.style.flexGrow = 1;
+            row.Add(name); row.Add(detail); body.Add(row);
         }
 
         void BuildSystemGates(int system)
@@ -933,68 +945,101 @@ namespace GoF2Remake.UI
                     (allowed == null || allowed.Contains(item.index)))
                 .OrderBy(item => item.name, StringComparer.CurrentCultureIgnoreCase).ThenBy(item => item.index).ToList();
             var names = all.GroupBy(item => item.name).ToDictionary(group => group.Key, group => group.Count());
-            var options = all.Select(item => (value: item.index.ToString(), label: names[item.name] == 1 ? item.name :
-                item.name + " (" + item.type + ", " + (all.Where(other => other.name == item.name).ToList().IndexOf(item) + 1) + ")")).ToList();
-            var search = new TextField("Search " + label.ToLowerInvariant()) { value = Value(key + "Search") };
-            search.AddToClassList("player-station-field");
-            body.Add(search);
-            var field = new DropdownField(label);
-            field.AddToClassList("player-station-field");
-            body.Add(field);
-            var preview = new VisualElement { pickingMode = PickingMode.Ignore };
-            preview.style.width = 90;
-            preview.style.height = 44;
-            body.Add(preview);
-            var visible = new List<(string value, string label)>();
-            void RefreshPreview()
-            {
-                preview.style.backgroundImage = int.TryParse(Value(key), out int item)
-                    ? new StyleBackground(ItemInfo.ItemIcon(item)) : new StyleBackground();
-            }
-            void Filter(string query)
-            {
-                visible = new List<(string value, string label)> { ("", "Select an item") };
-                visible.AddRange(options.Where(option => string.IsNullOrWhiteSpace(query) ||
-                    option.label.IndexOf(query, StringComparison.CurrentCultureIgnoreCase) >= 0));
-                int index = Math.Max(0, visible.FindIndex(option => option.value == Value(key)));
-                field.choices = visible.Select(option => option.label).ToList();
-                field.SetValueWithoutNotify(visible[index].label);
-                drafts[key] = visible[index].value;
-                RefreshPreview();
-            }
-            field.RegisterValueChangedCallback(_ =>
-            {
-                if (field.index < 0 || field.index >= visible.Count) return;
-                drafts[key] = visible[field.index].value;
-                RefreshPreview();
-            });
-            search.RegisterValueChangedCallback(change =>
-            {
-                drafts[key + "Search"] = change.newValue;
-                Filter(change.newValue);
-            });
-            Filter(search.value);
+            var options = new List<(string value, string label)> { ("", "Select an item") };
+            options.AddRange(all.Select(item => (item.index.ToString(), names[item.name] == 1 ? item.name :
+                item.name + " (" + item.type + ", " + (all.Where(other => other.name == item.name).ToList().IndexOf(item) + 1) + ")")));
+            AddChoice(key, label, options, null, true);
         }
 
-        void AddChoice(string key, string label, List<(string value, string label)> options, Action<string> changed = null)
+        static void StyleChoice(Button button, bool selected, bool focused = false)
         {
-            if (options.Count == 0)
+            var border = focused ? Color.white : selected ? new Color(.52f,.87f,1f) : new Color(.20f,.34f,.44f);
+            button.style.backgroundColor = selected ? new Color(.12f,.29f,.39f) : new Color(.045f,.10f,.15f);
+            button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = border;
+            button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = 2;
+            button.style.color = Color.white;
+            button.style.whiteSpace = WhiteSpace.Normal;
+            button.style.minHeight = 48; button.style.height = StyleKeyword.Auto; button.style.flexShrink = 0;
+            button.style.marginBottom = 6;
+        }
+
+        void AddChoice(string key, string label, List<(string value, string label)> options, Action<string> changed = null, bool items = false)
+        {
+            if (options.Count == 0) { drafts.Remove(key); AddInfo(label, "No choices available."); return; }
+            int index = drafts.TryGetValue(key, out string saved) ? options.FindIndex(option => option.value == saved) : -1;
+            index = Math.Max(0, index);
+            drafts[key] = options[index].value;
+            var caption = new Label(label); caption.AddToClassList("player-station-note"); caption.style.whiteSpace = WhiteSpace.Normal; body.Add(caption);
+            var button = new Button { text = options[index].label + "  ▾", name = "choice-" + key };
+            button.AddToClassList("player-station-field"); button.AddToClassList("player-station-action");
+            StyleChoice(button, false);
+            button.clicked += () => OpenChoicePicker(key, label, options, changed, items);
+            body.Add(button);
+            if (items && int.TryParse(drafts[key], out int item))
             {
-                drafts.Remove(key);
-                return;
+                var preview = new VisualElement { pickingMode = PickingMode.Ignore };
+                preview.style.width = 90; preview.style.height = 44;
+                preview.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item)); body.Add(preview);
             }
-            int selectedIndex = drafts.TryGetValue(key, out string saved) ? options.FindIndex(option => option.value == saved) : -1;
-            selectedIndex = Math.Max(0, selectedIndex);
-            drafts[key] = options[selectedIndex].value;
-            var field = new DropdownField(label, options.Select(option => option.label).ToList(), selectedIndex);
-            field.AddToClassList("player-station-field");
-            field.RegisterValueChangedCallback(_ =>
+        }
+
+        void OpenChoicePicker(string key, string label, List<(string value, string label)> options, Action<string> changed, bool items)
+        {
+            choicePickerKey = key; choiceReturnScroll = body.scrollOffset;
+            choiceReturnButton = body.Q<Button>("choice-" + key);
+            heading.text = label.ToUpperInvariant();
+            pageBar.style.display = DisplayStyle.None;
+            panel.AddToClassList("player-station-picking-model");
+            body.Clear(); fields.Clear();
+            var toolbar = new VisualElement(); toolbar.style.flexDirection = FlexDirection.Row; toolbar.style.flexWrap = Wrap.Wrap; body.Add(toolbar);
+            var results = new VisualElement(); body.Add(results);
+            int page = Math.Max(0, options.FindIndex(option => option.value == Value(key))) / 24;
+            const int pageSize = 24;
+            int pages = Math.Max(1, (options.Count + pageSize - 1) / pageSize);
+            void Show()
             {
-                if (field.index < 0) return;
-                drafts[key] = options[field.index].value;
-                changed?.Invoke(drafts[key]);
-            });
-            body.Add(field);
+                toolbar.Clear(); results.Clear();
+                void Tool(string text, Action action, bool enabled)
+                {
+                    var b = new Button(action) { text = text }; b.AddToClassList("player-station-action"); StyleChoice(b, false); b.SetEnabled(enabled); toolbar.Add(b);
+                }
+                Tool("Previous", () => { page--; Show(); }, page > 0);
+                var count = new Label($"{page + 1} / {pages}"); count.style.unityTextAlign = TextAnchor.MiddleCenter; count.style.flexGrow = 1; toolbar.Add(count);
+                Tool("Next", () => { page++; Show(); }, page + 1 < pages);
+                foreach (var option in options.Skip(page * pageSize).Take(pageSize))
+                {
+                    bool selected = Value(key) == option.value;
+                    var b = new Button(() =>
+                    {
+                        drafts[key] = option.value;
+                        CloseChoicePicker();
+                        changed?.Invoke(option.value);
+                        RebuildBody(choiceReturnScroll);
+                    }) { text = option.label, enableRichText = false };
+                    b.AddToClassList("player-station-row"); StyleChoice(b, selected);
+                    if (items && int.TryParse(option.value, out int item))
+                    {
+                        var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+                        icon.style.width = 72; icon.style.height = 36; icon.style.flexShrink = 0;
+                        icon.style.backgroundImage = new StyleBackground(ItemInfo.ItemIcon(item)); b.Add(icon);
+                    }
+                    b.RegisterCallback<FocusInEvent>(_ => StyleChoice(b, selected, true));
+                    b.RegisterCallback<FocusOutEvent>(_ => StyleChoice(b, selected));
+                    results.Add(b);
+                }
+                body.scrollOffset = Vector2.zero;
+                if (InputMode.Current == InputKind.Gamepad) results.Q<Button>()?.Focus();
+            }
+            Show();
+        }
+
+        void CloseChoicePicker()
+        {
+            string key = choicePickerKey; choicePickerKey = null; choiceReturnButton = null;
+            panel.RemoveFromClassList("player-station-picking-model");
+            heading.text = "PLAYER STATIONS"; pageBar.style.display = DisplayStyle.Flex;
+            RebuildBody(choiceReturnScroll);
+            if (InputMode.Current == InputKind.Gamepad) body.Q<Button>("choice-" + key)?.Focus();
         }
 
         static List<(string value, string label, string race)> StationModelChoices()
@@ -1057,8 +1102,7 @@ namespace GoF2Remake.UI
             body.Clear();
             fields.Clear();
             var races = new List<string> { "All races" }; races.AddRange(models.Select(model => model.race).Distinct().OrderBy(race => race));
-            var raceFilter = new DropdownField("Filter by race", races, 0);
-            raceFilter.AddToClassList("player-station-field"); body.Add(raceFilter);
+            var raceFilter = new VisualElement(); raceFilter.style.flexDirection = FlexDirection.Row; raceFilter.style.flexWrap = Wrap.Wrap; body.Add(raceFilter);
             var results = new VisualElement();
             body.Add(results);
 
@@ -1091,7 +1135,11 @@ namespace GoF2Remake.UI
                 }
             }
 
-            raceFilter.RegisterValueChangedCallback(change => ShowMatches(change.newValue));
+            foreach (string race in races)
+            {
+                var filter = new Button(() => ShowMatches(race)) { text = race };
+                filter.AddToClassList("player-station-action"); StyleChoice(filter, false); raceFilter.Add(filter);
+            }
             ShowMatches("All races");
             body.scrollOffset = Vector2.zero;
             if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing)
@@ -1300,7 +1348,7 @@ namespace GoF2Remake.UI
             AddSection("PERSONAL STORAGE", "");
             AddAction("View stored holdings", "/station storage " + id);
             AddItemChoice("visitorStoredItem", "Stored item");
-            AddNumber("visitorStoredQuantity", "Units", 1, 1, 10000);
+            AddNumber("visitorStoredQuantity", "Units", 1, 1, 500);
             AddAction("Withdraw own items", () => Send("/station withdraw " + id + " " +
                 Value("visitorStoredItem") + " " + Value("visitorStoredQuantity")));
         }
@@ -1459,9 +1507,8 @@ namespace GoF2Remake.UI
             var current = new Label(value.ToString("N0")); current.style.flexGrow = 1; current.style.unityTextAlign = TextAnchor.MiddleCenter;
             long[] steps = new[] { quantum, quantum * 10, quantum * 100, quantum * 1000, quantum * 10000, quantum * 100000, quantum * 1000000, quantum * 10000000, quantum * 100000000 }.Where(step => step <= Math.Max(quantum, max - min)).ToArray();
             int stepIndex = drafts.TryGetValue(key + "_step", out string storedStep) && int.TryParse(storedStep, out int savedStep) ? Math.Clamp(savedStep, 0, steps.Length - 1) : 0;
-            var picker = new DropdownField(steps.Select(step => "Step " + step.ToString("N0")).ToList(), stepIndex);
-            picker.AddToClassList("player-station-field"); picker.style.minWidth = 90;
-            picker.RegisterValueChangedCallback(_ => { if (picker.index >= 0) drafts[key + "_step"] = picker.index.ToString(); });
+            var picker = new Button { text = "Step: " + steps[stepIndex].ToString("N0") }; picker.AddToClassList("player-station-action");
+            picker.clicked += () => { stepIndex = (stepIndex + 1) % steps.Length; drafts[key + "_step"] = stepIndex.ToString(); picker.text = "Step: " + steps[stepIndex].ToString("N0"); };
             void Set(long next)
             {
                 value = Math.Clamp(next, min, max);
@@ -1475,9 +1522,9 @@ namespace GoF2Remake.UI
                 return button;
             }
             row.Add(Control("Min", () => Set(min)));
-            row.Add(Control("−", () => Set(value - steps[Math.Max(0, picker.index)])));
+            row.Add(Control("−", () => Set(value - steps[stepIndex])));
             row.Add(current);
-            row.Add(Control("+", () => Set(value + steps[Math.Max(0, picker.index)])));
+            row.Add(Control("+", () => Set(value + steps[stepIndex])));
             row.Add(Control("Max", () => Set(max)));
             body.Add(row);
             body.Add(picker);
@@ -1502,6 +1549,7 @@ namespace GoF2Remake.UI
             button.AddToClassList("player-station-action");
             button.clicked += () => menu?.PlayRelease();
             button.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
+            button.style.whiteSpace = WhiteSpace.Normal; button.style.height = StyleKeyword.Auto; button.style.minHeight = 42; button.style.flexShrink = 0;
             body.Add(button);
         }
 
