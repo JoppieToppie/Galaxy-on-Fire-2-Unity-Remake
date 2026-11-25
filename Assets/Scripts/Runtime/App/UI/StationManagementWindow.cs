@@ -783,8 +783,11 @@ namespace GoF2Remake.UI
                         Send("/station jumpgate-access " + orbitId + " " + Value(modeKey)));
                     AddChoice(typeKey, "Blacklist entry type", new List<(string, string)> { ("player", "Pilot"), ("faction", "Pilot’s faction") });
                     AddAccountField(targetKey, "Blacklist target");
-                    AddAction("Add to gate blacklist", () =>
-                        Send("/station jumpgate-blacklist " + orbitId + " add " + Value(typeKey) + " " + Value(targetKey)));
+                    string reasonKey = "gateBlockReason_" + orbitId;
+                    AddField(reasonKey, "Reason shown to denied pilots (optional)", "");
+                    AddAction("Add / update gate blacklist", () =>
+                        Send("/station jumpgate-blacklist " + orbitId + " add " + Value(typeKey) + " " + Value(targetKey) +
+                            (string.IsNullOrWhiteSpace(Value(reasonKey)) ? "" : " | " + Value(reasonKey))));
                     AddAction("Remove from gate blacklist", () =>
                         Send("/station jumpgate-blacklist " + orbitId + " remove " + Value(typeKey) + " " + Value(targetKey)));
                     if (Modding.ModPlayerInfrastructure.Current.JumpgateRacePoliciesEnabled)
@@ -1305,7 +1308,7 @@ namespace GoF2Remake.UI
                 AddAction("Set individual successor", () => Send("/station individual-successor " + id + " " + Value("governanceAccount")));
                 AddAction("Clear individual successor", "/station individual-successor " + id + " clear");
             }
-            AddField("banReason", "Ban reason (optional)", "");
+            AddField("banReason", "Reason shown to denied pilot (optional)", "");
             AddAction("Ban account", () => Send(("/station ban " + id + " " + Value("governanceAccount") + " " + Value("banReason")).TrimEnd()));
             AddAction("Unban account", () => Send("/station unban " + id + " " + Value("governanceAccount")));
             if (NetPlayer.Local?.CanRelinquishBuilderRightsInUi == true)
