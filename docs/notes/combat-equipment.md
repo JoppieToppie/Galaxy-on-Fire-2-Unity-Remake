@@ -351,16 +351,3 @@ Research: `Reference/research/combat_equipment.md`. All equipment is looked up b
   0x159f7e, constant DAT_00159818 = 0.1, read from the disassembly: the decompile drops the multiply), and so does
   `ItemInfo`: SPP-C1 1500 m, SPP-M50 6000 m, Crimson Drain 2000 m, Pandora Leech 1000 m, the plasma collectors (51)
   5000 / 6000 m and the PE Proton's 2750 (Android) or 4000 m (Default Economy). Only the label: RepairBeam and PlayerTurret still use the raw game units.
-
-## Player shield recharge and repair bots
-
-The remake advances both timers in elapsed game time and carries unused milliseconds into the next frame.
-A long frame processes all due ticks. The original shield timer discarded the remainder at 101 ms.
-The remake uses 100 ms to match the recharge time in item attribute 19. Each tick restores
-`maxShield * 100 / attr19`. A depleted Targe gains 0.25 per tick and reaches 50 after 200 ticks (20 s)
-from a fresh timer, at normal shield speed.
-
-Ketar repairs one hull point every 600 ms and two armor points every 1000 ms. Ketar II uses 420 and
-700 ms. Both clocks run while the ship is alive, including when the pools are full. An armor tick
-is spent if the hull is still damaged. If both ticks fall at the same instant, hull repair happens first.
-The EditMode fixture `HitpointsTests` covers frame partitions, long frames and simultaneous ticks.
