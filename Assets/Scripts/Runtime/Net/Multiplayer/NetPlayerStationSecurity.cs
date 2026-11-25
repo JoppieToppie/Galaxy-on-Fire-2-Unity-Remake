@@ -38,7 +38,7 @@ namespace GoF2Remake.Multiplayer
             var ban = record.bans?.Find(entry => entry != null && entry.account == account && entry.source == PlayerStationBanSource.OriginalBuilder);
             if (ban == null && !HasBuilderRights(record, account))
                 ban = record.bans?.Find(entry => entry != null && entry.account == account && entry.source == PlayerStationBanSource.OwnerAuthority);
-            return ban == null ? fallback : WithBlacklistReason("Access denied: you are blacklisted at " + record.name + ".", ban.reason);
+            return ban == null ? FacilityRaceRefusal(record, account, "docking", fallback) : WithBlacklistReason("Access denied: you are blacklisted at " + record.name + ".", ban.reason);
         }
 
         internal static void ValidateDockedStationAccess(NetPlayer player)
