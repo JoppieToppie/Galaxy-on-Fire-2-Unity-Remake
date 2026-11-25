@@ -355,6 +355,12 @@ namespace GoF2Remake.Multiplayer
         static string Station(string args, IPilot by)
         {
             args = (args ?? "").Trim();
+            if (args.StartsWith("announce ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(9).Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int announcementStation)) return "/station announce <station> <message>";
+                return NetPlayerStations.PublishStationAnnouncement(by as NetPlayer, announcementStation, words[1]);
+            }
             if (args.StartsWith("race-policy ", StringComparison.OrdinalIgnoreCase))
                 return NetPlayerStations.StationFacilityRaceCommand(by as NetPlayer, args.Substring("race-policy ".Length));
             if (args.StartsWith("jumpgate-race ", StringComparison.OrdinalIgnoreCase))
