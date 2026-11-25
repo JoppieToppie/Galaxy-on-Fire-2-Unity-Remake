@@ -687,6 +687,13 @@ namespace GoF2Remake.Multiplayer
                     return "/station unban <station id> <account id>";
                 return NetPlayerStations.SetStationBan(by as NetPlayer, unbanStationId, words[1], "", false);
             }
+            if (args.StartsWith("bank-withdraw ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring("bank-withdraw ".Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int withdrawalStation) || !long.TryParse(words[1], out long withdrawalAmount))
+                    return "/station bank-withdraw <station id> <credits>";
+                return NetPlayerStations.WithdrawStationCredits(by as NetPlayer, withdrawalStation, withdrawalAmount);
+            }
             if (args.StartsWith("bank-donate ", StringComparison.OrdinalIgnoreCase))
             {
                 var words = args.Substring("bank-donate ".Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
