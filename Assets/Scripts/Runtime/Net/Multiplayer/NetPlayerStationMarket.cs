@@ -627,6 +627,21 @@ namespace GoF2Remake.Multiplayer
                 return "Only the original seller can cancel and reclaim this listing.";
             if (listing.amount <= 0 || !NetGuard.Item(listing.item))
                 return "That listing is invalid and cannot be returned automatically.";
+            if (!CanManageStorage(by, record, out _))
+            {
+                // Escrow recovery can return property to the seller's ship without granting storage access.
+                if (NetProfiles.WreckSalvageCargoRoom(by, account) < listing.amount)
+                    return "Clear cargo space to reclaim this listing. Your profile lacks station storage access.";
+                record.listings.RemoveAt(listingIndex);
+                if (!CommitCargoTransaction(account, (listing.item, listing.amount)))
+                {
+                    record.listings.Insert(listingIndex, listing);
+                    return "The cancellation could not be saved; the listing remains active.";
+                }
+                if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, listing.amount, 0, "", "Marketplace cancellation");
+                return $"Listing cancelled and {listing.amount} units returned to your cargo hold.";
+            }
             EnsureStorageLots(record);
             var stock = record.storage.Find(x => x != null && x.item == listing.item);
             int capacity = StorageCapacity(record);

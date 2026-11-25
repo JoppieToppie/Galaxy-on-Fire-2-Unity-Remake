@@ -526,7 +526,6 @@ namespace GoF2Remake.UI
                     break;
                 case "placement": BuildOrbitPlacement(); break;
                 case "market": BuildMarketSettings(id); break;
-                case "storage": BuildStorage(id); break;
                 case "refinery": case "factory": BuildFacilityControls(id); break;
                 case "hangar": case "drydock": BuildFacilityControls(id); break;
                 default: ChangeManagementPage("overview"); break;
@@ -552,7 +551,6 @@ namespace GoF2Remake.UI
                 pages.Add(("news", "News"));
                 if (managementCatalogue?.canManageMarket == true || managementCatalogue?.canSecurity == true)
                     pages.Add(("market", "Marketplace policy"));
-                if (HasModule("storage")) pages.Add(("storage", "Storage"));
                 if (HasModule("hangar")) pages.Add(("hangar", "Hangar"));
                 if (HasModule("drydock")) pages.Add(("drydock", "Dry dock"));
                 if (managementCatalogue?.canManage == true)
@@ -577,7 +575,7 @@ namespace GoF2Remake.UI
             string Group(string key) => key switch
             {
                 "overview" or "news" => "Station",
-                "storage" or "hangar" or "drydock" or "refinery" or "factory" => "Services",
+                "hangar" or "drydock" or "refinery" or "factory" => "Services",
                 "ownership" or "security" or "blacklist" or "race-policies" or "market" or "modules" => "Management",
                 _ => "Projects"
             };
@@ -1467,7 +1465,7 @@ namespace GoF2Remake.UI
         {
             if (managementPage == page) return;
             managementPage = page;
-            if (page == "storage" || page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
+            if (page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
             RebuildBody(Vector2.zero);
         }
 
@@ -1641,88 +1639,6 @@ namespace GoF2Remake.UI
                 AddAction("Race policies", () => ChangeManagementPage("race-policies"));
         }
 
-        void BuildStorage(string id)
-        {
-            AddSection("STATION STORAGE", "");
-            var storage = managementCatalogue?.storage;
-            if (storage?.stationId != selected.id)
-            {
-                AddInfo("Storage", managementCatalogue?.stationId == selected.id
-                    ? "Station inventory is unavailable." : "Loading station inventory…");
-                return;
-            }
-            if (!string.IsNullOrEmpty(storage.error))
-            {
-                AddInfo("Storage", storage.error);
-                return;
-            }
-
-            if (storage.canDeposit)
-                AddInfo("Storage space", storage.used.ToString("N0") + " / " + storage.capacity.ToString("N0") + " units");
-            var inventories = new VisualElement();
-            inventories.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
-            body.Add(inventories);
-
-            string selection = Value("storageSelection");
-            int limit = 0;
-            bool deposit = false;
-            int item = -1;
-            void Inventory(string title, string prefix, IEnumerable<(int item, int amount)> stacks, int room)
-            {
-                var column = new VisualElement();
-                column.style.flexGrow = 1;
-                column.style.flexBasis = compact ? new StyleLength(StyleKeyword.Auto) : new StyleLength(0f);
-                column.style.minWidth = 0;
-                column.style.marginRight = 8;
-                inventories.Add(column);
-                var label = new Label(title);
-                label.AddToClassList("player-station-section-title");
-                column.Add(label);
-                var entries = stacks.OrderBy(stack => NetGame.Db?.Item(stack.item)?.name).ThenBy(stack => stack.item).ToList();
-                if (entries.Count == 0) column.Add(new Label("Empty"));
-                foreach (var stack in entries)
-                {
-                    string key = prefix + stack.item;
-                    bool active = selection == key;
-                    if (active)
-                    {
-                        item = stack.item;
-                        deposit = prefix == "cargo:";
-                        limit = Math.Min(500, Math.Min(room, stack.amount));
-                    }
-                    string name = NetGame.Db?.Item(stack.item)?.name ?? ("Item " + stack.item);
-                    var row = new Button(() =>
-                    {
-                        drafts["storageSelection"] = key;
-                        drafts.Remove("storageQuantity");
-                        RebuildBody();
-                    }) { text = name + " · " + stack.amount.ToString("N0"), enableRichText = false };
-                    row.AddToClassList("player-station-action");
-                    StyleChoice(row, active);
-                    column.Add(row);
-                }
-            }
-            Inventory("STORED GOODS", "stored:", storage.items.Select(stack => (stack.item, stack.amount)), storage.cargoRoom);
-            Inventory("SHIP CARGO", "cargo:", Session.Cargo.Where(stack => stack.amount > 0)
-                .GroupBy(stack => stack.item).Select(group => (group.Key, group.Sum(stack => stack.amount))),
-                storage.canDeposit ? storage.capacity - storage.used : 0);
-
-            if (limit > 0)
-            {
-                AddNumber("storageQuantity", "Units to transfer", 1, 1, limit);
-                AddAction(deposit ? "Store selected cargo" : "Take selected goods", () =>
-                    Send("/station " + (deposit ? "deposit" : "withdraw") + " " + id + " " + item + " " + Value("storageQuantity")));
-            }
-            else if (item >= 0)
-                AddInfo("Transfer", deposit && !storage.canDeposit ? "This profile cannot deposit at this station." : "The destination has no free space.");
-
-            if (managementCatalogue?.canOwnership == true && selected.ownershipType == PlayerStationOwnershipType.Individual)
-            {
-                AddAction("Allow current faction access", "/station access " + id + " faction");
-                AddAction("Set owner-only access", "/station access " + id + " owner");
-            }
-        }
-
         void BuildStationStock()
         {
             AddSection("DONATED CONSTRUCTION STOCK", "");
@@ -1814,6 +1730,12 @@ namespace GoF2Remake.UI
                 if (Value("governanceOverride") == "deny") SendWithReason(command, "permissionReason");
                 else Send(command);
             });
+            if (owner && station.ownershipType == PlayerStationOwnershipType.Individual)
+            {
+                AddSection("FACTION SHARING", "Set faction defaults for docking, storage and the ship hangar.");
+                AddAction("Share with your faction", "/station access " + id + " faction");
+                AddAction("Set owner-only defaults", "/station access " + id + " owner");
+            }
             if (owner && station.ownershipType == PlayerStationOwnershipType.Faction)
             {
                 AddChoice("governanceRank", "Faction rank", new[] { "member", "officer" }.Select(value => (value, value)).ToList());

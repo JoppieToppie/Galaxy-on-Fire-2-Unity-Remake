@@ -189,7 +189,8 @@ namespace GoF2Remake.Multiplayer
         static bool CanManageStorage(NetPlayer by, PlayerStationRecord record, out string account)
         {
             return IsStationContext(by, record, out account) &&
-                HasStationPermission(record, account, PlayerStationPermission.Storage);
+                HasStationPermission(record, account, PlayerStationPermission.Storage) &&
+                AllowsFacilityUse(record, account, "storage");
         }
 
         internal static string SetStorageAccess(NetPlayer by, int id, string mode)

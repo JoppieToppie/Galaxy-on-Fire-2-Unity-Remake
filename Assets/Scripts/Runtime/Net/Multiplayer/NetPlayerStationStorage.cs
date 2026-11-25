@@ -528,12 +528,8 @@ namespace GoF2Remake.Multiplayer
         {
             var snapshot = new StorageUiSnapshot { stationId = id };
             var record = Find(id);
-            if (record == null || record.underConstruction || record.offeredForClaimUtc > 0 ||
-                !IsStationContext(by, record, out string account, recoverProperty: true))
-            {
-                snapshot.error = "Dock at an operational station with a controlled profile to view storage.";
-                return snapshot;
-            }
+            snapshot.error = StorageAccessError(by, record, out string account);
+            if (snapshot.error != null) return snapshot;
             snapshot.capacity = StorageCapacity(record);
             if (snapshot.capacity <= 0)
             {
@@ -542,33 +538,38 @@ namespace GoF2Remake.Multiplayer
             }
 
             EnsureStorageLots(record);
-            snapshot.canDeposit = CanManageStorage(by, record, out _) && AllowsFacilityUse(record, account, "storage");
+            snapshot.canDeposit = true;
             snapshot.cargoRoom = NetProfiles.WreckSalvageCargoRoom(by, account);
             foreach (var stack in record.storage)
             {
                 if (stack == null || stack.amount <= 0) continue;
-                if (snapshot.canDeposit) snapshot.used += stack.amount;
+                snapshot.used += stack.amount;
                 int owned = OwnedStorageAmount(record, account, stack.item);
                 if (owned > 0) snapshot.items.Add(new PlayerStationStorage { item = stack.item, amount = owned });
             }
             return snapshot;
         }
 
+        static string StorageAccessError(NetPlayer pilot, PlayerStationRecord record, out string account)
+        {
+            account = null;
+            if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
+            if (record.underConstruction) return "Finish station construction before using storage.";
+            if (!IsStationContext(pilot, record, out account))
+                return "Dock at this station with visitor permission using a controlled profile to use storage.";
+            if (!CanManageStorage(pilot, record, out _))
+                return FacilityUseRefusal(record, account, "storage", "You need storage permission to use this facility.");
+            return null;
+        }
+
         internal static string StorageStatus(NetPlayer by, int id)
         {
             if (!NetGame.Active) return "Join a multiplayer session first.";
             var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (by == null || !by.IsSpawned || !by.InHangar || by.Station != record.stationIndex ||
-                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at this station using a controlled profile to view storage.";
-            string account = NetProfiles.AccountOf(by.OwnerClientId);
-            bool manager = CanManageStorage(by, record, out _);
+            string error = StorageAccessError(by, record, out _);
+            if (error != null) return error;
             EnsureStorageLots(record);
-            if (!manager && !record.storageLots.Exists(x => x != null &&
-                string.Equals(x.ownerProfile, account, StringComparison.Ordinal) && x.amount > 0))
-                return "Storage contents are private to the owner and authorised faction members; this profile has no goods stored here.";
             if (StorageCapacity(record) <= 0) return "This station has no storage module.";
 
             var lines = new List<string> { "Storage at " + record.name + ":" };
@@ -577,7 +578,7 @@ namespace GoF2Remake.Multiplayer
                 foreach (var stack in record.storage)
                 {
                     if (stack == null || stack.amount <= 0) continue;
-                    int visibleAmount = manager ? stack.amount : OwnedStorageAmount(record, account, stack.item);
+                    int visibleAmount = stack.amount;
                     if (visibleAmount <= 0) continue;
                     total += visibleAmount;
                     string itemName = NetGame.Db?.Item(stack.item)?.name ?? ("Item " + stack.item);
@@ -591,14 +592,8 @@ namespace GoF2Remake.Multiplayer
         internal static string MoveStorage(NetPlayer by, int id, int item, int amount, bool deposit)
         {
             var record = Find(id);
-            if (record == null) return "No player station with that id exists.";
-            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
-            if (!IsStationContext(by, record, out string account, recoverProperty: !deposit))
-                return "Dock at this station with visitor permission using a controlled profile to manage storage.";
-            if (deposit && !AllowsFacilityUse(record, account, "storage")) return FacilityUseRefusal(record, account, "storage", "Station race policy restricts storage deposits.");
-            if (deposit && !CanManageStorage(by, record, out _))
-                return "Only the owner or authorised faction members may deposit into this station.";
-            if (record.underConstruction) return "Finish station construction before using storage.";
+            string error = StorageAccessError(by, record, out string account);
+            if (error != null) return error;
             if (amount < 1 || amount > 500 || !NetGuard.Item(item))
                 return "Move between 1 and 500 units of a valid item.";
             int capacity = StorageCapacity(record);

@@ -484,7 +484,8 @@ namespace GoF2Remake.UI
         }
 
         bool PlayerMarketplace => Shop.UsesPlayerMarketplace(level.Station?.index ?? -1);
-        internal bool HasFourthTab => PlayerMarketplace || VipTools;
+        bool HasPlayerStorage => PlayerMarketplace && playerMarket?.storage?.canDeposit == true;
+        internal bool HasFourthTab => HasPlayerStorage || VipTools;
         bool PlayerStorageTab => PlayerMarketplace && tab == Tab.Storage;
         GoF2Remake.Multiplayer.NetPlayerStations.MarketUiCatalogue playerMarket;
         int playerMarketPage;
@@ -500,7 +501,14 @@ namespace GoF2Remake.UI
                 if (!IsOpen || result?.stationId != station.id) return;
                 playerMarket = result;
                 playerMarketPage = result.page;
-                if (tab == Tab.Shop || tab == Tab.Storage) Rebuild();
+                tabStorage.style.display = HasPlayerStorage ? DisplayStyle.Flex : DisplayStyle.None;
+                tabBlueprints.tooltip = HasFourthTab ? "4" : "3";
+                if (tab == Tab.Storage && !HasPlayerStorage)
+                {
+                    menu.ShowToast(result.storage?.error ?? "Station storage access is unavailable.");
+                    SetTab(Tab.Shop);
+                }
+                else if (tab == Tab.Shop || tab == Tab.Storage) Rebuild();
             });
         }
 
@@ -518,7 +526,7 @@ namespace GoF2Remake.UI
         public void Open()
         {
             IsOpen = true;
-            tabStorage.style.display = PlayerMarketplace ? DisplayStyle.Flex : DisplayStyle.None;
+            tabStorage.style.display = DisplayStyle.None;
             if (PlayerMarketplace) tab = Tab.Shop;
             else if (tab == Tab.Storage) tab = Tab.Shop;
             playerMarket = null;
@@ -611,6 +619,7 @@ namespace GoF2Remake.UI
 
         public void SetTab(Tab t)
         {
+            if (t == Tab.Storage && !HasPlayerStorage) return;
             EndSearchEntry();
             if (t == Tab.Ships && !VipTools) return;   // the extra tab, only with the free UI tools at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
@@ -677,8 +686,7 @@ namespace GoF2Remake.UI
         /// of credits just stops.</summary>
         public void Update(float dtMs)
         {
-            if (IsOpen && PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage) &&
-                Time.unscaledTime >= nextPlayerMarketQuery)
+            if (IsOpen && PlayerMarketplace && Time.unscaledTime >= nextPlayerMarketQuery)
                 RefreshPlayerMarket();
             UpdateRestock();
             if (!IsOpen || heldDirection == 0) return;
