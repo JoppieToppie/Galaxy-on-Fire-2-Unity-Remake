@@ -764,15 +764,12 @@ namespace GoF2Remake.Multiplayer
             pilot.Station == record.stationIndex && pilot.Hull > 0 && pilot.HasCurrentWreckClaimPose &&
             (pilot.Position - StationPosition(record.stationIndex)).sqrMagnitude <= WreckControlRadiusMetres * WreckControlRadiusMetres;
 
-        static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record, bool allowNewSite = false)
+        static string ConstructionDeliveryError(NetPlayer by, PlayerStationRecord record)
         {
-            if (record.reconstructing)
-                return CanDeliverAtConstructionSite(by, record) ? null : "Fly within 5 km of the reconstruction site to deliver materials.";
-            if (allowNewSite && CanDeliverAtConstructionSite(by, record)) return null;
-            if (!by.InHangar || StationClosedByCombat(by.Station))
-                return allowNewSite
-                    ? "Fly within 5 km of the construction site or dock at any operational station to deliver materials."
-                    : "Dock at any operational station to deposit construction materials.";
+            if (record.underConstruction)
+                return CanDeliverAtConstructionSite(by, record) ? null : "Fly within 5 km of the construction site to deliver materials.";
+            if (!by.InHangar || by.Station != record.stationIndex || StationClosedByCombat(by.Station))
+                return "Dock at the station commissioning this module to deliver materials.";
             return null;
         }
 
@@ -811,7 +808,7 @@ namespace GoF2Remake.Multiplayer
             if (amount < 1 || amount > 500 || !NetGuard.Item(item)) return "Deposit between 1 and 500 units of a valid item.";
             var record = Find(id);
             if (record == null || !record.underConstruction) return "That construction project is not active.";
-            string locationError = ConstructionDeliveryError(by, record, allowNewSite: true);
+            string locationError = ConstructionDeliveryError(by, record);
             if (locationError != null) return locationError;
             var resource = record.materials?.Find(m => m != null && m.item == item);
             if (resource == null) return "That item is not required for this station project.";
