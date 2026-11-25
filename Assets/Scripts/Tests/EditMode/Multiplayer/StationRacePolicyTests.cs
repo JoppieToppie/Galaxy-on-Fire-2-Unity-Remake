@@ -69,6 +69,44 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void BlacklistReasonsAreBoundedPersistedAndPrivate()
+        {
+            Assert.AreEqual("", NetPlayerStations.NormalizeBlacklistReason(null));
+            Assert.AreEqual("No docking", NetPlayerStations.NormalizeBlacklistReason("  No docking  "));
+            Assert.AreEqual(160, NetPlayerStations.NormalizeBlacklistReason(new string('x', 300)).Length);
+            var gate = new PlayerJumpgateRecord
+            {
+                ownershipType = PlayerStationOwnershipType.Faction,
+                blacklist = new System.Collections.Generic.List<PlayerJumpgateBlockEntry>
+                {
+                    new PlayerJumpgateBlockEntry { type = PlayerJumpgateBlockType.Faction, id = "faction", reason = "Faction embargo" },
+                    new PlayerJumpgateBlockEntry { type = PlayerJumpgateBlockType.Profile, id = "pilot", reason = "Repeated attacks" }
+                },
+                raceAccess = NetPlayerStations.WithRaceAccess(null, "7", PlayerStationPermissionState.Deny, "Security closure")
+            };
+            var loaded = JsonUtility.FromJson<PlayerJumpgateRecord>(JsonUtility.ToJson(gate));
+            Assert.AreEqual("Repeated attacks", NetPlayerStations.MatchingJumpgateBlacklist(loaded, "pilot", "faction").reason);
+            Assert.AreEqual("Faction embargo", NetPlayerStations.MatchingJumpgateBlacklist(loaded, "other", "faction").reason);
+            Assert.IsNull(NetPlayerStations.MatchingJumpgateBlacklist(loaded, "other", "unrelated"));
+            Assert.AreEqual("Security closure", loaded.raceAccess[0].reason);
+            Assert.IsNull(loaded.ToPublicRecord().blacklist);
+            Assert.IsNull(loaded.ToPublicRecord().raceAccess);
+            loaded.ownershipType = PlayerStationOwnershipType.Individual;
+            loaded.ownerProfile = "pilot";
+            Assert.IsNull(NetPlayerStations.MatchingJumpgateBlacklist(loaded, "pilot", "faction"));
+        }
+
+        [Test]
+        public void RaceDenialMessageDoesNotChangeAccessDecision()
+        {
+            var deny = NetPlayerStations.WithRaceAccess(null, "7", PlayerStationPermissionState.Deny, "Embargo");
+            Assert.IsFalse(NetPlayerStations.RaceAccessAllowed("7", deny, null));
+            var allow = NetPlayerStations.WithRaceAccess(deny, "7", PlayerStationPermissionState.Allow, "Old reason");
+            Assert.IsTrue(NetPlayerStations.RaceAccessAllowed("7", allow, null));
+            Assert.AreEqual("", allow[0].reason);
+        }
+
+        [Test]
         public void GateRulesPersistAndPublicRecordsOmitExemptions()
         {
             const string race = "smep:example";
