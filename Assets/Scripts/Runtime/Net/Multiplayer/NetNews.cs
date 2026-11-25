@@ -111,6 +111,7 @@ namespace GoF2Remake.Multiplayer
             catch (Exception e) { Debug.LogWarning($"Server: news.json unreadable ({e.Message}); starting without news."); serverItems.Clear(); }
             Prune();
             foreach (var it in serverItems) nextId = Math.Max(nextId, it.id);
+            foreach (var audit in officialAudit) if (audit != null) nextId = Math.Max(nextId, audit.id);
         }
 
         static void Prune()
@@ -146,7 +147,7 @@ namespace GoF2Remake.Multiplayer
             if (message.Length == 0 || message.Length > OfficialMessageLimit) return $"Write a broadcast of 1–{OfficialMessageLimit} characters.";
             long now = UnixNow, previous = OfficialReadyUtc(authority);
             if (previous > now) return $"Broadcast cooldown: {previous - now} seconds remaining for this authority.";
-            string content = Clean(Safe("[" + name + "] " + message));
+            string content = Clean(Safe(name + ": " + message));
             var item = new Item { id = ++nextId, time = now, kind = kind, station = station, text = content, actor = actor, authority = authority };
             var previousItems = new List<Item>(serverItems);
             officialCooldowns[authority] = now + OfficialCooldownSeconds;
