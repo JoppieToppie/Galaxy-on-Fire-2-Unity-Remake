@@ -388,22 +388,38 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool CanPublishStationAnnouncement(NetPlayer pilot, PlayerStationRecord record)
         {
-            return record != null && record.ownershipType == PlayerStationOwnershipType.Faction &&
-                !record.underConstruction && !record.retired && !record.destroyed && record.offeredForClaimUtc <= 0 &&
-                IsStationAuthority(pilot, record, out _);
+            if (record == null || record.underConstruction || record.retired || record.destroyed || record.offeredForClaimUtc > 0 ||
+                !IsStationContext(pilot, record, out string account)) return false;
+            if (IsStationAuthority(pilot, record, out _) || HasRole(record, account, PlayerStationRole.StationAdministrator)) return true;
+            var faction = NetFactions.Of(account);
+            return record.ownershipType == PlayerStationOwnershipType.Faction && faction != null &&
+                string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal) &&
+                (faction.leader == account || faction.officers.Contains(account)) &&
+                HasStationPermission(record, account, PlayerStationPermission.StationOperations);
         }
+
+        internal static string StationBroadcastAuthority(int id) => "station:" + id;
 
         internal static string PublishStationAnnouncement(NetPlayer pilot, int id, string message)
         {
             var record = Find(id);
-            if (!CanPublishStationAnnouncement(pilot, record)) return "Only the owning faction leader may publish announcements while docked here.";
+            if (!CanPublishStationAnnouncement(pilot, record)) return "Only station owners and authorized senior administrators may publish while docked here.";
             message = (message ?? "").Trim();
             if (message.Length == 0 || message.Length > 160) return "Write an announcement of 1–160 characters.";
-            string faction = NetFactions.FindById(record.ownerFactionId)?.tag ?? "Faction";
-            string text = NetNews.Safe("[" + faction + "] " + message);
+            string text = NetNews.Safe("[" + record.name + "] " + message);
             return NetNews.Post(NetNews.Kind.StationAnnouncement, text, record.stationIndex, "station-announcement:" + record.id, 60f)
                 ? "Announcement published to this station's news."
                 : "Announcement could not be published. Wait one minute between announcements.";
+        }
+
+        internal static string PublishStationBroadcast(NetPlayer pilot, int id, string message)
+        {
+            var record = Find(id);
+            if (ProfileWritesBlocked || !CanPublishStationAnnouncement(pilot, record))
+                return "Only station owners and authorized senior administrators using a controlled profile may broadcast while docked here.";
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            return NetNews.PostOfficial(NetNews.Kind.StationBroadcast, StationBroadcastAuthority(record.id),
+                record.name, account, message, record.stationIndex);
         }
 
         internal static string SetStationRole(NetPlayer by, int stationId, string target, string roleName)
