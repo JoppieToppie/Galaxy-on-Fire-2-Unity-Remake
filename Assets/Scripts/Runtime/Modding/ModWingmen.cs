@@ -21,11 +21,16 @@ namespace GoF2Remake.Modding
     {
         public const string File = "wingmen.json";
 
-        static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "ships", "radio" };
+        static readonly HashSet<string> Fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chance", "ships", "radio", "multipleGroups", "minGroupSize", "maxGroupSize", "maxTotal" };
 
+        public static bool MultipleGroups { get; private set; }
+        public static int MinGroupSize { get; private set; } = 1;
+        public static int MaxGroupSize { get; private set; } = 3;
+        public static int MaxTotal { get; private set; } = 3;
         public static void Apply(Database db)
         {
             db.WingmanCrews.Clear();
+            MultipleGroups = false; MinGroupSize = 1; MaxGroupSize = 3; MaxTotal = 3;
             var devices = new Dictionary<ModInfo, List<int>>();
             foreach (var (mod, ship) in ModContent.ActiveShips())
             {
@@ -45,8 +50,12 @@ namespace GoF2Remake.Modding
                 catch (ModJsonException e) { Warn(mod, e.Message); continue; }
                 if (token == null) continue;
                 if (!(token is JObject o)) { Warn(mod, $"{File}: must be an object {{ \"chance\", \"ships\", \"radio\" }}"); continue; }
+                if (ModJson.Get(o, "multipleGroups") is JToken multiple && multiple.Type == JTokenType.Boolean) MultipleGroups = (bool)multiple;
+                MinGroupSize = Mathf.Clamp(ModJson.Int(o, "minGroupSize", MinGroupSize, File), 1, 24);
+                MaxGroupSize = Mathf.Clamp(ModJson.Int(o, "maxGroupSize", MaxGroupSize, File), MinGroupSize, 24);
+                MaxTotal = Mathf.Clamp(ModJson.Int(o, "maxTotal", MultipleGroups ? Mathf.Max(12, MaxTotal) : MaxGroupSize, File), MaxGroupSize, 48);
                 var crew = Read(mod, o, devices.TryGetValue(mod, out var own) ? own : new List<int>());
-                if (crew.ships.Count == 0) { Warn(mod, $"{File}: no ships for its wingmen (\"ships\", or ships.json ships with a \"wingmanDevice\")"); continue; }
+                if (crew.ships.Count == 0) continue;
                 db.WingmanCrews.Add(crew);
             }
         }
