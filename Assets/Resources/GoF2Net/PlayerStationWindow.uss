@@ -81,3 +81,26 @@
 .player-station-compact .player-station-identity-card, .player-station-compact .player-station-status-card { flex-basis: 44%; min-width: 130px; }
 .player-station-compact .player-station-hero-preview { height: 90px; }
 .player-station-picking-model .player-station-primary-nav { display: none; }
+
+
+/* Security directory and policy matrix. */
+.player-station-policy-layout { flex-direction: row; align-items: flex-start; }
+.player-station-race-directory { width: 24%; min-width: 140px; flex-shrink: 0; padding: 6px; background-color: #10202d; }
+.player-station-policy-matrix { flex-grow: 1; flex-basis: 0; min-width: 0; }
+.player-station-policy-row { flex-direction: row; align-items: center; padding: 5px 0; border-bottom-width: 1px; border-bottom-color: #355060; flex-wrap: wrap; }
+.player-station-policy-label { flex-grow: 1; flex-basis: 30%; white-space: normal; }
+.player-station-policy-state { flex-grow: 1; color: #83cbb0; white-space: normal; }
+.player-station-policy-denied { color: #dc9696; }
+.player-station-policy-row .player-station-action { min-width: 62px; margin-left: 6px; }
+
+/* Orbit scene and configuration inspector. */
+.player-station-orbit-layout { flex-direction: row; align-items: flex-start; }
+.player-station-orbit-scene { flex-grow: 1; flex-basis: 0; min-width: 0; margin-right: 10px; }
+.player-station-orbit-controls { width: 32%; min-width: 180px; padding: 8px; background-color: #102330; border-width: 1px; border-color: #355668; }
+.player-station-orbit-viewport { border-width: 1px; border-color: #355668; -unity-background-scale-mode: stretch-to-fill; }
+.player-station-compact .player-station-policy-layout { flex-direction: column; }
+.player-station-compact .player-station-race-directory { width: auto; min-width: 0; flex-direction: row; flex-wrap: wrap; align-self: stretch; }
+.player-station-compact .player-station-policy-matrix { flex-basis: auto; align-self: stretch; }
+.player-station-compact .player-station-orbit-layout { flex-direction: column; }
+.player-station-compact .player-station-orbit-scene { flex-basis: auto; align-self: stretch; margin-right: 0; }
+.player-station-compact .player-station-orbit-controls { width: auto; min-width: 0; align-self: stretch; margin-top: 6px; }
