@@ -343,7 +343,8 @@ namespace GoF2Remake.Multiplayer
             bool host = IsHostClient(client);
             var persisted = ReadSave(account);
             var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : persisted;
-            if (save == null || save.ship != pilot.ShipIndex || NetGame.Db.Ship(10) == null) return false;
+            int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
+            if (save == null || save.ship != pilot.ShipIndex || emergencyShip < 0) return false;
             // Story and event loaners are not the player's property.
             if (save.hasParkedShip) return true;
             save.deathRecoveries = persisted?.deathRecoveries ?? new List<DeathRecovery>();
@@ -369,7 +370,7 @@ namespace GoF2Remake.Multiplayer
             recovery.refundCredits = RecoveryRefund(save.ship, recovery.hasHull, recovery.cargo);
             if (recovery.hasHull || recovery.cargo.Count > 0 || recovery.equipment.Count > 0)
                 save.deathRecoveries.Add(recovery);
-            save.ship = 10;
+            save.ship = emergencyShip;
             save.deathLoaner = true;
             save.shipMods = new List<int>();
             save.equipment = new List<ItemStack>();
@@ -387,7 +388,7 @@ namespace GoF2Remake.Multiplayer
                 Session.DeathRecoveries = save.deathRecoveries;
             }
             else RefreshProfile(client);
-            NetState.Instance?.Notify(client, $"Ship recovery scheduled in {Modding.ModPvpPiracy.ShipRecoverySeconds} seconds. Your emergency Phantom has no trade-in value.");
+            NetState.Instance?.Notify(client, $"Ship recovery scheduled in {Modding.ModPvpPiracy.ShipRecoverySeconds} seconds. Your emergency {NetGame.Db.Ship(emergencyShip).name} has no trade-in value.");
             return true;
         }
 

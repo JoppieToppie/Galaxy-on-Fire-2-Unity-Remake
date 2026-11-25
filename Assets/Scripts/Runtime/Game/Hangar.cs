@@ -715,7 +715,7 @@ namespace GoF2Remake.Data
         {
             need = 0;
             if (Session.Passengers > 0) return Result.Passengers;   // 336
-            if (ship == Session.ShipIndex) return Result.SameShip;
+            if (ship == Session.ShipIndex && !Session.DeathLoaner) return Result.SameShip;
             int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship) - CurrentShipTradeValue;
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
