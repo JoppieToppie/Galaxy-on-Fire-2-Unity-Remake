@@ -390,7 +390,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (record == null || record.underConstruction || record.retired || record.destroyed || record.offeredForClaimUtc > 0 ||
                 !IsStationContext(pilot, record, out string account)) return false;
-            if (IsStationAuthority(pilot, record, out _) || HasRole(record, account, PlayerStationRole.StationAdministrator)) return true;
+            if (IsStationAuthority(pilot, record, out _) || (HasRole(record, account, PlayerStationRole.StationAdministrator) &&
+                HasStationPermission(record, account, PlayerStationPermission.StationOperations))) return true;
             var faction = NetFactions.Of(account);
             return record.ownershipType == PlayerStationOwnershipType.Faction && faction != null &&
                 string.Equals(faction.id, record.ownerFactionId, StringComparison.Ordinal) &&
