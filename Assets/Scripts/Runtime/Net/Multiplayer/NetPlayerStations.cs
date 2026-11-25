@@ -287,6 +287,7 @@ namespace GoF2Remake.Multiplayer
     public sealed class PlayerStationContribution
     {
         public string contributorProfile;
+        public bool procurement;
         public int item;
         public int amount;
         /// <summary>Fixed catalogue unit value used when the contribution was paid.</summary>
@@ -781,7 +782,7 @@ namespace GoF2Remake.Multiplayer
             var centre = StationPosition(record.stationIndex);
             if (record.reconstructing) return (pilot.Position - centre).sqrMagnitude <= WreckControlRadiusMetres * WreckControlRadiusMetres;
             if (pilot.ConstructionDockProject != record.id || !NetGuard.Ship(pilot.ShipIndex)) return false;
-            float height = Mathf.Max(0f, StationTables.ShipY(pilot.ShipIndex) * World.OrbitLayout.MetersPerUnit);
+            float height = Mathf.Max(0f, World.StationTables.ShipY(pilot.ShipIndex) * World.OrbitLayout.MetersPerUnit);
             return ConstructionDockPoseValid(pilot.Position, centre, height);
         }
 
@@ -859,7 +860,7 @@ namespace GoF2Remake.Multiplayer
 
             record.constructionContributions ??= new List<PlayerStationContribution>();
             var contribution = record.constructionContributions.Find(x => x != null &&
-                string.Equals(x.contributorProfile, account, StringComparison.Ordinal) && x.item == item);
+                !x.procurement && string.Equals(x.contributorProfile, account, StringComparison.Ordinal) && x.item == item);
             bool newContribution = contribution == null;
             if (newContribution)
                 contribution = new PlayerStationContribution
