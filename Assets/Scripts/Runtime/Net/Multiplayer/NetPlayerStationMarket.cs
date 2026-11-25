@@ -41,7 +41,7 @@ namespace GoF2Remake.Multiplayer
             if (materials == null) return "That construction project is not accepting orders.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || (!by.InHangar && !CanDeliverAtConstructionSite(by, record)) ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at any station using a controlled profile to create a construction buy order.";
+                return "Dock at a station or the active construction site using a controlled profile to create a construction buy order.";
             if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice ||
                 unitPrice > int.MaxValue / (long)Math.Max(1, amount))
                 return "Use a valid material, 1–500 units, and a supported positive unit price.";
@@ -92,7 +92,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (fundingProfile != null)
                 NotifyProfileCreditChange(fundingProfile, -reserve, "Construction buy order escrow");
-            return $"Construction buy order #{record.buyOrders.Count - 1} created for {amount} x {NetGame.Db?.Item(item)?.name ?? ("Item " + item)} at {unitPrice:N0} each. {reserve:N0} credits escrowed.";
+            return $"Construction buy order #{order.id} created for {amount} x {NetGame.Db?.Item(item)?.name ?? ("Item " + item)} at {unitPrice:N0} each. {reserve:N0} credits escrowed.";
         }
 
         internal static string FulfilConstructionBuyOrder(NetPlayer by, int id, int orderIndex, int amount)
@@ -125,6 +125,17 @@ namespace GoF2Remake.Multiplayer
             if (string.IsNullOrEmpty(seller) || cargo < amount) return "Your saved profile does not have enough of that material.";
             if (total > int.MaxValue || balance < 0 || balance > long.MaxValue - total) return "Your profile cannot receive this payment.";
 
+            bool stationProject = record.underConstruction;
+            PlayerStationContribution receipt = null;
+            if (stationProject)
+            {
+                record.constructionContributions ??= new List<PlayerStationContribution>();
+                receipt = record.constructionContributions.Find(entry => entry != null && entry.procurement &&
+                    entry.contributorProfile == seller && entry.item == order.item);
+                if (receipt != null && (receipt.amount < 0 || receipt.amount > int.MaxValue - amount ||
+                    receipt.paidCredits < 0 || receipt.paidCredits > long.MaxValue - total))
+                    return "The construction procurement ledger has an invalid total.";
+            }
             var oldOrders = new List<PlayerStationBuyOrder>();
             foreach (var pending in record.buyOrders)
                 oldOrders.Add(pending == null ? null : new PlayerStationBuyOrder { id = pending.id, item = pending.item, remaining = pending.remaining,
@@ -136,7 +147,6 @@ namespace GoF2Remake.Multiplayer
             order.remaining -= amount;
             order.reservedCredits -= total;
             if (order.remaining == 0) record.buyOrders.RemoveAt(orderIndex);
-            bool stationProject = record.underConstruction;
             bool complete = true;
             foreach (var resource in materials)
                 if (resource != null && resource.delivered < resource.required) { complete = false; break; }
@@ -155,8 +165,25 @@ namespace GoF2Remake.Multiplayer
                     CompleteModuleConstruction(record, record.moduleConstructionKind);
                 record.buyOrders.Clear();
             }
+            bool newReceipt = stationProject && receipt == null;
+            int oldReceiptAmount = receipt?.amount ?? 0;
+            long oldReceiptPaid = receipt?.paidCredits ?? 0, oldReceiptUtc = receipt?.paidUtc ?? 0;
+            if (stationProject)
+            {
+                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (newReceipt)
+                {
+                    receipt = new PlayerStationContribution { contributorProfile = seller, procurement = true, item = order.item, contributedUtc = now };
+                    record.constructionContributions.Add(receipt);
+                }
+                receipt.amount += amount;
+                receipt.paidCredits += total;
+                receipt.paidUtc = now;
+            }
             if (!CommitProfileTransaction(new List<(string account, int item, int delta)> { (seller, order.item, -amount) }, credits, banks))
             {
+                if (newReceipt) record.constructionContributions.Remove(receipt);
+                else if (receipt != null) { receipt.amount = oldReceiptAmount; receipt.paidCredits = oldReceiptPaid; receipt.paidUtc = oldReceiptUtc; }
                 material.delivered = oldDelivered;
                 rollbackCompletion?.Invoke();
                 record.buyOrders = oldOrders;
@@ -169,7 +196,7 @@ namespace GoF2Remake.Multiplayer
             NotifyProfileCreditChange(seller, total, "Construction buy order");
             foreach (var refund in profileRefunds)
                 NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
-            return $"Sold {amount} x {NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item)} into construction order #{orderIndex} for {total:N0} credits." +
+            return $"Sold {amount} x {NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item)} into construction order #{order.id} for {total:N0} credits." +
                 (complete ? " Construction is complete; remaining order escrow was refunded." : " Materials were added to the construction project.");
         }
 
@@ -201,7 +228,7 @@ namespace GoF2Remake.Multiplayer
             if (record.offeredForClaimUtc > 0) return "Construction orders are paused until the station is claimed.";
             if (!NetGame.IsServer || by == null || !by.IsSpawned || (!by.InHangar && !CanDeliverAtConstructionSite(by, record)) ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
-                return "Dock at any station using a controlled profile to cancel a construction order.";
+                return "Dock at a station or the active construction site using a controlled profile to cancel a construction order.";
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
                 return "No construction buy order exists at that index.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
