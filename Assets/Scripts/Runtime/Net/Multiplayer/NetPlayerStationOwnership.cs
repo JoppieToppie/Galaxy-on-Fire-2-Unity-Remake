@@ -488,6 +488,15 @@ namespace GoF2Remake.Multiplayer
                     order != null && string.Equals(order.fundedByFactionId, factionId, StringComparison.Ordinal)) == true);
         }
 
+        internal static bool CanViewConstructionLedger(PlayerStationRecord record, string account)
+        {
+            if (record == null || record.retired || string.IsNullOrEmpty(account)) return false;
+            return HasBuilderRights(record, account) || IsStationOwnerAccount(record, account) ||
+                (record.ownershipType == PlayerStationOwnershipType.Faction && IsFactionManager(record, account)) ||
+                (HasStationPermission(record, account, PlayerStationPermission.Visit) &&
+                 HasStationPermission(record, account, PlayerStationPermission.StationOperations));
+        }
+
         internal static string ConstructionContributions(NetPlayer by, int id)
         {
             var record = Find(id);
@@ -495,9 +504,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetGame.IsServer || by == null || !by.IsSpawned || !NetProfiles.Enabled ||
                 !NetProfiles.Controls(by.OwnerClientId)) return "Use a controlled profile to view the ledger.";
             string account = NetProfiles.AccountOf(by.OwnerClientId);
-            if (!HasBuilderRights(record, account) && !IsStationOwnerAccount(record, account) &&
-                !(record.ownershipType == PlayerStationOwnershipType.Faction && IsFactionManager(record, account)) &&
-                !CanManage(by, record, out _))
+            if (!CanViewConstructionLedger(record, account))
                 return "Only the station owner, original builder or authorised managers can view construction contributions.";
             var lines = new List<string>
             {
@@ -513,12 +520,12 @@ namespace GoF2Remake.Multiplayer
                 {
                     if (contribution == null) continue;
                     string item = NetGame.Db?.Item(contribution.item)?.name ?? ("Item " + contribution.item);
-                    string line = (contribution.contributorProfile ?? "Unknown profile") + ": " +
-                        contribution.amount + " x " + item;
+                    string line = (NetProfiles.AccountName(contribution.contributorProfile) ?? contribution.contributorProfile ?? "Unknown profile") + ": " +
+                        contribution.amount + " x " + item + (contribution.procurement ? " | purchased through buy orders" : " | direct contribution");
                     if (contribution.paidCredits > 0)
                     {
                         line += " | paid " + contribution.paidCredits.ToString("N0") +
-                            " credits (" + Math.Max(0, contribution.unitValue).ToString("N0") + " per unit)";
+                            " credits" + (contribution.procurement ? " (escrow)" : " (" + Math.Max(0, contribution.unitValue).ToString("N0") + " per unit)");
                         if (contribution.paidUtc > 0)
                             line += " | last paid " + DateTimeOffset.FromUnixTimeSeconds(contribution.paidUtc).ToLocalTime().ToString("g");
                     }
