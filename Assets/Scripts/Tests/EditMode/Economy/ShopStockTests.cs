@@ -488,5 +488,17 @@ namespace GoF2Remake.Tests
             Assert.AreSame(Session.KaamoItems, stock.items);
             Assert.IsEmpty(stock.ships);
         }
+
+        [Test]
+        public void EmptyCachedKaamoLoungeRegeneratesEligibleVisitors()
+        {
+            Session.CampaignMission = 162;
+            Session.KaamoState = 3;
+            var stock = Shop.EnterStation(Db, KaamoClub.Station);
+            Assert.IsNotEmpty(stock.agents);
+            stock.agents.Clear();
+            Assert.AreSame(stock, Shop.EnterStation(Db, KaamoClub.Station));
+            Assert.IsNotEmpty(stock.agents);
+        }
     }
 }
