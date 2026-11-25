@@ -121,9 +121,13 @@ namespace GoF2Remake.Multiplayer
             recentLogins.Clear(); reconnectBlocked.Clear(); rejectLog.Clear();
             links.Clear();
             handovers.Clear();
+            recoveryDue.Clear();
+            nextRecoveryTick = 0f;
         }
 
         static float nextPrune;
+        static float nextRecoveryTick;
+        static readonly Dictionary<string, long> recoveryDue = new Dictionary<string, long>(StringComparer.Ordinal);
 
         /// <summary>Without the Debug menu: how much worth a profile may gain per minute online (-maxearn), on top of EarnBurst.</summary>
         public static int EarnPerMinute { get; internal set; } = DefaultEarnPerMinute;
@@ -166,6 +170,10 @@ namespace GoF2Remake.Multiplayer
             SaveIndex();
             NetFactions.Load();
             NetModeration.Load();
+            recoveryDue.Clear();
+            nextRecoveryTick = 0f;
+            foreach (var account in index.accounts)
+                if (account != null) ScheduleRecoveries(account.id, ReadSave(account.id)?.deathRecoveries);
             Debug.Log($"Server: player profiles on: {index.accounts.Count} in {folder}.");
             Prune();
         }
@@ -263,6 +271,204 @@ namespace GoF2Remake.Multiplayer
             AdjustWorth(id, delta);
             InvalidateEconomyUploads(id);
             return true;
+        }
+
+        static void ScheduleRecoveries(string account, List<DeathRecovery> recoveries)
+        {
+            if (string.IsNullOrEmpty(account)) return;
+            long due = long.MaxValue;
+            if (recoveries != null)
+                foreach (var recovery in recoveries)
+                    if (recovery != null) due = Math.Min(due, recovery.dueUtc);
+            if (due == long.MaxValue) recoveryDue.Remove(account);
+            else recoveryDue[account] = due;
+        }
+
+        static List<ItemStack> RecoveryStacks(List<ItemStack> source)
+        {
+            var result = new List<ItemStack>();
+            if (source != null)
+                foreach (var stack in source)
+                    if (stack != null && !stack.builtIn && stack.amount > 0 && NetGame.Db.Item(stack.item) != null)
+                        result.Add(new ItemStack(stack.item, stack.amount));
+            return result;
+        }
+
+        static bool AddRecoveryStacks(List<ItemStack> target, List<ItemStack> source)
+        {
+            if (source == null) return true;
+            foreach (var stack in source)
+            {
+                if (stack == null || stack.amount <= 0 || NetGame.Db.Item(stack.item) == null) return false;
+                var row = target.Find(x => x != null && x.item == stack.item && !x.builtIn);
+                if (row == null) target.Add(new ItemStack(stack.item, stack.amount));
+                else
+                {
+                    if (row.amount > int.MaxValue - stack.amount) return false;
+                    row.amount += stack.amount;
+                }
+            }
+            return true;
+        }
+
+        static long RecoveryRefund(int ship, bool hasHull, List<ItemStack> cargo)
+        {
+            long value = hasHull ? Math.Max(0, NetGame.Db.Ship(ship)?.price ?? 0) : 0;
+            foreach (var stack in cargo)
+                value = Session.SaturatingAdd(value, (long)Math.Max(0, NetGame.Db.Item(stack.item)?.minPrice ?? 0) * stack.amount);
+            return value;
+        }
+
+        static bool PersistRecoveryProfile(string account, SaveData save)
+        {
+            if (NetPlayerStations.ProfileWritesBlocked || !Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
+            var owner = index?.accounts.Find(x => x.id == account);
+            if (owner != null)
+            {
+                owner.worth = Worth(save);
+                SaveIndex();
+            }
+            ScheduleRecoveries(account, save.deathRecoveries);
+            InvalidateEconomyUploads(account);
+            return true;
+        }
+
+        // A single durable profile write both removes the flown assets and creates the recovery record.
+        internal static bool BeginDeathRecovery(NetPlayer pilot, bool canSpawnLoot, out int droppedItem)
+        {
+            droppedItem = -1;
+            if (pilot == null || !Controls(pilot.OwnerClientId) || NetPlayerStations.ProfileWritesBlocked) return false;
+            ulong client = pilot.OwnerClientId;
+            string account = AccountOf(client);
+            bool host = IsHostClient(client);
+            var persisted = ReadSave(account);
+            var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : persisted;
+            if (save == null || save.ship != pilot.ShipIndex || NetGame.Db.Ship(10) == null) return false;
+            // Story and event loaners are not the player's property.
+            if (save.hasParkedShip) return true;
+            save.deathRecoveries = persisted?.deathRecoveries ?? new List<DeathRecovery>();
+            save.equipment ??= new List<ItemStack>();
+            var drop = save.equipment.Find(s => s != null && !s.builtIn && s.amount > 0 && NetGuard.Item(s.item) &&
+                save.unsaleable?.Contains(s.item) != true);
+            if (drop != null)
+            {
+                if (!canSpawnLoot) return false;
+                droppedItem = drop.item;
+                if (--drop.amount == 0) save.equipment.Remove(drop);
+            }
+            var recovery = new DeathRecovery
+            {
+                id = Guid.NewGuid().ToString("N"),
+                dueUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + Modding.ModPvpPiracy.ShipRecoverySeconds,
+                originStation = save.lastDockedStation >= 0 ? save.lastDockedStation : pilot.Station,
+                hasHull = !save.deathLoaner,
+                hull = !save.deathLoaner ? new StoredShip(save.ship, 0, save.shipMods) : null,
+                cargo = RecoveryStacks(save.cargo),
+                equipment = RecoveryStacks(save.equipment)
+            };
+            recovery.refundCredits = RecoveryRefund(save.ship, recovery.hasHull, recovery.cargo);
+            if (recovery.hasHull || recovery.cargo.Count > 0 || recovery.equipment.Count > 0)
+                save.deathRecoveries.Add(recovery);
+            save.ship = 10;
+            save.deathLoaner = true;
+            save.shipMods = new List<int>();
+            save.equipment = new List<ItemStack>();
+            save.cargo = new List<ItemStack>();
+            save.selectedSecondary = -1;
+            if (!PersistRecoveryProfile(account, save)) { droppedItem = -1; return false; }
+            if (host)
+            {
+                Session.ShipIndex = save.ship;
+                Session.DeathLoaner = true;
+                Session.ShipMods = save.shipMods;
+                Session.Equipment = save.equipment;
+                Session.Cargo = save.cargo;
+                Session.SelectedSecondary = -1;
+                Session.DeathRecoveries = save.deathRecoveries;
+            }
+            else RefreshProfile(client);
+            NetState.Instance?.Notify(client, $"Ship recovery scheduled in {Modding.ModPvpPiracy.ShipRecoverySeconds} seconds. Your emergency Phantom has no trade-in value.");
+            return true;
+        }
+
+        // Rebuild the due index on startup, then read only accounts with expired records.
+        static void TickDeathRecoveries()
+        {
+            if (Time.realtimeSinceStartup < nextRecoveryTick || NetPlayerStations.ProfileWritesBlocked) return;
+            nextRecoveryTick = Time.realtimeSinceStartup + 2f;
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var due = new List<string>();
+            foreach (var entry in recoveryDue)
+                if (entry.Value <= now) due.Add(entry.Key);
+            foreach (string account in due)
+            {
+                Login controller = null;
+                foreach (var login in logins.Values)
+                    if (login.account?.id == account && login.controller) { controller = login; break; }
+                bool host = controller != null && IsHostClient(controller.client);
+                var persisted = ReadSave(account);
+                if (persisted == null) { recoveryDue.Remove(account); continue; }
+                var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : persisted;
+                save.deathRecoveries = persisted.deathRecoveries ?? new List<DeathRecovery>();
+                var recovery = save.deathRecoveries.Find(x => x != null && x.dueUtc <= now);
+                if (recovery == null) { ScheduleRecoveries(account, save.deathRecoveries); continue; }
+                var remaining = new List<DeathRecovery>(save.deathRecoveries);
+                remaining.Remove(recovery);
+                if (NetPlayerStations.TryDeliverDeathRecovery(account, recovery, remaining, out string destination, out bool attempted))
+                {
+                    ScheduleRecoveries(account, remaining);
+                    if (controller != null) NetState.Instance?.SendDeathRecoveryCompleted(controller.client, recovery.id,
+                        $"Your recovered assets are in storage at {destination}.");
+                    continue;
+                }
+                if (attempted || NetPlayerStations.ProfileWritesBlocked) continue;
+                save.kaamoShips ??= new List<StoredShip>();
+                bool kaamo = save.kaamoState >= 3 && (!recovery.hasHull ||
+                    (recovery.hull != null && save.kaamoShips.Count < 100 &&
+                     !save.kaamoShips.Exists(x => x != null && x.ship == recovery.hull.ship)));
+                var gear = recovery.equipment ?? new List<ItemStack>();
+                var cargo = recovery.cargo ?? new List<ItemStack>();
+                long refund = 0;
+                if (kaamo)
+                {
+                    save.kaamoItems ??= new List<ItemStack>();
+                    if (!AddRecoveryStacks(save.kaamoItems, gear) || !AddRecoveryStacks(save.kaamoItems, cargo)) continue;
+                    if (recovery.hasHull) save.kaamoShips.Add(recovery.hull);
+                }
+                else
+                {
+                    save.cargo ??= new List<ItemStack>();
+                    if (!AddRecoveryStacks(save.cargo, gear)) continue;
+                    long before = save.credits;
+                    save.credits = Session.SaturatingAdd(before, Math.Max(0L, recovery.refundCredits));
+                    refund = save.credits - before;
+                }
+                save.deathRecoveries = remaining;
+                if (!PersistRecoveryProfile(account, save)) continue;
+                if (host)
+                {
+                    Session.DeathRecoveries = remaining;
+                    Session.Cargo = save.cargo;
+                    Session.Credits = save.credits;
+                    Session.KaamoItems = save.kaamoItems ?? new List<ItemStack>();
+                    Session.KaamoShips = save.kaamoShips;
+                    GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+                    GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+                }
+                else if (controller != null)
+                {
+                    foreach (var item in gear) NetState.Instance?.SendDeathRecoveryItem(controller.client, kaamo, item.item, item.amount);
+                    if (kaamo)
+                    {
+                        foreach (var item in cargo) NetState.Instance?.SendDeathRecoveryItem(controller.client, true, item.item, item.amount);
+                        if (recovery.hasHull) NetState.Instance?.SendDeathRecoveryHull(controller.client, recovery.hull);
+                    }
+                    else if (refund > 0) NetState.Instance?.SendStationCreditDelta(controller.client, refund, "Ship and cargo recovery refund");
+                }
+                if (controller != null) NetState.Instance?.SendDeathRecoveryCompleted(controller.client, recovery.id,
+                    kaamo ? "Your recovered assets are in Kaamo Club storage." :
+                    "No eligible storage was available. Surviving equipment was returned to your hold and the ship and cargo were refunded.");
+            }
         }
 
         internal static int KaamoStateFor(ulong client) => IsHostClient(client) ? Session.KaamoState : ReadSave(AccountOf(client))?.kaamoState ?? 0;
@@ -764,7 +970,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Apply one journal account's absolute targets in a single durable profile write.</summary>
-        internal static bool ApplyStationProfileTargets(string id, Dictionary<int, int> cargo, long? credits, List<StoredShip> ships)
+        internal static bool ApplyStationProfileTargets(string id, Dictionary<int, int> cargo, long? credits, List<StoredShip> ships, List<DeathRecovery> recoveries = null)
         {
             if (string.IsNullOrEmpty(id) || (credits.HasValue && credits.Value < 0)) return false;
             if (ships != null && (ships.Count > 100 || ships.Exists(x => x == null || x.ship < 0))) return false;
@@ -795,10 +1001,13 @@ namespace GoF2Remake.Multiplayer
             }
             if (credits.HasValue) save.credits = credits.Value;
             if (ships != null) save.kaamoShips = new List<StoredShip>(ships);
+            if (recoveries != null) save.deathRecoveries = new List<DeathRecovery>(recoveries);
             if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
 
+            if (recoveries != null) ScheduleRecoveries(id, recoveries);
             if (host)
             {
+                if (recoveries != null) Session.DeathRecoveries = new List<DeathRecovery>(recoveries);
                 foreach (var pair in cargo)
                 {
                     int before = Shop.CargoOf(pair.Key);

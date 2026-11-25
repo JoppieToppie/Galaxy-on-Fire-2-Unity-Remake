@@ -124,6 +124,7 @@ namespace GoF2Remake.Multiplayer
                 foreach (var login in new List<Login>(logins.Values))
                     if (login.account != null && !login.controller && ControllerOf(login.account) == null &&
                         !handovers.ContainsKey(login.account.id)) Promote(login);
+            TickDeathRecoveries();
             if (now >= nextPrune) Prune();   // hourly: profiles unused for PruneDays
             if (links.Count > 0)
                 foreach (var code in new List<string>(links.Keys))
@@ -315,8 +316,18 @@ namespace GoF2Remake.Multiplayer
                 Reject(login, problem);
                 return;
             }
+            // Recovery records belong to the server, not to the uploading client.
+            var prior = ReadSave(account.id);
+            save.deathRecoveries = prior?.deathRecoveries ?? new List<DeathRecovery>();
+            if (prior?.deathLoaner == true && save.ship == prior.ship && !IsHostClient(client))
+            {
+                int before = prior.kaamoShips?.FindAll(x => x != null && x.ship == save.ship).Count ?? 0;
+                int after = save.kaamoShips?.FindAll(x => x != null && x.ship == save.ship).Count ?? 0;
+                if (after >= before) save.deathLoaner = true;
+            }
             int cut = ClampMods(save);
             int misfits = ClampClasses(save);   // remake mods: gear the ship's class can't mount
+            json = JsonUtility.ToJson(save, false);
             if (cut > 0 || misfits > 0)
             {
                 json = JsonUtility.ToJson(save, false);

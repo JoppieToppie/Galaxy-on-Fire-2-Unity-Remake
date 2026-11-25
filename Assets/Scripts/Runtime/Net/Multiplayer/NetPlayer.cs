@@ -1469,7 +1469,7 @@ namespace GoF2Remake.Multiplayer
             hasPose = true;
             var hp = level.Health != null && level.Health.Target != null ? level.Health.Target.hitpoints : null;
             float h = level.Health != null && level.Health.Target != null ? level.Health.Target.HullFraction : 1f;
-            if (h == 0f && look.hull > 0 && NetFactions.DropsEquipmentOnDeath(Station, IsPirate))
+            if (h == 0f && look.hull > 0 && Modding.ModPvpPiracy.Enabled && NetState.Instance?.ProfilesOn == true && !NetArenaClient.InMatch)
                 NetProfileClient.UploadForStationStorage();
             look.hull = WireQuant.Fraction(h);
             // The look the others see: the engine glow (off while mining, docking at an object, cloaked, dead), boost, cloak.

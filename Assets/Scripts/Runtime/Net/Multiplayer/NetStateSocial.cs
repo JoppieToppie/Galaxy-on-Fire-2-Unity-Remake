@@ -414,40 +414,66 @@ namespace GoF2Remake.Multiplayer
             }
             if (victim.Hull != 0f || !victim.InSpace || !victim.HasCurrentWreckClaimPose ||
                 NetArena.InMatch(victim.OwnerClientId)) return;
+            if (pendingPiracyDeaths.TryGetValue(id, out var death))
+            {
+                pendingPiracyDeaths.Remove(id);
+                if (death.killer != null && death.killer.IsSpawned && death.station == victim.Station &&
+                    death.deadline >= Time.unscaledTime && registeredPiracyDeaths.Add(id))
+                {
+                    bool secure = NetFactions.SecureForBounties(death.station, victim.OwnerClientId);
+                    if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
+                    if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
+                }
+            }
             if (!attemptedBountyDrops.Contains(id) &&
-                (!NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId) || DropBountyEquipment(victim)))
+                (!NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId) || BeginDeathRecovery(victim)))
                 attemptedBountyDrops.Add(id);
-
-            if (!pendingPiracyDeaths.TryGetValue(id, out var death)) return;
-            pendingPiracyDeaths.Remove(id);
-            if (death.killer == null || !death.killer.IsSpawned || death.station != victim.Station ||
-                death.deadline < Time.unscaledTime || !registeredPiracyDeaths.Add(id)) return;
-            bool secure = NetFactions.SecureForBounties(death.station, victim.OwnerClientId);
-            if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
-            if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
         }
 
-        bool DropBountyEquipment(NetPlayer victim)
+        bool BeginDeathRecovery(NetPlayer victim)
         {
-            if (cratePrefab == null || !victim.HasCurrentWreckClaimPose ||
-                !victim.CurrentPose(out var position, out var rotation, out _, out _)) return false;
-            if (!NetProfiles.TakeBountyEquipment(victim, out int item)) return false;
-
             int orbit = victim.Station;
+            bool pose = victim.CurrentPose(out var position, out var rotation, out _, out _);
+            if (!NetProfiles.BeginDeathRecovery(victim, cratePrefab != null && pose, out int item)) return false;
+            if (item < 0) return true;
             var go = Instantiate(cratePrefab);
             go.GetComponent<NetCrate>().InitBountyDrop(orbit, item, position, rotation);
             var obj = go.GetComponent<NetworkObject>();
             obj.CheckObjectVisibility = client => NetInterest.Sees(client, obj.OwnerClientId, orbit);
             obj.Spawn(false);
-            BountyEquipmentLostRpc(victim.ShipIndex, item, RpcTarget.Single(victim.OwnerClientId, RpcTargetUse.Temp));
+            Notify(victim.OwnerClientId, "One equipped item was lost and can be salvaged from your wreck.");
             return true;
         }
 
+        internal void SendDeathRecoveryItem(ulong client, bool kaamo, int item, int amount) =>
+            DeathRecoveryItemRpc(kaamo, item, amount, RpcTarget.Single(client, RpcTargetUse.Temp));
+
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void BountyEquipmentLostRpc(int ship, int item, RpcParams rpc = default)
+        void DeathRecoveryItemRpc(bool kaamo, int item, int amount, RpcParams rpc = default)
         {
-            if (!IsServer && Session.ShipIndex == ship) NetProfiles.RemoveBountyEquipment(Session.Equipment, item);
-            NetChat.Notice("One equipped item was lost and can be salvaged from your wreck.");
+            if (kaamo) KaamoClub.AddToStorage(new[] { new ItemStack(item, amount) });
+            else Shop.AddToCargo(item, amount);
+            GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+        }
+
+        internal void SendDeathRecoveryHull(ulong client, StoredShip hull) =>
+            DeathRecoveryHullRpc(JsonUtility.ToJson(hull), RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void DeathRecoveryHullRpc(string json, RpcParams rpc = default)
+        {
+            var hull = JsonUtility.FromJson<StoredShip>(json);
+            if (hull != null) Session.KaamoShips.Add(hull);
+        }
+
+        internal void SendDeathRecoveryCompleted(ulong client, string id, string notice) =>
+            DeathRecoveryCompletedRpc(id, notice, RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void DeathRecoveryCompletedRpc(string id, string notice, RpcParams rpc = default)
+        {
+            Session.DeathRecoveries.RemoveAll(x => x != null && x.id == id);
+            NetChat.Notice(notice);
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]

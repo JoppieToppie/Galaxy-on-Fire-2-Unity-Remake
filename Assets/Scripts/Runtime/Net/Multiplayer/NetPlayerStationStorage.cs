@@ -293,6 +293,63 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
+        // Account permissions, ownership lots, hull class and storage capacity apply even when the pilot is offline.
+        internal static bool TryDeliverDeathRecovery(string account, DeathRecovery recovery,
+            List<DeathRecovery> remaining, out string destination, out bool attempted)
+        {
+            destination = null;
+            attempted = false;
+            if (registry?.stations == null || persistenceFaulted || ProfileWritesBlocked || recovery == null) return false;
+            if (recovery.hasHull && (recovery.hull == null || NetGame.Db?.Ship(recovery.hull.ship) == null)) return false;
+            var items = new Dictionary<int, long>();
+            bool Add(List<ItemStack> stacks)
+            {
+                if (stacks == null) return true;
+                foreach (var stack in stacks)
+                {
+                    if (stack == null || stack.amount <= 0 || NetGame.Db.Item(stack.item) == null) return false;
+                    items[stack.item] = (items.TryGetValue(stack.item, out long old) ? old : 0) + stack.amount;
+                }
+                return true;
+            }
+            if (!Add(recovery.cargo) || !Add(recovery.equipment)) return false;
+            bool large = recovery.hasHull && IsDryDockHull(recovery.hull);
+            for (int pass = 0; pass < 2; pass++)
+            foreach (var record in registry.stations)
+            {
+                if (record == null || (record.stationIndex == recovery.originStation) != (pass == 0) ||
+                    record.underConstruction || record.destroyed || record.retired || record.offeredForClaimUtc > 0 ||
+                    !CanVisitStation(record.stationIndex, account) ||
+                    !HasStationPermission(record, account, PlayerStationPermission.Storage) ||
+                    !AllowsFacilityUse(record, account, "storage") || !CanFitStationItems(record, items)) continue;
+                if (recovery.hasHull && (!HasStationPermission(record, account, PlayerStationPermission.Hangar) ||
+                    !AllowsFacilityUse(record, account, large ? "drydock" : "hangar"))) continue;
+                if (large && (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false) ||
+                    (record.dryDockShips?.Count ?? 0) + (record.dryDockBuilding ? 1 : 0) >= MaxDryDockShipsPerStation)) continue;
+                if (recovery.hasHull && !large && (record.storedShips?.Count ?? 0) >= ShipHangarCapacity(record)) continue;
+                var oldStorage = new List<PlayerStationStorage>();
+                foreach (var entry in record.storage ?? new List<PlayerStationStorage>())
+                    if (entry != null) oldStorage.Add(new PlayerStationStorage { item = entry.item, amount = entry.amount });
+                var oldLots = CloneStorageLots(record);
+                AddStationItems(record, items, account);
+                var hulls = large ? (record.dryDockShips ??= new List<StoredShip>()) : (record.storedShips ??= new List<StoredShip>());
+                var owners = large ? (record.dryDockShipOwners ??= new List<string>()) : (record.storedShipOwners ??= new List<string>());
+                if (recovery.hasHull) { hulls.Add(BareHull(recovery.hull)); owners.Add(account); }
+                attempted = true;
+                if (!CommitProfileTransaction(null, null, null, recoveryTarget: new StationRecoveryTarget
+                    { account = account, recoveries = remaining }))
+                {
+                    if (recovery.hasHull) { hulls.RemoveAt(hulls.Count - 1); owners.RemoveAt(owners.Count - 1); }
+                    record.storage = oldStorage;
+                    record.storageLots = oldLots;
+                    return false;
+                }
+                destination = record.name;
+                return true;
+            }
+            return false;
+        }
+
         static StoredShip BareHull(StoredShip ship) =>
             new StoredShip(ship.ship, ship.race, ship.mods != null ? new List<int>(ship.mods) : new List<int>());
 

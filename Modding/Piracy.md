@@ -3,7 +3,7 @@
 Add `piracy.json` to the root of an active mod to opt in. Bounties and equipment drops require a multiplayer server with profiles; protected Secure-system respawns also apply to single-player.
 
 ```json
-{ "enabled": true, "playerKillsForBounty": 5, "npcKillsForBounty": 100 }
+{ "enabled": true, "playerKillsForBounty": 5, "npcKillsForBounty": 100, "shipRecoverySeconds": 1800 }
 ```
 
 Piracy and faction bounties are disabled by default. A mod can set `playerKillsForBounty` (1–1,000) and `npcKillsForBounty` (1–10,000) independently. Each qualifying kill contributes one fraction of its category's threshold. Later active mods override individual thresholds. The rules below use the defaults.
@@ -13,6 +13,14 @@ Piracy and faction bounties are disabled by default. A mod can set `playerKillsF
 - Officers can use `/faction rival TAG` and `/faction unrival TAG`. Rivalry exempts fights outside secure systems once both factions declare it. `/faction hostile NAME` and `/faction unhostile NAME` mark a pilot as hostile to your faction. Your members and protected pilots can fight that pilot without registering a kill outside secure systems.
 - A lounge diplomat can clear your pending NPC kills with their faction and revoke pirate status. PvP kill history for faction bounties and existing bounties survive the deal.
 - `/faction bounties` lists active bounties. A verified player kill claims the target's active bounties and removes them from the board. Outside Secure systems, a pilot who dies with removable, saleable equipment fitted loses one equipped item. In Secure systems, only pilots with active pirate status lose equipment. Security is effective security (including Shima after the pilot's Kaamo siege), not only the initial galaxy table. A protected death does not charge a respawn docking fine; in single-player it saves current progress at the respawn station rather than loading the old autosave or deleting the hardcore run. The rule applies to PvP and other deaths regardless of bounty status. Organized arena matches are exempt. Other pilots can tractor the dropped item using the normal loot controls.
+
+## Ship recovery
+
+On a penalized multiplayer death the server removes the active owned hull, cargo and remaining removable equipment into a durable recovery record. One eligible fitted item is still dropped as wreck loot. A bare emergency Phantom replaces the flown hull; it has zero trade-in value and cannot be stored as an owned hull. Dying again in the loaner does not create another recoverable hull.
+
+The recovery timer is wall-clock time, including while disconnected. Mods can set `shipRecoverySeconds` (1–604,800, default 1,800). At expiry the server first tries the last docked player station, then other eligible player stations, with actual storage permission, item and ship capacity, and dry dock requirements for large hulls. Stored assets remain individually owned. Owned Kaamo Club storage is an alternative if it can accept the hull. Otherwise the surviving fitted equipment is returned to the pilot's hold and the hull's table price plus the cargo's minimum item prices are credited. No refund is paid for the lost equipment or an emergency hull. The storage transaction journal and durable profile queue prevent repeated settlements after reconnect or restart.
+
+Secure non-pirates and organized arena matches are exempt. Event-loaned hulls are not treated as owned ships.
 
 ## Lua hooks
 
