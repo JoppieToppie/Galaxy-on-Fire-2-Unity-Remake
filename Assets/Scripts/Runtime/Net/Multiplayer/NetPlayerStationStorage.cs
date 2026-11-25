@@ -6,8 +6,8 @@ namespace GoF2Remake.Multiplayer
 {
     public static partial class NetPlayerStations
     {
-        const int MaxStorageItemTypes = 64;
-        const int StorageCapacityPerLevel = 2000;
+        static int MaxStorageItemTypes => Modding.ModPlayerInfrastructure.Current.StorageItemTypes;
+        static int StorageCapacityPerLevel => Modding.ModPlayerInfrastructure.Current.StorageCapacityPerLevel;
 
         static bool CanManage(NetPlayer by, PlayerStationRecord record, out string account)
         {
@@ -602,7 +602,7 @@ namespace GoF2Remake.Multiplayer
         static int StorageCapacity(PlayerStationRecord record)
         {
             int level = record?.addons?.Find(a => a != null && a.kind == "storage")?.level ?? 0;
-            return Math.Max(0, level) * StorageCapacityPerLevel;
+            return (int)Math.Min(int.MaxValue, (long)Math.Max(0, level) * StorageCapacityPerLevel);
         }
 
         [Serializable]
