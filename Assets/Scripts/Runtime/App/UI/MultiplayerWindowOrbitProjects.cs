@@ -66,7 +66,7 @@ namespace GoF2Remake.UI
             if (flightColumn == null) return;
             if (constructionShortcut?.parent != flightColumn)
             {
-                constructionShortcut = Btn("Station construction", () => OpenTab(Tab.OrbitProjects), null);
+                constructionShortcut = Btn("Construction site", () => OpenTab(Tab.OrbitProjects), null);
                 constructionShortcut.AddToClassList("mp-hud-button");
                 if (sheet != null) constructionShortcut.styleSheets.Add(sheet);
                 constructionShortcut.focusable = false;
@@ -75,7 +75,7 @@ namespace GoF2Remake.UI
                 flightColumn.Add(constructionShortcut);
             }
             constructionShortcut.EnableInClassList("squad-button--big", large);
-            constructionShortcut.style.display = DisplayStyle.Flex;
+            constructionShortcut.style.display = pilot.DockedAtObject ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         void UpdateOrbitProjects()
@@ -150,8 +150,8 @@ namespace GoF2Remake.UI
                 Section("Building " + construction.name);
                 BuildMaterialProgress(construction.materials);
                 body.Add(Text(constructionDeliveryInRange
-                    ? "Construction site in range. Deliver the requested cargo here."
-                    : "Fly within 5 km of the construction site marker to deliver cargo.", 16, Dim));
+                    ? "Docked at the construction site. Deliver the requested cargo here."
+                    : "Target the construction dock and use Dock to deliver cargo.", 16, Dim));
                 var row = constructionDeliveryInRange ? ProjectDeliveryFields(construction.materials, wreckMaterial, wreckAmount,
                     value => wreckMaterial = value, value => wreckAmount = value) : null;
                 if (row != null)
