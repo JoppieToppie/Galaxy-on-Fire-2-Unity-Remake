@@ -457,6 +457,7 @@ namespace GoF2Remake.Multiplayer
             {
                 Session.ShipIndex = save.ship;
                 Session.DeathLoaner = save.deathLoaner;
+                Session.LastDeathPenaltyId = save.lastDeathPenaltyId;
                 Session.ShipMods = save.shipMods;
                 Session.Equipment = save.equipment;
                 Session.Cargo = save.cargo;
@@ -480,6 +481,7 @@ namespace GoF2Remake.Multiplayer
                 if (entry.Value <= now) due.Add(entry.Key);
             foreach (string account in due)
             {
+                if (HasPendingDeath(account)) continue;
                 Login controller = null;
                 foreach (var login in logins.Values)
                     if (login.account?.id == account && login.controller) { controller = login; break; }
