@@ -519,6 +519,7 @@ namespace GoF2Remake.Multiplayer
                 station.jumpgateMaterials ??= new List<PlayerStationMaterial>();
                 station.jumpgateContributions ??= new List<PlayerStationContribution>();
                 station.storage ??= new List<PlayerStationStorage>();
+                InitializeStationIntegrity(station);
                 if (!station.underConstruction && !station.retired && !station.destroyed && station.moduleConstructionKind != "storage")
                     AddStarterStorage(station);
                 NormalizeStorageLots(station);
@@ -850,9 +851,9 @@ namespace GoF2Remake.Multiplayer
             var starterStorage = AddStarterStorage(record);
             record.underConstruction = false;
             record.reconstructing = false;
-            record.stationIntegrityInitialized = false;
-            record.stationIntegrity = 0f;
-            record.stationIntegrityCapacity = 0f;
+            record.stationIntegrityInitialized = true;
+            record.stationIntegrity = StationMaxIntegrity;
+            record.stationIntegrityCapacity = StationMaxIntegrity;
             if (wasReconstructing) SyncJumpgatesForStation(record);
             return () =>
             {
