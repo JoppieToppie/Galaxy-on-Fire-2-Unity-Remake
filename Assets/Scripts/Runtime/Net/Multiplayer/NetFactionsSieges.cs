@@ -26,12 +26,12 @@ namespace GoF2Remake.Multiplayer
                 NetPlayerStations.HasSiegeRespawnPrivilege(station, account);
         }
 
-        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked, int deathOrigin = -1)
+        internal static int DeathRespawnStation(NetPlayer pilot, int lastDocked, int deathOrigin = int.MinValue)
         {
             var db = NetGame.Db;
             if (pilot == null || db?.Stations == null || db.Systems == null) return -1;
             string account = NetProfiles.AccountOf(pilot.OwnerClientId);
-            int origin = deathOrigin >= 0 ? deathOrigin : pilot.Station;
+            int origin = deathOrigin != int.MinValue ? deathOrigin : pilot.Station;
             var faction = Of(account);
             bool Allowed(int orbit) => orbit >= 0 && CanRespawnAt(orbit, account) &&
                 !NetPlayerStations.StationClosedByCombat(orbit) && NetPlayerStations.CanVisitStation(orbit, account) &&
@@ -44,6 +44,7 @@ namespace GoF2Remake.Multiplayer
             var queue = new Queue<int>();
             var seen = new HashSet<int>();
             if (system >= 0) { queue.Enqueue(system); seen.Add(system); }
+            var liveRoutes = NetPlayerStations.AccessiblePlayerGateRoutes(account, faction?.id);
             int fallback = -1;
             while (queue.Count > 0)
             {
@@ -57,8 +58,12 @@ namespace GoF2Remake.Multiplayer
                     if (faction != null && (ClaimAt(orbit)?.faction == faction.id || playerStation?.ownerFactionId == faction.id)) return orbit;
                     if (fallback < 0 && orbit < 100000 && playerStation == null) fallback = orbit;
                 }
-                foreach (int next in sys.jumpRoutesTo ?? new List<int>())
-                    if (seen.Add(next)) queue.Enqueue(next);
+                if (sys.jumpRoutesTo != null)
+                    foreach (int next in sys.jumpRoutesTo)
+                        if (seen.Add(next)) queue.Enqueue(next);
+                if (liveRoutes.TryGetValue(current, out var destinations))
+                    foreach (int next in destinations)
+                        if (seen.Add(next)) queue.Enqueue(next);
             }
             if (fallback >= 0) return fallback;
             if (Allowed(lastDocked)) return lastDocked;

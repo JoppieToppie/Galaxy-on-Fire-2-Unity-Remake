@@ -6,16 +6,21 @@ namespace GoF2Remake.Multiplayer
     public sealed partial class NetPlayer
     {
         int deathRespawnDestination = -1, deathOrigin = -1;
-        bool deathRespawnProtected;
+        bool deathRespawnProtected, deathRecorded, deathPenaltyRequired;
+        internal bool HasRecordedDeath => deathRecorded;
+        internal bool RecordedDeathRequiresPenalty => deathPenaltyRequired;
         float deathRespawnArrivalAt;
         internal int DeathRespawnDestination => deathRespawnDestination;
-        internal int DeathOrigin => deathOrigin >= 0 ? deathOrigin : Station;
+        internal int DeathOrigin => deathRecorded ? deathOrigin : Station;
 
         internal void RecordDeathRespawn(int origin)
         {
-            if (!IsServer || deathOrigin >= 0 || NetState.Instance?.ProfilesOn != true ||
-                NetArena.InMatch(OwnerClientId)) return;
+            if (!IsServer || deathRecorded || NetState.Instance?.ProfilesOn != true ||
+                NetArena.InMatch(OwnerClientId) || Hull != 0f ||
+                (!HasCurrentWreckClaimPose && NetState.Instance.HasWitnessedFlight(this) != true)) return;
+            deathRecorded = true;
             deathOrigin = origin;
+            deathPenaltyRequired = NetFactions.DropsEquipmentOnDeath(origin, IsPirate, OwnerClientId);
             deathRespawnDestination = NetFactions.DeathRespawnStation(this, NetProfiles.LastDeathDock(OwnerClientId), origin);
             deathRespawnProtected = Modding.ModPvpPiracy.Enabled &&
                 NetFactions.SecureForBounties(origin, OwnerClientId) && !IsPirate;
@@ -29,11 +34,11 @@ namespace GoF2Remake.Multiplayer
 
         void OnPlaceValueChanged(byte previous, byte current)
         {
-            if (IsServer && previous == (byte)Place.Space && current != (byte)Place.Space && Hull == 0f &&
+            if (IsServer && previous == (byte)Place.Space && current != (byte)Place.Space && (deathRecorded || Hull == 0f) &&
                 NetState.Instance?.ProfilesOn == true && !NetArena.InMatch(OwnerClientId))
             {
                 RecordDeathRespawn(Station);
-                if (NetState.Instance.EnsureDeathPenalty(this) != true && !IsOwner)
+                if (deathRecorded && NetState.Instance.EnsureDeathPenalty(this) != true && !IsOwner)
                 {
                     NetGame.Kick(OwnerClientId, "Your death penalty must be saved before respawning.");
                     return;
@@ -45,10 +50,18 @@ namespace GoF2Remake.Multiplayer
 
         void ValidateDeathRespawnArrival()
         {
-            if (!IsServer || deathOrigin < 0 || !InHangar || UnityEngine.Time.unscaledTime < deathRespawnArrivalAt) return;
+            if (!IsServer || !deathRecorded || !InHangar || UnityEngine.Time.unscaledTime < deathRespawnArrivalAt) return;
+            if (NetState.Instance?.EnsureDeathPenalty(this) != true)
+            {
+                deathRespawnArrivalAt = UnityEngine.Time.unscaledTime + 2f;
+                if (!IsOwner) NetGame.Kick(OwnerClientId, "Your death penalty must be saved before respawning.");
+                return;
+            }
             if (deathRespawnDestination >= 0 && Station == deathRespawnDestination)
             {
+                deathRecorded = deathPenaltyRequired = false;
                 deathOrigin = deathRespawnDestination = -1;
+                NetState.Instance?.FinishRecordedDeath(this);
                 return;
             }
             if (deathRespawnDestination < 0)
@@ -69,9 +82,9 @@ namespace GoF2Remake.Multiplayer
         [Rpc(SendTo.Server)]
         internal void RequestDeathRespawnRpc(RpcParams rpc = default)
         {
-            if (rpc.Receive.SenderClientId != OwnerClientId || !IsSpawned || !InSpace || Hull != 0f || NetArena.InMatch(OwnerClientId)) return;
+            if (rpc.Receive.SenderClientId != OwnerClientId || !IsSpawned || !InSpace || (!deathRecorded && Hull != 0f) || NetArena.InMatch(OwnerClientId)) return;
             RecordDeathRespawn(Station);
-            if (NetState.Instance?.EnsureDeathPenalty(this) != true) return;
+            if (!deathRecorded || NetState.Instance?.EnsureDeathPenalty(this) != true) return;
             if (deathRespawnDestination < 0) { NetState.Instance?.Notify(OwnerClientId, "No permitted respawn station is available."); return; }
             ApproveDeathRespawnRpc(deathRespawnDestination, deathRespawnProtected);
         }

@@ -67,6 +67,14 @@ namespace GoF2Remake.Multiplayer
                 foreach (var other in new List<Login>(logins.Values))
                     if (other.account == account && other.device == device)
                     {
+                        var departing = NetSquad.Find(other.client);
+                        if (other.controller && departing != null &&
+                            (departing.HasRecordedDeath || departing.InSpace && departing.Hull == 0f) &&
+                            NetState.Instance?.EnsureDeathPenalty(departing, refresh: false) != true)
+                        {
+                            NetGame.Kick(client, "Your previous connection has an unresolved death. Reconnect after the server settles it.");
+                            return;
+                        }
                         logins.Remove(other.client);
                         if (other.controller) Debug.Log($"Server: profile {account.id} signed in again from the same device; the older connection goes.");
                         NetGame.Kick(other.client, Localization.Extra("mpSignedInElsewhere", "You signed in again from this device."));
@@ -326,8 +334,24 @@ namespace GoF2Remake.Multiplayer
                 Reject(login, problem);
                 return;
             }
-            // Recovery records belong to the server, not to the uploading client.
+            // A stale upload must not resurrect the pre-death loadout, even if it was
+            // assembled after receipt of the new economy revision.
             var prior = ReadSave(account.id);
+            if (!string.IsNullOrEmpty(prior?.lastDeathPenaltyId) &&
+                !string.Equals(prior.lastDeathPenaltyId, save.lastDeathPenaltyId, StringComparison.Ordinal))
+            {
+                Reject(login, "your profile has not acknowledged the latest death recovery");
+                if (!IsHostClient(client)) RefreshProfile(client);
+                return;
+            }
+            var pilot = NetSquad.Find(client);
+            if (pilot != null && pilot.HasRecordedDeath && pilot.RecordedDeathRequiresPenalty &&
+                NetState.Instance?.EnsureDeathPenalty(pilot, refresh: false) != true)
+            {
+                Reject(login, "your recorded death has not been settled");
+                return;
+            }
+            // Recovery records belong to the server, not to the uploading client.
             save.deathRecoveries = prior?.deathRecoveries ?? new List<DeathRecovery>();
             save.lastDeathPenaltyId = prior?.lastDeathPenaltyId;
             if (prior?.deathLoaner == true && save.ship == prior.ship && !IsHostClient(client))

@@ -50,14 +50,29 @@ namespace GoF2Remake.Multiplayer
         {
             posePosition = entry.position;
             poseRotation = entry.rotation;
+            bool fatal = entry.hasLook && entry.look.hull == 0 && look.hull != 0;
             if (entry.hasLook) look = entry.look;
+            if (IsServer && HasRecordedDeath && InSpace) look.hull = 0;
             hasPose = true;
             if (IsServer)
             {
                 lastClaimPoseOrbit = Station;
                 lastClaimPoseTime = Time.realtimeSinceStartupAsDouble;
+                if (fatal && InSpace) NetState.Instance?.ObserveFatalHull(this);
             }
             if (show && !IsOwner) smoothing.Push(entry.position, gap);
+        }
+
+        // Reliable owner report supplements the unreliable pose stream. This is evidence
+        // of the owner's own death only, not an authority to kill other pilots.
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void FatalHullRpc(int orbit, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !IsSpawned ||
+                !InSpace || orbit != Station || !HasCurrentWreckClaimPose || NetArena.InMatch(OwnerClientId)) return;
+            if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Kill)) return;
+            look.hull = 0;
+            NetState.Instance?.ObserveFatalHull(this);
         }
 
         /// <summary>NetPoses: one batch of this game's poses to the server.</summary>

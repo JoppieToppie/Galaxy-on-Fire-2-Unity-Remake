@@ -492,6 +492,22 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
+        // A player-built gate travels in its configured direction. Respawn routing must
+        // consider the actual pilot's permissions, not the public reciprocal habitation graph.
+        internal static Dictionary<int, List<int>> AccessiblePlayerGateRoutes(string account, string factionId)
+        {
+            var routes = new Dictionary<int, List<int>>();
+            if (!NetGame.IsServer || registry?.jumpgates == null) return routes;
+            foreach (var gate in registry.jumpgates)
+            {
+                if (!JumpgateAccessAllowed(gate, account, factionId)) continue;
+                if (!routes.TryGetValue(gate.system, out var destinations))
+                    routes.Add(gate.system, destinations = new List<int>());
+                if (!destinations.Contains(gate.destinationSystem)) destinations.Add(gate.destinationSystem);
+            }
+            return routes;
+        }
+
         internal static bool? PlayerStationTraffic(int orbit)
         {
             if (!sessionActive || StationAt(orbit) is not PlayerStationRecord station) return null;

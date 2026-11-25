@@ -404,12 +404,35 @@ namespace GoF2Remake.Multiplayer
             witnessedLiveFlight.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
         }
 
+        internal bool HasWitnessedFlight(NetPlayer victim) => victim != null && witnessedLiveFlight.Contains(victim.NetworkObjectId);
+
+        internal void FinishRecordedDeath(NetPlayer victim)
+        {
+            if (!IsServer || victim == null) return;
+            ulong id = victim.NetworkObjectId;
+            attemptedBountyDrops.Remove(id);
+            registeredPiracyDeaths.Remove(id);
+            pendingPiracyDeaths.Remove(id);
+            witnessedLiveFlight.Remove(id);
+        }
+
+        internal void ObserveFatalHull(NetPlayer victim)
+        {
+            if (!IsServer || victim == null || !victim.InSpace || victim.Hull != 0f || !ProfilesOn ||
+                NetArena.InMatch(victim.OwnerClientId)) return;
+            // Record immediately, not on the next periodic scan: a reconnect or another
+            // owner pose must never erase a death the server already received.
+            victim.RecordDeathRespawn(victim.Station);
+            if (Modding.ModPvpPiracy.Enabled && NetProfiles.Enabled) ProcessPiracyDeath(victim);
+        }
+
         void ProcessPiracyDeath(NetPlayer victim)
         {
             if (victim == null || !victim.IsSpawned) return;
             ulong id = victim.NetworkObjectId;
             if (victim.Hull > 0f)
             {
+                if (victim.HasRecordedDeath) { EnsureDeathPenalty(victim); return; }
                 if (victim.InSpace && victim.HasCurrentWreckClaimPose) witnessedLiveFlight.Add(id);
                 else if (!victim.InSpace) witnessedLiveFlight.Remove(id);
                 registeredPiracyDeaths.Remove(id);
@@ -435,12 +458,15 @@ namespace GoF2Remake.Multiplayer
 
         internal bool EnsureDeathPenalty(NetPlayer victim, bool refresh = true)
         {
-            if (!IsServer || victim == null || victim.Hull != 0f) return false;
-            if (NetArena.InMatch(victim.OwnerClientId) ||
-                !NetFactions.DropsEquipmentOnDeath(victim.DeathOrigin, victim.IsPirate, victim.OwnerClientId)) return true;
+            if (!IsServer || victim == null || (!victim.HasRecordedDeath && victim.Hull != 0f)) return false;
+            if (NetArena.InMatch(victim.OwnerClientId)) return true;
+            if (!victim.HasRecordedDeath) victim.RecordDeathRespawn(victim.Station);
+            if (!victim.HasRecordedDeath) return false;
+            if (!victim.RecordedDeathRequiresPenalty) return true;
             ulong id = victim.NetworkObjectId;
             if (attemptedBountyDrops.Contains(id)) return true;
-            if (!witnessedLiveFlight.Contains(id) && !victim.HasCurrentWreckClaimPose) return false;
+            // A recorded death already passed the witnessed-flight check. It stays valid
+            // after the pose expires, the pilot disconnects or the client reports repaired hull.
             // Mark in-flight to prevent re-entry when a successful profile refresh loads the station.
             attemptedBountyDrops.Add(id);
             if (BeginDeathRecovery(victim, refresh)) return true;

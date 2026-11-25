@@ -864,7 +864,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer)
             {
-                if (InSpace && Hull == 0f && NetState.Instance != null && !NetworkManager.ShutdownInProgress)
+                if ((HasRecordedDeath || InSpace && Hull == 0f) && NetState.Instance != null && !NetworkManager.ShutdownInProgress)
                     NetState.Instance.EnsureDeathPenalty(this, refresh: false);
                 station.OnValueChanged -= OnStationValueChanged;
                 place.OnValueChanged -= OnPlaceValueChanged;
@@ -1471,9 +1471,14 @@ namespace GoF2Remake.Multiplayer
             hasPose = true;
             var hp = level.Health != null && level.Health.Target != null ? level.Health.Target.hitpoints : null;
             float h = level.Health != null && level.Health.Target != null ? level.Health.Target.HullFraction : 1f;
-            if (h == 0f && look.hull > 0 && Modding.ModPvpPiracy.Enabled && NetState.Instance?.ProfilesOn == true && !NetArenaClient.InMatch)
-                NetProfileClient.UploadForStationStorage();
+            bool fatalHull = h == 0f && look.hull > 0 && NetState.Instance?.ProfilesOn == true && !NetArenaClient.InMatch;
+            if (fatalHull && Modding.ModPvpPiracy.Enabled) NetProfileClient.UploadForStationStorage();
             look.hull = WireQuant.Fraction(h);
+            if (fatalHull)
+            {
+                if (IsServer) NetState.Instance?.ObserveFatalHull(this);
+                else FatalHullRpc(Station);
+            }
             // The look the others see: the engine glow (off while mining, docking at an object, cloaked, dead), boost, cloak.
             var ownAsm = level.Player.visualModel != null ? level.Player.visualModel.GetComponent<AssembledObject>() : null;
             var glowPart = ownAsm != null && ownAsm.playerVariantParts != null && ownAsm.playerVariantParts.Length > 0 ? ownAsm.playerVariantParts[0] : null;
