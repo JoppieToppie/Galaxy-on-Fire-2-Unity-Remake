@@ -549,11 +549,14 @@ namespace GoF2Remake.Multiplayer
             reply?.Invoke(orbits ?? System.Array.Empty<int>());
         }
 
+        internal string LastPlayerGateRefusal { get; private set; }
+
         /// <summary>Explicit player-gate travel request, separate from ordinary orbit changes.</summary>
         public bool RequestPlayerJumpgateTravel(int orbit, System.Action<int> done)
         {
             if (!IsOwner || !IsSpawned || done == null) return false;
             gateTravelReply = done;
+            LastPlayerGateRefusal = null;
             gateRequestSequence = gateRequestSequence == int.MaxValue ? 1 : gateRequestSequence + 1;
             PlayerGateTravelUpRpc(orbit, gateRequestSequence);
             return true;
@@ -563,9 +566,11 @@ namespace GoF2Remake.Multiplayer
         void PlayerGateTravelUpRpc(int orbitStationIndex, int sequence, RpcParams rpc = default)
         {
             int arrival = -1;
+            string reason = null;
             if (IsServer && rpc.Receive.SenderClientId == OwnerClientId &&
                 NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim))
             {
+                reason = NetPlayerStations.JumpgateBlacklistRefusal(this, orbitStationIndex);
                 int system = NetPlayerStations.JumpgateDestinationForInteraction(this, orbitStationIndex);
                 if (system >= 0)
                 {
@@ -581,15 +586,17 @@ namespace GoF2Remake.Multiplayer
                     }
                 }
             }
-            PlayerGateTravelReplyRpc(sequence, arrival);
+            PlayerGateTravelReplyRpc(sequence, arrival, arrival < 0 ? reason ?? "" : "");
         }
 
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void PlayerGateTravelReplyRpc(int sequence, int arrival)
+        void PlayerGateTravelReplyRpc(int sequence, int arrival, string reason)
         {
             if (!IsOwner || sequence != gateRequestSequence) return;
             var reply = gateTravelReply;
             gateTravelReply = null;
+            LastPlayerGateRefusal = reason;
+            if (arrival < 0 && !string.IsNullOrEmpty(reason)) NetChat.Notice(reason);
             reply?.Invoke(arrival);
         }
 
