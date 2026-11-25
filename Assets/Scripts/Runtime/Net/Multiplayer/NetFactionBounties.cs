@@ -218,6 +218,8 @@ namespace GoF2Remake.Multiplayer
             pilot.SetPiracyFlags(pirate, wanted);
         }
 
+        internal static int PiracyKillWeight(bool secure) => secure ? 2 : 1;
+
         static bool TrackPiracyKill(string account, long now, bool secure, out int count, out int threshold, out int windowSeconds)
         {
             count = threshold = windowSeconds = 0;
@@ -232,8 +234,7 @@ namespace GoF2Remake.Multiplayer
 
             // Retain enough timestamps to apply a changed rule on the next qualifying kill.
             record.kills.RemoveAll(k => k < now - MaxPiracyWindowSeconds);
-            record.kills.Add(now);
-            if (secure) record.kills.Add(now);
+            for (int i = 0; i < PiracyKillWeight(secure); i++) record.kills.Add(now);
             if (record.kills.Count > MaxPiracyKillThreshold)
                 record.kills.RemoveRange(0, record.kills.Count - MaxPiracyKillThreshold);
             long cutoff = now - windowSeconds;
@@ -315,7 +316,7 @@ namespace GoF2Remake.Multiplayer
 
             void CountKill(string issuer)
             {
-                if (AddBountyKill(account, issuer, now, pvp: true, weight: secure ? 2 : 1)) issuedBy.Add(BountyIssuerName(issuer));
+                if (AddBountyKill(account, issuer, now, pvp: true, weight: PiracyKillWeight(secure))) issuedBy.Add(BountyIssuerName(issuer));
             }
         }
 
