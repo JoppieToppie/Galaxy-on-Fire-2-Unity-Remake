@@ -33,6 +33,8 @@ namespace GoF2Remake.Data
         /// the Cronus: the row was added before the flag existed).</summary>
         public int khadorCronusGift = -1;
         public List<ItemStack> equipment, cargo;
+        public bool deathLoaner;
+        public List<DeathRecovery> deathRecoveries;
         public List<StationStock> recentStations;
         public List<int> seenItems, visitedStations, attackedStations;
         public List<KnownPrice> lowestPrices, highestPrices;
@@ -466,6 +468,8 @@ namespace GoF2Remake.Data
                 lastDockedStation = Session.LastDockedStation,
                 khadorCronusGift = Session.KhadorCronusGift ? 1 : 0,
                 ship = Session.ShipIndex,
+                deathLoaner = Session.DeathLoaner,
+                deathRecoveries = new List<DeathRecovery>(Session.DeathRecoveries),
                 credits = Session.Credits,
                 equipment = Session.Equipment.ConvertAll(e => e.Clone()),
                 cargo = Session.Cargo.ConvertAll(e => e.Clone()),
@@ -644,6 +648,8 @@ namespace GoF2Remake.Data
             Session.PreviousStationIndex = s.previousStation;
             Session.LastDockedStation = s.lastDockedStation;
             Session.ShipIndex = s.ship;
+            Session.DeathLoaner = s.deathLoaner;
+            Session.DeathRecoveries = s.deathRecoveries ?? new List<DeathRecovery>();
             Session.Credits = s.credits;
             Session.Equipment = s.equipment ?? new List<ItemStack>();
             Session.Cargo = s.cargo ?? new List<ItemStack>();

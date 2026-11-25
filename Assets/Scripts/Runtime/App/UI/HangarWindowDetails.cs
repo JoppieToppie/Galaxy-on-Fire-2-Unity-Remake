@@ -241,14 +241,14 @@ namespace GoF2Remake.UI
                         ShowAction(selected.ownListing ? "CANCEL LISTING" : $"BUY   {ItemInfo.Credits(selected.listingPrice)}", true);
                         return;
                     }
-                    int delta = hangar.BuyShipPrice(selected.ship) - hangar.ShipPrice(Session.ShipIndex);
+                    int delta = hangar.BuyShipPrice(selected.ship) - hangar.CurrentShipTradeValue;
                     ShowAction($"{T(301).UiCaps()}   {ItemInfo.Credits(delta)}", true);
                     ItemInfo.FillModLines(detailMods, hangar.Stock.ModsOf(selected.ship));   // a traded-in hull's mods
                 }
                 else if (selected.kind == RowKind.StoredShip)
                 {
                     // Row buttons 1 "Use" (332) and 10 "Sell" (330).
-                    ShowAction(T(332).UiCaps(), selected.ship != Session.ShipIndex);
+                    ShowAction(T(332).UiCaps(), Session.DeathLoaner || selected.ship != Session.ShipIndex);
                     if (actionButton2 != null)
                     {
                         SetActionText(actionButton2, $"{T(330).UiCaps()}   {ItemInfo.Credits(hangar.StoredPrice(selected.equipment))}");

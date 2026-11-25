@@ -12,12 +12,14 @@ namespace GoF2Remake.Modding
 
         public static int PlayerKillsForBounty { get; private set; }
         public static int NpcKillsForBounty { get; private set; }
+        public static int ShipRecoverySeconds { get; private set; } = 1800;
 
         internal static void Apply()
         {
             Enabled = false;
             PlayerKillsForBounty = 5;
             NpcKillsForBounty = 100;
+            ShipRecoverySeconds = 1800;
             foreach (var mod in ModManager.Active)
             {
                 try
@@ -30,9 +32,11 @@ namespace GoF2Remake.Modding
                         throw new ModJsonException($"{File}: enabled must be true or false.");
                     int players = Mathf.Clamp(ModJson.Int(options, "playerKillsForBounty", PlayerKillsForBounty, File), 1, 1000);
                     int npcs = Mathf.Clamp(ModJson.Int(options, "npcKillsForBounty", NpcKillsForBounty, File), 1, 10000);
+                    int recovery = Mathf.Clamp(ModJson.Int(options, "shipRecoverySeconds", ShipRecoverySeconds, File), 1, 604800);
                     Enabled |= flag != null && (bool)flag;
                     PlayerKillsForBounty = players;
                     NpcKillsForBounty = npcs;
+                    ShipRecoverySeconds = recovery;
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
             }

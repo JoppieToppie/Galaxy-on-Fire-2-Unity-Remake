@@ -48,7 +48,7 @@ namespace GoF2Remake.Multiplayer
             var db = NetGame.Db;
             long ShipPrice(int ship) => db.Ship(ship)?.price ?? 0;
             p.credits = s.credits;
-            p.ship = ShipPrice(s.ship);
+            p.ship = s.deathLoaner ? 0 : ShipPrice(s.ship);
             p.equipment = Items(s.equipment);
             p.cargo = Items(s.cargo);
             p.kaamo = Items(s.kaamoItems);

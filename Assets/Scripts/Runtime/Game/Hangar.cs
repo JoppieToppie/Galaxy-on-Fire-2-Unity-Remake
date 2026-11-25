@@ -697,6 +697,7 @@ namespace GoF2Remake.Data
         // ---- ships ---------------------------------------------------------------------------------------------
 
         public int ShipPrice(int ship) => Shop.ShipPrice(db, ship, Station);
+        public int CurrentShipTradeValue => Session.DeathLoaner ? 0 : ShipPrice(Session.ShipIndex);
 
         /// <summary>What a dealer ship costs here (multiplayer: a faction station's VAT markup for non-members); ShipPrice is
         /// its value (a trade-in, the club's storage).</summary>
@@ -715,7 +716,7 @@ namespace GoF2Remake.Data
             need = 0;
             if (Session.Passengers > 0) return Result.Passengers;   // 336
             if (ship == Session.ShipIndex) return Result.SameShip;
-            int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship) - ShipPrice(Session.ShipIndex);
+            int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship) - CurrentShipTradeValue;
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
@@ -729,13 +730,18 @@ namespace GoF2Remake.Data
             if (CanBuyShip(ship, out _) != Result.Ok) return false;
             int old = Session.ShipIndex;
             var oldMods = new List<int>(Session.ShipMods ?? new List<int>());
-            if (!Cheats.FreeShopping) ChangeCredits(ShipPrice(old) - BuyShipPrice(ship));
+            bool loaner = Session.DeathLoaner;
+            if (!Cheats.FreeShopping) ChangeCredits(CurrentShipTradeValue - BuyShipPrice(ship));
             if (CronusGift(ship)) Session.KhadorCronusGift = false;   // the gift is taken: a row of it later is priced
             SwitchTo(ship, Stock.TakeMods(ship), dismount: true);
             int row = Stock.ships.IndexOf(ship);
-            if (row >= 0) Stock.ships[row] = old; else Stock.ships.Add(old);
-            Stock.PutMods(old, oldMods);
-            GameHooks.StockShipChanged?.Invoke(Station, ship, old);   // multiplayer: the shared dealer list
+            if (loaner) { if (row >= 0) Stock.ships.RemoveAt(row); }
+            else
+            {
+                if (row >= 0) Stock.ships[row] = old; else Stock.ships.Add(old);
+                Stock.PutMods(old, oldMods);
+            }
+            GameHooks.StockShipChanged?.Invoke(Station, ship, loaner ? -1 : old);   // multiplayer: the shared dealer list
             return true;
         }
 
@@ -756,9 +762,10 @@ namespace GoF2Remake.Data
                 int old = Session.ShipIndex;
                 var oldMods = new List<int>(Session.ShipMods ?? new List<int>());
                 string oldName = GameNames.Ship(old);
-                bool rebuilt = bp != null && bp.requiresShip >= 0 && bp.requiresShip == old;
+                bool rebuilt = !Session.DeathLoaner && bp != null && bp.requiresShip >= 0 && bp.requiresShip == old;
                 string how;
-                if (rebuilt) how = string.Format(Localization.Extra("bpShipRebuilt", "Your {0} was rebuilt into it."), oldName);
+                if (Session.DeathLoaner) how = "Your emergency loaner was returned.";
+                else if (rebuilt) how = string.Format(Localization.Extra("bpShipRebuilt", "Your {0} was rebuilt into it."), oldName);
                 else if (KaamoClub.Owned && !KaamoClub.HasShip(old))
                 {
                     KaamoClub.Store(old, 0, oldMods, EquipmentToStore());
@@ -809,6 +816,7 @@ namespace GoF2Remake.Data
             if (bought) Session.ShipsBought.Add(Session.ShipRef(ship));
             var mounted = (mount ?? Session.Equipment).Where(e => !e.builtIn).ToList();   // the old hull's built-ins stay with it
             Session.ShipIndex = ship;
+            Session.DeathLoaner = false;
             Session.ShipMods = mods != null ? new List<int>(mods) : new List<int>();
             Session.Equipment = new List<ItemStack>();
             Session.SelectedSecondary = -1;
@@ -842,7 +850,7 @@ namespace GoF2Remake.Data
             need = 0;
             if (Session.Passengers > 0) return Result.Passengers;   // 336
             if (ship == Session.ShipIndex) return Result.SameShip;
-            int cost = Cheats.FreeShopping ? 0 : price - ShipPrice(Session.ShipIndex);
+            int cost = Cheats.FreeShopping ? 0 : price - CurrentShipTradeValue;
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
@@ -850,7 +858,7 @@ namespace GoF2Remake.Data
         public bool BuyShipFor(int ship, int price)
         {
             if (CanBuyShipFor(ship, price, out _) != Result.Ok) return false;
-            if (!Cheats.FreeShopping) ChangeCredits(ShipPrice(Session.ShipIndex) - price);
+            if (!Cheats.FreeShopping) ChangeCredits(CurrentShipTradeValue - price);
             SwitchTo(ship, null, dismount: true);
             return true;
         }
@@ -858,6 +866,7 @@ namespace GoF2Remake.Data
         public Result CanKeepAndBuyShipFor(int ship, int price, out int need)
         {
             need = 0;
+            if (Session.DeathLoaner) return Result.NotSaleable;
             if (Session.Passengers > 0) return Result.Passengers;
             if (ship == Session.ShipIndex) return Result.SameShip;
             if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328
@@ -923,6 +932,7 @@ namespace GoF2Remake.Data
         public Result CanKeepAndBuyShip(int ship, out int need)
         {
             need = 0;
+            if (Session.DeathLoaner) return Result.NotSaleable;
             if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328 (the old ship's type)
             int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship);
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
@@ -950,7 +960,7 @@ namespace GoF2Remake.Data
         {
             if (index < 0 || index >= Session.KaamoShips.Count) return Result.NoStock;
             if (Session.Passengers > 0) return Result.Passengers;
-            if (Session.KaamoShips[index].ship == Session.ShipIndex) return Result.SameShip;
+            if (!Session.DeathLoaner && Session.KaamoShips[index].ship == Session.ShipIndex) return Result.SameShip;
             return Result.Ok;
         }
 
@@ -960,6 +970,7 @@ namespace GoF2Remake.Data
         public bool UseStored(int index)
         {
             if (CanUseStored(index) != Result.Ok) return false;
+            bool loaner = Session.DeathLoaner;
             var stored = Session.KaamoShips[index];
             var storedGear = stored.equipment ?? new List<ItemStack>();
             var kept = EquipmentToStore();
@@ -970,7 +981,12 @@ namespace GoF2Remake.Data
                 SwitchTo(stored.ship, stored.mods, bought: false);
                 KaamoClub.AddToStorage(storedGear);
             }
-            Session.KaamoShips[index] = old;
+            if (loaner)
+            {
+                if (kept != null) KaamoClub.AddToStorage(kept);
+                Session.KaamoShips.RemoveAt(index);
+            }
+            else Session.KaamoShips[index] = old;
             return true;
         }
 

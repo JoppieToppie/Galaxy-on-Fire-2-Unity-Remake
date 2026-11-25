@@ -224,13 +224,13 @@ namespace GoF2Remake.UI
                     }, SoldOut);
                     void TradeIn() => Reserved(() => hangar.BuyShip(ship));
                     // Remake (#60): the question says what happens to the old ship (the original's 304 doesn't): it is traded in.
-                    int oldPrice = hangar.ShipPrice(Session.ShipIndex), difference = hangar.BuyShipPrice(ship) - oldPrice;
+                    int oldPrice = hangar.CurrentShipTradeValue, difference = hangar.BuyShipPrice(ship) - oldPrice;
                     string tradeIn = Localization.Get(304) + "\n\n" + string.Format(difference >= 0
                             ? Localization.Extra("shopTradeInNote", "Your {0} is traded in for {1}, so you pay {2}.")
                             : Localization.Extra("shopTradeInRefund", "Your {0} is traded in for {1}, so you get {2} back."),
                         ItemInfo.ShipName(Session.ShipIndex), ItemInfo.Credits(oldPrice), ItemInfo.Credits(Mathf.Abs(difference)))
                         + "\n\n" + Localization.Extra("shopGearToHold", "Your equipment goes into the cargo hold.");
-                    if (!KaamoClub.Owned) { menu.ShowDialog(tradeIn, TradeIn); break; }
+                    if (!KaamoClub.Owned || Session.DeathLoaner) { menu.ShowDialog(tradeIn, TradeIn); break; }
                     // 304, then 327 "sell your old ship or keep it and have it brought to your station?" (330 / 331).
                     void ChooseOldShip() => menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), TradeIn, () =>
                     {
