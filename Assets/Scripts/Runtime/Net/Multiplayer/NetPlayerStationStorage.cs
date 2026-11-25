@@ -369,6 +369,8 @@ namespace GoF2Remake.Multiplayer
                 if (!CanManageHangar(by, record, out account)) return "Dock at this station with an authorised profile to use its ship hangar.";
                 if (!AllowsFacilityUse(record, account, "hangar")) return FacilityUseRefusal(record, account, "hangar", "Station race policy restricts this facility.");
             }
+            if (!CanManageStorage(by, record, out _) || !AllowsFacilityUse(record, account, "hangar"))
+                return "Storage or hangar access is restricted for deposits.";
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
             if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment must be transferred into station storage.";
             record.storedShips ??= new List<StoredShip>();
@@ -515,7 +517,8 @@ namespace GoF2Remake.Multiplayer
             if (record == null) return "No player station with that id exists.";
             if (viaStorage && StorageAccessError(by, record, out _) is string error) return error;
             if (!CanManageHangar(by, record, out string account)) return "Dock at this station with an authorised profile to use its dry dock.";
-            if (!AllowsFacilityUse(record, account, "drydock")) return FacilityUseRefusal(record, account, "drydock", "Station race policy restricts this facility.");
+            if (!CanManageStorage(by, record, out _) || !AllowsFacilityUse(record, account, "drydock"))
+                return "Storage or dry dock access is restricted for deposits.";
             if (record.underConstruction) return "Finish station construction before using the dry dock.";
             if (!(record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) ?? false)) return "Install a dry dock module first.";
             if (StorageCapacity(record) <= 0) return "Install station storage first; ship equipment are transferred there.";
@@ -661,7 +664,7 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             var fleet = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
-            if (snapshot.canDeposit && CanManageHangar(by, record, out _)) AddHullRows(fleet, stored: false, dryDock: false);
+            if (snapshot.canDeposit && AllowsFacilityUse(record, account, "hangar")) AddHullRows(fleet, stored: false, dryDock: false);
             AddHullRows(record.storedShips, stored: true, dryDock: false);
             if (useDryDock)
             {
