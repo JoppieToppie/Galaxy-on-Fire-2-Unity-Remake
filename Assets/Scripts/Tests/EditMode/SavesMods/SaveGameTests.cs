@@ -31,6 +31,20 @@ namespace GoF2Remake.Tests
         // ---- slots and files -----------------------------------------------------------------------------------------
 
         [Test]
+        public void SinglePlayerIdentitySurvivesSaveAndLoadAndResetsForNewGame()
+        {
+            Session.PlayerIdentityRace = "0";
+            Session.PlayerIdentityPortrait = "stock/0/0-1";
+            Assert.IsTrue(SaveGame.Save(4));
+            Session.ResetNewGame();
+            Assert.IsNull(Session.PlayerIdentityRace);
+            Assert.IsNull(Session.PlayerIdentityPortrait);
+            Assert.IsTrue(SaveGame.Load(4));
+            Assert.AreEqual("0", Session.PlayerIdentityRace);
+            Assert.AreEqual("stock/0/0-1", Session.PlayerIdentityPortrait);
+        }
+
+        [Test]
         public void TwelveSlotsWithTheAutoSaveFirst()
         {
             Assert.AreEqual(12, SaveGame.SlotCount);
