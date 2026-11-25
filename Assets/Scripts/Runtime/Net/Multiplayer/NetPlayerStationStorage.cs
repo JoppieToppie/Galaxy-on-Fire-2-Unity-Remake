@@ -7,7 +7,7 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetPlayerStations
     {
         const int MaxStorageItemTypes = 64;
-        const int StorageCapacityPerLevel = 10000;
+        const int StorageCapacityPerLevel = 2000;
 
         static bool CanManage(NetPlayer by, PlayerStationRecord record, out string account)
         {
@@ -32,6 +32,7 @@ namespace GoF2Remake.Multiplayer
 
 
         const int MaxStoredShipsPerStation = 100;
+        internal static int ShipHangarCapacity(PlayerStationRecord record) => record?.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) == true ? MaxStoredShipsPerStation : 2;
 
         internal static string InstallHangar(NetPlayer by, int id) => InstallModuleFromCargo(by, id, "hangar");
 
@@ -171,8 +172,6 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (!CanManageHangar(by, record, out _, recoverProperty: true)) return "Ship hangar access is private to the owner and authorised faction members.";
-            if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false))
-                return "This station has no ship hangar module.";
             record.storedShips ??= new List<StoredShip>();
             record.storedShipOwners ??= new List<string>();
             var lines = new List<string> { "Ship hangar at " + record.name + ":" };
@@ -183,7 +182,7 @@ namespace GoF2Remake.Multiplayer
                     " — " + (ship.mods?.Count ?? 0) + " hull upgrades, bare hull");
             }
             if (lines.Count == 1) lines.Add("No ships are stored here.");
-            lines.Add("Capacity: " + record.storedShips.Count + "/" + MaxStoredShipsPerStation);
+            lines.Add("Capacity: " + record.storedShips.Count + "/" + ShipHangarCapacity(record));
             lines.Add("Factions share access, never ownership.");
             return string.Join("\n", lines);
         }
@@ -313,10 +312,9 @@ namespace GoF2Remake.Multiplayer
                 if (!AllowsFacilityUse(record, account, "hangar")) return FacilityUseRefusal(record, account, "hangar", "Station race policy restricts this facility.");
             }
             if (record.underConstruction) return "Finish station construction before using the ship hangar.";
-            if (!fromStorage && !(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "Install a ship hangar module first.";
             if (StorageCapacity(record) <= 0) return "Install a station storage module before storing ships; their equipment must be transferred into station storage.";
             record.storedShips ??= new List<StoredShip>();
-            if (record.storedShips.Count >= MaxStoredShipsPerStation) return "This station's ship hangar is full.";
+            if (record.storedShips.Count >= ShipHangarCapacity(record)) return "This station's ship hangar is full.";
             var owned = NetProfiles.StoredShipsOf(account, by.OwnerClientId);
             if (owned == null || fleetIndex < 1 || fleetIndex > owned.Count) return "That index is not in your personal stored fleet. Use /station fleet.";
             var candidate = owned[fleetIndex - 1];
@@ -364,7 +362,6 @@ namespace GoF2Remake.Multiplayer
             {
                 if (!CanManageHangar(by, record, out account, recoverProperty: true)) return "Dock at this station with an authorised profile to use its ship hangar.";
                 if (record.underConstruction) return "Finish station construction before using the ship hangar.";
-                if (!(record.addons?.Exists(a => a != null && a.kind == "hangar" && a.level > 0) ?? false)) return "This station has no ship hangar module.";
             }
             record.storedShips ??= new List<StoredShip>();
             record.storedShipOwners ??= new List<string>();
