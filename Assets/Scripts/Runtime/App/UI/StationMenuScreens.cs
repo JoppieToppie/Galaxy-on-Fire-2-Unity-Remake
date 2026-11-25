@@ -370,8 +370,7 @@ namespace GoF2Remake.UI
             if (root == null) return;
             var st = level != null ? level.Station : null;
             string T(int id) => Localization.Get(id);
-            root.Q<Label>("stationTitle").text = st == null ? "" : ItemInfo.WithTag(   // remake mods: the mod's tag, dim (as it reads)
-                (st.index == 101 || Modding.ModWorld.IsMobile(st.index) ? st.name : $"{st.name} {T(136)}").UiCaps(), GameNames.StationTag(st.index));   // no suffix for station 101 or a mobile station (a ship)
+            RefreshStationTitle(st, st == null ? null : GameHooks.PlayerStationName?.Invoke(st.index));
             root.Q<Label>("systemName").text = st == null ? "" : ItemInfo.WithTag($"{st.systemName} {T(137)}", GameNames.SystemTag(st.system));
             // Multiplayer: the faction holding this station (NetFactions).
             string holder = st == null ? "" : GoF2Remake.Multiplayer.NetFactionsClient.OwnerText(st.index);
@@ -445,6 +444,16 @@ namespace GoF2Remake.UI
             if (string.IsNullOrEmpty(text) || text != text.ToUpperInvariant()) return text;
             return text.Substring(0, 1) + text.Substring(1).ToLowerInvariant();
         }
+        string displayedPlayerStationName;
+
+        void RefreshStationTitle(StationData station, string ownerName)
+        {
+            displayedPlayerStationName = ownerName;
+            root.Q<Label>("stationTitle").text = station == null ? "" : ItemInfo.WithTag(
+                ownerName ?? GameNames.Station(station, suffix: !Modding.ModWorld.IsMobile(station.index)).UiCaps(),
+                GameNames.StationTag(station.index));
+        }
+
         void OnViewChanged()
         {
             if (root == null || level == null) return;

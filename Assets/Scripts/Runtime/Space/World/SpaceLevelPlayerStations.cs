@@ -56,6 +56,7 @@ namespace GoF2Remake.World
                 return;
             }
             var anchor = db.Stations.Find(entry => entry != null && entry.index == orbit);
+            string siteName = (GameHooks.PlayerStationName?.Invoke(orbit) ?? anchor?.name ?? "Station") + " construction site";
             constructionPort = Traffic.SpawnShip(new SpawnSpec
             {
                 group = NpcGroup.Special, race = Layout.raceId, ship = 15,
@@ -63,13 +64,13 @@ namespace GoF2Remake.World
                 alwaysFriend = true, noLoot = true, hitpoints = 9999999, hitRadius = 1f,
                 collisionId = -1, dockingType = ObjectDocking.ConstructionSite,
                 position = Vector3.zero, rotation = new Vector3(0f, Mathf.PI, 0f),
-                name = (anchor?.name ?? "Station") + " construction site"
+                name = siteName
             });
             if (constructionPort == null) return;
             constructionPort.LocalOnly = true;
             constructionPort.ShipMarker = false;
             constructionPort.Target.untargetable = true;
-            constructionPort.DockingName = (anchor?.name ?? "Station") + " construction site";
+            constructionPort.DockingName = siteName;
             constructionPort.transform.position = SpaceHooks.StationPosition(orbit);
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.name = "Temporary construction dock";
@@ -96,6 +97,7 @@ namespace GoF2Remake.World
 
         bool playerStationDockPointsSpawned;
         int visiblePlayerStationState = -1;
+        string visiblePlayerStationName;
         int visiblePlayerStationModel = -1;
         Crate stationSalvageCrate;
         IReadOnlyList<(int item, int amount)> renderedStationSalvage;
@@ -236,7 +238,13 @@ namespace GoF2Remake.World
             UpdateConstructionPort(orbit);
             UpdateOrbitalStructures(orbit);
             UpdateWreckSalvage(orbit);
-            if (GameHooks.IsPlayerStation?.Invoke(orbit) != true) return;
+            string ownerName = GameHooks.PlayerStationName?.Invoke(orbit);
+            if (ownerName == null && GameHooks.IsPlayerStation?.Invoke(orbit) != true) return;
+            if (ownerName != visiblePlayerStationName)
+            {
+                visiblePlayerStationName = ownerName;
+                if (ownerName != null) Navigation.RefreshPlayerStationName(orbit, ownerName);
+            }
             bool modelPresent = GameHooks.StationSceneryPresent?.Invoke(orbit) == true;
             bool operational = modelPresent && GameHooks.StationClosedByCombat?.Invoke(orbit) != true;
             int state = operational ? 2 : modelPresent ? 1 : 0;
@@ -284,7 +292,7 @@ namespace GoF2Remake.World
             }
             var station = db.Stations.Find(value => value != null && value.index == orbit);
             Navigation.StationObject = Station;
-            Navigation.RefreshPlayerStation(orbit, operational, station?.name);
+            Navigation.RefreshPlayerStation(orbit, operational, ownerName ?? GameNames.Station(station));
         }
     }
 }

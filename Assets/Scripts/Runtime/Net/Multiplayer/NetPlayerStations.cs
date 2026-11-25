@@ -751,6 +751,12 @@ namespace GoF2Remake.Multiplayer
         internal static bool IsPlayerStation(int stationIndex) =>
             sessionActive && StationAt(stationIndex) != null;
 
+        internal static string DisplayNameAt(int stationIndex)
+        {
+            string name = sessionActive ? StationAt(stationIndex)?.name : null;
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+
         /// <summary>Whether an existing station index belongs to a completed player station with an installed dry dock.</summary>
         internal static bool HasDryDockAtStation(int stationIndex)
         {

@@ -30,6 +30,14 @@ namespace GoF2Remake.Data
         public static string ShipTag(int ship) => Modding.ModContent.ShipTag(ship);
         public static string ItemTag(int item) => Modding.ModContent.ItemTag(item);
         public static string SystemTag(int system) => Modding.ModWorld.SystemTag(system);
+        /// <summary>The current owner-set name, or the normal label for a database station.</summary>
+        public static string Station(StationData station, bool suffix = true)
+        {
+            if (station == null) return "";
+            return GameHooks.PlayerStationName?.Invoke(station.index) ??
+                (suffix && station.index != 101 ? $"{station.name} {Localization.Get(136)}" : station.name);
+        }
+
         public static string StationTag(int station) => Modding.ModWorld.StationTag(station);
         /// <summary>A mod's Most Wanted criminal (Modding.ModWanted): its mod's tag.</summary>
         public static string WantedTag(WantedData w) => w != null && w.IsMod ? Modding.ModContent.TagOf(w.mod) : null;

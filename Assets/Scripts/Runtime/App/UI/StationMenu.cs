@@ -515,6 +515,9 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (root == null || level == null) return;
+            var dockedStation = level.Station;
+            string ownerName = dockedStation == null ? null : GameHooks.PlayerStationName?.Invoke(dockedStation.index);
+            if (ownerName != displayedPlayerStationName) RefreshStationTitle(dockedStation, ownerName);
             dryDock?.Update();
             stationManagement?.Update();
             // The layout first: the Mod Builder's screen below shares this panel and its scale.

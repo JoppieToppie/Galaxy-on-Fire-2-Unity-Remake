@@ -19,8 +19,7 @@ namespace GoF2Remake.UI
         string StationName(int station, bool suffix = true)
         {
             var st = db.Stations.Find(s => s.index == station);
-            if (st == null) return "";
-            return !suffix || st.index == 101 ? st.name : $"{st.name} {T(136)}";
+            return GameNames.Station(st, suffix);
         }
         int SystemOf(int station) => db.Stations.Find(s => s.index == station)?.system ?? -1;
 

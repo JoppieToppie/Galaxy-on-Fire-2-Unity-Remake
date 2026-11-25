@@ -95,7 +95,7 @@ namespace GoF2Remake.UI
             var tex = owned ? GoF2Remake.Data.OriginalTextures.Image($"GoF2Hud/logo_{race}") : null;
             logo.style.display = tex != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (tex != null) { logo.style.backgroundImage = new StyleBackground(tex); logo.style.width = tex.width; logo.style.height = tex.height; }
-            orbitInfo.Q<Label>("orbitStation").text = st == null ? "" : st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}";
+            orbitInfo.Q<Label>("orbitStation").text = GameNames.Station(st);
             orbitInfo.Q<Label>("orbitSystem").text = st == null ? "" : $"{st.systemName} {Localization.Get(137)}";
             string holder = st == null ? "" : GoF2Remake.Multiplayer.NetFactionsClient.OwnerText(st.index);   // a faction's station (NetFactions)
             if (holder.Length > 0) orbitInfo.Q<Label>("orbitSystem").text += $"  ·  {holder}";

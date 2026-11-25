@@ -398,7 +398,7 @@ namespace GoF2Remake.Flight
             if (layout.hasStation && st != null)
                 Targets.Add(new Target { kind = Kind.Station,
                     fixedPosition = SpaceHooks.StationPosition(st.index), station = st.index,
-                                         name = st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}" });
+                                         name = GameNames.Station(st) });
             else if (layout.hasStation && layout.alienOrbit)   // the Void station: distance only, no autopilot
             {
                 // Radar::Radar: 415 "Void" + " Station" (the Void pseudo-station's index is -1, not 101); after the Valkyrie
@@ -699,9 +699,18 @@ namespace GoF2Remake.Flight
         /// its landmark with it.</summary>
         public GameObject StationObject;
 
+        Target PlayerStationTarget(int orbit) =>
+            Targets.Find(value => value.kind == Kind.Station && value.station == orbit && value.transform == null);
+
+        internal void RefreshPlayerStationName(int orbit, string name)
+        {
+            var target = PlayerStationTarget(orbit);
+            if (target != null) target.name = name;
+        }
+
         internal void RefreshPlayerStation(int orbit, bool operational, string name)
         {
-            var target = Targets.Find(value => value.kind == Kind.Station && value.station == orbit && value.transform == null);
+            var target = PlayerStationTarget(orbit);
             if (!operational)
             {
                 if (target == null) return;
@@ -717,7 +726,7 @@ namespace GoF2Remake.Flight
                     Targets.Add(target);
                 }
                 target.fixedPosition = SpaceHooks.StationPosition(orbit);
-                target.name = $"{name} {Localization.Get(136)}";
+                target.name = name;
             }
         }
 
