@@ -484,7 +484,7 @@ namespace GoF2Remake.UI
         }
 
         bool PlayerMarketplace => Shop.UsesPlayerMarketplace(level.Station?.index ?? -1);
-        bool HasPlayerStorage => PlayerMarketplace && playerMarket?.storage?.canDeposit == true;
+        bool HasPlayerStorage => PlayerMarketplace && (playerMarket?.storage?.canDeposit == true || playerMarket?.storage?.canWithdraw == true);
         internal bool HasFourthTab => HasPlayerStorage || VipTools;
         bool PlayerStorageTab => PlayerMarketplace && tab == Tab.Storage;
         GoF2Remake.Multiplayer.NetPlayerStations.MarketUiCatalogue playerMarket;
