@@ -41,6 +41,21 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool CanDamagePlayerStation(int orbit) => StationSceneryPresent(orbit) && !StationOfferedForClaim(orbit);
 
+        // Initialize before publishing, not on first impact. Keep legacy damage fractions intact.
+        static void InitializeStationIntegrity(PlayerStationRecord station)
+        {
+            if (station == null || station.destroyed || station.retired ||
+                (station.underConstruction && !station.reconstructing)) return;
+            bool vulnerable = station.wreckClaimOpen || station.reconstructing;
+            float capacity = vulnerable ? WreckMaxIntegrity : StationMaxIntegrity;
+            float oldCapacity = station.stationIntegrityCapacity > 0f ? station.stationIntegrityCapacity :
+                vulnerable ? LegacyWreckMaxIntegrity : LegacyStationMaxIntegrity;
+            station.stationIntegrity = station.stationIntegrityInitialized
+                ? Mathf.Clamp01(station.stationIntegrity / oldCapacity) * capacity : capacity;
+            station.stationIntegrityCapacity = capacity;
+            station.stationIntegrityInitialized = true;
+        }
+
         internal static bool ApplyStationCombatHit(int orbit, int weaponItem, float damage)
         {
             if (!NetGame.IsServer || !sessionActive || !CanDamagePlayerStation(orbit) ||
@@ -100,6 +115,7 @@ namespace GoF2Remake.Multiplayer
                 site.materials = station.materials;
                 site.wreckBlueprintSalvage = BlueprintSalvage(station);
                 OpenWreckClaim(site);
+                InitializeStationIntegrity(site);
             }
             else if (station.wreckClaimOpen)
             {
