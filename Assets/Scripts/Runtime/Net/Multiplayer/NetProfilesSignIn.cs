@@ -57,6 +57,11 @@ namespace GoF2Remake.Multiplayer
                 if (name.Length > 0)
                     NetNews.Post(NetNews.Kind.Pilot, $"New pilot in the sector: {NetNews.Safe(NetGame.Clean(name))} registers at Dis", -1, "newpilot", 120f);
             }
+            if (!ReplayPendingDeath(account.id))
+            {
+                NetGame.Kick(client, "Your death recovery transaction is pending. Reconnect after the server recovers it.");
+                return;
+            }
             // One connection per device: the older one goes (a reconnect while the dropped one still times out).
             if (account != null)
                 foreach (var other in new List<Login>(logins.Values))
@@ -309,6 +314,11 @@ namespace GoF2Remake.Multiplayer
                 Reject(login, "a station transaction is awaiting durable recovery; retry after recovery completes");
                 return;
             }
+            if (HasPendingDeath(account.id))
+            {
+                Reject(login, "a death penalty transaction is pending");
+                return;
+            }
             if (acceptedSequence != 0 && acceptedSequence <= login.lastAcceptedUploadSequence) return;
             float now = Time.realtimeSinceStartup;
             if (!SaveGame.TryParse(json, NetGame.Db, out var save, out string problem))
@@ -319,6 +329,7 @@ namespace GoF2Remake.Multiplayer
             // Recovery records belong to the server, not to the uploading client.
             var prior = ReadSave(account.id);
             save.deathRecoveries = prior?.deathRecoveries ?? new List<DeathRecovery>();
+            save.lastDeathPenaltyId = prior?.lastDeathPenaltyId;
             if (prior?.deathLoaner == true && save.ship == prior.ship && !IsHostClient(client))
             {
                 int before = prior.kaamoShips?.FindAll(x => x != null && x.ship == save.ship).Count ?? 0;
