@@ -192,6 +192,17 @@ namespace GoF2Remake.Multiplayer
             return a == null || string.IsNullOrEmpty(a.name) ? null : a.name;
         }
 
+        internal static List<(string id, string name)> StationPilotDirectory()
+        {
+            var result = new List<(string, string)>();
+            if (index?.accounts == null) return result;
+            foreach (var account in index.accounts)
+                if (account != null && !string.IsNullOrEmpty(account.id) && !string.IsNullOrEmpty(account.name))
+                    result.Add((account.id, account.name + (IsOnline(account.id) ? " · Online" : " · Offline")));
+            result.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Item2, b.Item2));
+            return result;
+        }
+
         /// <summary>The connected devices of a profile.</summary>
         internal static IEnumerable<ulong> ClientsOf(string id)
         {
