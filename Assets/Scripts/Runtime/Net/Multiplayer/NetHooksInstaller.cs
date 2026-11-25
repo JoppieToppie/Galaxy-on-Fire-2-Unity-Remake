@@ -113,6 +113,8 @@ namespace GoF2Remake.Multiplayer
             GameHooks.ApplyPlayerStations = NetPlayerStations.Apply;
             GameHooks.IsPlayerStation = NetPlayerStations.IsPlayerStation;
             GameHooks.StationSceneryPresent = NetPlayerStations.StationSceneryPresent;
+            GameHooks.StationConstructionPlaceholder = orbit => NetPlayerStations.StationAt(orbit) is PlayerStationRecord project &&
+                project.underConstruction && !project.reconstructing && !project.destroyed && !project.retired && !project.wreckClaimOpen;
             GameHooks.StationClosedByCombat = NetPlayerStations.StationClosedByCombat;
             GameHooks.HasDryDockAtStation = NetPlayerStations.HasDryDockAtStation;
             GameHooks.HasPlayerJumpgate = NetPlayerStations.HasJumpgateAtStation;
