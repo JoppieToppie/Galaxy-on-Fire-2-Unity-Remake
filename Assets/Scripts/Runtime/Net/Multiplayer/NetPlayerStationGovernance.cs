@@ -150,8 +150,8 @@ namespace GoF2Remake.Multiplayer
                 by != null && by.IsSpawned && by.InHangar && by.Station == record.stationIndex &&
                 record.offeredForClaimUtc == 0 && !StationClosedByCombat(record.stationIndex) &&
                 NetProfiles.Enabled && NetProfiles.Controls(by.OwnerClientId) && !string.IsNullOrEmpty(account) &&
-                HasStationPermission(record, account, PlayerStationPermission.Visit) &&
-                (AllowsStationRace(record, account, "docking") ||
+                ((HasStationPermission(record, account, PlayerStationPermission.Visit) &&
+                  AllowsStationRace(record, account, "docking")) ||
                  (recoverProperty && HasRaceProtectedProperty(record, account)));
         }
 
@@ -358,8 +358,8 @@ namespace GoF2Remake.Multiplayer
         {
             var record = StationAt(stationIndex);
             return record == null || (!StationClosedByCombat(stationIndex) &&
-                HasStationPermission(record, account, PlayerStationPermission.Visit) &&
-                (AllowsStationRace(record, account, "docking") || HasRaceProtectedProperty(record, account)));
+                ((HasStationPermission(record, account, PlayerStationPermission.Visit) &&
+                  AllowsStationRace(record, account, "docking")) || HasRaceProtectedProperty(record, account)));
         }
 
         // Ownership authority controls staffing and faction-wide station policy.
