@@ -40,6 +40,8 @@ namespace GoF2Remake.Flight
         /// <summary>Remake mods: a station's docking pad outside (stations.json "orbit.pads", SpaceLevel.SpawnStationPads): no
         /// transfer of its own; the events' "on pad" fires (SpaceHooks.PadDocked).</summary>
         public const int StationPad = 5;
+        public const int ConstructionSite = 6;
+        public const float ConstructionCubeHalf = 100f;
         /// <summary>Set by the level: why this target refuses docking now (null: it doesn't), e.g. an event's Restrict Travel.</summary>
         public Func<NpcShip, string> Refusal;
 
@@ -130,8 +132,18 @@ namespace GoF2Remake.Flight
                 if (refusal != null) { Say(refusal); return false; }
             }
             if (Refusal?.Invoke(target) is string levelRefusal) { Say(levelRefusal); return false; }
-            var points = SpacePoints.Set(target.SpacePointSet);
-            if (!NearestPoints(target, points)) return false;
+            var points = target.DockingType == ConstructionSite ? null : SpacePoints.Set(target.SpacePointSet);
+            if (target.DockingType == ConstructionSite)
+            {
+                var local = target.transform.InverseTransformPoint(ship.transform.position);
+                var axis = Mathf.Abs(local.x) >= Mathf.Abs(local.z) ? Vector3.right * (local.x < 0 ? -1 : 1)
+                    : Vector3.forward * (local.z < 0 ? -1 : 1);
+                dockLocal = axis * ConstructionCubeHalf;
+                approachLocal = axis * (ConstructionCubeHalf + 150f);
+                dockDirLocal = Vector3.up;
+                takenPoint = -1;
+            }
+            else if (!NearestPoints(target, points)) return false;
             Target = target;
             if (takenPoint >= 0) { takenObject = target.transform; SpacePoints.Take(takenObject, takenPoint); }
             State = Phase.Approach;
