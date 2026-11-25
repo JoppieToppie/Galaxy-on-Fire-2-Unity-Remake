@@ -371,6 +371,8 @@ namespace GoF2Remake.Multiplayer
             var victim = NetSquad.Find(client);
             var by = NetSquad.Find(killer);
             if (victim == null || by == null || !HitRecently(victim.NetworkObjectId, killer, 30f)) return;
+            if (ConsumeBountyCombat(victim, by) && !NetArena.InMatch(client) && !NetArena.InMatch(killer))
+                NetFactions.RecordBountyPvpKill(victim, by);
             NetArena.OnKill(victim.OwnerClientId, by.OwnerClientId);   // an arena match's score
             NetFactions.OnPilotKilled(victim, by);                     // a siege fight: the killer repaired
             NoticeRpc(string.Format(Localization.Extra("mpDestroyedBy", "{0} was destroyed by {1}."), victim.DisplayName, by.DisplayName));

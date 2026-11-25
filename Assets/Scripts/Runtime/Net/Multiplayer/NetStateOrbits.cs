@@ -136,6 +136,50 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: 'shooter' hit 'target' within the last 'seconds'.</summary>
         internal bool HitRecently(ulong target, ulong shooter, float seconds) =>
             hits.TryGetValue((target, shooter), out float t) && Time.unscaledTime - t <= seconds;
+        const float BountyCombatTimeout = NetAggression.HostileSeconds;
+        readonly Dictionary<(ulong first, ulong second), (ulong aggressor, int station, float lastHit)> bountyCombat =
+            new Dictionary<(ulong, ulong), (ulong, int, float)>();
+
+        static (ulong first, ulong second) BountyCombatKey(NetPlayer a, NetPlayer b)
+        {
+            ulong first = a.NetworkObjectId, second = b.NetworkObjectId;
+            return first < second ? (first, second) : (second, first);
+        }
+
+        internal void NoteBountyCombatHit(NetPlayer target, NetPlayer by)
+        {
+            if (!IsServer || !NetProfiles.Enabled) return;
+            var key = BountyCombatKey(target, by);
+            float now = Time.unscaledTime;
+            if (!bountyCombat.TryGetValue(key, out var combat) || combat.station != target.Station || now - combat.lastHit > BountyCombatTimeout)
+                combat = (by.NetworkObjectId, target.Station, now);
+            combat.lastHit = now;
+            bountyCombat[key] = combat;
+        }
+
+        bool ConsumeBountyCombat(NetPlayer victim, NetPlayer killer)
+        {
+            if (bountyCombat.Count == 0) return false;
+            var key = BountyCombatKey(victim, killer);
+            bool qualifies = bountyCombat.TryGetValue(key, out var combat) && combat.aggressor == killer.NetworkObjectId &&
+                combat.station == victim.Station && Time.unscaledTime - combat.lastHit <= BountyCombatTimeout;
+            // The same hit evidence cannot support another bounty report, even with a different killer.
+            var ended = new List<(ulong, ulong)>();
+            foreach (var pair in bountyCombat.Keys)
+                if (pair.first == victim.NetworkObjectId || pair.second == victim.NetworkObjectId) ended.Add(pair);
+            foreach (var pair in ended) bountyCombat.Remove(pair);
+            return qualifies;
+        }
+
+        void PruneBountyCombat(float now)
+        {
+            if (bountyCombat.Count == 0) return;
+            var expired = new List<(ulong, ulong)>();
+            foreach (var pair in bountyCombat)
+                if (now - pair.Value.lastHit > BountyCombatTimeout) expired.Add(pair.Key);
+            foreach (var pair in expired) bountyCombat.Remove(pair);
+        }
+
         // ---- asteroids --------------------------------------------------------------------------------------
         /// <summary>A player destroyed asteroid 'index' of 'station' (shot, mined, rammed): only a player flying there (else
         /// one client could empty every field of the session).</summary>

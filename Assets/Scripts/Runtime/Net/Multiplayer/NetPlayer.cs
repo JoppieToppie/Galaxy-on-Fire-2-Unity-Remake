@@ -956,7 +956,11 @@ namespace GoF2Remake.Multiplayer
                 by.CheckReportedCollisionMode();
                 return;
             }
-            NetState.Instance?.NoteHit(NetworkObjectId, shooter);
+            if (!byNpc && NetState.Instance != null)
+            {
+                NetState.Instance.NoteHit(NetworkObjectId, shooter);
+                NetState.Instance.NoteBountyCombatHit(this, by);
+            }
             HitRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
 

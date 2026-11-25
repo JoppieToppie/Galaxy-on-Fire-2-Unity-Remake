@@ -167,6 +167,7 @@ namespace GoF2Remake.Multiplayer
         [Serializable]
         public class Faction
         {
+            public List<string> bountyProtectedFactions, bountyProtectedPilots;
             public List<StationRaceAccessRule> jumpgateRaceAccess;
             public List<StationFacilityRaceRule> stationRaceRules;
             public string id, name, tag, leader, created;
@@ -224,6 +225,7 @@ namespace GoF2Remake.Multiplayer
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
+            bountyFile = null; bountyDirty = false;
             list = null; invites.Clear(); charges.Clear(); deferredStationTax.Clear(); claimTimer = siegeTimer = 0f; taxDirty = false;
             ClaimCost = DefaultClaimCost; MaxClaims = DefaultMaxClaims; LapseDays = DefaultLapseDays;
             SiegeCost = DefaultSiegeCost; Toll = DefaultToll;
@@ -269,6 +271,7 @@ namespace GoF2Remake.Multiplayer
                 if (x.started) x.armed = true;
             }
             charges.Clear();
+            LoadBounties();
             PublishClaims();
         }
 

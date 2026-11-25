@@ -251,6 +251,8 @@ namespace GoF2Remake.Multiplayer
                 localId.Value = pendingId;
                 creator.Value = OwnerClientId;
                 SpawnedAt = Time.unscaledTime;
+                bountyKillRecorded = false;
+                status.OnValueChanged += RecordOwnerBountyKill;
             }
             if (IsOwner && creator.Value == NetworkManager.LocalClientId && !handedOver.Value)
             {
@@ -473,6 +475,7 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
+            status.OnValueChanged -= RecordOwnerBountyKill;
             NetPoses.Unregister(this);
             if (target != null) { Target.NetShips.Remove(target); Target.RadarObjects.Remove(target); }
             sender?.Unhook();
@@ -671,7 +674,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (byNpc && weaponItem >= 0 && (by == null || by.RunsOrbit != station.Value || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             if (by == null || !by.CollisionModeCompliant) { by?.CheckReportedCollisionMode(); return; }
-            NetState.Instance?.NoteHit(NetworkObjectId, shooter);
+            if (!byNpc) NetState.Instance?.NoteHit(NetworkObjectId, shooter);
             DamageRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
 
@@ -806,6 +809,22 @@ namespace GoF2Remake.Multiplayer
             if (ship != null && ship.Spec != null && ship.Spec.derelict) ship.DockingType = 0;
         }
 
+        bool bountyKillRecorded;
+
+        void RecordOwnerBountyKill(NetProxyStatus before, NetProxyStatus after)
+        {
+            if (before.life == Flying && after.life != Flying && after.killer == OwnerClientId &&
+                NetGuard.InOrbit(OwnerClientId, Station))
+                RecordNpcBountyKill(after.race, OwnerClientId);
+        }
+
+        void RecordNpcBountyKill(int race, ulong killer)
+        {
+            if (bountyKillRecorded || IsJunk || IsWingman || EventTag == NetOrbit.GarrisonTag || EventTag == NetOrbit.SiegeDefenderTag) return;
+            bountyKillRecorded = true;
+            NetFactions.RecordBountyNpcKill(race, killer);
+        }
+
         bool credited;   // the server: this ship's kill credit went out (one per proxy: a relaunched ship gets a new one)
 
         /// <summary>The ship's game says 'shooter' destroyed it: the server passes the credit on once, and only to a player who
@@ -821,6 +840,7 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             credited = true;
+            RecordNpcBountyKill(Race, shooter);
             KillCreditRpc(Mathf.Clamp(race, -1, 15), Mathf.Clamp(systemRace, -1, 15), wasHostile, RpcTarget.Single(shooter, RpcTargetUse.Temp));
         }
 

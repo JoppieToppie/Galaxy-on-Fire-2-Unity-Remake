@@ -171,6 +171,7 @@ namespace GoF2Remake.Multiplayer
             var oldHits = new List<(ulong, ulong)>();
             foreach (var kv in hits) if (now - kv.Value > 60f) oldHits.Add(kv.Key);
             foreach (var k in oldHits) hits.Remove(k);
+            PruneBountyCombat(now);
             var oldInvites = new List<(ulong, ulong)>();
             foreach (var kv in invites) if (now - kv.Value > NetSquad.InviteSeconds + InviteGraceSeconds) oldInvites.Add(kv.Key);
             foreach (var k in oldInvites) invites.Remove(k);

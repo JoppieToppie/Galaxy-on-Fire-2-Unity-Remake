@@ -209,6 +209,7 @@ namespace GoF2Remake.Multiplayer
                 foreach (var key in new List<int>(charges.Keys)) if (charges[key].until < Time.realtimeSinceStartup) charges.Remove(key);
             if ((claimTimer -= Time.unscaledDeltaTime) > 0f) return;
             claimTimer = ClaimTickSeconds;
+            TickBounties();
             bool changed = taxDirty;   // the trade tax since the last write (saved once a minute)
             taxDirty = false;
             string now = DateTime.UtcNow.ToString("o");
