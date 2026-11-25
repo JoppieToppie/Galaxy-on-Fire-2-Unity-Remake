@@ -550,6 +550,7 @@ namespace GoF2Remake.UI
                     BuildOrbitalStructureControls(id);
                     break;
                 case "placement": BuildOrbitPlacement(); break;
+                case "bank": BuildStationBank(id); break;
                 case "market": BuildMarketSettings(id); break;
                 case "refinery": case "factory": BuildFacilityControls(id); break;
                 case "hangar": case "drydock": BuildFacilityControls(id); break;
@@ -617,6 +618,8 @@ namespace GoF2Remake.UI
             DashboardMetric(metrics, "DEFENSES", $"{defenses} / {Modding.ModPlayerInfrastructure.Current.OrbitalDefenseLimit}");
             long escrow = station.buyOrders?.Where(order => order != null && order.remaining > 0).Sum(order => order.reservedCredits) ?? 0L;
             DashboardMetric(metrics, "PROCUREMENT ESCROW", escrow.ToString("N0") + " CR");
+            if (docked && (managementCatalogue?.canManageMarket == true || managementCatalogue?.canOwnership == true))
+                DashboardMetric(metrics, "STATION BANK", managementCatalogue.stationBankCredits.ToString("N0") + " CR");
 
             AddSection("ACTIVITY & PROJECTS", "Live construction status and station announcements.");
             bool hasProjects = false;
@@ -732,6 +735,7 @@ namespace GoF2Remake.UI
             {
                 bool HasModule(string kind) => selected.addons?.Any(addon => addon != null && addon.kind == kind && addon.level > 0) == true;
                 pages.Add(("news", "News"));
+                pages.Add(("bank", "Station bank"));
                 if (managementCatalogue?.canManageMarket == true || managementCatalogue?.canSecurity == true)
                     pages.Add(("market", "Marketplace policy"));
                 if (HasModule("hangar")) pages.Add(("hangar", "Hangar"));
@@ -763,7 +767,7 @@ namespace GoF2Remake.UI
                 "overview" => "Overview",
                 "modules" or "defenses" or "placement" or "gates" => "Infrastructure",
                 "security" or "faction-access" or "blacklist" or "race-policies" or "gate-security" => "Security & Access",
-                "market" or "orders" => "Economy",
+                "bank" or "market" or "orders" => "Economy",
                 "ownership" or "news" => "Governance",
                 "hangar" or "drydock" or "refinery" or "factory" => "Facilities",
                 _ => "Directory"
@@ -2016,12 +2020,30 @@ namespace GoF2Remake.UI
                 AddAction("Race policies", () => ChangeManagementPage("race-policies"));
         }
 
+        void BuildStationBank(string id)
+        {
+            AddSection("STATION BANK", "Independent station funds. Marketplace tax revenue and voluntary credit donations are deposited here.");
+            if (managementCatalogue?.canManageMarket == true || managementCatalogue?.canOwnership == true)
+                AddInfo("Balance", managementCatalogue.stationBankCredits.ToString("N0") + " credits");
+            long available = Math.Min(int.MaxValue, (long)Session.Credits);
+            AddInfo("Your credits", available.ToString("N0"));
+            if (available <= 0) return;
+            AddNumber("bankDonation", "Credits to donate", Math.Min(1000L, available), 1, available);
+            AddAction("Donate credits to station bank", () => Send("/station bank-donate " + id + " " + Value("bankDonation")));
+        }
+
         void BuildStationStock()
         {
             AddSection("DONATED CONSTRUCTION STOCK", "");
             AddAction("View construction stock", "/station faction-materials");
-            AddItemChoice("stockItem", "Material");
-            AddNumber("stockQuantity", "Units", 1, 1, 10000);
+            var required = selected.underConstruction ? selected.materials : selected.moduleConstructionMaterials;
+            var allowed = new HashSet<int>(required?.Where(entry => entry != null && entry.required > entry.delivered)
+                .Select(entry => entry.item) ?? Enumerable.Empty<int>());
+            if (allowed.Count == 0) { AddInfo("Materials", "No outstanding materials for the current station or module build."); return; }
+            AddItemChoice("stockItem", "Required construction material", allowed);
+            if (!int.TryParse(Value("stockItem"), out int item) || !allowed.Contains(item)) return;
+            int remaining = required.Where(entry => entry != null && entry.item == item).Sum(entry => Math.Max(0, entry.required - entry.delivered));
+            AddNumber("stockQuantity", "Units", 1, 1, Math.Min(10000, remaining));
             AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity")));
         }
 
