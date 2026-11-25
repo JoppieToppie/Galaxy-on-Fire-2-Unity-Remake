@@ -12,6 +12,44 @@ namespace GoF2Remake.Modding
 {
     public static partial class ModWorld
     {
+        const string LegacyPopulationFile = "text/npc_population.json";
+
+        static string PopulationRuleKey(string name) =>
+            new string((name ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+
+        static JObject ReadLegacyPopulation(ModInfo mod)
+        {
+            if (!mod.Source.Exists(LegacyPopulationFile)) return null;
+            try
+            {
+                if (ModJson.Read(mod.Source, LegacyPopulationFile) is JObject config) return config;
+                Report(mod, LegacyPopulationFile + " must contain a JSON object.");
+            }
+            catch (ModJsonException error) { Report(mod, error.Message); }
+            return null;
+        }
+
+        static void ApplyLegacyPopulation(ModInfo mod, JObject config, Dictionary<string, JObject> rules,
+            JObject definition, SystemData system, bool newSystem)
+        {
+            if (config == null) return;
+            if (!rules.TryGetValue(PopulationRuleKey(ModJson.Str(definition, "id")), out var rule))
+                rules.TryGetValue(PopulationRuleKey(system.name), out rule);
+            var raceKey = ModRaces.Get(system.raceId)?.key;
+            // The older configuration used a project race named "miscallaneous" for unpopulated systems.
+            // SystemData.race is the display template's race, so use the actual mod race key.
+            bool vacantRace = string.Equals(raceKey, mod.Id + ":miscallaneous", StringComparison.OrdinalIgnoreCase);
+            if (!ModJson.Has(definition, "population") && (newSystem || rule?["population"] != null))
+            {
+                float fallback = vacantRace ? 0f : ModJson.Float(config, "defaultPopulation", system.ambientPopulation, LegacyPopulationFile);
+                float population = rule == null ? fallback : ModJson.Float(rule, "population", fallback, LegacyPopulationFile);
+                if (!float.IsNaN(population)) system.ambientPopulation = Mathf.Clamp(population, 0f, 4f);
+            }
+            bool vacant = newSystem && vacantRace && system.ambientPopulation <= 0f;
+            if (!ModJson.Has(definition, "derelictFreighters") && (rule?["derelictFreighters"] != null || vacant))
+                system.derelictFreighters = rule != null && ModJson.Bool(rule, "derelictFreighters", !vacant, LegacyPopulationFile);
+        }
+
         // ---- merging -------------------------------------------------------------------------------------------------
         /// <summary>ModContent.Apply: the active mods' systems and stations into the freshly read tables.</summary>
         public static void Apply(Database db)
@@ -32,6 +70,15 @@ namespace GoF2Remake.Modding
             foreach (var mod in ModManager.Active)
             {
                 var p = ModContent.Parse(mod);
+                var legacyPopulation = ReadLegacyPopulation(mod);
+                Dictionary<string, JObject> populationRules = null;
+                if (legacyPopulation != null)
+                {
+                    populationRules = new Dictionary<string, JObject>(StringComparer.Ordinal);
+                    if (legacyPopulation["systems"] is JObject configured)
+                        foreach (var entry in configured.Properties())
+                            if (entry.Value is JObject rule) populationRules[PopulationRuleKey(entry.Name)] = rule;
+                }
                 foreach (var d in p.systems)
                 {
                     try
@@ -86,6 +133,7 @@ namespace GoF2Remake.Modding
                         s.securityLevel = Mathf.Clamp(ModJson.Int(o, "security", s.securityLevel, d.file), 0, 3);
                         if (ModJson.Has(o, "population")) s.ambientPopulation = Mathf.Clamp(ModJson.Float(o, "population", 1f, d.file), 0f, 4f);
                         if (ModJson.Has(o, "derelictFreighters")) s.derelictFreighters = ModJson.Bool(o, "derelictFreighters", true, d.file);
+                        ApplyLegacyPopulation(mod, legacyPopulation, populationRules, o, s, d.overrideRef == null);
                         s.initiallyVisible = ModJson.Bool(o, "visible", s.initiallyVisible, d.file);
                         s.textureIndex = Mathf.Clamp(ModJson.Int(o, "sky", s.textureIndex, d.file), 0, 18);
                         foreach (var g in ModJson.Strings(o, "gates"))
