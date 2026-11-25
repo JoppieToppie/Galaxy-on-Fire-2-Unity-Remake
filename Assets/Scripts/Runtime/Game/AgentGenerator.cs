@@ -459,6 +459,21 @@ namespace GoF2Remake.Data
                 }
             }
 
+            // Modded orbits may define fewer than three ores, including an explicitly empty table.
+            // Keep the vanilla top-three roll where possible; never offer mining where no ore can spawn.
+            var miningOres = new List<int>();
+            if (type == MissionType.OreMining)
+            {
+                var layout = World.OrbitLayout.Build(db, currentStation);
+                if (layout != null)
+                {
+                    var ores = World.OrbitLayout.OreProbabilities(db, layout);
+                    for (int i = 0; i < Math.Min(3, ores.Count); i++)
+                        if (ores[i].p > 0 && db.Item(ores[i].item) != null) miningOres.Add(ores[i].item);
+                }
+                if (miningOres.Count == 0) type = MissionType.Defense;
+            }
+
             var m = new FreelanceMission
             {
                 type = type, target = target, clientName = agent.name, clientRace = agent.race, clientMale = agent.male,
@@ -491,7 +506,7 @@ namespace GoF2Remake.Data
                     case MissionType.Wanted: m.targetName = RandomName(0, true); break;   // name args lost: Terran assumed
                     case MissionType.OreMining:
                         // One of this station's 3 asteroid ores (Galaxy::getAsteroidProbabilities, nextInt(3)), nextInt(90)+30 t.
-                        m.good = World.OrbitLayout.OreProbabilities(db, World.OrbitLayout.Build(db, currentStation))[R(3)].item;
+                        m.good = miningOres[R(miningOres.Count)];
                         m.amount = R(90) + 30;
                         break;
                 }
