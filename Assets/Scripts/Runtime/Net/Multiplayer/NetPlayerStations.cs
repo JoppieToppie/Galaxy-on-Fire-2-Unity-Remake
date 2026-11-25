@@ -151,6 +151,7 @@ namespace GoF2Remake.Multiplayer
         public List<PlayerStationShipListing> shipListings = new List<PlayerStationShipListing>();
         public int nextShipListingId = 1;
         public List<PlayerStationBuyOrder> buyOrders = new List<PlayerStationBuyOrder>();
+        public int nextConstructionOrderId = 1;
         public List<PlayerStationStorage> storage = new List<PlayerStationStorage>();
         public List<PlayerStationStorage> donatedConstructionStock = new List<PlayerStationStorage>();
         public List<PlayerStationStorageLot> storageLots = new List<PlayerStationStorageLot>();
@@ -216,7 +217,7 @@ namespace GoF2Remake.Multiplayer
             visible.listings = null; // public listing readout uses the server's marketplace command
             visible.buyOrders = offeredForClaimUtc > 0 ? null : buyOrders?.ConvertAll(order => order == null ? null : new PlayerStationBuyOrder
             {
-                item = order.item, remaining = order.remaining, unitPrice = order.unitPrice,
+                id = order.id, item = order.item, remaining = order.remaining, unitPrice = order.unitPrice,
                 reservedCredits = order.reservedCredits
             });
             return visible;
@@ -254,7 +255,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class PlayerStationBuyOrder
     {
-        public int item, remaining;
+        public int id, item, remaining;
         public long unitPrice, reservedCredits, createdUtc;
         public string fundedByProfile, fundedByFactionId, createdBy;
     }
@@ -498,6 +499,7 @@ namespace GoF2Remake.Multiplayer
                 station.listings ??= new List<PlayerStationListing>();
                 NormalizeItemListingIds(station);
                 station.buyOrders ??= new List<PlayerStationBuyOrder>();
+                NormalizeConstructionOrderIds(station);
                 station.constructionContributions ??= new List<PlayerStationContribution>();
                 station.jumpgateMaterials ??= new List<PlayerStationMaterial>();
                 station.jumpgateContributions ??= new List<PlayerStationContribution>();
@@ -894,7 +896,7 @@ namespace GoF2Remake.Multiplayer
                     if (pending == null) continue;
                     previousOrders.Add(new PlayerStationBuyOrder
                     {
-                        item = pending.item, remaining = pending.remaining, unitPrice = pending.unitPrice,
+                        id = pending.id, item = pending.item, remaining = pending.remaining, unitPrice = pending.unitPrice,
                         reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
                         fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy,
                         createdUtc = pending.createdUtc
