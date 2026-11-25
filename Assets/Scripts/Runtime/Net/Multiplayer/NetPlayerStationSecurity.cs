@@ -14,6 +14,28 @@ namespace GoF2Remake.Multiplayer
             NetPlayerStations.ValidateDockedStationAccess(this);
         }
 
+        [Rpc(SendTo.Server)]
+        internal void RequestDeathRespawnRpc(RpcParams rpc = default)
+        {
+            if (rpc.Receive.SenderClientId != OwnerClientId || !IsSpawned || !InSpace || Hull != 0f || NetArena.InMatch(OwnerClientId)) return;
+            if (NetState.Instance?.EnsureDeathPenalty(this) != true) return;
+            int last = NetProfiles.LastDeathDock(OwnerClientId);
+            int destination = NetFactions.DeathRespawnStation(this, last);
+            if (destination < 0) { NetState.Instance?.Notify(OwnerClientId, "No permitted respawn station is available."); return; }
+            bool protectedDeath = Modding.ModPvpPiracy.Enabled && NetFactions.SecureForBounties(Station, OwnerClientId) && !IsPirate;
+            ApproveDeathRespawnRpc(destination, protectedDeath);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void ApproveDeathRespawnRpc(int destination, bool protectedDeath)
+        {
+            if (!IsOwner || !InSpace) return;
+            GoF2Remake.Data.Session.StationIndex = destination;
+            GoF2Remake.Data.Session.DockedFromSpace = false;
+            GoF2Remake.Data.Session.SkipRespawnDockingFine = protectedDeath;
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Station");
+        }
+
         internal void ForceStationLaunch(string reason)
         {
             if (!IsServer || !IsSpawned) return;
