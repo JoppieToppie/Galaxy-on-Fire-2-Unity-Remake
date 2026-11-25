@@ -238,7 +238,7 @@ namespace GoF2Remake.UI
                     bool vacant = constructionOrbitAllowed(planets[k].station);
                     it.name.style.color = vacant ? new Color(0.53f, 0.94f, 0.72f) : new Color(0.65f, 0.65f, 0.65f);
                     it.ring.style.opacity = vacant ? 1f : 0.25f;
-                    it.line1.text = vacant ? "VACANT SITE" : "UNAVAILABLE";
+                    it.line1.text = vacant ? (plannerPurpose == "jumpgate" ? "GATE SITE AVAILABLE" : "VACANT SITE") : "UNAVAILABLE";
                     it.line1.style.display = DisplayStyle.Flex;
                     it.line1.style.top = 68.5f + 30f;
                     it.line2.style.display = DisplayStyle.None;
