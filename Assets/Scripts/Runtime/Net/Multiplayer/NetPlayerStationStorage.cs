@@ -49,6 +49,7 @@ namespace GoF2Remake.Multiplayer
         {
             public int stationId, directoryPage, directoryPages;
             public bool canAnnounce, canManage, canSecurity, canOwnership, canAppearance, canConstruction, canManageMarket;
+            public long stationBroadcastReadyUtc;
             public StorageUiSnapshot storage;
             public List<ManagementOption> options = new List<ManagementOption>();
         }
@@ -91,6 +92,7 @@ namespace GoF2Remake.Multiplayer
             result.canAppearance = normal && HasStationPermission(record, account, PlayerStationPermission.Appearance);
             result.canConstruction = normal && HasStationPermission(record, account, PlayerStationPermission.Construction);
             result.canAnnounce = CanPublishStationAnnouncement(pilot, record);
+            if (result.canAnnounce) result.stationBroadcastReadyUtc = NetNews.OfficialReadyUtc(StationBroadcastAuthority(record.id));
             if (StorageCapacity(record) > 0) result.storage = StorageSnapshotFor(pilot, stationId);
             void Add(string group, string value, string label) => result.options.Add(new ManagementOption { group = group, value = value, label = label });
             void Hulls(List<StoredShip> ships, List<string> owners, string group, string prefix)
