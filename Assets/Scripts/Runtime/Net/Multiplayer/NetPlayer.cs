@@ -1322,7 +1322,7 @@ namespace GoF2Remake.Multiplayer
                 NetGame.Kick(OwnerClientId, "Complete your permanent pilot identity before entering the world.");
                 return;
             }
-            if (IsServer) CheckReportedCollisionMode();
+            if (IsServer) { CheckReportedCollisionMode(); ValidateDeathRespawnArrival(); }
             if (!IsOwner)
             {
                 if (target != null)
