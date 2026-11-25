@@ -250,7 +250,7 @@ namespace GoF2Remake.UI
             // Away from a project, show it only to its funders or when it has public orders.
             int currentStation = CurrentOrbit;
             var records = NetPlayerStations.Stations?.Where(x => x != null && !x.retired && !x.destroyed && !x.wreckClaimOpen &&
-                (x.stationIndex == currentStation || x.underConstruction &&
+                (x.stationIndex == currentStation || NetPlayer.Local?.CanViewStationLedgerInUi(x.id) == true || x.underConstruction &&
                     (NetPlayer.Local?.CanFundStationProjectInUi(x.id) == true ||
                         x.stationIndex == currentStation || !x.reconstructing && x.buyOrders?.Any(order => order != null && order.remaining > 0) == true)))
                 .OrderBy(x => x.stationIndex != currentStation).ThenBy(x => x.id).ToList();
@@ -382,6 +382,7 @@ namespace GoF2Remake.UI
                     if (localProject?.id == selected.id)
                         AddAction("Contribute to station", () => ChangeManagementPage("contribute"));
                     else AddInfo("Delivery", "Dock at this construction site to deliver materials.");
+                    if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
                     AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                     AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
@@ -393,7 +394,8 @@ namespace GoF2Remake.UI
                 AddInfo("Construction settlement", selected.ownershipType == PlayerStationOwnershipType.Faction
                     ? "Deposits are paid immediately from the faction bank at the fixed catalogue minimum value. If the bank cannot cover a payout, the deposit is rejected and your cargo stays with you."
                     : "Deposits are personal contributions. Individually owned stations do not draw from faction funds.");
-                AddAction("View construction contribution ledger", "/station contributions " + selected.id);
+                if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
+                    AddAction("View construction contribution ledger", "/station contributions " + selected.id);
                 AddAction("View ownership transfer status", "/station transfer-status " + selected.id);
                 AddChoice("transferKind", "Transfer recipient type", new List<(string, string)> { ("player", "Individual pilot"), ("faction", "Pilot’s faction") });
                 AddAccountField("transferAccount", "Recipient pilot");
@@ -1153,7 +1155,8 @@ namespace GoF2Remake.UI
                 AddAction("Deliver construction cargo", () =>
                     Send("/station contribute " + id + " " + Value("contributeItem") + " " + Value("contributeAmount")));
             }
-            AddAction("View contribution ledger", "/station contributions " + id);
+            if (NetPlayer.Local?.CanViewStationLedgerInUi(project.id) == true)
+                AddAction("View contribution ledger", "/station contributions " + id);
         }
 
         void BuildVisitorMarket(string id)
