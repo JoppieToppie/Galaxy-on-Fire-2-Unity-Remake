@@ -32,13 +32,22 @@ namespace GoF2Remake.Multiplayer
 
     public static partial class NetPlayerStations
     {
+        static string StationBlacklistRefusal(PlayerStationRecord record, string account, string fallback)
+        {
+            if (record == null || record.offeredForClaimUtc > 0 || IsStationOwnerAccount(record, account)) return fallback;
+            var ban = record.bans?.Find(entry => entry != null && entry.account == account && entry.source == PlayerStationBanSource.OriginalBuilder);
+            if (ban == null && !HasBuilderRights(record, account))
+                ban = record.bans?.Find(entry => entry != null && entry.account == account && entry.source == PlayerStationBanSource.OwnerAuthority);
+            return ban == null ? fallback : WithBlacklistReason("Access denied: you are blacklisted at " + record.name + ".", ban.reason);
+        }
+
         internal static void ValidateDockedStationAccess(NetPlayer player)
         {
             if (!NetGame.IsServer || player == null || !player.IsSpawned ||
                 player.Where != NetPlayer.Place.Hangar || player.Station < 0) return;
             string account = NetProfiles.AccountOf(player.OwnerClientId);
             if (!CanVisitStation(player.Station, account))
-                player.ForceStationLaunch("You do not have permission to visit this station.");
+                player.ForceStationLaunch(StationBlacklistRefusal(StationAt(player.Station), account, "You do not have permission to visit this station."));
         }
 
         internal static void RefreshAccessForFactionChange()
@@ -56,7 +65,7 @@ namespace GoF2Remake.Multiplayer
                     player.Station != record.stationIndex) continue;
                 string account = NetProfiles.AccountOf(player.OwnerClientId);
                 if (!CanVisitStation(record.stationIndex, account))
-                    player.ForceStationLaunch("Your permission to visit " + record.name + " has been revoked.");
+                    player.ForceStationLaunch(StationBlacklistRefusal(record, account, "Your permission to visit " + record.name + " has been revoked."));
             }
         }
     }
