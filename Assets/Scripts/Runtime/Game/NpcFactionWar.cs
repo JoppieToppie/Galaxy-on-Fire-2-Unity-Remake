@@ -138,7 +138,8 @@ namespace GoF2Remake.Data
                 if (system == null) return -1;
                 if (held.Count == 0 || system.stations == null || system.stations.Count == 0 || !ModNpcFactionWar.CanContest(system))
                     return system.raceId;
-                var totals = new int[4];
+                Span<int> totals = stackalloc int[4];
+                totals.Clear();
                 int orbits = 0;
                 foreach (int station in system.stations)
                 {
