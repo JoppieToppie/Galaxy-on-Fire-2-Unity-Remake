@@ -30,7 +30,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class NetNews
     {
-        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement }
+        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement, StationBroadcast, FactionBroadcast }
 
         public sealed class Item
         {
@@ -38,6 +38,8 @@ namespace GoF2Remake.Multiplayer
             public Kind kind;
             public int station = -1;
             public string text = "";
+            // Server-only audit metadata; never included in the client news packet.
+            public string actor, authority;
         }
 
         const int Keep = 40, SendOnJoin = 15, TickerItems = 8;
@@ -45,21 +47,31 @@ namespace GoF2Remake.Multiplayer
         const float TickerHours = 24f, FreshMinutes = 15f;
         public const int MinDefenseKills = 3;
         public const int MaxTextLength = 200;
+        public const int OfficialMessageLimit = 140;
+        public const int OfficialCooldownSeconds = 300;
 
-        [Serializable] class SavedItem { public long id, time; public int kind, station; public string text = ""; }
-        [Serializable] class SavedList { public List<SavedItem> items = new List<SavedItem>(); }
+        [Serializable] class SavedItem { public long id, time; public int kind, station; public string text = "", actor, authority; }
+        [Serializable] class SavedCooldown { public string authority; public long until; }
+        [Serializable] class SavedList
+        {
+            public List<SavedItem> items = new List<SavedItem>();
+            public List<SavedCooldown> officialCooldowns = new List<SavedCooldown>();
+            public List<SavedItem> officialAudit = new List<SavedItem>();
+        }
 
         // The server's list (also the host's) and this player's (what arrived).
         static readonly List<Item> serverItems = new List<Item>();
         static readonly List<Item> items = new List<Item>();
         static readonly Dictionary<string, long> throttled = new Dictionary<string, long>();
+        static readonly Dictionary<string, long> officialCooldowns = new Dictionary<string, long>();
+        static readonly List<SavedItem> officialAudit = new List<SavedItem>();
         static long nextId;
 
         /// <summary>The news this player has changed (the docked station rebuilds its ticker).</summary>
         public static event Action Changed;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { serverItems.Clear(); items.Clear(); throttled.Clear(); nextId = 0; Changed = null; }
+        static void ResetStatics() { serverItems.Clear(); items.Clear(); throttled.Clear(); officialCooldowns.Clear(); officialAudit.Clear(); nextId = 0; Changed = null; }
 
         static long UnixNow => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
@@ -79,6 +91,7 @@ namespace GoF2Remake.Multiplayer
         {
             serverItems.Clear();
             throttled.Clear();
+            officialCooldowns.Clear(); officialAudit.Clear();
             nextId = 0;
             string path = PathOf;
             try
@@ -88,7 +101,11 @@ namespace GoF2Remake.Multiplayer
                     var saved = JsonUtility.FromJson<SavedList>(File.ReadAllText(path));
                     if (saved?.items != null)
                         foreach (var s in saved.items)
-                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.StationAnnouncement), station = s.station, text = s.text ?? "" });
+                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.FactionBroadcast), station = s.station, text = s.text ?? "", actor = s.actor, authority = s.authority });
+                    if (saved?.officialCooldowns != null)
+                        foreach (var c in saved.officialCooldowns)
+                            if (c != null && !string.IsNullOrEmpty(c.authority) && c.until > UnixNow) officialCooldowns[c.authority] = c.until;
+                    if (saved?.officialAudit != null) officialAudit.AddRange(saved.officialAudit);
                 }
             }
             catch (Exception e) { Debug.LogWarning($"Server: news.json unreadable ({e.Message}); starting without news."); serverItems.Clear(); }
@@ -104,13 +121,47 @@ namespace GoF2Remake.Multiplayer
             if (serverItems.Count > Keep) serverItems.RemoveRange(0, serverItems.Count - Keep);
         }
 
-        static void Save()
+        static bool Save()
         {
             string path = PathOf;
-            if (path == null) return;
+            if (path == null) return false;
             var saved = new SavedList();
-            foreach (var i in serverItems) saved.items.Add(new SavedItem { id = i.id, time = i.time, kind = (int)i.kind, station = i.station, text = i.text });
-            NetProfiles.Write(path, JsonUtility.ToJson(saved, true));
+            foreach (var i in serverItems) saved.items.Add(ToSaved(i));
+            foreach (var c in officialCooldowns)
+                if (c.Value > UnixNow) saved.officialCooldowns.Add(new SavedCooldown { authority = c.Key, until = c.Value });
+            saved.officialAudit.AddRange(officialAudit);
+            return NetProfiles.Write(path, JsonUtility.ToJson(saved, true));
+        }
+
+        static SavedItem ToSaved(Item i) => new SavedItem { id = i.id, time = i.time, kind = (int)i.kind, station = i.station, text = i.text, actor = i.actor, authority = i.authority };
+
+        internal static long OfficialReadyUtc(string authority) => authority != null && officialCooldowns.TryGetValue(authority, out long until) ? until : 0;
+
+        // Called only after the station/faction command has authenticated the publishing authority.
+        internal static string PostOfficial(Kind kind, string authority, string name, string actor, string message, int station = -1)
+        {
+            if (!IsServer || PathOf == null || string.IsNullOrEmpty(authority) || string.IsNullOrEmpty(actor)) return "Official broadcasts require a persistent controlled profile.";
+            if (kind != Kind.StationBroadcast && kind != Kind.FactionBroadcast) return "Invalid broadcast authority.";
+            message = (message ?? "").Trim();
+            if (message.Length == 0 || message.Length > OfficialMessageLimit) return $"Write a broadcast of 1–{OfficialMessageLimit} characters.";
+            long now = UnixNow, previous = OfficialReadyUtc(authority);
+            if (previous > now) return $"Broadcast cooldown: {previous - now} seconds remaining for this authority.";
+            string content = Clean(Safe("[" + name + "] " + message));
+            var item = new Item { id = ++nextId, time = now, kind = kind, station = station, text = content, actor = actor, authority = authority };
+            var previousItems = new List<Item>(serverItems);
+            officialCooldowns[authority] = now + OfficialCooldownSeconds;
+            serverItems.Add(item); Prune();
+            var audit = ToSaved(item); officialAudit.Add(audit);
+            if (!Save())
+            {
+                officialAudit.Remove(audit);
+                serverItems.Clear(); serverItems.AddRange(previousItems);
+                if (previous > 0) officialCooldowns[authority] = previous; else officialCooldowns.Remove(authority);
+                return "The broadcast could not be saved; no cooldown was consumed.";
+            }
+            NetState.Instance.BroadcastNews(Pack(item));
+            Debug.Log($"Server: official broadcast [{kind}] {authority} by {actor}: {content}");
+            return "Official broadcast published to GalNet.";
         }
 
         static bool IsServer => NetState.Instance != null && NetState.Instance.IsSpawned && NetState.Instance.IsServer;
@@ -218,7 +269,7 @@ namespace GoF2Remake.Multiplayer
             var p = (packed ?? "").Split(new[] { '|' }, 5);
             if (p.Length < 5 || !long.TryParse(p[0], out long id) || !int.TryParse(p[1], out int kind) || !int.TryParse(p[2], out int station)
                 || !long.TryParse(p[3], out long time)) return null;
-            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.StationAnnouncement), station = station, time = time, text = Clean(p[4]) };
+            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.FactionBroadcast), station = station, time = time, text = Clean(p[4]) };
         }
 
         /// <summary>NetState: an item from the server ("" with 'reset' = the list starts over).</summary>
@@ -237,7 +288,7 @@ namespace GoF2Remake.Multiplayer
         static readonly (string label, string color)[] Kickers =
         {
             ("BREAKING", "#ff5a4f"), ("TERRITORY", "#f5a524"), ("WAR", "#ff7a1a"), ("ARENA", "#38bdf8"),
-            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"),
+            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"), ("STATION BROADCAST", "#e4ba78"), ("FACTION BROADCAST", "#c084fc"),
         };
 
         /// <summary>The session's news for the ticker (rich text, each item followed by NewsTicker.Separator), "" = none:
