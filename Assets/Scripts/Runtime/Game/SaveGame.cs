@@ -62,6 +62,7 @@ namespace GoF2Remake.Data
         public bool informerKilled, informerFailed;
         public List<string> wingmen;
         public List<int> wingmanShips;   // remake mods: a mod crew's ships (Session.WingmanShips)
+        public List<int> wingmanRaces;
         public int wingmanRace;
         public float wingmanContractMs;
         public int[] wingmanPortrait;
@@ -483,7 +484,7 @@ namespace GoF2Remake.Data
                 passengers = Session.Passengers,
                 usedMissionTypes = Session.UsedMissionTypes,
                 informerKilled = Session.InformerKilled,
-                wingmen = Session.Wingmen, wingmanShips = Session.WingmanShips, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs,
+                wingmen = Session.Wingmen, wingmanShips = Session.WingmanShips, wingmanRaces = Session.WingmanRaces, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs,
                 wingmanPortrait = Session.WingmanPortrait, wingmenHired = Session.WingmenHired,
                 playerIdentityRace = Session.PlayerIdentityRace, playerIdentityPortrait = Session.PlayerIdentityPortrait,
                 unlockedBlueprints = new List<int>(Session.UnlockedBlueprints), shipMods = Session.ShipMods,
@@ -728,6 +729,7 @@ namespace GoF2Remake.Data
                 Session.Wingmen = s.wingmen ?? new List<string>();
                 Session.WingmanShips = s.wingmanShips ?? new List<int>();   // (a ship no longer there: the game's way, Traffic.SpawnWingmen)
                 Session.WingmanRace = s.wingmanRace;
+                Session.WingmanRaces = s.wingmanRaces ?? new List<int>();
                 Session.WingmanContractMs = s.wingmanContractMs;
                 if (s.wingmanPortrait != null && s.wingmanPortrait.Length == 5) Session.WingmanPortrait = s.wingmanPortrait;
                 Session.WingmenHired = s.wingmenHired;
