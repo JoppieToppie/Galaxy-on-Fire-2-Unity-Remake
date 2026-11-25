@@ -81,6 +81,16 @@ namespace GoF2Remake.UI
         void TryZoomIn()
         {
             if (selected < 0) return;
+            if (plannerSystemOnly && constructionSystemAllowed != null)
+            {
+                int systemId = selected;
+                if (!constructionSystemAllowed(systemId)) return;
+                var system = db.Systems.Find(entry => entry != null && entry.index == systemId);
+                var anchor = db.Stations.Find(entry => entry != null && entry.system == systemId && constructionOrbitAllowed?.Invoke(entry.index) == true);
+                if (system == null || anchor == null) return;
+                ShowDialog("Select " + system.name + " as the jumpgate destination?", () => Close(new StarMapResult { station = anchor.index }), null);
+                return;
+            }
             if (!jumpDrive && mode != StarMapMode.Mission && !GateReachable(selected)) { ShowDialog(T(420), null, null, true); return; }
             Play(assets.zoomIn);
             zoomSystem = selected;
@@ -147,7 +157,7 @@ namespace GoF2Remake.UI
                 if (!constructionSystemAllowed(constructionSystem) || constructionOrbitAllowed?.Invoke(station) != true)
                 { ShowDialog("This orbit is occupied, reserved or inaccessible.", null, null, true); return; }
                 string systemName = db.Systems.Find(system => system != null && system.index == constructionSystem)?.name ?? "this system";
-                ShowDialog("Reserve the vacant orbit of " + StationName(station, false) + " in " + systemName + " for a station project?",
+                ShowDialog(plannerPurpose == "jumpgate" ? "Select the orbit of " + StationName(station, false) + " in " + systemName + " for a jumpgate?" : "Reserve the vacant orbit of " + StationName(station, false) + " in " + systemName + " for a station project?",
                     () => Close(new StarMapResult { station = station }), null);
                 return;
             }
