@@ -33,3 +33,23 @@ Register station entries from `stations.json` and systems with a custom `jumpgat
 Fresh scrap starts with 5,000 integrity by default. A hit that wrecks an operational gate makes scrap and does not carry over damage into it. The next qualifying structural hits damage the scrap, which does not regenerate. If someone reclaims and rebuilds the gate before that integrity reaches zero, the next operational loss again produces fresh scrap. The new rules apply to existing scrapped gates, and existing permanently destroyed sites retain their saved state.
 
 Server configuration examples live in [Player station economy](PLAYER-STATION-ECONOMY.md). Optional drive rules are described in [Jump drive rules](../Modding/JUMP_DRIVE_RULES.md).
+
+
+### Storage, economy, siege access and stock sentry maintenance
+
+These settings are available in **Player-built stations & gates** and in the same validated `playerInfrastructure.json` rules object (including the MCP playerInfrastructure entry).
+
+| Field | Default | Accepted range |
+| --- | --- | --- |
+| storageCapacityPerLevel | 2000 | 1–1000000 |
+| storageItemTypes | 64 | 1–4096 |
+| stationClaimPrice | 25000000 | 0–2147483647 |
+| stationRenamePrice | 300000 | 0–2147483647 |
+| siegeRespawnFactionOfficers | true | boolean |
+| siegeRespawnStationAdministrators | true | boolean |
+| siegeRespawnOriginalBuilders | true | boolean |
+| stockDefenseMaintenanceSeconds | 604800 | 60–31536000 |
+| stockDefenseDecayPercentPerDay | 1 | 0.001–100 |
+| stockDefenseMinimumIntegrityPercent | 15 | 15–99 |
+
+Lower storage limits restrict new deposits without deleting saved possessions. Faction leaders and owners retain siege privileges; ordinary defenders cannot be opted into them. The stock maintenance settings apply to new sentries and legacy stock sentries lacking upkeep; already-maintained structures retain their persisted settings. Custom orbital presets can specify their own maintenance terms. Default maintenance costs remain 20 units of item 156, 10 of 155, 8 of 118 and 5 of 127 per interval.

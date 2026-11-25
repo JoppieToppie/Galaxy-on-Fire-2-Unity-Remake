@@ -66,6 +66,9 @@ namespace GoF2Remake.Modding
         readonly Dictionary<string, int> moduleBuildSeconds = new Dictionary<string, int>();
         public int ModuleBuildSeconds(string kind) => moduleBuildSeconds.TryGetValue(kind, out int seconds) ? seconds : 0;
 
+        public int StockDefenseMaintenanceSeconds { get; private set; } = DefaultDefenseMaintenanceSeconds;
+        public float StockDefenseDecayPercentPerDay { get; private set; } = DefaultOrbitalDecayPercentPerDay;
+        public float StockDefenseMinimumIntegrityPercent { get; private set; } = MinimumOrbitalDecayIntegrityPercent;
         public int OrbitalDefenseLimit { get; private set; } = DefaultOrbitalDefenseLimit;
         public int OtherOrbitalStructureLimit { get; private set; } = MaxOtherOrbitalStructureLimit;
         public float MinimumStationScale { get; private set; } = 1f;
@@ -113,13 +116,16 @@ namespace GoF2Remake.Modding
         internal static string DefenseAssembly(string assembly) =>
             Array.IndexOf(SentryAssemblies, assembly) >= 0 ? assembly : SentryAssemblies[0];
 
-        static OrbitalDefinition StockDefense(int model) => new OrbitalDefinition
+        static OrbitalDefinition StockDefense(int model, int interval = DefaultDefenseMaintenanceSeconds,
+            float decay = DefaultOrbitalDecayPercentPerDay, float floor = MinimumOrbitalDecayIntegrityPercent) => new OrbitalDefinition
         {
             Id = model == 0 ? "orbital-defense" : "orbital-defense-" + (model + 1),
             Name = "Orbital Sentry " + (model + 1), Defense = true, Assembly = SentryAssemblies[model],
             ModelScale = DefenseModelScale, HitRadius = 250f, Integrity = 12000f, Range = 5000f, Damage = 120f,
             FireIntervalSeconds = 3, Materials = new List<(int, int)> { (156, 200), (155, 100), (118, 80), (127, 50) },
-            MaintenanceIntervalSeconds = DefaultDefenseMaintenanceSeconds,
+            MaintenanceIntervalSeconds = interval,
+            MaintenanceDecayPercentPerDay = decay,
+            MinimumMaintenanceIntegrityPercent = floor,
             MaintenanceMaterials = new List<(int, int)> { (156, 20), (155, 10), (118, 8), (127, 5) }
         };
 
@@ -211,11 +217,14 @@ namespace GoF2Remake.Modding
                 MinimumJumpgateScale = ReadMinimumScale(settings, "minimumJumpgateScale"),
                 OrbitalDefenseLimit = StructureInt(settings, "orbitalDefenseLimit", DefaultOrbitalDefenseLimit, 0, MaxOrbitalDefenseLimit),
                 OtherOrbitalStructureLimit = StructureInt(settings, "otherOrbitalStructureLimit", MaxOtherOrbitalStructureLimit, 0, MaxOtherOrbitalStructureLimit),
-                OrbitalStructures = ReadStructures(settings),
+                StockDefenseMaintenanceSeconds = StructureInt(settings, "stockDefenseMaintenanceSeconds", DefaultDefenseMaintenanceSeconds, 60, 31536000),
+                StockDefenseDecayPercentPerDay = StructureNumber(settings, "stockDefenseDecayPercentPerDay", DefaultOrbitalDecayPercentPerDay, 0.001f, 100f),
+                StockDefenseMinimumIntegrityPercent = StructureNumber(settings, "stockDefenseMinimumIntegrityPercent", MinimumOrbitalDecayIntegrityPercent, MinimumOrbitalDecayIntegrityPercent, 99f),
                 StationModels = ReadReferences(settings, "stationModels"),
                 StationModelImages = ReadModelImages(settings),
                 JumpgateModels = ReadReferences(settings, "jumpgateModels")
             };
+            rules.OrbitalStructures = ReadStructures(settings, rules);
             if (settings["moduleBuildSeconds"] != null)
             {
                 if (!(settings["moduleBuildSeconds"] is JObject modules))
@@ -274,10 +283,12 @@ namespace GoF2Remake.Modding
             return scale;
         }
 
-        static IReadOnlyList<OrbitalDefinition> ReadStructures(JObject settings)
+        static IReadOnlyList<OrbitalDefinition> ReadStructures(JObject settings, ModPlayerInfrastructure rules)
         {
             var result = new List<OrbitalDefinition>();
-            if (ReadToggle(settings, "includeStockOrbitalDefense")) result.AddRange(StockStructures);
+            if (ReadToggle(settings, "includeStockOrbitalDefense"))
+                for (int i = 0; i < SentryAssemblies.Length; i++)
+                    result.Add(StockDefense(i, rules.StockDefenseMaintenanceSeconds, rules.StockDefenseDecayPercentPerDay, rules.StockDefenseMinimumIntegrityPercent));
             if (settings["orbitalStructures"] == null) return result;
             if (!(settings["orbitalStructures"] is JArray entries) || entries.Count > 64)
                 throw new ModJsonException(FileName + " orbitalStructures must contain up to 64 definitions.");

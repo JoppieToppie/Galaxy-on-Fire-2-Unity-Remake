@@ -909,6 +909,17 @@ namespace GoF2Remake.UI
                 value = draft["factoryRecipes"]?.ToString() ?? "" }, "mbv-field");
             Note(scroll, "Factory entries use id, output, outputUnits and a materials list with item and amount. Server station-economy overrides take precedence.");
             Note(scroll, "Author dry-dock designs in blueprints.json. Pilots can start eligible jobs from the shipyard.");
+            Heading(scroll, "Storage and station economy");
+            var storageCapacity = Add(scroll, new IntegerField("Storage units per level") { value = settings.StorageCapacityPerLevel }, "mbv-field");
+            var storageTypes = Add(scroll, new IntegerField("Distinct item types per station") { value = settings.StorageItemTypes }, "mbv-field");
+            var claimPrice = Add(scroll, new IntegerField("Public station claim price (CR)") { value = settings.StationClaimPrice }, "mbv-field");
+            var renamePrice = Add(scroll, new IntegerField("Station rename price (CR)") { value = settings.StationRenamePrice }, "mbv-field");
+            Note(scroll, "Capacity: 1–1,000,000; item types: 1–4,096; prices: 0–2,147,483,647. Lowering storage limits never deletes existing property.");
+            Heading(scroll, "Siege respawning");
+            var siegeOfficers = Add(scroll, new Toggle("Allow defending faction officers") { value = settings.SiegeRespawnFactionOfficers }, "mbv-field");
+            var siegeAdmins = Add(scroll, new Toggle("Allow station administrators with operations permission") { value = settings.SiegeRespawnStationAdministrators }, "mbv-field");
+            var siegeBuilders = Add(scroll, new Toggle("Allow original builders with retained rights") { value = settings.SiegeRespawnOriginalBuilders }, "mbv-field");
+            Note(scroll, "Owners and defending faction leaders retain their respawn privileges. Ordinary defenders must use permitted fallback stations.");
             Heading(scroll, "Race policies and player identity");
             var stationRaceMarketLimit = Add(scroll, new IntegerField("Race marketplace adjustment cap (%)")
                 { value = settings.StationRaceMarketLimitPercent }, "mbv-field");
@@ -955,6 +966,11 @@ namespace GoF2Remake.UI
             var otherStructureLimit = Add(scroll, new IntegerField("Other structure limit per orbit")
                 { value = settings.OtherOrbitalStructureLimit }, "mbv-field");
             Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOtherOrbitalStructureLimit} for structures without weapons.");
+            Heading(scroll, "Stock sentry maintenance");
+            var stockMaintenance = Add(scroll, new IntegerField("Maintenance interval (seconds)") { value = settings.StockDefenseMaintenanceSeconds }, "mbv-field");
+            var stockDecay = Add(scroll, new FloatField("Overdue integrity loss (% maximum per day)") { value = settings.StockDefenseDecayPercentPerDay }, "mbv-field");
+            var stockFloor = Add(scroll, new FloatField("Minimum integrity from decay (%)") { value = settings.StockDefenseMinimumIntegrityPercent }, "mbv-field");
+            Note(scroll, "Stock sentries require upkeep. Interval: 60–31,536,000 seconds; decay: 0.001–100%; floor: 15–99%. New sentries use these values; existing maintained sentries keep their saved contract.");
             Heading(scroll, "Orbital structure catalogue");
             Note(scroll, "Configure each preset using the fields below. Advanced JSON remains available for additional fields.");
             Note(scroll, "Use the example buttons to create a defense or a non-combat structure.");
@@ -1156,6 +1172,16 @@ namespace GoF2Remake.UI
             {
                 draft["enabled"] = enabled.value;
                 draft["jumpgatesEnabled"] = gates.value;
+                draft["storageCapacityPerLevel"] = storageCapacity.value;
+                draft["storageItemTypes"] = storageTypes.value;
+                draft["stationClaimPrice"] = claimPrice.value;
+                draft["stationRenamePrice"] = renamePrice.value;
+                draft["siegeRespawnFactionOfficers"] = siegeOfficers.value;
+                draft["siegeRespawnStationAdministrators"] = siegeAdmins.value;
+                draft["siegeRespawnOriginalBuilders"] = siegeBuilders.value;
+                draft["stockDefenseMaintenanceSeconds"] = stockMaintenance.value;
+                draft["stockDefenseDecayPercentPerDay"] = stockDecay.value;
+                draft["stockDefenseMinimumIntegrityPercent"] = stockFloor.value;
                 draft["stationBuildSeconds"] = stationBuildSeconds.value;
                 draft["jumpgateBuildSeconds"] = jumpgateBuildSeconds.value;
                 var moduleTimes = new JObject();
