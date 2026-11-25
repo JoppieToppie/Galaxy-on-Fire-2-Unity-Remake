@@ -6,6 +6,7 @@ namespace GoF2Remake.Multiplayer
     public static partial class NetPlayerStations
     {
         public const long StationClaimPrice = 25_000_000;
+        public const long StationRenamePrice = 300_000;
 
         public static bool StationOfferedForClaim(int orbit) => StationAt(orbit)?.offeredForClaimUtc > 0;
 
@@ -150,14 +151,21 @@ namespace GoF2Remake.Multiplayer
             string previous = record.name;
             if (string.Equals(name, previous, StringComparison.Ordinal)) return "The station already has that name.";
 
+            if (record.underConstruction || record.reconstructing || record.wreckClaimOpen || record.destroyed || record.retired || record.offeredForClaimUtc > 0)
+                return "Only an operational, privately owned station can be renamed.";
+            if (ProfileWritesBlocked) return "A pending transaction is being recovered. Try again later.";
+            if (NetProfiles.CreditAmount(account) < StationRenamePrice)
+                return $"Renaming a station costs {StationRenamePrice:N0} credits from your personal balance.";
             record.name = name;
-            if (!Save())
+            if (!CommitProfileTransaction(null, new System.Collections.Generic.List<(string account, long delta)> { (account, -StationRenamePrice) }, null))
             {
                 record.name = previous;
-                return "The station name could not be saved.";
+                return "The rename could not be committed. No fee was charged.";
             }
+            if (!ProfileWritesBlocked) NotifyProfileCreditChange(account, -StationRenamePrice, "Station rename");
             Apply(NetGame.Db);
-            return "Station renamed to " + name + ".";
+            UnityEngine.Debug.Log($"Server: audit station {id}: profile {account} renamed '{previous}' to '{name}' for {StationRenamePrice:N0} credits.");
+            return $"Station renamed to {name} for {StationRenamePrice:N0} credits.";
         }
 
         /// <summary>
