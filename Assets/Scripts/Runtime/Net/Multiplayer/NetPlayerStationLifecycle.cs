@@ -85,6 +85,7 @@ namespace GoF2Remake.Multiplayer
             createdUtc = station.createdUtc,
             nextShipListingId = station.nextShipListingId,
             nextItemListingId = station.nextItemListingId,
+            nextConstructionOrderId = station.nextConstructionOrderId,
             donatedConstructionStock = station.donatedConstructionStock
         };
 
