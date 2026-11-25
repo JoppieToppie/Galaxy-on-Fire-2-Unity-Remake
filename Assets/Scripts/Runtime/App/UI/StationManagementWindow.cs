@@ -539,7 +539,7 @@ namespace GoF2Remake.UI
                         else AddAction("Retire station for public claim", () => { confirmRetirementId = selected.id; RebuildBody(); });
                     }
                     break;
-                case "security": case "blacklist": case "race-policies": BuildStationGovernance(selected); break;
+                case "security": case "faction-access": case "blacklist": case "race-policies": BuildStationGovernance(selected); break;
                 case "modules": BuildModuleDashboard(id); break;
                 case "defenses":
                     AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
@@ -736,7 +736,8 @@ namespace GoF2Remake.UI
                 else pages.Add(("ownership", "Transfers"));
                 if (managementCatalogue?.canSecurity == true || managementCatalogue?.canOwnership == true)
                 {
-                    pages.Add(("security", "Permissions"));
+                    pages.Add(("security", "Pilots"));
+                    if (managementCatalogue?.canOwnership == true) pages.Add(("faction-access", "Factions"));
                     pages.Add(("blacklist", "Blacklist"));
                 }
                 if ((managementCatalogue?.canOwnership == true || managementCatalogue?.canManageMarket == true) &&
@@ -751,7 +752,7 @@ namespace GoF2Remake.UI
             {
                 "overview" => "Overview",
                 "modules" or "defenses" or "placement" or "gates" => "Infrastructure",
-                "security" or "blacklist" or "race-policies" => "Security & Access",
+                "security" or "faction-access" or "blacklist" or "race-policies" => "Security & Access",
                 "market" or "orders" => "Economy",
                 "ownership" or "news" => "Governance",
                 "hangar" or "drydock" or "refinery" or "factory" => "Facilities",
@@ -779,7 +780,7 @@ namespace GoF2Remake.UI
                 button.AddToClassList("player-station-action");
                 button.EnableInClassList("player-station-row--selected", active);
                 button.AddToClassList(row == primaryNav ? "player-station-primary-tab" : "player-station-secondary-tab");
-                button.style.minHeight = 36;
+                if (row != primaryNav) button.style.minHeight = 36;
                 button.clicked += () => menu?.PlayRelease();
                 row.Add(button);
             }
@@ -1971,48 +1972,12 @@ namespace GoF2Remake.UI
             }
             if (managementPage == "race-policies")
             {
-                AddSection("RACE POLICIES", "");
-                if (owner)
-                    AddChoice("raceFacility", "Facility", NetPlayerStations.RacePolicyFacilities.Select(value => (value, value)).ToList());
-                AddRaceChoice("stationPolicyRace", "Race");
-                if (owner)
-                {
-                AddChoice("racePolicyState", "Race access", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("allow", "Allow"), ("deny", "Deny") });
-                if (Value("racePolicyState") == "deny") AddField("raceDenialReason", "Denial reason", "");
-                AddAction("Apply race access rule", () =>
-                {
-                    string command = $"/station race-policy {id} {Value("raceFacility")} {Value("stationPolicyRace")} {Value("racePolicyState")}";
-                    if (Value("racePolicyState") == "deny") SendWithReason(command, "raceDenialReason");
-                    else Send(command);
-                });
-                }
-                if (managementCatalogue?.canManageMarket == true && Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
-                {
-                    AddChoice("raceMarketAction", "Price adjustment", new List<(string, string)> { ("purchase", "Purchase surcharge or discount"), ("sale", "Seller proceeds deduction") }, _ => drafts.Remove("raceMarketPercent"));
-                    AddChoice("raceMarketMode", "Adjustment", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("custom", "Set percentage") });
-                    int limit = Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
-                    bool custom = Value("raceMarketMode") == "custom";
-                    if (custom)
-                    {
-                        AddNumber("raceMarketPercent", "Percentage", 0, Value("raceMarketAction") == "purchase" ? -limit : 0, limit);
-                        AddField("raceMarketReason", "Reason for the price adjustment", "");
-                    }
-                    AddAction("Apply race price adjustment", () =>
-                    {
-                        string adjustment = custom ? Value("raceMarketPercent") : "inherit";
-                        string command = $"/station race-policy {id} {Value("raceMarketAction")} {Value("stationPolicyRace")} {adjustment}";
-                        if (custom && int.TryParse(adjustment, out int percent) && percent > 0)
-                            SendWithReason(command, "raceMarketReason");
-                        else Send(command);
-                    });
-                }
-                AddAction("View station and faction race rules", "/station race-policy " + id);
-                if (owner && Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
-                {
-                    AddAccountField("stationRaceExemption", "Exemption target");
-                    AddAction("Grant exemption", () => Send("/station race-policy " + id + " exempt add " + Value("stationRaceExemption")));
-                    AddAction("Revoke exemption", () => Send("/station race-policy " + id + " exempt remove " + Value("stationRaceExemption")));
-                }
+                BuildRacePolicyDashboard(station, owner);
+                return;
+            }
+            if (managementPage == "faction-access")
+            {
+                BuildFactionAccess(station, owner);
                 return;
             }
             AddSection("PILOT ACCESS", "");
@@ -2031,19 +1996,159 @@ namespace GoF2Remake.UI
                 if (Value("governanceOverride") == "deny") SendWithReason(command, "permissionReason");
                 else Send(command);
             });
-            if (owner && station.ownershipType == PlayerStationOwnershipType.Individual)
+        }
+
+        void BuildFactionAccess(PlayerStationRecord station, bool owner)
+        {
+            if (!owner) return;
+            string id = station.id.ToString();
+            AddSection("FACTION ACCESS", "Manage inherited permissions separately from individual pilot overrides.");
+            if (station.ownershipType == PlayerStationOwnershipType.Individual)
             {
-                AddSection("FACTION SHARING", "Set faction defaults for docking, storage and the ship hangar.");
                 AddAction("Share with your faction", "/station access " + id + " faction");
                 AddAction("Set owner-only defaults", "/station access " + id + " owner");
+                return;
             }
-            if (owner && station.ownershipType == PlayerStationOwnershipType.Faction)
-            {
-                AddChoice("governanceRank", "Faction rank", new[] { "member", "officer" }.Select(value => (value, value)).ToList());
-                AddChoice("governanceDefault", "Default permission", new[] { "allow", "deny" }.Select(value => (value, value)).ToList());
-                AddAction("Set faction default", () => Send("/station default " + id + " " + Value("governanceRank") + " " + Value("governancePermission") + " " + Value("governanceDefault")));
-            }
+            AddChoice("governanceRank", "Faction rank", new[] { "member", "officer" }.Select(value => (value, value)).ToList());
+            AddChoice("governanceFactionPermission", "Permission", Enum.GetNames(typeof(PlayerStationPermission)).Select(value => (value, value)).ToList());
+            AddChoice("governanceDefault", "Default permission", new[] { "allow", "deny" }.Select(value => (value, value)).ToList());
+            AddAction("Set faction default", () => Send("/station default " + id + " " + Value("governanceRank") + " " + Value("governanceFactionPermission") + " " + Value("governanceDefault")));
+        }
 
+        static string FacilityPolicyLabel(string facility) => facility switch
+        {
+            "docking" => "Docking", "storage" => "Storage", "hangar" => "Hangar",
+            "drydock" => "Dry dock", "refinery" => "Refinery", "factory" => "Factory", "market" => "Marketplace",
+            "purchase" => "Purchase adjustment", "sale" => "Sale deduction", _ => facility
+        };
+
+        void BuildRacePolicyDashboard(PlayerStationRecord station, bool owner)
+        {
+            string id = station.id.ToString();
+            AddSection("RACE POLICIES", "Select a race to inspect inherited and station-specific policies. Changes apply only when confirmed.");
+            var races = Modding.ModRefs.RaceWords.Select(race => (value: PlayerIdentity.RaceKey(race.race), label: race.name))
+                .Concat(Modding.ModRaces.All.Select(race => (value: race.key, label: Modding.ModRaces.Name(race.race))))
+                .GroupBy(race => race.value).Select(group => group.First()).OrderBy(race => race.label).ToList();
+            if (races.Count == 0) { AddInfo("Race directory", "No races are configured."); return; }
+            string race = Value("stationPolicyRace");
+            if (!races.Any(entry => entry.value == race))
+            {
+                race = races[0].value; drafts["stationPolicyRace"] = race;
+            }
+            var layout = new VisualElement(); layout.AddToClassList("player-station-policy-layout"); body.Add(layout);
+            var directory = new VisualElement(); directory.AddToClassList("player-station-race-directory"); layout.Add(directory);
+            var directoryTitle = new Label("RACES"); directoryTitle.AddToClassList("player-station-section-title"); directory.Add(directoryTitle);
+            foreach (var entry in races)
+            {
+                string key = entry.value;
+                var button = new Button(() =>
+                {
+                    drafts["stationPolicyRace"] = key;
+                    foreach (string draftKey in new[] { "raceFacility", "racePolicyState", "raceDenialReason", "raceMarketAction", "raceMarketMode", "raceMarketPercent", "raceMarketReason" })
+                        drafts.Remove(draftKey);
+                    RebuildBody(body.scrollOffset);
+                }) { text = entry.label, enableRichText = false };
+                button.AddToClassList("player-station-row");
+                button.EnableInClassList("player-station-row--selected", key == race);
+                directory.Add(button);
+            }
+            var matrix = DashboardCard(layout, races.First(entry => entry.value == race).label.ToUpperInvariant() + " POLICY");
+            matrix.AddToClassList("player-station-policy-matrix");
+            StationFacilityRaceRule LocalRule(string facility) => managementCatalogue?.stationRaceRules?.Find(rule => rule != null && rule.race == race && rule.facility == facility);
+            StationFacilityRaceRule FactionRule(string facility) => managementCatalogue?.factionRaceRules?.Find(rule => rule != null && rule.race == race && rule.facility == facility);
+            string AccessSummary(string facility)
+            {
+                var local = LocalRule(facility);
+                var inherited = FactionRule(facility);
+                if (local != null && local.state != PlayerStationPermissionState.Inherit)
+                    return local.state == PlayerStationPermissionState.Deny ? "Denied · station" : "Allowed · station";
+                return inherited?.state == PlayerStationPermissionState.Deny ? "Denied · inherited" : "Allowed · inherited";
+            }
+            if (owner)
+            {
+                foreach (string facility in NetPlayerStations.RacePolicyFacilities)
+                {
+                    string key = facility;
+                    var row = new VisualElement(); row.AddToClassList("player-station-policy-row");
+                    var label = new Label(FacilityPolicyLabel(key)); label.AddToClassList("player-station-policy-label"); row.Add(label);
+                    var state = new Label(AccessSummary(key)); state.AddToClassList("player-station-policy-state");
+                    state.EnableInClassList("player-station-policy-denied", state.text.StartsWith("Denied", StringComparison.Ordinal)); row.Add(state);
+                    var edit = new Button(() =>
+                    {
+                        drafts["raceFacility"] = key;
+                        drafts["racePolicyState"] = (LocalRule(key)?.state ?? PlayerStationPermissionState.Inherit).ToString().ToLowerInvariant();
+                        drafts["raceDenialReason"] = LocalRule(key)?.reason ?? "";
+                        RebuildBody(body.scrollOffset);
+                        body.schedule.Execute(() => body.Q<Button>("choice-racePolicyState")?.Focus());
+                    }) { text = "Edit" };
+                    edit.AddToClassList("player-station-action"); row.Add(edit); matrix.Add(row);
+                }
+                var gate = new Label("Jumpgate access is managed under Infrastructure / Jumpgates.");
+                gate.AddToClassList("player-station-note"); matrix.Add(gate);
+            }
+            if (managementCatalogue?.canManageMarket == true && Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0)
+            {
+                foreach (string operation in new[] { "purchase", "sale" })
+                {
+                    string key = operation;
+                    var local = LocalRule(key); var inherited = FactionRule(key);
+                    var row = new VisualElement(); row.AddToClassList("player-station-policy-row");
+                    var label = new Label(FacilityPolicyLabel(key)); label.AddToClassList("player-station-policy-label"); row.Add(label);
+                    var value = new Label($"{local?.percent ?? inherited?.percent ?? 0:+0;-0;0}% · {(local != null ? "station" : "inherited")}");
+                    value.AddToClassList("player-station-policy-state"); row.Add(value);
+                    var edit = new Button(() =>
+                    {
+                        drafts["raceMarketAction"] = key;
+                        drafts["raceMarketMode"] = local != null ? "custom" : "inherit";
+                        drafts["raceMarketPercent"] = (local?.percent ?? inherited?.percent ?? 0).ToString();
+                        drafts["raceMarketReason"] = local?.reason ?? "";
+                        RebuildBody(body.scrollOffset);
+                        body.schedule.Execute(() => body.Q<Button>("choice-raceMarketMode")?.Focus());
+                    }) { text = "Edit" };
+                    edit.AddToClassList("player-station-action"); row.Add(edit); matrix.Add(row);
+                }
+            }
+            if (owner && NetPlayerStations.RacePolicyFacilities.Contains(Value("raceFacility")))
+            {
+                string facility = Value("raceFacility");
+                AddSection("EDIT " + FacilityPolicyLabel(facility).ToUpperInvariant(), "Changes are validated by the station server.");
+                AddChoice("racePolicyState", "Access", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("allow", "Allow"), ("deny", "Deny") });
+                if (Value("racePolicyState") == "deny") AddField("raceDenialReason", "Denial reason", "");
+                AddAction("Apply access rule", () =>
+                {
+                    string command = $"/station race-policy {id} {facility} {race} {Value("racePolicyState")}";
+                    if (Value("racePolicyState") == "deny") SendWithReason(command, "raceDenialReason");
+                    else Send(command);
+                });
+            }
+            if (managementCatalogue?.canManageMarket == true && Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent > 0 &&
+                (Value("raceMarketAction") == "purchase" || Value("raceMarketAction") == "sale"))
+            {
+                string operation = Value("raceMarketAction");
+                AddSection("EDIT " + FacilityPolicyLabel(operation).ToUpperInvariant(), "");
+                AddChoice("raceMarketMode", "Adjustment", new List<(string, string)> { ("inherit", "Inherit faction policy"), ("custom", "Set percentage") });
+                bool custom = Value("raceMarketMode") == "custom";
+                if (custom)
+                {
+                    int limit = Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent;
+                    AddNumber("raceMarketPercent", "Percentage", 0, operation == "purchase" ? -limit : 0, limit);
+                    AddField("raceMarketReason", "Reason for the price adjustment", "");
+                }
+                AddAction("Apply price adjustment", () =>
+                {
+                    string adjustment = custom ? Value("raceMarketPercent") : "inherit";
+                    string command = $"/station race-policy {id} {operation} {race} {adjustment}";
+                    if (custom && int.TryParse(adjustment, out int percent) && percent > 0) SendWithReason(command, "raceMarketReason");
+                    else Send(command);
+                });
+            }
+            if (owner && Modding.ModPlayerInfrastructure.Current.StationRaceExemptionsEnabled)
+            {
+                AddSection("INDIVIDUAL EXEMPTIONS", "Exempt a pilot from the station's race policies.");
+                AddAccountField("stationRaceExemption", "Exemption target");
+                AddAction("Grant exemption", () => Send("/station race-policy " + id + " exempt add " + Value("stationRaceExemption")));
+                AddAction("Revoke exemption", () => Send("/station race-policy " + id + " exempt remove " + Value("stationRaceExemption")));
+            }
         }
 
         void BuildSuccessionControls(PlayerStationRecord station)
