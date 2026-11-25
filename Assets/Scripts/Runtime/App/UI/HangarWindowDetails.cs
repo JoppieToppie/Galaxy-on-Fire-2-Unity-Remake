@@ -165,10 +165,11 @@ namespace GoF2Remake.UI
                     if (PlayerMarketplace)
                     {
                         store = PlayerStorageTab;
+                        if (store) { tradeStockLabel.text = "STORAGE"; tradeCargoLabel.text = "CARGO"; }
                         stock = selected.stationUnits;
                         tradeStock.text = $"{stock} t";
-                        sellLabel.text = store ? "‹ STORE" : selected.ownListing ? "‹ CANCEL" : "‹ LIST";
-                        buyLabel.text = store ? "TAKE ›" : "BUY ›";
+                        sellLabel.text = store ? "‹ DEPOSIT" : selected.ownListing ? "‹ CANCEL" : "‹ LIST";
+                        buyLabel.text = store ? "WITHDRAW ›" : "BUY ›";
                         int storeLimit = store ? PlayerStorageTransferLimit(-1) : 0;
                         int takeLimit = store ? PlayerStorageTransferLimit(1) : 0;
                         sellButton.EnableInClassList("trade-arrow--disabled", store ? storeLimit <= 0 :
@@ -176,10 +177,10 @@ namespace GoF2Remake.UI
                         buyButton.EnableInClassList("trade-arrow--disabled", store ? takeLimit <= 0 : selected.ownListing || stock <= 0);
                         if (store && (takeLimit > 0 || storeLimit > 0))
                         {
-                            ShowAction(takeLimit > 0 ? $"TAKE {takeLimit:N0}" : $"STORE {storeLimit:N0}", true);
+                            ShowAction(takeLimit > 0 ? $"WITHDRAW {takeLimit:N0}" : $"DEPOSIT {storeLimit:N0}", true);
                             if (takeLimit > 0 && storeLimit > 0 && actionButton2 != null)
                             {
-                                SetActionText(actionButton2, $"STORE {storeLimit:N0}");
+                                SetActionText(actionButton2, $"DEPOSIT {storeLimit:N0}");
                                 actionButton2.RemoveFromClassList("detail-action--hidden");
                             }
                         }
