@@ -58,6 +58,7 @@ namespace GoF2Remake.UI
         float placementYaw, placementPitch, placementDistance;
         int placementRequestVersion;
         bool placementOrderPending;
+        bool placementAwaitingSnapshot;
         float placementRequestDeadline;
         readonly Dictionary<string, Vector3Int> placementDrafts = new Dictionary<string, Vector3Int>();
         bool compact;
@@ -213,6 +214,7 @@ namespace GoF2Remake.UI
                 if (placementOrderPending && !placementDragging && Time.unscaledTime >= placementRequestDeadline)
                 {
                     placementOrderPending = false;
+                    placementAwaitingSnapshot = false;
                     placementRequestVersion++;
                     RebuildBody();
                     return;
@@ -224,6 +226,7 @@ namespace GoF2Remake.UI
                     if (live?.id == selected?.id && PlacementSnapshotOf(live, placementOrbit) != placementSnapshot)
                     {
                         selected = live;
+                        if (placementAwaitingSnapshot) { placementAwaitingSnapshot = false; placementOrderPending = false; }
                         RebuildBody();
                     }
                 }
@@ -287,6 +290,7 @@ namespace GoF2Remake.UI
             placementCameraKey = null;
             placementRequestVersion++;
             placementOrderPending = false;
+            placementAwaitingSnapshot = false;
             overlay.style.display = DisplayStyle.None;
             open = false;
             marketplaceOnly = false;
@@ -956,13 +960,23 @@ namespace GoF2Remake.UI
 
             var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
             AddSection("ORBIT PLACEMENT", orbital
-                ? "Drag the cyan marker or use Next clear position. Amber markers show projects already placed. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
+                ? "Confirm each position to reserve a construction slot without delivering materials. Amber markers show reserved positions, including unbuilt projects. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
                 : "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap.");
             var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
             var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
             var controls = new VisualElement(); controls.AddToClassList("player-station-orbit-controls"); editor.Add(controls);
             foreach (var element in configuration) { element.RemoveFromHierarchy(); controls.Add(element); }
-            if (orbital) AddInfoTo(controls, preset.Defense ? "Defense slots" : "Structure slots", $"{slotsTaken} / {slotLimit} used");
+            if (orbital)
+            {
+                var reserved = NetPlayerStations.OrbitalStructures?.Where(entry => entry != null && entry.orbit == previewOrbit && entry.defense == preset.Defense).ToList();
+                int built = reserved?.Count(entry => entry.operational) ?? 0;
+                AddInfoTo(controls, preset.Defense ? "Defense slots" : "Structure slots", $"{slotsTaken} / {slotLimit} reserved");
+                AddInfoTo(controls, "Operational", built.ToString());
+                AddInfoTo(controls, "Unbuilt / planned", (slotsTaken - built).ToString());
+                if (reserved != null)
+                    foreach (var entry in reserved.OrderBy(entry => entry.slot))
+                        AddInfoTo(controls, $"Slot {entry.slot + 1}", entry.name + " · " + (entry.operational ? "Operational" : entry.completesUtc > 0 ? "Building" : "Awaiting materials"));
+            }
             var cameraControls = new VisualElement(); cameraControls.style.flexDirection = FlexDirection.Row; cameraControls.style.flexWrap = Wrap.Wrap; scene.Add(cameraControls);
             var snap = new Toggle("Snap to 100 m") { value = Value("placementSnap") == "true" }; snap.AddToClassList("player-station-field"); controls.Add(snap);
             snap.RegisterValueChangedCallback(change => drafts["placementSnap"] = change.newValue ? "true" : "false");
@@ -1059,7 +1073,7 @@ namespace GoF2Remake.UI
             CameraPreset("Perspective", 29f, 34f);
             CameraPreset("Top", 89f, 0f);
             CameraPreset("Side", 0f, 90f);
-            var orderButton = new Button { text = orbital ? "Order construction here" : "Save planned position" };
+            var orderButton = new Button { text = orbital ? (preset.Defense ? "CONFIRM DEFENSE PLACEMENT" : "CONFIRM STRUCTURE PLACEMENT") : "Save planned position" };
             void AddPlacementControl(Button button)
             {
                 StyleChoice(button, false);
@@ -1076,8 +1090,8 @@ namespace GoF2Remake.UI
                 coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
                 if (!orbital) return;
                 string error = PlacementError(position);
-                placementStatus.text = slotsTaken >= slotLimit ? "All slots of this type are in use." :
-                    error ?? "Position clear.";
+                placementStatus.text = placementAwaitingSnapshot ? "Placement saved. Synchronizing reserved slots…" : slotsTaken >= slotLimit ? "All slots of this type are reserved." :
+                    error ?? "Position clear. Confirm to reserve; materials can be delivered later.";
                 orderButton.SetEnabled(error == null && slotsTaken < slotLimit && !placementOrderPending);
             }
             if (orbital)
@@ -1104,18 +1118,22 @@ namespace GoF2Remake.UI
                 string request = $"{command} {point.x} {point.y} {point.z} {preset.Id}";
                 if (!orbital) { Send(request); return; }
                 int version = ++placementRequestVersion;
+                string submittedSnapshot = PlacementSnapshotOf(station, previewOrbit);
+                placementAwaitingSnapshot = false;
                 placementOrderPending = true;
                 placementRequestDeadline = Time.unscaledTime + 10f;
-                Vector3Int submitted = position;
                 orderButton.SetEnabled(false);
                 if (!Dispatch(request, result =>
                 {
                     if (version != placementRequestVersion) return;
-                    placementOrderPending = false;
-                    if (result?.StartsWith("Started ", StringComparison.Ordinal) == true &&
-                        placementDrafts.TryGetValue(draftKey, out var current) && current == submitted &&
-                        TryNextClearPosition(submitted, out var next))
-                        placementDrafts[draftKey] = next;
+                    bool accepted = result?.StartsWith("Started ", StringComparison.Ordinal) == true;
+                    // The reply and replicated registry may arrive in either order. Do not allow
+                    // another confirmation against stale slots or stale collision geometry.
+                    var live = NetPlayerStations.StationAt(CurrentOrbit);
+                    placementAwaitingSnapshot = accepted && PlacementSnapshotOf(live, previewOrbit) == submittedSnapshot;
+                    placementOrderPending = placementAwaitingSnapshot;
+                    if (placementAwaitingSnapshot) placementRequestDeadline = Time.unscaledTime + 10f;
+                    if (live?.id == selected?.id) selected = live;
                     if (managementPage == "placement" && !placementDragging) RebuildBody();
                 }))
                 {
@@ -1203,7 +1221,7 @@ namespace GoF2Remake.UI
                 ? $"Defense limit per orbit ({settings.OrbitalDefenseLimit}). "
                 : "New defense orders are disabled. ";
             AddSection("ORBITAL STRUCTURES", limit + $"Other structure limit per orbit ({settings.OtherOrbitalStructureLimit}). " +
-                "Deliver materials from Multiplayer → Orbit Projects.");
+                "Reserve all positions in the orbit editor before delivering materials from Multiplayer → Orbit Projects.");
             if (settings.Enabled)
             {
                 var db = NetGame.Db;
@@ -1237,7 +1255,7 @@ namespace GoF2Remake.UI
             foreach (var structure in NetPlayerStations.OrbitalStructures)
             {
                 if (structure == null || structure.sponsorStationId != selected.id) continue;
-                AddInfo($"{structure.name} #{structure.id}", $"Orbit {structure.orbit} · " + (structure.operational ? "Operational" : "Construction"));
+                AddInfo($"{structure.name} #{structure.id}", $"Orbit {structure.orbit} · " + (structure.operational ? "Operational" : structure.completesUtc > 0 ? "Building" : "Planned / awaiting materials"));
                 if (!structure.operational && structure.completesUtc <= 0)
                     AddAction("Deliver remaining materials from your storage", "/station orbital-finish-storage " + structure.id);
                 if (confirmOrbitalRemoval == structure.id)
