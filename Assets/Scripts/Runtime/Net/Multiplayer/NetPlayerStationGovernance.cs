@@ -366,11 +366,14 @@ namespace GoF2Remake.Multiplayer
         {
             var record = StationAt(orbit);
             if (record == null || string.IsNullOrEmpty(account)) return false;
-            if (IsStationOwnerAccount(record, account) || HasBuilderRights(record, account)) return true;
+            var rules = Modding.ModPlayerInfrastructure.Current;
+            if (IsStationOwnerAccount(record, account) || (rules.SiegeRespawnOriginalBuilders && HasBuilderRights(record, account))) return true;
             var faction = NetFactions.Of(account);
             return (record.ownershipType == PlayerStationOwnershipType.Faction && faction != null &&
-                faction.id == record.ownerFactionId && (faction.leader == account || faction.officers?.Contains(account) == true)) ||
-                (HasRole(record, account, PlayerStationRole.StationAdministrator) && HasStationPermission(record, account, PlayerStationPermission.StationOperations));
+                faction.id == record.ownerFactionId && (faction.leader == account ||
+                    (rules.SiegeRespawnFactionOfficers && faction.officers?.Contains(account) == true))) ||
+                (rules.SiegeRespawnStationAdministrators && HasRole(record, account, PlayerStationRole.StationAdministrator) &&
+                    HasStationPermission(record, account, PlayerStationPermission.StationOperations));
         }
 
         // Ownership authority controls staffing and faction-wide station policy.
