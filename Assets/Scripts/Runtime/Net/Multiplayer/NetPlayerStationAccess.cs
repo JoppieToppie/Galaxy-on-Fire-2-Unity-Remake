@@ -107,10 +107,10 @@ namespace GoF2Remake.Multiplayer
         static void PublishStationProjectFundingAccess(NetPlayer pilot, string account)
         {
             var ids = new StringBuilder();
-            if (!string.IsNullOrEmpty(account) && pilot.InHangar)
+            if (!string.IsNullOrEmpty(account))
                 foreach (var project in registry.stations)
                 {
-                    if (ProcurementMaterials(project) == null) continue;
+                    if (ProcurementMaterials(project) == null || (!pilot.InHangar && !CanDeliverAtConstructionSite(pilot, project))) continue;
                     bool canFund = project.ownershipType == PlayerStationOwnershipType.Faction
                         ? IsFactionManager(project, account)
                         : string.Equals(project.ownerProfile, account, StringComparison.Ordinal);
