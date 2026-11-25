@@ -11,12 +11,35 @@ namespace GoF2Remake.Multiplayer
 
         const int MaxConstructionBuyOrders = 32;
 
+        internal static void NormalizeConstructionOrderIds(PlayerStationRecord record)
+        {
+            if (record?.buyOrders == null) return;
+            int next = Math.Max(1, record.nextConstructionOrderId);
+            foreach (var order in record.buyOrders)
+                if (order != null && order.id >= next) next = order.id == int.MaxValue ? int.MaxValue : order.id + 1;
+            var used = new HashSet<int>();
+            foreach (var order in record.buyOrders)
+            {
+                if (order == null || (order.id > 0 && used.Add(order.id))) continue;
+                if (next < int.MaxValue) { order.id = next++; used.Add(order.id); }
+                else order.id = 0;
+            }
+            record.nextConstructionOrderId = next;
+        }
+
+        internal static string SettleConstructionOrderById(NetPlayer by, int stationId, int orderId, int amount, bool cancel)
+        {
+            int index = orderId <= 0 ? -1 : Find(stationId)?.buyOrders?.FindIndex(order => order != null && order.id == orderId) ?? -1;
+            if (index < 0) return "This construction order is no longer available. Refresh the project.";
+            return cancel ? CancelConstructionBuyOrder(by, stationId, index) : FulfilConstructionBuyOrder(by, stationId, index, amount);
+        }
+
         internal static string CreateConstructionBuyOrder(NetPlayer by, int id, int item, int amount, long unitPrice)
         {
             var record = Find(id);
             var materials = ProcurementMaterials(record);
             if (materials == null) return "That construction project is not accepting orders.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || (!by.InHangar && !CanDeliverAtConstructionSite(by, record)) ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at any station using a controlled profile to create a construction buy order.";
             if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice ||
@@ -52,7 +75,10 @@ namespace GoF2Remake.Multiplayer
             if (available < reserve) return $"The order needs {reserve:N0} credits in escrow; only {available:N0} are available.";
             record.buyOrders ??= new List<PlayerStationBuyOrder>();
             if (record.buyOrders.Count >= MaxConstructionBuyOrders) return "This project has reached its active buy-order limit.";
-            var order = new PlayerStationBuyOrder { item = item, remaining = amount, unitPrice = unitPrice, reservedCredits = reserve,
+            NormalizeConstructionOrderIds(record);
+            if (record.nextConstructionOrderId >= int.MaxValue) return "The construction order ID limit has been reached.";
+            int orderId = record.nextConstructionOrderId++;
+            var order = new PlayerStationBuyOrder { id = orderId, item = item, remaining = amount, unitPrice = unitPrice, reservedCredits = reserve,
                 fundedByProfile = fundingProfile, fundedByFactionId = fundingFaction, createdBy = account,
                 createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
             record.buyOrders.Add(order);
@@ -61,6 +87,7 @@ namespace GoF2Remake.Multiplayer
             if (!CommitProfileTransaction(null, credits, banks))
             {
                 record.buyOrders.Remove(order);
+                record.nextConstructionOrderId = orderId;
                 return "The order could not be journalled; no funds were reserved.";
             }
             if (fundingProfile != null)
@@ -100,7 +127,7 @@ namespace GoF2Remake.Multiplayer
 
             var oldOrders = new List<PlayerStationBuyOrder>();
             foreach (var pending in record.buyOrders)
-                oldOrders.Add(pending == null ? null : new PlayerStationBuyOrder { item = pending.item, remaining = pending.remaining,
+                oldOrders.Add(pending == null ? null : new PlayerStationBuyOrder { id = pending.id, item = pending.item, remaining = pending.remaining,
                     unitPrice = pending.unitPrice, reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
                     fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy, createdUtc = pending.createdUtc });
             int oldDelivered = material.delivered;
@@ -172,7 +199,7 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (record == null) return "No player station with that id exists.";
             if (record.offeredForClaimUtc > 0) return "Construction orders are paused until the station is claimed.";
-            if (!NetGame.IsServer || by == null || !by.IsSpawned || !by.InHangar ||
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || (!by.InHangar && !CanDeliverAtConstructionSite(by, record)) ||
                 !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
                 return "Dock at any station using a controlled profile to cancel a construction order.";
             if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
