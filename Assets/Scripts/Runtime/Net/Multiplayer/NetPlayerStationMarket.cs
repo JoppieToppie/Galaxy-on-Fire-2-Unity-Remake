@@ -352,8 +352,34 @@ namespace GoF2Remake.Multiplayer
                 station.stationBankCredits = previous;
                 return "The donation could not be committed.";
             }
-            NotifyProfileCreditChange(account, -amount, "Station bank donation");
+            if (!ProfileWritesBlocked) NotifyProfileCreditChange(account, -amount, "Station bank donation");
+            UnityEngine.Debug.Log($"Server: audit station bank {DateTime.UtcNow:O}: station {id}; profile {account}; donation {amount}; balance {station.stationBankCredits}");
             return $"Donated {amount:N0} credits to {station.name}'s station bank.";
+        }
+
+        internal static string WithdrawStationCredits(NetPlayer pilot, int id, long amount)
+        {
+            var station = Find(id);
+            if (!IsStationContext(pilot, station, out string account) || station.underConstruction ||
+                station.retired || station.destroyed || station.reconstructing || station.wreckClaimOpen || station.offeredForClaimUtc > 0 ||
+                !CanManageMarketPolicy(station, account))
+                return "Dock at an operational station with finance authority to withdraw credits.";
+            if (ProfileWritesBlocked) return "A pending transaction is being recovered. Try again later.";
+            long previous = station.stationBankCredits;
+            if (amount <= 0 || amount > int.MaxValue || previous < amount)
+                return "Choose a positive withdrawal within the station bank balance.";
+            long balance = NetProfiles.CreditAmount(account);
+            if (balance < 0 || balance > long.MaxValue - amount)
+                return "Your profile cannot accept this withdrawal.";
+            station.stationBankCredits -= amount;
+            if (!CommitProfileTransaction(null, new List<(string account, long delta)> { (account, amount) }, null))
+            {
+                station.stationBankCredits = previous;
+                return "The withdrawal could not be committed.";
+            }
+            if (!ProfileWritesBlocked) NotifyProfileCreditChange(account, amount, "Station bank withdrawal");
+            UnityEngine.Debug.Log($"Server: audit station bank {DateTime.UtcNow:O}: station {id}; profile {account}; withdrawal {amount}; balance {station.stationBankCredits}");
+            return $"Withdrew {amount:N0} credits from {station.name}'s station bank.";
         }
 
         internal static string SetMarketplaceTax(NetPlayer by, int id, int percent)
