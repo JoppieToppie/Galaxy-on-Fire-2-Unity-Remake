@@ -344,7 +344,7 @@ namespace GoF2Remake.Multiplayer
             var persisted = ReadSave(account);
             var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : persisted;
             int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
-            if (save == null || save.ship != pilot.ShipIndex || emergencyShip < 0) return false;
+            if (save == null || emergencyShip < 0) return false;
             // Story and event loaners are not the player's property.
             if (save.hasParkedShip) return true;
             save.deathRecoveries = persisted?.deathRecoveries ?? new List<DeathRecovery>();
@@ -353,8 +353,8 @@ namespace GoF2Remake.Multiplayer
                 save.unsaleable?.Contains(s.item) != true);
             if (drop != null)
             {
-                if (!canSpawnLoot) return false;
-                droppedItem = drop.item;
+                // A missing pose must not waive the penalty; only the physical loot crate is omitted.
+                if (canSpawnLoot) droppedItem = drop.item;
                 if (--drop.amount == 0) save.equipment.Remove(drop);
             }
             var recovery = new DeathRecovery
