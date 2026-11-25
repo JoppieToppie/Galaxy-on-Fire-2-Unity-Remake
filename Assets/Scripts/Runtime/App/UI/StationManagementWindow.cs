@@ -886,6 +886,7 @@ namespace GoF2Remake.UI
         {
             var db = NetGame.Db;
             var station = selected;
+            int firstControl = body.contentContainer.childCount;
             var types = new List<(string, string)> { ("orbital", "Orbital defense or other structure"), ("refinery", "Refinery"), ("drydock", "Dry dock") };
             for (int i = 1; i <= 4; i++) types.Add(("dockarm-" + i, "Docking arm " + i));
             AddChoice("placementType", "Project", types, _ => drafts.Remove("placementPreset"));
@@ -953,25 +954,34 @@ namespace GoF2Remake.UI
             if (orbital && PlacementError(position) != null && TryNextClearPosition(position, out var initialClear))
                 position = initialClear;
 
+            var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
             AddSection("ORBIT PLACEMENT", orbital
                 ? "Drag the cyan marker or use Next clear position. Amber markers show projects already placed. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
                 : "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap.");
-            if (orbital) AddInfo(preset.Defense ? "Defense slots" : "Structure slots", $"{slotsTaken} / {slotLimit} used");
+            var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
+            var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
+            var controls = new VisualElement(); controls.AddToClassList("player-station-orbit-controls"); editor.Add(controls);
+            foreach (var element in configuration) { element.RemoveFromHierarchy(); controls.Add(element); }
+            if (orbital) AddInfoTo(controls, preset.Defense ? "Defense slots" : "Structure slots", $"{slotsTaken} / {slotLimit} used");
+            var cameraControls = new VisualElement(); cameraControls.style.flexDirection = FlexDirection.Row; cameraControls.style.flexWrap = Wrap.Wrap; scene.Add(cameraControls);
+            var snap = new Toggle("Snap to 100 m") { value = Value("placementSnap") == "true" }; snap.AddToClassList("player-station-field"); controls.Add(snap);
+            snap.RegisterValueChangedCallback(change => drafts["placementSnap"] = change.newValue ? "true" : "false");
             var placementActions = new VisualElement();
             placementActions.style.flexDirection = FlexDirection.Row;
             placementActions.style.flexWrap = Wrap.Wrap;
-            body.Add(placementActions);
+            controls.Add(placementActions);
             var viewport = new VisualElement();
+            viewport.AddToClassList("player-station-orbit-viewport");
             viewport.style.height = compact ? 300 : Mathf.Clamp(panel.resolvedStyle.height * 0.55f, 360f, 720f);
             viewport.style.flexShrink = 0;
-            body.Add(viewport);
+            scene.Add(viewport);
             var coordinateLabel = new Label();
             coordinateLabel.AddToClassList("player-station-note");
-            body.Add(coordinateLabel);
+            controls.Add(coordinateLabel);
             var placementStatus = new Label();
             placementStatus.AddToClassList("player-station-note");
             placementStatus.style.whiteSpace = WhiteSpace.Normal;
-            if (orbital) body.Add(placementStatus);
+            if (orbital) controls.Add(placementStatus);
 
             const int previewLayer = 31;
             placementRoot = new GameObject("Station placement preview");
@@ -1041,6 +1051,14 @@ namespace GoF2Remake.UI
                 camera.transform.position = frame.position + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
                 camera.transform.LookAt(frame.position);
             }
+            void CameraPreset(string title, float pitch, float yaw)
+            {
+                var button = new Button(() => { placementPitch = pitch; placementYaw = yaw; SetCamera(); }) { text = title };
+                button.AddToClassList("player-station-action"); cameraControls.Add(button);
+            }
+            CameraPreset("Perspective", 29f, 34f);
+            CameraPreset("Top", 89f, 0f);
+            CameraPreset("Side", 0f, 90f);
             var orderButton = new Button { text = orbital ? "Order construction here" : "Save planned position" };
             void AddPlacementControl(Button button)
             {
@@ -1144,14 +1162,14 @@ namespace GoF2Remake.UI
                     if (dragPlane.Raycast(ray, out float hit))
                     {
                         Vector3 desired = frame.InverseTransformPoint(ray.GetPoint(hit) + grabOffset);
-                        if (evt.ctrlKey) desired = new Vector3(Mathf.Round(desired.x / 100f), Mathf.Round(desired.y / 100f), Mathf.Round(desired.z / 100f)) * 100f;
+                        if (evt.ctrlKey || snap.value) desired = new Vector3(Mathf.Round(desired.x / 100f), Mathf.Round(desired.y / 100f), Mathf.Round(desired.z / 100f)) * 100f;
                         mounts[active].position_engine = Units(desired);
                         UpdatePoint();
                     }
                 }
                 else if (gizmo.Dragging)
                 {
-                    gizmo.Drag(point, evt.ctrlKey, Mathf.RoundToInt(100f / OrbitLayout.MetersPerUnit));
+                    gizmo.Drag(point, evt.ctrlKey || snap.value, Mathf.RoundToInt(100f / OrbitLayout.MetersPerUnit));
                     UpdatePoint();
                 }
                 else if (orbiting)
