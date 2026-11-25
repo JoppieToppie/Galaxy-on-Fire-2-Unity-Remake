@@ -98,20 +98,18 @@ namespace GoF2Remake.Multiplayer
                 return "Your profile does not have enough credits for the ship and tax.";
             var payments = new List<(string account, long delta)>();
             var banks = new List<(string factionId, long delta)>();
-            bool factionTax = station.ownershipType == PlayerStationOwnershipType.Faction;
+            long previousBank = station.stationBankCredits;
+            if (tax < 0 || previousBank < 0 || previousBank > long.MaxValue - tax) return "The station bank cannot accept this tax.";
             if (!cancel)
             {
                 payments.Add((buyer, -charge));
                 if (proceeds > 0) payments.Add((listing.sellerProfile, proceeds));
-                if (tax > 0)
-                {
-                    if (factionTax) banks.Add((station.ownerFactionId, tax));
-                    else payments.Add((station.ownerProfile, tax));
-                }
+                station.stationBankCredits += tax;
             }
             station.shipListings.RemoveAt(index);
             if (!CommitProfileTransaction(null, payments, banks, new List<(string account, List<StoredShip> ships)> { (buyer, target) }))
             {
+                station.stationBankCredits = previousBank;
                 station.shipListings.Insert(index, listing);
                 return "The ship transaction could not be saved. The hull remains in escrow.";
             }
@@ -119,8 +117,6 @@ namespace GoF2Remake.Multiplayer
             if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId)) NetProfiles.RefreshProfile(pilot.OwnerClientId);
             if (cancel) return "The listing was cancelled and the hull is back in your personal fleet.";
             NotifyProfileCreditChange(listing.sellerProfile, proceeds, "Station ship marketplace");
-            if (tax > 0 && !factionTax && station.ownerProfile != buyer)
-                NotifyProfileCreditChange(station.ownerProfile, tax, "Station ship marketplace tax");
             return $"Purchased the hull for {charge:N0} credits. The hull is in your personal fleet.";
         }
     }
