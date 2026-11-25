@@ -605,7 +605,7 @@ namespace GoF2Remake.UI
             if (write)
             {
                 string folder = rel.Split('/')[0];
-                if (!FileFolders.Contains(folder)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
+                if (!FileFolders.Contains(folder) && !string.Equals(rel, ModWingmen.File, StringComparison.OrdinalIgnoreCase)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
                 if (!FileExtensions.Contains(ext)) { why = $"Not a file type a mod uses: {ext}"; return null; }
             }
             string full = Path.GetFullPath(Path.Combine(Project.Folder, rel));
