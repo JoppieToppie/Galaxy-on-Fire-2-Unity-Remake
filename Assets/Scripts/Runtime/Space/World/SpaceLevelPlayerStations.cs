@@ -16,6 +16,7 @@ namespace GoF2Remake.World
             {
                 if (Docking != null && Docking.Target == constructionPort) Docking.Abort();
                 Traffic?.Ships.Remove(constructionPort);
+                Navigation?.Targets.RemoveAll(target => target.dockingShip == constructionPort);
                 constructionPort.gameObject.SetActive(false);
                 Destroy(constructionPort.gameObject);
                 constructionPort = null;
@@ -49,6 +50,7 @@ namespace GoF2Remake.World
             });
             if (constructionPort == null) return;
             constructionPort.LocalOnly = true;
+            constructionPort.ShipMarker = false;
             constructionPort.Target.untargetable = true;
             constructionPort.DockingName = (anchor?.name ?? "Station") + " construction site";
             constructionPort.transform.position = SpaceHooks.StationPosition(orbit);
