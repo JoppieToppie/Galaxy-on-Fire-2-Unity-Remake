@@ -192,6 +192,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer || from == null || to == null || NetSquad.Same(from, to)) return;
             if (!from.InHangar || !to.InHangar || from.Station != to.Station) return;
+            if (NetSquad.IsFull(from)) { NoticeTo(from, "Your squad is full (6/6)."); return; }
             invites[(from.OwnerClientId, to.OwnerClientId)] = Time.unscaledTime;
             InvitedRpc(from.OwnerClientId, from.DisplayName, RpcTarget.Single(to.OwnerClientId, RpcTargetUse.Temp));
         }
@@ -220,12 +221,13 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             invites.Remove((inviter, client));
-            JoinSquad(leader, joiner);
+            if (!JoinSquad(leader, joiner)) return;
             NetProfiles.SquadJoined(leader.OwnerClientId, joiner.OwnerClientId);   // both profiles remember it
         }
         /// <summary>'joiner' into 'leader''s squad (a new one if the leader has none).</summary>
-        void JoinSquad(NetPlayer leader, NetPlayer joiner)
+        bool JoinSquad(NetPlayer leader, NetPlayer joiner)
         {
+            if (NetSquad.IsFull(leader)) { NoticeTo(joiner, "The squad is full (6/6)."); return false; }
             if (leader.SquadId == 0) leader.SetSquad(nextSquad++);
             joiner.SetSquad(leader.SquadId);
             DissolveSingles();
@@ -237,6 +239,7 @@ namespace GoF2Remake.Multiplayer
                     if (p != null && p != joiner && p.IsSpawned && p.SquadId == leader.SquadId && p.MissionHeld != 0) { holder = p; break; }
             if (holder != null) SendMissionToRpc(joiner.OwnerClientId, RpcTarget.Single(holder.OwnerClientId, RpcTargetUse.Temp));
             SquadNoticeRpc(leader.SquadId, string.Format(Localization.Extra("mpSquadJoined", "{0} joined the squad."), joiner.DisplayName));
+            return true;
         }
         /// <summary>NetProfiles: a player signing in goes back into the squad their profile remembers ('mate' is online and
         /// in it). Unlike an invitation this works anywhere, docked or not.</summary>
