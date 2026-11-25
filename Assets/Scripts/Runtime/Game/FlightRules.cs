@@ -120,6 +120,8 @@ namespace GoF2Remake.Flight
         public float freeBoostTurnShare = FlightModel.FreeBoostTurnShare;
 
         [Header("Free flight: moving")]
+        [Tooltip("Use the forward top speed on every translation axis; directional acceleration remains independently tunable.")]
+        public bool equalDirectionalTopSpeed;
         [Range(0f, 5f), Tooltip("Top speed backward, of the forward one.")]
         public float freeReverseShare = FlightModel.FreeReverseShare;
         [Range(0f, 5f), Tooltip("Top speed sideways, of the forward one.")]

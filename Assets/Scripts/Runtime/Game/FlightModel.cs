@@ -469,7 +469,7 @@ namespace GoF2Remake.Flight
             var inp = new Vector3(strafe, hover, thrust);
             if (inp.sqrMagnitude > 1f) inp.Normalize();   // the input vector is clamped to length 1
             float inpMag = inp.magnitude;
-            var tops = new Vector3(strafeTop * R.freeStrafeShare, hoverTop * R.freeHoverShare, thrust < 0f ? reverseTop : fwdTop);
+            var tops = R.equalDirectionalTopSpeed ? Vector3.one * fwdTop : new Vector3(strafeTop * R.freeStrafeShare, hoverTop * R.freeHoverShare, thrust < 0f ? reverseTop : fwdTop);
             var target = Vector3.Scale(inp, tops);   // GetTargetVelocityFromInput
             float targetSpeed = target.magnitude;
             var targetDir = targetSpeed > 1e-9f ? target / targetSpeed : Vector3.zero;

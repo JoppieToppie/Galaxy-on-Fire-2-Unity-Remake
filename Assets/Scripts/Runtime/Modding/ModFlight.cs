@@ -263,7 +263,8 @@ namespace GoF2Remake.Modding
         /// order, then the ship's own "rules". FlightRules.Default itself when nothing changes it.</summary>
         public static FlightRules RulesFor(ShipData ship)
         {
-            FlightRules rules = null;
+            FlightRules rules = ShipClassRules.IsCanonicalClass(ShipClassRules.ClassOf(ship)) ? FlightRules.Default.Clone() : null;
+            if (rules != null) rules.equalDirectionalTopSpeed = true;
             foreach (var mod in ModManager.Active)
                 if (ModContent.Parse(mod).flightRules is Dictionary<string, float> g && g.Count > 0)
                     (rules ??= FlightRules.Default.Clone()).Apply(g);

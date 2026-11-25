@@ -15,6 +15,14 @@ namespace GoF2Remake.Tests
         const string Mod = "t_flightrules";
 
         [Test]
+        public void ClassifiedHullDefaultsToEqualDirectionalSpeed()
+        {
+            Assert.IsTrue(GoF2Remake.Modding.ModFlight.RulesFor(new ShipData { shipClass = "interceptor" }).equalDirectionalTopSpeed);
+            Assert.IsFalse(GoF2Remake.Modding.ModFlight.RulesFor(new ShipData()).equalDirectionalTopSpeed);
+            Assert.IsFalse(FlightRules.Default.equalDirectionalTopSpeed);
+        }
+
+        [Test]
         public void FlightJsonAndAShipsRulesReachTheFlightModel()
         {
             Assert.AreSame(FlightRules.Default, Database.BuildFlightStats(Database.Load().Ship(0), null).rules, "no mod: the defaults");
