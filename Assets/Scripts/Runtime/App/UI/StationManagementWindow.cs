@@ -2041,9 +2041,17 @@ namespace GoF2Remake.UI
                 AddInfo("Balance", managementCatalogue.stationBankCredits.ToString("N0") + " credits");
             long available = Math.Min(int.MaxValue, (long)Session.Credits);
             AddInfo("Your credits", available.ToString("N0"));
-            if (available <= 0) return;
-            AddNumber("bankDonation", "Credits to donate", Math.Min(1000L, available), 1, available);
-            AddAction("Donate credits to station bank", () => Send("/station bank-donate " + id + " " + Value("bankDonation")));
+            if (available > 0)
+            {
+                AddNumber("bankDonation", "Credits to donate", Math.Min(1000L, available), 1, available);
+                AddAction("Donate credits to station bank", () => Send("/station bank-donate " + id + " " + Value("bankDonation")));
+            }
+            if (managementCatalogue?.canManageMarket != true) return;
+            AddSection("WITHDRAW CREDITS", "Transfer station funds to your personal credit balance. Withdrawals are recorded in the server audit log.");
+            long withdrawable = Math.Min((long)int.MaxValue, managementCatalogue.stationBankCredits);
+            if (withdrawable <= 0) { AddInfo("Withdrawal", "No funds available."); return; }
+            AddNumber("bankWithdrawal", "Credits to withdraw", Math.Min(1000L, withdrawable), 1, withdrawable);
+            AddAction("Withdraw credits from station bank", () => Send("/station bank-withdraw " + id + " " + Value("bankWithdrawal")));
         }
 
         void BuildStationStock()
