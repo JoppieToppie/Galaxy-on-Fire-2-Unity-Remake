@@ -172,7 +172,7 @@
                     <ui:Label name="campaignRulesTitle" class="panel-title gof-semibold" />
                     <ui:ScrollView name="campaignRuleList" class="remake-options-scroll" />
                     <ui:Button name="campaignRulesApply" class="menu-button gof-semibold" />
-                    <ui:Button name="campaignRulesCancel" class="menu-button back-button gof-semibold" />
+                    <ui:Button name="campaignRulesCancel" class="menu-button gof-semibold" />
                 </ui:VisualElement>
 
                 <ui:VisualElement name="optionsPanel" class="panel">
