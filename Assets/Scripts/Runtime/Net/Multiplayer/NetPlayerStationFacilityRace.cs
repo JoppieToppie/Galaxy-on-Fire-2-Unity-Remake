@@ -8,7 +8,7 @@ namespace GoF2Remake.Multiplayer
     [Serializable]
     public sealed class StationFacilityRaceRule
     {
-        public string facility, race;
+        public string facility, race, reason;
         public PlayerStationPermissionState state;
         public int percent;
     }
@@ -43,6 +43,16 @@ namespace GoF2Remake.Multiplayer
                 state = defaults?.Find(rule => rule != null && rule.facility == facility && rule.race == race)?.state
                     ?? PlayerStationPermissionState.Inherit;
             return state != PlayerStationPermissionState.Deny;
+        }
+
+        static string FacilityRaceRefusal(PlayerStationRecord station, string account, string facility, string fallback)
+        {
+            if (station == null || AllowsStationRace(station, account, facility)) return fallback;
+            string race = NetProfiles.StationPolicyRaceOf(account);
+            var rule = station.facilityRaceRules?.Find(entry => entry != null && entry.facility == facility && entry.race == race);
+            if ((rule == null || rule.state == PlayerStationPermissionState.Inherit) && station.ownershipType == PlayerStationOwnershipType.Faction)
+                rule = NetFactions.FindById(station.ownerFactionId)?.stationRaceRules?.Find(entry => entry != null && entry.facility == facility && entry.race == race);
+            return WithBlacklistReason(fallback, rule?.reason);
         }
 
         static int MarketPolicyPercent(PlayerStationRecord station, string account, string facility)
@@ -111,8 +121,8 @@ namespace GoF2Remake.Multiplayer
             bool supported = false;
             foreach (string candidate in RacePolicyFacilities)
                 if (candidate == facility) { supported = true; break; }
-            if (!supported || !TryReadRaceAccess(words[1], out string race, out var state)) return false;
-            rule = new StationFacilityRaceRule { facility = facility, race = race, state = state };
+            if (!supported || !TryReadRaceAccess(words[1], out string race, out var state, out string reason)) return false;
+            rule = new StationFacilityRaceRule { facility = facility, race = race, state = state, reason = reason };
             return true;
         }
 
@@ -187,7 +197,7 @@ namespace GoF2Remake.Multiplayer
             {
                 var rule = rules[i];
                 if (rule != null) lines.Append('\n').Append(scope).Append(" · ").Append(rule.facility)
-                    .Append(" · ").Append(rule.race).Append(" · ").Append(rule.facility == "purchase" || rule.facility == "sale" ? rule.percent + "%" : rule.state.ToString());
+                    .Append(" · ").Append(rule.race).Append(" · ").Append(rule.facility == "purchase" || rule.facility == "sale" ? rule.percent + "%" : WithBlacklistReason(rule.state.ToString(), rule.reason));
             }
         }
     }
