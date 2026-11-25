@@ -16,10 +16,9 @@ namespace GoF2Remake.World
             {
                 if (Docking != null && Docking.Target == constructionPort)
                 {
-                    bool onApproach = Docking.State == ObjectDocking.Phase.Approach;
                     Docking.Abort();
                     // The full station can be much larger than the temporary cube. Release outside its hull.
-                    if (!onApproach && Player != null && Layout != null && GameHooks.StationSceneryPresent?.Invoke(Layout.stationIndex) == true)
+                    if (Player != null && Layout != null && GameHooks.StationSceneryPresent?.Invoke(Layout.stationIndex) == true)
                     {
                         var completed = OrbitLayout.Build(db, Layout.stationIndex);
                         if (completed != null)
@@ -34,7 +33,7 @@ namespace GoF2Remake.World
                     }
                 }
                 Traffic?.Ships.Remove(constructionPort);
-                Navigation?.Targets.RemoveAll(target => target.dockingShip == constructionPort);
+                Navigation?.RemoveDockingTarget(constructionPort);
                 constructionPort.gameObject.SetActive(false);
                 Destroy(constructionPort.gameObject);
                 constructionPort = null;
