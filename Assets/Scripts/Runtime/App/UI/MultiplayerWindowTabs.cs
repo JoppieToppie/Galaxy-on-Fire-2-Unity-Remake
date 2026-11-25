@@ -57,6 +57,9 @@ namespace GoF2Remake.UI
             }
             (last ?? body.Query<Button>().First())?.Focus();
         }
+        string factionBroadcastDraft = "";
+        string factionBroadcastDraftOwner = "";
+
         void BuildFaction(NetPanel.State s)
         {
             if (!s.profiles) { body.Add(Text(Localization.Extra("mpPanelNoProfiles", "Factions need a dedicated server with player profiles."), 16, Dim)); return; }
@@ -87,6 +90,47 @@ namespace GoF2Remake.UI
             body.Add(title);
             body.Add(Text(s.rank == 2 ? Localization.Extra("mpRankLeader", "You lead this faction.") : s.rank == 1 ? Localization.Extra("mpRankOfficer", "You are an officer.")
                                                                                                                    : Localization.Extra("mpRankMember", "You are a member."), 14, Dim));
+
+            if (officer && s.controller)
+            {
+                if (factionBroadcastDraftOwner != s.factionTag)
+                {
+                    factionBroadcastDraftOwner = s.factionTag;
+                    factionBroadcastDraft = "";
+                }
+                Section("Galactic news broadcast");
+                body.Add(Text("Official faction announcements appear in GalNet. The faction has its own five-minute cooldown, separate from every station.", 14, Dim));
+                var field = new TextField { multiline = true, maxLength = NetNews.OfficialMessageLimit, value = factionBroadcastDraft };
+                field.style.minHeight = 72;
+                body.Add(field);
+                var counter = Text("", 14, Dim);
+                body.Add(counter);
+                var preview = Text("", 15, Color.white);
+                preview.enableRichText = false;
+                preview.style.whiteSpace = WhiteSpace.Normal;
+                body.Add(preview);
+                var cooldown = Text("", 14, Good);
+                body.Add(cooldown);
+                var publish = Btn("Publish faction broadcast", () =>
+                {
+                    string message = System.Text.RegularExpressions.Regex.Replace(factionBroadcastDraft.Trim(), @"\s+", " ");
+                    if (message.Length > 0) Send("/faction broadcast " + message);
+                }, "squad-button--accept");
+                body.Add(publish);
+                void UpdateComposer()
+                {
+                    var live = NetPanel.Latest;
+                    bool authorized = live != null && live.inFaction && live.rank >= 1 && live.controller && live.factionTag == s.factionTag;
+                    long remaining = Math.Max(0L, (live?.factionBroadcastReadyUtc ?? s.factionBroadcastReadyUtc) - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    counter.text = $"{factionBroadcastDraft.Length} / {NetNews.OfficialMessageLimit} characters";
+                    preview.text = "[" + s.factionTag + "] " + s.factionName + ": " + factionBroadcastDraft;
+                    cooldown.text = remaining > 0 ? $"Faction cooldown: {remaining / 60:00}:{remaining % 60:00}" : "Faction broadcast available";
+                    publish.SetEnabled(authorized && remaining == 0 && !string.IsNullOrWhiteSpace(factionBroadcastDraft));
+                }
+                field.RegisterValueChangedCallback(change => { factionBroadcastDraft = change.newValue; UpdateComposer(); });
+                UpdateComposer();
+                cooldown.schedule.Execute(UpdateComposer).Every(1000);
+            }
 
             Section(Localization.Extra("mpPanelBank", "Bank"));
             var bank = Row();
