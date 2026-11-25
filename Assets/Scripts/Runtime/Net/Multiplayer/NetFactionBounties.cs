@@ -41,8 +41,8 @@ namespace GoF2Remake.Multiplayer
             public List<PiracyRecord> piracy = new List<PiracyRecord>();
         }
 
-        const long PiracyWindowSeconds = 4 * 86400;
-        const int PiracyKillThreshold = 30;
+        const int MaxPiracyWindowSeconds = 365 * 86400;
+        const int MaxPiracyKillThreshold = 1000;
         static bool PiracyEnabled => Modding.ModPvpPiracy.Enabled && NetProfiles.Enabled;
 
         static BountyFile bountyFile;
@@ -95,7 +95,7 @@ namespace GoF2Remake.Multiplayer
             bountyDirty |= bountyFile.records.RemoveAll(r => r.wantedUntil <= now &&
                 !r.pvpKills.Exists(k => k > now - BountyWindowSeconds) &&
                 !r.pveKills.Exists(k => k > now - BountyWindowSeconds)) > 0;
-            bountyDirty |= bountyFile.piracy.RemoveAll(r => !r.pirate && !r.kills.Exists(k => k > now - PiracyWindowSeconds)) > 0;
+            bountyDirty |= bountyFile.piracy.RemoveAll(r => !r.pirate && !r.kills.Exists(k => k >= now - MaxPiracyWindowSeconds)) > 0;
             SaveBounties();
         }
 
@@ -200,15 +200,27 @@ namespace GoF2Remake.Multiplayer
             pilot.SetPiracyFlags(pirate, wanted);
         }
 
-        static bool TrackPiracyKill(string account, long now)
+        static bool TrackPiracyKill(string account, long now, out int count, out int threshold, out int windowSeconds)
         {
+            count = threshold = windowSeconds = 0;
             var record = bountyFile.piracy.Find(r => r.account == account);
             if (record == null) bountyFile.piracy.Add(record = new PiracyRecord { account = account });
             if (record.pirate) return false;
 
-            record.kills.RemoveAll(k => k <= now - PiracyWindowSeconds);
+            threshold = GameHooks.PiracyKillThreshold?.Invoke() ?? GameHooks.DefaultPiracyKillThreshold;
+            threshold = threshold > 0 ? Math.Min(threshold, MaxPiracyKillThreshold) : GameHooks.DefaultPiracyKillThreshold;
+            windowSeconds = GameHooks.PiracyWindowSeconds?.Invoke() ?? GameHooks.DefaultPiracyWindowSeconds;
+            windowSeconds = windowSeconds > 0 ? Math.Min(windowSeconds, MaxPiracyWindowSeconds) : GameHooks.DefaultPiracyWindowSeconds;
+
+            // Retain enough timestamps to apply a changed rule on the next qualifying kill.
+            record.kills.RemoveAll(k => k < now - MaxPiracyWindowSeconds);
             record.kills.Add(now);
-            if (record.kills.Count >= PiracyKillThreshold)
+            if (record.kills.Count > MaxPiracyKillThreshold)
+                record.kills.RemoveRange(0, record.kills.Count - MaxPiracyKillThreshold);
+            long cutoff = now - windowSeconds;
+            foreach (long kill in record.kills)
+                if (kill >= cutoff) count++;
+            if (count >= threshold)
             {
                 record.pirate = true;
                 record.kills.Clear();
@@ -254,7 +266,7 @@ namespace GoF2Remake.Multiplayer
                  (siege.defender == victimFaction.id && siege.attacker == killerFaction.id))))) return;
 
             long now = UnixNow;
-            bool becamePirate = TrackPiracyKill(account, now);
+            bool becamePirate = TrackPiracyKill(account, now, out int count, out int threshold, out int windowSeconds);
             var issuedBy = new List<string>();
             foreach (var faction in list.factions)
                 if (ProtectsForBounties(faction, victimFaction, victimAccount)) CountKill("faction:" + faction.id);
@@ -270,7 +282,14 @@ namespace GoF2Remake.Multiplayer
             if (SaveBounties())
             {
                 RefreshPiracyFlag(killer);
-                if (becamePirate) NetState.Instance?.Notify(killer.OwnerClientId, "You have been flagged as a pirate.");
+                if (count > 0)
+                    Modding.ModScripts.Raise("piracyKillRegistered", (double)killer.OwnerClientId, (double)victim.OwnerClientId,
+                        victim.Station, count, threshold, windowSeconds);
+                if (becamePirate)
+                {
+                    NetState.Instance?.Notify(killer.OwnerClientId, "You have been flagged as a pirate.");
+                    Modding.ModScripts.Raise("piracyStatusChanged", (double)killer.OwnerClientId, true);
+                }
                 if (issuedBy.Count > 0)
                     NetState.Instance?.Notify(killer.OwnerClientId, $"Bounties issued on you by {string.Join(", ", issuedBy)}.");
             }
@@ -361,7 +380,11 @@ namespace GoF2Remake.Multiplayer
             }
 
             RefreshPiracyFlag(pilot);
-            if (piracy != null) NetState.Instance?.Notify(client, "Your pirate status has been revoked. Active faction bounties remain.");
+            if (piracy != null)
+            {
+                NetState.Instance?.Notify(client, "Your pirate status has been revoked. Active faction bounties remain.");
+                Modding.ModScripts.Raise("piracyStatusChanged", (double)client, false);
+            }
             refusal = null;
             return true;
         }

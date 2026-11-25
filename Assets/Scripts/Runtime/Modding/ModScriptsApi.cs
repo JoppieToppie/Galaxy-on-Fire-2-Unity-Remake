@@ -90,6 +90,8 @@ EVENTS  (game.on)
   database(db)               the game's tables were loaded: change them here
   shipDestroyed(ship, byPlayer)
   playerDestroyed()
+  piracyKillRegistered(killerId, victimId, station, count, threshold, windowSeconds)
+  piracyStatusChanged(pilotId, isPirate)  server only, requires the piracy mod option
   trade(item, amount, price, station)   bought (+) or sold (-) in a shop
   missionAccepted(mission), missionSucceeded(mission, pay), missionFailed(mission)
   storyStep(step, previous)  the campaign moved on
@@ -128,6 +130,9 @@ HOOKS
       game.hook(""GameHooks"", ""FactionBuyPrice"", function(original, station, price)
           return math.floor(original(station, price) / 2)
       end)
+  Server piracy rules (requires the piracy mod option):
+      game.hook(""GameHooks"", ""PiracyKillThreshold"", function() return 40 end)
+      game.hook(""GameHooks"", ""PiracyWindowSeconds"", function() return 5 * 86400 end)
   game.listen(target, ""Member"", function(...) ... end)
       adds to a C# event or delegate: game.listen(""Settings"", ""Changed"", fn)
   The hook classes GameHooks, SpaceHooks, UiHooks and NetSession hold most

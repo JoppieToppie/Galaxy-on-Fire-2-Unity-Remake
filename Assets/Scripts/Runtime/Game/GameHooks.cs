@@ -73,6 +73,12 @@ namespace GoF2Remake.Data
         public static Func<string> SharedPirateBoard;
         public static Func<bool> LocalPilotIsPirate;
 
+        public const int DefaultPiracyKillThreshold = 30;
+        public const int DefaultPiracyWindowSeconds = 4 * 86400;
+        /// <summary>Server piracy rules. These hooks only run when the piracy mod option is enabled.</summary>
+        public static Func<int> PiracyKillThreshold = () => DefaultPiracyKillThreshold;
+        public static Func<int> PiracyWindowSeconds = () => DefaultPiracyWindowSeconds;
+
         public delegate bool RuleQuery(int bit, out bool on);
         /// <summary>The session's value of a gameplay rule (NetRules.TryGet); false = no session, the player's own option.</summary>
         public static RuleQuery SessionRule;
