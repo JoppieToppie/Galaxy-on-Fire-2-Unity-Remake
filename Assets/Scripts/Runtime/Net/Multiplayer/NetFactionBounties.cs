@@ -151,15 +151,22 @@ namespace GoF2Remake.Multiplayer
             return issued;
         }
 
-        internal static bool SecureForBounties(int station) =>
-            PiracyEnabled && PiracySystemAt(station)?.securityLevel >= 3;
+        internal static bool SecureForBounties(int station, ulong victim) =>
+            PiracyEnabled && GalaxyMap.SecurityOf(PiracySystemAt(station), KaamoStateAt(station, victim)) >= 3;
 
-        internal static bool DropsEquipmentOnDeath(int station, bool pirate)
+        static int KaamoStateAt(int station, ulong? client)
+        {
+            // Only Shima's effective security depends on per-pilot progress.
+            if (PiracySystemAt(station)?.index != GalaxyMap.ShimaSystem) return 0;
+            return client.HasValue ? NetProfiles.KaamoStateFor(client.Value) : Session.KaamoState;
+        }
+
+        internal static bool DropsEquipmentOnDeath(int station, bool pirate, ulong? client = null)
         {
             if (!Modding.ModPvpPiracy.Enabled || NetState.Instance?.ProfilesOn != true || NetArena.IsArenaOrbit(station))
                 return false;
             var system = PiracySystemAt(station);
-            return system != null && (pirate || system.securityLevel < 3);
+            return GalaxyMap.DeathPenaltiesApply(system, KaamoStateAt(station, client), pirate);
         }
 
         static SystemData PiracySystemAt(int station)

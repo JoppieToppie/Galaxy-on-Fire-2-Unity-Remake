@@ -14,13 +14,29 @@ namespace GoF2Remake.UI
 {
     public partial class FlightHud
     {
+        int secureRespawnStation = -1;
+
+        int SecureRespawnStation()
+        {
+            if (!Modding.ModPvpPiracy.Enabled || GoF2Remake.Multiplayer.NetGame.Active ||
+                GoF2Remake.Events.EventRespawn.Active || level == null || level.Challenge != null ||
+                Modding.ModBuilder.TestFlying || Modding.ModBuilder.PlayTesting) return -1;
+            var db = level.Database;
+            var system = db?.Systems?.Find(s => s != null && s.index == level.Layout.systemIndex);
+            if (GalaxyMap.SecurityOf(system) < 3) return -1;
+            int last = Session.LastDockedStation;
+            if (db.Stations.Exists(s => s != null && s.index == last)) return last;
+            return level.Layout.hasStation && level.StationInfo != null ? level.StationInfo.index : -1;
+        }
+
         void OnGameOver()
         {
             if (GoF2Remake.Multiplayer.NetArenaClient.InMatch) return;   // an arena match respawns the ship instead
+            secureRespawnStation = SecureRespawnStation();
             gameOverMs = 0f;
             gameOver.AddToClassList("game-over--shown");
             // Remake (hardcore): the run's saves go at once (closing the game now can't keep them), Tap leaves to the menu.
-            if (Session.Hardcore && !GoF2Remake.Multiplayer.NetGame.Active && !GoF2Remake.Events.EventRespawn.Active)
+            if (secureRespawnStation < 0 && Session.Hardcore && !GoF2Remake.Multiplayer.NetGame.Active && !GoF2Remake.Events.EventRespawn.Active)
             {
                 SaveGame.DeleteRun(Session.RunId);
                 hardcoreDead = true;
@@ -37,7 +53,9 @@ namespace GoF2Remake.UI
                 gameOverText.text = Localization.Extra("mbTestDead", "Tap to return to the Mod Builder.");
                 return;
             }
-            gameOverText.text = GoF2Remake.Events.EventRespawn.Active || GoF2Remake.Multiplayer.NetCoop.RespawnsInSpace
+            gameOverText.text = secureRespawnStation >= 0
+                ? Localization.Extra("secureRespawn", "Tap to respawn at the station without losing progress.")
+                : GoF2Remake.Events.EventRespawn.Active || GoF2Remake.Multiplayer.NetCoop.RespawnsInSpace
                 ? Localization.Extra("mpRespawnEvent", "Respawning in space...")      // an event's respawn point, a co-op guest beside the leader
                 : GoF2Remake.Multiplayer.NetGame.Active
                 ? Localization.Extra("mpRespawn", "Tap to respawn at the station.")   // multiplayer: no saves, docked again
@@ -74,6 +92,14 @@ namespace GoF2Remake.UI
                 bool defending = GoF2Remake.Multiplayer.NetFactionsClient.DefendsSiegeHere(Session.StationIndex);
                 if (!defending && docked >= 0 && docked < GoF2Remake.Multiplayer.NetGame.Db.Stations.Count) Session.StationIndex = docked;
                 Session.DockedFromSpace = false;
+                SceneManager.LoadScene("Station");
+                return;
+            }
+            if (secureRespawnStation >= 0 && Application.CanStreamedLevelBeLoaded("Station"))
+            {
+                Session.StationIndex = secureRespawnStation;
+                Session.DockedFromSpace = false;
+                Session.ArrivedByLoad = true; // no docking fine for the protected death
                 SceneManager.LoadScene("Station");
                 return;
             }

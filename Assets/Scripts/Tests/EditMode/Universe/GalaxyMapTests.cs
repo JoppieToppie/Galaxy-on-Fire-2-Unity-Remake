@@ -459,6 +459,12 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(3, GalaxyMap.SecurityOf(Sys(26)), "Secure once the siege is over");
             Assert.AreEqual(Sys(25).securityLevel, GalaxyMap.SecurityOf(Sys(25)));
             Assert.AreEqual(4, GalaxyMap.SecurityColours.Length);
+            Assert.AreEqual(0, GalaxyMap.SecurityOf(Sys(26), 0), "Remote pilot does not inherit host progress");
+            Assert.AreEqual(3, GalaxyMap.SecurityOf(Sys(26), 2));
+            Assert.IsFalse(GalaxyMap.DeathPenaltiesApply(Sys(26), 2, false));
+            Assert.IsTrue(GalaxyMap.DeathPenaltiesApply(Sys(26), 2, true));
+            Assert.IsTrue(GalaxyMap.DeathPenaltiesApply(Sys(26), 0, false));
+            Assert.IsFalse(GalaxyMap.DeathPenaltiesApply(null, 0, true));
         }
 
         // ---- the system view (StarMap::initStarSystem) ----------------------------------------------------------

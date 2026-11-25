@@ -161,8 +161,14 @@ namespace GoF2Remake.Data
 
         /// <summary>SolarSystem::hasNoOwner: no race icon, race line or logo.</summary>
         /// <summary>StarMap::drawOnScreenInfo: Shima reads 3 "Secure" once the Kaamo Club's siege is over (Status+0x114 &gt; 1).</summary>
-        public static int SecurityOf(SystemData s) =>
-            s == null ? 0 : s.index == KaamoClub.SystemIndex && Session.KaamoState > 1 ? 3 : s.securityLevel;
+        public static int SecurityOf(SystemData s) => SecurityOf(s, Session.KaamoState);
+
+        /// <summary>Effective security for an explicit pilot state (the server must not use its own Kaamo progress for remote pilots).</summary>
+        public static int SecurityOf(SystemData s, int kaamoState) =>
+            s == null ? 0 : s.index == KaamoClub.SystemIndex && kaamoState > 1 ? 3 : s.securityLevel;
+
+        public static bool DeathPenaltiesApply(SystemData s, int kaamoState, bool pirate) =>
+            s != null && (pirate || SecurityOf(s, kaamoState) < 3);
 
         public static bool HasOwner(int system) => system != 23 && system != 24 && system != 26 && system != 32 && system != 33;
 

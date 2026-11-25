@@ -414,15 +414,15 @@ namespace GoF2Remake.Multiplayer
             }
             if (victim.Hull != 0f || !victim.InSpace || !victim.HasCurrentWreckClaimPose ||
                 NetArena.InMatch(victim.OwnerClientId)) return;
-            if (!attemptedBountyDrops.Contains(id) && NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate) &&
-                DropBountyEquipment(victim))
+            if (!attemptedBountyDrops.Contains(id) &&
+                (!NetFactions.DropsEquipmentOnDeath(victim.Station, victim.IsPirate, victim.OwnerClientId) || DropBountyEquipment(victim)))
                 attemptedBountyDrops.Add(id);
 
             if (!pendingPiracyDeaths.TryGetValue(id, out var death)) return;
             pendingPiracyDeaths.Remove(id);
             if (death.killer == null || !death.killer.IsSpawned || death.station != victim.Station ||
                 death.deadline < Time.unscaledTime || !registeredPiracyDeaths.Add(id)) return;
-            bool secure = NetFactions.SecureForBounties(death.station);
+            bool secure = NetFactions.SecureForBounties(death.station, victim.OwnerClientId);
             if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
             if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
         }
