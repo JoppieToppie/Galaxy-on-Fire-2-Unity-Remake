@@ -19,11 +19,12 @@ namespace GoF2Remake.UI
         readonly VisualElement stationRoot, overlay, panel;
         readonly ScrollView stationList;
         readonly ScrollView body;
-        readonly VisualElement pageBar;
+        readonly VisualElement pageBar, primaryNav;
         NetPlayerStations.ManagementCatalogue managementCatalogue;
         int directoryPage;
         float nextManagementQuery;
-        string pageBarSignature;
+        string pageBarSignature, stationListSignature;
+        string moduleDetail;
         readonly Label heading, feedback;
         readonly Button openButton, closeButton;
         readonly Dictionary<string, string> drafts = new Dictionary<string, string>();
@@ -94,11 +95,9 @@ namespace GoF2Remake.UI
 
             overlay = new VisualElement { name = "playerStationOverlay" };
             overlay.AddToClassList("player-station-overlay");
-            if (inFlight)
-            {
-                var sheet = Resources.Load<StyleSheet>("GoF2Net/PlayerStationWindow");
-                if (sheet != null) overlay.styleSheets.Add(sheet);
-            }
+            // The same resource stylesheet drives the docked and in-flight interface.
+            var sheet = Resources.Load<StyleSheet>("GoF2Net/PlayerStationWindow");
+            if (sheet != null) overlay.styleSheets.Add(sheet);
             overlay.style.display = DisplayStyle.None;
             safeArea.Add(overlay);
             panel = new VisualElement { name = "playerStationManagement" };
@@ -108,12 +107,14 @@ namespace GoF2Remake.UI
             overlay.Add(panel);
 
             var top = new VisualElement(); top.AddToClassList("player-station-header");
-            heading = new Label("PLAYER STATIONS"); heading.AddToClassList("player-station-title"); top.Add(heading);
+            heading = new Label("PLAYER STATIONS") { enableRichText = false }; heading.AddToClassList("player-station-title"); top.Add(heading);
             closeButton = new Button(Back) { text = "BACK" }; closeButton.AddToClassList("player-station-close");
             closeButton.clicked += () => menu?.PlayRelease();
             closeButton.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
             top.Add(closeButton); panel.Add(top);
 
+            var shell = new VisualElement(); shell.AddToClassList("player-station-shell");
+            primaryNav = new VisualElement(); primaryNav.AddToClassList("player-station-primary-nav"); shell.Add(primaryNav);
             var split = new VisualElement(); split.AddToClassList("player-station-content");
             stationList = new ScrollView(ScrollViewMode.Vertical); stationList.AddToClassList("player-station-list");
             split.Add(stationList);
@@ -123,7 +124,7 @@ namespace GoF2Remake.UI
             workspace.style.flexGrow = 1; workspace.style.flexBasis = 0; workspace.style.minWidth = 0; workspace.style.minHeight = 0;
             pageBar = new VisualElement(); pageBar.style.flexDirection = FlexDirection.Row; pageBar.style.flexWrap = Wrap.Wrap;
             pageBar.style.marginBottom = 8; pageBar.style.flexShrink = 0;
-            workspace.Add(pageBar); workspace.Add(body); split.Add(workspace); panel.Add(split);
+            workspace.Add(pageBar); workspace.Add(body); split.Add(workspace); shell.Add(split); panel.Add(shell);
             feedback = new Label(); feedback.AddToClassList("player-station-feedback"); panel.Add(feedback);
             panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
             panel.RegisterCallback<PointerCancelEvent>(_ => pressedAt = -10f, TrickleDown.TrickleDown);
@@ -171,12 +172,14 @@ namespace GoF2Remake.UI
         void ApplyResponsiveLayout()
         {
             bool small = InputMode.Current == InputKind.Touch || panel.resolvedStyle.width < 850f;
+            bool changed = compact != small;
             compact = small;
             panel.EnableInClassList("player-station-compact", small);
             stationList.mode = small ? ScrollViewMode.Horizontal : ScrollViewMode.Vertical;
             stationList.contentContainer.style.flexDirection = small ? FlexDirection.Row : FlexDirection.Column;
             pageBar.style.flexWrap = Wrap.Wrap;
             body.style.flexGrow = 1; body.style.flexBasis = 0; body.style.minHeight = 0; body.style.minWidth = 0;
+            if (changed && open && placementRoot == null && modelPickerKey == null && choicePickerKey == null) refresh = 0;
         }
 
         int CurrentOrbit => inFlight ? NetPlayer.Local?.Station ?? -1 : level?.Layout?.stationIndex ?? -1;
@@ -254,6 +257,7 @@ namespace GoF2Remake.UI
             overlay.BringToFront();
             open = true;
             managementPage = marketplaceOnly ? "market" : "overview";
+            selected = null; stationListSignature = null; moduleDetail = null;
             refresh = 0;
             plannerOrbits = null;
             plannerRequestPending = false;
@@ -270,6 +274,7 @@ namespace GoF2Remake.UI
             if (choicePickerKey != null) CloseChoicePicker();
             else if (modelPickerKey != null) CloseModelPicker();
             else if (marketplaceOnly) { Close(); menu?.OpenOutfitting(); }
+            else if (managementPage == "modules" && moduleDetail != null) { moduleDetail = null; RebuildBody(Vector2.zero); }
             else if (managementPage != "overview") ChangeManagementPage("overview");
             else Close();
         }
@@ -301,16 +306,16 @@ namespace GoF2Remake.UI
             drafts.Clear();
             plannerOrbits = null;
             plannerRequestPending = false;
-            managementCatalogue = null; pageBarSignature = null; pageBar.Clear();
+            managementCatalogue = null; pageBarSignature = null; pageBar.Clear(); primaryNav.Clear();
+            stationListSignature = null; moduleDetail = null;
             confirmBuilderRelinquish = -1;
         }
 
         void RebuildStationList()
         {
-            stationList.Clear();
             if (StationDataStatus() != null)
             {
-                selected = null;
+                selected = null; stationListSignature = null; stationList.Clear();
                 return;
             }
             if (marketplaceOnly)
@@ -327,24 +332,38 @@ namespace GoF2Remake.UI
                 .OrderBy(x => x.stationIndex != currentStation).ThenBy(x => x.id).ToList();
             if (records == null || records.Count == 0)
             {
-                stationList.Add(new Label("No local station or accessible construction orders."));
-                selected = null;
+                if (stationListSignature != "empty") { stationList.Clear(); stationList.Add(new Label("No local station or accessible construction orders.")); }
+                stationListSignature = "empty"; selected = null;
                 return;
-            }
-            foreach (var record in records)
-            {
-                string state = record.offeredForClaimUtc > 0 ? "OPEN TO CLAIM" :
-                    record.underConstruction ? "CONSTRUCTION" : "OPERATIONAL";
-                var button = new Button(() => SelectStation(record))
-                { text = record.name + "\n#" + record.id + "  ·  " + state };
-                button.AddToClassList("player-station-row");
-                button.EnableInClassList("player-station-row--selected", selected?.id == record.id);
-                stationList.Add(button);
             }
             int previousId = selected?.id ?? -1;
             selected = records.FirstOrDefault(x => x.id == previousId)
                 ?? records.FirstOrDefault(x => x.stationIndex == CurrentOrbit) ?? records[0];
-            if (previousId != selected.id) { drafts.Clear(); managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0; managementPage = "overview"; }
+            if (previousId != selected.id)
+            {
+                drafts.Clear(); managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
+                if (managementPage != "directory" && managementPage != "orders") managementPage = "overview";
+                moduleDetail = null;
+            }
+            string signature = selected.id + ":" + string.Join("|", records.Select(record =>
+                record.id + ":" + record.name + ":" + record.underConstruction + ":" + record.offeredForClaimUtc));
+            if (signature == stationListSignature) return;
+            stationListSignature = signature;
+            stationList.Clear();
+            foreach (var record in records)
+            {
+                string state = record.offeredForClaimUtc > 0 ? "OPEN TO CLAIM" :
+                    record.underConstruction ? "CONSTRUCTION" : "OPERATIONAL";
+                int stationId = record.id;
+                var button = new Button(() =>
+                {
+                    var live = NetPlayerStations.Stations?.FirstOrDefault(entry => entry != null && entry.id == stationId);
+                    if (live != null) SelectStation(live);
+                }) { text = record.name + "\n" + state, enableRichText = false };
+                button.AddToClassList("player-station-row");
+                button.EnableInClassList("player-station-row--selected", selected.id == record.id);
+                stationList.Add(button);
+            }
         }
 
         void SelectStation(PlayerStationRecord record)
@@ -356,6 +375,7 @@ namespace GoF2Remake.UI
                 confirmOrbitalRemoval = 0;
                 managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
                 if (managementPage != "directory" && managementPage != "orders") managementPage = "overview";
+                moduleDetail = null;
                 drafts.Clear();
                 body.scrollOffset = Vector2.zero;
             }
@@ -458,12 +478,9 @@ namespace GoF2Remake.UI
             bool operational = !selected.underConstruction && selected.offeredForClaimUtc == 0;
             bool docked = !inFlight && selected.stationIndex == CurrentOrbit;
             bool ownership = managementCatalogue?.canOwnership == true;
-            bool HasModule(string module) => selected.addons?.Any(addon => addon != null && addon.kind == module && addon.level > 0) == true;
             if (managementPage == "overview" || !operational || !docked)
             {
-                AddSection(selected.name, selected.underConstruction ? "CONSTRUCTION PROJECT" : selected.offeredForClaimUtc > 0 ? "OPEN TO CLAIM" : "STATION OVERVIEW");
-                AddInfo("Station", selected.name);
-                AddStationLocation(selected);
+                if (!operational) { AddSection(selected.name, selected.underConstruction ? "CONSTRUCTION PROJECT" : "OPEN TO CLAIM"); AddStationLocation(selected); }
                 if (selected.offeredForClaimUtc > 0)
                 {
                     AddInfo("Claim price", NetPlayerStations.StationClaimPrice.ToString("N0") + " credits");
@@ -482,17 +499,7 @@ namespace GoF2Remake.UI
                     AddAction("Open resource buy orders", () => ChangeManagementPage("orders"));
                     return;
                 }
-                AddInfo("Ownership", selected.ownershipType == PlayerStationOwnershipType.Faction ? "Faction-owned" : "Individually owned");
-                AddInfo("Owner", selected.ownerName ?? "Unknown");
-                AddInfo("State", "Operational");
-                AddInfo("Installed facility count", (selected.addons?.Count(a => a != null && a.level > 0) ?? 0).ToString());
-                AddInfo("Installed facilities", selected.addons == null || selected.addons.Count == 0 ? "None" :
-                    string.Join(", ", selected.addons.Where(a => a != null && a.level > 0).Select(a => ModuleLabel(a.kind))));
-                if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddInfo("Active module project", ModuleLabel(selected.moduleConstructionKind));
-                if (NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true)
-                    AddAction("View construction contribution ledger", "/station contributions " + id);
-                if (!docked) AddInfo("Facilities", "Dock at this station to manage or use its facilities.");
-                else AddAction("Refresh station project status", "/station status " + id);
+                BuildOverviewDashboard(id, docked);
                 return;
             }
             switch (managementPage)
@@ -533,28 +540,7 @@ namespace GoF2Remake.UI
                     }
                     break;
                 case "security": case "blacklist": case "race-policies": BuildStationGovernance(selected); break;
-                case "modules":
-                    AddSection("STATION MODULES", "Install facilities from cargo or open a procurement project.");
-                    AddAction("Module costs and requirements", "/station modules");
-                    AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
-                    foreach (string module in new[] { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" })
-                    {
-                        if (HasModule(module)) { AddSection(ModuleLabel(module), "OPERATIONAL"); if (module == "refinery" || module == "factory" || module == "hangar" || module == "drydock") AddAction("Open " + ModuleLabel(module), () => ChangeManagementPage(module)); continue; }
-                        AddSection(ModuleLabel(module), "INFRASTRUCTURE");
-                        if (selected.moduleConstructionKind == module && selected.moduleBuildCompletesUtc > 0)
-                        {
-                            AddInfo(ModuleLabel(module), "Building · " + ConstructionTime(Math.Max(1, selected.moduleBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())));
-                            continue;
-                        }
-                        int duration = Modding.ModPlayerInfrastructure.Current.ModuleBuildSeconds(module);
-                        if (duration > 0) AddInfo(ModuleLabel(module) + " build time", ConstructionTime(duration));
-                        AddAction("Install " + ModuleLabel(module) + " from cargo", "/station install " + id + " " + module);
-                        AddAction("Install " + ModuleLabel(module) + " from your storage", "/station install-storage " + id + " " + module);
-                        if (string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Open " + ModuleLabel(module) + " project", "/station module-project " + id + " " + module);
-                    }
-                    if (!string.IsNullOrEmpty(selected.moduleConstructionKind)) AddAction("Manage active module procurement", () => ChangeManagementPage("orders"));
-                    if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
-                    break;
+                case "modules": BuildModuleDashboard(id); break;
                 case "defenses":
                     AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
                     BuildOrbitalStructureControls(id);
@@ -567,12 +553,163 @@ namespace GoF2Remake.UI
             }
         }
 
+        VisualElement DashboardCard(VisualElement parent, string title)
+        {
+            var card = new VisualElement();
+            card.AddToClassList("player-station-dashboard-card");
+            var caption = new Label(title) { enableRichText = false };
+            caption.AddToClassList("player-station-section-title");
+            card.Add(caption); parent.Add(card);
+            return card;
+        }
+
+        void DashboardMetric(VisualElement grid, string title, string value)
+        {
+            var card = DashboardCard(grid, title);
+            card.AddToClassList("player-station-metric");
+            var label = new Label(value) { enableRichText = false };
+            label.AddToClassList("player-station-metric-value");
+            card.Add(label);
+        }
+
+        void BuildOverviewDashboard(string id, bool docked)
+        {
+            var station = selected;
+            var db = NetGame.Db;
+            var system = db?.Systems?.Find(entry => entry != null && entry.index == station.system);
+            var orbit = db?.Stations?.Find(entry => entry != null && entry.index == station.stationIndex);
+            var hero = new VisualElement(); hero.AddToClassList("player-station-dashboard-hero"); body.Add(hero);
+            var visual = DashboardCard(hero, station.name);
+            visual.AddToClassList("player-station-identity-card");
+            int model = station.looksLike >= 0 ? station.looksLike : station.stationIndex;
+            var image = Modding.ModPlayerInfrastructure.StationModelImage(model);
+            if (image.texture != null)
+            {
+                var preview = new VisualElement();
+                preview.AddToClassList("player-station-hero-preview");
+                preview.style.backgroundImage = new StyleBackground(image.texture);
+                visual.Add(preview);
+            }
+            var location = new Label((system?.name ?? "Unknown system") + " / " + (orbit?.name ?? "Unknown orbit")) { enableRichText = false };
+            location.AddToClassList("player-station-note"); visual.Add(location);
+            var info = DashboardCard(hero, "STATION STATUS");
+            info.AddToClassList("player-station-status-card");
+            AddInfoTo(info, "State", "Operational");
+            AddInfoTo(info, "Owner", station.ownerName ?? "Unknown");
+            AddInfoTo(info, "Ownership", station.ownershipType == PlayerStationOwnershipType.Faction ? "Faction" : "Individual");
+            AddInfoTo(info, "System", system?.name ?? "Unknown system");
+            AddInfoTo(info, "Orbit", orbit?.name ?? "Unknown orbit");
+            string role = managementCatalogue == null ? (docked ? "Loading permissions" : "Not docked") :
+                managementCatalogue.canOwnership ? "Owner authority" :
+                managementCatalogue.canManage ? "Administrator" : "Visitor / delegated access";
+            AddInfoTo(info, "Access", role);
+            var metrics = new VisualElement(); metrics.AddToClassList("player-station-metric-grid"); body.Add(metrics);
+            int facilities = station.addons?.Count(a => a != null && a.level > 0) ?? 0;
+            int defenses = NetPlayerStations.OrbitalStructures?.Count(entry => entry != null && entry.orbit == station.stationIndex && entry.defense) ?? 0;
+            string integrity = station.stationIntegrityCapacity > 0 ?
+                Mathf.Clamp(station.stationIntegrity / station.stationIntegrityCapacity * 100f, 0f, 100f).ToString("0") + "%" : "Unreported";
+            DashboardMetric(metrics, "INTEGRITY", integrity);
+            DashboardMetric(metrics, "FACILITIES", facilities.ToString());
+            DashboardMetric(metrics, "DEFENSES", $"{defenses} / {Modding.ModPlayerInfrastructure.Current.OrbitalDefenseLimit}");
+            long escrow = station.buyOrders?.Where(order => order != null && order.remaining > 0).Sum(order => order.reservedCredits) ?? 0L;
+            DashboardMetric(metrics, "PROCUREMENT ESCROW", escrow.ToString("N0") + " CR");
+
+            AddSection("ACTIVITY & PROJECTS", "Live construction status and station announcements.");
+            bool hasProjects = false;
+            if (!string.IsNullOrEmpty(station.moduleConstructionKind))
+            {
+                hasProjects = true;
+                AddInfo("Module construction", ModuleLabel(station.moduleConstructionKind) + (station.moduleBuildCompletesUtc > 0 ?
+                    " · " + ConstructionTime(Math.Max(1, station.moduleBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())) : " · Awaiting materials"));
+                AddAction("View construction procurement", () => ChangeManagementPage("orders"));
+            }
+            if (station.dryDockBuilding)
+            {
+                hasProjects = true;
+                AddInfo("Dry dock", station.dryDockCompletesUtc > 0 ? ConstructionTime(Math.Max(1, station.dryDockCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())) : "Construction underway");
+            }
+            if (!hasProjects) AddInfo("Construction", "No active module or dry-dock project");
+            var news = NetNews.StationAnnouncements(station.stationIndex);
+            if (news.Count > 0)
+            {
+                AddInfo("Latest station news", news[0]);
+                if (docked) AddAction("Read station news", () => ChangeManagementPage("news"));
+            }
+            if (NetPlayer.Local?.CanViewStationLedgerInUi(station.id) == true)
+                AddAction("View construction contribution ledger", "/station contributions " + id);
+            if (!docked) AddInfo("Facilities", "Dock at this station to manage or use its facilities.");
+            else if (managementCatalogue?.canConstruction == true)
+                AddAction("Manage infrastructure", () => ChangeManagementPage("modules"));
+        }
+
+        void BuildModuleDashboard(string id)
+        {
+            var station = selected;
+            bool Installed(string module) => station.addons?.Any(a => a != null && a.kind == module && a.level > 0) == true;
+            bool Building(string module) => station.moduleConstructionKind == module;
+            string Status(string module)
+            {
+                if (Installed(module)) return "OPERATIONAL";
+                if (!Building(module)) return "NOT INSTALLED";
+                return station.moduleBuildCompletesUtc > 0 ? "BUILDING · " + ConstructionTime(Math.Max(1, station.moduleBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())) : "AWAITING MATERIALS";
+            }
+            if (moduleDetail == null)
+            {
+                AddSection("STATION MODULES", "Choose a facility to inspect its status, requirements or management actions.");
+                var grid = new VisualElement(); grid.AddToClassList("player-station-module-grid"); body.Add(grid);
+                foreach (string module in new[] { "storage", "hangar", "refinery", "factory", "drydock", "dockarm" })
+                {
+                    string key = module;
+                    var card = DashboardCard(grid, ModuleLabel(key).ToUpperInvariant());
+                    card.AddToClassList("player-station-module-card");
+                    var status = new Label(Status(key));
+                    status.AddToClassList("player-station-module-state");
+                    status.EnableInClassList("player-station-operational", Installed(key));
+                    status.EnableInClassList("player-station-building", Building(key));
+                    card.Add(status);
+                    var button = new Button(() => { moduleDetail = key; RebuildBody(Vector2.zero); }) { text = Installed(key) ? "Manage facility" : Building(key) ? "View construction" : "Installation options" };
+                    button.AddToClassList("player-station-action"); card.Add(button);
+                }
+                AddAction("Module costs and requirements", "/station modules");
+                AddAction("Open 3D orbit placement editor", () => ChangeManagementPage("placement"));
+                if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
+                return;
+            }
+            string current = moduleDetail;
+            AddAction("Back to all modules", () => { moduleDetail = null; RebuildBody(Vector2.zero); });
+            AddSection(ModuleLabel(current), Status(current));
+            if (Installed(current))
+            {
+                if (current == "storage")
+                {
+                    var storage = managementCatalogue?.storage;
+                    if (storage != null && storage.canDeposit) AddInfo("Capacity", $"{storage.used:N0} / {storage.capacity:N0} t");
+                    if (menu != null) AddAction("Open hangar storage", () => { Close(); menu.OpenOutfitting(); });
+                }
+                else if (current == "dockarm") AddAction("Open orbital placement", () => ChangeManagementPage("placement"));
+                else if (current == "hangar" || current == "drydock" || managementCatalogue?.canManage == true)
+                    AddAction("Open facility controls", () => ChangeManagementPage(current));
+                return;
+            }
+            if (Building(current))
+            {
+                AddAction("Manage active module procurement", () => ChangeManagementPage("orders"));
+                return;
+            }
+            int duration = Modding.ModPlayerInfrastructure.Current.ModuleBuildSeconds(current);
+            if (duration > 0) AddInfo("Build duration", ConstructionTime(duration));
+            AddAction("Install from cargo", "/station install " + id + " " + current);
+            AddAction("Install from personal storage", "/station install-storage " + id + " " + current);
+            if (string.IsNullOrEmpty(station.moduleConstructionKind))
+                AddAction("Open construction procurement project", "/station module-project " + id + " " + current);
+            else AddInfo("Construction", "Another module project is already active.");
+        }
+
         void RebuildPageBar()
         {
-            stationList.style.display = !marketplaceOnly && (managementPage == "directory" || managementPage == "orders") ? DisplayStyle.Flex : DisplayStyle.None;
             if (marketplaceOnly)
             {
-                pageBar.style.display = DisplayStyle.None;
+                pageBar.style.display = DisplayStyle.None; primaryNav.style.display = DisplayStyle.None; stationList.style.display = DisplayStyle.None;
                 return;
             }
             var pages = new List<(string key, string label)> { ("overview", "Overview"), ("directory", "Station directory") };
@@ -608,6 +745,8 @@ namespace GoF2Remake.UI
                 if (managementCatalogue?.canConstruction == true) { pages.Add(("modules", "Modules")); pages.Add(("defenses", "Defenses")); pages.Add(("placement", "Orbit editor")); }
             }
             if (!pages.Any(page => page.key == managementPage)) managementPage = "overview";
+            stationList.style.display = managementPage == "directory" || managementPage == "orders" ? DisplayStyle.Flex : DisplayStyle.None;
+            heading.text = selected == null ? "PLAYER STATIONS" : "STATION MANAGEMENT / " + selected.name;
             string Group(string key) => key switch
             {
                 "overview" => "Overview",
@@ -621,9 +760,10 @@ namespace GoF2Remake.UI
             string activeGroup = Group(managementPage);
             string signature = managementPage + ":" + string.Join(",", pages.Select(page => page.key + page.label));
             pageBar.style.display = modelPickerKey == null ? DisplayStyle.Flex : DisplayStyle.None;
+            primaryNav.style.display = modelPickerKey == null ? DisplayStyle.Flex : DisplayStyle.None;
             if (signature == pageBarSignature) return;
             pageBarSignature = signature;
-            pageBar.Clear();
+            pageBar.Clear(); primaryNav.Clear();
             pageBar.style.flexDirection = FlexDirection.Column;
             VisualElement NavigationRow()
             {
@@ -638,12 +778,12 @@ namespace GoF2Remake.UI
                 var button = new Button(() => ChangeManagementPage(key)) { text = title };
                 button.AddToClassList("player-station-action");
                 button.EnableInClassList("player-station-row--selected", active);
+                button.AddToClassList(row == primaryNav ? "player-station-primary-tab" : "player-station-secondary-tab");
                 button.style.minHeight = 36;
-                button.style.marginRight = 4;
+                button.clicked += () => menu?.PlayRelease();
                 row.Add(button);
             }
-            var groups = NavigationRow();
-            groups.AddToClassList("player-station-primary-nav");
+            var groups = primaryNav;
             string[] groupOrder = { "Overview", "Infrastructure", "Security & Access", "Economy", "Governance", "Facilities", "Directory" };
             foreach (string groupName in groupOrder)
             {
@@ -1231,7 +1371,7 @@ namespace GoF2Remake.UI
         void AddSection(string title, string description)
         {
             var section = new VisualElement(); section.AddToClassList("player-station-section");
-            var label = new Label(title); label.AddToClassList("player-station-section-title"); section.Add(label);
+            var label = new Label(title) { enableRichText = false }; label.AddToClassList("player-station-section-title"); section.Add(label);
             if (!string.IsNullOrEmpty(description))
             {
                 var note = new Label(description);
@@ -1241,14 +1381,16 @@ namespace GoF2Remake.UI
             body.Add(section);
         }
 
-        void AddInfo(string label, string value)
+        void AddInfo(string label, string value) => AddInfoTo(body, label, value);
+
+        void AddInfoTo(VisualElement parent, string label, string value)
         {
             var row = new VisualElement(); row.AddToClassList("player-station-info");
             row.style.flexWrap = Wrap.Wrap; row.style.minHeight = 32; row.style.flexShrink = 0;
             var name = new Label(label); name.style.whiteSpace = WhiteSpace.Normal; name.style.flexShrink = 1;
             var detail = new Label(value ?? ""); detail.enableRichText = false; detail.style.whiteSpace = WhiteSpace.Normal;
             detail.style.flexShrink = 1; detail.style.minWidth = 0; detail.style.flexGrow = 1;
-            row.Add(name); row.Add(detail); body.Add(row);
+            row.Add(name); row.Add(detail); parent.Add(row);
         }
 
         void BuildSystemGates(int system)
@@ -1428,7 +1570,7 @@ namespace GoF2Remake.UI
             choicePickerKey = key;
             choiceReturnScroll = body.scrollOffset;
             heading.text = label.ToUpperInvariant();
-            pageBar.style.display = DisplayStyle.None;
+            pageBar.style.display = DisplayStyle.None; primaryNav.style.display = DisplayStyle.None; stationList.style.display = DisplayStyle.None;
             panel.AddToClassList("player-station-picking-model");
             body.Clear(); fields.Clear();
             var toolbar = new VisualElement(); toolbar.style.flexDirection = FlexDirection.Row; toolbar.style.flexWrap = Wrap.Wrap; body.Add(toolbar);
@@ -1547,7 +1689,7 @@ namespace GoF2Remake.UI
         void OpenModelPicker(string key, List<(string value, string label, string race)> models)
         {
             modelPickerKey = key;
-            pageBar.style.display = DisplayStyle.None;
+            pageBar.style.display = DisplayStyle.None; primaryNav.style.display = DisplayStyle.None; stationList.style.display = DisplayStyle.None;
             modelPickerReturnScroll = body.scrollOffset;
             panel.AddToClassList("player-station-picking-model");
             heading.text = "CHOOSE STATION MODEL";
@@ -1617,7 +1759,7 @@ namespace GoF2Remake.UI
         void ChangeManagementPage(string page)
         {
             if (managementPage == page) return;
-            managementPage = page;
+            managementPage = page; moduleDetail = null;
             if (page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
             RebuildBody(Vector2.zero);
         }
