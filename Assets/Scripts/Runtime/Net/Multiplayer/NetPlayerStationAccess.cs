@@ -120,6 +120,16 @@ namespace GoF2Remake.Multiplayer
                     ids.Append(project.id);
                 }
             pilot.SetStationProjectFundingAccess(ids.ToString());
+            ids.Clear();
+            if (!string.IsNullOrEmpty(account))
+                foreach (var project in registry.stations)
+                {
+                    if (!CanViewConstructionLedger(project, account)) continue;
+                    if (ids.Length >= 3900) break;
+                    if (ids.Length > 0) ids.Append(',');
+                    ids.Append(project.id);
+                }
+            pilot.SetStationLedgerAccess(ids.ToString());
         }
 
         static StationProjectActions AvailableStationProjectActions(NetPlayer pilot, PlayerStationRecord docked, string account)
