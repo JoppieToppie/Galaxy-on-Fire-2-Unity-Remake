@@ -110,7 +110,7 @@ namespace GoF2Remake.Multiplayer
             return null;
         }
 
-        internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId, Vector3Int? placement = null)
+        internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId, Vector3Int? placement = null, int? plannedSlot = null)
         {
             var settings = ModPlayerInfrastructure.Current;
             if (!settings.Enabled) return "New infrastructure projects are disabled.";
@@ -123,6 +123,14 @@ namespace GoF2Remake.Multiplayer
                 if (entry.Id == presetId) { preset = entry; break; }
             if (preset == null || !OrbitalPresetAvailable(preset, OrbitalSponsorRace(sponsor))) return "That structure preset is unavailable.";
             var structures = registry.orbitalStructures;
+            if (plannedSlot.HasValue)
+            {
+                int n = plannedSlot.Value;
+                if (!preset.Defense || orbit != sponsor.stationIndex || n < 0 || n >= settings.OrbitalDefenseLimit || structures.Exists(p => p != null && p.orbit == orbit && p.defense && p.slot == n)) return "That defense slot is unavailable.";
+                var plan = sponsor.placements?.Find(p => p?.kind == "defense-" + (n + 1));
+                if (plan == null || plan.preset != presetId) return "Save the defense placement first.";
+                placement = Vector3Int.RoundToInt(StationPosition(orbit)) + new Vector3Int(plan.x, plan.y, plan.z);
+            }
             if (placement is Vector3Int point &&
                 OrbitalPlacementError(orbit, OrbitLayout.Build(NetGame.Db, orbit), point, preset.HitRadius) is string placementError)
                 return placementError;
@@ -134,8 +142,13 @@ namespace GoF2Remake.Multiplayer
                 if (entry != null && entry.orbit == orbit && entry.defense == preset.Defense) occupied++;
             if (occupied >= capacity) return "This orbit has no free " + (preset.Defense ? "defense" : "structure") + " slots.";
 
-            int slot = 0;
-            while (structures.Exists(entry => entry != null && entry.orbit == orbit && entry.defense == preset.Defense && entry.slot == slot)) slot++;
+            int slot = plannedSlot ?? 0;
+            if (!plannedSlot.HasValue)
+            {
+                while (structures.Exists(entry => entry != null && entry.orbit == orbit && entry.defense == preset.Defense && entry.slot == slot) ||
+                    (preset.Defense && StationAt(orbit)?.placements?.Exists(p => p?.kind == "defense-" + (slot + 1)) == true)) slot++;
+                if (slot >= capacity) return "All remaining slots are reserved by placement plans. Build a saved defense plan instead.";
+            }
 
             var structure = new PlayerOrbitalStructure
             {
@@ -170,6 +183,15 @@ namespace GoF2Remake.Multiplayer
                 registry.nextOrbitalStructureId--;
             }
             return "The orbital structure order could not be saved.";
+        }
+
+        internal static string StartPlannedDefense(NetPlayer pilot, int sponsorId, int slot)
+        {
+            var sponsor = Find(sponsorId);
+            if (sponsor == null || !CanIssueJumpgateOrder(pilot, sponsor, out _)) return "Dock at a station you can manage.";
+            var plan = sponsor.placements?.Find(p => p?.kind == "defense-" + (slot + 1));
+            if (plan == null) return "Save the defense placement first.";
+            return StartOrbitalStructure(pilot, sponsorId, sponsor.stationIndex, plan.preset, plannedSlot: slot);
         }
 
         internal static string ContributeOrbitalStructure(NetPlayer pilot, int id, int item, int amount, bool fromStock = false, bool maintenance = false)
