@@ -195,6 +195,23 @@ namespace GoF2Remake.Multiplayer
                 HasRole(station, managerAccount, PlayerStationRole.StationAdministrator)) == true;
         }
 
+        internal static PlayerJumpgateBlockEntry MatchingJumpgateBlacklist(PlayerJumpgateRecord gate, string account, string factionId)
+        {
+            if (gate?.blacklist == null || (gate.ownershipType == PlayerStationOwnershipType.Individual &&
+                !string.IsNullOrEmpty(account) && gate.ownerProfile == account)) return null;
+            return gate.blacklist.Find(entry => entry != null && entry.type == PlayerJumpgateBlockType.Profile &&
+                !string.IsNullOrEmpty(account) && entry.id == account) ?? gate.blacklist.Find(entry => entry != null &&
+                entry.type == PlayerJumpgateBlockType.Faction && !string.IsNullOrEmpty(factionId) && entry.id == factionId);
+        }
+
+        internal static string JumpgateBlacklistRefusal(NetPlayer pilot, int orbit)
+        {
+            if (!NetGame.IsServer || pilot == null || pilot.Station != orbit || !pilot.InSpace) return null;
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            var entry = MatchingJumpgateBlacklist(FindJumpgate(orbit), account, NetFactions.Of(account)?.id);
+            return entry == null ? null : WithBlacklistReason("Access denied: you or your faction are blacklisted at this jumpgate.", entry.reason);
+        }
+
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
         {
             if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building || gate.explosionPending ||
@@ -206,15 +223,7 @@ namespace GoF2Remake.Multiplayer
                 !string.IsNullOrEmpty(account) && string.Equals(account, gate.ownerProfile, StringComparison.Ordinal);
             if (owner) return true;
             if (gate.accessMode == PlayerJumpgateAccessMode.OwnerOnly) return false;
-            if (gate.blacklist != null)
-                foreach (var blocked in gate.blacklist)
-                {
-                    if (blocked == null || string.IsNullOrEmpty(blocked.id)) continue;
-                    if (blocked.type == PlayerJumpgateBlockType.Profile &&
-                        string.Equals(blocked.id, account, StringComparison.Ordinal)) return false;
-                    if (blocked.type == PlayerJumpgateBlockType.Faction &&
-                        string.Equals(blocked.id, factionId, StringComparison.Ordinal)) return false;
-                }
+            if (MatchingJumpgateBlacklist(gate, account, factionId) != null) return false;
             if (!AllowsJumpgateRace(gate, account)) return false;
             return gate.accessMode != PlayerJumpgateAccessMode.OwningFaction ||
                 (!string.IsNullOrEmpty(factionId) && string.Equals(factionId, gate.accessFactionId, StringComparison.Ordinal));
@@ -861,7 +870,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         internal static string SetJumpgateBlacklist(NetPlayer by, int orbitStationIndex,
-            string action, string targetType, string target)
+            string action, string targetType, string target, string reason = null)
         {
             var gate = FindJumpgate(orbitStationIndex);
             if (gate == null) return "No player-built jumpgate exists in that orbit.";
@@ -893,8 +902,17 @@ namespace GoF2Remake.Multiplayer
                 string.Equals(x.id, id, StringComparison.Ordinal));
             if (action == "add")
             {
-                if (existing != null) return "That profile or faction is already blacklisted.";
-                gate.blacklist.Add(new PlayerJumpgateBlockEntry { type = type, id = id });
+                reason = NormalizeBlacklistReason(reason);
+                if (existing != null)
+                {
+                    if (string.IsNullOrEmpty(reason) || existing.reason == reason) return "That profile or faction is already blacklisted.";
+                    string previousReason = existing.reason;
+                    existing.reason = reason;
+                    if (Save()) return "Jumpgate blacklist reason updated.";
+                    existing.reason = previousReason;
+                    return "The blacklist reason could not be saved.";
+                }
+                gate.blacklist.Add(new PlayerJumpgateBlockEntry { type = type, id = id, reason = reason });
             }
             else
             {
