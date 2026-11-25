@@ -359,16 +359,7 @@ namespace GoF2Remake.World
             if (weapons != null) weapons.Blocked = true;
             nav.Paused = true;
             bool playerGate = GameHooks.HasPlayerJumpgate?.Invoke(Session.StationIndex) == true;
-            if (playerGate && SpaceHooks.CanUsePlayerJumpgate?.Invoke(Session.StationIndex) != true)
-            {
-                nav.Paused = false;
-                ship.externalControl = false;
-                ship.ExternalSpeedMetersPerSecond = 0f;
-                if (weapons != null) weapons.Blocked = false;
-                state = State.None;
-                Message?.Invoke("Access denied: this player-built jumpgate is restricted by its owner.");
-                return;
-            }
+            // Obtain the authoritative refusal reason even when the cached decision is negative.
             if (playerGate)
             {
                 // Do not start a gate cinematic or fall back to normal routing until the server approves.
@@ -404,7 +395,8 @@ namespace GoF2Remake.World
                 ship.ExternalSpeedMetersPerSecond = 0f;
                 if (weapons != null) weapons.Blocked = false;
                 nav.Refuse();
-                Message?.Invoke("Player jumpgate travel was refused or timed out.");
+                string reason = SpaceHooks.PlayerJumpgateRefusalMessage?.Invoke();
+                Message?.Invoke(string.IsNullOrEmpty(reason) ? "Player jumpgate travel was refused or timed out." : reason);
                 return;
             }
             Session.ProgrammedStation = destination;
