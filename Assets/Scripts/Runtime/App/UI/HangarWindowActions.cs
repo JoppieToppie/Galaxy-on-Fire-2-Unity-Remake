@@ -56,6 +56,16 @@ namespace GoF2Remake.UI
             Rebuild();
             return true;
         }
+        int PlayerStorageTransferLimit(int direction)
+        {
+            var storage = playerMarket?.storage;
+            if (storage?.canDeposit != true || selected?.kind != RowKind.ShopItem) return 0;
+            int units = direction < 0 ? hangar.CargoOf(selected.item) : selected.stationUnits;
+            int room = direction < 0 ? storage.capacity - storage.used :
+                Math.Min(storage.cargoRoom, hangar.MaxLoad - hangar.Load);
+            return Math.Max(0, Math.Min(500, Math.Min(units, room)));
+        }
+
         bool TradePlayerMarket(int direction, int units)
         {
             if (playerMarket == null) return false;
@@ -63,9 +73,7 @@ namespace GoF2Remake.UI
             int item = selected.item;
             if (PlayerStorageTab)
             {
-                if (direction < 0 && playerMarket.storage?.canDeposit != true) return false;
-                int available = direction < 0 ? hangar.CargoOf(item) : selected.stationUnits;
-                int amount = Math.Min(500, Math.Min(available, units));
+                int amount = Math.Min(PlayerStorageTransferLimit(direction), units);
                 return amount > 0 && SendPlayerMarketCommand($"{(direction < 0 ? "deposit" : "withdraw")} {id} {item} {amount}");
             }
             if (direction < 0)
@@ -93,6 +101,10 @@ namespace GoF2Remake.UI
                 // the original only has the arrows, and a confirm that did nothing on a shop row read as a dead button.
                 case RowKind.MarketAction:
                     selected.marketAction?.Invoke();
+                    break;
+                case RowKind.ShopItem when PlayerStorageTab:
+                    int direction = PlayerStorageTransferLimit(1) > 0 ? 1 : -1;
+                    Trade(direction, units: PlayerStorageTransferLimit(direction));
                     break;
                 case RowKind.ShopItem:
                 case RowKind.Ingredient:
@@ -266,6 +278,11 @@ namespace GoF2Remake.UI
         /// <summary>The second row button (X / controller X): Sell a stored hull (330 -> 334).</summary>
         public void SecondaryAction()
         {
+            if (PlayerStorageTab && selected?.kind == RowKind.ShopItem)
+            {
+                Trade(-1, units: PlayerStorageTransferLimit(-1));
+                return;
+            }
             // Remake: X / the left arrow (an ingredient's TAKE).
             if (selected != null && (selected.kind == RowKind.ShopItem || selected.kind == RowKind.Ingredient)) { Trade(-1); return; }
             // Remake (players' feedback): a mounted item's MOVE, to the next slot of its type (the last one to the first).

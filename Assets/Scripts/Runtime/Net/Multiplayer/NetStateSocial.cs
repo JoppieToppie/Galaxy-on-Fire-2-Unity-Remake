@@ -486,6 +486,17 @@ namespace GoF2Remake.Multiplayer
             AcknowledgeWreckSalvageRpc(uploadSequence, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
+        // Send on the same reliable network object as UploadChunkRpc so the upload
+        // reaches the server before the station transaction that consumes it.
+        [Rpc(SendTo.Server)]
+        internal void RequestStationStorageRpc(int sequence, string args, int uploadSequence, RpcParams rpc = default)
+        {
+            if (!IsServer) return;
+            ulong client = rpc.Receive.SenderClientId;
+            var pilot = NetPlayer.All.Find(player => player != null && player.IsSpawned && player.OwnerClientId == client);
+            pilot?.ReceiveStationStorageCommand(sequence, args, uploadSequence);
+        }
+
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void AcknowledgeWreckSalvageRpc(int sequence, RpcParams rpc = default) =>
             NetProfileClient.AcknowledgeWreckSalvage(sequence);

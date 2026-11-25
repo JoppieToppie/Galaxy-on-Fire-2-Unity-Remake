@@ -302,6 +302,9 @@ namespace GoF2Remake.Multiplayer
             if (pendingWreckPickup == sequence) pendingWreckPickup = 0;
         }
 
+        internal static int UploadForStationStorage() =>
+            ModJumpPending() || WreckPickupPending() ? 0 : UploadSnapshot(handover: false);
+
         static int UploadSnapshot(bool handover)
         {
             if (!Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return 0;

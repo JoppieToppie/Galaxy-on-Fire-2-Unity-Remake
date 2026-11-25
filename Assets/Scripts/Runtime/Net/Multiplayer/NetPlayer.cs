@@ -465,17 +465,46 @@ namespace GoF2Remake.Multiplayer
             if (!IsOwner || !IsSpawned || reply == null || string.IsNullOrEmpty(command) ||
                 !command.StartsWith("/station ", System.StringComparison.OrdinalIgnoreCase)) return false;
             if (stationUiReply != null && Time.realtimeSinceStartup - stationUiSentAt < 10f) return false;
+            string args = command.Substring(9);
+            bool syncStorage = IsStorageUiCommand(args) && !IsServer;
+            int uploadSequence = syncStorage ? NetProfileClient.UploadForStationStorage() : 0;
+            if (syncStorage && uploadSequence == 0) return false;
             stationUiReply = reply;
             stationUiSentAt = Time.realtimeSinceStartup;
             stationUiSequence = stationUiSequence == int.MaxValue ? 1 : stationUiSequence + 1;
-            StationUiCommandRpc(stationUiSequence, command.Substring(9));
+            if (syncStorage) NetState.Instance.RequestStationStorageRpc(stationUiSequence, args, uploadSequence);
+            else StationUiCommandRpc(stationUiSequence, args);
             return true;
+        }
+
+        internal static bool IsStorageUiCommand(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args)) return false;
+            int split = args.IndexOf(' ');
+            if (split < 0) return false;
+            return args.Substring(0, split).ToLowerInvariant() is "deposit" or "withdraw" or
+                "storage-store-hull" or "storage-take-hull" or "storage-store-large" or "storage-take-large";
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
         void StationUiCommandRpc(int sequence, string args, RpcParams rpc = default)
         {
             if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId) return;
+            ExecuteStationUiCommand(sequence, args);
+        }
+
+        internal void ReceiveStationStorageCommand(int sequence, string args, int uploadSequence)
+        {
+            if (!IsServer) return;
+            if (string.IsNullOrWhiteSpace(args) || args.Length > NetGuard.MaxCommandArgs || !IsStorageUiCommand(args))
+                StationUiResultRpc(sequence, "Invalid storage command.");
+            else if (!NetProfiles.ConsumeActionUpload(OwnerClientId, uploadSequence))
+                StationUiResultRpc(sequence, "Cargo or fleet data has not synced yet. Try the transfer again.");
+            else ExecuteStationUiCommand(sequence, args);
+        }
+
+        void ExecuteStationUiCommand(int sequence, string args)
+        {
             string result;
             if (string.IsNullOrWhiteSpace(args) || args.Length > NetGuard.MaxCommandArgs)
                 result = "Invalid station command.";

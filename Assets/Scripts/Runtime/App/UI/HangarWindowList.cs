@@ -748,7 +748,7 @@ namespace GoF2Remake.UI
             ReleaseArrow();
             selected = row;
             foreach (var r in rows) r.element.EnableInClassList("list-row--selected", r == selected);
-            if (AutoEquip()) return;   // rebuilt
+            if (!PlayerStorageTab && AutoEquip()) return;   // rebuilt
             ScrollToSelected();
             ShowDetails();
             SelectionHint(row);

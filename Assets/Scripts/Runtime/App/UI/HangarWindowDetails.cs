@@ -169,9 +169,20 @@ namespace GoF2Remake.UI
                         tradeStock.text = $"{stock} t";
                         sellLabel.text = store ? "‹ STORE" : selected.ownListing ? "‹ CANCEL" : "‹ LIST";
                         buyLabel.text = store ? "TAKE ›" : "BUY ›";
-                        sellButton.EnableInClassList("trade-arrow--disabled", store ? cargo <= 0 || playerMarket?.storage?.canDeposit != true :
+                        int storeLimit = store ? PlayerStorageTransferLimit(-1) : 0;
+                        int takeLimit = store ? PlayerStorageTransferLimit(1) : 0;
+                        sellButton.EnableInClassList("trade-arrow--disabled", store ? storeLimit <= 0 :
                             !selected.ownListing && (cargo <= 0 || !Hangar.IsSaleable(item) || playerMarket?.canListGoods != true));
-                        buyButton.EnableInClassList("trade-arrow--disabled", selected.ownListing || stock <= 0);
+                        buyButton.EnableInClassList("trade-arrow--disabled", store ? takeLimit <= 0 : selected.ownListing || stock <= 0);
+                        if (store && (takeLimit > 0 || storeLimit > 0))
+                        {
+                            ShowAction(takeLimit > 0 ? $"TAKE {takeLimit:N0}" : $"STORE {storeLimit:N0}", true);
+                            if (takeLimit > 0 && storeLimit > 0 && actionButton2 != null)
+                            {
+                                SetActionText(actionButton2, $"STORE {storeLimit:N0}");
+                                actionButton2.RemoveFromClassList("detail-action--hidden");
+                            }
+                        }
                         tradePrice.text = !store && selected.listingPrice > 0 ? ItemInfo.Credits(selected.listingPrice) : "";
                         tradePrice.EnableInClassList("trade-price--expensive", !selected.ownListing && selected.listingPrice > Session.Credits);
                         if (tradeMounted != null) tradeMounted.style.display = DisplayStyle.None;

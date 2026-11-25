@@ -468,9 +468,8 @@ namespace GoF2Remake.Multiplayer
             if (!Enum.TryParse(stateName, true, out PlayerStationPermissionState state) ||
                 !Enum.IsDefined(typeof(PlayerStationPermissionState), state))
                 return "Choose inherit, allow or deny.";
-            bool builder = HasBuilderRights(record, account);
-            if (builder && permission != PlayerStationPermission.Visit)
-                return "The original builder can only override individual visitor access; other permissions belong to station governance.";
+            // A pilot who also owns the station still uses their owner authority for facility permissions.
+            bool builder = permission == PlayerStationPermission.Visit && HasBuilderRights(record, account);
             if (!builder && permission == PlayerStationPermission.Visit &&
                 !HasStationPermission(record, account, PlayerStationPermission.Security))
                 return "Only the station owner or an authorised station security role may change visitor permissions.";

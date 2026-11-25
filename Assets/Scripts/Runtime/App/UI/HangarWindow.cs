@@ -515,12 +515,14 @@ namespace GoF2Remake.UI
         bool SendPlayerMarketCommand(string command)
         {
             if (playerMarket == null) return false;
-            return GoF2Remake.Multiplayer.NetPlayer.Local?.RequestStationUiCommand("/station " + command, result =>
+            bool sent = GoF2Remake.Multiplayer.NetPlayer.Local?.RequestStationUiCommand("/station " + command, result =>
             {
                 if (!IsOpen) return;
                 menu.ShowToast(result);
                 nextPlayerMarketQuery = 0f;
             }) == true;
+            if (!sent) menu.ShowToast("The station could not start the transfer. Try again in a moment.");
+            return sent;
         }
 
         public void Open()
@@ -626,7 +628,7 @@ namespace GoF2Remake.UI
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();
             // Confirm freight for the entire pending shipment before leaving the recipe.
             if (HasPending) { Commit(() => SetTab(t)); return; }
-            AutoEquip();
+            if (t != Tab.Storage && !PlayerStorageTab) AutoEquip();
             if (editing < 0)   // Remake: this tab's place
             {
                 tabScroll[tab] = list.scrollOffset.y;
