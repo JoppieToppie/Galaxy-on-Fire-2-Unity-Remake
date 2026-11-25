@@ -468,12 +468,12 @@ namespace GoF2Remake.UI
                 return;
             }
             if (managementPage == "orbit") { AddSection("ORBIT PROJECTS", "Deliver materials, manage wrecks and inspect orbital projects."); AddAction("Open orbit projects", MultiplayerWindow.OpenOrbitProjectsAny); return; }
-            if (managementPage == "gates")
+            if (managementPage == "gates" || managementPage == "gate-security")
             {
                 int system = selected?.system ?? NetGame.Db.Stations.Find(station => station != null && station.index == CurrentOrbit)?.system ?? -1;
                 AddDirectoryPager();
-                BuildSystemGates(system);
-                if (selected != null && !selected.underConstruction && managementCatalogue?.canConstruction == true &&
+                BuildSystemGates(system, managementPage == "gate-security");
+                if (managementPage == "gates" && selected != null && !selected.underConstruction && managementCatalogue?.canConstruction == true &&
                     Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled) BuildNewJumpgateControls(selected.id.ToString());
                 return;
             }
@@ -721,7 +721,13 @@ namespace GoF2Remake.UI
             if (LocalDeliveryProject() != null) pages.Add(("contribute", "Contribute"));
             pages.Add(("orders", "Buy orders"));
             if (inFlight) pages.Add(("orbit", "Orbit projects"));
-            if (Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled) pages.Add(("gates", "Jumpgates"));
+            if (Modding.ModPlayerInfrastructure.Current.JumpgatesEnabled)
+            {
+                pages.Add(("gates", "Jumpgates"));
+                int gateSystem = selected?.system ?? NetGame.Db.Stations.Find(entry => entry != null && entry.index == CurrentOrbit)?.system ?? -1;
+                if (NetPlayerStations.Jumpgates?.Any(g => g != null && g.system == gateSystem && NetPlayerStations.CanViewJumpgateManagement(NetPlayer.Local, g)) == true)
+                    pages.Add(("gate-security", "Jumpgate access"));
+            }
             if (selected != null && !selected.underConstruction && selected.offeredForClaimUtc <= 0 && !inFlight && selected.stationIndex == CurrentOrbit)
             {
                 bool HasModule(string kind) => selected.addons?.Any(addon => addon != null && addon.kind == kind && addon.level > 0) == true;
@@ -756,7 +762,7 @@ namespace GoF2Remake.UI
             {
                 "overview" => "Overview",
                 "modules" or "defenses" or "placement" or "gates" => "Infrastructure",
-                "security" or "faction-access" or "blacklist" or "race-policies" => "Security & Access",
+                "security" or "faction-access" or "blacklist" or "race-policies" or "gate-security" => "Security & Access",
                 "market" or "orders" => "Economy",
                 "ownership" or "news" => "Governance",
                 "hangar" or "drydock" or "refinery" or "factory" => "Facilities",
@@ -823,6 +829,31 @@ namespace GoF2Remake.UI
             });
         }
 
+        void OpenGateMap(string key, Func<int, bool> systemAllowed, Func<int, bool> orbitAllowed, bool systemOnly)
+        {
+            if (StarMap.IsOpen) return;
+            var db = NetGame.Db;
+            if (stationRoot.focusController?.focusedElement is VisualElement focused) focused.Blur();
+            stationRoot.AddToClassList("station-map-open");
+            plannerMap = StarMap.OpenStationPlanner(db, systemAllowed, orbitAllowed, result =>
+            {
+                plannerMap = null;
+                stationRoot.RemoveFromClassList("station-map-open");
+                if (!open) return;
+                var picked = db.Stations.Find(entry => entry != null && entry.index == result.station);
+                if (picked != null && systemAllowed(picked.system) && orbitAllowed(picked.index))
+                    drafts[key] = (systemOnly ? picked.system : picked.index).ToString();
+                RebuildBody();
+            }, purpose: "jumpgate", systemOnly: systemOnly);
+            if (plannerMap == null)
+            {
+                stationRoot.RemoveFromClassList("station-map-open");
+                feedback.text = "The starmap could not be opened.";
+                feedbackTime = 4f;
+            }
+            else plannerMap.SetHelp(systemOnly ? "Select a destination system, then select it again to confirm." : "Select the origin system and an available jumpgate orbit.");
+        }
+
         void BuildNewJumpgateControls(string id)
         {
             AddSection("BUILD A JUMPGATE", "The build timer starts once all materials are delivered.");
@@ -838,7 +869,9 @@ namespace GoF2Remake.UI
                     .OrderBy(system => system.name).Select(system => (system.index.ToString(), system.name)).ToList();
                 if (orbits.Count == 0) AddInfo("Orbit", "No empty gate orbits in this system.");
                 AddChoice("jumpgateOrbit", "Build orbit", orbits);
+                if (orbits.Count > 0) AddAction("Choose gate orbit on starmap", () => OpenGateMap("jumpgateOrbit", sys => sys == selected.system, orbit => NetPlayerStations.CanBuildGateInOrbit(selected.system, orbit), false));
                 AddChoice("jumpgateDestination", "Destination system", destinations);
+                if (destinations.Count > 0) AddAction("Choose destination on starmap", () => OpenGateMap("jumpgateDestination", sys => sys != selected.system && db.Systems.Any(entry => entry != null && entry.index == sys && entry.stations?.Count > 0), orbit => true, true));
                 AddChoice("jumpgateModel", "Jumpgate model", GateModelChoices());
                 AddInfo("Build time after funding", ConstructionTime(Modding.ModPlayerInfrastructure.Current.JumpgateBuildSeconds));
                 if (orbits.Count > 0 && destinations.Count > 0 && !string.IsNullOrEmpty(Value("jumpgateModel")))
@@ -1431,14 +1464,15 @@ namespace GoF2Remake.UI
             row.Add(name); row.Add(detail); parent.Add(row);
         }
 
-        void BuildSystemGates(int system)
+        void BuildSystemGates(int system, bool securityOnly)
         {
             var systemGates = NetPlayerStations.Jumpgates?.Where(g => g != null && g.system == system &&
                     NetPlayerStations.CanViewJumpgateManagement(NetPlayer.Local, g))
                 .OrderBy(g => g.orbitStationIndex).ToList();
-            if (systemGates == null || systemGates.Count == 0) return;
-            AddSection("JUMPGATE NETWORK", "");
-            foreach (var gate in systemGates)
+            if (systemGates == null || systemGates.Count == 0) { AddInfo("Jumpgates", "No managed gates in this system."); return; }
+            AddSection(securityOnly ? "JUMPGATE SECURITY & ACCESS" : "JUMPGATE NETWORK", securityOnly ? "Select a gate to manage its access policies." : "Select a gate to inspect construction, integrity and destination.");
+            AddChoice(securityOnly ? "securityGate" : "infrastructureGate", "Jumpgate", systemGates.Select(g => (g.orbitStationIndex.ToString(), NetGame.Db.Stations.Find(x => x != null && x.index == g.orbitStationIndex)?.name ?? ("Orbit " + g.orbitStationIndex))).ToList());
+            foreach (var gate in systemGates.Where(g => g.orbitStationIndex.ToString() == Value(securityOnly ? "securityGate" : "infrastructureGate")))
             {
                 string orbitId = gate.orbitStationIndex.ToString();
                 string orbitName = NetGame.Db?.Stations.Find(x => x != null && x.index == gate.orbitStationIndex)?.name
@@ -1455,7 +1489,7 @@ namespace GoF2Remake.UI
                         AddInfo("Build time left", Math.Max(0, gate.completesUtc - pausedAt).ToString("N0") + " seconds");
                     continue;
                 }
-                if (!gate.scrapped && !gate.permanentlyDestroyed)
+                if (securityOnly && !gate.scrapped && !gate.permanentlyDestroyed)
                 {
                     string modeKey = "gateAccess_" + orbitId;
                     string typeKey = "gateBlockType_" + orbitId;
@@ -1506,6 +1540,10 @@ namespace GoF2Remake.UI
                         }
                     }
                 }
+                if (securityOnly) { if (gate.scrapped || gate.permanentlyDestroyed) AddInfo("Access", "Unavailable while the gate is destroyed or scrapped."); continue; }
+                AddAction("Manage gate access", () => { drafts["securityGate"] = orbitId; ChangeManagementPage("gate-security"); });
+                AddInfo("Structural integrity", gate.structuralIntegrity.ToString("N0"));
+                if (gate.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds()) AddInfo("EMP status", "Temporarily disabled");
                 if (gate.scrapped || gate.permanentlyDestroyed)
                 {
                     AddInfo("Gate status", gate.scrapped ? "Scrapped. Reclaim it from Orbit Projects." : "Destroyed.");
@@ -1537,6 +1575,7 @@ namespace GoF2Remake.UI
                         .OrderBy(candidate => candidate.name).Select(candidate => (candidate.index.ToString(), candidate.name + " [" + candidate.index + "]")).ToList();
                     AddChoice("jumpgateNewDestination_" + orbitId, "New destination system · orbit " + orbitId, choices);
                     if (untilChange > 0 || choices.Count == 0) continue;
+                    AddAction("Choose new destination on starmap", () => OpenGateMap("jumpgateNewDestination_" + orbitId, sys => sys != gate.system && sys != gate.destinationSystem && NetGame.Db.Systems.Any(entry => entry != null && entry.index == sys && entry.stations?.Count > 0), orbit => true, true));
                     AddAction("Change destination · orbit " + orbitId, () =>
                     {
                         string destination = Value("jumpgateNewDestination_" + orbitId).Trim();
