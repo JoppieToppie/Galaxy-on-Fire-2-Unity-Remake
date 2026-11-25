@@ -327,8 +327,8 @@ namespace GoF2Remake.UI
             }
             if (managementPage == "contribute")
             {
-                BuildSharedContribution();
                 if (selected?.underConstruction == true) BuildStationConstruction(selected);
+                BuildSharedContribution();
                 return;
             }
             if (managementPage == "orders")
@@ -337,7 +337,8 @@ namespace GoF2Remake.UI
                 else if (!selected.underConstruction && string.IsNullOrEmpty(selected.moduleConstructionKind))
                     AddInfo("Project", "This station has no active construction project.");
                 else BuildConstructionProcurement(selected.id.ToString(), NetPlayer.Local?.CanFundStationProjectInUi(selected.id) == true,
-                    canManageModule: !selected.underConstruction);
+                    canManageModule: !selected.underConstruction && (NetPlayerStations.CanViewManagement(selected) ||
+                        NetPlayer.Local?.AvailableStationActions.HasFlag(StationProjectActions.ViewStationManagement) == true));
                 return;
             }
             var current = NetGame.Db.Stations.Find(station => station != null && station.index == CurrentOrbit);
@@ -1108,6 +1109,7 @@ namespace GoF2Remake.UI
         void BuildStationConstruction(PlayerStationRecord project)
         {
             string id = project.id.ToString();
+            AddSection("SELECTED STATION PROJECT", "Deliver materials directly to this construction project.");
             AddInfo("Project", project.name);
             if (project.materials != null)
                 foreach (var material in project.materials)
@@ -1118,11 +1120,9 @@ namespace GoF2Remake.UI
                 AddInfo("Deliveries", "Fly within 5 km of the reconstruction site and open Multiplayer → Orbit Projects.");
             else
             {
-                var remaining = project.materials?.Where(material => material != null && material.required > material.delivered)
-                    .Select(material => (material.item.ToString(), (NetGame.Db.Item(material.item)?.name ?? "Item " + material.item) +
-                        " · " + (material.required - material.delivered).ToString("N0") + " remaining")).ToList()
-                    ?? new List<(string, string)>();
-                AddChoice("contributeItem", "Required material", remaining);
+                var remaining = new HashSet<int>(project.materials?.Where(material => material != null && material.required > material.delivered)
+                    .Select(material => material.item) ?? Enumerable.Empty<int>());
+                AddItemChoice("contributeItem", "Required material", remaining);
                 AddField("contributeAmount", "Units", "10");
                 if (remaining.Count > 0)
                 {
