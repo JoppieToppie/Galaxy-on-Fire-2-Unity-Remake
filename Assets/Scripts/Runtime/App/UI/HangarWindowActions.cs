@@ -59,7 +59,8 @@ namespace GoF2Remake.UI
         int PlayerStorageTransferLimit(int direction)
         {
             var storage = playerMarket?.storage;
-            if (storage?.canDeposit != true || selected?.kind != RowKind.ShopItem) return 0;
+            if (storage == null || selected?.kind != RowKind.ShopItem ||
+                (direction < 0 ? !storage.canDeposit : !storage.canWithdraw)) return 0;
             int units = direction < 0 ? hangar.CargoOf(selected.item) : selected.stationUnits;
             int room = direction < 0 ? storage.capacity - storage.used :
                 Math.Min(storage.cargoRoom, hangar.MaxLoad - hangar.Load);
