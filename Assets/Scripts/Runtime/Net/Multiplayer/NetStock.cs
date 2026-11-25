@@ -76,7 +76,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Is 'station's stock the shared one (in a session, not the owned Kaamo Club's storage)? Not in a co-op
         /// campaign: the story stocks one set for each player (Var Hastra's free starter gear before step 7, Kappa's free
         /// EMP bombs at step 20), so a shared list left the second pilot an empty shop (a Discord report, 2026-11-11).</summary>
-        public static bool Shared(int station) => NetGame.Active && !CoopCampaign.Active && !KaamoClub.StorageAt(station);
+        public static bool Shared(int station) => NetGame.Active && !CoopCampaign.Active &&
+            !KaamoClub.StorageAt(station) && !Shop.UsesPlayerMarketplace(station);
 
         /// <summary>A new session: the host's lists start empty.</summary>
         public static void Reset()
@@ -123,7 +124,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Hangar.Buy / Sell: one unit of 'item' out (-1, bought for 'price') or in (+1).</summary>
         public static void ItemChanged(int station, int item, int delta, int price = 0)
         {
-            if (!Ready || !Shared(station)) return;
+            if (!Ready) return;
             if (item == Freelance.Documents)
             {
                 // The Stolen goods documents aren't stock: bought, they are gone for the squad (NetMissions.OnStatus).
@@ -134,7 +135,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 return;
             }
-            NetState.Instance.StockItemRpc(station, item, delta, price);
+            if (Shared(station)) NetState.Instance.StockItemRpc(station, item, delta, price);
         }
 
         /// <summary>NetState: the host had no unit left of 'count' units this player bought at 'price' each (someone was first):
@@ -306,7 +307,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A dealer ship's reservation: taken from the host's list (false = none left: another pilot has it).</summary>
         internal static bool HostReserveShip(int station, int ship)
         {
-            if (NetPlayerStations.StationOfferedForClaim(station)) return false;
+            if (Shop.UsesPlayerMarketplace(station)) return false;
             var e = Get(station);
             int row = e.ships.IndexOf(ship);
             if (row < 0) return false;
@@ -316,7 +317,7 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>The stock of 'station' (made now if there is none), encoded for the RPC.</summary>
         internal static string HostGet(int station) =>
-            NetPlayerStations.StationOfferedForClaim(station) ? "||0|-1" : Encode(Get(station));
+            Shop.UsesPlayerMarketplace(station) ? "||0|-1" : Encode(Get(station));
 
         /// <summary>One unit of 'item' bought (-1) or sold (+1) at 'station'; false = refused (no unit left to buy). (The
         /// clients only send what their own game shares: no Kaamo check here, the host's club isn't theirs.)</summary>
@@ -327,9 +328,7 @@ namespace GoF2Remake.Multiplayer
         internal static int HostItem(int station, int item, int delta, out int vatUnits)
         {
             vatUnits = 0;
-            if (delta == 0) return 0;
-            // The NPC hangar accepts sales without putting those items back on offer.
-            if (NetPlayerStations.StationOfferedForClaim(station)) return Math.Max(delta, 0);
+            if (delta == 0 || Shop.UsesPlayerMarketplace(station)) return 0;
             var e = Get(station);
             var row = e.items.Find(r => r.item == item);
             if (delta < 0)
@@ -359,7 +358,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A dealer trade at 'station': the row 'removed' becomes 'added' (in place), or goes / comes.</summary>
         internal static bool HostShip(int station, int removed, int added)
         {
-            if (NetPlayerStations.StationOfferedForClaim(station)) return false;
+            if (Shop.UsesPlayerMarketplace(station)) return false;
             var e = Get(station);
             int row = removed >= 0 ? e.ships.IndexOf(removed) : -1;
             if (row >= 0 && added >= 0) e.ships[row] = added;
@@ -377,12 +376,15 @@ namespace GoF2Remake.Multiplayer
         internal static void HostTick(NetState state)
         {
             if (stocks.Count == 0) return;
-            List<int> expired = null, restocked = null;
+            List<int> expired = null, restocked = null, playerStations = null;
             foreach (var kv in stocks)
             {
-                if (Time.unscaledTime >= kv.Value.due) (expired ??= new List<int>()).Add(kv.Key);
+                if (Shop.UsesPlayerMarketplace(kv.Key)) (playerStations ??= new List<int>()).Add(kv.Key);
+                else if (Time.unscaledTime >= kv.Value.due) (expired ??= new List<int>()).Add(kv.Key);
                 else if (UpdateRare(kv.Value)) (restocked ??= new List<int>()).Add(kv.Key);
             }
+            if (playerStations != null)
+                foreach (int station in playerStations) stocks.Remove(station);
             if (expired != null)
                 foreach (int station in expired)
                 {

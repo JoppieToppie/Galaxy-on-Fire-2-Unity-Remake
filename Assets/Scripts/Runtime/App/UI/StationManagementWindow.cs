@@ -41,6 +41,7 @@ namespace GoF2Remake.UI
         bool plannerRequestPending;
         StarMap plannerMap;
         string modelPickerKey;
+        bool marketplaceOnly;
         string choicePickerKey;
         Vector2 choiceReturnScroll;
         int bodyRevision;
@@ -192,7 +193,7 @@ namespace GoF2Remake.UI
             if (nearby != deliveryProjectId) { deliveryProjectId = nearby; refresh = 0; }
             if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();
             if (Time.unscaledTime >= nextMarketQuery && managementPage == "market") RefreshMarketCatalogue();
-            if (Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
+            if (!marketplaceOnly && Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (StarMap.IsOpen || modelPickerKey != null || choicePickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
             if ((refresh -= Time.unscaledDeltaTime) <= 0)
@@ -203,18 +204,24 @@ namespace GoF2Remake.UI
             }
         }
 
-        internal void Open()
+        internal void Open() => Open(marketplace: false);
+        internal void OpenMarketplace() => Open(marketplace: true);
+
+        void Open(bool marketplace)
         {
             if (!CanOpen || open) return;
+            marketplaceOnly = marketplace;
+            stationList.style.display = marketplace ? DisplayStyle.None : StyleKeyword.Null;
+            heading.text = marketplace ? "MARKETPLACE" : "PLAYER STATIONS";
             menu?.CloseHangar();
             overlay.style.display = DisplayStyle.Flex;
             overlay.BringToFront();
             open = true;
-            managementPage = "overview";
+            managementPage = marketplaceOnly ? "market" : "overview";
             refresh = 0;
             plannerOrbits = null;
             plannerRequestPending = false;
-            RefreshPlannerLocations();
+            if (!marketplaceOnly) RefreshPlannerLocations();
             RebuildStationList();
             marketPage = 0;
             marketCatalogue = null;
@@ -229,7 +236,7 @@ namespace GoF2Remake.UI
         {
             if (choicePickerKey != null) CloseChoicePicker();
             else if (modelPickerKey != null) CloseModelPicker();
-            else if (managementPage != "overview") ChangeManagementPage("overview");
+            else if (!marketplaceOnly && managementPage != "overview") ChangeManagementPage("overview");
             else Close();
         }
 
@@ -238,6 +245,7 @@ namespace GoF2Remake.UI
             if (!open) return;
             overlay.style.display = DisplayStyle.None;
             open = false;
+            marketplaceOnly = false;
             if (panel.focusController?.focusedElement is VisualElement focused && panel.Contains(focused)) focused.Blur();
             if (plannerMap != null)
             {
@@ -265,6 +273,11 @@ namespace GoF2Remake.UI
             if (StationDataStatus() != null)
             {
                 selected = null;
+                return;
+            }
+            if (marketplaceOnly)
+            {
+                selected = NetPlayerStations.StationAt(CurrentOrbit);
                 return;
             }
             // Away from a project, show it only to its funders or when it has public orders.
@@ -354,6 +367,17 @@ namespace GoF2Remake.UI
             if (dataStatus != null)
             {
                 AddSection("STATION MANAGEMENT", dataStatus);
+                return;
+            }
+
+            if (marketplaceOnly)
+            {
+                if (selected == null || selected.underConstruction || selected.offeredForClaimUtc > 0)
+                    AddInfo("Marketplace", "The marketplace is closed.");
+                else BuildMarketPage(selected.id.ToString(), managementCatalogue?.canManage == true);
+                BuildMissionDocuments();
+                if (menu != null)
+                    AddAction("Manage loadout and blueprints", () => { Close(); menu.OpenOutfitting(); });
                 return;
             }
 
@@ -484,19 +508,7 @@ namespace GoF2Remake.UI
                     if (NetPlayer.Local?.CanUseStationStockInUi == true) BuildStationStock();
                     break;
                 case "defenses": BuildOrbitalStructureControls(id); break;
-                case "market":
-                    if (manager)
-                    {
-                        AddSection("MARKETPLACE SETTINGS", "");
-                        AddNumber("salesTax", "Sales tax (%)", selected.marketplaceTaxPercent, 0, 10);
-                        AddAction("Set marketplace tax", () => Send("/station tax " + id + " " + Value("salesTax")));
-                        AddCatalogueChoice("marketFleetIndex", "Personal stored hull", "fleet");
-                        AddNumber("marketHullPrice", "Hull price (credits)", 10000, 1, 1000000000);
-                        if (!string.IsNullOrEmpty(Value("marketFleetIndex"))) AddAction("List selected hull for sale", () => Send("/station list-ship " + id + " " + Value("marketFleetIndex") + " " + Value("marketHullPrice")));
-                        BuildFacilityControls(id);
-                    }
-                    else BuildVisitorMarket(id);
-                    break;
+                case "market": BuildMarketPage(id, manager); break;
                 case "storage": BuildStorage(id); break;
                 case "refinery": case "factory": BuildFacilityControls(id); break;
                 case "hangar": case "drydock": BuildFacilityControls(id); break;
@@ -506,6 +518,11 @@ namespace GoF2Remake.UI
 
         void RebuildPageBar()
         {
+            if (marketplaceOnly)
+            {
+                pageBar.style.display = DisplayStyle.None;
+                return;
+            }
             var pages = new List<(string key, string label)> { ("overview", "Overview") };
             if (Modding.ModPlayerInfrastructure.Current.Enabled) pages.Add(("build", "Build station"));
             if (LocalDeliveryProject() != null) pages.Add(("contribute", "Contribute"));
@@ -731,16 +748,6 @@ namespace GoF2Remake.UI
                     AddCatalogueChoice("dryDockIndex", "Your hulls in dry dock", "drydock");
                     if (!string.IsNullOrEmpty(Value("dryDockIndex"))) AddAction("Retrieve selected hull", () => Send("/station drydock-retrieve " + id + " " + Value("dryDockIndex")));
                     AddAction("View construction status", "/station drydock " + id);
-                    break;
-                case "market":
-                    AddSection("CREATE ITEM LISTING", "List goods from station storage. Buyers must dock here.");
-                    AddItemChoice("marketItem", "Item to sell");
-                    AddNumber("marketAmount", "Units", 1, 1, 500);
-                    AddNumber("marketPrice", "Price per unit (credits)", 100, 1, 1000000000);
-                    AddChoice("marketPayout", "Listing proceeds", new List<(string, string)> { ("personal", "Personal credits"), ("faction", "Faction treasury") });
-                    AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice") + " " + Value("marketPayout")));
-                    AddSection("AVAILABLE LISTINGS", "");
-                    BuildMarketCatalogue(id);
                     break;
             }
         }
@@ -1085,7 +1092,7 @@ namespace GoF2Remake.UI
         {
             string key = choicePickerKey; choicePickerKey = null;
             panel.RemoveFromClassList("player-station-picking-model");
-            heading.text = "PLAYER STATIONS"; pageBar.style.display = DisplayStyle.Flex;
+            heading.text = marketplaceOnly ? "MARKETPLACE" : "PLAYER STATIONS";
             RebuildBody(choiceReturnScroll);
             if (InputMode.Current == InputKind.Gamepad) body.Q<Button>("choice-" + key)?.Focus();
         }
@@ -1331,11 +1338,49 @@ namespace GoF2Remake.UI
                 AddAction("View contribution ledger", "/station contributions " + id);
         }
 
-        void BuildVisitorMarket(string id)
+        void BuildMissionDocuments()
         {
-            AddSection("MARKETPLACE", "");
-            AddAction("View item and hull listings", "/station market " + id);
+            bool Available() => Freelance.Active && Freelance.Mission.type == MissionType.StolenGoods &&
+                Freelance.Mission.target == CurrentOrbit && Freelance.Mission.status == 0 && !Freelance.HasDocuments &&
+                level?.Stock?.items?.Any(stack => stack.item == Freelance.Documents && stack.amount > 0) == true;
+            if (!Available()) return;
+
+            var hangar = new Hangar(level.Database, level.Stock);
+            int price = Cheats.FreeShopping ? 0 : hangar.BuyPriceOf(Freelance.Documents);
+            price = GameHooks.FactionBuyPrice?.Invoke(hangar.Station, price) ?? price;
+            AddAction($"Recover mission documents ({price:N0} cr)", () =>
+            {
+                if (!Available()) { RebuildBody(); return; }
+                var result = hangar.Buy(Freelance.Documents, out int need);
+                feedback.text = result == Hangar.Result.Ok ? "Mission documents moved to your cargo hold." :
+                    result == Hangar.Result.NoCredits ? $"You need {need:N0} more credits." : "The mission documents are unavailable.";
+                feedbackTime = 8f;
+                if (result == Hangar.Result.Ok)
+                {
+                    menu?.CargoChanged();
+                    RebuildBody();
+                }
+            });
+        }
+
+        void BuildMarketPage(string id, bool manager)
+        {
+            AddSection("AVAILABLE LISTINGS", "");
             BuildMarketCatalogue(id);
+            if (!manager) return;
+            AddSection("MARKETPLACE SETTINGS", "");
+            AddNumber("salesTax", "Sales tax (%)", selected.marketplaceTaxPercent, 0, 10);
+            AddAction("Set marketplace tax", () => Send("/station tax " + id + " " + Value("salesTax")));
+            AddCatalogueChoice("marketFleetIndex", "Personal stored hull", "fleet");
+            AddNumber("marketHullPrice", "Hull price (credits)", 10000, 1, 1000000000);
+            if (!string.IsNullOrEmpty(Value("marketFleetIndex")))
+                AddAction("List selected hull for sale", () => Send("/station list-ship " + id + " " + Value("marketFleetIndex") + " " + Value("marketHullPrice")));
+            AddSection("CREATE ITEM LISTING", "List goods from station storage. Buyers must dock here.");
+            AddItemChoice("marketItem", "Item to sell");
+            AddNumber("marketAmount", "Units", 1, 1, 500);
+            AddNumber("marketPrice", "Price per unit (credits)", 100, 1, 1000000000);
+            AddChoice("marketPayout", "Listing proceeds", new List<(string, string)> { ("personal", "Personal credits"), ("faction", "Faction treasury") });
+            AddAction("Create listing", () => Send("/station list-item " + id + " " + Value("marketItem") + " " + Value("marketAmount") + " " + Value("marketPrice") + " " + Value("marketPayout")));
         }
 
         void RefreshMarketCatalogue()

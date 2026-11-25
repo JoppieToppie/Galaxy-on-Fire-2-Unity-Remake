@@ -473,9 +473,13 @@ namespace GoF2Remake.UI
             }
         }
 
+        bool PlayerMarketplace => Shop.UsesPlayerMarketplace(level.Station?.index ?? -1);
+
         public void Open()
         {
             IsOpen = true;
+            tabShop.style.display = PlayerMarketplace ? DisplayStyle.None : StyleKeyword.Null;
+            if (PlayerMarketplace && tab == Tab.Shop) tab = Tab.Ship;
             PlaceBack();
             hangar = new Hangar(level.Database, level.Stock);   // prices are recomputed on every open, like the original
             tabShop.text = Localization.Get(hangar.Storage ? 186 : 185).UiCaps();   // "Store" at the owned club
@@ -564,6 +568,12 @@ namespace GoF2Remake.UI
         public void SetTab(Tab t)
         {
             EndSearchEntry();
+            if (t == Tab.Shop && PlayerMarketplace)
+            {
+                if (HasPending) Commit(() => SetTab(t));
+                else menu.OpenPlayerMarketplace();
+                return;
+            }
             if (t == Tab.Ships && !VipTools) return;   // the extra tab, only with the free UI tools at the club
             if (tab == t && rows.Count > 0 && editing < 0) return;
             if (tab == Tab.Shop && t != Tab.Shop) ClearBlueprintShopHighlight();

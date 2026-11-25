@@ -21,8 +21,21 @@ namespace GoF2Remake.UI
         {
             if (HangarOpen || level == null || !Story.HangarUnlocked || ArrivalPending) return;
             if (RefuseObserver()) return;
+            if (Shop.UsesPlayerMarketplace(level.Station?.index ?? -1))
+            {
+                OpenPlayerMarketplace();
+                return;
+            }
+            OpenOutfitting();
+        }
+
+        internal void OpenPlayerMarketplace() => stationManagement?.OpenMarketplace();
+
+        internal void OpenOutfitting()
+        {
+            if (HangarOpen || level == null || ArrivalPending) return;
             if (level.View != StationView.Hangar) level.SetView(StationView.Hangar);
-            FirstVisitHint(8, 622);   // before the first row's selection hint
+            if (!Shop.UsesPlayerMarketplace(level.Station?.index ?? -1)) FirstVisitHint(8, 622);
             hangarWindow.Open();
             hangarConfirmHeld = true;   // #104: the press that opened it isn't also the hangar's Buy
             level.SetHangarWindowOpen(true);
@@ -370,7 +383,9 @@ namespace GoF2Remake.UI
             raceLabel.style.display = raceLabel.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             ShowRaceIcon(raceLabel.parent, race, st != null ? st.index : -1);
             shownCredits = shownLoad = shownMaxLoad = int.MinValue;   // the funds plates again in this language (UpdateFunds)
-            hangarButton.text = T(167).UiCaps();
+            hangarButton.text = Shop.UsesPlayerMarketplace(st?.index ?? -1)
+                ? Localization.Extra("stationMarketplace", "MARKETPLACE").UiCaps()
+                : T(167).UiCaps();
             loungeButton.text = T(398).UiCaps();
             mapButton.text = T(177).UiCaps();
             missionsButton.text = T(129).UiCaps();

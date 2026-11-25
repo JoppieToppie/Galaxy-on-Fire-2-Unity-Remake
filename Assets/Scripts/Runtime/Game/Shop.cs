@@ -382,6 +382,15 @@ namespace GoF2Remake.Data
             if (stock.agents == null || (stock.agents.Count == 0 && station != 108)) stock.agents = AgentGenerator.CreateAgents(db, station);   // saves from before the bar
             // An evacuated supernova station's lounge is empty (AgentGenerator.CreateAgents): visitors a save kept from before go.
             if (InSupernovaSystem(SystemOf(db, station), station)) stock.agents.Clear();
+            if (UsesPlayerMarketplace(station))
+            {
+                stock.items = new List<ItemStack>();
+                stock.ships = new List<int>();
+                stock.PruneShipMods();
+                stock.agents.RemoveAll(agent => AgentGenerator.IsMerchantOffer(agent.offer));
+                Freelance.OnEnterStation(stock);   // private mission documents, outside the marketplace catalogue
+                return stock;
+            }
             AgentGenerator.AddNamedSellers(db, station, stock.agents);
             // The Kaamo Club never has a dealer (getShipBuyList); a save from a test build that gave it one is cleared.
             if (station == 108 && stock.ships != null) stock.ships.Clear();
@@ -395,10 +404,13 @@ namespace GoF2Remake.Data
             return stock;
         }
 
+        public static bool UsesPlayerMarketplace(int station) => GameHooks.IsPlayerStation?.Invoke(station) == true;
+
         /// <summary>Generator::getItemBuyList 0xa05c4 (see shop.md 4.3).</summary>
         /// <summary>The station's stock (getItemBuyList); remake mods: a campaign with only mods' items drops the rest.</summary>
         public static List<ItemStack> GenerateItems(Database db, int station)
         {
+            if (UsesPlayerMarketplace(station)) return new List<ItemStack>();
             var list = GenerateItemsOriginal(db, station);
             list.RemoveAll(s => !Modding.ModCampaigns.ItemAllowed(db, s.item) || !Modding.ModUnlocks.ItemAvailable(s.item)
                                 || !Modding.ModContent.ItemAvailableFor(s.item, "shops") || NotInSession(db, s.item));
@@ -529,6 +541,7 @@ namespace GoF2Remake.Data
         /// <summary>The station's dealer ships (getShipBuyList); remake mods: a campaign with only mods' ships drops the rest.</summary>
         public static List<int> GenerateShips(Database db, int station)
         {
+            if (UsesPlayerMarketplace(station)) return new List<int>();
             var ships = GenerateShipsOriginal(db, station);
             Modding.ModMedals.AddShips(station, ships);   // remake mods: ships the mods' medals put on sale
             ships.RemoveAll(s => !Modding.ModCampaigns.ShipAllowed(s) || !Modding.ModUnlocks.ShipAvailable(s));

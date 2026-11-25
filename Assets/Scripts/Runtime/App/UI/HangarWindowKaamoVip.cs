@@ -217,16 +217,18 @@ namespace GoF2Remake.UI
             ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints }
             : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
 
+        Tab[] CurrentTabOrder() => PlayerMarketplace ? new[] { Tab.Ship, Tab.Blueprints } : VisibleTabOrder(VipTools);
+
         /// <summary>Numeric shortcuts follow visible order; the ordinary three-tab layout keeps 1/2/3.</summary>
         public void SelectTabNumber(int number)
         {
-            var order = VisibleTabOrder(VipTools);
+            var order = CurrentTabOrder();
             if (number >= 1 && number <= order.Length) SetTab(order[number - 1]);
         }
 
         Tab StepTab(int step)
         {
-            var order = VisibleTabOrder(VipTools);
+            var order = CurrentTabOrder();
             int i = Array.IndexOf(order, tab);
             if (i < 0) i = 1;
             return order[(i + step + order.Length) % order.Length];

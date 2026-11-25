@@ -105,6 +105,9 @@ namespace GoF2Remake.Data
 
         // ---- agents -----------------------------------------------------------------------------------------
 
+        internal static bool IsMerchantOffer(int offer) =>
+            offer is AgentOffer.SellItem or AgentOffer.SellShip or AgentOffer.SellBlueprint or AgentOffer.Purchase;
+
         /// <summary>Generator::createAgents 0xa1fd0 for 'station' (not in supernova systems).</summary>
         public static List<Agent> CreateAgents(Database db, int station)
         {
@@ -161,9 +164,12 @@ namespace GoF2Remake.Data
                 var a = agents.Find(x => x.offer == AgentOffer.Mission && x.HasMission && x.mission.reward < 50000);
                 if (a != null) a.mission.reward = Math.Min(a.mission.reward * 10, 50000);
             }
-            AddCustomShipSellers(db, station, agents);
-            AddModBlueprintSellers(db, station, agents);
-            AddStoryBlueprintSellers(db, station, agents);
+            if (!Shop.UsesPlayerMarketplace(station))
+            {
+                AddCustomShipSellers(db, station, agents);
+                AddModBlueprintSellers(db, station, agents);
+                AddStoryBlueprintSellers(db, station, agents);
+            }
             return agents;
         }
 
@@ -350,6 +356,7 @@ namespace GoF2Remake.Data
             do offer = R(7); while ((race == 1 && offer == AgentOffer.Wingmen) || offer == 3 || offer == 4);   // Vossk never offer wingmen
             if (R(100) < 33) offer = AgentOffer.Mission;
             else if ((offer == AgentOffer.Purchase || offer == AgentOffer.Wingmen) && campaign < 16) offer = AgentOffer.Mission;
+            if (Shop.UsesPlayerMarketplace(station) && IsMerchantOffer(offer)) offer = AgentOffer.SmallTalk;
             bool male = race == 0 && offer != AgentOffer.Wingmen ? R(100) < 60 : true;   // only Terrans can be female
 
             var a = new Agent { race = race, male = male, station = station, offer = offer };
