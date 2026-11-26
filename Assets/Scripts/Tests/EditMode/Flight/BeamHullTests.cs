@@ -85,6 +85,44 @@ namespace GoF2Remake.Tests
             return (hit, point);
         }
 
+        static Gun PrecisionBeam() => new Gun(new ItemData
+        {
+            index = 11, lookIndex = 11, categoryId = 0,
+            attrKeys = new[] { Gun.BeamReachAttr }, attrValues = new[] { 280000 }
+        }, Vector3.zero, false);
+
+        [Test]
+        public void NarrowBeamExplicitReachControlsAcquisitionAndManualFire()
+        {
+            var gun = PrecisionBeam();
+            Assert.IsTrue(gun.isBeam);
+            Assert.AreEqual(0f, gun.beamRadius);
+            Assert.AreEqual(14000f, gun.beamReach * Gun.MetersPerUnit, 0.01f);
+            Assert.IsTrue(WeaponSystem.BeamTargetInRange(Vector3.forward * 13999f, true, gun));
+            Assert.IsTrue(WeaponSystem.BeamTargetInRange(Vector3.forward * 13999f, false, gun));
+            Assert.IsFalse(WeaponSystem.BeamTargetInRange(Vector3.forward * 14001f, true, gun));
+            Assert.IsFalse(WeaponSystem.BeamTargetInRange(Vector3.forward * 14001f, false, gun));
+            var stock = Beam();
+            Assert.IsFalse(stock.hasCustomBeamReach);
+            Assert.IsTrue(WeaponSystem.BeamTargetInRange(Vector3.forward * 2999f, true, stock));
+            Assert.IsFalse(WeaponSystem.BeamTargetInRange(Vector3.forward * 3001f, true, stock));
+
+            var near = Block(Vector3.forward * 13900f);
+            var (hit, _) = Shoot(gun, Vector3.zero, Vector3.forward, null, new List<Target> { near });
+            Assert.AreSame(near, hit, "manual fire must reach a narrow-beam target near 14 km");
+        }
+
+        [Test]
+        public void NarrowBeamCannotAutoAimBeyondItsExplicitReach()
+        {
+            var gun = PrecisionBeam();
+            var far = Block(Vector3.forward * 14100f);
+            var (hit, _) = Shoot(gun, Vector3.zero, Vector3.forward, far, new List<Target> { far });
+            Assert.IsNull(hit);
+            Assert.IsNull(gun.BeamTarget);
+            Assert.AreEqual(14000f, gun.BeamLengthUnits * Gun.MetersPerUnit, 0.01f);
+        }
+
         [Test]
         public void AnAimedBeamThroughAGapInTheHullHitsItsTarget()
         {

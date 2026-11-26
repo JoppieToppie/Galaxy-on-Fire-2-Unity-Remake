@@ -439,7 +439,7 @@ namespace GoF2Remake.Flight
                 if (gun.isBeam && item.Attr(192) == 0)
                 {
                     float tolerance = Mathf.Clamp(item.Attr(Gun.BeamAimToleranceAttr, 100), 0, 1000) * 0.01f;
-                    if (tolerance > 0f) gun.AutoAim = () => BeamTarget(tolerance);
+                    if (tolerance > 0f) gun.AutoAim = () => BeamTarget(tolerance, gun);
                 }
                 if (gun.beamRadius > 0f) gun.BeamSweeps = t => t.isShip ? t.hostileToPlayer || t == LockTarget : !t.friendToPlayer;   // remake mods: a wide beam
                 if (gun.heatShots > 0)   // remake mods: a gun that overheats (heatShots)
@@ -813,7 +813,18 @@ namespace GoF2Remake.Flight
         /// Remake (#100), with the Smart target lock (Settings.OriginalTargetLock off, the default): a friendly or neutral ship
         /// only when it is the radar's lock (LockTarget); the beam snapped onto the nearest ship whatever its side, and a
         /// friendly flying between the player and the enemy took the shots and turned its race.</summary>
-        Target BeamTarget(float tolerance)
+        // Stock guns retain their original asymmetric acquisition limits; explicit beam reach is spherical.
+        public static bool BeamTargetInRange(Vector3 offset, bool isShip, Gun gun)
+        {
+            if (gun.hasCustomBeamReach)
+                return offset.sqrMagnitude <= Mathf.Pow(gun.beamReach * M, 2f);
+            return isShip ? offset.sqrMagnitude < Mathf.Pow(BeamRangeUnits * M, 2f)
+                          : Mathf.Abs(offset.x) < BeamObjectCubeUnits * M &&
+                            Mathf.Abs(offset.y) < BeamObjectCubeUnits * M &&
+                            Mathf.Abs(offset.z) < BeamObjectCubeUnits * M;
+        }
+
+        Target BeamTarget(float tolerance, Gun gun)
         {
             bool smart = !Settings.OriginalTargetLock;
             var cam = Camera.main;
@@ -827,8 +838,7 @@ namespace GoF2Remake.Flight
                 if (t.isAsteroid || !CombatRadar.PlayerDetects(t)) continue;   // beam auto-aim needs sensor contact
                 if (smart && t.isShip && !t.hostileToPlayer && t != LockTarget) continue;
                 var d = t.transform.position - transform.position;
-                if (t.isShip ? d.magnitude >= BeamRangeUnits * M
-                             : Mathf.Abs(d.x) >= BeamObjectCubeUnits * M || Mathf.Abs(d.y) >= BeamObjectCubeUnits * M || Mathf.Abs(d.z) >= BeamObjectCubeUnits * M) continue;
+                if (!BeamTargetInRange(d, t.isShip, gun)) continue;
                 var p = cam.WorldToScreenPoint(t.transform.position);
                 if (p.z <= 0f || Mathf.Abs(p.x - aim.x) >= box || Mathf.Abs(p.y - aim.y) >= box) continue;
                 float dist = d.sqrMagnitude;

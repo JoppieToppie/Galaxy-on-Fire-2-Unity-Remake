@@ -232,9 +232,10 @@ namespace GoF2Remake.Flight
         public void Charge(float dtMs, bool held) => chargedMs = held ? chargedMs + dtMs : 0f;
         /// <summary>Game units around a beam's line it hits (0 = only what it meets, the original's).</summary>
         public readonly float beamRadius;
-        /// <summary>A wide beam's length with nothing aimed, and how far past its target it sweeps (176 beamReach, game units;
-        /// default the beams' 30 000; Chorus's ProjectileRange).</summary>
+        /// <summary>Beam length with nothing aimed (176 beamReach, game units; default 30 000).
+        /// Explicit reach also controls acquisition, including narrow beams.</summary>
         public readonly float beamReach = BeamRangeUnits;
+        public readonly bool hasCustomBeamReach;
         public readonly int heatShots;
         public readonly float heatCoolMs, overheatMs;
         float heat, overheatLeftMs;
@@ -279,7 +280,8 @@ namespace GoF2Remake.Flight
             vulnerableMs = Mathf.Max(0, item.Attr(VulnerableMsAttr));
             echo = GunEcho.From(item);
             beamRadius = isBeam ? Mathf.Max(0, item.Attr(BeamRadiusAttr)) : 0f;
-            if (beamRadius > 0f) beamReach = Mathf.Max(1, item.Attr(BeamReachAttr, (int)BeamRangeUnits));
+            hasCustomBeamReach = isBeam && item.HasAttr(BeamReachAttr);
+            if (hasCustomBeamReach) beamReach = Mathf.Max(1, item.Attr(BeamReachAttr, (int)BeamRangeUnits));
             heatShots = Mathf.Max(0, item.Attr(HeatShotsAttr));
             chargeMs = Mathf.Max(0, item.Attr(ChargeMsAttr));
             heatCoolMs = Mathf.Max(1, item.Attr(HeatCoolMsAttr, 10000));
@@ -408,6 +410,10 @@ namespace GoF2Remake.Flight
                 var target = AutoAim?.Invoke();
                 ref var bb = ref bullets[0];
                 var from = Spawn();
+                // Enforce explicit reach at the actual muzzle, even for custom AutoAim providers.
+                if (target != null && hasCustomBeamReach &&
+                    (target.transform.position - from).sqrMagnitude > Mathf.Pow(beamReach * MetersPerUnit, 2f))
+                    target = null;
                 if (target != null)
                 {
                     var d = target.transform.position - from;
@@ -420,7 +426,7 @@ namespace GoF2Remake.Flight
                 else
                 {
                     BeamDir = fwd;
-                    BeamLengthUnits = beamReach;   // (BeamRangeUnits but for a wide beam's own reach)
+                    BeamLengthUnits = beamReach;
                     BeamTarget = null;
                     beamAim = null;
                     bb.position = from + fwd * beamReach * MetersPerUnit;
@@ -626,8 +632,12 @@ namespace GoF2Remake.Flight
                 // beams couldn't hurt anything with a hull (the battlestation's turrets, capital ships, freighters). Its
                 // first pass sweeps the whole beam, from where it was fired.
                 if (isBeam && fresh) from = b.position - BeamDir * BeamLengthUnits * MetersPerUnit;
+                // A range-configured narrow beam is hitscan, not a projectile drifting beyond its endpoint.
+                // Keep its bullet alive for the existing visual/reload timing, but only test its first sweep.
+                bool fixedBeam = isBeam && hasCustomBeamReach && beamRadius <= 0f;
+                if (fixedBeam && !fresh) continue;
                 if (kind == Kind.Mine) b.position += b.velocity * dtMs * Mathf.Max(1f - b.age / MineStopMs, 0f);
-                else b.position += b.velocity * dtMs;
+                else if (!fixedBeam) b.position += b.velocity * dtMs;
                 if (kind == Kind.ClusterMissile) Corkscrew(i, ref b, dtMs);
                 if (IsBomb && b.timer < 1f) { Ignite(targets); continue; }   // end of life
                 // Remake: a homing missile that reaches its goal hits its target there. A salvo's spot on a big hull
