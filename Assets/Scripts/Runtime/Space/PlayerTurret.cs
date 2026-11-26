@@ -260,9 +260,21 @@ namespace GoF2Remake.Flight
             MountIndex = mountIndex;
             Hangs = mount.TurretHangs;
             IsAuto = item.Attr(16) == 1;
-            defenseReachMeters = PointDefense.ReachUnits(Database.Shared) * Gun.MetersPerUnit;
-            defenseTargets = PointDefense.TargetMask(Database.Shared);
-            missileOnlyDefense = PointDefense.Mode(Database.Shared) == 1;
+            int defenseRole = item.Attr(PointDefense.TurretRoleAttribute);
+            if (defenseRole == 1) { defenseReachMeters = 0f; defenseTargets = 0; missileOnlyDefense = false; }
+            else if (defenseRole == 2 || defenseRole == 3)
+            {
+                defenseReachMeters = item.Attr(PointDefense.Attribute) * Gun.MetersPerUnit;
+                int coverage = item.Attr(PointDefense.TargetsAttribute);
+                defenseTargets = coverage == 0 ? 7 : coverage & 7;
+                missileOnlyDefense = defenseRole == 3;
+            }
+            else
+            {
+                defenseReachMeters = PointDefense.ReachUnits(Database.Shared, true) * Gun.MetersPerUnit;
+                defenseTargets = PointDefense.TargetMask(Database.Shared, true);
+                missileOnlyDefense = PointDefense.Mode(Database.Shared, true) == 1;
+            }
             IsCollector = item.categoryId == 35;
             PullSpeed = item.Attr(49);
             CollectRange = item.Attr(51);
