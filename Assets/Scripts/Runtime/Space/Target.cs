@@ -411,6 +411,34 @@ namespace GoF2Remake.Flight
             return transform.TransformPoint(best);
         }
 
+        // Cache the collision-hull centre once per frame; every attacker shares it.
+        int combatCenterFrame = -1;
+        Vector3 combatCenter;
+
+        /// <summary>Geometric centre of the collision volumes, not a sampled mesh vertex or a model pivot.
+        /// Prefer local hit boxes, then enabled collider bounds; fall back to the target's position.</summary>
+        public Vector3 CombatCenter()
+        {
+            if (combatCenterFrame == Time.frameCount) return combatCenter;
+            combatCenterFrame = Time.frameCount;
+            if (boxes != null && boxes.Length > 0)
+            {
+                var bounds = boxes[0];
+                for (int i = 1; i < boxes.Length; i++) bounds.Encapsulate(boxes[i]);
+                return combatCenter = transform.TransformPoint(bounds.center);
+            }
+            bool found = false;
+            Bounds world = default;
+            if (hull != null && hull.colliders != null)
+                foreach (var collider in hull.colliders)
+                {
+                    if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy) continue;
+                    if (!found) { world = collider.bounds; found = true; }
+                    else world.Encapsulate(collider.bounds);
+                }
+            return combatCenter = found ? world.center : transform.position;
+        }
+
         /// <summary>The point on the target's exact collision meshes nearest 'from'; position when there is no mesh hull.</summary>
         public Vector3 NearestHullPoint(Vector3 from)
         {

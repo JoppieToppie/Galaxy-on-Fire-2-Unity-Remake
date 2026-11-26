@@ -91,6 +91,32 @@ namespace GoF2Remake.Tests
             Assert.Less(Quaternion.Angle(mount.TurretTurn * Quaternion.Euler(0f, 180f, 0f), t.localRotation), 1e-3f, "the mount's turn on top of the model's");
         }
 
+        [TestCase("freighter", true)]
+        [TestCase("frigate", true)]
+        [TestCase("cruiser", true)]
+        [TestCase("CARRIER", true)]
+        [TestCase("heavy_fighter", false)]
+        [TestCase("heavy_privateer", false)]
+        [TestCase("hauler", false)]
+        [TestCase("interceptor", false)]
+        [TestCase(null, false)]
+        public void SurfaceAimIsReservedForFourTargetClasses(string shipClass, bool expected)
+        {
+            Assert.AreEqual(expected, TurretTargeting.UsesHullSurface(shipClass));
+        }
+
+        [Test]
+        public void UnclassifiedShipAimsAtCollisionCentreInsteadOfOriginOrNearestFace()
+        {
+            var t = NewTarget(new Vector3(100f, 20f, 300f));
+            t.boxes = new[] { new Bounds(new Vector3(10f, 0f, 0f), new Vector3(4f, 4f, 4f)),
+                              new Bounds(new Vector3(20f, 0f, 0f), new Vector3(4f, 4f, 4f)) };
+            t.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            var expected = t.transform.TransformPoint(new Vector3(15f, 0f, 0f));
+            Assert.Less(Vector3.Distance(expected, TurretTargeting.CombatAimPoint(t, Vector3.zero)), 1e-4f);
+            Assert.Less(Vector3.Distance(expected, TurretTargeting.CombatAimPoint(t, Vector3.one * 500f)), 1e-4f);
+        }
+
         // ---- aim ----------------------------------------------------------------------------------------------------
 
         [Test]

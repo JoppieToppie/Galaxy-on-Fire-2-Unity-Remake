@@ -112,7 +112,8 @@ namespace GoF2Remake.World
             var target = turretPicking.Update(dtMs, enemies, transform.position);
             if (turretPicking.JustPicked) turretTargetFixed = target != null && IsTurretTarget(target);
             if (target == null || target.cloaked || target.untargetable) return;   // handleTurret: no turning toward a cloaked target (Modified: nor one a jump scene hides)
-            var aimPoint = Spec.capitalEnhanced && target.boxes != null && target.boxes.Length > 0 ? TurretAimPoint(target, turretCore.GunPosition)
+            var aimPoint = target.isShip ? TurretTargeting.CombatAimPoint(target, turretCore.GunPosition)
+                         : Spec.capitalEnhanced && target.boxes != null && target.boxes.Length > 0 ? TurretAimPoint(target, turretCore.GunPosition)
                          : AimAt(target, dtMs);
             // the original's: a capital ship's spot on a boxed target or a fixed target as it is, else led at a spot on it;
             // Settings.TurretLeadAim: #354's ballistic lead to the spot

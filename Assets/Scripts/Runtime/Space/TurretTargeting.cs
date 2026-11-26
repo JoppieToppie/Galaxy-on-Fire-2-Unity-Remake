@@ -10,7 +10,7 @@
 //             have passed (the first after 3 s); the nearest candidate within range, the unreachable one only when nothing
 //             else is nearer; running into a limit keeps the target until the next pick, which then prefers another.
 // The aim point: the target's position + its heading * 1500 units (the lead both use). Remake (#354, Settings.TurretLeadAim,
-// off by default): a ballistic lead from the nearest point of its hull, by its measured speed and the shot's.
+// off by default): ballistic lead from the class-appropriate combat aim point, by its measured speed and the shot's.
 
 using System;
 using System.Collections.Generic;
@@ -78,16 +78,36 @@ namespace GoF2Remake.Flight
             if (pickAtOnce) pickMs = intervalMs;
         }
 
+        /// <summary>Only the four explicitly classified large hulls use nearest-surface aim.</summary>
+        public static bool UsesHullSurface(string shipClass) =>
+            string.Equals(shipClass, Modding.ShipClassRules.Freighter, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(shipClass, Modding.ShipClassRules.Frigate, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(shipClass, Modding.ShipClassRules.Cruiser, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(shipClass, Modding.ShipClassRules.Carrier, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Shared offensive aim point for fighters and all turret owners, based on the target, not the shooter.
+        /// Unclassified ships aim at their collision-hull centre; non-ship targets retain the turret's old hull aim.</summary>
+        public static Vector3 CombatAimPoint(Target t, Vector3 from)
+        {
+            if (t == null) return Vector3.zero;
+            if (!t.isShip) return t.NearestHullPoint(from);
+            int index = t.netShipIndex >= 0 ? t.netShipIndex : t.isPlayer ? Session.ShipIndex : t.shipType;
+            string shipClass = index >= 0 ? Database.Shared.Ship(index)?.shipClass : null;
+            if (!UsesHullSurface(shipClass)) return t.CombatCenter();
+            return t.hull != null && t.hull.colliders != null && t.hull.colliders.Count > 0
+                ? t.NearestHullPoint(from) : t.NearestPoint(from);
+        }
+
         /// <summary>The player's lead point: where the target will be (its position + heading * 1500 units).</summary>
         public static Vector3 LeadPoint(Target t) => t.transform.position + t.transform.forward * LeadUnits * M;
 
-        /// <summary>Lead from the nearest point on the target's real collision meshes, for a particular turret muzzle.</summary>
-        public static Vector3 LeadPoint(Target t, Vector3 from) => t.NearestHullPoint(from) + t.transform.forward * LeadUnits * M;
+        /// <summary>Legacy heading lead from the class-appropriate aim point, for a particular turret muzzle.</summary>
+        public static Vector3 LeadPoint(Target t, Vector3 from) => CombatAimPoint(t, from) + t.transform.forward * LeadUnits * M;
 
-        /// <summary>Ballistic lead to a target's nearest hull point, using the projectile's speed and lifetime.</summary>
+        /// <summary>Ballistic lead to the class-appropriate aim point, using projectile speed and lifetime.</summary>
         public Vector3 LeadPoint(Target t, Vector3 from, float projectileSpeedUnitsPerMs, float projectileLifetimeMs) =>
-            t == null ? Vector3.zero : !Settings.TurretLeadAim ? LeadPoint(t)   // the original's
-            : LeadPoint(t, t.NearestHullPoint(from), from, projectileSpeedUnitsPerMs, projectileLifetimeMs);
+            t == null ? Vector3.zero : !Settings.TurretLeadAim ? (t.isShip ? LeadPoint(t, from) : LeadPoint(t))
+            : LeadPoint(t, CombatAimPoint(t, from), from, projectileSpeedUnitsPerMs, projectileLifetimeMs);
 
         /// <summary>Ballistic lead to a chosen point on a target (e.g. an NPC turret hardpoint).</summary>
         public Vector3 LeadPoint(Target t, Vector3 aimPoint, Vector3 from, float projectileSpeedUnitsPerMs, float projectileLifetimeMs)

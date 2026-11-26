@@ -90,7 +90,7 @@ namespace GoF2Remake.World
                     target = t.picking.Update(dtMs, enemies, ship.transform.position);
                     if (target != null && !target.cloaked)
                     {
-                        bool aligned = core.StepToward(Settings.TurretLeadAim && core.Gun.isBeam ? target.NearestHullPoint(core.GunPosition) :
+                        bool aligned = core.StepToward(Settings.TurretLeadAim && core.Gun.isBeam ? TurretTargeting.CombatAimPoint(target, core.GunPosition) :
                             t.picking.LeadPoint(target, core.GunPosition, core.Gun.speedUnitsPerMs, core.Gun.lifetimeMs), dtMs);
                         if (core.Aim.LimitHit) t.picking.LimitHit(dtMs);
                         else if (aligned && core.Fire() >= 0) Sfx.PlayAt(t.shot, core.GunPosition, 0.6f);

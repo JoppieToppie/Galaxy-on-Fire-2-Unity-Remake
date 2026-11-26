@@ -40,6 +40,7 @@ namespace GoF2Remake.World
 
         Vector3 AimAt(Target t, float dtMs)
         {
+            if (t != null && t.isShip) return TurretTargeting.CombatAimPoint(t, transform.position);
             if (t != aimFor || (aimMs -= dtMs) <= 0f)
             {
                 aimFor = t;
@@ -63,7 +64,7 @@ namespace GoF2Remake.World
                 smepObservedVelocity = Vector3.zero;
             smepPreviousSteerPosition = smepBeforePosition;
             smepPreviousSteerFrame = Time.frameCount;
-            // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
+            // Turn and fire at the class-appropriate combat aim point; the break-off range remains measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
             // remake option (NpcShipEs2): EVERSPACE 2's aim, a reticule on the lead that settles by the difficulty
             bool es2Aimed = Es2Aiming;
