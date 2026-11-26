@@ -210,7 +210,7 @@ namespace GoF2Remake.UI
                 }
             }
             foreach (var r in rows) r.element.EnableInClassList("list-row--selected", r == selected);
-            list.schedule.Execute(() => { list.scrollOffset = new Vector2(0f, scroll); ScrollToSelected(); });
+            list.schedule.Execute(() => { list.scrollOffset = new Vector2(0f, scroll); if (DistributionNavigation) ScrollDistributionCursor(); else ScrollToSelected(); });
             ShowDetails();
             UpdateFooter();
             // Remake: the key hints say TAKE / ADD in the ingredients view (StationMenu.BuildHints asks EditingBlueprint), and

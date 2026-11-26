@@ -46,7 +46,8 @@ namespace GoF2Remake.UI
 
         void ClearDistributionRow(Row row)
         {
-            row.distributionToggle?.RemoveFromHierarchy();
+            if (row.distributionToggle == null) return;
+            row.distributionToggle.RemoveFromHierarchy();
             row.distributionToggle = null;
             row.element.RemoveFromClassList("list-row--allocation");
             row.element.RemoveFromClassList("list-row--allocation-selected");
@@ -187,8 +188,11 @@ namespace GoF2Remake.UI
                 : !valid ? DistributionText("secondaryAllocationInsufficient", "Not enough ammunition for the selected mounts.")
                 : DistributionNavigation
                     ? DistributionText("secondaryAllocationNavigate", "Select a mount, confirm to toggle, X to apply. Back cancels navigation.")
-                    : DistributionText("secondaryAllocationUnchanged", "Only selected mounts are modified.");
-            rowActions.style.display = DistributionNavigation ? DisplayStyle.None : DisplayStyle.Flex;
+                    : InputMode.Current == InputKind.Gamepad
+                        ? DistributionText("secondaryAllocationGamepad", "Only selected mounts change. X: select mounts.")
+                        : DistributionText("secondaryAllocationUnchanged", "Only selected mounts are modified.");
+            if (DistributionNavigation) rowActions.style.display = DisplayStyle.None;
+            else rowActions.style.display = StyleKeyword.Null;
 
             foreach (var row in rows)
             {
@@ -247,6 +251,7 @@ namespace GoF2Remake.UI
         {
             if (secondaryDistributionPanel == null || distributionEligible.Length < 2) return false;
             if (DistributionNavigation) { ApplySecondaryDistribution(); return true; }
+            ReleaseArrow();
             distributionNavigation = true;
             distributionCursor = selected.kind == RowKind.Slot && distributionEligible.Contains(selected.place + 1)
                 ? selected.place + 1 : distributionEligible[0];
@@ -265,7 +270,7 @@ namespace GoF2Remake.UI
         bool MoveDistributionCursor(int dir, bool wrap)
         {
             if (!DistributionNavigation || distributionEligible.Length == 0) return false;
-            int index = Array.IndexOf(distributionEligible, distributionCursor);
+            int index = Math.Max(0, Array.IndexOf(distributionEligible, distributionCursor));
             int next = index + dir;
             if (wrap) next = (next + distributionEligible.Length) % distributionEligible.Length;
             else next = Mathf.Clamp(next, 0, distributionEligible.Length - 1);

@@ -458,6 +458,8 @@ namespace GoF2Remake.UI
                 MoveSelection(vertical);
             }
 
+            // While selecting hardpoints, horizontal input must never start a trade hold.
+            if (DistributionNavigation) { if (heldPointer == KeyHold) ReleaseArrow(); keyDirection = horizontal; return; }
             // A new press starts a hold (repeated in Update); a failed trade ends it until the key is pressed again.
             if (horizontal == keyDirection) return;
             keyDirection = horizontal;

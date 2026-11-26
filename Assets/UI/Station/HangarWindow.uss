@@ -1560,3 +1560,10 @@
 .list-row--allocation .row-sub-text { font-size: var(--text-caption); white-space: normal; }
 .layout-phone .list-row--allocation .row-icon { width: 64px; }
 .layout-phone .secondary-allocation-toggle { width: 48px; height: 48px; }
+
+/* Compact the allocation controls on phone layouts; preserve the existing item header and description. */
+.layout-phone .secondary-allocation { margin-top: 2px; margin-bottom: 2px; padding: 3px 6px; }
+.layout-phone .secondary-allocation-heading { margin-bottom: 2px; letter-spacing: 1px; }
+.layout-phone .secondary-allocation-button { margin: 2px; min-height: 38px; }
+.layout-phone .secondary-allocation-actions { margin-top: 0; }
+.list-row--allocation .row-sub-text { flex-shrink: 1; }
