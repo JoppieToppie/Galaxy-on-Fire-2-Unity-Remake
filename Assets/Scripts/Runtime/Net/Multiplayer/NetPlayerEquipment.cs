@@ -295,7 +295,7 @@ namespace GoF2Remake.Multiplayer
                 NetRateLimit.Reject(shooter, "NPC sentry damage from a client that does not run this orbit");
                 return;
             }
-            if (!byNpc && NetSquad.Same(by, this)) return;
+            if (!byNpc && SquadDamageBlocked(by, this)) return;
             if (!by.CollisionModeCompliant)
             {
                 by.CheckReportedCollisionMode();

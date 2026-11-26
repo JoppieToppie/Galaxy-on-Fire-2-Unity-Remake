@@ -42,6 +42,8 @@ namespace GoF2Remake.Modding
         public string id, version = "1.0", author, website, preview = "preview.png";
         /// <summary>Opt-in gameplay feature: fit one secondary item to multiple secondary hardpoints. Off by default.</summary>
         public bool multipleSecondaryMounts;
+        /// <summary>Allow squadmate damage wherever player-versus-player combat is permitted.</summary>
+        public bool squadFriendlyFire;
         /// <summary>Opt in to rank- and difficulty-scaled shields for ordinary fighter NPCs.</summary>
         public bool fighterNpcShields;
         /// <summary>-1: default (five seconds with fighter NPC shields, otherwise vanilla); 0: no delay.</summary>
@@ -137,6 +139,7 @@ namespace GoF2Remake.Modding
                 website = ModJson.Str(o, "website"),
                 preview = ModJson.Str(o, "preview", "preview.png"),
                 multipleSecondaryMounts = ModJson.Bool(o, "multipleSecondaryMounts", false, FileName),
+                squadFriendlyFire = ModJson.Bool(o, "squadFriendlyFire", false, FileName),
                 fighterNpcShields = ModJson.Bool(o, "fighterNpcShields", false, FileName),
                 npcScannerDetection = ModJson.Bool(o, "npcScannerDetection", false, FileName),
                 shieldRechargeDelayMs = Math.Max(-1, Math.Min(60000, ModJson.Int(o, "shieldRechargeDelayMs", -1, FileName))),

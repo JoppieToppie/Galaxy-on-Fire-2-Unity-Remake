@@ -33,6 +33,16 @@ namespace GoF2Remake.Modding
         /// and disabled / inactive mods cannot turn this on; an unmodified game therefore keeps its original mount rules.</summary>
         public static bool MultipleSecondaryMountsEnabled => HasMultipleSecondaryMounts(ModManager.Active);
 
+        public static bool SquadFriendlyFireEnabled => HasSquadFriendlyFire(ModManager.Active);
+
+        public static bool HasSquadFriendlyFire(IEnumerable<ModInfo> mods)
+        {
+            if (mods == null) return false;
+            foreach (var mod in mods)
+                if (mod != null && !mod.IsBase && mod.Manifest?.squadFriendlyFire == true) return true;
+            return false;
+        }
+
         /// <summary>Opt-in; disabled mods and base content cannot change vanilla NPC health.</summary>
         /// <summary>Shared recharge delay, opt-in; strongest active mod's setting wins.</summary>
         public static int ShieldRechargeDelayMs

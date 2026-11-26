@@ -107,6 +107,17 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void SquadFriendlyFireIsOptIn()
+        {
+            var off = Read(Q("{ 'id': 'off' }"));
+            var on = Read(Q("{ 'id': 'on', 'squadFriendlyFire': true }"));
+            Assert.IsFalse(off.squadFriendlyFire);
+            Assert.IsTrue(on.squadFriendlyFire);
+            Assert.IsFalse(ModContent.HasSquadFriendlyFire(new[] { new ModInfo(off, null) }));
+            Assert.IsTrue(ModContent.HasSquadFriendlyFire(new[] { new ModInfo(off, null), new ModInfo(on, null) }));
+        }
+
+        [Test]
         public void NpcScannerRangesAreOptionalAndClassSpecific()
         {
             var m = Read(Q("{ 'id': 'sensors', 'npcScannerDetection': true, 'npcScannerRangeUnits': { 'CARRIER': 160000 } }"));

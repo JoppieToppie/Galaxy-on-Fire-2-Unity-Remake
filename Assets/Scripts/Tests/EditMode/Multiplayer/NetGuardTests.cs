@@ -19,6 +19,17 @@ namespace GoF2Remake.Tests
     {
         // ---- NetGuard ----
 
+        [TestCase(true, true, false, true)]
+        [TestCase(true, true, true, false)]
+        [TestCase(true, false, true, true)]
+        [TestCase(false, true, false, false)]
+        [TestCase(false, false, true, true)]
+        public void FriendlyFireRespectsPvpPermission(bool squad, bool pvp, bool friendlyFire, bool protectedTarget)
+        {
+            Assert.AreEqual(protectedTarget, NetPlayer.PlayerDamageProtected(squad, pvp, friendlyFire));
+            Assert.AreEqual(squad && !friendlyFire, NetPlayer.SquadDamageBlocked(squad, friendlyFire));
+        }
+
         [Test]
         public void TheLimits()
         {

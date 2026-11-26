@@ -1,0 +1,3 @@
+# Squad friendly fire
+
+Set `"squadFriendlyFire": true` in mod.json to remove squadmate-specific projectile, EMP, sentry damage and projectile interception immunity. Default false preserves vanilla behaviour. Normal PvP permission still applies: use `-freepvp` for PvP in every orbit, including squadmates. Squad membership, repair access, friendship markers, automatic turret hostility rules, same-orbit checks and server hit validation remain unchanged. The setting is included in multiplayer mod compatibility hashes. Test with two squadmates on a free-PvP server using primary projectiles, turrets/manual fire, EMPs, secondary blasts and sentries; repeat without the option, and outside PvP-enabled combat without `-freepvp`.

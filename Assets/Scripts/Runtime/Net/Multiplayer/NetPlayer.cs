@@ -927,10 +927,18 @@ namespace GoF2Remake.Multiplayer
                                (NetState.Instance != null && NetState.Instance.FreePvp) || NetState.FreeForAll || NetArena.IsArenaOrbit(other.Station)
                               || (Local != null && NetFactionsClient.SiegePvp(other.Station, Local.FactionTag, other.FactionTag)));   // a faction siege
 
-        /// <summary>This player's shots pass through their squadmates (the local player's ship included).</summary>
+        /// <summary>Squad membership is not itself a PvP permission. The opt-in only removes squad immunity.</summary>
+        public static bool SquadDamageBlocked(bool sameSquad, bool friendlyFire) => sameSquad && !friendlyFire;
+        public static bool PlayerDamageProtected(bool sameSquad, bool pvpAllowed, bool friendlyFire) =>
+            !pvpAllowed || SquadDamageBlocked(sameSquad, friendlyFire);
+
+        static bool SquadDamageBlocked(NetPlayer a, NetPlayer b) =>
+            SquadDamageBlocked(NetSquad.Same(a, b), Modding.ModContent.SquadFriendlyFireEnabled);
+
+        /// <summary>Legacy squad immunity also applies to mirrored projectile visuals.</summary>
         bool ThroughSquad(Target t)
         {
-            if (SquadId == 0 || t == null) return false;
+            if (SquadId == 0 || t == null || Modding.ModContent.SquadFriendlyFireEnabled) return false;
             var p = t.isPlayer ? Local : t.GetComponent<NetPlayer>();
             return p != null && p != this && NetSquad.Same(this, p);
         }
@@ -972,7 +980,7 @@ namespace GoF2Remake.Multiplayer
                 shieldFactor = Gun.ShieldFactor(weapon); // typed damage never trusts a client-supplied shield multiplier
             }
             if (byNpc && weaponItem >= 0 && (by.RunsOrbit != Station || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
-            if (!byNpc && NetSquad.Same(by, this)) return;
+            if (!byNpc && SquadDamageBlocked(by, this)) return;
             if (!by.CollisionModeCompliant)
             {
                 by.CheckReportedCollisionMode();
@@ -1115,7 +1123,7 @@ namespace GoF2Remake.Multiplayer
             if (NetworkManager.Singleton == null || !NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(sourceObjectId, out var sourceObject)) return;
             var source = sourceObject.GetComponent<NetPlayer>();
             var defender = NetSquad.Find(requester);
-            if (source == null || defender == null || source == this || source.OwnerClientId == requester || source.Station != Station || NetSquad.Same(defender, source)) return;
+            if (source == null || defender == null || source == this || source.OwnerClientId == requester || source.Station != Station || SquadDamageBlocked(defender, source)) return;
             if (!NetShotRegistry.TryCancel(sourceObjectId, shotId, NetworkObjectId)) return;
             source.CancelShotRpc(shotId);
         }
@@ -1232,7 +1240,7 @@ namespace GoF2Remake.Multiplayer
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
             if (emp <= 0 || emp > NetGuard.MaxDamage) { NetRateLimit.Reject(shooter, $"an EMP of {emp}"); return; }
             var by = NetSquad.Find(shooter);
-            if (!NetGuard.SameOrbit(by, this) || NetSquad.Same(by, this)) return;
+            if (!NetGuard.SameOrbit(by, this) || SquadDamageBlocked(by, this)) return;
             if (!by.CollisionModeCompliant) { by.CheckReportedCollisionMode(); return; }
             EmpRpc(emp, shooter);
         }
@@ -1358,7 +1366,7 @@ namespace GoF2Remake.Multiplayer
                     target.netArmor = Armor;
                     bool mate = NetSquad.Same(this, Local);   // squadmates: green, out of each other's line of fire
                     target.friendToPlayer = mate;
-                    target.playerProof = mate || !PvpWith(this);   // free roam: no player hurts another (NetArena)
+                    target.playerProof = PlayerDamageProtected(mate, PvpWith(this), Modding.ModContent.SquadFriendlyFireEnabled);
                     // An enemy after attacking this player, until one of them is destroyed (NetAggression): a red marker, the
                     // turrets and sentries fire at them (only where players may fight).
                     target.hostileToPlayer = !mate && PvpWith(this) &&
