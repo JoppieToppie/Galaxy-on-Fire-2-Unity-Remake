@@ -459,6 +459,14 @@ namespace GoF2Remake.UI
                 () => Settings.Es2FreeFlightCamera, v => Settings.Es2FreeFlightCamera = v);
             es2Camera.description = () => X("es2FreeFlightCameraHelp", "In free flight the camera follows as in EVERSPACE 2: it turns a moment after the ship and rolls with it, trails behind as you speed up or strafe, and widens while boosting. Off: the chase camera above. Also its close view, free look and camera shakes.");
             list.Add(es2Camera);
+            var capitalX = Slider("capitalCrosshairX", OptionPage.Graphics, () => X("capitalCrosshairX", "Capital crosshair: horizontal offset"), -1000f, 1000f,
+                () => Settings.CapitalCrosshairX, v => Settings.CapitalCrosshairX = v, v => $"{v:0} m");
+            capitalX.description = () => X("capitalCrosshairXHelp", "Move the targeting reference left or right relative to large ships. Zero restores the original position. Does not move weapons.");
+            list.Add(capitalX);
+            var capitalY = Slider("capitalCrosshairY", OptionPage.Graphics, () => X("capitalCrosshairY", "Capital crosshair: vertical offset"), -1000f, 1000f,
+                () => Settings.CapitalCrosshairY, v => Settings.CapitalCrosshairY = v, v => $"{v:0} m");
+            capitalY.description = () => X("capitalCrosshairYHelp", "Move the targeting reference down or up relative to large ships. Free look targeting stays centred. Zero restores the original position.");
+            list.Add(capitalY);
             // Remake: the interface's size, width and edge margin (UiLayout, docs/UI-DESIGN.md "Scaling").
             list.Add(Confirmed(Choice("uiScale", OptionPage.Accessibility, () => X("uiScale", "Interface size"), false,
                 () => System.Array.ConvertAll(UiScaleSteps, p => p + " %"),
