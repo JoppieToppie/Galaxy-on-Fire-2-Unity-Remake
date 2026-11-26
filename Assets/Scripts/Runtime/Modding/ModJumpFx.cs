@@ -216,6 +216,18 @@ namespace GoF2Remake.Modding
             return drive != null && !ShipClassRules.Fits(Database.Shared?.Item(drive.item), Database.Shared?.Ship(ship)) ? null : drive;
         }
 
+        /// <summary>Do not fall through to the original drive when a mod drive is present but incompatible.
+        /// Story jumps and a genuinely installed or integrated Khador Drive remain available.</summary>
+        public static bool IncompatibleMountedDrive()
+        {
+            int ship = Session.ShipIndex;
+            if (GalaxyMap.HasIntegratedDrive(ship) || Session.Equipment == null ||
+                Session.Equipment.Exists(e => e != null && e.amount > 0 && e.item == GalaxyMap.KhadorDriveItem &&
+                    ModContent.ItemAvailableFor(e.item, "equipment"))) return false;
+            var drive = Mounted(Session.Equipment);
+            return drive != null && !ShipClassRules.Fits(Database.Shared?.Item(drive.item), Database.Shared?.Ship(ship));
+        }
+
         /// <summary>Modified: Ship::hasVolatileGoods's refusal (text 612) with the drive that would jump by its own name: 612
         /// names the Khador Drive, so a mod drive takes "driveVolatile" with its item name.</summary>
         public static string VolatileRefusal()
