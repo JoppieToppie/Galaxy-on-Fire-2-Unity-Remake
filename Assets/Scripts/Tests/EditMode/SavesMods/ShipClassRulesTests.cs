@@ -136,6 +136,40 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(ShipClassRules.Fits(item, Ship("fighter", "agile")));
         }
 
+        [Test]
+        public void ReservedSecondarySlotsAreExclusiveInBothDirections()
+        {
+            var hull = Ship("frigate", "secondarySlot:7:test:salvo", "secondarySlot:8:test:salvo");
+            var special = new ItemData { type = "secondary", modKey = "test:salvo" };
+            var ordinary = new ItemData { type = "secondary", modKey = "test:missile" };
+            Assert.IsTrue(ShipClassRules.HasSecondaryReservations(hull));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(special, hull, 7));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(special, hull, 8));
+            Assert.IsFalse(ShipClassRules.SecondarySlotFits(special, hull, 6));
+            Assert.IsFalse(ShipClassRules.SecondarySlotFits(ordinary, hull, 7));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(ordinary, hull, 6));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(ordinary, Ship("frigate"), 7));
+        }
+
+        [Test]
+        public void PrimaryLockDoesNotRestrictSecondaries()
+        {
+            var hull = Ship("cruiser", "primaryOnly:test:beam");
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:beam" }, hull));
+            Assert.IsFalse(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:gun" }, hull));
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "secondary", modKey = "test:missile" }, hull));
+        }
+
+        [Test]
+        public void StrictAllowListAlsoChecksUnclassifiedShips()
+        {
+            var item = Item(new[] { "cruiser" });
+            item.attrKeys = new[] { ItemStats.IdOf("strictShipClass") };
+            item.attrValues = new[] { 1 };
+            Assert.IsFalse(ShipClassRules.Fits(item, new ShipData()));
+            Assert.IsTrue(ShipClassRules.Fits(item, Ship("cruiser")));
+        }
+
         // ---- the scanner's view ---------------------------------------------------------------------------------------
 
         [Test]
