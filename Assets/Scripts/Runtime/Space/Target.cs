@@ -497,6 +497,7 @@ namespace GoF2Remake.Flight
             {
                 hitpoints.hull = hitpoints.maxHull;
                 hitpoints.shield = hitpoints.maxShield;
+                hitpoints.RestoreShieldRechargeDelay(0f);
                 hitpoints.armor = hitpoints.maxArmor;
                 hitpoints.emp = hitpoints.maxEmp;
                 hitpoints.empDisabled = false;

@@ -109,7 +109,7 @@ namespace GoF2Remake.Flight
             Target.race = 0;   // the player's ship counts as Terran in NPC race checks
             Target.customDeath = true;
             Target.radius = HitRadiusUnits * M;
-            Target.hitpoints = new Hitpoints(hull, shield, armor);
+            Target.hitpoints = new Hitpoints(hull, shield, armor) { shieldRechargeDelayMs = Modding.ModContent.ShieldRechargeDelayMs };
             // Optional resistances on the mounted shield; unset values leave the original damage model unchanged.
             Hp.energyResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(183) / 100f) : 0f;
             Hp.ballisticResistance = shieldItem != null ? Mathf.Clamp01(shieldItem.Attr(184) / 100f) : 0f;
@@ -525,7 +525,7 @@ namespace GoF2Remake.Flight
             Hp.vulnerable = !invulnerable;
             UpdateEmergency(dtMs);
             UpdateGamma(dtMs);
-            Hp.RegenerateShield(dtMs * GoF2Remake.Flight.Overheat.Factor(GoF2Remake.Flight.Overheat.Slot.Shield), shieldRechargeMs);   // (remake: overheated, Overheat)
+            Hp.RegenerateShield(dtMs * GoF2Remake.Flight.Overheat.Factor(GoF2Remake.Flight.Overheat.Slot.Shield), shieldRechargeMs, dtMs);   // (remake: overheated, Overheat)
             UpdateInjector(dtMs);
             if (hasRepair) Hp.Repair(dtMs, repairHullMs, repairArmorMs);
             if (hullRegen > 0f) Hp.RegenerateHull(dtMs, hullRegen);   // remake mods: the ship's own (ships.json "hullRegen")

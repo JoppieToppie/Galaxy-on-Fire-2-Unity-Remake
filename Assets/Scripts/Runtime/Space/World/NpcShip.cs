@@ -560,7 +560,8 @@ namespace GoF2Remake.World
             // red (a player's report: only the Most Wanted criminals were).
             Target.plateRed = spec.wantedIndex >= 0 || spec.nameText == 1611 || spec.nameText == 1663;
             Target.radius = (spec.hitRadius > 0f ? spec.hitRadius : NpcTables.HitRadiusUnits) * M * spec.HullScale * StructureScale;
-            Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship), Mathf.Max(0, spec.shield));
+            Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship), Mathf.Max(0, spec.shield))
+            { shieldRechargeDelayMs = Modding.ModContent.ShieldRechargeDelayMs };
             Target.hitpoints.energyResistance = Mathf.Clamp01(spec.energyResistance);
             Target.hitpoints.ballisticResistance = Mathf.Clamp01(spec.ballisticResistance);
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override

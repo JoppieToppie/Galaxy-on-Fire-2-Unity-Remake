@@ -35,6 +35,21 @@ namespace GoF2Remake.Flight
         public bool shieldHit, armorHit, hullHit;
 
         float empTimer, shieldTickMs, hullTickMs, armorTickMs;
+        /// <summary>Time without incoming damage required before normal shield regeneration, in milliseconds.</summary>
+        public int shieldRechargeDelayMs;
+        public float ShieldRechargeRemainingMs { get; private set; }
+
+        public void RestoreShieldRechargeDelay(float remainingMs)
+        {
+            ShieldRechargeRemainingMs = Math.Max(0f, Math.Min(shieldRechargeDelayMs, remainingMs));
+            shieldTickMs = 0f;
+        }
+
+        void InterruptShieldRecharge()
+        {
+            if (maxShield > 0 && shieldRechargeDelayMs > 0)
+                RestoreShieldRechargeDelay(shieldRechargeDelayMs);
+        }
 
         public bool Alive => hull > 0;
         public float HullFraction => maxHull > 0 ? (float)hull / maxHull : 0f;
@@ -70,6 +85,7 @@ namespace GoF2Remake.Flight
         public bool Damage(int dmg, float shieldFactor, DamageType damageType)
         {
             if (!vulnerable || hull <= 0 || dmg <= 0) return false;
+            InterruptShieldRecharge();
             if (shieldLocked) { shieldHit = true; return false; }   // remake: an overcharged shield (Device.Type.ShieldOvercharge)
             if (damageType == DamageType.Energy && shield > 0f && energyResistance > 0f)
             {
@@ -135,6 +151,7 @@ namespace GoF2Remake.Flight
         public bool DamageEmp(int amount)
         {
             if (!vulnerable || emp <= 0 || hull <= 0 || amount <= 0) return false;
+            InterruptShieldRecharge();
             emp -= amount;
             if (emp >= 1) return false;
             emp = 0;
@@ -166,9 +183,17 @@ namespace GoF2Remake.Flight
 
         /// <summary>PlayerEgo::update shield regen: a tick when >= 101 ms have passed (the remainder is dropped, like the
         /// original), + maxShield / (attr19 / 100).</summary>
-        public void RegenerateShield(float dtMs, int fullRechargeMs)
+        public void RegenerateShield(float dtMs, int fullRechargeMs, float elapsedMs = -1f)
         {
-            if (fullRechargeMs <= 0 || hull <= 0 || maxShield <= 0) return;
+            // Cooldown follows actual elapsed simulation time, not the heat-modified recharge rate.
+            if (elapsedMs < 0f) elapsedMs = dtMs;
+            if (ShieldRechargeRemainingMs > 0f && elapsedMs > 0f)
+            {
+                float waiting = Math.Min(ShieldRechargeRemainingMs, elapsedMs);
+                ShieldRechargeRemainingMs -= waiting;
+                dtMs *= (elapsedMs - waiting) / elapsedMs;
+            }
+            if (fullRechargeMs <= 0 || hull <= 0 || maxShield <= 0 || dtMs <= 0f) return;
             shieldTickMs += dtMs;
             if (shieldTickMs < 101f) return;
             shieldTickMs = 0f;

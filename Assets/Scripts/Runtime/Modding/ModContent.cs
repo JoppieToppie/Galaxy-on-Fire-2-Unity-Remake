@@ -34,6 +34,23 @@ namespace GoF2Remake.Modding
         public static bool MultipleSecondaryMountsEnabled => HasMultipleSecondaryMounts(ModManager.Active);
 
         /// <summary>Opt-in; disabled mods and base content cannot change vanilla NPC health.</summary>
+        /// <summary>Shared recharge delay, opt-in; strongest active mod's setting wins.</summary>
+        public static int ShieldRechargeDelayMs
+        {
+            get
+            {
+                int delay = 0;
+                foreach (var mod in ModManager.Active)
+                    if (mod != null && !mod.IsBase && mod.Manifest != null)
+                    {
+                        var manifest = mod.Manifest;
+                        delay = Math.Max(delay, manifest.shieldRechargeDelayMs >= 0
+                            ? manifest.shieldRechargeDelayMs : manifest.fighterNpcShields ? 5000 : 0);
+                    }
+                return delay;
+            }
+        }
+
         public static bool FighterNpcShieldsEnabled
         {
             get

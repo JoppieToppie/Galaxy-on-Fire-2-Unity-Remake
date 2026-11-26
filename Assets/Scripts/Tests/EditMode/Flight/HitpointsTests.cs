@@ -132,6 +132,48 @@ namespace GoF2Remake.Tests
 
         // ---- shield regen, repair bots ------------------------------------------------------------------------------
 
+        [TestCase(DamageType.None)]
+        [TestCase(DamageType.Energy)]
+        [TestCase(DamageType.Ballistic)]
+        public void ShieldRegenWaitsAfterDamage(DamageType type)
+        {
+            var h = new Hitpoints(100, 50) { shieldRechargeDelayMs = 5000 };
+            h.Damage(10, 1f, type);
+            float charge = h.shield;
+            h.RegenerateShield(4999f, 20000);
+            Assert.AreEqual(charge, h.shield);
+            h.RegenerateShield(1f, 20000);
+            Assert.AreEqual(charge, h.shield);
+            h.RegenerateShield(101f, 20000);
+            Assert.Greater(h.shield, charge);
+        }
+
+        [Test]
+        public void HullDamageResetsDelayEvenWithEmptyShield()
+        {
+            var h = new Hitpoints(100, 10) { shieldRechargeDelayMs = 5000 };
+            h.Damage(20);
+            h.RegenerateShield(4000f, 20000);
+            h.Damage(1);
+            h.RegenerateShield(4999f, 20000);
+            Assert.AreEqual(0f, h.shield);
+            Assert.AreEqual(1f, h.ShieldRechargeRemainingMs);
+            h.RegenerateShield(102f, 20000);
+            Assert.Greater(h.shield, 0f);
+        }
+
+        [Test]
+        public void RechargeCooldownUsesElapsedTimeAndCanBeRestored()
+        {
+            var h = new Hitpoints(100, 50) { shieldRechargeDelayMs = 5000, shield = 10 };
+            h.RestoreShieldRechargeDelay(3000f);
+            h.RegenerateShield(0f, 20000, 3000f);
+            Assert.AreEqual(0f, h.ShieldRechargeRemainingMs);
+            Assert.AreEqual(10f, h.shield);
+            h.RegenerateShield(101f, 20000);
+            Assert.Greater(h.shield, 10f);
+        }
+
         [Test]
         public void ShieldRegenTicksAfter101Ms()
         {

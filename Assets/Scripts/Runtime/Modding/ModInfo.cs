@@ -68,6 +68,7 @@ namespace GoF2Remake.Modding
                 void Add(string s) { var b = Encoding.UTF8.GetBytes(s); sha.TransformBlock(b, 0, b.Length, null, 0); }
                 Add($"{Manifest.id}\n{Manifest.version}\n{Manifest.multipleSecondaryMounts}\n{string.Join(",", Manifest.dependencies)}\n");
                 if (Manifest.fighterNpcShields) Add("fighterNpcShields:true\n");
+                if (Manifest.shieldRechargeDelayMs >= 0) Add($"shieldRechargeDelayMs:{Manifest.shieldRechargeDelayMs}\n");
                 foreach (var d in Manifest.dependencyVersions) Add($"{d.Key}>={d.Value}\n");
                 var ignore = new List<string>(Manifest.multiplayerIgnore ?? new List<string>());
                 ignore.Sort(StringComparer.Ordinal);

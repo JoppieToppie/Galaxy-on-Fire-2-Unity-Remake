@@ -177,6 +177,7 @@ namespace GoF2Remake.Multiplayer
             hp.energyResistance = Mathf.Clamp01(original.energyResistance);
             hp.ballisticResistance = Mathf.Clamp01(original.ballisticResistance);
             hp.shield = hp.maxShield * Mathf.Clamp01(St.ShieldFraction);
+            hp.RestoreShieldRechargeDelay(St.shieldCooldown * 100f);
         }
         public NetProxyStatus Status => St;
         internal bool ScanVisible => ((IsOwner && ship != null) || (hasPose && Time.realtimeSinceStartupAsDouble - lastScanPoseTime <= 5)) && IsFlying && !IsJunk && St.radius > 0f && St.cloak < 25 && !St.Has(NetProxyStatus.Hidden) && !St.Has(NetProxyStatus.Asleep) && !St.Has(NetProxyStatus.Inactive);
@@ -902,6 +903,7 @@ namespace GoF2Remake.Multiplayer
             s.relation = t.hostileToPlayer ? Hostile : t.friendToPlayer ? Friend : Neutral;
             s.hull = NetProxyStatus.Hull(t.HullFraction);
             s.shield = NetProxyStatus.Shield(ship.Hp != null && ship.Hp.maxShield > 0 ? ship.Hp.shield / ship.Hp.maxShield : -1f);
+            s.shieldCooldown = (ushort)Mathf.Clamp(Mathf.CeilToInt((ship.Hp?.ShieldRechargeRemainingMs ?? 0f) / 100f), 0, ushort.MaxValue);
             s.radius = t.radius;
             byte l = ship.Current == NpcShip.State.Dying ? Dying : ship.Current == NpcShip.State.Dead || ship.Gone ? Dead : Flying;
             // Destroyed by this game's own player (not an NPC's shot, not another player's: DamageRpc wrote that one).

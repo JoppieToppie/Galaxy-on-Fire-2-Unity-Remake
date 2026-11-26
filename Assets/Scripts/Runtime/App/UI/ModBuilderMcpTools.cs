@@ -381,7 +381,7 @@ namespace GoF2Remake.UI
             c.Json(result, $"{kind}{(ids.Count > 0 ? " " + string.Join(", ", ids) : "")}");
         }
 
-        static readonly string[] ManifestFields = { "name", "description", "version", "author", "website", "credits", "dependencies", "preview", "multipleSecondaryMounts", "fighterNpcShields" };
+        static readonly string[] ManifestFields = { "name", "description", "version", "author", "website", "credits", "dependencies", "preview", "multipleSecondaryMounts", "fighterNpcShields", "shieldRechargeDelayMs" };
 
         static void PutEntry(JObject a, Call c)
         {

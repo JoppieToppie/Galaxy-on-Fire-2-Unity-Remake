@@ -44,6 +44,8 @@ namespace GoF2Remake.Modding
         public bool multipleSecondaryMounts;
         /// <summary>Opt in to rank- and difficulty-scaled shields for ordinary fighter NPCs.</summary>
         public bool fighterNpcShields;
+        /// <summary>-1: default (five seconds with fighter NPC shields, otherwise vanilla); 0: no delay.</summary>
+        public int shieldRechargeDelayMs = -1;
         public Dictionary<string, string> name, description, credits;
         /// <summary>Remake (TorchOP's request, 2026-10-23): the tag shown after the names of what the mod adds, null = none.</summary>
         public Dictionary<string, string> tag;
@@ -130,6 +132,7 @@ namespace GoF2Remake.Modding
                 preview = ModJson.Str(o, "preview", "preview.png"),
                 multipleSecondaryMounts = ModJson.Bool(o, "multipleSecondaryMounts", false, FileName),
                 fighterNpcShields = ModJson.Bool(o, "fighterNpcShields", false, FileName),
+                shieldRechargeDelayMs = Math.Max(-1, Math.Min(60000, ModJson.Int(o, "shieldRechargeDelayMs", -1, FileName))),
                 dependencies = ModJson.Strings(o, "dependencies"),
                 multiplayerIgnore = ModJson.Strings(o, "multiplayerIgnore"),
             };
