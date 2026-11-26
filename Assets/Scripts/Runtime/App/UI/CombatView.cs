@@ -317,6 +317,8 @@ namespace GoF2Remake.UI
                     Image(lockRing, lockFrames[Mathf.Clamp(radar.LockFrame, 0, 23)]);
                 }
                 var locked = radar.Locked;
+                // Damage can arrive after CombatRadar.Update but before the HUD paints this frame.
+                if (locked != null && (!locked.Targetable || locked.cloaked || !radar.Detects(locked))) locked = null;
                 DrawLeadMarkers(drawLock ? radar : null, cam, origin, centre);
                 if (drawLock && plateFree && locked != null)
                 {
@@ -672,6 +674,9 @@ namespace GoF2Remake.UI
             bool onScreen = Project(cam, world, origin, centre, out var p, out bool near);
             Show(m.bar, false); Show(m.fill, false); Show(m.distance, false); Show(m.bracket, false);
             Show(m.emp, false); Show(m.empFill, false);
+            // The dying ship's marker is reused for cargo until the explosion. Hide every ship-only pool.
+            HidePools(m);
+            if (m.pilot != null) Show(m.pilot, false);
             Show(m.dot, onScreen || !Vr.VrMode.Enabled);   // VR: no off-screen boxes on the ellipse
             var tex = !onScreen ? Tex(voidCrate ? "crate_off_void" : "crate_off") : near ? Tex("bracket") : Tex("crate_dot");
             Image(m.dot, tex);
@@ -684,6 +689,8 @@ namespace GoF2Remake.UI
         {
             bool onScreen = Project(cam, world, origin, centre, out var p, out _);
             Show(m.bar, false); Show(m.fill, false); Show(m.bracket, false); Show(m.emp, false); Show(m.empFill, false);
+            HidePools(m);
+            if (m.pilot != null) Show(m.pilot, false);
             bool dot = onScreen || (offScreen && !Vr.VrMode.Enabled);
             Show(m.dot, dot);
             Show(m.distance, onScreen && locked);

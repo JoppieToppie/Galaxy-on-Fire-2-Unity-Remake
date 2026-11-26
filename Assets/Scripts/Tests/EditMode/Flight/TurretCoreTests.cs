@@ -321,7 +321,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void HudLeadAllowsLegalPvpEvenBeforeAggressionAndRejectsProtectedPilots()
+        public void HudLeadAllowsAllVisiblePilotsRegardlessOfPvpProtection()
         {
             var t = NewTarget(Vector3.forward * 100f);
             t.netPilot = true;
@@ -329,7 +329,9 @@ namespace GoF2Remake.Tests
             t.playerProof = false;
             Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "legal neutral PvP target");
             t.playerProof = true;
-            Assert.IsFalse(TurretTargeting.HudLeadEligible(t), "squadmate or PvP disabled");
+            Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "protected pilot");
+            t.friendToPlayer = true;
+            Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "protected squadmate");
             t.playerProof = false;
             t.cloaked = true;
             Assert.IsFalse(TurretTargeting.HudLeadEligible(t));

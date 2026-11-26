@@ -159,9 +159,9 @@ namespace GoF2Remake.Flight
             return true;
         }
 
-        /// <summary>Only a live, damageable lock may receive a HUD lead. Remote players use the same PvP
-        /// protection flag as projectile damage (NetPlayer); do not require hostility, since legal PvP can start neutral.</summary>
-        public static bool HudLeadEligible(Target t) => t != null && t.Targetable && !t.cloaked && !t.playerProof;
+        /// <summary>A lead is advisory, not permission to inflict damage. Friendly, squad and protected
+        /// players can be tracked exactly like other live scanner contacts.</summary>
+        public static bool HudLeadEligible(Target t) => t != null && t.Targetable && !t.cloaked;
 
         /// <summary>Per-HUD, per-frame motion estimator. Separate from the 80 ms shared NPC/turret cache.
         /// Remote targets are sampled at their interpolated render pose, not at irregular packet arrival times.</summary>
