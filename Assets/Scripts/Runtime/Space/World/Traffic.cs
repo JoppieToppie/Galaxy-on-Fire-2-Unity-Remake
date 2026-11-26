@@ -187,7 +187,7 @@ namespace GoF2Remake.World
         /// with its heading and hull.</summary>
         public NpcShip Adopt(SpawnSpec spec, Quaternion rotation, float hullFraction)
         {
-            var ship = Create(spec);
+            var ship = Create(spec, adopted: true);
             ship.transform.rotation = rotation;
             var hp = ship.Hp;
             if (hp != null && hp.maxHull > 0)
@@ -211,8 +211,28 @@ namespace GoF2Remake.World
                                        : Modding.ModTraffic.Assembly(spec.ship, spec.skin) ?? ShipAssembly(db, spec.ship, spec.race);   // remake mods: a kit ship's random build (a criminal's own skin)
         }
 
-        NpcShip Create(SpawnSpec spec)
+        // Runs once at creation, on the game owning this NPC. A takeover retains the transmitted spec instead of rerolling.
+        void ApplyFighterShield(SpawnSpec spec)
         {
+            if (!Modding.ModContent.FighterNpcShieldsEnabled || spec.shield > 0 || spec.ship < 0 || spec.freighter
+                || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.modCapital
+                || spec.stationPort || spec.deadButSelectable || spec.eventWreck || spec.derelict)
+                return;
+            var shipClass = Modding.ShipClassRules.ClassOf(db?.Ship(spec.ship));
+            if (shipClass == Modding.ShipClassRules.Frigate || shipClass == Modding.ShipClassRules.Freighter
+                || shipClass == Modding.ShipClassRules.Cruiser || shipClass == Modding.ShipClassRules.Carrier)
+                return;
+            int rank = Session.Rank;
+            float chance = NpcTables.FighterShieldChance(rank, Session.DifficultyFactor);
+            if (chance <= 0f || (chance < 1f && UnityEngine.Random.value >= chance)) return;
+            int hull = spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(0, spec.ship);
+            spec.shield = NpcTables.FighterShieldCapacity(rank, hull);
+            spec.shieldRechargeMs = NpcTables.FighterShieldRechargeMs;
+        }
+
+        NpcShip Create(SpawnSpec spec, bool adopted = false)
+        {
+            if (!adopted) ApplyFighterShield(spec);
             var entry = AssemblyOf(db, spec);
             // A construction site supplies its own generated cube; never instantiate a stock pad model behind it.
             var prefab = spec.dockingType == ObjectDocking.ConstructionSite ? null : AssembledObject.LoadPrefab(entry);

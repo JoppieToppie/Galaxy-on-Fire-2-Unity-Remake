@@ -163,6 +163,21 @@ namespace GoF2Remake.Multiplayer
         public Quaternion ShownRotation => shown && hasPose ? transform.rotation : poseRotation;
         public Vector3 ShownVelocity => smoothing.Velocity;
         public float HullFraction => St.HullFraction;
+
+        /// <summary>Preserve shield capacity and charge on handover, including regenerated child ships.</summary>
+        internal void RestoreShield(NpcShip adopted)
+        {
+            var original = Spec?.spec;
+            var hp = adopted?.Hp;
+            if (original == null || hp == null) return;
+            adopted.Spec.shield = hp.maxShield = Mathf.Max(0, original.shield);
+            adopted.Spec.shieldRechargeMs = original.shieldRechargeMs;
+            adopted.Spec.energyResistance = original.energyResistance;
+            adopted.Spec.ballisticResistance = original.ballisticResistance;
+            hp.energyResistance = Mathf.Clamp01(original.energyResistance);
+            hp.ballisticResistance = Mathf.Clamp01(original.ballisticResistance);
+            hp.shield = hp.maxShield * Mathf.Clamp01(St.ShieldFraction);
+        }
         public NetProxyStatus Status => St;
         internal bool ScanVisible => ((IsOwner && ship != null) || (hasPose && Time.realtimeSinceStartupAsDouble - lastScanPoseTime <= 5)) && IsFlying && !IsJunk && St.radius > 0f && St.cloak < 25 && !St.Has(NetProxyStatus.Hidden) && !St.Has(NetProxyStatus.Asleep) && !St.Has(NetProxyStatus.Inactive);
         /// <summary>The ship this game runs for it (null = another game's, or none).</summary>

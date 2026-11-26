@@ -33,6 +33,17 @@ namespace GoF2Remake.Modding
         /// and disabled / inactive mods cannot turn this on; an unmodified game therefore keeps its original mount rules.</summary>
         public static bool MultipleSecondaryMountsEnabled => HasMultipleSecondaryMounts(ModManager.Active);
 
+        /// <summary>Opt-in; disabled mods and base content cannot change vanilla NPC health.</summary>
+        public static bool FighterNpcShieldsEnabled
+        {
+            get
+            {
+                foreach (var mod in ModManager.Active)
+                    if (mod != null && !mod.IsBase && mod.Manifest?.fighterNpcShields == true) return true;
+                return false;
+            }
+        }
+
         /// <summary>Pure form used by the feature tests and the active-mod property above.</summary>
         public static bool HasMultipleSecondaryMounts(IEnumerable<ModInfo> mods)
         {

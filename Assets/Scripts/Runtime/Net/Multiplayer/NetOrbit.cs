@@ -660,6 +660,7 @@ namespace GoF2Remake.Multiplayer
         /// EMP and (a capital ship) its waves.</summary>
         static void Restore(NpcShip ship, NetProxy proxy, ProxySpec p)
         {
+            proxy.RestoreShield(ship);
             var st = proxy.Status;
             foreach (var id in proxy.Aggressors) ship.aggressors.Add(id);   // still hostile to whom it was
             if (p != null && p.cargo != null && p.spec != null && !p.spec.noLoot && p.spec.lootItem < 0)
