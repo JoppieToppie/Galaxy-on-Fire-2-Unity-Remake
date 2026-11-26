@@ -221,6 +221,7 @@ namespace GoF2Remake.Data
             int Slots(int type) => type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2) + BaySlot(db, Session.ShipIndex, Session.Equipment), _ => int.MaxValue };
             int TypeOfItem(int item) => db.Item(item)?.TypeId ?? 4;
             PinSlots(db, Session.Equipment);
+            int forbiddenMoved = ReturnForbiddenFitted(db);
             int reservedMoved = FitReservedSecondarySlots(db, s.secondary);
             var used = new int[5];
             foreach (var e in Session.Equipment) if (TakesSlot(db, e) && !IsSaleable(e.item)) used[Mathf.Clamp(TypeOfItem(e.item), 0, 4)]++;
@@ -254,7 +255,8 @@ namespace GoF2Remake.Data
                     if (free <= Slots(type)) e.slot = free;
                 }
             }
-            return moved + reservedMoved;
+            if (moved + reservedMoved + forbiddenMoved > 0) Session.SelectedSecondary = -1;
+            return moved + reservedMoved + forbiddenMoved;
         }
 
         /// <summary>Indices into Session.Equipment of the items mounted in slots of this type, in slot order.</summary>
@@ -440,22 +442,26 @@ namespace GoF2Remake.Data
         /// starting ammo; one kept keeps what is left, the shops' missiles of its type join it); so an item used up (an
         /// emergency system) is back at the next docking. Called where the flown ship can change and as levels start.
         /// Returns whether anything changed.</summary>
-        public static bool SyncBuiltIn(Database db)
+        static int ReturnForbiddenFitted(Database db)
         {
-            if (db == null || Session.Equipment == null) return false;
-            bool changed = false;
-            // A ship may have been loaded or swapped into a hull whose mod rules forbid some fitted equipment.
-            // Return those items to the hold; never silently delete them.
+            int moved = 0;
             for (int i = Session.Equipment.Count - 1; i >= 0; i--)
             {
                 var e = Session.Equipment[i];
-                if (e.builtIn) continue;
-                if (string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, e.item))) continue;
+                // Integrated hull equipment is separate from player-fittable hardpoints.
+                if (e.builtIn || string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, e.item))) continue;
                 int amount = UnitsOf(db, e);
                 Session.Equipment.RemoveAt(i);
                 if (amount > 0) Shop.AddToCargo(e.item, amount);
-                changed = true;
+                moved++;
             }
+            return moved;
+        }
+
+        public static bool SyncBuiltIn(Database db)
+        {
+            if (db == null || Session.Equipment == null) return false;
+            bool changed = ReturnForbiddenFitted(db) > 0;
             var want = db.BuiltInItems(Session.ShipIndex);
             var matched = new bool[want.Count];
             // A fitted item of the same one-per-ship kind has taken a built-in one's place: that one steps aside (counted as
@@ -705,13 +711,13 @@ namespace GoF2Remake.Data
         public bool Swap(int equipmentIndex, int item)
         {
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count || CargoOf(item) <= 0 || Session.Equipment[equipmentIndex].builtIn) return false;
-            if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return false;
+            if (CanMount(item, out int expected) != Result.Swap || expected != equipmentIndex ||
+                !IsSaleable(Session.Equipment[equipmentIndex].item)) return false;
             PinSlots(db, Session.Equipment);
             int slot = Session.Equipment[equipmentIndex].slot;
             if (TypeOf(item) == 1 && !Modding.ShipClassRules.SecondarySlotFits(db.Item(item), db.Ship(Session.ShipIndex), slot)) return false;
             Demount(equipmentIndex);
             MountFromCargo(item, slot);
-            Session.Equipment[Session.Equipment.Count - 1].slot = slot;   // the new one in the old one's slot
             SyncBuiltIn(db);
             return true;
         }
@@ -754,15 +760,46 @@ namespace GoF2Remake.Data
             if (!Modding.ModContent.MultipleSecondaryMountsEnabled || TypeOf(item) != 1 ||
                 !Modding.ModContent.ItemAvailableFor(item, "equipment") ||
                 !string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Array.Empty<int>();
-            var places = SlotsOfType(1);
+            return DistributionSlots(db, item);
+        }
+
+        static int[] DistributionSlots(Database db, int item)
+        {
+            var ship = db.Ship(Session.ShipIndex);
+            int capacity = Modding.KitRules.Slots(ship)?.secondary ?? 0;
+            var positions = SlotPositions(db, Session.Equipment);
+            var occupied = new Dictionary<int, ItemStack>();
+            for (int i = 0; i < positions.Length; i++)
+                if (positions[i] >= 0 && db.Item(Session.Equipment[i].item)?.TypeId == 1)
+                    occupied[positions[i] + 1] = Session.Equipment[i];
             var result = new List<int>();
-            for (int i = 0; i < SlotCount(1) && i < places.Length; i++)
-            {
-                if (!Modding.ShipClassRules.SecondarySlotFits(db.Item(item), db.Ship(Session.ShipIndex), i + 1)) continue;
-                int e = places[i];
-                if (e < 0 || (!Session.Equipment[e].builtIn && Session.Equipment[e].item == item)) result.Add(i + 1);
-            }
+            for (int slot = 1; slot <= capacity; slot++)
+                if (Modding.ShipClassRules.SecondarySlotFits(db.Item(item), ship, slot) &&
+                    (!occupied.TryGetValue(slot, out var stack) || stack.item == item)) result.Add(slot);
             return result.ToArray();
+        }
+
+        internal static ItemStack SecondaryReplenishmentTarget(Database db, int item)
+        {
+            var data = db.Item(item);
+            if (data?.TypeId != 1 || !Modding.ModContent.ItemAvailableFor(item, "equipment") ||
+                !string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return null;
+            var ship = db.Ship(Session.ShipIndex);
+            var positions = SlotPositions(db, Session.Equipment);
+            int capacity = Modding.KitRules.Slots(ship)?.secondary ?? 0;
+            ItemStack target = null;
+            for (int i = 0; i < Session.Equipment.Count; i++)
+            {
+                var e = Session.Equipment[i];
+                if (e.item != item) continue;
+                if (!e.builtIn && (positions[i] < 0 || positions[i] >= capacity ||
+                    !Modding.ShipClassRules.SecondarySlotFits(data, ship, positions[i] + 1))) continue;
+                target ??= e;
+            }
+            // Integrated weapons are not user-selectable fitting slots.
+            if (Modding.ModContent.MultipleSecondaryMountsEnabled &&
+                DistributionSlots(db, item).Length >= 2) return null;
+            return target;
         }
 
         /// <summary>Evenly allocate cargo and the rounds in only the selected slots. Revalidate on apply; no stock, money
@@ -790,6 +827,7 @@ namespace GoF2Remake.Data
                 else Session.Equipment.Add(new ItemStack(item, amount) { slot = chosen[i] });
             }
             Session.SeenItems.Add(item);
+            Session.SelectedSecondary = -1;
             return true;
         }
 
@@ -799,12 +837,10 @@ namespace GoF2Remake.Data
             foreach (var stack in Session.Cargo.ToList())
             {
                 if (!Stacked(db, stack.item)) continue;   // (remake: a mounted consumable device's bought uses too)
-                var mounted = Session.Equipment.Find(e => e.item == stack.item);
-                if (mounted == null) continue;
-                // Leave ammo selectable in the Ship tab when another eligible mount exists,
-                // or the player has multiple mounts and may want to redistribute them.
-                if (db.Item(stack.item)?.TypeId == 1 && Modding.ModContent.MultipleSecondaryMountsEnabled &&
-                    SecondaryDistributionSlots(stack.item).Length >= 2) continue;
+                var mounted = db.Item(stack.item)?.TypeId == 1
+                    ? SecondaryReplenishmentTarget(db, stack.item)
+                    : Session.Equipment.Find(e => e.item == stack.item);
+                if (mounted == null || stack.amount <= 0 || mounted.amount > int.MaxValue - stack.amount) continue;
                 mounted.amount += stack.amount;
                 Session.Cargo.Remove(stack);
                 moved.Add(stack.item);
@@ -941,18 +977,22 @@ namespace GoF2Remake.Data
             // The flown ship's keep their slots' order on the new hull (what sits in the last slots goes to the hold), packed
             // below; a stored hull's gear goes in list order (the story's first).
             var at = SlotPositions(db, mounted);
-            for (int i = 0; i < mounted.Count; i++) mounted[i].slot = mount == null ? at[i] + 1 : 0;
+            bool reserved = Modding.ShipClassRules.HasSecondaryReservations(db.Ship(ship));
+            for (int i = 0; i < mounted.Count; i++)
+                mounted[i].slot = mount == null || (reserved && TypeOf(mounted[i].item) == 1) ? at[i] + 1 : 0;
             var listOrder = new List<ItemStack>(mounted);
             if (mount == null) mounted = Enumerable.Range(0, mounted.Count).OrderBy(i => at[i]).Select(i => listOrder[i]).ToList();
             foreach (var e in mounted)
             {
                 int type = TypeOf(e.item);
-                if ((!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
+                if ((!dismount || !IsSaleable(e.item)) && (reserved && type == 1 ||
+                    MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
                 else if (UnitsOf(db, e) > 0) AddToCargo(e.item, UnitsOf(db, e));
             }
             Session.Equipment = Session.Equipment.OrderBy(e => listOrder.IndexOf(e)).ToList();
             for (int type = 0; type <= 3; type++)
             {
+                if (reserved && type == 1) continue;
                 int n = 0;
                 foreach (var e in Session.Equipment.Where(x => HasSlot(db, x) && TypeOf(x.item) == type).OrderBy(x => x.slot).ToList()) e.slot = ++n;
             }

@@ -301,8 +301,8 @@ namespace GoF2Remake.Data
         {
             if (db.Item(item)?.TypeId == 1)
             {
-                var mounted = Session.Equipment.Find(e => e.item == item);
-                if (mounted != null) { mounted.amount += qty; return; }
+                var mounted = Hangar.SecondaryReplenishmentTarget(db, item);
+                if (mounted != null && qty > 0 && mounted.amount <= int.MaxValue - qty) { mounted.amount += qty; return; }
             }
             Shop.AddToCargo(item, qty);
         }

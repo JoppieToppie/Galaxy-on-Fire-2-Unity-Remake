@@ -99,9 +99,16 @@ namespace GoF2Remake.Modding
             if (item == null) return true;
             // Optional ship-specific primary lock; tags use the fully qualified item key.
             if (item.TypeId == 0 && ship?.classTags != null)
+            {
+                bool locked = false, allowed = false;
                 foreach (string tag in ship.classTags)
-                    if (tag != null && tag.StartsWith("primaryOnly:", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(item.modKey, tag.Substring("primaryOnly:".Length), StringComparison.OrdinalIgnoreCase)) return false;
+                {
+                    if (tag == null || !tag.StartsWith("primaryOnly:", StringComparison.OrdinalIgnoreCase)) continue;
+                    locked = true;
+                    if (string.Equals(item.modKey, tag.Substring("primaryOnly:".Length), StringComparison.OrdinalIgnoreCase)) allowed = true;
+                }
+                if (locked && !allowed) return false;
+            }
             var allow = item.allowedClasses;
             var deny = item.excludedClasses;
             bool hasAllow = allow != null && allow.Length > 0, hasDeny = deny != null && deny.Length > 0;
@@ -113,6 +120,7 @@ namespace GoF2Remake.Modding
 
         /// <summary>Optional hardpoint reservations encoded in ship class tags:
         /// secondarySlot:7:mod:item reserves S7 for that item; a reserved item may only use its reserved slots.
+        /// S1 is the first player-fittable slot; integrated hull weapons are separate, additional mounts.
         /// Existing untagged ships are unchanged.</summary>
         public static bool HasSecondaryReservations(ShipData ship)
         {
