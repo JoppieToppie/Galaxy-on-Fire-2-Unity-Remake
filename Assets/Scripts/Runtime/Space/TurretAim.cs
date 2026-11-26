@@ -51,31 +51,34 @@ namespace GoF2Remake.Flight
             if (!Settings.TurretLeadAim) return StepOriginal(world, dtMs);
             LimitHit = false;
 
-            // Yaw belongs to the base pivot's frame, not the already-pitched gun frame.
-            // Apply yaw first, then measure pitch in the gun's updated frame; otherwise pitch
-            // contaminates yaw and the two axes fight each other on elevated/depressed targets.
-            var direction = (world - gunNode.position).normalized;
-            var yawLocal = yawNode.InverseTransformDirection(direction);
-            float yawError = Mathf.Atan2(yawLocal.x, yawLocal.z);
-            Yaw += Mathf.Clamp(yawError, -yawRatePerMs * dtMs, yawRatePerMs * dtMs);
+            // The pivot's forward can be opposite the barrel on imported models.
+            // Project the actual barrel onto the yaw plane, not the pivot's forward.
+            if (dtMs <= 0f) return false;
+            Vector3 direction = (world - gunNode.position).normalized;
+            if (direction.sqrMagnitude < 1e-8f) return false;
+            Vector3 up = yawNode.up;
+            Vector3 forward = Vector3.ProjectOnPlane(gunNode.forward, up);
+            if (forward.sqrMagnitude < 1e-8f)
+                forward = Vector3.Cross(gunNode.right, up);
+            forward.Normalize();
+            float side = Vector3.Dot(direction, Vector3.Cross(up, forward));
+            float ahead = Vector3.Dot(direction, forward);
+            float yawError = side * side + ahead * ahead > 1e-8f ? Mathf.Atan2(side, ahead) : 0f;
+            float yaw = Mathf.Clamp(yawError, -yawRatePerMs * dtMs, yawRatePerMs * dtMs);
+            Yaw += yaw;
             Apply();
+            // Do not discard a target for its apparent pitch while the base is turning around.
+            if (Mathf.Abs(yawError - yaw) > 0.02f) return false;
 
             direction = (world - gunNode.position).normalized;
-            var pitchLocal = gunNode.InverseTransformDirection(direction);
-            float pitchError = Mathf.Atan2(pitchLocal.y,
-                Mathf.Sqrt(pitchLocal.x * pitchLocal.x + pitchLocal.z * pitchLocal.z));
+            float pitchError = Mathf.Atan2(Vector3.Dot(direction, gunNode.up), Vector3.Dot(direction, gunNode.forward));
             Turn(0f, Mathf.Clamp(pitchError, -pitchRatePerMs * dtMs, pitchRatePerMs * dtMs));
             Apply();
 
-            // Verify each axis in the frame in which that axis is actually controlled.
             direction = (world - gunNode.position).normalized;
-            yawLocal = yawNode.InverseTransformDirection(direction);
-            pitchLocal = gunNode.InverseTransformDirection(direction);
-            float remainingYaw = Mathf.Atan2(yawLocal.x, yawLocal.z);
-            float remainingPitch = Mathf.Atan2(pitchLocal.y,
-                Mathf.Sqrt(pitchLocal.x * pitchLocal.x + pitchLocal.z * pitchLocal.z));
-            return yawLocal.z > 0f && Mathf.Abs(remainingYaw) <= AlignmentToleranceRad &&
-                   Mathf.Abs(remainingPitch) <= AlignmentToleranceRad;
+            return !LimitHit && Vector3.Dot(direction, gunNode.forward) > 0f &&
+                   Mathf.Abs(Vector3.Dot(direction, gunNode.right)) <= AlignmentToleranceRad &&
+                   Mathf.Abs(Vector3.Dot(direction, gunNode.up)) <= AlignmentToleranceRad;
         }
 
         /// <summary>The original's step (PlayerTurret::handleRotation): a fixed-rate turn while the aim is outside the 0.05

@@ -25,11 +25,23 @@ namespace GoF2Remake.Flight
         public const float PickMs = 3000f, LeadUnits = 1500f;
         const float TeleportSpeed = 5000f, MaxVelocitySampleSeconds = 0.5f;
         sealed class Motion { public Vector3 position, velocity; public float time; public int frame; }
+        // Native shared acceleration estimates, sampled at most every 80 ms per target.
+        public const bool NativeAccelerationLead = true;
+        const float AccelInterval = 0.08f, AccelMaxGap = 0.55f, AccelMax = 200f;
+        sealed class AccelMotion
+        {
+            public Vector3 position, previousVelocity, acceleration;
+            public float time, previousDt, confidence;
+            public bool hasVelocity;
+        }
+        static readonly Dictionary<Target, AccelMotion> accelerations = new Dictionary<Target, AccelMotion>();
+        static float nextAccelSweep;
+        public bool accelerationLead;
         static readonly Dictionary<Target, Motion> motions = new Dictionary<Target, Motion>();
         static readonly List<Target> gone = new List<Target>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetMotion() { motions.Clear(); gone.Clear(); }
+        static void ResetMotion() { motions.Clear(); gone.Clear(); accelerations.Clear(); nextAccelSweep = 0f; }
 
 
         public enum Rule { Retarget, Timed }
@@ -86,7 +98,86 @@ namespace GoF2Remake.Flight
             Vector3 velocity = VelocityOf(t);
             Vector3 relative = aimPoint - from;
             float flightSeconds = InterceptSeconds(relative, velocity, speed, projectileLifetimeMs * 0.001f);
-            return aimPoint + velocity * flightSeconds;
+            Vector3 linear = aimPoint + velocity * flightSeconds;
+            if (!accelerationLead) return linear;
+            var motion = SampleAcceleration(t);
+            if (flightSeconds < 0.12f || motion.confidence < 0.25f || motion.acceleration.sqrMagnitude < 4f)
+                return linear;
+            float lifetime = projectileLifetimeMs * 0.001f;
+            float limit = Mathf.Min(100f, relative.magnitude * 0.12f);
+            Vector3 acceleration = motion.acceleration * motion.confidence;
+            float time = flightSeconds;
+            Vector3 predicted = linear;
+            for (int i = 0; i < 4; i++)
+            {
+                float horizon = Mathf.Min(time, 1.25f);
+                predicted = aimPoint + velocity * time + Vector3.ClampMagnitude(acceleration * (0.5f * horizon * horizon), limit);
+                float next = (predicted - from).magnitude / speed;
+                if (next <= 0f || float.IsNaN(next) || float.IsInfinity(next) || (lifetime > 0f && next > lifetime))
+                    return linear;
+                if (Mathf.Abs(next - time) < 0.002f) break;
+                time = next;
+            }
+            return linear + Vector3.ClampMagnitude(predicted - linear, limit);
+        }
+
+        static AccelMotion SampleAcceleration(Target target)
+        {
+            float now = Time.time;
+            if (now >= nextAccelSweep || now < nextAccelSweep - 3f)
+            {
+                gone.Clear();
+                foreach (var pair in accelerations)
+                    if (pair.Key == null || now - pair.Value.time > 3f || now < pair.Value.time) gone.Add(pair.Key);
+                foreach (var key in gone) accelerations.Remove(key);
+                nextAccelSweep = now + 3f;
+            }
+            if (!accelerations.TryGetValue(target, out var m))
+                accelerations[target] = m = new AccelMotion { position = target.transform.position, time = now };
+            float dt = now - m.time;
+            if (dt >= 0f && dt < AccelInterval) return m;
+            Vector3 position = target.transform.position;
+            Vector3 previous = m.position;
+            m.position = position;
+            m.time = now;
+            if (dt < 0f || dt > AccelMaxGap)
+            {
+                m.hasVelocity = false;
+                m.acceleration = Vector3.zero;
+                m.confidence = 0f;
+                return m;
+            }
+            Vector3 raw = (position - previous) / dt;
+            if (raw.sqrMagnitude > TeleportSpeed * TeleportSpeed)
+            {
+                m.hasVelocity = false;
+                m.acceleration = Vector3.zero;
+                m.confidence = 0f;
+                return m;
+            }
+            if (m.hasVelocity)
+            {
+                Vector3 a = (raw - m.previousVelocity) / (0.5f * (dt + m.previousDt));
+                float magnitude = a.magnitude;
+                if (magnitude > AccelMax * 2.5f)
+                {
+                    m.acceleration = Vector3.zero;
+                    m.confidence = 0f;
+                }
+                else
+                {
+                    a = Vector3.ClampMagnitude(a, AccelMax);
+                    float prior = m.acceleration.magnitude;
+                    float coherence = prior > 2f && magnitude > 2f ? Vector3.Dot(a.normalized, m.acceleration / prior) : 0f;
+                    bool stable = coherence > 0.25f || (prior < 2f && magnitude < 5f);
+                    m.confidence = Mathf.Clamp01(m.confidence + (stable ? 0.18f : -0.28f));
+                    m.acceleration = Vector3.Lerp(m.acceleration, a, 0.4f);
+                }
+            }
+            m.previousVelocity = raw;
+            m.previousDt = dt;
+            m.hasVelocity = true;
+            return m;
         }
 
         static Vector3 VelocityOf(Target t)

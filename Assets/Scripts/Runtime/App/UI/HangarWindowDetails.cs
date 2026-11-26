@@ -17,8 +17,82 @@ namespace GoF2Remake.UI
         {
             FillDetails();
             PlaceRowActions();
+            ShowSecondaryDistribution();
             rowActions.schedule.Execute(FitRowActionMinimum);
         }
+        VisualElement secondaryDistributionPanel;
+        int distributionItem = -1;
+        readonly HashSet<int> distributionSlots = new HashSet<int>();
+
+        void ShowSecondaryDistribution()
+        {
+            secondaryDistributionPanel?.RemoveFromHierarchy();
+            secondaryDistributionPanel = null;
+            if (!ShipTab || selected == null || (selected.kind != RowKind.Slot && selected.kind != RowKind.CargoItem))
+            { distributionItem = -1; distributionSlots.Clear(); return; }
+            int item = selected.kind == RowKind.Slot && selected.equipment >= 0 ? Session.Equipment[selected.equipment].item : selected.item;
+            if (item < 0) return;
+            var slots = hangar.SecondaryDistributionSlots(item);
+            if (slots.Length < 2) return;
+            var places = hangar.SlotsOfType(1);
+            if (distributionItem != item)
+            {
+                distributionItem = item;
+                distributionSlots.Clear();
+                foreach (int slot in slots) if (places[slot - 1] >= 0) distributionSlots.Add(slot);
+            }
+            distributionSlots.IntersectWith(slots);
+            var panel = secondaryDistributionPanel = new VisualElement();
+            panel.style.paddingTop = 4;
+            panel.style.paddingBottom = 4;
+            detailsPanel.Insert(0, panel);
+            var heading = new Label("SECONDARY AMMO DISTRIBUTION");
+            heading.AddToClassList("gof-semibold");
+            panel.Add(heading);
+            var summary = new Label();
+            panel.Add(summary);
+            var grid = new VisualElement();
+            grid.style.flexDirection = FlexDirection.Row;
+            grid.style.flexWrap = Wrap.Wrap;
+            panel.Add(grid);
+            var apply = new Button(() =>
+            {
+                if (hangar.DistributeSecondaries(item, distributionSlots)) Rebuild();
+            }) { text = "DISTRIBUTE TO SELECTED" };
+            apply.AddToClassList("detail-action");
+            apply.style.height = 32;
+            void Refresh()
+            {
+                long total = hangar.CargoOf(item);
+                foreach (int slot in distributionSlots)
+                    if (places[slot - 1] >= 0) total += Math.Max(0, Session.Equipment[places[slot - 1]].amount);
+                int count = distributionSlots.Count;
+                summary.text = $"Cargo: {hangar.CargoOf(item)}  |  Selected: {count}  |  {(count > 0 ? total / count : 0)} rounds/mount";
+                apply.SetEnabled(count > 0 && total >= count && total <= int.MaxValue);
+            }
+            foreach (int slot in slots)
+            {
+                int equipment = places[slot - 1];
+                string amount = equipment < 0 ? "Empty" : Session.Equipment[equipment].amount.ToString();
+                string Caption() => $"{(distributionSlots.Contains(slot) ? "[X]" : "[ ]")} S{slot}  {amount}";
+                var b = new Button { text = Caption() };
+                b.AddToClassList("detail-action");
+                b.style.width = Length.Percent(24);
+                b.style.marginLeft = Length.Percent(0.5f);
+                b.style.marginRight = Length.Percent(0.5f);
+                b.style.height = 30;
+                b.clicked += () =>
+                {
+                    if (!distributionSlots.Add(slot)) distributionSlots.Remove(slot);
+                    b.text = Caption();
+                    Refresh();
+                };
+                grid.Add(b);
+            }
+            panel.Add(apply);
+            Refresh();
+        }
+
         // CLAUDE.md "Row actions": keep proportional columns readable on narrow screens and in longer translations.
         void FitRowActionMinimum()
         {

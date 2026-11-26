@@ -106,6 +106,26 @@ namespace GoF2Remake.Modding
             return !hasAllow || Matches(ship, allow);
         }
 
+        /// <summary>Optional hardpoint reservations encoded in ship class tags:
+        /// secondarySlot:7:mod:item reserves S7 for that item; a reserved item may only use its reserved slots.
+        /// Existing untagged ships are unchanged.</summary>
+        public static bool SecondarySlotFits(ItemData item, ShipData ship, int slot)
+        {
+            if (item == null || ship?.classTags == null) return true;
+            bool reservedItem = false, matchesSlot = false;
+            foreach (string tag in ship.classTags)
+            {
+                const string prefix = "secondarySlot:";
+                if (tag == null || !tag.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                int separator = tag.IndexOf(':', prefix.Length);
+                if (separator < 0 || !int.TryParse(tag.Substring(prefix.Length, separator - prefix.Length), out int number)) continue;
+                bool matches = string.Equals(item.modKey, tag.Substring(separator + 1), StringComparison.OrdinalIgnoreCase);
+                if (number == slot && !matches) return false;
+                if (matches) { reservedItem = true; if (number == slot) matchesSlot = true; }
+            }
+            return !reservedItem || matchesSlot;
+        }
+
         /// <summary>The ship's class id (the machine identity), null for a ship without one (tags alone are not a class).</summary>
         public static string ClassOf(ShipData ship) => string.IsNullOrEmpty(ship?.shipClass) ? null : ship.shipClass;
 

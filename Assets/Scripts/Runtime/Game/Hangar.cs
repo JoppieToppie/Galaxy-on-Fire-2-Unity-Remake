@@ -679,6 +679,54 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>autoEquipSecondaryWeapons: bought missiles of a mounted type join the mounted stack. Returns the items moved.</summary>
+        public const bool NativeSecondaryDistribution = true;
+
+        /// <summary>Eligible numbered secondary slots, occupied by this item or empty; never replace a different weapon.
+        /// A mod can reserve slots via ShipClassRules.SecondarySlotFits.</summary>
+        public int[] SecondaryDistributionSlots(int item)
+        {
+            if (!Modding.ModContent.MultipleSecondaryMountsEnabled || TypeOf(item) != 1 ||
+                !Modding.ModContent.ItemAvailableFor(item, "equipment") ||
+                !string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Array.Empty<int>();
+            var places = SlotsOfType(1);
+            var result = new List<int>();
+            for (int i = 0; i < SlotCount(1) && i < places.Length; i++)
+            {
+                if (!Modding.ShipClassRules.SecondarySlotFits(db.Item(item), db.Ship(Session.ShipIndex), i + 1)) continue;
+                int e = places[i];
+                if (e < 0 || (!Session.Equipment[e].builtIn && Session.Equipment[e].item == item)) result.Add(i + 1);
+            }
+            return result.ToArray();
+        }
+
+        /// <summary>Evenly allocate cargo and the rounds in only the selected slots. Revalidate on apply; no stock, money
+        /// or other weapon changes. The first slots receive the indivisible remainder.</summary>
+        public bool DistributeSecondaries(int item, IEnumerable<int> slots)
+        {
+            if (slots == null) return false;
+            var chosen = slots.Distinct().OrderBy(x => x).ToArray();
+            var eligible = SecondaryDistributionSlots(item);
+            if (chosen.Length == 0 || chosen.Any(x => !eligible.Contains(x))) return false;
+            var places = SlotsOfType(1);
+            int cargo = CargoOf(item);
+            long total = cargo;
+            foreach (int slot in chosen)
+                if (places[slot - 1] >= 0) total += Math.Max(0, Session.Equipment[places[slot - 1]].amount);
+            if (total < chosen.Length || total > int.MaxValue) return false;
+            int each = (int)(total / chosen.Length), extra = (int)(total % chosen.Length);
+            PinSlots(db, Session.Equipment);
+            if (cargo > 0) Shop.RemoveFromCargo(item, cargo);
+            for (int i = 0; i < chosen.Length; i++)
+            {
+                int amount = each + (i < extra ? 1 : 0);
+                int existing = places[chosen[i] - 1];
+                if (existing >= 0) Session.Equipment[existing].amount = amount;
+                else Session.Equipment.Add(new ItemStack(item, amount) { slot = chosen[i] });
+            }
+            Session.SeenItems.Add(item);
+            return true;
+        }
+
         public List<int> AutoEquipSecondaries()
         {
             var moved = new List<int>();
@@ -687,6 +735,10 @@ namespace GoF2Remake.Data
                 if (!Stacked(db, stack.item)) continue;   // (remake: a mounted consumable device's bought uses too)
                 var mounted = Session.Equipment.Find(e => e.item == stack.item);
                 if (mounted == null) continue;
+                // Leave ammo selectable in the Ship tab when another eligible mount exists,
+                // or the player has multiple mounts and may want to redistribute them.
+                if (db.Item(stack.item)?.TypeId == 1 && Modding.ModContent.MultipleSecondaryMountsEnabled &&
+                    SecondaryDistributionSlots(stack.item).Length >= 2) continue;
                 mounted.amount += stack.amount;
                 Session.Cargo.Remove(stack);
                 moved.Add(stack.item);
