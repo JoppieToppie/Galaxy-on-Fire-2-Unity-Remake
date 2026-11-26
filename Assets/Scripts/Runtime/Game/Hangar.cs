@@ -14,6 +14,7 @@
 // hull takes the row) or sold (330 / 334, the ship's price, mods add nothing). Buying a ship elsewhere while owning the
 // club can keep the old hull (327 -> 331 Keep: 328 when that type is already stored, else the full price).
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
