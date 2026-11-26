@@ -25,9 +25,10 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(CombatRadar.ScanHitpointsAttr, ItemStats.IdOf("scanHitpoints"));
             Assert.AreEqual(CombatRadar.ScanWeaponsAttr, ItemStats.IdOf("scanWeapons"));
             Assert.AreEqual(CombatRadar.ScannerRangeAttr, ItemStats.IdOf("scannerRange"));
+            Assert.AreEqual(CombatRadar.ScanLeadAttr, ItemStats.IdOf("scanLead"));
 
             WriteMod("scan", "t_scan", "1.0", "", ("items.json", @"[
-                { 'id': 'deep', 'base': 84, 'name': 'Deep Scan', 'stats': { 'scanShip': 1, 'scanHitpoints': 1, 'scanWeapons': 1, 'radarShowsCargo': 2, 'scannerRange': 100000 } }
+                { 'id': 'deep', 'base': 84, 'name': 'Deep Scan', 'stats': { 'scanShip': 1, 'scanHitpoints': 1, 'scanWeapons': 1, 'radarShowsCargo': 2, 'scannerRange': 100000, 'scanLead': 1 } }
             ]"));
             ScanAndEnable("t_scan");
             Assert.IsFalse(Installed("t_scan").Broken, AllMessages(Installed("t_scan")));
@@ -37,6 +38,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1, deep.Attr(CombatRadar.ScanWeaponsAttr));
             Assert.AreEqual(2, deep.Attr(31));
             Assert.AreEqual(100000, deep.Attr(CombatRadar.ScannerRangeAttr));
+            Assert.AreEqual(1, deep.Attr(CombatRadar.ScanLeadAttr));
         }
 
         [TestCase(100, 4999f, true)]
@@ -49,6 +51,21 @@ namespace GoF2Remake.Tests
         public void DetectionRangeUsesTargetSignature(int percent, float metres, bool expected)
         {
             Assert.AreEqual(expected, CombatRadar.WithinScannerRange(metres * metres, 100000, percent));
+        }
+
+        [Test]
+        public void PipPredictsRealInterceptAndRejectsUnreachableShots()
+        {
+            var r = new UnityEngine.Vector3(100, 0, 0);
+            var v = new UnityEngine.Vector3(0, 20, 0);
+            var zero = UnityEngine.Vector3.zero;
+            Assert.IsTrue(TurretTargeting.TryIntercept(r, v, zero, 100, 2, out var point));
+            Assert.AreEqual(100f, point.x, 0.001f);
+            Assert.AreEqual(20.4124f, point.y, 0.01f);
+            Assert.IsFalse(TurretTargeting.TryIntercept(r, v, zero, 100, 1, out _));
+            Assert.IsFalse(TurretTargeting.TryIntercept(r, new UnityEngine.Vector3(110, 0, 0), zero, 100, 10, out _));
+            Assert.IsTrue(TurretTargeting.TryIntercept(r, zero, zero, 100, 1, out point));
+            Assert.AreEqual(r, point);
         }
 
         [Test]

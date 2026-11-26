@@ -79,7 +79,10 @@ namespace GoF2Remake.Flight
         public bool HasScanner { get; private set; }
         /// <summary>Remake mods: the scanner names a locked ship's hull on the plate (attr 140 "scanShip").</summary>
         public bool ShipScan { get; private set; }
-        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = 194;
+        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = 194, ScanLeadAttr = 195;
+        public bool ScanLead { get; private set; }
+        public WeaponSystem LeadWeapons => ScanLead && weapons != null && !weapons.TurretView && !weapons.PrimaryBlocked &&
+            nav != null && !nav.Paused && !nav.MenuOpen && !nav.Conversation && !nav.RadarOff && !nav.Jumping ? weapons : null;
         /// <summary>Maximum detection range in game units. Zero keeps the original unlimited range.</summary>
         public int ScannerRangeUnits { get; private set; }
         readonly Dictionary<string, int> detectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -199,6 +202,7 @@ namespace GoF2Remake.Flight
             assets = CombatAssets.Load();
             var scanner = Shop.FirstMounted(db, 17);
             HasScanner = scanner != null;
+            ScanLead = scanner != null && scanner.Attr(ScanLeadAttr) > 0;
             ScannerRangeUnits = scanner != null ? Mathf.Max(0, scanner.Attr(ScannerRangeAttr)) : 0;
             detectionPercent.Clear();
             foreach (var mod in Modding.ModManager.Active)

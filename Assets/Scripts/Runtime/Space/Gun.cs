@@ -385,6 +385,11 @@ namespace GoF2Remake.Flight
             heat = Mathf.Max(0f, heat - dtMs * heatShots / heatCoolMs);
         }
 
+        /// <summary>Exact muzzle used by Shoot, including the game's forward offset.</summary>
+        public Vector3 ShotSpawn(Vector3 origin, Quaternion rotation, bool addForwardOffset = true) =>
+            origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
+                ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
+
         int Shoot(Vector3 origin, Quaternion rotation, bool addForwardOffset)
         {
             if (!Ready) return -1;
@@ -395,8 +400,7 @@ namespace GoF2Remake.Flight
             var fwd = rotation * Vector3.forward;
             var up = rotation * Vector3.up;
             var shotFwd = rotation * (launchTurn * Vector3.forward);
-            Vector3 Spawn() => origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
-                ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
+            Vector3 Spawn() => ShotSpawn(origin, rotation, addForwardOffset);
 
             if (isBeam)
             {

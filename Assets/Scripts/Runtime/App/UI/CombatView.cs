@@ -57,6 +57,8 @@ namespace GoF2Remake.UI
         readonly VisualElement arcBox, safeBox;   // the arcs' 0 x 0 box at the screen centre, the HUD's safe area
         readonly Texture2D[] lockFrames = new Texture2D[24];
         readonly Dictionary<Object, Marker> markers = new Dictionary<Object, Marker>();
+        readonly List<WeaponSystem.LeadProfile> leadProfiles = new List<WeaponSystem.LeadProfile>();
+        readonly List<VisualElement> leadMarkers = new List<VisualElement>();
         readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
         // 3: the player's wingmen (remake #216): the friend images, tinted (FactionTextures).
         static readonly string[] Faction = { "enemy", "friend", "neutral", "friend" };
@@ -314,6 +316,7 @@ namespace GoF2Remake.UI
                     Image(lockRing, lockFrames[Mathf.Clamp(radar.LockFrame, 0, 23)]);
                 }
                 var locked = radar.Locked;
+                DrawLeadMarkers(drawLock ? radar : null, cam, origin, centre);
                 if (drawLock && plateFree && locked != null)
                 {
                     lockPlate.EnableInClassList("lock-plate--shown", true);
@@ -352,6 +355,7 @@ namespace GoF2Remake.UI
                     lockClass.style.display = DisplayStyle.None;
                 }
             }
+            if (!show) HideLeadMarkers(0);
             List<Object> gone = null;
             foreach (var kv in markers)
             {
@@ -372,6 +376,56 @@ namespace GoF2Remake.UI
                 if (m.pilot != null) Show(m.pilot, false);
             }
             if (gone != null) foreach (var k in gone) markers.Remove(k);
+        }
+
+        void HideLeadMarkers(int from)
+        {
+            for (int i = from; i < leadMarkers.Count; i++) Show(leadMarkers[i], false);
+        }
+
+        // A lightweight non-interactive ring per projectile profile, reused across frames.
+        void DrawLeadMarkers(CombatRadar radar, Camera cam, Vector2 origin, Vector2 centre)
+        {
+            var weapons = radar?.LeadWeapons;
+            var target = radar?.Locked;
+            int used = 0;
+            if (weapons != null && target != null && target.Alive && !target.cloaked && !target.untargetable &&
+                !target.playerProof && radar.Detects(target))
+            {
+                weapons.CollectLeadProfiles(leadProfiles);
+                if (leadProfiles.Count > 0)
+                {
+                    var aim = TurretTargeting.CombatAimPoint(target, weapons.transform.position);
+                    foreach (var profile in leadProfiles)
+                    {
+                        Vector3 point;
+                        if (profile.beam)
+                        {
+                            point = aim;
+                            if ((point - profile.muzzle).sqrMagnitude > profile.beamRange * profile.beamRange) continue;
+                        }
+                        else if (!TurretTargeting.TryHudLead(target, aim, profile.muzzle, profile.speed, profile.lifetime, out point)) continue;
+                        if (!Project(cam, point, origin, centre, out var p, out _)) continue;
+                        VisualElement marker;
+                        if (used == leadMarkers.Count)
+                        {
+                            marker = NewImage();
+                            marker.style.width = marker.style.height = 20f;
+                            marker.style.borderTopWidth = marker.style.borderBottomWidth = marker.style.borderLeftWidth = marker.style.borderRightWidth = 2f;
+                            marker.style.borderTopLeftRadius = marker.style.borderTopRightRadius = marker.style.borderBottomLeftRadius = marker.style.borderBottomRightRadius = 10f;
+                            leadMarkers.Add(marker);
+                        }
+                        else marker = leadMarkers[used];
+                        Color tint = profile.beam ? new Color(0.98f, 0.82f, 0.35f) : new Color(0.35f, 0.95f, 0.86f);
+                        marker.style.borderTopColor = marker.style.borderBottomColor = marker.style.borderLeftColor = marker.style.borderRightColor = tint;
+                        Place(marker, p.x - 10f, p.y - 10f);
+                        Show(marker, true);
+                        marker.BringToFront();
+                        used++;
+                    }
+                }
+            }
+            HideLeadMarkers(used);
         }
 
         Texture2D RaceTex(int race) => race >= 0 && race <= 3 || race == 8 || race == 9 ? Tex($"race_{race}") : null;

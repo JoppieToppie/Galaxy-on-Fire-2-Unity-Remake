@@ -713,12 +713,58 @@ namespace GoF2Remake.Flight
         /// <summary>A shot from the mount on the banked model (FirePose: the wings' muzzles through a turn), flying along the
         /// ship's own heading: PlayerEgo::shoot -> Player::shoot passes the unbanked Player matrix to Gun::shootAt, so the
         /// bullets keep to the crosshair (taking the tilted model's heading put them 8-16 deg off the nose while pitching).</summary>
-        int Fire(Gun g)
+        Vector3 FireOrigin(Gun g, Transform pose) => pose == transform ? transform.position
+            : pose.position + pose.rotation * g.mountLocal - transform.rotation * g.mountLocal;
+
+        int Fire(Gun g) => g.TryFire(FireOrigin(g, FirePose), transform.rotation);
+
+        /// <summary>One PIP per distinct primary ballistic profile. Matching mounts use their mean muzzle.</summary>
+        public struct LeadProfile
         {
+            public float speed, lifetime, beamRange;
+            public bool beam;
+            public Vector3 muzzle;
+            public int count, item;
+        }
+
+        public void CollectLeadProfiles(List<LeadProfile> profiles)
+        {
+            profiles.Clear();
             var pose = FirePose;
-            if (pose == transform) return g.TryFire(transform);
-            var origin = pose.position + pose.rotation * g.mountLocal - transform.rotation * g.mountLocal;
-            return g.TryFire(origin, transform.rotation);   // TryFire adds rotation * (mountLocal + the forward offset) again
+            var rotation = transform.rotation;
+            foreach (var rig in rigs)
+            {
+                var g = rig.gun;
+                if (g.isSecondary || (!g.isBeam && !(g.kind == Gun.Kind.Laser || g.kind == Gun.Kind.Blaster ||
+                    g.kind == Gun.Kind.AutoCannon || g.kind == Gun.Kind.Thermo || g.kind == Gun.Kind.ScatterGun))) continue;
+                float speed = g.isBeam ? 0f : g.speedUnitsPerMs * Gun.MetersPerUnit * 1000f;
+                float lifetime = g.isBeam ? 0f : g.lifetimeMs * 0.001f;
+                float beamRange = g.isBeam ? g.beamReach * Gun.MetersPerUnit : 0f;
+                if (!g.isBeam && (!(speed > 0f) || !(lifetime > 0f))) continue;
+                Vector3 muzzle = g.ShotSpawn(FireOrigin(g, pose), rotation);
+                int match = -1;
+                for (int i = 0; i < profiles.Count; i++)
+                {
+                    var p = profiles[i];
+                    if (p.beam == g.isBeam && p.speed == speed && p.lifetime == lifetime && p.beamRange == beamRange)
+                    { match = i; break; }
+                }
+                if (match < 0) profiles.Add(new LeadProfile { speed = speed, lifetime = lifetime, beamRange = beamRange,
+                    beam = g.isBeam, muzzle = muzzle, count = 1, item = g.itemIndex });
+                else
+                {
+                    var p = profiles[match];
+                    p.muzzle += muzzle;
+                    p.count++;
+                    profiles[match] = p;
+                }
+            }
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                var p = profiles[i];
+                p.muzzle /= p.count;
+                profiles[i] = p;
+            }
         }
 
         void OnShot(Rig r, bool sound = true)

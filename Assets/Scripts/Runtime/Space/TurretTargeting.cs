@@ -142,6 +142,35 @@ namespace GoF2Remake.Flight
         {
             if (!(speed > 1e-5f)) return relative;
             float linearTime = InterceptSeconds(relative, velocity, speed, lifetime);
+            return PredictFromLinearTime(relative, velocity, acceleration, speed, lifetime, linearTime);
+        }
+
+        /// <summary>HUD prediction must distinguish a reachable intercept from the turret's direct-aim fallback.</summary>
+        public static bool TryIntercept(Vector3 relative, Vector3 velocity, Vector3 acceleration, float speed, float lifetime, out Vector3 point)
+        {
+            point = relative;
+            if (!(speed > 1e-5f) || !(lifetime > 0f)) return false;
+            if (relative.sqrMagnitude <= 1e-8f) return true;
+            float time = InterceptSeconds(relative, velocity, speed, lifetime);
+            if (time <= 0f) return false;
+            point = PredictFromLinearTime(relative, velocity, acceleration, speed, lifetime, time);
+            return true;
+        }
+
+        public static bool TryHudLead(Target target, Vector3 aimPoint, Vector3 muzzle, float speed, float lifetime, out Vector3 point)
+        {
+            point = aimPoint;
+            if (target == null) return false;
+            var motion = SampleAcceleration(target);
+            if (!motion.hasVelocity) return false;
+            Vector3 acceleration = motion.confidence >= 0.25f ? motion.acceleration * motion.confidence : Vector3.zero;
+            if (!TryIntercept(aimPoint - muzzle, motion.velocity, acceleration, speed, lifetime, out var relative)) return false;
+            point = muzzle + relative;
+            return true;
+        }
+
+        static Vector3 PredictFromLinearTime(Vector3 relative, Vector3 velocity, Vector3 acceleration, float speed, float lifetime, float linearTime)
+        {
             Vector3 linear = relative + velocity * linearTime;
             if (linearTime < 0.12f || acceleration.sqrMagnitude < 4f) return linear;
             float limit = Mathf.Min(150f, relative.magnitude * 0.15f);
