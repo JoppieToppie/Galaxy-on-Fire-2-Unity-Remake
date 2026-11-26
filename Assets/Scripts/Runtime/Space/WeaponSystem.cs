@@ -436,7 +436,7 @@ namespace GoF2Remake.Flight
                     gun.damage = (int)(gun.damage * damageFactor);
                     gun.reloadMs = Mathf.Max(1f, (int)(gun.reloadMs * fireRate));
                 }
-                if (gun.isBeam) gun.AutoAim = BeamTarget;
+                if (gun.isBeam && item.Attr(192) == 0) gun.AutoAim = BeamTarget;
                 if (gun.beamRadius > 0f) gun.BeamSweeps = t => t.isShip ? t.hostileToPlayer || t == LockTarget : !t.friendToPlayer;   // remake mods: a wide beam
                 if (gun.heatShots > 0)   // remake mods: a gun that overheats (heatShots)
                     gun.OverheatStarted += g => Message?.Invoke(string.Format(Localization.Extra("weaponOverheated", "{0} overheated"),
