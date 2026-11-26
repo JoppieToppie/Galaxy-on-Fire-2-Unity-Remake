@@ -425,6 +425,7 @@ namespace GoF2Remake.UI
 
         bool Dispatch(string command, Action<string> onResult = null)
         {
+            string submittedSnapshot = NetState.Instance?.PlayerStations;
             feedback.text = "Request sent. The server response will appear here.";
             feedbackTime = 8f;
             if (NetPlayer.Local?.RequestStationUiCommand(command.TrimEnd(), result =>
@@ -433,6 +434,11 @@ namespace GoF2Remake.UI
                 feedback.text = string.IsNullOrEmpty(result) ? "Request completed." : result;
                 feedbackTime = 12f;
                 refresh = 0;
+                actionRefreshPending = true;
+                // A private bank change may not publish a public snapshot at all. Always
+                // refresh the catalogue, and also catch a later public ownership/module update.
+                actionSnapshotDeadline = ReferenceEquals(submittedSnapshot, NetState.Instance?.PlayerStations)
+                    ? Time.unscaledTime + 10f : 0;
                 nextPlannerQuery = 0;
                 nextManagementQuery = 0;
                 onResult?.Invoke(result);

@@ -212,12 +212,29 @@ namespace GoF2Remake.UI
             AddItemChoice("stockItem", "Required construction material", allowed);
             if (!int.TryParse(Value("stockItem"), out int item) || !allowed.Contains(item)) return;
             int remaining = required.Where(entry => entry != null && entry.item == item).Sum(entry => Math.Max(0, entry.required - entry.delivered));
-            AddNumber("stockQuantity", "Units", 1, 1, Math.Min(500, remaining));
-            AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity") + " cargo"));
+            int cargo = Math.Max(0, Shop.CargoOf(item));
+            AddInfo("Ship cargo", cargo.ToString("N0") + " available");
+            if (cargo > 0)
+            {
+                AddNumber("stockQuantity", "Cargo units", 1, 1, Math.Min(Math.Min(500, remaining), cargo));
+                AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity") + " cargo"));
+            }
             if (selected.addons?.Any(addon => addon != null && addon.kind == "storage" && addon.level > 0) == true)
             {
-                AddInfo("Storage donations", "Transfers your own stored materials directly to this station's construction stock.");
-                AddAction("Donate from storage", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity") + " storage"));
+                var storage = managementCatalogue?.stationId == selected.id ? managementCatalogue.storage : null;
+                if (storage == null) { AddInfo("Personal storage", "Waiting for server inventory."); return; }
+                if (!string.IsNullOrEmpty(storage.error) || !storage.canWithdraw)
+                {
+                    AddInfo("Personal storage", storage.error ?? "Storage is unavailable.");
+                    return;
+                }
+                int stored = storage.items?.Find(stack => stack != null && stack.item == item)?.amount ?? 0;
+                AddInfo("Personal storage", stored.ToString("N0") + " available");
+                if (stored > 0)
+                {
+                    AddNumber("stockStorageQuantity", "Storage units", 1, 1, Math.Min(Math.Min(500, remaining), stored));
+                    AddAction("Donate from storage", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockStorageQuantity") + " storage"));
+                }
             }
         }
 

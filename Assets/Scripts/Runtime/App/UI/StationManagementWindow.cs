@@ -37,6 +37,9 @@ namespace GoF2Remake.UI
         int confirmRetirementId = -1;
         int confirmBuilderRelinquish = -1;
         float refresh;
+        bool actionRefreshPending;
+        float actionSnapshotDeadline;
+        string observedStationSnapshot;
         float nextPlannerQuery;
         HashSet<int> plannerOrbits;
         bool plannerRequestPending;
@@ -206,11 +209,27 @@ namespace GoF2Remake.UI
             ApplyResponsiveLayout();
             int nearby = LocalDeliveryProject()?.id ?? -1;
             if (nearby != deliveryProjectId) { deliveryProjectId = nearby; refresh = 0; }
-            if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();
+            // Command replies and the replicated registry can arrive in either order.
+            // Observe the existing snapshot identity; do not poll or deserialize it again.
+            string snapshot = NetState.Instance?.PlayerStations;
+            if (!ReferenceEquals(snapshot, observedStationSnapshot))
+            {
+                observedStationSnapshot = snapshot;
+                if (Time.unscaledTime < actionSnapshotDeadline)
+                {
+                    actionSnapshotDeadline = 0;
+                    actionRefreshPending = true;
+                    refresh = 0;
+                    nextManagementQuery = 0;
+                }
+            }
             if (!marketplaceOnly && managementPage == "build" && Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
             if (placementRoot != null)
             {
+                if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();
+                // Placement owns its own reply/snapshot synchronization and must not be rebuilt while dragging.
+                actionRefreshPending = false;
                 if (placementOrderPending && !placementDragging && Time.unscaledTime >= placementRequestDeadline)
                 {
                     placementOrderPending = false;
@@ -232,12 +251,20 @@ namespace GoF2Remake.UI
                 }
                 return;
             }
-            if (StarMap.IsOpen || modelPickerKey != null || choicePickerKey != null || Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement)) return;
-            if ((refresh -= Time.unscaledDeltaTime) <= 0)
+            if (StarMap.IsOpen || modelPickerKey != null || choicePickerKey != null) return;
+            bool actionRefresh = actionRefreshPending;
+            if (!actionRefresh && (Time.unscaledTime - pressedAt < 5f || TextFieldKeys.InTextField(panel.focusController?.focusedElement))) return;
+
+            bool rebuild = actionRefresh || (refresh -= Time.unscaledDeltaTime) <= 0;
+            // Rebind the selected record before querying permissions. A claimed station may
+            // still have been marked public in the previous client snapshot.
+            if (rebuild || Time.unscaledTime >= nextManagementQuery) RebuildStationList();
+            actionRefreshPending = false;
+            if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue(actionRefresh);
+            if (rebuild)
             {
                 refresh = 2f;
-                RebuildStationList();
-                RebuildBody(); // Keep public procurement quantities and escrow current while the window remains open.
+                RebuildBody(); // Retain the existing background refresh for live construction and procurement.
             }
         }
 
@@ -262,6 +289,8 @@ namespace GoF2Remake.UI
             managementPage = marketplaceOnly ? "market" : "overview";
             selected = null; stationListSignature = null; moduleDetail = null;
             refresh = 0;
+            actionRefreshPending = false; actionSnapshotDeadline = 0;
+            observedStationSnapshot = NetState.Instance?.PlayerStations;
             plannerOrbits = null;
             plannerRequestPending = false;
             RebuildStationList();
@@ -292,6 +321,7 @@ namespace GoF2Remake.UI
             placementAwaitingSnapshot = false;
             overlay.style.display = DisplayStyle.None;
             open = false;
+            actionRefreshPending = false; actionSnapshotDeadline = 0; observedStationSnapshot = null;
             marketplaceOnly = false;
             if (panel.focusController?.focusedElement is VisualElement focused && panel.Contains(focused)) focused.Blur();
             if (plannerMap != null)

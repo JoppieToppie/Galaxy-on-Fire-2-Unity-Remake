@@ -117,7 +117,7 @@ namespace GoF2Remake.UI
             }
         }
 
-        void RefreshManagementCatalogue()
+        void RefreshManagementCatalogue(bool afterAction = false)
         {
             nextManagementQuery = Time.unscaledTime + 8f;
             if (choicePickerKey != null || modelPickerKey != null) return;
@@ -129,6 +129,7 @@ namespace GoF2Remake.UI
                 managementCatalogue = catalogue;
                 directoryPage = catalogue.directoryPage;
                 refresh = 0;
+                if (afterAction) actionRefreshPending = true;
             });
         }
 
@@ -137,7 +138,7 @@ namespace GoF2Remake.UI
             if (managementPage == page) return;
             managementPage = page; moduleDetail = null;
             if (page == "build" && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
-            if (page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock") RefreshManagementCatalogue();
+            if (page == "bank" || page == "security" || page == "ownership" || page == "gates" || page == "factory" || page == "hangar" || page == "drydock" || page == "modules") RefreshManagementCatalogue();
             RebuildBody(Vector2.zero);
         }
 
