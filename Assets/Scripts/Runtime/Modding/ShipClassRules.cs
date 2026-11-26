@@ -97,11 +97,16 @@ namespace GoF2Remake.Modding
         public static bool Fits(ItemData item, ShipData ship)
         {
             if (item == null) return true;
+            // Optional ship-specific primary lock; tags use the fully qualified item key.
+            if (item.TypeId == 0 && ship?.classTags != null)
+                foreach (string tag in ship.classTags)
+                    if (tag != null && tag.StartsWith("primaryOnly:", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(item.modKey, tag.Substring("primaryOnly:".Length), StringComparison.OrdinalIgnoreCase)) return false;
             var allow = item.allowedClasses;
             var deny = item.excludedClasses;
             bool hasAllow = allow != null && allow.Length > 0, hasDeny = deny != null && deny.Length > 0;
             if (!hasAllow && !hasDeny) return true;   // the common case: nothing to check
-            if (!IsClassified(ship)) return true;     // unclassified: the lists don't engage
+            if (!IsClassified(ship)) return item.Attr(191) == 0 || !hasAllow;     // unclassified: the lists don't engage
             if (hasDeny && Matches(ship, deny)) return false;
             return !hasAllow || Matches(ship, allow);
         }
@@ -109,6 +114,14 @@ namespace GoF2Remake.Modding
         /// <summary>Optional hardpoint reservations encoded in ship class tags:
         /// secondarySlot:7:mod:item reserves S7 for that item; a reserved item may only use its reserved slots.
         /// Existing untagged ships are unchanged.</summary>
+        public static bool HasSecondaryReservations(ShipData ship)
+        {
+            if (ship?.classTags == null) return false;
+            foreach (string tag in ship.classTags)
+                if (tag != null && tag.StartsWith("secondarySlot:", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         public static bool SecondarySlotFits(ItemData item, ShipData ship, int slot)
         {
             if (item == null || ship?.classTags == null) return true;
