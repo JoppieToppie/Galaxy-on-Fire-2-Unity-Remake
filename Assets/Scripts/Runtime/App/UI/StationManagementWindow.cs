@@ -215,7 +215,18 @@ namespace GoF2Remake.UI
             if (!ReferenceEquals(snapshot, observedStationSnapshot))
             {
                 observedStationSnapshot = snapshot;
-                if (Time.unscaledTime < actionSnapshotDeadline)
+                // Public claims and ownership transfers must also refresh if another
+                // station update arrived between the command and its result, or if the
+                // ownership snapshot arrived after the normal post-command window.
+                var live = selected == null ? null : NetPlayerStations.StationAt(selected.stationIndex);
+                bool authorityChanged = selected != null && live?.id == selected.id &&
+                    (live.offeredForClaimUtc != selected.offeredForClaimUtc ||
+                     live.underConstruction != selected.underConstruction ||
+                     live.ownershipType != selected.ownershipType ||
+                     !string.Equals(live.ownerName, selected.ownerName, StringComparison.Ordinal) ||
+                     !string.Equals(live.ownerFactionId, selected.ownerFactionId, StringComparison.Ordinal));
+                if (authorityChanged) managementCatalogue = null;
+                if (authorityChanged || Time.unscaledTime < actionSnapshotDeadline)
                 {
                     actionSnapshotDeadline = 0;
                     actionRefreshPending = true;
@@ -372,6 +383,7 @@ namespace GoF2Remake.UI
             int previousId = selected?.id ?? -1;
             selected = records.FirstOrDefault(x => x.id == previousId)
                 ?? records.FirstOrDefault(x => x.stationIndex == CurrentOrbit) ?? records[0];
+            if (selected.underConstruction || selected.offeredForClaimUtc > 0) managementCatalogue = null;
             if (previousId != selected.id)
             {
                 drafts.Clear(); managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
