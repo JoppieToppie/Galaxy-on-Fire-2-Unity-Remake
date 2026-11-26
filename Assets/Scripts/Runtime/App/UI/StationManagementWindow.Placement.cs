@@ -12,6 +12,14 @@ namespace GoF2Remake.UI
 {
     public sealed partial class StationManagementWindow
     {
+        // Convert panel drag to world units at the camera's focus depth.
+        static Vector3 PlacementPan(Camera camera, VisualElement viewport, float distance, Vector2 delta, bool fast)
+        {
+            float height = Mathf.Max(1f, viewport.layout.height);
+            float scale = 2f * distance * Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad * .5f) / height;
+            return (-camera.transform.right * delta.x + camera.transform.up * delta.y) * scale * (fast ? 3f : 1f);
+        }
+
         readonly List<Material> placementMaterials = new List<Material>();
         Material PlacementMaterial(Color color)
         {
@@ -82,7 +90,7 @@ namespace GoF2Remake.UI
         void AddConstructionRotationPreview(string key, string assembly)
         {
             if (string.IsNullOrEmpty(assembly) || NetGame.Db == null) return;
-            AddSection("ORIENTATION", "Rotate the selected model before reserving construction. Drag to orbit the camera.");
+            AddSection("ORIENTATION", "Rotate the selected model before reserving construction. Drag to orbit; middle-drag or use Pan camera to pan; scroll to zoom.");
             placementRotationDrafts.TryGetValue(key,out var angles);
             var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.Wrap; body.Add(row);
             var pitch = new IntegerField("Pitch (X)"); var yaw = new IntegerField("Yaw (Y)"); var roll = new IntegerField("Roll (Z)");
@@ -91,7 +99,7 @@ namespace GoF2Remake.UI
             placementRoot = new GameObject("Construction orientation preview"); placementRoot.transform.position = new Vector3(0,-1000000f,0);
             var model = OrbitBuilder.Spawn(NetGame.Db, assembly, Vector3.zero,Quaternion.identity,"Proposed construction",placementRoot.transform);
             if (model == null) { DestroyPlacementPreview(); body.Add(new Label("3D model unavailable; angles are still editable.")); viewport.style.display = DisplayStyle.None; }
-            float cameraYaw = 34f, cameraPitch = 29f, distance = 1000f; Camera camera = null; Vector3 centre = Vector3.zero;
+            float cameraYaw = 34f, cameraPitch = 29f, distance = 1000f; Camera camera = null; Vector3 centre = Vector3.zero, cameraPan = Vector3.zero;
             if (model != null)
             {
                 model.transform.localPosition = Vector3.zero;
@@ -131,7 +139,7 @@ namespace GoF2Remake.UI
                 }
             }
             ringToggle.RegisterValueChangedCallback(_=>UpdateRings()); local.RegisterValueChangedCallback(_=>UpdateRings());
-            void CameraPose() { if (camera != null) { camera.transform.position = centre + Quaternion.Euler(cameraPitch,cameraYaw,0)*new Vector3(0,0,-distance); camera.transform.LookAt(centre); UpdateRings(); } }
+            void CameraPose() { if (camera != null) { camera.transform.position = centre + cameraPan + Quaternion.Euler(cameraPitch,cameraYaw,0)*new Vector3(0,0,-distance); camera.transform.LookAt(centre + cameraPan); UpdateRings(); } }
             void Apply()
             {
                 placementRotationDrafts[key] = angles;
@@ -152,7 +160,9 @@ namespace GoF2Remake.UI
             AddAction("Rotate −",()=>Rotate(-int.Parse(snap.value))); AddAction("Rotate +",()=>Rotate(int.Parse(snap.value)));
             AddAction("Reset rotation",()=>{angles=Vector3Int.zero;Apply();});
             var dragRotate = new Toggle("Drag to rotate model instead of camera"); body.Add(dragRotate);
-            float drag=0f; bool ringDrag=false; Plane plane=default; Vector3 last=Vector3.zero;
+            var panMode = new Toggle("Pan camera (drag)"); body.Add(panMode);
+            AddAction("Centre camera",()=>{cameraPan=Vector3.zero;CameraPose();});
+            float drag=0f; bool ringDrag=false, panning=false; Plane plane=default; Vector3 last=Vector3.zero;
             Vector2 Screen(Vector2 p){p=viewport.WorldToLocal(p);return new Vector2(p.x/viewport.layout.width*camera.pixelWidth,(1-p.y/viewport.layout.height)*camera.pixelHeight);}
             int Pick(Vector2 p)
             {
@@ -167,13 +177,14 @@ namespace GoF2Remake.UI
             }
             viewport.RegisterCallback<PointerDownEvent>(evt=>
             {
-                if(evt.button!=0||camera==null)return; placementDragging=true;drag=0f;int ring=Pick(Screen(evt.position));ringDrag=ring>=0;
+                if(camera==null||placementDragging||(evt.button!=0&&evt.button!=2))return; placementDragging=true;drag=0f;panning=evt.button==2||panMode.value;int ring=panning?-1:Pick(Screen(evt.position));ringDrag=ring>=0;
                 if(ringDrag){axis.index=ring;plane=new Plane((local.value?Quaternion.Euler(angles):Quaternion.identity)*AxisOf(ring),centre);var ray=camera.ScreenPointToRay(Screen(evt.position));last=plane.Raycast(ray,out float hit)?(ray.GetPoint(hit)-centre).normalized:Vector3.zero;}
                 viewport.CapturePointer(evt.pointerId);evt.StopPropagation();
             });
             viewport.RegisterCallback<PointerMoveEvent>(evt=>
             {
-                if(!placementDragging||camera==null)return;
+                if(!placementDragging||camera==null||!viewport.HasPointerCapture(evt.pointerId))return;
+                if(panning){cameraPan+=PlacementPan(camera,viewport,distance,evt.deltaPosition,evt.shiftKey);CameraPose();evt.StopPropagation();return;}
                 if(ringDrag||dragRotate.value)
                 {
                     if(ringDrag){var ray=camera.ScreenPointToRay(Screen(evt.position));if(plane.Raycast(ray,out float hit)){var d=(ray.GetPoint(hit)-centre).normalized;if(last.sqrMagnitude>.5f)drag+=Vector3.SignedAngle(last,d,plane.normal);last=d;}else drag+=evt.deltaPosition.x*.6f;}
@@ -182,8 +193,8 @@ namespace GoF2Remake.UI
                 }
                 else{cameraYaw+=evt.deltaPosition.x*.4f;cameraPitch=Mathf.Clamp(cameraPitch-evt.deltaPosition.y*.4f,-80f,80f);CameraPose();}
             });
-            viewport.RegisterCallback<PointerUpEvent>(evt=>{placementDragging=false;if(viewport.HasPointerCapture(evt.pointerId))viewport.ReleasePointer(evt.pointerId);});
-            viewport.RegisterCallback<PointerCaptureOutEvent>(_=>placementDragging=false);
+            viewport.RegisterCallback<PointerUpEvent>(evt=>{if(!viewport.HasPointerCapture(evt.pointerId))return;placementDragging=panning=false;viewport.ReleasePointer(evt.pointerId);});
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_=>{placementDragging=panning=false;});
             viewport.RegisterCallback<WheelEvent>(evt=>{distance=Mathf.Clamp(distance*Mathf.Pow(1.12f,evt.delta.y),10f,170000f);CameraPose();evt.StopPropagation();});
             Apply(); CameraPose();
         }
@@ -303,8 +314,8 @@ namespace GoF2Remake.UI
 
             var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
             AddSection("ORBIT PLACEMENT", orbital
-                ? "Save each numbered defense position before ordering construction. Amber markers show saved positions and existing projects. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
-                : "Drag the marker or its arrows to move; enable rotation rings and drag a colored ring. Drag empty space to orbit the camera, scroll to zoom, and hold Ctrl to snap.");
+                ? "Save each numbered defense position before ordering construction. Amber markers show saved positions and existing projects. Drag empty space to rotate, middle-drag to pan, scroll to zoom, and hold Ctrl to snap."
+                : "Drag the marker or its arrows to move; enable rotation rings and drag a colored ring. Drag empty space to orbit the camera, middle-drag to pan, scroll to zoom, and hold Ctrl to snap.");
             var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
             var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
             var controls = new VisualElement(); controls.AddToClassList("player-station-orbit-controls"); editor.Add(controls);
@@ -462,10 +473,12 @@ namespace GoF2Remake.UI
                 }
             }
             rotateMode.RegisterValueChangedCallback(_ => UpdateRings()); localAxes.RegisterValueChangedCallback(_ => UpdateRings());
+            Vector3 orbitPan = Vector3.zero;
+            var orbitPanMode = new Toggle("Pan camera (drag)"); cameraControls.Add(orbitPanMode);
             void SetCamera()
             {
-                camera.transform.position = frame.position + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
-                camera.transform.LookAt(frame.position);
+                camera.transform.position = frame.position + orbitPan + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
+                camera.transform.LookAt(frame.position + orbitPan);
                 UpdateRings();
             }
             void CameraPreset(string title, float pitch, float yaw)
@@ -476,6 +489,7 @@ namespace GoF2Remake.UI
             CameraPreset("Perspective", 29f, 34f);
             CameraPreset("Top", 89f, 0f);
             CameraPreset("Side", 0f, 90f);
+            cameraControls.Add(new Button(() => { orbitPan = Vector3.zero; SetCamera(); }) { text = "Centre camera" });
             var orderButton = new Button { text = "Save planned placement" };
             void AddPlacementControl(Button button)
             {
@@ -582,6 +596,7 @@ namespace GoF2Remake.UI
             AddPlacementControl(new Button(() =>
             {
                 placementDistance = Mathf.Max(1800f, position.magnitude * 1.8f);
+                orbitPan = Vector3.zero;
                 SetCamera();
             }) { text = "Frame orbit" });
             AddPlacementControl(orderButton);
@@ -624,7 +639,7 @@ namespace GoF2Remake.UI
             }
             SetCamera();
             UpdatePoint();
-            bool orbiting = false, movingInPlane = false, rotating = false;
+            bool orbiting = false, movingInPlane = false, rotating = false, orbitPanning = false;
             float rotationDrag = 0f;
             Plane rotationPlane = default; Vector3 previousRingDirection = Vector3.zero, ringCentre = Vector3.zero;
             int PickRing(Vector2 point)
@@ -647,7 +662,12 @@ namespace GoF2Remake.UI
             Vector3 grabOffset = Vector3.zero;
             viewport.RegisterCallback<PointerDownEvent>(evt =>
             {
-                if (evt.button != 0) return;
+                if (placementDragging || (evt.button != 0 && evt.button != 2)) return;
+                orbitPanning = evt.button == 2 || orbitPanMode.value;
+                if (orbitPanning)
+                {
+                    placementDragging = true; viewport.CapturePointer(evt.pointerId); evt.StopPropagation(); return;
+                }
                 var point = ScreenPoint(evt.position);
                 bool axis = gizmo.PickAxis(point) >= 0;
                 bool marker = gizmo.PickMarker(point) == active;
@@ -676,6 +696,12 @@ namespace GoF2Remake.UI
             });
             viewport.RegisterCallback<PointerMoveEvent>(evt =>
             {
+                if (placementDragging && !viewport.HasPointerCapture(evt.pointerId)) return;
+                if (orbitPanning)
+                {
+                    orbitPan += PlacementPan(camera, viewport, placementDistance, evt.deltaPosition, evt.shiftKey);
+                    SetCamera(); evt.StopPropagation(); return;
+                }
                 var point = ScreenPoint(evt.position);
                 if (rotating)
                 {
@@ -717,12 +743,14 @@ namespace GoF2Remake.UI
             });
             viewport.RegisterCallback<PointerUpEvent>(evt =>
             {
+                if (!viewport.HasPointerCapture(evt.pointerId)) return;
+                bool wasPanning = orbitPanning;
                 gizmo.EndDrag();
-                orbiting = movingInPlane = rotating = placementDragging = false;
-                UpdatePoint();
+                orbiting = movingInPlane = rotating = orbitPanning = placementDragging = false;
+                if (!wasPanning) UpdatePoint();
                 if (viewport.HasPointerCapture(evt.pointerId)) viewport.ReleasePointer(evt.pointerId);
             });
-            viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = rotating = placementDragging = false; });
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = rotating = orbitPanning = placementDragging = false; });
             viewport.RegisterCallback<WheelEvent>(evt =>
             {
                 placementDistance = Mathf.Clamp(placementDistance * Mathf.Pow(1.12f, evt.delta.y), 300, 170000);
