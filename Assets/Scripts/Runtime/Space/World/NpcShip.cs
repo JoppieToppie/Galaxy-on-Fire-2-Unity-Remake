@@ -619,7 +619,8 @@ namespace GoF2Remake.World
                     obstacle = gameObject.AddComponent<Obstacle>();
                     obstacle.projectFromVolume = false;
                     obstacle.rotates = true;
-                    obstacle.baseRotation = transform.rotation;
+                    // Bounds were measured in the hull's own local frame.
+                    obstacle.baseRotation = Quaternion.identity;
                     obstacle.volumes.Add(CollisionVolume.Box(bounds.Value.center, bounds.Value.extents));
                 }
             }
