@@ -107,6 +107,26 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void NpcScannerRangesAreOptionalAndClassSpecific()
+        {
+            var m = Read(Q("{ 'id': 'sensors', 'npcScannerDetection': true, 'npcScannerRangeUnits': { 'CARRIER': 160000 } }"));
+            Assert.IsTrue(m.npcScannerDetection);
+            Assert.AreEqual(160000, m.npcScannerRangeUnits["carrier"]);
+            Assert.IsFalse(Read(Q("{ 'id': 'legacy' }")).npcScannerDetection);
+            Assert.IsEmpty(Read(Q("{ 'id': 'legacy' }")).npcScannerRangeUnits);
+        }
+
+        [TestCase("{ 'unknown': 50000 }")]
+        [TestCase("{ 'carrier': 0 }")]
+        [TestCase("{ 'carrier': -1 }")]
+        [TestCase("{ 'carrier': 1.5 }")]
+        [TestCase("[]")]
+        public void InvalidNpcScannerRangesAreRejected(string map)
+        {
+            StringAssert.Contains("mod.json", Error(Q("{ 'id': 'bad_npc_sensor', 'npcScannerRangeUnits': " + map + " }")));
+        }
+
+        [Test]
         public void ScannerDetectionPercentagesUseCanonicalClassIds()
         {
             var m = Read(Q("{ 'id': 'scanner', 'scannerClassDetectionPercent': { 'STEALTH_FIGHTER': 50, 'carrier': 200 } }"));

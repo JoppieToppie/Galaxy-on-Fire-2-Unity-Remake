@@ -876,6 +876,11 @@ namespace GoF2Remake.World
             boostTimer += dtMs;
             if (mindControlMs > 0f) UpdateMindControlled(dtMs);
             else if (IsWingman) { UpdateWingman(); UpdateWingmanCrew(dtMs); } else UpdateTargeting();
+            if (attacking && target != null && !Detects(target))
+            {
+                target = null; attacking = false; followingWaypoint = true;
+                targetPos = transform.position + transform.forward * (20000f * M);
+            }
             UpdateDogfight(dtMs);   // remake option (NpcShipDogfight)
             if (IsJumper && followingWaypoint) { jumpMs += dtMs; if (jumpMs >= 20000f) { jumpMs = 0f; Current = State.JumpingOut; } }
             else jumpMs = 0f;

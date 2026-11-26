@@ -286,6 +286,22 @@ namespace GoF2Remake.Tests
                 "60000 units is the reach");
         }
 
+        [TestCase(TurretTargeting.Rule.Retarget)]
+        [TestCase(TurretTargeting.Rule.Timed)]
+        public void TurretRequiresSensorContactToAcquireAndRetain(TurretTargeting.Rule rule)
+        {
+            var hidden = NewTarget(new Vector3(0f, 0f, 100f));
+            var visible = NewTarget(new Vector3(0f, 0f, 200f));
+            var outsideWeaponRange = NewTarget(new Vector3(0f, 0f, 2600f));
+            var pool = new List<Target> { hidden, visible, outsideWeaponRange };
+            var pick = new TurretTargeting(rule, 50000f) { Sensor = t => t != hidden };
+            Assert.AreSame(visible, pick.Update(3001f, pool, Vector3.zero));
+            pick.Sensor = t => t == outsideWeaponRange;
+            Assert.IsNull(pick.Update(16f, pool, Vector3.zero), "loss of contact is immediate even in timed mode; sensor does not extend gun range");
+            pick.Sensor = t => true;
+            Assert.AreSame(hidden, pick.Update(3001f, pool, Vector3.zero));
+        }
+
         [Test]
         public void RetargetDropsALostTargetAtOnceAndSkipsTheUnreachable()
         {

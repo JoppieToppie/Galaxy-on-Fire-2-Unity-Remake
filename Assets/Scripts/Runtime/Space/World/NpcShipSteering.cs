@@ -104,7 +104,7 @@ namespace GoF2Remake.World
 
             if (attacking && !followingWaypoint && target != null)
             {
-                if (target.untargetable || target.cloaked) attacking = false;   // a cloaked ship: chased, never fired at
+                if (target.untargetable || target.cloaked || !Detects(target)) attacking = false;   // a cloaked ship: chased, never fired at
                 else if (RoleFires && !dogHold && !(es2Aimed && Es2Suppressed))   // (remake: the support drones and the detonator hold their guns, NpcShipRoles; GoF3's runs; ES2's director)
                 {
                     // ES2's way of fighting flies elsewhere than it shoots: the guns go off when the nose is on the reticule
