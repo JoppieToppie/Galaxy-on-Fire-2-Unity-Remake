@@ -50,6 +50,7 @@ namespace GoF2Remake.Modding
             // based on it 200): the part the shield doesn't absorb hits the armor and hull at its plain value.
             ["shieldDamage"] = 124,
             // Explicit damage channel: 0 = legacy/none, 1 = energy, 2 = ballistic.
+            ["beamAimTolerancePercent"] = Flight.Gun.BeamAimToleranceAttr, ["projectileSpread"] = Flight.Gun.ProjectileSpreadAttr,
             ["damageType"] = 190,   // (Flight.Gun.DamageTypeAttr; was 182, the Chorus devices' deviceElementalProof)
             // per-axis flight bonuses in % (ModFlight, #350; were 170-181, taken by the Chorus stack's stats)
             ["pitchTurnRate"] = ModFlight.PitchTurnRate, ["yawTurnRate"] = ModFlight.YawTurnRate, ["rollTurnRate"] = ModFlight.RollTurnRate,

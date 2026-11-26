@@ -436,7 +436,11 @@ namespace GoF2Remake.Flight
                     gun.damage = (int)(gun.damage * damageFactor);
                     gun.reloadMs = Mathf.Max(1f, (int)(gun.reloadMs * fireRate));
                 }
-                if (gun.isBeam && item.Attr(192) == 0) gun.AutoAim = BeamTarget;
+                if (gun.isBeam && item.Attr(192) == 0)
+                {
+                    float tolerance = Mathf.Clamp(item.Attr(Gun.BeamAimToleranceAttr, 100), 0, 1000) * 0.01f;
+                    if (tolerance > 0f) gun.AutoAim = () => BeamTarget(tolerance);
+                }
                 if (gun.beamRadius > 0f) gun.BeamSweeps = t => t.isShip ? t.hostileToPlayer || t == LockTarget : !t.friendToPlayer;   // remake mods: a wide beam
                 if (gun.heatShots > 0)   // remake mods: a gun that overheats (heatShots)
                     gun.OverheatStarted += g => Message?.Invoke(string.Format(Localization.Extra("weaponOverheated", "{0} overheated"),
@@ -763,13 +767,13 @@ namespace GoF2Remake.Flight
         /// Remake (#100), with the Smart target lock (Settings.OriginalTargetLock off, the default): a friendly or neutral ship
         /// only when it is the radar's lock (LockTarget); the beam snapped onto the nearest ship whatever its side, and a
         /// friendly flying between the player and the enemy took the shots and turned its race.</summary>
-        Target BeamTarget()
+        Target BeamTarget(float tolerance)
         {
             bool smart = !Settings.OriginalTargetLock;
             var cam = Camera.main;
             if (cam == null) return null;
             var aim = cam.WorldToScreenPoint(ChaseCamera.AimOrigin(transform) + transform.forward * 22000f * M);
-            float box = Screen.width / 16f, best = float.MaxValue;
+            float box = Screen.width / 16f * tolerance, best = float.MaxValue;
             Target found = null;
             foreach (var t in Target.All)
             {

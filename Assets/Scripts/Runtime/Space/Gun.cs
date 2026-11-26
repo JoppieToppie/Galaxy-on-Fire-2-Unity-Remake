@@ -199,6 +199,8 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public float shieldFactor = 1f;
 
         public const int ShieldDamageAttr = 124, DisruptorShieldPercent = 200;
+        public const int BeamAimToleranceAttr = 220; // percent of the original beam auto-aim window
+        public const int ProjectileSpreadAttr = 221; // integer spreadError, zero = perfectly straight
         public const int DamageTypeAttr = 190;   // (was 182: Core.Device.ElementalAttr's)
         /// <summary>Remake mods (GoF3's abilities): 161 shieldBypass (its hits go past the shield), 162 slowMs / 163 slowPercent
         /// (a hit slows the ship to that share of its speed for that long, turning still allowed: AbilitySlowdown).</summary>
@@ -307,7 +309,8 @@ namespace GoF2Remake.Flight
                 Kind.Sentry => 3,
                 _ => isBeam ? 1 : 20,
             };
-            spreadError = kind switch { Kind.AutoCannon or Kind.ScatterGun => 2f, Kind.Thermo => 20f, _ => 0f };
+            spreadError = item.HasAttr(ProjectileSpreadAttr) ? Mathf.Max(0, item.Attr(ProjectileSpreadAttr))
+                : kind switch { Kind.AutoCannon or Kind.ScatterGun => 2f, Kind.Thermo => 20f, _ => 0f };
             bullets = new Bullet[pool];
             for (int i = 0; i < pool; i++) bullets[i].timer = -1e9f;
             reloadAcc = reloadMs + 1f;   // ready at start
