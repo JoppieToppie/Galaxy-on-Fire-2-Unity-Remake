@@ -477,6 +477,34 @@ namespace GoF2Remake.World
             : Spec.modCapital && db?.Ship(Spec.ship)?.explosionScale is float own && own != 1f ? own
             : Spec.modCapital && Spec.stationary ? 8f : 6f;
 
+        static Bounds? CapitalObstacleBounds(Transform root, Transform shipRoot)
+        {
+            bool any = false;
+            Bounds result = default;
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                string n = renderer.name.ToLowerInvariant();
+                if (n.Contains("engine") || n.Contains("exhaust") || n.Contains("thruster") || n.Contains("glow") ||
+                    n.Contains("lights") || n.Contains("_add") || n.Contains("additive") || n.Contains("_lod_gen")) continue;
+                int lod = n.IndexOf("_lod_", System.StringComparison.Ordinal);
+                if (lod >= 0 && lod + 5 < n.Length && n[lod + 5] >= '1' && n[lod + 5] <= '9') continue;
+                var filter = renderer.GetComponent<MeshFilter>();
+                bool local = filter != null && filter.sharedMesh != null;
+                Bounds b = local ? filter.sharedMesh.bounds : renderer.bounds;
+                for (int x = -1; x <= 1; x += 2)
+                    for (int y = -1; y <= 1; y += 2)
+                        for (int z = -1; z <= 1; z += 2)
+                        {
+                            Vector3 p = b.center + Vector3.Scale(b.extents, new Vector3(x, y, z));
+                            if (local) p = renderer.transform.TransformPoint(p);
+                            p = shipRoot.InverseTransformPoint(p);
+                            if (!any) { result = new Bounds(p, Vector3.zero); any = true; }
+                            else result.Encapsulate(p);
+                        }
+            }
+            return any && result.size.x > 0.01f && result.size.y > 0.01f && result.size.z > 0.01f ? result : (Bounds?)null;
+        }
+
         public void Setup(Traffic owner, Database database, SpawnSpec spec, GameObject prefab, Transform fxRoot)
         {
             traffic = owner;
@@ -580,6 +608,20 @@ namespace GoF2Remake.World
                 obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForStaticObject(spec.collisionId), spec.HullScale * StructureScale);   // (OrbitScale: a structure's grown)
                 // Remake (CapitalShips): a killable capital ship is hit on its collision boxes, not the +-1000 cube at its centre.
                 if (spec.capitalEnhanced) Target.boxes = LocalBoxes(obstacle.volumes);
+            }
+            // Explicitly classified large hulls without a stock obstacle need a hull-aligned avoidance volume.
+            // Bounds are measured once at spawn, never while steering.
+            if (obstacle == null && modelGo != null && GoF2Remake.Modding.ShipClassRules.IsLargeShipClass(database.Ship(spec.ship)))
+            {
+                var bounds = CapitalObstacleBounds(model, transform);
+                if (bounds.HasValue)
+                {
+                    obstacle = gameObject.AddComponent<Obstacle>();
+                    obstacle.projectFromVolume = false;
+                    obstacle.rotates = true;
+                    obstacle.baseRotation = transform.rotation;
+                    obstacle.volumes.Add(CollisionVolume.Box(bounds.Value.center, bounds.Value.extents));
+                }
             }
             // Remake: shots hit its real shape and the player slides along it (HullCollision); NPCs steer by that mesh when available.
             // A fighter (not a freighter, a fixed object such as the battleship or a capital ship, nor a turret) is a flyable
