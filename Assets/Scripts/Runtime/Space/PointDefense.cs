@@ -33,6 +33,7 @@ namespace GoF2Remake.Flight
         public const int CycleAttribute = 187;
         /// <summary>Optional maximum number of concurrent interceptions; 0 means unlimited.</summary>
         public const int CapacityAttribute = 188;
+        public const int TurretRoleAttribute = 193;
         public const int HomingMissileTarget = 1, RocketTarget = 2, NukeTarget = 4;
         const int AllTargets = HomingMissileTarget | RocketTarget | NukeTarget;
 
@@ -68,28 +69,30 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The strongest mounted missile-defense mode: 0 = balanced, 1 = reserve auto turrets for ordnance.</summary>
-        public static int Mode(Database db)
+        public static int Mode(Database db) => Mode(db, false);
+        public static int Mode(Database db, bool legacyOnly)
         {
             if (db == null) return 0;
             int mode = 0;
             foreach (var e in Session.Equipment)
             {
                 var it = db.Item(e.item);
-                if (it != null && it.Attr(Attribute) > 0)
+                if (it != null && it.Attr(Attribute) > 0 && (!legacyOnly || it.Attr(TurretRoleAttribute) == 0))
                     mode = Mathf.Max(mode, Mathf.Clamp(it.Attr(ModeAttribute), 0, 1));
             }
             return mode;
         }
 
         /// <summary>The union of mounted defense equipment's ordnance coverage; legacy items (0) cover all types.</summary>
-        public static int TargetMask(Database db)
+        public static int TargetMask(Database db) => TargetMask(db, false);
+        public static int TargetMask(Database db, bool legacyOnly)
         {
             if (db == null) return 0;
             int mask = 0;
             foreach (var e in Session.Equipment)
             {
                 var it = db.Item(e.item);
-                if (it == null || it.Attr(Attribute) <= 0) continue;
+                if (it == null || it.Attr(Attribute) <= 0 || (legacyOnly && it.Attr(TurretRoleAttribute) != 0)) continue;
                 int configured = it.Attr(TargetsAttribute);
                 mask |= configured == 0 ? AllTargets : configured & AllTargets;
             }
@@ -128,14 +131,15 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The reach of the mounted equipment's missile defense in game units (the longest), 0 = none.</summary>
-        public static float ReachUnits(Database db)
+        public static float ReachUnits(Database db) => ReachUnits(db, false);
+        public static float ReachUnits(Database db, bool legacyOnly)
         {
             if (db == null) return 0f;
             int best = 0;
             foreach (var e in Session.Equipment)
             {
                 var it = db.Item(e.item);
-                if (it != null) best = Mathf.Max(best, it.Attr(Attribute));
+                if (it != null && (!legacyOnly || it.Attr(TurretRoleAttribute) == 0)) best = Mathf.Max(best, it.Attr(Attribute));
             }
             return best;
         }
