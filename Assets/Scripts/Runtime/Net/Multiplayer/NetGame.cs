@@ -192,7 +192,7 @@ namespace GoF2Remake.Multiplayer
         // ---- Unity Relay (online sessions) ------------------------------------------------------------------
 
         /// <summary>The default and the largest session (players, a host's own included; Relay takes at most 100).</summary>
-        public const int DefaultMaxPlayers = 16, MaxPlayersLimit = 100;
+        public const int DefaultMaxPlayers = 16, MaxPlayersLimit = 150;
 
         /// <summary>The session's size, a host's own player included (the Host card, -maxplayers): Relay's connections, the
         /// server browser's "x / max", and the connection approval turns away a player past it (a local session too).</summary>
