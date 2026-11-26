@@ -69,6 +69,44 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ExplicitSecondaryDistributionConservesRoundsAndHonorsSelectedSlots()
+        {
+            string dir = System.IO.Path.Combine(Sandbox, "secondary-opt-in");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "mod.json"),
+                "{\"id\":\"secondary_opt_in\",\"multipleSecondaryMounts\":true}");
+            GoF2Remake.Modding.ModManager.SetBuilderProject(dir);
+            try
+            {
+                Session.ShipIndex = 44; // two secondary slots
+                Session.Equipment = new List<ItemStack> { new ItemStack(36, 6) { slot = 1 } };
+                Session.Cargo = new List<ItemStack> { new ItemStack(36, 5) };
+                var h = Dis();
+                Assert.IsTrue(GoF2Remake.Modding.ModContent.MultipleSecondaryMountsEnabled);
+                CollectionAssert.AreEqual(new[] { 1, 2 }, h.SecondaryDistributionSlots(36));
+                Assert.IsEmpty(h.AutoEquipSecondaries(), "selection must not consume cargo meant for another launcher");
+                Assert.IsFalse(h.DistributeSecondaries(36, new[] { 3 }), "out-of-range mount");
+                Assert.AreEqual(5, h.CargoOf(36));
+                Assert.IsTrue(h.DistributeSecondaries(36, new[] { 2 }));
+                Assert.AreEqual(6, Session.Equipment.Single(e => e.slot == 1).amount, "unselected stack remains intact");
+                Assert.AreEqual(5, Session.Equipment.Single(e => e.slot == 2).amount);
+                Assert.AreEqual(0, h.CargoOf(36));
+                Shop.AddToCargo(36, 2);
+                Assert.IsEmpty(h.AutoEquipSecondaries(), "multiple mounted copies still permit manual allocation");
+                Assert.IsTrue(h.DistributeSecondaries(36, new[] { 2, 1 }));
+                Assert.AreEqual(7, Session.Equipment.Single(e => e.slot == 1).amount);
+                Assert.AreEqual(6, Session.Equipment.Single(e => e.slot == 2).amount);
+                Assert.AreEqual(13, AmountMounted(36));
+                Assert.AreEqual(0, h.CargoOf(36));
+                Session.Equipment.Single(e => e.slot == 2).item = 37;
+                Shop.AddToCargo(36, 3);
+                Assert.IsFalse(h.DistributeSecondaries(36, new[] { 1, 2 }), "never replace another weapon");
+                Assert.AreEqual(3, h.CargoOf(36));
+            }
+            finally { GoF2Remake.Modding.ModManager.SetBuilderProject(null); }
+        }
+
+        [Test]
         public void MultipleSecondaryMountsShareOneAmmoPool()
         {
             var first = new ItemStack(36, 1);
