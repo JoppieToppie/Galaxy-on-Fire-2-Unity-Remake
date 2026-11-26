@@ -106,17 +106,42 @@ namespace GoF2Remake.UI
                 var lightObject = new GameObject("Construction light"); lightObject.transform.SetParent(placementRoot.transform,false); lightObject.transform.rotation = Quaternion.Euler(35,-45,0);
                 var light = lightObject.AddComponent<Light>(); light.type = LightType.Directional; light.cullingMask = 1<<31; light.intensity = 1.4f;
             }
-            void CameraPose() { if (camera != null) { camera.transform.position = centre + Quaternion.Euler(cameraPitch,cameraYaw,0)*new Vector3(0,0,-distance); camera.transform.LookAt(centre); } }
+            var initialRings = new LineRenderer[3];
+            var ringToggle = new Toggle("Show rotation rings") { value = true }; body.Add(ringToggle);
+            var local = new Toggle("Local axes") {value=true}; body.Add(local);
+            Vector3 AxisOf(int i) => i==0?Vector3.right:i==1?Vector3.up:Vector3.forward;
+            if (model != null)
+            {
+                Color[] colors = {new Color(1f,.25f,.25f),new Color(.25f,1f,.4f),new Color(.25f,.6f,1f)};
+                for(int i=0;i<3;i++)
+                {
+                    var go = new GameObject("Construction rotation ring"); go.transform.SetParent(placementRoot.transform,false); go.layer=31;
+                    var line=go.AddComponent<LineRenderer>(); line.sharedMaterial=PlacementMaterial(colors[i]); line.positionCount=64; line.loop=true; line.useWorldSpace=true;
+                    line.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off; line.receiveShadows=false; initialRings[i]=line;
+                }
+            }
+            void UpdateRings()
+            {
+                for(int i=0;i<3;i++)
+                {
+                    var line=initialRings[i]; if(line==null) continue; line.enabled=ringToggle.value;
+                    float radius=distance*.26f*(1+i*.06f); line.widthMultiplier=radius*.025f;
+                    var q=(local.value?Quaternion.Euler(angles):Quaternion.identity)*Quaternion.FromToRotation(Vector3.forward,AxisOf(i));
+                    for(int k=0;k<line.positionCount;k++){float a=k*Mathf.PI*2f/line.positionCount;line.SetPosition(k,centre+q*new Vector3(Mathf.Cos(a),Mathf.Sin(a),0)*radius);}
+                }
+            }
+            ringToggle.RegisterValueChangedCallback(_=>UpdateRings()); local.RegisterValueChangedCallback(_=>UpdateRings());
+            void CameraPose() { if (camera != null) { camera.transform.position = centre + Quaternion.Euler(cameraPitch,cameraYaw,0)*new Vector3(0,0,-distance); camera.transform.LookAt(centre); UpdateRings(); } }
             void Apply()
             {
                 placementRotationDrafts[key] = angles;
                 pitch.SetValueWithoutNotify(angles.x); yaw.SetValueWithoutNotify(angles.y); roll.SetValueWithoutNotify(angles.z);
                 if(model != null) model.transform.rotation = Quaternion.Euler(angles);
+                UpdateRings();
             }
             void Read() { angles = new Vector3Int(Mathf.Clamp(pitch.value,-360,360),Mathf.Clamp(yaw.value,-360,360),Mathf.Clamp(roll.value,-360,360)); Apply(); }
             pitch.RegisterValueChangedCallback(_=>Read()); yaw.RegisterValueChangedCallback(_=>Read()); roll.RegisterValueChangedCallback(_=>Read());
             var axis = new PopupField<string>("Rotation axis",new List<string>{"Pitch (X)","Yaw (Y)","Roll (Z)"},1); body.Add(axis);
-            var local = new Toggle("Local axes") {value=true}; body.Add(local);
             var snap = new PopupField<string>("Rotation step",new List<string>{"1","15","45","90"},1); body.Add(snap);
             void Rotate(float amount)
             {
@@ -127,9 +152,36 @@ namespace GoF2Remake.UI
             AddAction("Rotate −",()=>Rotate(-int.Parse(snap.value))); AddAction("Rotate +",()=>Rotate(int.Parse(snap.value)));
             AddAction("Reset rotation",()=>{angles=Vector3Int.zero;Apply();});
             var dragRotate = new Toggle("Drag to rotate model instead of camera"); body.Add(dragRotate);
-            float drag=0f;
-            viewport.RegisterCallback<PointerDownEvent>(evt=>{if(evt.button!=0)return; placementDragging=true; drag=0f; viewport.CapturePointer(evt.pointerId);evt.StopPropagation();});
-            viewport.RegisterCallback<PointerMoveEvent>(evt=>{if(!placementDragging)return; if(dragRotate.value){drag+=evt.deltaPosition.x*.6f;float step=evt.ctrlKey?int.Parse(snap.value):1f;float turn=Mathf.Round(drag/step)*step;if(Mathf.Abs(turn)>=step){Rotate(turn);drag-=turn;}}else{cameraYaw+=evt.deltaPosition.x*.4f;cameraPitch=Mathf.Clamp(cameraPitch-evt.deltaPosition.y*.4f,-80f,80f);CameraPose();}});
+            float drag=0f; bool ringDrag=false; Plane plane=default; Vector3 last=Vector3.zero;
+            Vector2 Screen(Vector2 p){p=viewport.WorldToLocal(p);return new Vector2(p.x/viewport.layout.width*camera.pixelWidth,(1-p.y/viewport.layout.height)*camera.pixelHeight);}
+            int Pick(Vector2 p)
+            {
+                if(camera==null||!ringToggle.value)return -1; float best=196f;int choice=-1;
+                for(int i=0;i<3;i++)for(int k=0;k<64;k++)
+                {
+                    var line=initialRings[i];if(line==null)continue;
+                    var a=camera.WorldToScreenPoint(line.GetPosition(k));var b=camera.WorldToScreenPoint(line.GetPosition((k+1)%64));if(a.z<=0||b.z<=0)continue;
+                    Vector2 segment=(Vector2)b-(Vector2)a;float t=Mathf.Clamp01(Vector2.Dot(p-(Vector2)a,segment)/Mathf.Max(.001f,segment.sqrMagnitude));float d=(p-((Vector2)a+t*segment)).sqrMagnitude;if(d<best){best=d;choice=i;}
+                }
+                return choice;
+            }
+            viewport.RegisterCallback<PointerDownEvent>(evt=>
+            {
+                if(evt.button!=0||camera==null)return; placementDragging=true;drag=0f;int ring=Pick(Screen(evt.position));ringDrag=ring>=0;
+                if(ringDrag){axis.index=ring;plane=new Plane((local.value?Quaternion.Euler(angles):Quaternion.identity)*AxisOf(ring),centre);var ray=camera.ScreenPointToRay(Screen(evt.position));last=plane.Raycast(ray,out float hit)?(ray.GetPoint(hit)-centre).normalized:Vector3.zero;}
+                viewport.CapturePointer(evt.pointerId);evt.StopPropagation();
+            });
+            viewport.RegisterCallback<PointerMoveEvent>(evt=>
+            {
+                if(!placementDragging||camera==null)return;
+                if(ringDrag||dragRotate.value)
+                {
+                    if(ringDrag){var ray=camera.ScreenPointToRay(Screen(evt.position));if(plane.Raycast(ray,out float hit)){var d=(ray.GetPoint(hit)-centre).normalized;if(last.sqrMagnitude>.5f)drag+=Vector3.SignedAngle(last,d,plane.normal);last=d;}else drag+=evt.deltaPosition.x*.6f;}
+                    else drag+=evt.deltaPosition.x*.6f;
+                    float step=evt.ctrlKey?int.Parse(snap.value):1f;float turn=Mathf.Round(drag/step)*step;if(Mathf.Abs(turn)>=step){Rotate(turn);drag-=turn;}
+                }
+                else{cameraYaw+=evt.deltaPosition.x*.4f;cameraPitch=Mathf.Clamp(cameraPitch-evt.deltaPosition.y*.4f,-80f,80f);CameraPose();}
+            });
             viewport.RegisterCallback<PointerUpEvent>(evt=>{placementDragging=false;if(viewport.HasPointerCapture(evt.pointerId))viewport.ReleasePointer(evt.pointerId);});
             viewport.RegisterCallback<PointerCaptureOutEvent>(_=>placementDragging=false);
             viewport.RegisterCallback<WheelEvent>(evt=>{distance=Mathf.Clamp(distance*Mathf.Pow(1.12f,evt.delta.y),10f,170000f);CameraPose();evt.StopPropagation();});

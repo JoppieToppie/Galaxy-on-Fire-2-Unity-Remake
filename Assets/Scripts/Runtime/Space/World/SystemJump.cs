@@ -448,8 +448,11 @@ namespace GoF2Remake.World
             ship.externalControl = false;
             if (weapons != null) weapons.Blocked = false;
             if (gate != null)
-                ship.transform.SetPositionAndRotation(gate.transform.position + OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.JumpgateFactor),   // OrbitScale: past the grown gate
-                                                      Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
+            {
+                var turn = SpaceHooks.PlayerJumpgateRotation?.Invoke(Session.StationIndex) ?? Quaternion.identity;
+                ship.transform.SetPositionAndRotation(gate.transform.position + turn * OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.JumpgateFactor),
+                    turn * Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
+            }
         }
 
         /// <summary>Set while the gate takes the ship one system along the route to the programmed station (Arrive keeps it).
@@ -457,6 +460,7 @@ namespace GoF2Remake.World
         bool hopping;
         /// <summary>Remake (OrbitScale): the gate scene's spots and motion times the gate's scale (1 off).</summary>
         float gateSceneScale = 1f;
+        Quaternion gateSceneRotation = Quaternion.identity;
 
         void StartGateScene(int station)
         {
@@ -465,10 +469,11 @@ namespace GoF2Remake.World
             var g = gate != null ? gate.transform.position : ship.transform.position;
             // OrbitScale: the scene round the grown gate grown with it, its motion too (gateSceneScale), so it keeps its timing.
             gateSceneScale = gate != null ? OrbitScale.JumpgateFactor : 1f;
-            ship.transform.SetPositionAndRotation(g + OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * (M * gateSceneScale),
-                                                  Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
+            gateSceneRotation = gate != null ? SpaceHooks.PlayerJumpgateRotation?.Invoke(Session.StationIndex) ?? Quaternion.identity : Quaternion.identity;
+            ship.transform.SetPositionAndRotation(g + gateSceneRotation * OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * (M * gateSceneScale),
+                                                  gateSceneRotation * Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
             var cam = Camera.main;
-            if (cam != null) cam.transform.position = g + OrbitLayout.DirToUnity(new Vector3(-2000f, 300f, -6000f)) * (M * gateSceneScale);
+            if (cam != null) cam.transform.position = g + gateSceneRotation * OrbitLayout.DirToUnity(new Vector3(-2000f, 300f, -6000f)) * (M * gateSceneScale);
         }
 
         /// <summary>PlayerJumpgate::activate: the idle glow is replaced by the one-shot jump animation.</summary>
@@ -956,7 +961,7 @@ namespace GoF2Remake.World
             ship.ExternalSpeedMetersPerSecond = speed * M * 1000f * (gateScene ? gateSceneScale : 1f);
 
             if (gateScene && !activated && gate != null && cam != null
-                && -cam.transform.position.z / M < -gate.transform.position.z / M - 10000f * gateSceneScale)   // camera z (game) < gate z - 10000 (OrbitScale: x the gate's scale)
+                && (Quaternion.Inverse(gateSceneRotation) * (cam.transform.position - gate.transform.position)).z / M > 10000f * gateSceneScale)   // camera z (game) < gate z - 10000 (OrbitScale: x the gate's scale)
                 ActivateGate();
             if (!activated) return;
             animMs += dtMs;
