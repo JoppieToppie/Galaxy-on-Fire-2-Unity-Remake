@@ -265,10 +265,10 @@ namespace GoF2Remake.UI
                         // Remake option (Settings.DyingCargoMarkers): none at all.
                         if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
                         {
-                            if (Settings.DyingCargoMarkers) DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
+                            if (Settings.DyingCargoMarkers && radar.Detects(s.Target)) DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
                             continue;
                         }
-                        if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingOnly || s.Target.untargetable) continue;
+                        if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingOnly || s.Target.untargetable || !radar.Detects(s.Target)) continue;
                         int f = s.Target.hostileToPlayer ? 0 : s.Target.friendToPlayer ? (s.Target.wingman ? 3 : 1) : 2;
                         var m = Get(s);
                         bool lockedShip = radar.Locked == s.Target;
@@ -280,7 +280,7 @@ namespace GoF2Remake.UI
                         DrawEmp(m, hp != null ? hp.EmpFraction : 1f);
                     }
                 foreach (var o in Target.NetShips)   // multiplayer: the other players, the host's ships on a client
-                    if (o != null && o.Alive && !o.untargetable)
+                    if (o != null && o.Alive && !o.untargetable && radar.Detects(o))
                     {
                         var m = Get(o);
                         int f = o.hostileToPlayer ? 0 : o.friendToPlayer ? 1 : 2;
@@ -289,14 +289,14 @@ namespace GoF2Remake.UI
                         if (o.netPilot) DrawPilotName(m, o.displayName, f, radar.Locked == o);
                     }
                 foreach (var o in Target.RadarObjects)
-                    if (o != null && o.Alive && !o.untargetable)
+                    if (o != null && o.Alive && !o.untargetable && radar.Detects(o))
                         DrawShip(Get(o), o.transform.position, o.hostileToPlayer ? 0 : 2, 1f, radar.Locked == o, cam, origin, centre, true);
                 // Level::createSentryGuns: the player's sentries are in Level::getEnemies too, always-friend: green markers.
                 foreach (var sg in SentryGun.All)
-                    if (sg != null && sg.Target != null && sg.Target.Alive)
+                    if (sg != null && sg.Target != null && sg.Target.Alive && radar.Detects(sg.Target))
                         DrawShip(Get(sg), sg.transform.position, 1, sg.Target.HullFraction, radar.Locked == sg.Target, cam, origin, centre);
                 foreach (var c in Crate.All)   // the registry: a scene search every frame before
-                    DrawCrate(Get(c), c.transform.position, c.race == 9, cam, origin, centre);
+                    if (radar.DetectsPosition(c.transform.position)) DrawCrate(Get(c), c.transform.position, c.race == 9, cam, origin, centre);
                 // Radar::draw 0x1570ec: a spectral filter's gas clouds (attr 57), off screen too with attr 58 (Omega).
                 var clouds = radar.Clouds;
                 if (radar.CloudRadar && clouds != null)

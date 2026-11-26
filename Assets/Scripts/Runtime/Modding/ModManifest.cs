@@ -46,6 +46,8 @@ namespace GoF2Remake.Modding
         public bool fighterNpcShields;
         /// <summary>-1: default (five seconds with fighter NPC shields, otherwise vanilla); 0: no delay.</summary>
         public int shieldRechargeDelayMs = -1;
+        /// <summary>Target signature by canonical ship class, as a percentage of the observing scanner range.</summary>
+        public Dictionary<string, int> scannerClassDetectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, string> name, description, credits;
         /// <summary>Remake (TorchOP's request, 2026-10-23): the tag shown after the names of what the mod adds, null = none.</summary>
         public Dictionary<string, string> tag;
@@ -136,6 +138,17 @@ namespace GoF2Remake.Modding
                 dependencies = ModJson.Strings(o, "dependencies"),
                 multiplayerIgnore = ModJson.Strings(o, "multiplayerIgnore"),
             };
+            if (ModJson.Get(o, "scannerClassDetectionPercent") is JToken detection)
+            {
+                if (!(detection is JObject classes)) throw new ModJsonException($"{FileName}: scannerClassDetectionPercent must be an object");
+                foreach (var entry in classes.Properties())
+                {
+                    if (!ShipClassRules.IsCanonicalClass(entry.Name)) throw new ModJsonException($"{ModJson.Where(entry, FileName)}: unknown scanner target class {entry.Name}");
+                    if (entry.Value.Type != JTokenType.Integer || (long)entry.Value < 1 || (long)entry.Value > 1000)
+                        throw new ModJsonException($"{ModJson.Where(entry, FileName)}: detection percentage must be an integer from 1 to 1000");
+                    m.scannerClassDetectionPercent[entry.Name.ToLowerInvariant()] = (int)entry.Value;
+                }
+            }
             // "id>=version": the id in the list, the version aside.
             for (int i = 0; i < m.dependencies.Count; i++)
             {

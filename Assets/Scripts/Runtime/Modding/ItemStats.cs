@@ -121,7 +121,7 @@ namespace GoF2Remake.Modding
             // on each new lock (beside radarShowsCargo, 31: 1 the first cargo entry, 2 the whole hold).
             ["scanShip"] = 140, ["scanHitpoints"] = 141, ["scanWeapons"] = 142,
             // Project ship-class identification; separate from hull, hitpoint and weapon readouts.
-            ["scanClass"] = 143,
+            ["scanClass"] = 143, ["scannerRange"] = 194,
             // Strict allow-lists apply even to unclassified ships. Fixed beams do not snap onto targets.
             // Per-mount defense roles: 0 legacy, 1 offensive, 2 balanced, 3 dedicated.
             ["strictShipClass"] = 191, ["fixedBeam"] = 192, ["turretDefenseRole"] = 193,

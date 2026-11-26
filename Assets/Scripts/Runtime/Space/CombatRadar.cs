@@ -79,7 +79,35 @@ namespace GoF2Remake.Flight
         public bool HasScanner { get; private set; }
         /// <summary>Remake mods: the scanner names a locked ship's hull on the plate (attr 140 "scanShip").</summary>
         public bool ShipScan { get; private set; }
-        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142;
+        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = 194;
+        /// <summary>Maximum detection range in game units. Zero keeps the original unlimited range.</summary>
+        public int ScannerRangeUnits { get; private set; }
+        readonly Dictionary<string, int> detectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        public static bool WithinScannerRange(float distanceSquaredMeters, int rangeUnits, int targetPercent = 100)
+        {
+            if (rangeUnits <= 0) return true;
+            float reach = rangeUnits * M * (targetPercent / 100f);
+            return distanceSquaredMeters <= reach * reach;
+        }
+
+        /// <summary>Range for unclassified objects and manual crate detection, measured from the observing ship, not the camera.</summary>
+        public bool DetectsPosition(Vector3 position) => WithinScannerRange((position - transform.position).sqrMagnitude, ScannerRangeUnits);
+
+        /// <summary>One shared rule for visible markers and acquisition/retention of a ship lock.</summary>
+        public bool Detects(Target target)
+        {
+            if (target == null) return false;
+            if (ScannerRangeUnits <= 0) return true;
+            int percent = 100;
+            if (detectionPercent.Count != 0 && db != null)
+            {
+                int index = target.netShipIndex >= 0 ? target.netShipIndex : target.shipType;
+                string cls = index >= 0 ? Modding.ShipClassRules.ClassOf(db.Ship(index)) : null;
+                if (cls != null && detectionPercent.TryGetValue(cls, out int configured)) percent = configured;
+            }
+            return WithinScannerRange((target.transform.position - transform.position).sqrMagnitude, ScannerRangeUnits, percent);
+        }
         /// <summary>The lock candidate: a Target (ship) or null.</summary>
         public Target Candidate { get; private set; }
         public Crate CrateCandidate { get; private set; }
@@ -171,6 +199,11 @@ namespace GoF2Remake.Flight
             assets = CombatAssets.Load();
             var scanner = Shop.FirstMounted(db, 17);
             HasScanner = scanner != null;
+            ScannerRangeUnits = scanner != null ? Mathf.Max(0, scanner.Attr(ScannerRangeAttr)) : 0;
+            detectionPercent.Clear();
+            foreach (var mod in Modding.ModManager.Active)
+                if (mod != null && !mod.IsBase && mod.Manifest != null)
+                    foreach (var pair in mod.Manifest.scannerClassDetectionPercent) detectionPercent[pair.Key] = pair.Value;
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
             cargoScan = scanner != null ? Mathf.Clamp(scanner.Attr(31), 0, 2) : 0;
@@ -250,7 +283,7 @@ namespace GoF2Remake.Flight
             // remake only switches it off, hull intact, and its "<race> 100%" plate stayed with no ship (#28).
             // Remake: a ship gone off the lock (another player cloaking, a hidden proxy) loses a lock already held too; the
             // missiles homing on it lose theirs for good (Gun).
-            if (Locked != null && (!Locked.Alive || !Locked.gameObject.activeInHierarchy || Locked.untargetable || Locked.cloaked)) Locked = null;
+            if (Locked != null && (!Locked.Alive || !Locked.gameObject.activeInHierarchy || Locked.untargetable || Locked.cloaked || !Detects(Locked))) Locked = null;
             if (RadarJam.Active) Locked = null;   // remake: a boss's radar jammer (the scanner holds nothing)
             // Modified: the ship marked as the docking target (a Supernova freighter, NpcShip.ShipMarker) drops its ship lock:
             // the docking target's marker takes over (a player's comparison with the original: its reticle stayed).
@@ -306,7 +339,7 @@ namespace GoF2Remake.Flight
                     // PlayerJunk objects: Level::createMission (Junk removal) puts them in the ship list before the pirates,
                     // so the first in the box is the junk, not a ship behind it (#28).
                     foreach (var o in Target.RadarObjects)
-                        if (o != null && o.Alive && !o.untargetable && o != Released && InBox(cam, c, box, o.transform.position, out float dj))
+                        if (o != null && o.Alive && !o.untargetable && o != Released && Detects(o) && InBox(cam, c, box, o.transform.position, out float dj))
                         {
                             if (!smart) { best = o; break; }
                             if (Better(o)) best = o;
@@ -318,13 +351,13 @@ namespace GoF2Remake.Flight
                             // Radar::draw: a fighter dying with cargo (KIPlayer+0x48) is salvage until it explodes.
                             if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
                             {
-                                if (InBox(cam, c, box, s.transform.position, out float dd) && dd < stealD) { stealD = dd; bestSteal = s.Target; }
+                                if (Detects(s.Target) && InBox(cam, c, box, s.transform.position, out float dd) && dd < stealD) { stealD = dd; bestSteal = s.Target; }
                                 continue;
                             }
                             // KIPlayer untargetable (a Rhino's / Myfft's turret, Level::createFighterTurrets): no lock; it was
                             // locked, dropped and locked again every frame, so the Rhino under it couldn't be scanned.
                             if (s.Gone || !s.Target.Alive || s.Hidden || s.RadarHidden || s.DockingOnly || s.Asleep || s.Target.untargetable) continue;
-                            if (!InBox(cam, c, box, s.transform.position, out float d)) continue;
+                            if (!Detects(s.Target) || !InBox(cam, c, box, s.transform.position, out float d)) continue;
                             // KIPlayer+0x20: a disabled ship with cargo is salvage (it wins over the ship locks).
                             if (s.Hp.empDisabled && s.HasCargo) { if (d < stealD && !StealingFrom(s.Target)) { stealD = d; bestSteal = s.Target; } }
                             else if (smart) { if (Better(s.Target)) best = s.Target; }
@@ -335,7 +368,7 @@ namespace GoF2Remake.Flight
                     // the player whose game ran the orbit's NPCs could steal: Discord report 2026-10-21).
                     foreach (var o in Target.NetShips)
                     {
-                        if (o == null || !o.Alive || o.untargetable || !InBox(cam, c, box, o.transform.position, out float dn)) continue;
+                        if (o == null || !o.Alive || o.untargetable || !Detects(o) || !InBox(cam, c, box, o.transform.position, out float dn)) continue;
                         if (o.NetStealable) { if (dn < stealD && !StealingFrom(o)) { stealD = dn; bestSteal = o; } continue; }
                         if (bestSteal != null || o == Released) continue;
                         if (!smart) { if (best == null) best = o; continue; }   // the first in the list, after the traffic's
@@ -351,7 +384,7 @@ namespace GoF2Remake.Flight
                     {
                         bestD = float.MaxValue;
                         foreach (var cr in Crate.All)
-                            if (cr != Salvaging && !cr.pulled && !cr.claimedByOther && InBox(cam, c, box, cr.transform.position, out float d) && d < bestD) { bestD = d; bestCrate = cr; }
+                            if (cr != Salvaging && !cr.pulled && !cr.claimedByOther && DetectsPosition(cr.transform.position) && InBox(cam, c, box, cr.transform.position, out float d) && d < bestD) { bestD = d; bestCrate = cr; }
                         if (bestCrate != null) best = null;
                     }
                     // Radar::draw 0x1570ec, a spectral filter with attr 57: a live gas cloud in the box is a lock candidate
