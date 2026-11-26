@@ -390,7 +390,7 @@ namespace GoF2Remake.UI
             var maxPlayers = root.Q<TextField>("mpMaxPlayers");
             if (maxPlayers != null)
             {
-                // The session's size, the host included (2..100, PlayerPrefs "mp_max_players"); shown clamped once left.
+                // The session's size, the host included (2..150, PlayerPrefs "mp_max_players"); shown clamped once left.
                 maxPlayers.maxLength = 3;
                 maxPlayers.keyboardType = TouchScreenKeyboardType.NumberPad;
                 GoF2Remake.Multiplayer.NetGame.MaxPlayers = PlayerPrefs.GetInt("mp_max_players", GoF2Remake.Multiplayer.NetGame.DefaultMaxPlayers);
