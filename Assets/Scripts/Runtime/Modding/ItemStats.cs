@@ -121,6 +121,9 @@ namespace GoF2Remake.Modding
             ["scanShip"] = 140, ["scanHitpoints"] = 141, ["scanWeapons"] = 142,
             // Project ship-class identification; separate from hull, hitpoint and weapon readouts.
             ["scanClass"] = 143,
+            // Strict allow-lists apply even to unclassified ships. Fixed beams do not snap onto targets.
+            // Per-mount defense roles: 0 legacy, 1 offensive, 2 balanced, 3 dedicated.
+            ["strictShipClass"] = 191, ["fixedBeam"] = 192, ["turretDefenseRole"] = 193,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,
