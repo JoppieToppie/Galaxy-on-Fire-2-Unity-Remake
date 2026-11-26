@@ -814,27 +814,37 @@ namespace GoF2Remake.Data
 
         /// <summary>Evenly allocate cargo and the rounds in only the selected slots. Revalidate on apply; no stock, money
         /// or other weapon changes. The first slots receive the indivisible remainder.</summary>
-        public bool DistributeSecondaries(int item, IEnumerable<int> slots)
+        public bool TryPreviewSecondaryDistribution(int item, IEnumerable<int> slots,
+            out Dictionary<int, int> allocation, out long cargo, out long mounted)
         {
+            allocation = new Dictionary<int, int>();
+            cargo = Session.Cargo.Where(s => s.item == item && s.amount > 0).Sum(s => (long)s.amount);
+            mounted = 0;
             if (slots == null) return false;
             var chosen = slots.Distinct().OrderBy(x => x).ToArray();
             var eligible = SecondaryDistributionSlots(item);
             if (chosen.Length == 0 || chosen.Any(x => !eligible.Contains(x))) return false;
             var places = SlotsOfType(1);
-            int cargo = CargoOf(item);
-            long total = cargo;
             foreach (int slot in chosen)
-                if (places[slot - 1] >= 0) total += Math.Max(0, Session.Equipment[places[slot - 1]].amount);
+                if (places[slot - 1] >= 0) mounted += Math.Max(0, Session.Equipment[places[slot - 1]].amount);
+            long total = cargo + mounted;
             if (total < chosen.Length || total > int.MaxValue) return false;
             int each = (int)(total / chosen.Length), extra = (int)(total % chosen.Length);
+            for (int i = 0; i < chosen.Length; i++) allocation.Add(chosen[i], each + (i < extra ? 1 : 0));
+            return true;
+        }
+
+        public bool DistributeSecondaries(int item, IEnumerable<int> slots)
+        {
+            if (!TryPreviewSecondaryDistribution(item, slots, out var allocation, out long cargo, out _)) return false;
+            var places = SlotsOfType(1);
             PinSlots(db, Session.Equipment);
-            if (cargo > 0) Shop.RemoveFromCargo(item, cargo);
-            for (int i = 0; i < chosen.Length; i++)
+            if (cargo > 0) Shop.RemoveFromCargo(item, (int)cargo);
+            foreach (var pair in allocation.OrderBy(x => x.Key))
             {
-                int amount = each + (i < extra ? 1 : 0);
-                int existing = places[chosen[i] - 1];
-                if (existing >= 0) Session.Equipment[existing].amount = amount;
-                else Session.Equipment.Add(new ItemStack(item, amount) { slot = chosen[i] });
+                int existing = places[pair.Key - 1];
+                if (existing >= 0) Session.Equipment[existing].amount = pair.Value;
+                else Session.Equipment.Add(new ItemStack(item, pair.Value) { slot = pair.Key });
             }
             Session.SeenItems.Add(item);
             Session.SelectedSecondary = -1;

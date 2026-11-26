@@ -86,6 +86,13 @@ namespace GoF2Remake.Tests
                 CollectionAssert.AreEqual(new[] { 1, 2 }, h.SecondaryDistributionSlots(36));
                 Assert.IsEmpty(h.AutoEquipSecondaries(), "selection must not consume cargo meant for another launcher");
                 Assert.IsFalse(h.DistributeSecondaries(36, new[] { 3 }), "out-of-range mount");
+                Assert.IsTrue(h.TryPreviewSecondaryDistribution(36, new[] { 2, 1, 1 }, out var preview, out long cargo, out long mounted));
+                Assert.AreEqual(5, cargo);
+                Assert.AreEqual(6, mounted);
+                Assert.AreEqual(6, preview[1]);
+                Assert.AreEqual(5, preview[2]);
+                Assert.AreEqual(6, Session.Equipment.Single(e => e.slot == 1).amount, "preview does not mutate fitting");
+                Assert.AreEqual(5, h.CargoOf(36), "preview does not consume cargo");
                 Assert.AreEqual(5, h.CargoOf(36));
                 Assert.IsTrue(h.DistributeSecondaries(36, new[] { 2 }));
                 Assert.AreEqual(6, Session.Equipment.Single(e => e.slot == 1).amount, "unselected stack remains intact");

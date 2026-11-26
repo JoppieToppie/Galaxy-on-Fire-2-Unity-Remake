@@ -52,6 +52,9 @@ namespace GoF2Remake.UI
             /// <summary>A Ship tab slot row's slot among its type's (Hangar.SlotsOfType), -1 for any other row.</summary>
             public int place = -1;
             public VisualElement element;
+            public Button distributionToggle;
+            public Label distributionSub;
+            public string distributionOriginalSub;
             public int listingId, stationUnits;
             public long listingPrice;
             public bool ownListing;
@@ -527,6 +530,7 @@ namespace GoF2Remake.UI
 
         public void Open()
         {
+            ResetSecondaryDistribution();
             IsOpen = true;
             tabStorage.style.display = DisplayStyle.None;
             if (PlayerMarketplace) tab = Tab.Shop;
@@ -583,6 +587,7 @@ namespace GoF2Remake.UI
             AutoEquip();
             if (HasPending) Revert();
             EndSearchEntry();
+            ResetSecondaryDistribution();
             IsOpen = false;
             ClearBlueprintShopHighlight();
             editing = -1;
@@ -613,6 +618,7 @@ namespace GoF2Remake.UI
         /// <summary>Back inside the window: the ingredient list returns to the blueprint list (after committing).</summary>
         public bool Back()
         {
+            if (CancelDistributionNavigation()) return true;
             if (editing < 0) return false;
             if (HasPending) { Commit(() => Back()); return true; }
             editing = -1; selected = null; CatchUpStock(); Rebuild();
@@ -635,6 +641,7 @@ namespace GoF2Remake.UI
                 tabSelected[tab] = selected;
                 tabSelectedIndex[tab] = selected != null ? rows.IndexOf(selected) : -1;
             }
+            ResetSecondaryDistribution();
             tab = t;
             editing = -1;
             // Remake: the new tab where it was left (its first visit: the top), not at the old tab's scroll.

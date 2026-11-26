@@ -366,7 +366,9 @@ namespace GoF2Remake.UI
                 string sellShip = T("kaamoSellShip", "SELL SHIP");
                 // Remake: the Ship tab's X moves a mounted item to its next slot (HangarWindow.SecondaryAction).
                 bool shipTab = hangarWindow != null && hangarWindow.ShipTab;
-                string move = T("shopMoveSlot", "MOVE");
+                bool allocationNav = hangarWindow != null && hangarWindow.DistributionNavigation;
+                string move = allocationNav ? T("secondaryAllocationApplyHint", "APPLY") : shipTab && Modding.ModContent.MultipleSecondaryMountsEnabled ? T("secondaryAllocationMoveHint", "MOVE / DISTRIBUTE") : T("shopMoveSlot", "MOVE");
+                if (allocationNav) confirm = T("secondaryAllocationToggleHint", "TOGGLE MOUNT");
                 string info = Localization.Get(390).UiCaps();   // the details window's "Info" (ItemInfoWindow)
                 if (kind == InputKind.KeyboardMouse)
                 {

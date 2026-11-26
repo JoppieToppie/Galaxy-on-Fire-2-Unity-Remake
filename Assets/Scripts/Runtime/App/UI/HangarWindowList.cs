@@ -668,6 +668,11 @@ namespace GoF2Remake.UI
             }
             else texts.Add(name);
             texts.Add(sub);
+            if (ShipTab && row.kind == RowKind.Slot && row.type == 1 && row.place >= 0)
+            {
+                row.distributionSub = subText;
+                row.distributionOriginalSub = subText.text;
+            }
             Label Amount(int t, string side)
             {
                 var l = new Label($"{t}t") { pickingMode = PickingMode.Ignore };
@@ -747,6 +752,7 @@ namespace GoF2Remake.UI
             // player's report: a stale Autocomplete row stayed selected and A autocompleted blueprint -1 for 0 $); units
             // staged for another production station wait for FREIGHT, Complete or leaving the view.
             if (sound) menu.PlayPush();
+            CancelDistributionNavigation();
             ReleaseArrow();
             selected = row;
             foreach (var r in rows) r.element.EnableInClassList("list-row--selected", r == selected);
@@ -771,6 +777,7 @@ namespace GoF2Remake.UI
         /// fresh press wraps (HoldDirections), a held key's repeat stops at the end.</summary>
         public void MoveSelection(int dir, bool wrap = false)
         {
+            if (MoveDistributionCursor(dir, wrap)) return;
             if (rows.Count == 0) return;
             int i = selected != null ? rows.IndexOf(selected) : -1;
             for (int n = i + dir; n >= 0 && n < rows.Count; n += dir)

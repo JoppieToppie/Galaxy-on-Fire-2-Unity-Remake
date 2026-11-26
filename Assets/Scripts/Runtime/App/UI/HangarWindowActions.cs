@@ -90,7 +90,11 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Enter / A / the action button: mount, demount or buy the selected ship; on a shop row buy one unit.</summary>
-        public void Action() => Action(false);
+        public void Action()
+        {
+            if (DistributionNavigation) { ToggleDistributionSlot(distributionCursor); return; }
+            Action(false);
+        }
 
         void Action(bool shipDestinationChosen)
         {
@@ -279,6 +283,7 @@ namespace GoF2Remake.UI
         /// <summary>The second row button (X / controller X): Sell a stored hull (330 -> 334).</summary>
         public void SecondaryAction()
         {
+            if (BeginOrApplyDistributionNavigation()) return;
             if (PlayerStorageTab && selected?.kind == RowKind.ShopItem)
             {
                 Trade(-1, units: PlayerStorageTransferLimit(-1));

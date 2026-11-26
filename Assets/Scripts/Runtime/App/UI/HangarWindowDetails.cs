@@ -21,76 +21,267 @@ namespace GoF2Remake.UI
             rowActions.schedule.Execute(FitRowActionMinimum);
         }
         VisualElement secondaryDistributionPanel;
-        int distributionItem = -1;
+        Label distributionCargo, distributionMounted, distributionTotal, distributionCount, distributionStatus;
+        Button distributionApply;
+        int distributionItem = -1, distributionCursor;
+        bool distributionNavigation;
         readonly HashSet<int> distributionSlots = new HashSet<int>();
+        int[] distributionEligible = Array.Empty<int>();
+        public bool DistributionNavigation => distributionNavigation && distributionItem >= 0;
+
+        string DistributionText(string key, string fallback) => Localization.Extra(key, fallback);
+
+        void ResetSecondaryDistribution()
+        {
+            distributionNavigation = false;
+            distributionCursor = 0;
+            distributionItem = -1;
+            distributionSlots.Clear();
+            distributionEligible = Array.Empty<int>();
+            secondaryDistributionPanel?.RemoveFromHierarchy();
+            secondaryDistributionPanel = null;
+            rowActions.style.display = StyleKeyword.Null;
+            foreach (var row in rows) ClearDistributionRow(row);
+        }
+
+        void ClearDistributionRow(Row row)
+        {
+            row.distributionToggle?.RemoveFromHierarchy();
+            row.distributionToggle = null;
+            row.element.RemoveFromClassList("list-row--allocation");
+            row.element.RemoveFromClassList("list-row--allocation-selected");
+            row.element.RemoveFromClassList("list-row--allocation-cursor");
+            if (row.distributionSub == null) return;
+            row.distributionSub.text = row.distributionOriginalSub;
+            foreach (var child in row.distributionSub.parent.Children())
+                child.style.display = StyleKeyword.Null;
+        }
 
         void ShowSecondaryDistribution()
         {
             secondaryDistributionPanel?.RemoveFromHierarchy();
             secondaryDistributionPanel = null;
+            foreach (var row in rows) ClearDistributionRow(row);
             if (!ShipTab || selected == null || (selected.kind != RowKind.Slot && selected.kind != RowKind.CargoItem))
-            { distributionItem = -1; distributionSlots.Clear(); return; }
-            int item = selected.kind == RowKind.Slot && selected.equipment >= 0 ? Session.Equipment[selected.equipment].item : selected.item;
-            if (item < 0) return;
-            var slots = hangar.SecondaryDistributionSlots(item);
-            if (slots.Length < 2) return;
-            var places = hangar.SlotsOfType(1);
+            { ResetSecondaryDistribution(); return; }
+            int item = selected.kind == RowKind.Slot && selected.equipment >= 0 && selected.equipment < Session.Equipment.Count
+                ? Session.Equipment[selected.equipment].item : selected.item;
+            var eligible = item >= 0 ? hangar.SecondaryDistributionSlots(item) : Array.Empty<int>();
+            if (eligible.Length < 2) { ResetSecondaryDistribution(); return; }
+
+            distributionEligible = eligible;
             if (distributionItem != item)
             {
                 distributionItem = item;
+                distributionNavigation = false;
                 distributionSlots.Clear();
-                foreach (int slot in slots) if (places[slot - 1] >= 0) distributionSlots.Add(slot);
+                var places = hangar.SlotsOfType(1);
+                foreach (int slot in eligible)
+                    if (places[slot - 1] >= 0) distributionSlots.Add(slot);
+                // A new weapon in cargo starts with all compatible empty mounts selected.
+                if (distributionSlots.Count == 0) distributionSlots.UnionWith(eligible);
             }
-            distributionSlots.IntersectWith(slots);
+            distributionSlots.IntersectWith(eligible);
+            if (!eligible.Contains(distributionCursor)) distributionCursor = eligible[0];
+
             var panel = secondaryDistributionPanel = new VisualElement();
-            panel.style.paddingTop = 4;
-            panel.style.paddingBottom = 4;
-            detailsPanel.Insert(0, panel);
-            var heading = new Label("SECONDARY AMMO DISTRIBUTION");
+            panel.AddToClassList("secondary-allocation");
+            // Leave the existing item icon/name and the normal stats/description in place.
+            detailsPanel.Insert(detailsPanel.IndexOf(detailIcon.parent) + 1, panel);
+            var heading = new Label(DistributionText("secondaryAllocationTitle", "MOUNT DISTRIBUTION").UiCaps());
+            heading.AddToClassList("secondary-allocation-heading");
             heading.AddToClassList("gof-semibold");
             panel.Add(heading);
-            var summary = new Label();
-            panel.Add(summary);
-            var grid = new VisualElement();
-            grid.style.flexDirection = FlexDirection.Row;
-            grid.style.flexWrap = Wrap.Wrap;
-            panel.Add(grid);
-            var apply = new Button(() =>
+
+            Label Metric(string caption)
             {
-                if (hangar.DistributeSecondaries(item, distributionSlots)) Rebuild();
-            }) { text = "DISTRIBUTE TO SELECTED" };
-            apply.AddToClassList("detail-action");
-            apply.style.height = 32;
-            void Refresh()
-            {
-                long total = hangar.CargoOf(item);
-                foreach (int slot in distributionSlots)
-                    if (places[slot - 1] >= 0) total += Math.Max(0, Session.Equipment[places[slot - 1]].amount);
-                int count = distributionSlots.Count;
-                summary.text = $"Cargo: {hangar.CargoOf(item)}  |  Selected: {count}  |  {(count > 0 ? total / count : 0)} rounds/mount";
-                apply.SetEnabled(count > 0 && total >= count && total <= int.MaxValue);
+                var line = new VisualElement();
+                line.AddToClassList("secondary-allocation-metric");
+                var label = new Label(caption);
+                label.AddToClassList("secondary-allocation-label");
+                line.Add(label);
+                var value = new Label();
+                value.AddToClassList("secondary-allocation-value");
+                value.AddToClassList("gof-semibold");
+                line.Add(value);
+                panel.Add(line);
+                return value;
             }
-            foreach (int slot in slots)
+            distributionCargo = Metric(DistributionText("secondaryAllocationCargo", "Ammo in cargo"));
+            distributionCount = Metric(DistributionText("secondaryAllocationSelected", "Selected mounts"));
+            distributionMounted = Metric(DistributionText("secondaryAllocationMounted", "Selected mounted ammo"));
+            distributionTotal = Metric(DistributionText("secondaryAllocationTotal", "Total ammunition"));
+            distributionTotal.AddToClassList("secondary-allocation-total");
+
+            var actions = new VisualElement();
+            actions.AddToClassList("secondary-allocation-actions");
+            Button Control(string text, Action action)
             {
-                int equipment = places[slot - 1];
-                string amount = equipment < 0 ? "Empty" : Session.Equipment[equipment].amount.ToString();
-                string Caption() => $"{(distributionSlots.Contains(slot) ? "[X]" : "[ ]")} S{slot}  {amount}";
-                var b = new Button { text = Caption() };
+                var b = new Button(action) { text = text.UiCaps(), focusable = false };
                 b.AddToClassList("detail-action");
-                b.style.width = Length.Percent(24);
-                b.style.marginLeft = Length.Percent(0.5f);
-                b.style.marginRight = Length.Percent(0.5f);
-                b.style.height = 30;
-                b.clicked += () =>
-                {
-                    if (!distributionSlots.Add(slot)) distributionSlots.Remove(slot);
-                    b.text = Caption();
-                    Refresh();
-                };
-                grid.Add(b);
+                b.AddToClassList("gof-semibold");
+                b.AddToClassList("secondary-allocation-button");
+                return b;
             }
-            panel.Add(apply);
-            Refresh();
+            actions.Add(Control(DistributionText("secondaryAllocationAll", "Select all"), () =>
+            {
+                distributionSlots.UnionWith(distributionEligible);
+                menu.PlayRelease();
+                RefreshSecondaryDistribution();
+            }));
+            actions.Add(Control(DistributionText("secondaryAllocationClear", "Clear"), () =>
+            {
+                distributionSlots.Clear();
+                menu.PlayRelease();
+                RefreshSecondaryDistribution();
+            }));
+            panel.Add(actions);
+            distributionApply = Control(DistributionText("secondaryAllocationApply", "Mount & distribute"), ApplySecondaryDistribution);
+            distributionApply.AddToClassList("secondary-allocation-apply");
+            panel.Add(distributionApply);
+            distributionStatus = new Label();
+            distributionStatus.AddToClassList("secondary-allocation-status");
+            panel.Add(distributionStatus);
+
+            // The existing numbered secondary rows are the only hardpoint selector.
+            // Embedded buttons consume presses so they never invoke row drag or double-click fitting.
+            foreach (var row in rows)
+            {
+                if (row.kind != RowKind.Slot || row.type != 1 || row.place < 0) continue;
+                int slot = row.place + 1;
+                var toggle = row.distributionToggle = new Button(() => ToggleDistributionSlot(slot)) { focusable = false };
+                toggle.AddToClassList("secondary-allocation-toggle");
+                toggle.AddToClassList("gof-semibold");
+                KeepInButton(toggle);
+                row.element.Insert(0, toggle);
+                row.element.AddToClassList("list-row--allocation");
+            }
+            RefreshSecondaryDistribution();
+        }
+
+        void ToggleDistributionSlot(int slot)
+        {
+            if (distributionItem < 0 || !distributionEligible.Contains(slot)) return;
+            if (!distributionSlots.Add(slot)) distributionSlots.Remove(slot);
+            menu.PlayRelease();
+            RefreshSecondaryDistribution();
+        }
+
+        void RefreshSecondaryDistribution()
+        {
+            if (secondaryDistributionPanel == null || distributionItem < 0) return;
+            var eligible = hangar.SecondaryDistributionSlots(distributionItem);
+            distributionEligible = eligible;
+            distributionSlots.IntersectWith(eligible);
+            if (!eligible.Contains(distributionCursor)) distributionCursor = eligible.FirstOrDefault();
+            bool valid = hangar.TryPreviewSecondaryDistribution(distributionItem, distributionSlots,
+                out var allocation, out long cargo, out long mounted);
+            distributionCargo.text = cargo.ToString("N0");
+            distributionCount.text = $"{distributionSlots.Count} / {eligible.Length}";
+            distributionMounted.text = mounted.ToString("N0");
+            distributionTotal.text = (cargo + mounted).ToString("N0");
+            distributionApply.SetEnabled(valid);
+            distributionApply.EnableInClassList("detail-action--disabled", !valid);
+            distributionStatus.text = distributionSlots.Count == 0
+                ? DistributionText("secondaryAllocationChoose", "Select compatible mounts in the ship list.")
+                : !valid ? DistributionText("secondaryAllocationInsufficient", "Not enough ammunition for the selected mounts.")
+                : DistributionNavigation
+                    ? DistributionText("secondaryAllocationNavigate", "Select a mount, confirm to toggle, X to apply. Back cancels navigation.")
+                    : DistributionText("secondaryAllocationUnchanged", "Only selected mounts are modified.");
+            rowActions.style.display = DistributionNavigation ? DisplayStyle.None : DisplayStyle.Flex;
+
+            foreach (var row in rows)
+            {
+                if (row.distributionToggle == null || row.distributionSub == null) continue;
+                int slot = row.place + 1;
+                bool allowed = eligible.Contains(slot), chosen = distributionSlots.Contains(slot);
+                var button = row.distributionToggle;
+                button.text = allowed ? (chosen ? "✓" : "□") : "–";
+                button.SetEnabled(allowed);
+                button.EnableInClassList("secondary-allocation-toggle--selected", chosen);
+                row.element.EnableInClassList("list-row--allocation-selected", chosen);
+                row.element.EnableInClassList("list-row--allocation-cursor", DistributionNavigation && distributionCursor == slot);
+                int ammo = row.equipment >= 0 && row.equipment < Session.Equipment.Count
+                    ? Math.Max(0, Session.Equipment[row.equipment].amount) : 0;
+                string status;
+                if (!allowed)
+                {
+                    bool reserved = !Modding.ShipClassRules.SecondarySlotFits(level.Database.Item(distributionItem), hangar.Ship, slot);
+                    status = reserved ? DistributionText("secondaryAllocationReserved", "Reserved mount")
+                        : DistributionText("secondaryAllocationOccupied", "Different weapon");
+                }
+                else if (chosen)
+                {
+                    string change = row.equipment >= 0 ? DistributionText("secondaryAllocationRebalance", "Rebalance")
+                        : DistributionText("secondaryAllocationMount", "Mount") + " " + ItemInfo.ItemName(distributionItem);
+                    status = valid && allocation.TryGetValue(slot, out int count) ? $"{ammo:N0} → {count:N0}  ·  {change}" : change;
+                }
+                else status = DistributionText("secondaryAllocationNoChange", "Unchanged");
+                row.distributionSub.text = $"S{slot}  ·  {status}";
+                foreach (var child in row.distributionSub.parent.Children())
+                    child.style.display = child == row.distributionSub ? DisplayStyle.Flex : DisplayStyle.None;
+                button.tooltip = row.distributionSub.text;
+            }
+        }
+
+        void ApplySecondaryDistribution()
+        {
+            int item = distributionItem;
+            int slot = distributionSlots.Count > 0 ? distributionSlots.Min() : 0;
+            if (item < 0 || !hangar.DistributeSecondaries(item, distributionSlots))
+            {
+                menu.ShowToast(DistributionText("secondaryAllocationChanged", "Allocation changed or is unavailable. Check your mounts."));
+                Rebuild();
+                return;
+            }
+            distributionNavigation = false;
+            var places = hangar.SlotsOfType(1);
+            // Preserve the weapon context even when its cargo row disappears.
+            selected = new Row { kind = RowKind.Slot, item = item, type = 1, place = slot - 1, equipment = places[slot - 1] };
+            menu.PlayClip(menu.shopMount);
+            Rebuild();
+            menu.RefreshCredits();
+        }
+
+        bool BeginOrApplyDistributionNavigation()
+        {
+            if (secondaryDistributionPanel == null || distributionEligible.Length < 2) return false;
+            if (DistributionNavigation) { ApplySecondaryDistribution(); return true; }
+            distributionNavigation = true;
+            distributionCursor = selected.kind == RowKind.Slot && distributionEligible.Contains(selected.place + 1)
+                ? selected.place + 1 : distributionEligible[0];
+            RefreshSecondaryDistribution();
+            ScrollDistributionCursor();
+            menu.RefreshCredits();
+            return true;
+        }
+
+        void ScrollDistributionCursor()
+        {
+            var row = rows.FirstOrDefault(r => r.kind == RowKind.Slot && r.type == 1 && r.place + 1 == distributionCursor);
+            if (row?.element?.panel != null && !float.IsNaN(row.element.layout.height)) list.ScrollTo(row.element);
+        }
+
+        bool MoveDistributionCursor(int dir, bool wrap)
+        {
+            if (!DistributionNavigation || distributionEligible.Length == 0) return false;
+            int index = Array.IndexOf(distributionEligible, distributionCursor);
+            int next = index + dir;
+            if (wrap) next = (next + distributionEligible.Length) % distributionEligible.Length;
+            else next = Mathf.Clamp(next, 0, distributionEligible.Length - 1);
+            distributionCursor = distributionEligible[next];
+            RefreshSecondaryDistribution();
+            ScrollDistributionCursor();
+            return true;
+        }
+
+        bool CancelDistributionNavigation()
+        {
+            if (!DistributionNavigation) return false;
+            distributionNavigation = false;
+            RefreshSecondaryDistribution();
+            menu.RefreshCredits();
+            return true;
         }
 
         // CLAUDE.md "Row actions": keep proportional columns readable on narrow screens and in longer translations.
