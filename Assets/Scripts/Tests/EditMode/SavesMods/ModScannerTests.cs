@@ -24,9 +24,10 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(CombatRadar.ScanShipAttr, ItemStats.IdOf("scanShip"));
             Assert.AreEqual(CombatRadar.ScanHitpointsAttr, ItemStats.IdOf("scanHitpoints"));
             Assert.AreEqual(CombatRadar.ScanWeaponsAttr, ItemStats.IdOf("scanWeapons"));
+            Assert.AreEqual(CombatRadar.ScannerRangeAttr, ItemStats.IdOf("scannerRange"));
 
             WriteMod("scan", "t_scan", "1.0", "", ("items.json", @"[
-                { 'id': 'deep', 'base': 84, 'name': 'Deep Scan', 'stats': { 'scanShip': 1, 'scanHitpoints': 1, 'scanWeapons': 1, 'radarShowsCargo': 2 } }
+                { 'id': 'deep', 'base': 84, 'name': 'Deep Scan', 'stats': { 'scanShip': 1, 'scanHitpoints': 1, 'scanWeapons': 1, 'radarShowsCargo': 2, 'scannerRange': 100000 } }
             ]"));
             ScanAndEnable("t_scan");
             Assert.IsFalse(Installed("t_scan").Broken, AllMessages(Installed("t_scan")));
@@ -35,6 +36,25 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1, deep.Attr(CombatRadar.ScanHitpointsAttr));
             Assert.AreEqual(1, deep.Attr(CombatRadar.ScanWeaponsAttr));
             Assert.AreEqual(2, deep.Attr(31));
+            Assert.AreEqual(100000, deep.Attr(CombatRadar.ScannerRangeAttr));
+        }
+
+        [TestCase(100, 4999f, true)]
+        [TestCase(100, 5000f, true)]
+        [TestCase(100, 5001f, false)]
+        [TestCase(50, 2500f, true)]
+        [TestCase(50, 2501f, false)]
+        [TestCase(200, 10000f, true)]
+        [TestCase(200, 10001f, false)]
+        public void DetectionRangeUsesTargetSignature(int percent, float metres, bool expected)
+        {
+            Assert.AreEqual(expected, CombatRadar.WithinScannerRange(metres * metres, 100000, percent));
+        }
+
+        [Test]
+        public void LegacyScannersRemainUnlimited()
+        {
+            Assert.IsTrue(CombatRadar.WithinScannerRange(float.MaxValue, 0, 50));
         }
 
         [Test]
