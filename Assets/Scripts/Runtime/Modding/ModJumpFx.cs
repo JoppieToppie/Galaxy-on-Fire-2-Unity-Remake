@@ -212,7 +212,8 @@ namespace GoF2Remake.Modding
             if (equipment == null || GalaxyMap.HasIntegratedDrive(ship) ||
                 equipment.Exists(e => e != null && e.amount > 0 && e.item == GalaxyMap.KhadorDriveItem &&
                     ModContent.ItemAvailableFor(e.item, "equipment"))) return null;
-            return Mounted(equipment);
+            var drive = Mounted(equipment);
+            return drive != null && !ShipClassRules.Fits(Database.Shared?.Item(drive.item), Database.Shared?.Ship(ship)) ? null : drive;
         }
 
         /// <summary>Modified: Ship::hasVolatileGoods's refusal (text 612) with the drive that would jump by its own name: 612
