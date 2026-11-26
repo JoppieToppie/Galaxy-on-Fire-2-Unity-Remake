@@ -6,7 +6,7 @@
 //                    on this machine's address); listed in the server browser (NetLobby) unless -unlisted
 //   -name "..."      the server browser's name for it
 //   -password X      players need it to join (NetGame's connection approval)
-//   -maxplayers N    the player limit (default 16, 2..100: Relay's connections, the browser, the approval)
+//   -maxplayers N    the player limit (default 16, 2..150: Relay's connections, the browser, the approval)
 //   -allowdebug      the players may use the Debug menu (cheats, items, spawns); off by default (NetGame.HostAllowsDebug)
 //   -allowmods       the session runs every mod in this game's Mods folders (NetMods); off by default
 //   -port N          the local port (default 7777); -fps N the server's frame rate (default 60)
@@ -170,7 +170,7 @@ namespace GoF2Remake.Multiplayer
             if (!PrepareContent()) return;
             int fps = int.TryParse(Value("-fps"), out int f) ? Mathf.Clamp(f, 10, 240) : 60;
             port = ushort.TryParse(Value("-port"), out ushort p) && p >= 1024 ? p : NetGame.DefaultPort;
-            NetGame.MaxPlayers = int.TryParse(Value("-maxplayers"), out int mp) ? mp : NetGame.DefaultMaxPlayers;   // 2..100
+            NetGame.MaxPlayers = int.TryParse(Value("-maxplayers"), out int mp) ? mp : NetGame.DefaultMaxPlayers;   // 2..150
             NetGame.HostPassword = NetGame.CleanPassword(Value("-password"));
             NetGame.HostAllowsDebug = HasFlag("-allowdebug");
             NetMods.HostAllowsMods = HasFlag("-allowmods");
