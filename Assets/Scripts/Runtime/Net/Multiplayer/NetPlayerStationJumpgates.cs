@@ -260,6 +260,12 @@ namespace GoF2Remake.Multiplayer
             !string.IsNullOrEmpty(reference) && Modding.ModWorld.TryResolveSystem(reference, out int system)
                 ? Modding.ModWorld.GateModelOf(system) : null;
 
+        internal static string JumpgatePlacementAssembly(int preset)
+        {
+            if (!TrySelectJumpgateModel(preset, out string reference)) return null;
+            return reference != null ? ResolveJumpgateModel(reference)?.Assembly : GoF2Remake.World.OrbitLayout.JumpgatePresetAssembly(preset);
+        }
+
         static bool TrySelectJumpgateModel(int preset, out string reference)
         {
             reference = null;
@@ -635,10 +641,11 @@ namespace GoF2Remake.Multiplayer
         static List<PlayerStationMaterial> RequiredJumpgateMaterials() => ConstructionCost("jumpgate");
 
         /// <summary>Build at any orbital anchor in the sponsor station's system, not only at the sponsor station itself.</summary>
-        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int modelPreset = 0)
+        internal static string StartJumpgate(NetPlayer by, int sponsorStationId, int orbitStationIndex, int destinationSystem, int modelPreset = 0, Vector3Int? rotation = null)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built jumpgates need a persistent host or dedicated server.";
+            if (!ValidPlacementRotation(rotation)) return "Rotation angles must be between -360 and 360 degrees.";
             var rules = Modding.ModPlayerInfrastructure.Current;
             if (!rules.Enabled || !rules.JumpgatesEnabled) return "New player jumpgate projects are disabled by the active mods.";
             var sponsor = Find(sponsorStationId);
@@ -693,6 +700,7 @@ namespace GoF2Remake.Multiplayer
                 building = true,
                 buildSeconds = buildSeconds,
                 modelPreset = modelPreset,
+                hasRotation = rotation.HasValue, pitch = rotation?.x ?? 0, yaw = rotation?.y ?? 0, roll = rotation?.z ?? 0,
                 modelReference = modelReference,
                 materials = RequiredJumpgateMaterials(),
                 contributions = new List<PlayerStationContribution>()

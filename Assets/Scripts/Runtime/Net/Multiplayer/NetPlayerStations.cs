@@ -56,6 +56,8 @@ namespace GoF2Remake.Multiplayer
         public int sponsorStationId = -1;
         // Zero preserves the original orbit model on older saves.
         public int modelPreset;
+        public bool hasRotation;
+        public int pitch, yaw, roll;
         public string modelReference;
         public bool scrapIntegrityInitialized;
         public int system;
@@ -139,6 +141,8 @@ namespace GoF2Remake.Multiplayer
         public int system;
         /// <summary>Existing station index whose look is used for this station's model and collision preset.</summary>
         public int looksLike = -1;
+        public bool hasRotation;
+        public int pitch, yaw, roll;
         public string stationModelReference;
         public long createdUtc;
         /// <summary>True until all construction materials have been deposited.</summary>
@@ -1081,10 +1085,11 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Reserve a vacant orbital site and start its long-running, server-owned material project.</summary>
-        internal static string StartConstruction(NetPlayer by, int systemIndex, string name, int modelPreset = -1, int requestedOrbit = -1)
+        internal static string StartConstruction(NetPlayer by, int systemIndex, string name, int modelPreset = -1, int requestedOrbit = -1, Vector3Int? rotation = null)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null)
                 return "Player-built stations need a persistent host or dedicated server.";
+            if (!ValidPlacementRotation(rotation)) return "Rotation angles must be between -360 and 360 degrees.";
             if (by == null || !by.IsSpawned)
                 return "You must be connected in the game to plan station construction.";
             if (!NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
@@ -1140,6 +1145,7 @@ namespace GoF2Remake.Multiplayer
                 factionPermissions = NewIndividualFactionPermissionProfile(false),
                 system = system.index,
                 looksLike = look,
+                hasRotation = rotation.HasValue, pitch = rotation?.x ?? 0, yaw = rotation?.y ?? 0, roll = rotation?.z ?? 0,
                 stationModelReference = StationModelReference(look),
                 createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 underConstruction = true,
@@ -1163,6 +1169,20 @@ namespace GoF2Remake.Multiplayer
             Apply(db);
             NetGuard.RefreshStations();
             return $"Construction project {record.id} started for {name} in {system.name}. Deliver cargo within 5 km of the construction site or deposit materials from any operational station.";
+        }
+
+        internal static bool ValidPlacementRotation(Vector3Int? rotation) => !rotation.HasValue ||
+            Math.Abs((long)rotation.Value.x) <= 360 && Math.Abs((long)rotation.Value.y) <= 360 && Math.Abs((long)rotation.Value.z) <= 360;
+
+        internal static Quaternion? StationRotation(int orbit)
+        {
+            var station = StationAt(orbit);
+            return station?.hasRotation == true ? (Quaternion?)Quaternion.Euler(station.pitch, station.yaw, station.roll) : null;
+        }
+        internal static Quaternion? JumpgateRotation(int orbit)
+        {
+            var gate = FindJumpgate(orbit);
+            return gate?.hasRotation == true ? (Quaternion?)Quaternion.Euler(gate.pitch, gate.yaw, gate.roll) : null;
         }
 
         static List<PlayerStationMaterial> RequiredMaterials() => ConstructionCost("station");

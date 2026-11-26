@@ -134,6 +134,8 @@ namespace GoF2Remake.Multiplayer
         static void InstallSpace()
         {
             SpaceHooks.PlayerStationPosition = NetPlayerStations.StationPosition;
+            SpaceHooks.PlayerStationRotation = NetPlayerStations.StationRotation;
+            SpaceHooks.PlayerJumpgateRotation = NetPlayerStations.JumpgateRotation;
             SpaceHooks.PlayerJumpgateOffline = NetPlayerStations.JumpgateOffline;
             SpaceHooks.CanUsePlayerJumpgate = orbit => NetPlayerStations.CanUseJumpgate(NetPlayer.Local, orbit);
             SpaceHooks.PlayerJumpgateRefusalMessage = () => NetPlayer.Local?.LastPlayerGateRefusal;

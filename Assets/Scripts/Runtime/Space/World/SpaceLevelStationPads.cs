@@ -34,6 +34,8 @@ namespace GoF2Remake.World
             if (port == null) return;
             port.LocalOnly = true;
             port.Target.untargetable = true;
+            if (SpaceHooks.PlayerStationRotation?.Invoke(station) is Quaternion turn)
+                port.transform.SetPositionAndRotation(SpaceHooks.StationPosition(station), turn);
         }
     }
 }

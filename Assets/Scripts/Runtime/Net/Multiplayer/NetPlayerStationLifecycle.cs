@@ -96,6 +96,7 @@ namespace GoF2Remake.Multiplayer
             looksLike = station.looksLike,
             stationModelReference = station.stationModelReference,
             stationOffsetX = station.stationOffsetX,
+            hasRotation = station.hasRotation, pitch = station.pitch, yaw = station.yaw, roll = station.roll,
             name = station.name,
             createdUtc = station.createdUtc,
             nextShipListingId = station.nextShipListingId,

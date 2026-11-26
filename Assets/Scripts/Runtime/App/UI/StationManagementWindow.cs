@@ -237,6 +237,12 @@ namespace GoF2Remake.UI
             }
             if (!marketplaceOnly && managementPage == "build" && Time.unscaledTime >= nextPlannerQuery && Modding.ModPlayerInfrastructure.Current.Enabled) RefreshPlannerLocations();
             if (feedbackTime > 0 && (feedbackTime -= Time.unscaledDeltaTime) <= 0) feedback.text = "";
+            if (placementRoot != null && managementPage != "placement")
+            {
+                if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();
+                if (actionRefreshPending && !placementDragging) { actionRefreshPending=false; RebuildStationList(); RebuildBody(); }
+                return;
+            }
             if (placementRoot != null)
             {
                 if (Time.unscaledTime >= nextManagementQuery) RefreshManagementCatalogue();

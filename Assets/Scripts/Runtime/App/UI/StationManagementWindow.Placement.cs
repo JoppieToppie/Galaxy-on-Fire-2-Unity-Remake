@@ -15,11 +15,25 @@ namespace GoF2Remake.UI
         readonly List<Material> placementMaterials = new List<Material>();
         Material PlacementMaterial(Color color)
         {
-            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
             if (shader == null) return null;
-            var material = new Material(shader) { color = color };
+            var material = new Material(shader);
+            PlacementTint(material,color);
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface",1f);
+            if (material.HasProperty("_SrcBlend")) material.SetFloat("_SrcBlend",(float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend")) material.SetFloat("_DstBlend",(float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite",0f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
             placementMaterials.Add(material);
             return material;
+        }
+
+        static void PlacementTint(Material material, Color tint)
+        {
+            if (material == null) return;
+            material.color = tint;
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor",tint);
         }
 
         // Separating-axis test of each mesh's oriented local bounding box, including the swept
@@ -27,6 +41,12 @@ namespace GoF2Remake.UI
         static bool PlacementBoxesOverlap(MeshFilter a, MeshFilter b, Vector3 sweep)
         {
             if (a == null || b == null || a.sharedMesh == null || b.sharedMesh == null) return false;
+            var ar = a.GetComponent<Renderer>(); var br = b.GetComponent<Renderer>();
+            if (ar != null && br != null)
+            {
+                var broad = ar.bounds; var end = broad; end.center += sweep; broad.Encapsulate(end);
+                if (!broad.Intersects(br.bounds)) return false;
+            }
             var ab = a.sharedMesh.bounds; var bb = b.sharedMesh.bounds;
             var ac = a.transform.TransformPoint(ab.center); var bc = b.transform.TransformPoint(bb.center);
             Vector3[] aa = { a.transform.TransformVector(Vector3.right * ab.extents.x), a.transform.TransformVector(Vector3.up * ab.extents.y), a.transform.TransformVector(Vector3.forward * ab.extents.z) };
@@ -50,6 +70,70 @@ namespace GoF2Remake.UI
                 for (int j = 0; j < 3; j++) if (!Axis(Vector3.Cross(aa[i].normalized, ba[j].normalized))) return false;
             }
             return true;
+        }
+
+        string ConstructionRotationArgs(string key)
+        {
+            placementRotationDrafts.TryGetValue(key,out var angles);
+            return $"{angles.x} {angles.y} {angles.z}";
+        }
+
+        // The construction forms reuse the same isolated render stage as the orbit editor.
+        void AddConstructionRotationPreview(string key, string assembly)
+        {
+            if (string.IsNullOrEmpty(assembly) || NetGame.Db == null) return;
+            AddSection("ORIENTATION", "Rotate the selected model before reserving construction. Drag to orbit the camera.");
+            placementRotationDrafts.TryGetValue(key,out var angles);
+            var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.Wrap; body.Add(row);
+            var pitch = new IntegerField("Pitch (X)"); var yaw = new IntegerField("Yaw (Y)"); var roll = new IntegerField("Roll (Z)");
+            foreach (var field in new[] { pitch,yaw,roll }) { field.isDelayed = true; field.AddToClassList("player-station-field"); row.Add(field); }
+            var viewport = new VisualElement(); viewport.AddToClassList("player-station-orbit-viewport"); viewport.style.height = 280; viewport.style.flexShrink = 0; body.Add(viewport);
+            placementRoot = new GameObject("Construction orientation preview"); placementRoot.transform.position = new Vector3(0,-1000000f,0);
+            var model = OrbitBuilder.Spawn(NetGame.Db, assembly, Vector3.zero,Quaternion.identity,"Proposed construction",placementRoot.transform);
+            if (model == null) { DestroyPlacementPreview(); body.Add(new Label("3D model unavailable; angles are still editable.")); viewport.style.display = DisplayStyle.None; }
+            float cameraYaw = 34f, cameraPitch = 29f, distance = 1000f; Camera camera = null; Vector3 centre = Vector3.zero;
+            if (model != null)
+            {
+                model.transform.localPosition = Vector3.zero;
+                foreach(var part in model.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = 31;
+                foreach(var collider in model.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                var bounds = new Bounds(model.transform.position,Vector3.zero);
+                foreach(var renderer in model.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(renderer.bounds);
+                centre = model.transform.position; distance = Mathf.Max(30f,bounds.extents.magnitude*2.7f);
+                var cameraObject = new GameObject("Construction camera"); cameraObject.transform.SetParent(placementRoot.transform,false);
+                camera = cameraObject.AddComponent<Camera>(); camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.025f,.045f,.07f); camera.cullingMask = 1<<31; camera.nearClipPlane = .1f; camera.farClipPlane = Mathf.Max(240000f,distance*10f);
+                placementTexture = new RenderTexture(768,384,24); placementTexture.Create(); camera.targetTexture = placementTexture; viewport.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(placementTexture));
+                var lightObject = new GameObject("Construction light"); lightObject.transform.SetParent(placementRoot.transform,false); lightObject.transform.rotation = Quaternion.Euler(35,-45,0);
+                var light = lightObject.AddComponent<Light>(); light.type = LightType.Directional; light.cullingMask = 1<<31; light.intensity = 1.4f;
+            }
+            void CameraPose() { if (camera != null) { camera.transform.position = centre + Quaternion.Euler(cameraPitch,cameraYaw,0)*new Vector3(0,0,-distance); camera.transform.LookAt(centre); } }
+            void Apply()
+            {
+                placementRotationDrafts[key] = angles;
+                pitch.SetValueWithoutNotify(angles.x); yaw.SetValueWithoutNotify(angles.y); roll.SetValueWithoutNotify(angles.z);
+                if(model != null) model.transform.rotation = Quaternion.Euler(angles);
+            }
+            void Read() { angles = new Vector3Int(Mathf.Clamp(pitch.value,-360,360),Mathf.Clamp(yaw.value,-360,360),Mathf.Clamp(roll.value,-360,360)); Apply(); }
+            pitch.RegisterValueChangedCallback(_=>Read()); yaw.RegisterValueChangedCallback(_=>Read()); roll.RegisterValueChangedCallback(_=>Read());
+            var axis = new PopupField<string>("Rotation axis",new List<string>{"Pitch (X)","Yaw (Y)","Roll (Z)"},1); body.Add(axis);
+            var local = new Toggle("Local axes") {value=true}; body.Add(local);
+            var snap = new PopupField<string>("Rotation step",new List<string>{"1","15","45","90"},1); body.Add(snap);
+            void Rotate(float amount)
+            {
+                var a = axis.index == 0 ? Vector3.right : axis.index == 1 ? Vector3.up : Vector3.forward;
+                var q = Quaternion.Euler(angles); var d = Quaternion.AngleAxis(amount,a);
+                angles = Vector3Int.RoundToInt((local.value ? q*d : d*q).eulerAngles); Apply();
+            }
+            AddAction("Rotate −",()=>Rotate(-int.Parse(snap.value))); AddAction("Rotate +",()=>Rotate(int.Parse(snap.value)));
+            AddAction("Reset rotation",()=>{angles=Vector3Int.zero;Apply();});
+            var dragRotate = new Toggle("Drag to rotate model instead of camera"); body.Add(dragRotate);
+            float drag=0f;
+            viewport.RegisterCallback<PointerDownEvent>(evt=>{if(evt.button!=0)return; placementDragging=true; drag=0f; viewport.CapturePointer(evt.pointerId);evt.StopPropagation();});
+            viewport.RegisterCallback<PointerMoveEvent>(evt=>{if(!placementDragging)return; if(dragRotate.value){drag+=evt.deltaPosition.x*.6f;float step=evt.ctrlKey?int.Parse(snap.value):1f;float turn=Mathf.Round(drag/step)*step;if(Mathf.Abs(turn)>=step){Rotate(turn);drag-=turn;}}else{cameraYaw+=evt.deltaPosition.x*.4f;cameraPitch=Mathf.Clamp(cameraPitch-evt.deltaPosition.y*.4f,-80f,80f);CameraPose();}});
+            viewport.RegisterCallback<PointerUpEvent>(evt=>{placementDragging=false;if(viewport.HasPointerCapture(evt.pointerId))viewport.ReleasePointer(evt.pointerId);});
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_=>placementDragging=false);
+            viewport.RegisterCallback<WheelEvent>(evt=>{distance=Mathf.Clamp(distance*Mathf.Pow(1.12f,evt.delta.y),10f,170000f);CameraPose();evt.StopPropagation();});
+            Apply(); CameraPose();
         }
 
         void DestroyPlacementPreview()
@@ -281,8 +365,8 @@ namespace GoF2Remake.UI
             LineRenderer PreviewLine(string name, Color color, int count, bool loop = false)
             {
                 var go = new GameObject(name); go.transform.SetParent(placementRoot.transform, false); go.layer = previewLayer;
-                var line = go.AddComponent<LineRenderer>(); line.sharedMaterial = PlacementMaterial(Color.white);
-                line.startColor = line.endColor = color; line.useWorldSpace = true; line.positionCount = count; line.loop = loop;
+                var line = go.AddComponent<LineRenderer>(); line.sharedMaterial = PlacementMaterial(color);
+                line.startColor = line.endColor = Color.white; line.useWorldSpace = true; line.positionCount = count; line.loop = loop;
                 line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; line.receiveShadows = false;
                 return line;
             }
@@ -373,10 +457,10 @@ namespace GoF2Remake.UI
                         }
                         if (overlap) break;
                     }
-                    if (shipMaterial != null) shipMaterial.color = overlap || blockedDeparture ? new Color(1f,.2f,.2f,.5f) : new Color(.2f,.9f,.8f,.42f);
+                    PlacementTint(shipMaterial, overlap || blockedDeparture ? new Color(1f,.2f,.2f,.5f) : new Color(.2f,.9f,.8f,.42f));
                     departure.enabled = true;
                     departure.widthMultiplier = Mathf.Max(4f, Vector3.Distance(camera.transform.position,dockShip.transform.position)*.004f);
-                    departure.startColor = departure.endColor = overlap || blockedDeparture ? Color.red : Color.cyan;
+                    PlacementTint(departure.sharedMaterial, overlap || blockedDeparture ? Color.red : Color.cyan);
                     var start = dockShip.transform.position; var end = start + path;
                     var back = shipRotation * Vector3.forward * 45f; var side = shipRotation * Vector3.right * 30f;
                     departure.SetPositions(new[] { start, end, end-back+side, end, end-back-side });

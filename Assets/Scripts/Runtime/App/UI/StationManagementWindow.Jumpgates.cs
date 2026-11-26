@@ -55,6 +55,7 @@ namespace GoF2Remake.UI
                 AddChoice("jumpgateDestination", "Destination system", destinations);
                 if (destinations.Count > 0) AddAction("Choose destination on starmap", () => OpenGateMap("jumpgateDestination", sys => sys != selected.system && db.Systems.Any(entry => entry != null && entry.index == sys && entry.stations?.Count > 0), orbit => true, true));
                 AddChoice("jumpgateModel", "Jumpgate model", GateModelChoices());
+                if(int.TryParse(Value("jumpgateModel"),out int gatePreviewModel)) AddConstructionRotationPreview("newGateRotation",NetPlayerStations.JumpgatePlacementAssembly(gatePreviewModel));
                 AddInfo("Build time after funding", ConstructionTime(Modding.ModPlayerInfrastructure.Current.JumpgateBuildSeconds));
                 if (orbits.Count > 0 && destinations.Count > 0 && !string.IsNullOrEmpty(Value("jumpgateModel")))
                 AddAction("Start jumpgate construction", () =>
@@ -68,7 +69,7 @@ namespace GoF2Remake.UI
                         feedbackTime = 4f;
                         return;
                     }
-                    Send("/station jumpgate " + id + " " + orbit + " " + destination + " " + model);
+                    Send("/station jumpgate " + id + " " + orbit + " " + destination + " " + model + " " + ConstructionRotationArgs("newGateRotation"));
                 });
             }
 

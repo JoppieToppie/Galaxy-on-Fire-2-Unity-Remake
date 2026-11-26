@@ -114,6 +114,7 @@ namespace GoF2Remake.World
         /// (NetPlayer.InterceptMirrorShot), so the shot's later hit counts for nothing.</summary>
         public static Action<ulong, uint> InterceptMirrorShot;
         public static Func<int, Vector3> PlayerStationPosition;
+        public static Func<int, Quaternion?> PlayerStationRotation, PlayerJumpgateRotation;
         public static Func<int, bool> PlayerJumpgateOffline, CanUsePlayerJumpgate;
         public static Func<string> PlayerJumpgateRefusalMessage;
         public static Func<int, Action<int>, bool> RequestPlayerJumpgateTravel;

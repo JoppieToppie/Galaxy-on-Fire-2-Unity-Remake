@@ -211,6 +211,7 @@ namespace GoF2Remake.UI
 
         void OpenModelPicker(string key, List<(string value, string label, string race)> models)
         {
+            DestroyPlacementPreview();
             modelPickerKey = key;
             pageBar.style.display = DisplayStyle.None; primaryNav.style.display = DisplayStyle.None; stationList.style.display = DisplayStyle.None;
             modelPickerReturnScroll = body.scrollOffset;

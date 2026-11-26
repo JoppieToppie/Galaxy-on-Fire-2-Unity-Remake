@@ -112,8 +112,9 @@ namespace GoF2Remake.Multiplayer
             return null;
         }
 
-        internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId, Vector3Int? placement = null, int? plannedSlot = null)
+        internal static string StartOrbitalStructure(NetPlayer pilot, int sponsorId, int orbit, string presetId, Vector3Int? placement = null, int? plannedSlot = null, Vector3Int? rotation = null)
         {
+            if (!ValidPlacementRotation(rotation)) return "Rotation angles must be between -360 and 360 degrees.";
             var settings = ModPlayerInfrastructure.Current;
             if (!settings.Enabled) return "New infrastructure projects are disabled.";
             var sponsor = Find(sponsorId);
@@ -173,6 +174,10 @@ namespace GoF2Remake.Multiplayer
                 structure.placementX = placed.x;
                 structure.placementY = placed.y;
                 structure.placementZ = placed.z;
+            }
+            if (rotation.HasValue)
+            {
+                structure.hasRotation = true; structure.pitch = rotation.Value.x; structure.yaw = rotation.Value.y; structure.roll = rotation.Value.z;
             }
             if (savedPlan?.hasRotation == true)
             {

@@ -154,6 +154,11 @@ namespace GoF2Remake.UI
             }
             AddInfo("Eligible build systems", $"{systems.Count}. Revealed systems with a vacant orbit. You can reserve a site before travelling there.");
             AddStationModelPicker("newStationModel");
+            if (int.TryParse(Value("newStationModel"),out int previewModel))
+            {
+                var source = db.Stations.Find(s=>s!=null && s.index==previewModel);
+                if(source!=null) AddConstructionRotationPreview("newStationRotation",OrbitBuilder.StationPresetAssembly(db,source));
+            }
             AddField("newStationName", "Station name", "");
             if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))
                 AddAction("Start station project", () =>
@@ -163,7 +168,7 @@ namespace GoF2Remake.UI
                     if (!int.TryParse(Value("buildOrbit"), out int orbit) || !Available(orbit) ||
                         db.Stations.Find(station => station != null && station.index == orbit)?.system != systemId)
                     { feedback.text = "Select a vacant orbit first."; feedbackTime = 8f; return; }
-                    SendStationName("start-orbit " + systemId + " " + orbit + " " + Value("newStationModel"), Value("newStationName"));
+                    SendStationName("start-orbit-rotated " + systemId + " " + orbit + " " + Value("newStationModel") + " " + ConstructionRotationArgs("newStationRotation"), Value("newStationName"));
                 });
         }
 

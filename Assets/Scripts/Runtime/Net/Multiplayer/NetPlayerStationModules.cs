@@ -517,7 +517,7 @@ namespace GoF2Remake.Multiplayer
         {
             var direction = offset.sqrMagnitude > 0f ? offset.normalized : Vector3.forward;
             Quaternion turn = rotation ?? Quaternion.LookRotation(direction);
-            return (offset + direction * radius, turn);
+            return (offset + (rotation.HasValue ? turn * Vector3.forward : direction) * radius, turn);
         }
 
         internal static IEnumerable<Vector3> PlacedDockArms(int orbit) => PlacedDockArmPoses(orbit).Select(p => p.position);

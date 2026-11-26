@@ -461,12 +461,18 @@ namespace GoF2Remake.Multiplayer
             if (args.StartsWith(jumpgate, StringComparison.OrdinalIgnoreCase))
             {
                 string[] words = args.Substring(jumpgate.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if ((words.Length < 3 || words.Length > 4) || !int.TryParse(words[0], out int sponsorStationId) ||
+                if ((words.Length != 3 && words.Length != 4 && words.Length != 7) || !int.TryParse(words[0], out int sponsorStationId) ||
                     !int.TryParse(words[1], out int buildOrbit) || !int.TryParse(words[2], out int destinationSystem) ||
-                    (words.Length == 4 && (!int.TryParse(words[3], out int gateModel) || gateModel < 1)))
+                    (words.Length >= 4 && (!int.TryParse(words[3], out int gateModel) || gateModel < 1)))
                     return "/station jumpgate <sponsor id> <orbit id> <destination id> [model id]";
-                int model = words.Length == 4 ? int.Parse(words[3]) : 0;
-                return NetPlayerStations.StartJumpgate(by as NetPlayer, sponsorStationId, buildOrbit, destinationSystem, model);
+                int model = words.Length >= 4 ? int.Parse(words[3]) : 0;
+                UnityEngine.Vector3Int? rotation = null;
+                if (words.Length == 7)
+                {
+                    if (!int.TryParse(words[4], out int pitch) || !int.TryParse(words[5], out int yaw) || !int.TryParse(words[6], out int roll)) return "Invalid rotation.";
+                    rotation = new UnityEngine.Vector3Int(pitch, yaw, roll);
+                }
+                return NetPlayerStations.StartJumpgate(by as NetPlayer, sponsorStationId, buildOrbit, destinationSystem, model, rotation);
             }
             if (args.Equals("jumpgate-models", StringComparison.OrdinalIgnoreCase))
             {
@@ -491,9 +497,14 @@ namespace GoF2Remake.Multiplayer
                     }
                     return NetPlayerStations.PlanModulePlacement(by as NetPlayer, sponsor, words[2], x, y, z, words[6], rotation);
                 }
-                if (words.Length != 7) return "Use /station place for a rotated saved placement.";
                 if (!int.TryParse(words[2], out int orbit)) return "Choose a valid orbit.";
-                return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, sponsor, orbit, words[6], new UnityEngine.Vector3Int(x, y, z));
+                UnityEngine.Vector3Int? orbitalRotation = null;
+                if (words.Length == 10)
+                {
+                    if (!int.TryParse(words[7], out int op) || !int.TryParse(words[8], out int oy) || !int.TryParse(words[9], out int oroll)) return "Invalid rotation.";
+                    orbitalRotation = new UnityEngine.Vector3Int(op,oy,oroll);
+                }
+                return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, sponsor, orbit, words[6], new UnityEngine.Vector3Int(x, y, z), rotation: orbitalRotation);
             }
             if (args.StartsWith("defense-build ", StringComparison.OrdinalIgnoreCase))
             {
@@ -758,6 +769,16 @@ namespace GoF2Remake.Multiplayer
                 if (!int.TryParse(args.Substring(status.Length).Trim(), out int project))
                     return "/station status <project id>";
                 return NetPlayerStations.Status(by as NetPlayer, project);
+            }
+            const string rotatedStart = "start-orbit-rotated ";
+            if (args.StartsWith(rotatedStart, StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = args.Substring(rotatedStart.Length).Trim().Split(new[] { ' ' }, 7, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 7 || !int.TryParse(parts[0], out int systemId) || !int.TryParse(parts[1], out int orbitId) ||
+                    !int.TryParse(parts[2], out int modelId) || !int.TryParse(parts[3], out int pitch) || !int.TryParse(parts[4], out int yaw) ||
+                    !int.TryParse(parts[5], out int roll) || orbitId < 0 || modelId < 0)
+                    return "/station start-orbit-rotated <system> <orbit> <model> <pitch> <yaw> <roll> <name>";
+                return NetPlayerStations.StartConstruction(by as NetPlayer, systemId, parts[6], modelId, orbitId, new UnityEngine.Vector3Int(pitch,yaw,roll));
             }
             const string startOrbit = "start-orbit ";
             if (args.StartsWith(startOrbit, StringComparison.OrdinalIgnoreCase))
