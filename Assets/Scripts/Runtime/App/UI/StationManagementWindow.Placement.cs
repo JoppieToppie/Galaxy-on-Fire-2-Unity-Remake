@@ -12,6 +12,46 @@ namespace GoF2Remake.UI
 {
     public sealed partial class StationManagementWindow
     {
+        readonly List<Material> placementMaterials = new List<Material>();
+        Material PlacementMaterial(Color color)
+        {
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
+            if (shader == null) return null;
+            var material = new Material(shader) { color = color };
+            placementMaterials.Add(material);
+            return material;
+        }
+
+        // Separating-axis test of each mesh's oriented local bounding box, including the swept
+        // departure interval. This is deliberately conservative, not triangle-level physics.
+        static bool PlacementBoxesOverlap(MeshFilter a, MeshFilter b, Vector3 sweep)
+        {
+            if (a == null || b == null || a.sharedMesh == null || b.sharedMesh == null) return false;
+            var ab = a.sharedMesh.bounds; var bb = b.sharedMesh.bounds;
+            var ac = a.transform.TransformPoint(ab.center); var bc = b.transform.TransformPoint(bb.center);
+            Vector3[] aa = { a.transform.TransformVector(Vector3.right * ab.extents.x), a.transform.TransformVector(Vector3.up * ab.extents.y), a.transform.TransformVector(Vector3.forward * ab.extents.z) };
+            Vector3[] ba = { b.transform.TransformVector(Vector3.right * bb.extents.x), b.transform.TransformVector(Vector3.up * bb.extents.y), b.transform.TransformVector(Vector3.forward * bb.extents.z) };
+            float enter = 0f, exit = 1f;
+            bool Axis(Vector3 n)
+            {
+                if (n.sqrMagnitude < 1e-10f) return true;
+                n.Normalize();
+                float r = 0f;
+                for (int i = 0; i < 3; i++) r += Mathf.Abs(Vector3.Dot(aa[i], n)) + Mathf.Abs(Vector3.Dot(ba[i], n));
+                float d = Vector3.Dot(bc - ac, n), v = Vector3.Dot(sweep, n);
+                if (Mathf.Abs(v) < 1e-5f) return Mathf.Abs(d) <= r;
+                float t0 = (d-r)/v, t1 = (d+r)/v;
+                enter = Mathf.Max(enter, Mathf.Min(t0,t1)); exit = Mathf.Min(exit, Mathf.Max(t0,t1));
+                return enter <= exit;
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                if (!Axis(Vector3.Cross(aa[(i+1)%3].normalized,aa[(i+2)%3].normalized)) || !Axis(Vector3.Cross(ba[(i+1)%3].normalized,ba[(i+2)%3].normalized))) return false;
+                for (int j = 0; j < 3; j++) if (!Axis(Vector3.Cross(aa[i].normalized, ba[j].normalized))) return false;
+            }
+            return true;
+        }
+
         void DestroyPlacementPreview()
         {
             if (placementRoot != null)
@@ -20,6 +60,8 @@ namespace GoF2Remake.UI
                 UnityEngine.Object.Destroy(placementRoot);
             }
             placementRoot = null;
+            foreach (var material in placementMaterials) if (material != null) UnityEngine.Object.Destroy(material);
+            placementMaterials.Clear();
             placementDragging = false;
             if (placementTexture != null)
             {
@@ -126,7 +168,7 @@ namespace GoF2Remake.UI
             var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
             AddSection("ORBIT PLACEMENT", orbital
                 ? "Save each numbered defense position before ordering construction. Amber markers show saved positions and existing projects. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
-                : "Drag the marker or its arrows to move; enable rotation mode to turn the selected axis. Drag empty space to orbit the camera, scroll to zoom, and hold Ctrl to snap.");
+                : "Drag the marker or its arrows to move; enable rotation rings and drag a colored ring. Drag empty space to orbit the camera, scroll to zoom, and hold Ctrl to snap.");
             var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
             var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
             var controls = new VisualElement(); controls.AddToClassList("player-station-orbit-controls"); editor.Add(controls);
@@ -226,7 +268,7 @@ namespace GoF2Remake.UI
                 placementPitch = 29;
             }
             // Rotation controls operate on the same transform that will be saved by the server.
-            var rotateMode = new Toggle("Drag marker to rotate"); controls.Add(rotateMode);
+            var rotateMode = new Toggle("Show rotation rings"); controls.Add(rotateMode);
             var localAxes = new Toggle("Local axes") { value = true }; controls.Add(localAxes);
             var axes = new List<string> { "Pitch (X)", "Yaw (Y)", "Roll (Z)" };
             var axisChoice = new PopupField<string>("Rotation axis", axes, 1); controls.Add(axisChoice);
@@ -234,13 +276,61 @@ namespace GoF2Remake.UI
             var stepChoice = new PopupField<string>("Rotation step (degrees)", steps, 1); controls.Add(stepChoice);
             var pitchField = new IntegerField("Pitch (X)"); var yawField = new IntegerField("Yaw (Y)"); var rollField = new IntegerField("Roll (Z)");
             foreach (var field in new[] { pitchField, yawField, rollField }) { field.isDelayed = true; field.AddToClassList("player-station-field"); controls.Add(field); }
+            var ringColors = new[] { new Color(1f,.25f,.25f), new Color(.25f,1f,.4f), new Color(.25f,.6f,1f) };
+            var rings = new LineRenderer[3];
+            LineRenderer PreviewLine(string name, Color color, int count, bool loop = false)
+            {
+                var go = new GameObject(name); go.transform.SetParent(placementRoot.transform, false); go.layer = previewLayer;
+                var line = go.AddComponent<LineRenderer>(); line.sharedMaterial = PlacementMaterial(Color.white);
+                line.startColor = line.endColor = color; line.useWorldSpace = true; line.positionCount = count; line.loop = loop;
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; line.receiveShadows = false;
+                return line;
+            }
+            for (int i = 0; i < 3; i++) rings[i] = PreviewLine("Rotation ring " + i, ringColors[i], 64, true);
+            var departure = PreviewLine("Undocking path", new Color(.3f,.95f,1f), 5);
+            departure.enabled = false;
+            var shipMaterial = PlacementMaterial(new Color(.2f,.9f,.8f,.42f));
+            var stationMeshes = model != null ? model.GetComponentsInChildren<MeshFilter>() : Array.Empty<MeshFilter>();
+            // Include already constructed structures in clearance checks, not merely the station hull.
+            var obstacles = new List<MeshFilter>(stationMeshes);
+            if (SpaceHooks.PlayerOrbitalModels != null)
+                foreach (var item in SpaceHooks.PlayerOrbitalModels(db, previewOrbit))
+                {
+                    if (item.assembly == null || (item.id < 0 && -1-item.id == Array.IndexOf(NetPlayerStations.PlacementKinds, kind))) continue;
+                    var other = OrbitBuilder.Spawn(db, item.assembly, Vector3.zero, Quaternion.identity, item.name, frame);
+                    if (other == null) continue;
+                    other.transform.SetPositionAndRotation(frame.TransformPoint(item.position-stationPosition), SpaceHooks.PlayerPlacedModelRotation?.Invoke(previewOrbit,item.id) ?? Quaternion.identity);
+                    other.transform.localScale *= item.scale; SetLayer(other.transform);
+                    foreach (var collider in other.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                    obstacles.AddRange(other.GetComponentsInChildren<MeshFilter>());
+                }
             GameObject dockShip = null;
+            MeshFilter[] shipMeshes = Array.Empty<MeshFilter>();
             WeaponMount previewMount = null;
             var previewStatus = new Label(); previewStatus.style.whiteSpace = WhiteSpace.Normal;
+            Vector3 AxisOf(int i) => i == 0 ? Vector3.right : i == 1 ? Vector3.up : Vector3.forward;
+            void UpdateRings()
+            {
+                Vector3 centre = frame.TransformPoint(position);
+                float radius = Mathf.Max(50f, Vector3.Distance(camera.transform.position, centre) * .13f);
+                for (int i = 0; i < 3; i++)
+                {
+                    var ring = rings[i]; ring.enabled = rotateMode.value;
+                    ring.widthMultiplier = radius * .035f;
+                    Quaternion turn = (localAxes.value ? Rotation() : Quaternion.identity) * Quaternion.FromToRotation(Vector3.forward, AxisOf(i));
+                    for (int k = 0; k < ring.positionCount; k++)
+                    {
+                        float a = k * Mathf.PI * 2f / ring.positionCount;
+                        ring.SetPosition(k, centre + turn * new Vector3(Mathf.Cos(a),Mathf.Sin(a),0) * radius * (1f + i*.06f));
+                    }
+                }
+            }
+            rotateMode.RegisterValueChangedCallback(_ => UpdateRings()); localAxes.RegisterValueChangedCallback(_ => UpdateRings());
             void SetCamera()
             {
                 camera.transform.position = frame.position + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
                 camera.transform.LookAt(frame.position);
+                UpdateRings();
             }
             void CameraPreset(string title, float pitch, float yaw)
             {
@@ -266,14 +356,31 @@ namespace GoF2Remake.UI
                 placementRotationDrafts[draftKey] = angles;
                 pitchField.SetValueWithoutNotify(angles.x); yawField.SetValueWithoutNotify(angles.y); rollField.SetValueWithoutNotify(angles.z);
                 if (ghost != null) ghost.transform.SetPositionAndRotation(frame.TransformPoint(position), Rotation());
+                UpdateRings();
                 if (dockShip != null && previewMount != null)
                 {
                     var pose = NetPlayerStations.DockArmPose(position, preset.HitRadius, Rotation());
                     var shipRotation = Es2Dock.ExternalDockRotation(pose.rotation, previewMount);
                     dockShip.transform.SetPositionAndRotation(Es2Dock.ExternalDockPosition(frame.TransformPoint(pose.position), shipRotation, previewMount), shipRotation);
-                    bool overlap = model != null && dockShip.GetComponentsInChildren<Renderer>().Any(shipPart =>
-                        model.GetComponentsInChildren<Renderer>().Any(stationPart => shipPart.bounds.Intersects(stationPart.bounds)));
-                    previewStatus.text = overlap ? "Warning: preview hull bounds overlap the station. Check clearance." : "Docked pose preview · hull bounds clear of station.";
+                    var path = Es2Dock.ExternalDepartureOffset(shipRotation);
+                    bool overlap = false, blockedDeparture = false;
+                    foreach (var shipPart in shipMeshes)
+                    {
+                        foreach (var obstacle in obstacles)
+                        {
+                            if (PlacementBoxesOverlap(shipPart, obstacle, Vector3.zero)) { overlap = true; break; }
+                            if (!blockedDeparture && PlacementBoxesOverlap(shipPart, obstacle, path)) blockedDeparture = true;
+                        }
+                        if (overlap) break;
+                    }
+                    if (shipMaterial != null) shipMaterial.color = overlap || blockedDeparture ? new Color(1f,.2f,.2f,.5f) : new Color(.2f,.9f,.8f,.42f);
+                    departure.enabled = true;
+                    departure.widthMultiplier = Mathf.Max(4f, Vector3.Distance(camera.transform.position,dockShip.transform.position)*.004f);
+                    departure.startColor = departure.endColor = overlap || blockedDeparture ? Color.red : Color.cyan;
+                    var start = dockShip.transform.position; var end = start + path;
+                    var back = shipRotation * Vector3.forward * 45f; var side = shipRotation * Vector3.right * 30f;
+                    departure.SetPositions(new[] { start, end, end-back+side, end, end-back-side });
+                    previewStatus.text = overlap ? "Warning: docked hull overlaps structure bounds." : blockedDeparture ? "Warning: undocking path intersects structure bounds." : "Docked pose and undocking path clear of checked mesh bounds.";
                 }
                 coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
                 if (!orbital) { placementStatus.text = "Save the planned position and rotation before construction."; return; }
@@ -305,7 +412,7 @@ namespace GoF2Remake.UI
                     void PreviewShip()
                     {
                         if (dockShip != null) { dockShip.SetActive(false); UnityEngine.Object.Destroy(dockShip); }
-                        dockShip = null; previewMount = null; mountRow.Clear();
+                        dockShip = null; previewMount = null; shipMeshes = Array.Empty<MeshFilter>(); departure.enabled = false; mountRow.Clear();
                         var ship = ships[shipChoice.index];
                         var shipMounts = db.MountsOf(ship.index, 8);
                         var prefab = AssembledObject.LoadPrefab(db.ShipAssembly(ship.index));
@@ -313,6 +420,9 @@ namespace GoF2Remake.UI
                         dockShip = UnityEngine.Object.Instantiate(prefab, frame);
                         dockShip.name = "External docking preview ship";
                         SetLayer(dockShip.transform);
+                        shipMeshes = dockShip.GetComponentsInChildren<MeshFilter>();
+                        if (shipMaterial != null) foreach (var renderer in dockShip.GetComponentsInChildren<Renderer>(true))
+                            renderer.sharedMaterials = Enumerable.Repeat(shipMaterial, renderer.sharedMaterials.Length).ToArray();
                         foreach (var collider in dockShip.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
                         var mountChoice = new PopupField<string>("Ship attachment", shipMounts.Select((m, i) => "Hardpoint " + (i + 1)).ToList(), 0);
                         mountRow.Add(mountChoice); previewMount = shipMounts[0];
@@ -380,6 +490,23 @@ namespace GoF2Remake.UI
             UpdatePoint();
             bool orbiting = false, movingInPlane = false, rotating = false;
             float rotationDrag = 0f;
+            Plane rotationPlane = default; Vector3 previousRingDirection = Vector3.zero, ringCentre = Vector3.zero;
+            int PickRing(Vector2 point)
+            {
+                if (!rotateMode.value) return -1;
+                float best = 14f * 14f; int chosen = -1;
+                for (int i = 0; i < rings.Length; i++)
+                    for (int j = 0; j < rings[i].positionCount; j++)
+                    {
+                        Vector3 a = camera.WorldToScreenPoint(rings[i].GetPosition(j)), b = camera.WorldToScreenPoint(rings[i].GetPosition((j+1)%rings[i].positionCount));
+                        if (a.z <= 0 || b.z <= 0) continue;
+                        Vector2 segment = (Vector2)b-(Vector2)a;
+                        float t = Mathf.Clamp01(Vector2.Dot(point-(Vector2)a,segment)/Mathf.Max(.001f,segment.sqrMagnitude));
+                        float d = (point-((Vector2)a+t*segment)).sqrMagnitude;
+                        if (d < best) { best = d; chosen = i; }
+                    }
+                return chosen;
+            }
             Plane dragPlane = default;
             Vector3 grabOffset = Vector3.zero;
             viewport.RegisterCallback<PointerDownEvent>(evt =>
@@ -388,8 +515,16 @@ namespace GoF2Remake.UI
                 var point = ScreenPoint(evt.position);
                 bool axis = gizmo.PickAxis(point) >= 0;
                 bool marker = gizmo.PickMarker(point) == active;
-                rotating = rotateMode.value && (axis || marker);
+                int ring = PickRing(point);
+                rotating = ring >= 0;
                 rotationDrag = 0f;
+                if (rotating)
+                {
+                    axisChoice.index = ring; ringCentre = frame.TransformPoint(position);
+                    rotationPlane = new Plane((localAxes.value ? Rotation() : Quaternion.identity)*AxisOf(ring), ringCentre);
+                    var ray = camera.ScreenPointToRay(point);
+                    previousRingDirection = rotationPlane.Raycast(ray,out float hitRing) ? (ray.GetPoint(hitRing)-ringCentre).normalized : Vector3.zero;
+                }
                 if (!rotating && orbital && marker && !axis)
                 {
                     var markerWorld = gizmo.WorldOf(mounts[active]);
@@ -408,7 +543,14 @@ namespace GoF2Remake.UI
                 var point = ScreenPoint(evt.position);
                 if (rotating)
                 {
-                    rotationDrag += evt.deltaPosition.x * .6f;
+                    var ray = camera.ScreenPointToRay(point);
+                    if (rotationPlane.Raycast(ray,out float hitRing))
+                    {
+                        Vector3 direction = (ray.GetPoint(hitRing)-ringCentre).normalized;
+                        if (previousRingDirection.sqrMagnitude > .5f) rotationDrag += Vector3.SignedAngle(previousRingDirection,direction,rotationPlane.normal);
+                        previousRingDirection = direction;
+                    }
+                    else rotationDrag += evt.deltaPosition.x * .6f;
                     float step = evt.ctrlKey ? RotationStep() : 1f;
                     float turn = Mathf.Round(rotationDrag / step) * step;
                     if (Mathf.Abs(turn) >= step) { Rotate(turn); rotationDrag -= turn; }

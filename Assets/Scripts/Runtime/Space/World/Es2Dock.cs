@@ -147,6 +147,7 @@ namespace GoF2Remake.World
 
         public static Quaternion ExternalDockRotation(Quaternion pointRotation, WeaponMount mount) =>
             pointRotation * Quaternion.Inverse(Modding.ModHardpoints.MountTurn(mount));
+        public static Vector3 ExternalDepartureOffset(Quaternion shipRotation) => shipRotation * Vector3.forward * 250f;
         public static Vector3 ExternalDockPosition(Vector3 pointPosition, Quaternion shipRotation, WeaponMount mount) =>
             pointPosition - shipRotation * WeaponSystem.MountToLocal(mount);
 
@@ -289,7 +290,7 @@ namespace GoF2Remake.World
             if (!external || State != Phase.Docked) return;
             startPos = DockedPos;
             startRot = DockedRot;
-            externalTakeOffPosition = startPos + (DockedRot * Vector3.forward) * 5000f * 0.05f;
+            externalTakeOffPosition = startPos + ExternalDepartureOffset(DockedRot);
             State = Phase.TakeOff;
             t = 0f;
             released = false;
