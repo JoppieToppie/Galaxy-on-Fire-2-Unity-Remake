@@ -537,6 +537,11 @@ namespace GoF2Remake.World
         {
             if (state != State.None || nav.Jumping || storyTarget.HasValue) return;
             var forced = Story.ForcedKhadorTarget(Session.StationIndex);
+            if (!forced.HasValue && GoF2Remake.Modding.ModJumpFx.IncompatibleMountedDrive())
+            {
+                Message?.Invoke("This jump drive is incompatible with your ship class.");
+                return;
+            }
             bool inVoid = Session.StationIndex == Session.VoidOrbit;
             // Modified: a mod drive with "noVoid" (ModJumpFx) can't take the ship out of the Void (only the story's own jump, or
             // the Debug panel's free jumps), nor into it (the map's Jump to the Void button, askVoid below).
@@ -644,6 +649,14 @@ namespace GoF2Remake.World
             }
             suppressedShown = false;
             networkDrive = null;
+            if (!storyForced && !toInterstellar && GoF2Remake.Modding.ModJumpFx.IncompatibleMountedDrive())
+            {
+                Session.InstantJump = false;
+                Session.EnergyCellsForNextJump = 0;
+                storyTarget = null;
+                Message?.Invoke("This jump drive is incompatible with your ship class.");
+                return;
+            }
             if (toInterstellar)
             {
                 int leg = nav.Drive != null ? nav.Drive.cellsPerLeg : 1;
