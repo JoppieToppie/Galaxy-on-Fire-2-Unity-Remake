@@ -213,7 +213,12 @@ namespace GoF2Remake.UI
             if (!int.TryParse(Value("stockItem"), out int item) || !allowed.Contains(item)) return;
             int remaining = required.Where(entry => entry != null && entry.item == item).Sum(entry => Math.Max(0, entry.required - entry.delivered));
             AddNumber("stockQuantity", "Units", 1, 1, Math.Min(500, remaining));
-            AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity")));
+            AddAction("Donate from cargo", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity") + " cargo"));
+            if (selected.addons?.Any(addon => addon != null && addon.kind == "storage" && addon.level > 0) == true)
+            {
+                AddInfo("Storage donations", "Transfers your own stored materials directly to this station's construction stock.");
+                AddAction("Donate from storage", () => Send("/station faction-donate " + Value("stockItem") + " " + Value("stockQuantity") + " storage"));
+            }
         }
 
     }

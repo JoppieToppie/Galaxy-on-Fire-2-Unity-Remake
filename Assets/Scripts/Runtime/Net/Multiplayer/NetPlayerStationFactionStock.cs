@@ -88,7 +88,7 @@ namespace GoF2Remake.Multiplayer
             return false;
         }
 
-        internal static string DonateFactionConstructionMaterials(NetPlayer pilot, int item, int amount)
+        internal static string DonateFactionConstructionMaterials(NetPlayer pilot, int item, int amount, bool fromStorage = false)
         {
             if (!NetGame.IsServer || !sessionActive || registry == null || pilot == null || !pilot.IsSpawned ||
                 !pilot.InHangar || !NetProfiles.Controls(pilot.OwnerClientId))
@@ -99,6 +99,22 @@ namespace GoF2Remake.Multiplayer
                 return "Dock at an operational station owned by you or your faction to donate materials.";
             if (amount < 1 || amount > 500 || !NetGuard.Item(item) || !AcceptsConstructionStock(station, item))
                 return "Donate 1–500 units of a valid construction or maintenance material.";
+
+            PlayerStationStorage storageStack = null;
+            List<PlayerStationStorageLot> previousLots = null;
+            if (fromStorage)
+            {
+                string error = StorageAccessError(pilot, station, out string storageAccount, withdrawal: true);
+                if (error != null) return error;
+                if (!string.Equals(account, storageAccount, StringComparison.Ordinal))
+                    return "Storage ownership could not be verified.";
+                if (StorageCapacity(station) <= 0) return "This station has no storage module.";
+                EnsureStorageLots(station);
+                storageStack = station.storage.Find(stack => stack != null && stack.item == item);
+                if (storageStack == null || storageStack.amount < amount || OwnedStorageAmount(station, account, item) < amount)
+                    return "You do not own that many units in this station's storage.";
+                previousLots = CloneStorageLots(station);
+            }
 
             var stock = station.donatedConstructionStock ??= new List<PlayerStationStorage>();
             long used = 0;
@@ -112,16 +128,37 @@ namespace GoF2Remake.Multiplayer
                 itemStock = new PlayerStationStorage { item = item };
                 stock.Add(itemStock);
             }
+            if (fromStorage)
+            {
+                if (!RemoveStorageLots(station, account, item, amount))
+                {
+                    station.storageLots = previousLots;
+                    if (addedStack) stock.Remove(itemStock);
+                    return "You do not own that many units in this station's storage.";
+                }
+                storageStack.amount -= amount;
+                if (storageStack.amount == 0) station.storage.Remove(storageStack);
+            }
             itemStock.amount += amount;
-            if (!CommitCargoTransaction(account, (item, -amount)))
+            // Storage and donated stock belong to the same registry. Journal both together;
+            // there is no intermediate cargo transfer or client inventory notification.
+            bool committed = fromStorage ? CommitProfileTransaction(null, null, null)
+                                         : CommitCargoTransaction(account, (item, -amount));
+            if (!committed)
             {
                 itemStock.amount -= amount;
                 if (addedStack) stock.Remove(itemStock);
+                if (fromStorage)
+                {
+                    if (storageStack.amount == 0) station.storage.Add(storageStack);
+                    storageStack.amount += amount;
+                    station.storageLots = previousLots;
+                }
                 return "The donation could not be saved. Your materials were kept.";
             }
-            if (!(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
+            if (!fromStorage && !(NetGame.PersistentHost && pilot.OwnerClientId == NetGame.LocalId))
                 NetState.Instance?.SendAdmin(pilot.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Faction construction donation");
-            return $"Donated {amount:N0} units to {station.name}'s construction stock.";
+            return $"Donated {amount:N0} units from {(fromStorage ? "storage" : "cargo")} to {station.name}'s construction stock.";
         }
     }
 }
