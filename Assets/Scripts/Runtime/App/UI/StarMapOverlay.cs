@@ -59,9 +59,75 @@ namespace GoF2Remake.UI
             it.products.style.left = 71.5f - 7f;
             it.products.style.top = -71.5f + 10f;
             it.products.style.display = DisplayStyle.None;
+            if (ModNpcFactionWar.Enabled)
+            {
+                it.warIcon = Img(it.root, "map-icon", WarMarkerTexture());
+                it.warIcon.style.left = -16f;
+                it.warIcon.style.top = -98f;
+                it.warIcon.style.display = DisplayStyle.None;
+                it.warCount = Line(it.root);
+                it.warTime = Line(it.root);
+                it.warCount.style.color = new Color(1f, 0.83f, 0.65f);
+                it.warTime.style.color = new Color(1f, 0.83f, 0.65f);
+                it.warCount.style.display = it.warTime.style.display = DisplayStyle.None;
+            }
             labels.Add(it.root);
             return it;
         }
+        // Small generated crossed swords, avoiding reliance on a font having the Unicode sword glyph.
+        static Texture2D warMarkerTexture;
+        static Texture2D WarMarkerTexture()
+        {
+            if (warMarkerTexture != null) return warMarkerTexture;
+            const int size = 32;
+            var pixels = new Color32[size * size];
+            var blade = new Color32(255, 226, 186, 255);
+            var edge = new Color32(205, 57, 44, 255);
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    bool core = false, outline = false;
+                    for (int sword = 0; sword < 2; sword++)
+                    {
+                        int px = sword == 0 ? x : size - 1 - x;
+                        int along = px + y, across = px - y;
+                        // Blade, crossguard and grip, along the diagonal.
+                        core |= (along >= 20 && along <= 54 && Mathf.Abs(across) <= 1) ||
+                            (along >= 17 && along <= 20 && Mathf.Abs(across) <= 6) ||
+                            (along >= 7 && along < 17 && Mathf.Abs(across) <= 1);
+                        outline |= (along >= 18 && along <= 56 && Mathf.Abs(across) <= 3) ||
+                            (along >= 15 && along <= 22 && Mathf.Abs(across) <= 8) ||
+                            (along >= 5 && along < 19 && Mathf.Abs(across) <= 3);
+                    }
+                    pixels[y * size + x] = core ? blade : outline ? edge : new Color32(0, 0, 0, 0);
+                }
+            warMarkerTexture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                { name = "NPC warfare crossed swords", hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Point };
+            warMarkerTexture.SetPixels32(pixels);
+            warMarkerTexture.Apply(false, true);
+            return warMarkerTexture;
+        }
+
+        void ShowWarStatus(Item it, int system, int orbit, bool selected, float y, float pulse)
+        {
+            if (it.warIcon == null) return;
+            bool active = NpcFactionWar.TryGetBattleStatus(system, orbit, out var battle);
+            it.warIcon.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+            it.warIcon.style.opacity = 0.35f + 0.65f * pulse;
+            bool details = active && selected;
+            it.warCount.style.display = it.warTime.style.display = details ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!details) return;
+            it.warCount.style.top = y;
+            it.warTime.style.top = y + 30f;
+            string attacker = GoF2Remake.Flight.Standing.RaceName(battle.attacker);
+            string defender = GoF2Remake.Flight.Standing.RaceName(battle.defender);
+            it.warCount.text = $"{attacker} (ATK) {battle.AttackersAlive}/{battle.shipsPerSide}  ·  {defender} (DEF) {battle.DefendersAlive}/{battle.shipsPerSide}";
+            long remaining = battle.Remaining(NpcFactionWar.Now);
+            string clock = $"{remaining / 60:00}:{remaining % 60:00}";
+            it.warTime.text = battle.Paused ? $"AUTO RESOLUTION PAUSED  ·  {clock}" :
+                $"AUTO RESOLUTION  ·  {clock}";
+        }
+
         static VisualElement Img(VisualElement parent, string cls, Texture2D tex)
         {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -164,6 +230,19 @@ namespace GoF2Remake.UI
                 row.Add(l);
                 keyBox.Add(row);
             }
+            if (ModNpcFactionWar.Enabled)
+            {
+                var row = new VisualElement { pickingMode = PickingMode.Ignore };
+                row.AddToClassList("key-row");
+                var cell = new VisualElement { pickingMode = PickingMode.Ignore };
+                cell.AddToClassList("key-icon-cell");
+                Img(cell, "map-icon", WarMarkerTexture()).style.position = Position.Relative;
+                row.Add(cell);
+                var label = new Label("Active NPC fleet battle") { pickingMode = PickingMode.Ignore };
+                label.AddToClassList("key-label");
+                row.Add(label);
+                keyBox.Add(row);
+            }
         }
         void ToggleKey()
         {
@@ -231,6 +310,7 @@ namespace GoF2Remake.UI
                 }
                 it.line2.style.display = sel ? DisplayStyle.Flex : DisplayStyle.None;
                 if (sel) SetSecurity(it.line2, GalaxyMap.SecurityOf(sys), y);
+                ShowWarStatus(it, i, -1, sel, y + 30f, pulse);
                 if (sel) it.root.BringToFront();
             }
 
@@ -259,6 +339,7 @@ namespace GoF2Remake.UI
                     it.line1.style.display = DisplayStyle.Flex;
                     it.line1.style.top = 68.5f + 30f;
                     it.line2.style.display = DisplayStyle.None;
+                    ShowWarStatus(it, zoomSystem, planets[k].station, false, 0f, pulse);
                     continue;
                 }
                 int tech = db.Stations.Find(s => s.index == planets[k].station)?.techLevel ?? 0;
@@ -268,6 +349,7 @@ namespace GoF2Remake.UI
                 string sub = sel ? Modding.ModWorld.Subtitle(planets[k].station) : null;
                 it.line2.style.display = sub != null ? DisplayStyle.Flex : DisplayStyle.None;
                 if (sub != null) { it.line2.text = sub; it.line2.style.color = Color.white; it.line2.style.top = 68.5f + (tech > 0 ? 60f : 30f); }
+                ShowWarStatus(it, zoomSystem, planets[k].station, sel, 98.5f + (tech > 0 ? 30f : 0f) + (sub != null ? 30f : 0f), pulse);
                 if (sel) it.root.BringToFront();
             }
 

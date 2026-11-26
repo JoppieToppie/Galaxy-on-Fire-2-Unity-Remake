@@ -48,6 +48,31 @@ namespace GoF2Remake.Tests
 
         static SystemData Sys(int i) => Db.Systems.First(s => s.index == i);
 
+        [Test]
+        public void NpcWarClockFreezesAndResumesWithoutResettingCasualties()
+        {
+            var campaign = NpcFactionWar.Campaign.Read("{\"active\":[{\"id\":1,\"orbit\":7,\"system\":2,\"defender\":0,\"attacker\":1,\"shipsPerSide\":12,\"expires\":580,\"pausedSeconds\":-1,\"defendersLost\":3,\"attackersLost\":2}]}");
+            Assert.IsTrue(campaign.TryGetBattle(7, 100, out var battle));
+            Assert.IsTrue(campaign.SetPaused(battle, true, 220, out battle));
+            Assert.IsTrue(campaign.TryGetStatus(2, 7, 2000, out var status));
+            Assert.IsTrue(status.Paused);
+            Assert.AreEqual(360L, status.Remaining(2000));
+            Assert.AreEqual(9, status.DefendersAlive);
+            Assert.AreEqual(10, status.AttackersAlive);
+            Assert.IsFalse(campaign.SetPaused(battle, true, 2100, out _));
+            Assert.IsFalse(campaign.RecordCasualty(battle, battle.Tag(4), 0, 2100, out _)); // not yet a victory
+            var client = NpcFactionWar.Campaign.Read(campaign.Snapshot(includeActive: true));
+            Assert.IsTrue(client.TryGetStatus(2, -1, 2200, out status));
+            Assert.AreEqual(8, status.DefendersAlive);
+            Assert.AreEqual(360L, status.Remaining(2200));
+            Assert.IsTrue(campaign.SetPaused(battle, false, 2300, out battle));
+            Assert.IsTrue(campaign.TryGetStatus(2, 7, 2400, out status));
+            Assert.IsFalse(status.Paused);
+            Assert.AreEqual(260L, status.Remaining(2400));
+            Assert.IsFalse(campaign.TryGetStatus(2, 7, 2661, out _));
+            Assert.IsFalse(NpcFactionWar.Campaign.Read(campaign.Snapshot()).TryGetStatus(2, 7, 2400, out _));
+        }
+
         // ---- visibility -----------------------------------------------------------------------------------------
 
         [Test]

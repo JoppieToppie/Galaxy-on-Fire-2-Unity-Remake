@@ -19,13 +19,14 @@ namespace GoF2Remake.Multiplayer
             public ulong casualties;
             public long nextLossAt;
             public int lossInterval;
+            public long pausedLossSeconds;
             public bool finished;
-            public float startedAt, endsAt;
+            public float startedAt;
             public readonly Dictionary<int, ulong> ships = new Dictionary<int, ulong>();
         }
 
         readonly Dictionary<int, FleetRoster> fleetByOrbit = new Dictionary<int, FleetRoster>();
-        bool factionWarDirty;
+        bool factionWarDirty, factionWarViewDirty;
         float retryWarSaveAt;
         float nextWarScheduleAt;
         readonly List<int> retiredWarOrbits = new List<int>();
@@ -63,7 +64,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
             EnsureFactionWar();
             if (factionWar != null)
-                FactionWarSnapshotRpc(factionWar.Snapshot(), RpcTarget.Single(client, RpcTargetUse.Temp));
+                FactionWarSnapshotRpc(factionWar.Snapshot(includeActive: true), RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
@@ -78,11 +79,64 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer) NpcFactionWar.SetNetworkCampaign(NpcFactionWar.Campaign.Read(json));
         }
 
-        // Called from the server sweep even on an empty dedicated server. No Unity ship is created until an orbit runner arrives.
+        bool WarOrbitOccupied(int orbit)
+        {
+            foreach (var pilot in NetPlayer.All)
+                if (pilot != null && pilot.IsSpawned && pilot.InSpace && pilot.Station == orbit) return true;
+            return false;
+        }
+
+        void SetWarPaused(FleetRoster roster, bool paused, long now)
+        {
+            if (!factionWar.SetPaused(roster.battle, paused, now, out var updated)) return;
+            roster.battle = updated;
+            if (paused) roster.pausedLossSeconds = System.Math.Max(0L, roster.nextLossAt - now);
+            else roster.nextLossAt = now + roster.pausedLossSeconds;
+            factionWarViewDirty = true;
+        }
+
+        // Called from the server sweep even on an empty dedicated server. The clock and losses are
+        // server-owned; both stop running in the background whenever a player occupies the battle orbit.
         void TickFactionWar()
         {
             if (!IsServer || !ModNpcFactionWar.Enabled) return;
             long now = NpcFactionWar.Now;
+            if (factionWar != null)
+            {
+                retiredWarOrbits.Clear();
+                foreach (var pair in fleetByOrbit)
+                {
+                    var roster = pair.Value;
+                    var battle = roster.battle;
+                    if (roster.finished || battle.expires < now)
+                    {
+                        RetireWarFleet(roster, true);
+                        factionWar.RemoveBattle(battle);
+                        retiredWarOrbits.Add(pair.Key);
+                        factionWarViewDirty = true;
+                        continue;
+                    }
+                    bool occupied = WarOrbitOccupied(battle.orbit);
+                    SetWarPaused(roster, occupied, now);
+                    if (occupied) continue; // physical combat only, even if the orbit runner is still loading
+                    if (roster.creator != ulong.MaxValue)
+                    {
+                        RetireWarFleet(roster, false);
+                        roster.creator = ulong.MaxValue;
+                        roster.ships.Clear();
+                    }
+                    if (now < roster.nextLossAt) continue;
+                    roster.nextLossAt = now + roster.lossInterval;
+                    // Symmetric abstract attrition. An unresolved engagement still times out.
+                    if (UnityEngine.Random.value < 0.25f) continue;
+                    int selected = -1, count = 0;
+                    for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
+                        if ((roster.casualties & (1UL << slot)) == 0 && UnityEngine.Random.Range(0, ++count) == 0) selected = slot;
+                    if (selected >= 0) RecordWarLoss(roster, selected, now);
+                }
+                foreach (int orbit in retiredWarOrbits) fleetByOrbit.Remove(orbit);
+            }
+
             if (Time.unscaledTime >= nextWarScheduleAt)
             {
                 nextWarScheduleAt = Time.unscaledTime + 20f;
@@ -92,50 +146,20 @@ namespace GoF2Remake.Multiplayer
                     !NetPlayerStations.StationClosedByCombat(orbit), out var battle))
                 {
                     int interval = Mathf.Max(1, ModNpcFactionWar.BattleSeconds / (2 * battle.shipsPerSide));
-                    fleetByOrbit[battle.orbit] = new FleetRoster { battle = battle, lossInterval = interval,
-                        nextLossAt = now + interval, endsAt = Time.unscaledTime + ModNpcFactionWar.BattleSeconds };
-                    factionWarDirty = true;
+                    var roster = new FleetRoster { battle = battle, lossInterval = interval, nextLossAt = now + interval };
+                    fleetByOrbit[battle.orbit] = roster;
+                    SetWarPaused(roster, WarOrbitOccupied(battle.orbit), now);
+                    factionWarDirty = factionWarViewDirty = true;
                     NetNews.Post(NetNews.Kind.War, $"{Standing.RaceName(battle.attacker)} and {Standing.RaceName(battle.defender)} fleets are fighting at {NetNews.Place(battle.orbit)}.", battle.orbit);
                     ModScripts.Raise("npcFactionBattleStarted", battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide);
                 }
             }
-            if (factionWar == null || fleetByOrbit.Count == 0) return;
-
-            retiredWarOrbits.Clear();
-            foreach (var pair in fleetByOrbit)
+            // Coalesce all casualties/clock transitions in this sweep into one small reliable update.
+            if (factionWarViewDirty && factionWar != null)
             {
-                var roster = pair.Value;
-                var battle = roster.battle;
-                if (battle.expires < now)
-                {
-                    RetireWarFleet(roster, true);
-                    retiredWarOrbits.Add(pair.Key);
-                    continue;
-                }
-                if (roster.finished) continue;
-                bool occupied = false;
-                foreach (var pilot in NetPlayer.All)
-                    if (pilot != null && pilot.IsSpawned && pilot.InSpace && pilot.Station == battle.orbit)
-                    { occupied = true; break; }
-                if (roster.creator != ulong.MaxValue)
-                {
-                    // Keep physical combat when players remain; ordinary orbit-runner handover preserves the proxies.
-                    if (occupied) continue;
-                    RetireWarFleet(roster, false);
-                    roster.creator = ulong.MaxValue;
-                    roster.ships.Clear();
-                    roster.nextLossAt = now + roster.lossInterval;
-                }
-                if (now < roster.nextLossAt) continue;
-                roster.nextLossAt = now + roster.lossInterval;
-                // Symmetric abstract attrition, with occasional quiet intervals. Unresolved engagements still time out.
-                if (UnityEngine.Random.value < 0.25f) continue;
-                int selected = -1, count = 0;
-                for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
-                    if ((roster.casualties & (1UL << slot)) == 0 && UnityEngine.Random.Range(0, ++count) == 0) selected = slot;
-                if (selected >= 0) RecordWarLoss(roster, selected, now);
+                factionWarViewDirty = false;
+                BroadcastFactionWarRpc(factionWar.Snapshot(includeActive: true));
             }
-            foreach (int orbit in retiredWarOrbits) fleetByOrbit.Remove(orbit);
         }
 
         void RetireWarFleet(FleetRoster roster, bool notify)
@@ -169,6 +193,7 @@ namespace GoF2Remake.Multiplayer
                 NetArena.IsArenaOrbit(orbit) || NetPlayerStations.StationClosedByCombat(orbit)) return;
             if (!fleetByOrbit.TryGetValue(orbit, out var roster) || roster.finished || roster.battle.expires < NpcFactionWar.Now) return;
             // A request attaches a local simulation to a server-started battle; it never starts a campaign engagement.
+            SetWarPaused(roster, true, NpcFactionWar.Now);
             if (roster.creator == ulong.MaxValue)
             {
                 roster.creator = client;
@@ -192,7 +217,7 @@ namespace GoF2Remake.Multiplayer
         internal bool IsFactionWarShip(NetProxy ship, int race)
         {
             if (!IsServer || !ModNpcFactionWar.Enabled || !fleetByOrbit.TryGetValue(ship.Station, out var roster) ||
-                roster.creator == ulong.MaxValue || roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt || ship.SpawnedAt > roster.endsAt) return false;
+                roster.creator == ulong.MaxValue || roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt) return false;
             var battle = roster.battle;
             int slot = battle.Slot(ship.EventTag);
             if (slot < 0 || slot >= 2 * battle.shipsPerSide || race != (slot < battle.shipsPerSide ? battle.defender : battle.attacker))
@@ -217,13 +242,13 @@ namespace GoF2Remake.Multiplayer
                 (roster.casualties & (1UL << slot)) != 0) return;
             roster.casualties |= 1UL << slot;
             int race = slot < battle.shipsPerSide ? battle.defender : battle.attacker;
+            factionWarViewDirty = true;
             if (!factionWar.RecordCasualty(battle, battle.Tag(slot), race, now, out int winner)) return;
             roster.finished = true;
 
             bool captured = winner == battle.attacker;
             factionWarDirty = true;
             FlushFactionWar();
-            if (captured) BroadcastFactionWarRpc(factionWar.Snapshot());
             NetNews.Post(NetNews.Kind.War, captured
                 ? $"{Standing.RaceName(winner)} captured {NetNews.Place(battle.orbit)}."
                 : $"{Standing.RaceName(winner)} repelled the attack at {NetNews.Place(battle.orbit)}.", battle.orbit);

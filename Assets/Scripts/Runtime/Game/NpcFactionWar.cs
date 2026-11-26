@@ -48,6 +48,24 @@ namespace GoF2Remake.Data
         public static bool HasCapturedOrbit(SystemData system, int orbit) =>
             ModNpcFactionWar.Enabled && system != null && OrbitOwner(system, orbit) != system.raceId;
         public static bool IsFrontline(Database db, SystemData system) => Visible?.IsFrontline(db, system) == true;
+        public static bool TryGetBattleStatus(int system, int orbit, out BattleStatus status)
+        {
+            status = default;
+            return Visible?.TryGetStatus(system, orbit, Now, out status) == true;
+        }
+
+        // A compact server snapshot for the map. A negative pausedSeconds means the deadline is running.
+        [Serializable]
+        public struct BattleStatus
+        {
+            public int id, orbit, system, defender, attacker, shipsPerSide, defendersLost, attackersLost;
+            public long expires, pausedSeconds;
+            public bool Paused => pausedSeconds >= 0;
+            public int DefendersAlive => shipsPerSide - defendersLost;
+            public int AttackersAlive => shipsPerSide - attackersLost;
+            public long Remaining(long now) => Paused ? pausedSeconds : Math.Max(0L, expires - now);
+        }
+
         public static bool IsWarTag(int tag) => tag >= FirstTag && tag < FirstTag + SlotsPerBattle * LastBattleId;
 
         public readonly struct Battle
@@ -82,6 +100,7 @@ namespace GoF2Remake.Data
         {
             public List<HeldOrbit> held = new List<HeldOrbit>();
             public long nextBattle;
+            public List<BattleStatus> active;
         }
 
         sealed class Engagement
@@ -89,6 +108,14 @@ namespace GoF2Remake.Data
             public Battle battle;
             public readonly HashSet<int> casualties = new HashSet<int>();
             public int defendersLost, attackersLost;
+            public long pausedSeconds = -1;
+
+            public BattleStatus Status => new BattleStatus
+            {
+                id = battle.id, orbit = battle.orbit, system = battle.system, defender = battle.defender,
+                attacker = battle.attacker, shipsPerSide = battle.shipsPerSide, expires = battle.expires,
+                defendersLost = defendersLost, attackersLost = attackersLost, pausedSeconds = pausedSeconds
+            };
         }
 
         public sealed class Campaign
@@ -114,16 +141,71 @@ namespace GoF2Remake.Data
                         foreach (var entry in saved.held)
                             if (entry != null && !string.IsNullOrEmpty(entry.orbit) && Major(entry.race))
                                 campaign.held[entry.orbit] = entry.race;
+                    // Active entries are sent to clients only, not written to the profile save.
+                    if (saved.active != null)
+                        foreach (var entry in saved.active)
+                        {
+                            if (entry.id <= 0 || entry.id > LastBattleId || entry.system < 0 || !ModNpcFactionWar.IsWarOrbit(entry.orbit) ||
+                                !Major(entry.defender) || !Major(entry.attacker) || entry.shipsPerSide < 4 || entry.shipsPerSide > 24 ||
+                                entry.defendersLost < 0 || entry.defendersLost >= entry.shipsPerSide ||
+                                entry.attackersLost < 0 || entry.attackersLost >= entry.shipsPerSide) continue;
+                            var battle = new Battle(entry.id, entry.orbit, entry.system, entry.defender, entry.attacker, entry.shipsPerSide, entry.expires);
+                            campaign.battles[entry.system] = new Engagement { battle = battle, pausedSeconds = entry.pausedSeconds,
+                                defendersLost = entry.defendersLost, attackersLost = entry.attackersLost };
+                            campaign.nextBattleId = Math.Max(campaign.nextBattleId, entry.id);
+                        }
                 }
                 catch (ArgumentException e) { Debug.LogWarning($"NPC faction war save could not be read: {e.Message}"); }
                 return campaign;
             }
 
-            public string Snapshot()
+            public string Snapshot(bool includeActive = false)
             {
                 var saved = new WarSave { nextBattle = nextBattle };
                 foreach (var entry in held) saved.held.Add(new HeldOrbit { orbit = entry.Key, race = entry.Value });
+                if (includeActive)
+                {
+                    saved.active = new List<BattleStatus>(battles.Count);
+                    foreach (var entry in battles.Values) saved.active.Add(entry.Status);
+                }
                 return JsonUtility.ToJson(saved);
+            }
+
+            public bool TryGetStatus(int system, int orbit, long now, out BattleStatus status)
+            {
+                status = default;
+                if (!battles.TryGetValue(system, out var active) || (orbit >= 0 && active.battle.orbit != orbit) ||
+                    active.battle.expires < now) return false;
+                status = active.Status;
+                return true;
+            }
+
+            // Preserve the unoccupied time budget while a player is in the orbit. MaxValue keeps existing
+            // campaign expiry/one-engagement checks valid while physical combat is in progress.
+            public bool SetPaused(Battle battle, bool paused, long now, out Battle updated)
+            {
+                updated = battle;
+                if (!battles.TryGetValue(battle.system, out var active) || active.battle.id != battle.id ||
+                    active.battle.expires < now || (active.pausedSeconds >= 0) == paused) return false;
+                long expires;
+                if (paused)
+                {
+                    active.pausedSeconds = Math.Max(0L, active.battle.expires - now);
+                    expires = long.MaxValue;
+                }
+                else
+                {
+                    expires = now + active.pausedSeconds;
+                    active.pausedSeconds = -1;
+                }
+                active.battle = updated = new Battle(battle.id, battle.orbit, battle.system, battle.defender,
+                    battle.attacker, battle.shipsPerSide, expires);
+                return true;
+            }
+
+            public bool RemoveBattle(Battle battle)
+            {
+                return battles.TryGetValue(battle.system, out var active) && active.battle.id == battle.id && battles.Remove(battle.system);
             }
 
             public int OrbitOwner(SystemData system, int orbit)

@@ -128,7 +128,8 @@ namespace GoF2Remake.UI
         class Item
         {
             public VisualElement root, ring, pulse, raceIcon, visited, gate, story, freelance, products;
-            public Label name, line1, line2;
+            public Label name, line1, line2, warCount, warTime;
+            public VisualElement warIcon;
         }
 
         Database db;

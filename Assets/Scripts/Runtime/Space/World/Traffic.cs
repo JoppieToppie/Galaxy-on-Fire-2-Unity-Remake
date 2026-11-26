@@ -562,7 +562,8 @@ namespace GoF2Remake.World
                 AttackRace = Standing.EnemyRaceOf(owner);
             }
             long now = NpcFactionWar.Now;
-            if (factionBattle.HasValue && factionBattle.Value.expires < now) RetireFactionBattle();
+            // Multiplayer expiry is decided by the server; its deadline can pause/resume after spawning.
+            if (!NetSession.Active && factionBattle.HasValue && factionBattle.Value.expires < now) RetireFactionBattle();
             if (NetSession.Active || !CanHostFactionBattle) return;
             var campaign = NpcFactionWar.LocalCampaign;
             if (campaign.TryStart(db, StationIndex, now, out var battle))
