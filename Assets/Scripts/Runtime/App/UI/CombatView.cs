@@ -59,6 +59,7 @@ namespace GoF2Remake.UI
         readonly Dictionary<Object, Marker> markers = new Dictionary<Object, Marker>();
         readonly List<WeaponSystem.LeadProfile> leadProfiles = new List<WeaponSystem.LeadProfile>();
         readonly List<VisualElement> leadMarkers = new List<VisualElement>();
+        readonly TurretTargeting.HudLeadMotion leadMotion = new TurretTargeting.HudLeadMotion();
         readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
         // 3: the player's wingmen (remake #216): the friend images, tinted (FactionTextures).
         static readonly string[] Faction = { "enemy", "friend", "neutral", "friend" };
@@ -355,7 +356,7 @@ namespace GoF2Remake.UI
                     lockClass.style.display = DisplayStyle.None;
                 }
             }
-            if (!show) HideLeadMarkers(0);
+            if (!show) { HideLeadMarkers(0); leadMotion.Reset(); }
             List<Object> gone = null;
             foreach (var kv in markers)
             {
@@ -389,9 +390,10 @@ namespace GoF2Remake.UI
             var weapons = radar?.LeadWeapons;
             var target = radar?.Locked;
             int used = 0;
-            if (weapons != null && target != null && target.Alive && !target.cloaked && !target.untargetable &&
-                !target.playerProof && radar.Detects(target))
+            if (weapons != null && TurretTargeting.HudLeadEligible(target) && radar.Detects(target))
             {
+                // Sample only the locked target once per render frame, regardless of weapon count.
+                leadMotion.Sample(target);
                 weapons.CollectLeadProfiles(leadProfiles);
                 if (leadProfiles.Count > 0)
                 {
@@ -404,7 +406,7 @@ namespace GoF2Remake.UI
                             point = aim;
                             if ((point - profile.muzzle).sqrMagnitude > profile.beamRange * profile.beamRange) continue;
                         }
-                        else if (!TurretTargeting.TryHudLead(target, aim, profile.muzzle, profile.speed, profile.lifetime, out point)) continue;
+                        else if (!leadMotion.TryLead(aim, profile.muzzle, profile.speed, profile.lifetime, out point)) continue;
                         if (!Project(cam, point, origin, centre, out var p, out _)) continue;
                         VisualElement marker;
                         if (used == leadMarkers.Count)
@@ -425,6 +427,7 @@ namespace GoF2Remake.UI
                     }
                 }
             }
+            else leadMotion.Reset();
             HideLeadMarkers(used);
         }
 

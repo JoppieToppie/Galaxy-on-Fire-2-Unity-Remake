@@ -302,6 +302,42 @@ namespace GoF2Remake.Tests
             Assert.AreSame(hidden, pick.Update(3001f, pool, Vector3.zero));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HudLeadSamplesAtRenderRateAndResetsOnDiscontinuity(bool remote)
+        {
+            var motion = new TurretTargeting.HudLeadMotion();
+            Assert.IsFalse(motion.SamplePose(Vector3.zero, 0d, remote));
+            Assert.IsTrue(motion.SamplePose(Vector3.right, 0.01d, remote));
+            Assert.AreEqual(100f, motion.Velocity.x, 0.001f);
+            Assert.IsTrue(motion.TryLead(Vector3.forward * 100f, Vector3.zero, 200f, 2f, out var lead));
+            Assert.Greater(lead.x, 0f);
+            Assert.IsTrue(motion.SamplePose(Vector3.zero, 0.02d, remote));
+            Assert.Less(motion.Velocity.x, 0f, "direction reversal before the old 80 ms interval");
+            Assert.IsTrue(motion.TryLead(Vector3.forward * 100f, Vector3.zero, 200f, 2f, out lead));
+            Assert.Less(lead.x, 0f);
+            Assert.IsFalse(motion.SamplePose(Vector3.right * 1000f, 0.03d, remote));
+            Assert.IsFalse(motion.TryLead(Vector3.forward * 100f, Vector3.zero, 200f, 2f, out _));
+        }
+
+        [Test]
+        public void HudLeadAllowsLegalPvpEvenBeforeAggressionAndRejectsProtectedPilots()
+        {
+            var t = NewTarget(Vector3.forward * 100f);
+            t.netPilot = true;
+            t.hostileToPlayer = false;
+            t.playerProof = false;
+            Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "legal neutral PvP target");
+            t.playerProof = true;
+            Assert.IsFalse(TurretTargeting.HudLeadEligible(t), "squadmate or PvP disabled");
+            t.playerProof = false;
+            t.cloaked = true;
+            Assert.IsFalse(TurretTargeting.HudLeadEligible(t));
+            t.cloaked = false;
+            t.untargetable = true;
+            Assert.IsFalse(TurretTargeting.HudLeadEligible(t));
+        }
+
         [Test]
         public void RetargetDropsALostTargetAtOnceAndSkipsTheUnreachable()
         {

@@ -159,16 +159,101 @@ namespace GoF2Remake.Flight
             return true;
         }
 
-        public static bool TryHudLead(Target target, Vector3 aimPoint, Vector3 muzzle, float speed, float lifetime, out Vector3 point)
+        /// <summary>Only a live, damageable lock may receive a HUD lead. Remote players use the same PvP
+        /// protection flag as projectile damage (NetPlayer); do not require hostility, since legal PvP can start neutral.</summary>
+        public static bool HudLeadEligible(Target t) => t != null && t.Targetable && !t.cloaked && !t.playerProof;
+
+        /// <summary>Per-HUD, per-frame motion estimator. Separate from the 80 ms shared NPC/turret cache.
+        /// Remote targets are sampled at their interpolated render pose, not at irregular packet arrival times.</summary>
+        public sealed class HudLeadMotion
         {
-            point = aimPoint;
-            if (target == null) return false;
-            var motion = SampleAcceleration(target);
-            if (!motion.hasVelocity) return false;
-            Vector3 acceleration = motion.confidence >= 0.25f ? motion.acceleration * motion.confidence : Vector3.zero;
-            if (!TryIntercept(aimPoint - muzzle, motion.velocity, acceleration, speed, lifetime, out var relative)) return false;
-            point = muzzle + relative;
-            return true;
+            Target tracked;
+            bool initialized, hasVelocity;
+            double time;
+            Vector3 position, rawVelocity, velocity, acceleration;
+            float previousDt, confidence;
+            public Vector3 Velocity => velocity;
+            public Vector3 Acceleration => acceleration * confidence;
+            public bool HasVelocity => hasVelocity;
+
+            public void Reset()
+            {
+                tracked = null;
+                initialized = hasVelocity = false;
+                position = rawVelocity = velocity = acceleration = Vector3.zero;
+                previousDt = confidence = 0f;
+                time = 0d;
+            }
+
+            public bool Sample(Target t)
+            {
+                if (!HudLeadEligible(t)) { Reset(); return false; }
+                if (tracked != t) { Reset(); tracked = t; }
+                return SamplePose(t.transform.position, Time.timeAsDouble, t.netShipIndex >= 0 || t.netPilot);
+            }
+
+            /// <summary>Metres and seconds; no minimum 80 ms throttle. Reject discontinuities rather than predict a teleport.</summary>
+            public bool SamplePose(Vector3 p, double now, bool remote)
+            {
+                float dt = (float)(now - time);
+                if (!initialized || dt < 0f || dt > 0.25f)
+                {
+                    initialized = true; hasVelocity = false;
+                    position = p; time = now;
+                    rawVelocity = velocity = acceleration = Vector3.zero;
+                    previousDt = confidence = 0f;
+                    return false;
+                }
+                if (dt < 0.001f) return hasVelocity; // same frame or paused
+                Vector3 raw = (p - position) / dt;
+                position = p; time = now;
+                if (!(raw.sqrMagnitude <= TeleportSpeed * TeleportSpeed) ||
+                    (raw * dt).sqrMagnitude > 250f * 250f)
+                {
+                    hasVelocity = false;
+                    rawVelocity = velocity = acceleration = Vector3.zero;
+                    previousDt = confidence = 0f;
+                    return false;
+                }
+                if (!hasVelocity)
+                {
+                    rawVelocity = velocity = raw;
+                    previousDt = dt;
+                    hasVelocity = true;
+                    return true;
+                }
+                // Time-based smoothing is stable at different frame rates; remote interpolation needs a little
+                // more damping than local flight. A reversal immediately replaces the old velocity.
+                float vWeight = 1f - Mathf.Exp(-dt / (remote ? 0.035f : 0.012f));
+                Vector3 a = (raw - rawVelocity) / Mathf.Max(0.001f, 0.5f * (dt + previousDt));
+                bool reversal = Vector3.Dot(raw, velocity) < 0f;
+                if (reversal || !(a.sqrMagnitude <= AccelMax * AccelMax * 6.25f))
+                {
+                    acceleration = Vector3.zero;
+                    confidence = 0f;
+                    velocity = raw;
+                }
+                else
+                {
+                    velocity = Vector3.Lerp(velocity, raw, vWeight);
+                    Vector3 bounded = Vector3.ClampMagnitude(a, AccelMax);
+                    bool coherent = acceleration.sqrMagnitude < 4f || Vector3.Dot(bounded, acceleration) >= 0f;
+                    confidence = Mathf.Clamp01(confidence + dt * (coherent ? 12f : -24f));
+                    acceleration = Vector3.Lerp(acceleration, bounded, 1f - Mathf.Exp(-dt / (remote ? 0.08f : 0.04f)));
+                }
+                rawVelocity = raw;
+                previousDt = dt;
+                return true;
+            }
+
+            public bool TryLead(Vector3 aimPoint, Vector3 muzzle, float speed, float lifetime, out Vector3 point)
+            {
+                point = aimPoint;
+                if (!hasVelocity || !TryIntercept(aimPoint - muzzle, velocity, Acceleration, speed, lifetime, out var relative))
+                    return false;
+                point = muzzle + relative;
+                return true;
+            }
         }
 
         static Vector3 PredictFromLinearTime(Vector3 relative, Vector3 velocity, Vector3 acceleration, float speed, float lifetime, float linearTime)
