@@ -728,6 +728,10 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake (#336 / #302, behind a switch 2026-11-19): free look zooms out to 70,000 units (the original's 20,000)
         /// and the lock picks the ship nearest the middle of the view instead of the ship's own crosshair.</summary>
+        // Local targeting reference offsets in metres, not weapon or mount offsets.
+        public static float CapitalCrosshairX { get => Mathf.Clamp(Get("capitalCrosshairX", 0f), -1000f, 1000f); set => Set("capitalCrosshairX", Mathf.Clamp(value, -1000f, 1000f)); }
+        public static float CapitalCrosshairY { get => Mathf.Clamp(Get("capitalCrosshairY", 0f), -1000f, 1000f); set => Set("capitalCrosshairY", Mathf.Clamp(value, -1000f, 1000f)); }
+
         public static bool RemakeFreeLook { get => GetBool("remakeFreeLook", false); set => SetBool("remakeFreeLook", value); }
 
         /// <summary>Remake (#340, behind a switch 2026-11-19): the emergency shield's PC version look (EnergyShield.fx: two
