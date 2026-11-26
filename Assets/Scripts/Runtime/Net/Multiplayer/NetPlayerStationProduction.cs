@@ -83,12 +83,14 @@ namespace GoF2Remake.Multiplayer
             record.dryDockCompletesUtc = 0;
             record.dryDockConsumeBlueprint = false;
             record.dryDockBuilderProfile = null;
+            record.dryDockPausedUtc = 0;
         }
 
         /// <summary>Finish a due job exactly once. A failed save restores the active job for retry on the next tick.</summary>
         static bool CompleteDryDockJob(PlayerStationRecord record, long now)
         {
-            if (record == null || !record.dryDockBuilding || record.dryDockCompletesUtc > now) return false;
+            if (record == null || !record.dryDockBuilding || record.dryDockPausedUtc != 0 || record.dryDockCompletesUtc > now ||
+                record.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) != true) return false;
             record.dryDockShips ??= new List<StoredShip>();
             if (record.dryDockShips.Count >= MaxDryDockShipsPerStation) return false;
             int ship = record.dryDockShip;

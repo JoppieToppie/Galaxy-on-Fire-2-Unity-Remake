@@ -86,7 +86,7 @@ namespace GoF2Remake.UI
             if (station.dryDockBuilding)
             {
                 hasProjects = true;
-                AddInfo("Dry dock", station.dryDockCompletesUtc > 0 ? ConstructionTime(Math.Max(1, station.dryDockCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())) : "Construction underway");
+                AddInfo("Dry dock", station.dryDockPausedUtc > 0 ? "Construction paused — rebuild dry dock" : station.dryDockCompletesUtc > 0 ? ConstructionTime(Math.Max(1, station.dryDockCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())) : "Construction underway");
             }
             if (!hasProjects) AddInfo("Construction", "No active module or dry-dock project");
             var news = NetNews.StationAnnouncements(station.stationIndex);
@@ -109,8 +109,10 @@ namespace GoF2Remake.UI
             bool Building(string module) => station.moduleConstructionKind == module;
             string Status(string module)
             {
-                if (Installed(module)) return "OPERATIONAL";
-                if (!Building(module)) return "NOT INSTALLED";
+                var addon = station.addons?.Find(a => a != null && a.kind == module);
+                if (Installed(module)) return NetPlayerStations.StructuralModuleKind(module)
+                    ? $"OPERATIONAL · {NetPlayerStations.ModuleRemainingIntegrity(addon):N0}/{NetPlayerStations.ModuleIntegrityCapacity(module):N0} integrity" : "OPERATIONAL";
+                if (!Building(module)) return addon != null && NetPlayerStations.StructuralModuleKind(module) ? "DESTROYED · REBUILD REQUIRED" : "NOT INSTALLED";
                 return station.moduleBuildCompletesUtc > 0 ? "BUILDING · " + ConstructionTime(Math.Max(1, station.moduleBuildCompletesUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds())) : "AWAITING MATERIALS";
             }
             if (moduleDetail == null)

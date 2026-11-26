@@ -37,10 +37,10 @@ namespace GoF2Remake.Multiplayer
                 return "Finish the active module project before starting a timed installation.";
             if ((kind == "factory" || kind == "refinery") && StorageCapacity(station) <= 0)
                 return "Install storage first.";
-            if (station.addons?.Exists(addon => addon != null && addon.kind == kind) == true)
+            if (station.addons?.Exists(addon => addon != null && addon.kind == kind && addon.level > 0) == true)
                 return ModuleName(kind) + " is already installed.";
             int reservedSlot = !string.IsNullOrEmpty(station.moduleConstructionKind) && station.moduleConstructionKind != kind ? 1 : 0;
-            if ((station.addons?.Count ?? 0) + reservedSlot >= MaxAddonsPerStation)
+            if ((station.addons?.Count(addon => addon != null && addon.level > 0) ?? 0) + reservedSlot >= MaxAddonsPerStation)
                 return "This station has reached its module limit.";
             return null;
         }
@@ -157,8 +157,27 @@ namespace GoF2Remake.Multiplayer
             string previousKind = station.moduleConstructionKind;
             var previousMaterials = station.moduleConstructionMaterials;
             station.addons ??= new List<PlayerStationAddon>();
+            int oldIndex = station.addons.FindIndex(addon => addon != null && addon.kind == kind && addon.level <= 0 && StructuralModuleKind(kind));
+            var oldModule = oldIndex < 0 ? null : station.addons[oldIndex];
+            if (oldModule != null) station.addons.RemoveAt(oldIndex);
             var module = new PlayerStationAddon { kind = kind, level = 1 };
+            if (StructuralModuleKind(kind))
+            {
+                module.integrityInitialized = true;
+                module.integrity = module.integrityCapacity = ModuleIntegrityCapacity(kind);
+            }
             station.addons.Add(module);
+            long paused = station.dryDockPausedUtc, started = station.dryDockStartedUtc, completes = station.dryDockCompletesUtc;
+            if (kind == "drydock" && paused > 0)
+            {
+                long downtime = Math.Max(0L, DateTimeOffset.UtcNow.ToUnixTimeSeconds() - paused);
+                if (station.dryDockBuilding)
+                {
+                    station.dryDockStartedUtc += downtime;
+                    station.dryDockCompletesUtc += downtime;
+                }
+                station.dryDockPausedUtc = 0;
+            }
             if (kind == previousKind)
             {
                 station.moduleConstructionKind = null;
@@ -167,6 +186,10 @@ namespace GoF2Remake.Multiplayer
             return () =>
             {
                 station.addons.Remove(module);
+                if (oldModule != null) station.addons.Insert(oldIndex, oldModule);
+                station.dryDockPausedUtc = paused;
+                station.dryDockStartedUtc = started;
+                station.dryDockCompletesUtc = completes;
                 station.moduleBuildCompletesUtc = previousDeadline;
                 station.moduleConstructionKind = previousKind;
                 station.moduleConstructionMaterials = previousMaterials;
@@ -333,6 +356,12 @@ namespace GoF2Remake.Multiplayer
             var preset = ModuleExteriorChoices(station, kind).FirstOrDefault(entry => entry.Id == presetId);
             if (preset == null)
                 return "Choose an exterior model available to this station.";
+            if (StructuralModuleKind(kind))
+            {
+                var layout = GoF2Remake.World.OrbitLayout.Build(NetGame.Db, station.stationIndex);
+                string error = OrbitalPlacementError(station.stationIndex, layout, StationPosition(station.stationIndex) + offset, preset.HitRadius);
+                if (error != null) return error;
+            }
             var previous = station.placements;
             var updated = previous == null ? new List<PlayerStationPlacement>() : new List<PlayerStationPlacement>(previous);
             string module = kind.StartsWith("dockarm-", StringComparison.Ordinal) ? "dockarm" : kind;
@@ -340,6 +369,15 @@ namespace GoF2Remake.Multiplayer
                 station.addons?.Exists(addon => addon != null && addon.kind == module && addon.level > 0) == true)
                 return "That installed structure already has a fixed position.";
             updated.RemoveAll(entry => entry?.kind == kind);
+            if (StructuralModuleKind(kind))
+                foreach (var entry in updated)
+                {
+                    if (entry == null) continue;
+                    var other = SavedModuleExterior(entry.preset);
+                    float separation = Math.Max(150f, preset.HitRadius + (other?.HitRadius ?? 0f));
+                    if ((new Vector3(entry.x, entry.y, entry.z) - offset).sqrMagnitude < separation * separation)
+                        return "Place the structure clear of other module exteriors.";
+                }
             if (updated.Exists(entry => entry != null && (new Vector3(entry.x, entry.y, entry.z) - offset).sqrMagnitude < 150f * 150f))
                 return "Choose a position at least 150 m from the other planned modules.";
             updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = x, y = y, z = z });
@@ -349,12 +387,90 @@ namespace GoF2Remake.Multiplayer
             return "The placement could not be saved.";
         }
 
+        // Negative exterior IDs are orbit-local and never identify independent orbital projects.
+        internal static bool StructuralModuleKind(string kind) => kind is "drydock" or "refinery";
+        internal static string StructuralModuleContactKind(int id) => id switch
+        {
+            -1 => "refinery",
+            -2 => "drydock",
+            _ => null
+        };
+        internal static float ModuleIntegrityCapacity(string kind) => kind == "drydock"
+            ? ModPlayerInfrastructure.Current.DryDockIntegrity : ModPlayerInfrastructure.Current.RefineryIntegrity;
+
+        internal static float ModuleRemainingIntegrity(PlayerStationAddon module)
+        {
+            if (module == null || module.level <= 0 || !StructuralModuleKind(module.kind)) return 0f;
+            float capacity = ModuleIntegrityCapacity(module.kind);
+            // Legacy saves start intact. Changing mod balance preserves the fraction already damaged.
+            return module.integrityInitialized && module.integrityCapacity > 0f
+                ? Mathf.Clamp01(module.integrity / module.integrityCapacity) * capacity : capacity;
+        }
+
+        internal static bool StructuralModuleDestroyed(int orbit, int id)
+        {
+            string kind = StructuralModuleContactKind(id);
+            return kind != null && StationAt(orbit)?.addons?.Exists(a => a != null && a.kind == kind && a.level <= 0 && a.integrityInitialized) == true;
+        }
+
+        internal static bool TryGetStructuralModuleContact(int orbit, int id, out Vector3 position, out float radius)
+        {
+            position = default;
+            radius = 0f;
+            if (!NetGame.IsServer || !sessionActive || StructuralModuleContactKind(id) == null) return false;
+            foreach (var model in PlacedModuleModels(NetGame.Db, orbit))
+            {
+                if (model.id != id || string.IsNullOrEmpty(model.assembly)) continue;
+                position = model.position;
+                radius = model.radius;
+                return radius > 0f;
+            }
+            return false;
+        }
+
+        internal static bool DamageStructuralModule(NetPlayer pilot, int orbit, int id, float damage)
+        {
+            if (!NetGame.IsServer || !sessionActive || pilot == null || pilot.Station != orbit ||
+                !NetGuard.Finite(damage) || damage <= 0f) return false;
+            var station = StationAt(orbit);
+            string kind = StructuralModuleContactKind(id);
+            if (kind == null || !OperationalSponsor(station)) return false;
+            var module = station.addons?.Find(a => a != null && a.kind == kind && a.level > 0);
+            if (module == null) return false;
+            float remaining = ModuleRemainingIntegrity(module);
+            int oldLevel = module.level;
+            bool oldInitialized = module.integrityInitialized;
+            float oldIntegrity = module.integrity, oldCapacity = module.integrityCapacity;
+            long oldPause = station.dryDockPausedUtc;
+            module.integrityInitialized = true;
+            module.integrityCapacity = ModuleIntegrityCapacity(kind);
+            module.integrity = Mathf.Max(0f, remaining - damage);
+            if (module.integrity <= 0f)
+            {
+                module.level = 0;
+                if (kind == "drydock" && station.dryDockBuilding && station.dryDockPausedUtc == 0)
+                    station.dryDockPausedUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            }
+            if (Save())
+            {
+                NoteOrbitalAggression(pilot, orbit);
+                return true;
+            }
+            module.level = oldLevel;
+            module.integrityInitialized = oldInitialized;
+            module.integrity = oldIntegrity;
+            module.integrityCapacity = oldCapacity;
+            station.dryDockPausedUtc = oldPause;
+            return false;
+        }
+
         internal static IEnumerable<(int id, string name, string assembly, Vector3 position, float scale, float radius)>
             PlacedModuleModels(Database db, int orbit)
         {
             var station = StationAt(orbit);
-            if (!OperationalSponsor(station) || station.placements == null) yield break;
-            foreach (var placement in station.placements)
+            if (!OperationalSponsor(station)) yield break;
+            var placements = station.placements ?? new List<PlayerStationPlacement>();
+            foreach (var placement in placements)
             {
                 int key = Array.IndexOf(PlacementKinds, placement?.kind);
                 if (key < 0) continue;
@@ -364,6 +480,19 @@ namespace GoF2Remake.Multiplayer
                 if (preset == null) continue;
                 yield return (-1 - key, ModuleName(module), OrbitalStructureAssembly(preset.Assembly, preset.StationModel, db),
                     StationPosition(orbit) + new Vector3(placement.x, placement.y, placement.z), preset.ModelScale, preset.HitRadius);
+            }
+            // Older installations and modules built without a manual plan still need a physical combat target.
+            // Put the stock exteriors on opposite vertical sides, clear of the station's bounding radius.
+            for (int key = 0; key < 2; key++)
+            {
+                string kind = PlacementKinds[key];
+                if (placements.Exists(entry => entry?.kind == kind) ||
+                    station.addons?.Exists(addon => addon != null && addon.kind == kind && addon.level > 0) != true) continue;
+                var preset = ModuleExteriorDefaults[key];
+                float distance = OrbitalStationClearance(GoF2Remake.World.OrbitLayout.Build(db, orbit), preset.HitRadius) + 1000f;
+                Vector3 position = StationPosition(orbit) + Vector3.up * (key == 0 ? distance : -distance);
+                yield return (-1 - key, ModuleName(kind), OrbitalStructureAssembly(preset.Assembly, preset.StationModel, db),
+                    position, preset.ModelScale, preset.HitRadius);
             }
         }
 

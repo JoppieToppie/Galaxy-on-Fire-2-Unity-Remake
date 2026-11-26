@@ -74,6 +74,9 @@ namespace GoF2Remake.Modding
         public float MinimumStationScale { get; private set; } = 1f;
         public float MinimumJumpgateScale { get; private set; } = 1f;
         public float ScrapIntegrity { get; private set; } = DefaultScrapIntegrity;
+        public const float DefaultDryDockIntegrity = 60000f, DefaultRefineryIntegrity = 40000f;
+        public float DryDockIntegrity { get; private set; } = DefaultDryDockIntegrity;
+        public float RefineryIntegrity { get; private set; } = DefaultRefineryIntegrity;
         public IReadOnlyList<string> StationModels { get; private set; } = Array.Empty<string>();
         public IReadOnlyDictionary<string, string> StationModelImages { get; private set; } = new Dictionary<string, string>();
         static ModInfo currentRulesMod;
@@ -204,6 +207,8 @@ namespace GoF2Remake.Modding
                 IncludeStockStations = ReadToggle(settings, "includeStockStations"),
                 IncludeStockJumpgates = ReadToggle(settings, "includeStockJumpgates"),
                 ScrapIntegrity = integrity,
+                DryDockIntegrity = StructureNumber(settings, "dryDockIntegrity", DefaultDryDockIntegrity, 1f, 10000000f),
+                RefineryIntegrity = StructureNumber(settings, "refineryIntegrity", DefaultRefineryIntegrity, 1f, 10000000f),
                 StorageCapacityPerLevel = StructureInt(settings, "storageCapacityPerLevel", DefaultStorageCapacityPerLevel, 1, 1000000),
                 StorageItemTypes = StructureInt(settings, "storageItemTypes", DefaultStorageItemTypes, 1, 4096),
                 StationClaimPrice = StructureInt(settings, "stationClaimPrice", DefaultStationClaimPrice, 0, int.MaxValue),

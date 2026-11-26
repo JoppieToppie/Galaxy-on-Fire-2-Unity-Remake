@@ -175,6 +175,7 @@ namespace GoF2Remake.World
         }
 
         readonly Dictionary<int, GameObject> orbitalStructureModels = new Dictionary<int, GameObject>();
+        readonly Dictionary<int, (string assembly, Vector3 position, float scale, float radius)> orbitalModelDescriptors = new Dictionary<int, (string, Vector3, float, float)>();
         string renderedOrbitalSnapshot;
         float retryOrbitalModelsAt;
         bool orbitalModelsInitialized;
@@ -189,7 +190,18 @@ namespace GoF2Remake.World
             var structures = SpaceHooks.PlayerOrbitalModels?.Invoke(db, orbit);
             var activeIds = new HashSet<int>();
             if (structures != null)
-                foreach (var structure in structures) activeIds.Add(structure.id);
+                foreach (var structure in structures)
+                {
+                    var descriptor = (structure.assembly, structure.position, structure.scale, structure.radius);
+                    if (orbitalStructureModels.TryGetValue(structure.id, out var existing) &&
+                        (!orbitalModelDescriptors.TryGetValue(structure.id, out var old) || !old.Equals(descriptor)))
+                    {
+                        if (existing != null) { existing.SetActive(false); Destroy(existing); }
+                        orbitalStructureModels.Remove(structure.id);
+                        orbitalModelDescriptors.Remove(structure.id);
+                    }
+                    activeIds.Add(structure.id);
+                }
             renderedOrbitalSnapshot = snapshot;
             var removed = new List<int>();
             foreach (var pair in orbitalStructureModels)
@@ -197,13 +209,13 @@ namespace GoF2Remake.World
                 {
                     if (pair.Value != null)
                     {
-                        if (pair.Key > 0) Explosion.Spawn(pair.Value.transform.position, 3f);
+                        if (pair.Key > 0 || SpaceHooks.PlayerModuleDestroyed?.Invoke(orbit, pair.Key) == true) Explosion.Spawn(pair.Value.transform.position, 3f);
                         pair.Value.SetActive(false);
                         Destroy(pair.Value);
                     }
                     removed.Add(pair.Key);
                 }
-            foreach (int id in removed) orbitalStructureModels.Remove(id);
+            foreach (int id in removed) { orbitalStructureModels.Remove(id); orbitalModelDescriptors.Remove(id); }
             if (structures == null) return;
             foreach (var structure in structures)
             {
@@ -228,6 +240,7 @@ namespace GoF2Remake.World
                 var hull = HullCollision.Attach(model, null, obstacle, forceExact: true);
                 if (hull != null) hull.orbitalStructureId = structure.id;
                 orbitalStructureModels.Add(structure.id, model);
+                orbitalModelDescriptors[structure.id] = (structure.assembly, structure.position, structure.scale, structure.radius);
             }
         }
 

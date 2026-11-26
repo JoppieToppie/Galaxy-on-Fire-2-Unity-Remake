@@ -19,12 +19,24 @@ namespace GoF2Remake.Multiplayer
                 !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
                 !NetGuard.Item(item) || !HasWeaponItem(item) || NetPlayerStations.StructuralWeaponEligible?.Invoke(item) != true)
                 return;
-            var structure = NetPlayerStations.FindOrbitalStructure(id);
             var weapon = NetGame.Db.Item(item);
-            if (structure == null || !structure.operational || structure.orbit != Station || weapon == null) return;
+            if (weapon == null) return;
+            var structure = id > 0 ? NetPlayerStations.FindOrbitalStructure(id) : null;
+            bool module = NetPlayerStations.StructuralModuleContactKind(id) != null;
+            Vector3 centre;
+            float radius;
+            if (module)
+            {
+                if (!NetPlayerStations.TryGetStructuralModuleContact(Station, id, out centre, out radius)) return;
+            }
+            else
+            {
+                if (structure == null || !structure.operational || structure.orbit != Station) return;
+                centre = NetPlayerStations.OrbitalStructurePosition(structure);
+                radius = structure.hitRadius;
+            }
             float damage = Mathf.Max(0f, weapon.Attr(9));
             if (damage <= 0) return;
-            Vector3 centre = NetPlayerStations.OrbitalStructurePosition(structure);
             float blastRadius = 0;
             if (blast)
             {
@@ -34,9 +46,10 @@ namespace GoF2Remake.Multiplayer
                 if (blastRadius <= 0) return;
             }
             if (!NetShotRegistry.TryConsumeOrbitalStructureHit(NetworkObjectId, shotId, item, point, surface,
-                centre, structure.hitRadius, blastRadius)) return;
+                centre, radius, blastRadius, module ? id : 0)) return;
             if (blast) damage *= Mathf.Clamp01(1f - Vector3.Distance(point, surface) / blastRadius);
-            NetPlayerStations.DamageOrbitalStructure(this, structure, damage);
+            if (module) NetPlayerStations.DamageStructuralModule(this, Station, id, damage);
+            else NetPlayerStations.DamageOrbitalStructure(this, structure, damage);
         }
 
         internal void ApplyOrbitalDefenseDamage(int orbit, float amount, Vector3 centre)

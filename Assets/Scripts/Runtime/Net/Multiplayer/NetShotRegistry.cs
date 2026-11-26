@@ -17,6 +17,7 @@ namespace GoF2Remake.Multiplayer
             public Vector3 origin, velocity;
             public float startedAt, expiresAt;
             public bool canceled, interceptable, gateHitConsumed, stationHitConsumed, orbitalHitConsumed;
+            public int moduleHitMask;
         }
         static readonly Dictionary<(ulong source, uint id), Shot> shots = new Dictionary<(ulong, uint), Shot>();
         static readonly List<(ulong source, uint id)> expired = new List<(ulong, uint)>();
@@ -59,22 +60,24 @@ namespace GoF2Remake.Multiplayer
         }
 
         internal static bool TryConsumeOrbitalStructureHit(ulong source, uint id, int item, Vector3 point,
-            Vector3 surface, Vector3 centre, float radius, float blastRadius)
+            Vector3 surface, Vector3 centre, float radius, float blastRadius, int moduleId = 0)
         {
             if (!NetGuard.Finite(blastRadius) || blastRadius < 0f || blastRadius > 20000f ||
                 Vector3.Distance(point, surface) > blastRadius + 3f) return false;
-            return TryConsumeStructureContact(source, id, item, point, surface, centre, radius, false, orbital: true);
+            if (moduleId != 0 && moduleId is not (-1 or -2)) return false;
+            int mask = moduleId == 0 ? 0 : 1 << (-moduleId - 1);
+            return TryConsumeStructureContact(source, id, item, point, surface, centre, radius, false, orbital: true, moduleMask: mask);
         }
 
         static bool TryConsumeStructureContact(ulong source, uint id, int item, Vector3 shotPoint,
-            Vector3 gateSurface, Vector3 gateCentre, float gateRadius, bool station, bool orbital = false)
+            Vector3 gateSurface, Vector3 gateCentre, float gateRadius, bool station, bool orbital = false, int moduleMask = 0)
         {
             if (id == 0 || !NetGuard.Position(shotPoint) || !NetGuard.Position(gateSurface) ||
                 !NetGuard.Position(gateCentre) || !NetGuard.Finite(gateRadius) ||
                 gateRadius <= 0f) return false;
             Prune();
             if (!shots.TryGetValue((source, id), out var shot) || shot.item != item ||
-                shot.canceled || (orbital ? shot.orbitalHitConsumed : station ? shot.stationHitConsumed : shot.gateHitConsumed) || Time.time >= shot.expiresAt ||
+                shot.canceled || (moduleMask != 0 ? (shot.moduleHitMask & moduleMask) != 0 : orbital ? shot.orbitalHitConsumed : station ? shot.stationHitConsumed : shot.gateHitConsumed) || Time.time >= shot.expiresAt ||
                 shot.velocity.sqrMagnitude < 1e-6f) return false;
             if ((gateSurface - gateCentre).magnitude > gateRadius + 5f) return false;
             Vector3 travel = shotPoint - shot.origin;
@@ -87,7 +90,8 @@ namespace GoF2Remake.Multiplayer
                 : 3000f;
             if (along < -10f || along > reach ||
                 Vector3.Distance(shotPoint, shot.origin + shot.velocity.normalized * along) > 35f) return false;
-            if (orbital) shot.orbitalHitConsumed = true;
+            if (moduleMask != 0) shot.moduleHitMask |= moduleMask;
+            else if (orbital) shot.orbitalHitConsumed = true;
             else if (station) shot.stationHitConsumed = true;
             else shot.gateHitConsumed = true;
             shots[(source, id)] = shot;

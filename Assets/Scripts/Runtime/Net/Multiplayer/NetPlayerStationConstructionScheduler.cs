@@ -103,7 +103,8 @@ namespace GoF2Remake.Multiplayer
             OperationalSponsor(Find(structure.sponsorStationId));
 
         static bool ScheduledDryDock(PlayerStationRecord station) =>
-            AvailableForConstruction(station) && !station.underConstruction && station.dryDockBuilding;
+            AvailableForConstruction(station) && !station.underConstruction && station.dryDockBuilding && station.dryDockPausedUtc == 0 &&
+            station.addons?.Exists(a => a != null && a.kind == "drydock" && a.level > 0) == true;
 
         static void RebuildConstructionSchedule(long now)
         {

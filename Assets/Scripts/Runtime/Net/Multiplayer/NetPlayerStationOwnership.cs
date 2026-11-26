@@ -87,7 +87,7 @@ namespace GoF2Remake.Multiplayer
             station.offeredForClaimUtc = 0;
             ClearOwnerVisitorRestrictions(station);
 
-            if (station.dryDockBuilding)
+            if (station.dryDockBuilding && station.dryDockPausedUtc == 0)
             {
                 station.dryDockStartedUtc += paused;
                 station.dryDockCompletesUtc += paused;

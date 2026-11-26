@@ -228,7 +228,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>One persistent in-progress dry-dock ship build. Completion is evaluated by the server clock.</summary>
         public bool dryDockBuilding;
         public int dryDockBlueprintItem = -1, dryDockShip = -1;
-        public long dryDockStartedUtc, dryDockCompletesUtc;
+        public long dryDockStartedUtc, dryDockCompletesUtc, dryDockPausedUtc;
         public bool dryDockConsumeBlueprint;
         public long stationBuildCompletesUtc, moduleBuildCompletesUtc;
         public string dryDockBuilderProfile;
@@ -324,6 +324,9 @@ namespace GoF2Remake.Multiplayer
     {
         public string kind;
         public int level;
+        // A destroyed structural module remains as level zero until reconstructed.
+        public bool integrityInitialized;
+        public float integrity, integrityCapacity;
     }
 
     [Serializable]
@@ -767,7 +770,7 @@ namespace GoF2Remake.Multiplayer
             lines.Add($"Installed modules: {record.addons?.Count ?? 0}");
             if (record.addons != null)
                 foreach (var addon in record.addons)
-                    if (addon != null) lines.Add($"  {addon.kind}: level {addon.level}");
+                    if (addon != null) lines.Add($"  {addon.kind}: " + (StructuralModuleKind(addon.kind) ? addon.level > 0 ? $"{ModuleRemainingIntegrity(addon):N0}/{ModuleIntegrityCapacity(addon.kind):N0} integrity" : "destroyed; reconstruct to restore" : $"level {addon.level}"));
             int storageCapacity = StorageCapacity(record);
             if (storageCapacity > 0)
             {

@@ -501,7 +501,7 @@ namespace GoF2Remake.Flight
                 if (body == null || !HullCollision.IsForcedExact(body)) return;
                 var reportContact = GoF2Remake.World.SpaceHooks.ReportInfrastructureContact;
                 uint shotId = gun.bullets[i].networkShotId;
-                if (body.orbitalStructureId > 0)
+                if (body.orbitalStructureId > 0 || body.orbitalStructureId is -1 or -2)
                     reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.OrbitalStructure, body.orbitalStructureId, gun.itemIndex, shotId, point, point, false);
                 else if (body.playerStationOrbit >= 0)
                     reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.Station, body.playerStationOrbit, gun.itemIndex, shotId, point, point, false);
@@ -825,7 +825,7 @@ namespace GoF2Remake.Flight
             Physics.SyncTransforms();  // bombs can detonate on expiry without a preceding hull cast
             foreach (var body in HullCollision.ForcedExactBodies)
             {
-                if (body == null || (body.playerJumpgateOrbit < 0 && body.playerStationOrbit < 0 && body.orbitalStructureId <= 0) ||
+                if (body == null || (body.playerJumpgateOrbit < 0 && body.playerStationOrbit < 0 && body.orbitalStructureId <= 0 && body.orbitalStructureId is not (-1 or -2)) ||
                     !HullCollision.IsForcedExact(body) || !body.Collides) continue;
                 float nearest = radius;
                 Vector3 surface = default;
@@ -834,7 +834,7 @@ namespace GoF2Remake.Flight
                 {
                     if (collider == null || !collider.enabled || !HullCollision.Shown(collider)) continue;
                     Vector3 candidate;
-                    if (body.playerStationOrbit >= 0 || body.orbitalStructureId > 0)
+                    if (body.playerStationOrbit >= 0 || body.orbitalStructureId > 0 || body.orbitalStructureId is -1 or -2)
                     {
                         // ClosestPoint does not support the non-convex station meshes. The bounds
                         // only select rays; the contact itself must come from the exact collider.
@@ -853,7 +853,7 @@ namespace GoF2Remake.Flight
                     found = true;
                 }
                 if (!found) continue;
-                if (body.orbitalStructureId > 0)
+                if (body.orbitalStructureId > 0 || body.orbitalStructureId is -1 or -2)
                     reportContact(GoF2Remake.World.InfrastructureContactKind.OrbitalStructure, body.orbitalStructureId, gun.itemIndex, shotId, centre, surface, true);
                 else if (body.playerStationOrbit >= 0)
                     reportContact(GoF2Remake.World.InfrastructureContactKind.Station, body.playerStationOrbit, gun.itemIndex, shotId, centre, surface, true);
