@@ -65,7 +65,7 @@ namespace GoF2Remake.Flight
             float ahead = Vector3.Dot(direction, forward);
             float yawError = side * side + ahead * ahead > 1e-8f ? Mathf.Atan2(side, ahead) : 0f;
             float yaw = Mathf.Clamp(yawError, -yawRatePerMs * dtMs, yawRatePerMs * dtMs);
-            Yaw += yaw;
+            Yaw = Mathf.Repeat(Yaw + yaw + Mathf.PI, 2f * Mathf.PI) - Mathf.PI;
             Apply();
             // Do not discard a target for its apparent pitch while the base is turning around.
             if (Mathf.Abs(yawError - yaw) > 0.02f) return false;

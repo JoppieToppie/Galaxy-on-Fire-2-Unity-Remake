@@ -82,6 +82,7 @@ namespace GoF2Remake.World
         {
             turretPicking = new TurretTargeting(TurretTargeting.Rule.Timed, TurretRangeUnits)
             {
+                accelerationLead = true,
                 boundFactor = 0.3f,   // Measure: at least the distance to the target's sphere, x0.3 for a turret hunter
                 Candidate = e => Valid(e) && !e.cloaked   // PlayerTurret::handleTurret: no aiming at a cloaked target
                     && (PlayerOwned ? !e.isPlayer && e.isShip && e.hostileToPlayer
@@ -115,7 +116,7 @@ namespace GoF2Remake.World
                          : AimAt(target, dtMs);
             // the original's: a capital ship's spot on a boxed target or a fixed target as it is, else led at a spot on it;
             // Settings.TurretLeadAim: #354's ballistic lead to the spot
-            var at = Settings.TurretLeadAim ? turretPicking.LeadPoint(target, aimPoint, turretCore.GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs)
+            var at = Settings.TurretLeadAim ? (gun.isBeam ? aimPoint : turretPicking.LeadPoint(target, aimPoint, turretCore.GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs))
                    : Spec.capitalEnhanced && target.boxes != null && target.boxes.Length > 0 || turretTargetFixed ? aimPoint
                    : TurretTargeting.LeadPoint(target) + (aimPoint - target.transform.position);
             bool aligned = turretCore.StepToward(at, dtMs);

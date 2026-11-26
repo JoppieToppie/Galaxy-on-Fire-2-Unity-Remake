@@ -117,10 +117,6 @@ namespace GoF2Remake.World
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
         SmepDogfightState smepDogfightState;
-        Target smepMotionTarget;
-        Vector3 smepMotionPosition, smepMotionVelocity, smepMotionAcceleration, smepMotionSampleVelocity;
-        double smepMotionTime;
-        bool smepMotionInitialized, smepMotionHasSample;
         Vector3 smepReciprocalLastPosition;
         bool smepReciprocalHasPosition;
         static PlayerCollision smepPlayerCollision;
@@ -238,106 +234,18 @@ namespace GoF2Remake.World
             if (picked != null) SetSmepRemoteTarget(picked);
         }
 
-        /// <summary>SMEP's acceleration-aware ballistic lead. Target samples are rate-limited and smoothed per fighter.</summary>
+        /// <summary>Share target motion with the turret controller instead of sampling every fighter separately.</summary>
         Vector3 SmepAccelerationLead(Vector3 aimPoint, Vector3 from, Vector3 nativeLead)
         {
             if (target == null || !target.Alive) return nativeLead;
-            SampleSmepTargetMotion(out var velocity, out var acceleration);
-            // Until two valid positions exist, native lead is more informative than a zero-motion estimate.
-            if (!smepMotionHasSample) return nativeLead;
             var firing = gun;
-            if (firing == null || firing.isBeam || firing.IsMissile || firing.Homing || firing.Guided) return nativeLead;
-            float projectileSpeed = firing.speedUnitsPerMs * M * 1000f;
-            if (projectileSpeed <= 1e-3f) return nativeLead;
-            var relative = aimPoint - from;
-            float linear = Es2Aim.InterceptTime(relative.x, relative.y, relative.z,
-                                                 velocity.x, velocity.y, velocity.z, projectileSpeed);
-            if (linear <= 0f || linear > 6f) return nativeLead;
-            float time = SmepAccelerationIntercept(relative, velocity, acceleration, projectileSpeed, linear);
-            if (time <= 0f) return nativeLead;
-            return aimPoint + velocity * time + acceleration * (0.5f * time * time);
-        }
-
-        void SampleSmepTargetMotion(out Vector3 velocity, out Vector3 acceleration)
-        {
-            var motionTarget = target;
-            var position = motionTarget.hull != null ? motionTarget.hull.transform.position : motionTarget.transform.position;
-            double now = Time.timeAsDouble;
-            if (!smepMotionInitialized || smepMotionTarget != motionTarget)
-            {
-                smepMotionInitialized = true;
-                smepMotionHasSample = false;
-                smepMotionTarget = motionTarget;
-                smepMotionPosition = position;
-                smepMotionTime = now;
-                smepMotionVelocity = smepMotionAcceleration = smepMotionSampleVelocity = Vector3.zero;
-                velocity = acceleration = Vector3.zero;
-                return;
-            }
-
-            double elapsedD = now - smepMotionTime;
-            if (elapsedD < 0.04)
-            {
-                velocity = smepMotionVelocity;
-                acceleration = smepMotionAcceleration;
-                return;
-            }
-            float elapsed = (float)elapsedD;
-            var sampleVelocity = Vector3.ClampMagnitude((position - smepMotionPosition) / elapsed, 1500f);
-            if (elapsedD > 0.5)
-            {
-                smepMotionHasSample = false;
-                smepMotionVelocity = Vector3.zero;
-                smepMotionAcceleration = Vector3.zero;
-                smepMotionSampleVelocity = Vector3.zero;
-                smepMotionPosition = position;
-                smepMotionTime = now;
-                velocity = smepMotionVelocity;
-                acceleration = Vector3.zero;
-                return;
-            }
-            var sampleAcceleration = Vector3.ClampMagnitude((sampleVelocity - smepMotionSampleVelocity) / elapsed, 3000f);
-            smepMotionVelocity = Vector3.Lerp(smepMotionVelocity, sampleVelocity, 0.65f);
-            smepMotionAcceleration = Vector3.Lerp(smepMotionAcceleration, sampleAcceleration, 0.3f);
-            smepMotionSampleVelocity = sampleVelocity;
-            smepMotionHasSample = true;
-            smepMotionPosition = position;
-            smepMotionTime = now;
-            velocity = smepMotionVelocity;
-            acceleration = smepMotionAcceleration;
-        }
-
-        static float SmepAccelerationIntercept(Vector3 relative, Vector3 velocity, Vector3 acceleration, float speed, float fallback)
-        {
-            float searchEnd = Mathf.Min(6f, Mathf.Max(0.5f, fallback * 1.5f));
-            float sampleStep = searchEnd / 12f;
-            float previousTime = 0f;
-            float low = 0f, high = 0f;
-            bool bracketed = false;
-            for (int i = 1; i <= 12; i++)
-            {
-                float time = i * sampleStep;
-                float travel = speed * time;
-                float error = (relative + velocity * time + acceleration * (0.5f * time * time)).sqrMagnitude - travel * travel;
-                if (error <= 0f)
-                {
-                    low = previousTime;
-                    high = time;
-                    bracketed = true;
-                    break;
-                }
-                previousTime = time;
-            }
-            if (!bracketed) return 0f;
-            for (int i = 0; i < 10; i++)
-            {
-                float middle = (low + high) * 0.5f;
-                float travel = speed * middle;
-                float error = (relative + velocity * middle + acceleration * (0.5f * middle * middle)).sqrMagnitude - travel * travel;
-                if (error > 0f) low = middle; else high = middle;
-            }
-            float result = (low + high) * 0.5f;
-            return result > 0f && result <= 6f ? result : 0f;
+            if (firing == null || firing.IsMissile || firing.Homing || firing.Guided) return nativeLead;
+            if (firing.isBeam) return aimPoint;
+            float speed = firing.speedUnitsPerMs * M * 1000f;
+            float lifetime = Mathf.Min(6f, firing.lifetimeMs * 0.001f);
+            if (lifetime <= 0f) return nativeLead;
+            return TurretTargeting.TryPredictedLead(target, aimPoint, from, speed, lifetime, out var predicted)
+                ? predicted : nativeLead;
         }
 
         /// <summary>Predicts candidate 6DOF trajectories from actual velocity, not nose heading.</summary>
