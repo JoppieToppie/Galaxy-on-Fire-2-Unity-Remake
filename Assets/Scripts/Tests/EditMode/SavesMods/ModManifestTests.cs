@@ -107,6 +107,25 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ScannerDetectionPercentagesUseCanonicalClassIds()
+        {
+            var m = Read(Q("{ 'id': 'scanner', 'scannerClassDetectionPercent': { 'STEALTH_FIGHTER': 50, 'carrier': 200 } }"));
+            Assert.AreEqual(50, m.scannerClassDetectionPercent["stealth_fighter"]);
+            Assert.AreEqual(200, m.scannerClassDetectionPercent["carrier"]);
+            Assert.IsEmpty(Read(Q("{ 'id': 'legacy' }")).scannerClassDetectionPercent);
+        }
+
+        [TestCase("{ 'unknown': 50 }")]
+        [TestCase("{ 'carrier': 0 }")]
+        [TestCase("{ 'carrier': 1001 }")]
+        [TestCase("{ 'carrier': 1.5 }")]
+        [TestCase("[]")]
+        public void InvalidScannerDetectionPercentagesAreRejected(string map)
+        {
+            StringAssert.Contains("mod.json", Error(Q("{ 'id': 'bad_scanner', 'scannerClassDetectionPercent': " + map + " }")));
+        }
+
+        [Test]
         public void InvalidMultipleSecondaryMountsFlagIsRejected()
         {
             StringAssert.Contains("\"multipleSecondaryMounts\" must be true or false",
