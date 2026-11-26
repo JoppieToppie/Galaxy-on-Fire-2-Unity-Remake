@@ -64,6 +64,7 @@ namespace GoF2Remake.UI
         bool placementAwaitingSnapshot;
         float placementRequestDeadline;
         readonly Dictionary<string, Vector3Int> placementDrafts = new Dictionary<string, Vector3Int>();
+        readonly Dictionary<string, Vector3Int> placementRotationDrafts = new Dictionary<string, Vector3Int>();
         bool compact;
         float feedbackTime;
         float pressedAt = -10f;
@@ -326,6 +327,7 @@ namespace GoF2Remake.UI
             if (!open) return;
             DestroyPlacementPreview();
             placementDrafts.Clear();
+            placementRotationDrafts.Clear();
             placementCameraKey = null;
             placementRequestVersion++;
             placementOrderPending = false;

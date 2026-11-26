@@ -4,6 +4,7 @@ using System.Linq;
 using GoF2Remake.Multiplayer;
 using GoF2Remake.Data;
 using GoF2Remake.World;
+using GoF2Remake.Visuals;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -32,9 +33,9 @@ namespace GoF2Remake.UI
         {
             if (station == null) return "";
             var modules = station.placements?.Where(p => p != null)
-                .Select(p => $"{p.kind}:{p.preset}:{p.x}:{p.y}:{p.z}") ?? Enumerable.Empty<string>();
+                .Select(p => $"{p.kind}:{p.preset}:{p.x}:{p.y}:{p.z}:{p.hasRotation}:{p.pitch}:{p.yaw}:{p.roll}") ?? Enumerable.Empty<string>();
             var orbital = NetPlayerStations.OrbitalStructures?.Where(p => p != null && p.orbit == orbit)
-                .Select(p => $"{p.id}:{p.operational}:{p.placementX}:{p.placementY}:{p.placementZ}") ?? Enumerable.Empty<string>();
+                .Select(p => $"{p.id}:{p.operational}:{p.placementX}:{p.placementY}:{p.placementZ}:{p.hasRotation}:{p.pitch}:{p.yaw}:{p.roll}") ?? Enumerable.Empty<string>();
             return string.Join("|", modules.Concat(orbital));
         }
 
@@ -77,6 +78,11 @@ namespace GoF2Remake.UI
                 position = existing != null ? new Vector3Int(existing.x, existing.y, existing.z) :
                     (orbital ? Vector3Int.RoundToInt(Quaternion.Euler(0, defenseSlot * 360f / Math.Max(1, settings.OrbitalDefenseLimit), 0) * new Vector3(0, 0, 8000)) : new Vector3Int(0, 0, Mathf.Clamp(Mathf.RoundToInt(layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale), 300, 9000)));
 
+            bool dockingArm = kind.StartsWith("dockarm-", StringComparison.Ordinal);
+            if (!placementRotationDrafts.TryGetValue(draftKey, out var angles))
+                angles = existing?.hasRotation == true ? new Vector3Int(existing.pitch, existing.yaw, existing.roll) :
+                    dockingArm && position.sqrMagnitude > 0 ? Vector3Int.RoundToInt(Quaternion.LookRotation((Vector3)position).eulerAngles) : Vector3Int.zero;
+            Quaternion Rotation() => Quaternion.Euler(angles);
             Vector3Int Absolute(Vector3Int point) => Vector3Int.RoundToInt(stationPosition) + point;
             string PlacementError(Vector3Int point)
             {
@@ -120,7 +126,7 @@ namespace GoF2Remake.UI
             var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
             AddSection("ORBIT PLACEMENT", orbital
                 ? "Save each numbered defense position before ordering construction. Amber markers show saved positions and existing projects. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap."
-                : "Drag the marker or its arrows. Drag empty space to rotate, scroll to zoom, and hold Ctrl to snap.");
+                : "Drag the marker or its arrows to move; enable rotation mode to turn the selected axis. Drag empty space to orbit the camera, scroll to zoom, and hold Ctrl to snap.");
             var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
             var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
             var controls = new VisualElement(); controls.AddToClassList("player-station-orbit-controls"); editor.Add(controls);
@@ -154,7 +160,7 @@ namespace GoF2Remake.UI
             var placementStatus = new Label();
             placementStatus.AddToClassList("player-station-note");
             placementStatus.style.whiteSpace = WhiteSpace.Normal;
-            if (orbital) controls.Add(placementStatus);
+            controls.Add(placementStatus);
 
             const int previewLayer = 31;
             placementRoot = new GameObject("Station placement preview");
@@ -219,6 +225,18 @@ namespace GoF2Remake.UI
                 placementYaw = 34;
                 placementPitch = 29;
             }
+            // Rotation controls operate on the same transform that will be saved by the server.
+            var rotateMode = new Toggle("Drag marker to rotate"); controls.Add(rotateMode);
+            var localAxes = new Toggle("Local axes") { value = true }; controls.Add(localAxes);
+            var axes = new List<string> { "Pitch (X)", "Yaw (Y)", "Roll (Z)" };
+            var axisChoice = new PopupField<string>("Rotation axis", axes, 1); controls.Add(axisChoice);
+            var steps = new List<string> { "1", "15", "45", "90" };
+            var stepChoice = new PopupField<string>("Rotation step (degrees)", steps, 1); controls.Add(stepChoice);
+            var pitchField = new IntegerField("Pitch (X)"); var yawField = new IntegerField("Yaw (Y)"); var rollField = new IntegerField("Roll (Z)");
+            foreach (var field in new[] { pitchField, yawField, rollField }) { field.isDelayed = true; field.AddToClassList("player-station-field"); controls.Add(field); }
+            GameObject dockShip = null;
+            WeaponMount previewMount = null;
+            var previewStatus = new Label(); previewStatus.style.whiteSpace = WhiteSpace.Normal;
             void SetCamera()
             {
                 camera.transform.position = frame.position + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
@@ -245,12 +263,65 @@ namespace GoF2Remake.UI
             {
                 position = Vector3Int.RoundToInt(frame.InverseTransformPoint(gizmo.WorldOf(mounts[active])));
                 placementDrafts[draftKey] = position;
-                if (ghost != null) ghost.transform.position = frame.TransformPoint(position);
+                placementRotationDrafts[draftKey] = angles;
+                pitchField.SetValueWithoutNotify(angles.x); yawField.SetValueWithoutNotify(angles.y); rollField.SetValueWithoutNotify(angles.z);
+                if (ghost != null) ghost.transform.SetPositionAndRotation(frame.TransformPoint(position), Rotation());
+                if (dockShip != null && previewMount != null)
+                {
+                    var pose = NetPlayerStations.DockArmPose(position, preset.HitRadius, Rotation());
+                    var shipRotation = Es2Dock.ExternalDockRotation(pose.rotation, previewMount);
+                    dockShip.transform.SetPositionAndRotation(Es2Dock.ExternalDockPosition(frame.TransformPoint(pose.position), shipRotation, previewMount), shipRotation);
+                    bool overlap = model != null && dockShip.GetComponentsInChildren<Renderer>().Any(shipPart =>
+                        model.GetComponentsInChildren<Renderer>().Any(stationPart => shipPart.bounds.Intersects(stationPart.bounds)));
+                    previewStatus.text = overlap ? "Warning: preview hull bounds overlap the station. Check clearance." : "Docked pose preview · hull bounds clear of station.";
+                }
                 coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
-                if (!orbital) return;
+                if (!orbital) { placementStatus.text = "Save the planned position and rotation before construction."; return; }
                 string error = PlacementError(position);
                 placementStatus.text = placementAwaitingSnapshot ? "Placement saved. Synchronizing reserved slots…" : error ?? "Position clear. Save this plan without ordering construction.";
                 orderButton.SetEnabled(error == null && !placementOrderPending);
+            }
+            int RotationStep() => int.Parse(stepChoice.value);
+            Vector3 RotationAxis() => axisChoice.index == 0 ? Vector3.right : axisChoice.index == 1 ? Vector3.up : Vector3.forward;
+            void Rotate(float amount)
+            {
+                Quaternion delta = Quaternion.AngleAxis(amount, RotationAxis());
+                angles = Vector3Int.RoundToInt((localAxes.value ? Rotation() * delta : delta * Rotation()).eulerAngles);
+                UpdatePoint();
+            }
+            void ReadAngles() { angles = new Vector3Int(Mathf.Clamp(pitchField.value, -360, 360), Mathf.Clamp(yawField.value, -360, 360), Mathf.Clamp(rollField.value, -360, 360)); UpdatePoint(); }
+            pitchField.RegisterValueChangedCallback(_ => ReadAngles()); yawField.RegisterValueChangedCallback(_ => ReadAngles()); rollField.RegisterValueChangedCallback(_ => ReadAngles());
+            AddPlacementControl(new Button(() => Rotate(-RotationStep())) { text = "Rotate −" });
+            AddPlacementControl(new Button(() => Rotate(RotationStep())) { text = "Rotate +" });
+            AddPlacementControl(new Button(() => { angles = Vector3Int.zero; UpdatePoint(); }) { text = "Reset rotation" });
+            if (dockingArm)
+            {
+                var ships = db.Ships.Where(s => s != null && Modding.ExternalDockingRules.CanDockExternally(s) && db.MountsOf(s.index, 8)?.Count > 0).ToList();
+                if (ships.Count > 0)
+                {
+                    var names = ships.Select(s => s.name + " #" + s.index).ToList();
+                    var shipChoice = new PopupField<string>("Docked preview ship", names, 0); controls.Add(shipChoice);
+                    var mountRow = new VisualElement(); controls.Add(mountRow); controls.Add(previewStatus);
+                    void PreviewShip()
+                    {
+                        if (dockShip != null) { dockShip.SetActive(false); UnityEngine.Object.Destroy(dockShip); }
+                        dockShip = null; previewMount = null; mountRow.Clear();
+                        var ship = ships[shipChoice.index];
+                        var shipMounts = db.MountsOf(ship.index, 8);
+                        var prefab = AssembledObject.LoadPrefab(db.ShipAssembly(ship.index));
+                        if (prefab == null) { previewStatus.text = "Ship model unavailable."; return; }
+                        dockShip = UnityEngine.Object.Instantiate(prefab, frame);
+                        dockShip.name = "External docking preview ship";
+                        SetLayer(dockShip.transform);
+                        foreach (var collider in dockShip.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                        var mountChoice = new PopupField<string>("Ship attachment", shipMounts.Select((m, i) => "Hardpoint " + (i + 1)).ToList(), 0);
+                        mountRow.Add(mountChoice); previewMount = shipMounts[0];
+                        mountChoice.RegisterValueChangedCallback(_ => { previewMount = shipMounts[mountChoice.index]; UpdatePoint(); });
+                        UpdatePoint();
+                    }
+                    shipChoice.RegisterValueChangedCallback(_ => PreviewShip()); PreviewShip();
+                }
+                else controls.Add(new Label("No compatible external docking ship is available."));
             }
             if (orbital)
                 AddPlacementControl(new Button(() =>
@@ -273,7 +344,7 @@ namespace GoF2Remake.UI
                 if (orbital && (placementOrderPending || PlacementError(position) != null)) return;
                 Vector3Int point = position;
                 string command = $"/station place {station.id} {kind}";
-                string request = $"{command} {point.x} {point.y} {point.z} {preset.Id}";
+                string request = $"{command} {point.x} {point.y} {point.z} {preset.Id} {angles.x} {angles.y} {angles.z}";
                 if (!orbital) { Send(request); return; }
                 int version = ++placementRequestVersion;
                 string submittedSnapshot = PlacementSnapshotOf(station, previewOrbit);
@@ -307,7 +378,8 @@ namespace GoF2Remake.UI
             }
             SetCamera();
             UpdatePoint();
-            bool orbiting = false, movingInPlane = false;
+            bool orbiting = false, movingInPlane = false, rotating = false;
+            float rotationDrag = 0f;
             Plane dragPlane = default;
             Vector3 grabOffset = Vector3.zero;
             viewport.RegisterCallback<PointerDownEvent>(evt =>
@@ -316,7 +388,9 @@ namespace GoF2Remake.UI
                 var point = ScreenPoint(evt.position);
                 bool axis = gizmo.PickAxis(point) >= 0;
                 bool marker = gizmo.PickMarker(point) == active;
-                if (orbital && marker && !axis)
+                rotating = rotateMode.value && (axis || marker);
+                rotationDrag = 0f;
+                if (!rotating && orbital && marker && !axis)
                 {
                     var markerWorld = gizmo.WorldOf(mounts[active]);
                     dragPlane = new Plane(camera.transform.forward, markerWorld);
@@ -324,7 +398,7 @@ namespace GoF2Remake.UI
                     movingInPlane = dragPlane.Raycast(ray, out float hit);
                     if (movingInPlane) grabOffset = markerWorld - ray.GetPoint(hit);
                 }
-                orbiting = !movingInPlane && (!(axis || marker) || !gizmo.BeginDrag(point));
+                orbiting = !rotating && !movingInPlane && (!(axis || marker) || !gizmo.BeginDrag(point));
                 placementDragging = true;
                 viewport.CapturePointer(evt.pointerId);
                 evt.StopPropagation();
@@ -332,7 +406,14 @@ namespace GoF2Remake.UI
             viewport.RegisterCallback<PointerMoveEvent>(evt =>
             {
                 var point = ScreenPoint(evt.position);
-                if (movingInPlane)
+                if (rotating)
+                {
+                    rotationDrag += evt.deltaPosition.x * .6f;
+                    float step = evt.ctrlKey ? RotationStep() : 1f;
+                    float turn = Mathf.Round(rotationDrag / step) * step;
+                    if (Mathf.Abs(turn) >= step) { Rotate(turn); rotationDrag -= turn; }
+                }
+                else if (movingInPlane)
                 {
                     var ray = camera.ScreenPointToRay(point);
                     if (dragPlane.Raycast(ray, out float hit))
@@ -359,11 +440,11 @@ namespace GoF2Remake.UI
             viewport.RegisterCallback<PointerUpEvent>(evt =>
             {
                 gizmo.EndDrag();
-                orbiting = movingInPlane = placementDragging = false;
+                orbiting = movingInPlane = rotating = placementDragging = false;
                 UpdatePoint();
                 if (viewport.HasPointerCapture(evt.pointerId)) viewport.ReleasePointer(evt.pointerId);
             });
-            viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = placementDragging = false; });
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = rotating = placementDragging = false; });
             viewport.RegisterCallback<WheelEvent>(evt =>
             {
                 placementDistance = Mathf.Clamp(placementDistance * Mathf.Pow(1.12f, evt.delta.y), 300, 170000);

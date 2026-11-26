@@ -477,11 +477,21 @@ namespace GoF2Remake.Multiplayer
                 args.StartsWith("orbital-place ", StringComparison.OrdinalIgnoreCase))
             {
                 var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (words.Length != 7 || !int.TryParse(words[1], out int sponsor) ||
+                if ((words.Length != 7 && words.Length != 10) || !int.TryParse(words[1], out int sponsor) ||
                     !int.TryParse(words[3], out int x) || !int.TryParse(words[4], out int y) || !int.TryParse(words[5], out int z))
                     return "/station place <station> <module> <x> <y> <z> <preset> or /station orbital-place <station> <orbit> <x> <y> <z> <preset>";
                 if (words[0].Equals("place", StringComparison.OrdinalIgnoreCase))
-                    return NetPlayerStations.PlanModulePlacement(by as NetPlayer, sponsor, words[2], x, y, z, words[6]);
+                {
+                    UnityEngine.Vector3Int? rotation = null;
+                    if (words.Length == 10)
+                    {
+                        if (!int.TryParse(words[7], out int pitch) || !int.TryParse(words[8], out int yaw) || !int.TryParse(words[9], out int roll))
+                            return "Rotation requires three integer angles in degrees.";
+                        rotation = new UnityEngine.Vector3Int(pitch, yaw, roll);
+                    }
+                    return NetPlayerStations.PlanModulePlacement(by as NetPlayer, sponsor, words[2], x, y, z, words[6], rotation);
+                }
+                if (words.Length != 7) return "Use /station place for a rotated saved placement.";
                 if (!int.TryParse(words[2], out int orbit)) return "Choose a valid orbit.";
                 return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, sponsor, orbit, words[6], new UnityEngine.Vector3Int(x, y, z));
             }

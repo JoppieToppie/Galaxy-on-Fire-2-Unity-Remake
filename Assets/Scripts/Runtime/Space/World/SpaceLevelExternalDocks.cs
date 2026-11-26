@@ -39,7 +39,7 @@ namespace GoF2Remake.World
         string dockArmSnapshot;
         void UpdatePlannedDockPoints(int orbit)
         {
-            if (Station == null || DockedInOrbit || Es2Busy || SpaceHooks.PlayerDockArms == null) return;
+            if (Station == null || DockedInOrbit || Es2Busy || SpaceHooks.PlayerDockArmPoses == null) return;
             string snapshot = SpaceHooks.PlayerInfrastructureSnapshot?.Invoke();
             if (ReferenceEquals(snapshot, dockArmSnapshot) && plannedDockPoints.TrueForAll(point => point != null && externalDockPoints.Contains(point))) return;
             dockArmSnapshot = snapshot;
@@ -49,13 +49,11 @@ namespace GoF2Remake.World
                 if (point != null) Destroy(point.gameObject);
             }
             plannedDockPoints.Clear();
-            foreach (var position in SpaceHooks.PlayerDockArms(orbit))
+            foreach (var pose in SpaceHooks.PlayerDockArmPoses(orbit))
             {
                 var point = new GameObject("Player station docking arm").transform;
                 point.SetParent(Station.transform, false);
-                point.position = position;
-                var direction = position - Station.transform.position;
-                if (direction.sqrMagnitude > 0f) point.rotation = Quaternion.LookRotation(direction.normalized);
+                point.SetPositionAndRotation(pose.position, pose.rotation);
                 plannedDockPoints.Add(point);
                 externalDockPoints.Add(point);
             }

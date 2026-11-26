@@ -334,6 +334,10 @@ namespace GoF2Remake.Multiplayer
     {
         public string kind, preset;
         public int x, y, z;
+        // Degrees in the orbit frame; absent in older saves.
+        public bool hasRotation;
+        public int pitch, yaw, roll;
+        public Quaternion GetRotation() => hasRotation ? Quaternion.Euler(pitch, yaw, roll) : Quaternion.identity;
     }
 
     [Serializable]

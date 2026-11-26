@@ -175,7 +175,7 @@ namespace GoF2Remake.World
         }
 
         readonly Dictionary<int, GameObject> orbitalStructureModels = new Dictionary<int, GameObject>();
-        readonly Dictionary<int, (string assembly, Vector3 position, float scale, float radius)> orbitalModelDescriptors = new Dictionary<int, (string, Vector3, float, float)>();
+        readonly Dictionary<int, (string assembly, Vector3 position, float scale, float radius, Quaternion rotation)> orbitalModelDescriptors = new Dictionary<int, (string, Vector3, float, float, Quaternion)>();
         string renderedOrbitalSnapshot;
         float retryOrbitalModelsAt;
         bool orbitalModelsInitialized;
@@ -192,7 +192,7 @@ namespace GoF2Remake.World
             if (structures != null)
                 foreach (var structure in structures)
                 {
-                    var descriptor = (structure.assembly, structure.position, structure.scale, structure.radius);
+                    var descriptor = (structure.assembly, structure.position, structure.scale, structure.radius, SpaceHooks.PlayerPlacedModelRotation?.Invoke(orbit, structure.id) ?? Quaternion.identity);
                     if (orbitalStructureModels.TryGetValue(structure.id, out var existing) &&
                         (!orbitalModelDescriptors.TryGetValue(structure.id, out var old) || !old.Equals(descriptor)))
                     {
@@ -231,7 +231,8 @@ namespace GoF2Remake.World
                     retryOrbitalModelsAt = Time.unscaledTime + 2f;
                     continue;
                 }
-                model.transform.position = structure.position;
+                var rotation = SpaceHooks.PlayerPlacedModelRotation?.Invoke(orbit, structure.id) ?? Quaternion.identity;
+                model.transform.SetPositionAndRotation(structure.position, rotation);
                 model.transform.localScale *= structure.scale;
                 var obstacle = model.AddComponent<Obstacle>();
                 obstacle.landmark = obstacle.cubeIsContact = true;
@@ -240,7 +241,7 @@ namespace GoF2Remake.World
                 var hull = HullCollision.Attach(model, null, obstacle, forceExact: true);
                 if (hull != null) hull.orbitalStructureId = structure.id;
                 orbitalStructureModels.Add(structure.id, model);
-                orbitalModelDescriptors[structure.id] = (structure.assembly, structure.position, structure.scale, structure.radius);
+                orbitalModelDescriptors[structure.id] = (structure.assembly, structure.position, structure.scale, structure.radius, rotation);
             }
         }
 

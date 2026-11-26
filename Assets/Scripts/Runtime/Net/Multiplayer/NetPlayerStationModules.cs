@@ -315,7 +315,7 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        static string PlanDefensePlacement(PlayerStationRecord station, string kind, int slot, Vector3Int offset, string presetId)
+        static string PlanDefensePlacement(PlayerStationRecord station, string kind, int slot, Vector3Int offset, string presetId, Vector3Int? rotation)
         {
             var preset = ModPlayerInfrastructure.Current.OrbitalStructures.FirstOrDefault(p => p.Defense && p.Id == presetId && OrbitalPresetAvailable(p, OrbitalSponsorRace(station)));
             if (preset == null) return "Choose an available defense model.";
@@ -335,19 +335,22 @@ namespace GoF2Remake.Multiplayer
                 if ((new Vector3(other.x, other.y, other.z) - offset).sqrMagnitude < clearance * clearance)
                     return "This position overlaps " + other.kind + ".";
             }
-            updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = offset.x, y = offset.y, z = offset.z });
+            updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = offset.x, y = offset.y, z = offset.z,
+                hasRotation = rotation.HasValue, pitch = rotation?.x ?? 0, yaw = rotation?.y ?? 0, roll = rotation?.z ?? 0 });
             station.placements = updated;
             if (Save()) return $"Defense {slot + 1} planned placement saved.";
             station.placements = previous;
             return "The placement could not be saved.";
         }
 
-        internal static string PlanModulePlacement(NetPlayer pilot, int id, string kind, int x, int y, int z, string presetId)
+        internal static string PlanModulePlacement(NetPlayer pilot, int id, string kind, int x, int y, int z, string presetId, Vector3Int? rotation = null)
         {
             var station = Find(id);
             if (!CanManageConstruction(pilot, station, out _) || station.underConstruction)
                 return "Dock at the operational station with construction authority.";
-            if (TryDefenseSlot(kind, out int defenseSlot)) return PlanDefensePlacement(station, kind, defenseSlot, new Vector3Int(x, y, z), presetId);
+            if (rotation.HasValue && (Math.Abs((long)rotation.Value.x) > 360 || Math.Abs((long)rotation.Value.y) > 360 || Math.Abs((long)rotation.Value.z) > 360))
+                return "Rotation angles must be between -360 and 360 degrees.";
+            if (TryDefenseSlot(kind, out int defenseSlot)) return PlanDefensePlacement(station, kind, defenseSlot, new Vector3Int(x, y, z), presetId, rotation);
             int key = Array.IndexOf(PlacementKinds, kind);
             if (key < 0) return "Choose a refinery, factory, dry dock or docking arm.";
             var offset = new Vector3(x, y, z);
@@ -380,7 +383,8 @@ namespace GoF2Remake.Multiplayer
                 }
             if (updated.Exists(entry => entry != null && (new Vector3(entry.x, entry.y, entry.z) - offset).sqrMagnitude < 150f * 150f))
                 return "Choose a position at least 150 m from the other planned modules.";
-            updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = x, y = y, z = z });
+            updated.Add(new PlayerStationPlacement { kind = kind, preset = presetId, x = x, y = y, z = z,
+                hasRotation = rotation.HasValue, pitch = rotation?.x ?? 0, yaw = rotation?.y ?? 0, roll = rotation?.z ?? 0 });
             station.placements = updated;
             if (Save()) return ModuleName(module) + " placement saved.";
             station.placements = previous;
@@ -496,7 +500,29 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
-        internal static IEnumerable<Vector3> PlacedDockArms(int orbit)
+        internal static Quaternion PlacedModelRotation(int orbit, int id)
+        {
+            if (id > 0)
+            {
+                var structure = FindOrbitalStructure(id);
+                return structure != null && structure.hasRotation ? Quaternion.Euler(structure.pitch, structure.yaw, structure.roll) : Quaternion.identity;
+            }
+            int key = -1 - id;
+            if (key < 0 || key >= PlacementKinds.Length) return Quaternion.identity;
+            return StationAt(orbit)?.placements?.Find(p => p?.kind == PlacementKinds[key])?.GetRotation() ?? Quaternion.identity;
+        }
+
+        // One calculation for the runtime docking point and placement preview. Old saves keep their radial pose.
+        internal static (Vector3 position, Quaternion rotation) DockArmPose(Vector3 offset, float radius, Quaternion? rotation)
+        {
+            var direction = offset.sqrMagnitude > 0f ? offset.normalized : Vector3.forward;
+            Quaternion turn = rotation ?? Quaternion.LookRotation(direction);
+            return (offset + direction * radius, turn);
+        }
+
+        internal static IEnumerable<Vector3> PlacedDockArms(int orbit) => PlacedDockArmPoses(orbit).Select(p => p.position);
+
+        internal static IEnumerable<(Vector3 position, Quaternion rotation)> PlacedDockArmPoses(int orbit)
         {
             var station = StationAt(orbit);
             if (!OperationalSponsor(station) || station.placements == null ||
@@ -507,7 +533,8 @@ namespace GoF2Remake.Multiplayer
                     var preset = SavedModuleExterior(entry.preset);
                     if (preset == null || OrbitalStructureAssembly(preset.Assembly, preset.StationModel, NetGame.Db) == null) continue;
                     var offset = new Vector3(entry.x, entry.y, entry.z);
-                    yield return StationPosition(orbit) + offset + offset.normalized * preset.HitRadius;
+                    var pose = DockArmPose(offset, preset.HitRadius, entry.hasRotation ? (Quaternion?)entry.GetRotation() : null);
+                    yield return (StationPosition(orbit) + pose.position, pose.rotation);
                 }
         }
 

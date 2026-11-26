@@ -121,6 +121,8 @@ namespace GoF2Remake.World
         public static Func<string> PlayerInfrastructureSnapshot;
         public static Func<Database, int, IEnumerable<(int id, string name, string assembly, Vector3 position, float scale, float radius)>> PlayerOrbitalModels;
         public static Func<int, IEnumerable<Vector3>> PlayerDockArms;
+        public static Func<int, IEnumerable<(Vector3 position, Quaternion rotation)>> PlayerDockArmPoses;
+        public static Func<int, int, Quaternion> PlayerPlacedModelRotation;
         public static Func<int, int, bool> PlayerModuleDestroyed;
         public static Func<int, bool, IReadOnlyList<(int item, int amount)>> PlayerWreckSalvage;
         public static Func<int, bool, Vector3> PlayerWreckSalvagePosition;

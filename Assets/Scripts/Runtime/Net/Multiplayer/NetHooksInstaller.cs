@@ -140,6 +140,8 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.RequestPlayerJumpgateTravel = (orbit, done) => NetPlayer.Local?.RequestPlayerJumpgateTravel(orbit, done) == true;
             SpaceHooks.PlayerInfrastructureSnapshot = () => NetState.Instance?.PlayerStations;
             SpaceHooks.PlayerDockArms = NetPlayerStations.PlacedDockArms;
+            SpaceHooks.PlayerDockArmPoses = NetPlayerStations.PlacedDockArmPoses;
+            SpaceHooks.PlayerPlacedModelRotation = NetPlayerStations.PlacedModelRotation;
             SpaceHooks.PlayerModuleDestroyed = NetPlayerStations.StructuralModuleDestroyed;
             SpaceHooks.PlayerOrbitalModels = (db, orbit) => (NetPlayerStations.OrbitalStructures ?? System.Array.Empty<PlayerOrbitalStructure>())
                 .Where(structure => structure != null && structure.orbit == orbit && structure.operational)

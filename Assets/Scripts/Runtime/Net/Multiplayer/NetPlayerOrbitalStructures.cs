@@ -15,6 +15,8 @@ namespace GoF2Remake.Multiplayer
         public string name, assembly, stationModel;
         public bool defense, hasPlacement;
         public int placementX, placementY, placementZ;
+        public bool hasRotation;
+        public int pitch, yaw, roll;
         public bool ignorePlayers, ignoreNpcs;
         public float modelScale, hitRadius, integrity, maxIntegrity, range, damage;
         public long completesUtc, maintenanceDueUtc, maintenanceDecayUtc;
@@ -123,12 +125,14 @@ namespace GoF2Remake.Multiplayer
                 if (entry.Id == presetId) { preset = entry; break; }
             if (preset == null || !OrbitalPresetAvailable(preset, OrbitalSponsorRace(sponsor))) return "That structure preset is unavailable.";
             var structures = registry.orbitalStructures;
+            PlayerStationPlacement savedPlan = null;
             if (plannedSlot.HasValue)
             {
                 int n = plannedSlot.Value;
                 if (!preset.Defense || orbit != sponsor.stationIndex || n < 0 || n >= settings.OrbitalDefenseLimit || structures.Exists(p => p != null && p.orbit == orbit && p.defense && p.slot == n)) return "That defense slot is unavailable.";
                 var plan = sponsor.placements?.Find(p => p?.kind == "defense-" + (n + 1));
                 if (plan == null || plan.preset != presetId) return "Save the defense placement first.";
+                savedPlan = plan;
                 placement = Vector3Int.RoundToInt(StationPosition(orbit)) + new Vector3Int(plan.x, plan.y, plan.z);
             }
             if (placement is Vector3Int point &&
@@ -169,6 +173,11 @@ namespace GoF2Remake.Multiplayer
                 structure.placementX = placed.x;
                 structure.placementY = placed.y;
                 structure.placementZ = placed.z;
+            }
+            if (savedPlan?.hasRotation == true)
+            {
+                structure.hasRotation = true;
+                structure.pitch = savedPlan.pitch; structure.yaw = savedPlan.yaw; structure.roll = savedPlan.roll;
             }
             foreach (var cost in preset.Materials)
                 structure.materials.Add(new PlayerStationMaterial { item = cost.item, required = cost.amount });
