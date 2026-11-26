@@ -172,6 +172,29 @@ namespace GoF2Remake.Data
                 return true;
             }
 
+            // The server schedules the campaign independently of which orbits have players.
+            public bool TryStartAny(Database db, long now, Func<int, bool> allowed, out Battle battle)
+            {
+                battle = default;
+                if (!ModNpcFactionWar.Enabled || db?.Systems == null || now < nextBattle || nextBattleId == LastBattleId) return false;
+                var candidates = new List<int>();
+                foreach (var system in db.Systems)
+                    if (ModNpcFactionWar.CanContest(system) && system.stations != null)
+                        foreach (int orbit in system.stations)
+                            if (ModNpcFactionWar.IsWarOrbit(orbit) && (allowed == null || allowed(orbit))) candidates.Add(orbit);
+                // Randomise without replacement; TryStart retains the frontier and one-battle-per-system checks.
+                while (candidates.Count > 0)
+                {
+                    int index = UnityEngine.Random.Range(0, candidates.Count);
+                    int orbit = candidates[index];
+                    int last = candidates.Count - 1;
+                    candidates[index] = candidates[last];
+                    candidates.RemoveAt(last);
+                    if (TryStart(db, orbit, now, out battle)) return true;
+                }
+                return false;
+            }
+
             public bool IsFrontline(Database db, SystemData system)
             {
                 if (db?.Systems == null || !ModNpcFactionWar.CanContest(system) || system.stations == null) return false;

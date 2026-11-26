@@ -517,9 +517,14 @@ namespace GoF2Remake.Multiplayer
             state.RequestFactionBattleRpc(Station);
         }
 
-        internal void BeginFactionBattle(NpcFactionWar.Battle battle)
+        internal void BeginFactionBattle(NpcFactionWar.Battle battle, ulong casualties)
         {
-            if (Authority && level.Traffic != null && battle.orbit == Station) level.Traffic.BeginFactionBattle(battle);
+            if (Authority && level.Traffic != null && battle.orbit == Station) level.Traffic.BeginFactionBattle(battle, casualties);
+        }
+
+        internal void EndFactionBattle(NpcFactionWar.Battle battle)
+        {
+            if (level.Traffic != null && battle.orbit == Station) level.Traffic.EndFactionBattle(battle);
         }
 
         /// <summary>The server's word on who runs this orbit (NetPlayer.RunsOrbit): this player takes it over when it is them,

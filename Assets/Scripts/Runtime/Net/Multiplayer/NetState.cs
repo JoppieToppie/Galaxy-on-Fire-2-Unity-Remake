@@ -493,6 +493,7 @@ namespace GoF2Remake.Multiplayer
             EventRunner.Tick();   // a running event
             if ((sweepTimer -= Time.unscaledDeltaTime) > 0f) return;
             sweepTimer = SweepSeconds;
+            TickFactionWar();
             FlushFactionWar();
             NetFactions.RefreshPiracyFlags();
             TickPiracyDeaths();

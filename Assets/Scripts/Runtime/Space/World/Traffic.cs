@@ -506,13 +506,14 @@ namespace GoF2Remake.World
             !VoidAttack && !holdEnemies && waiting.Count == 0 && Player != null && Player.Alive &&
             !TrafficPlan.InformerOrbit(StationIndex);
 
-        public void BeginFactionBattle(NpcFactionWar.Battle battle)
+        public void BeginFactionBattle(NpcFactionWar.Battle battle, ulong casualties = 0)
         {
-            if (battle.orbit != StationIndex || !CanHostFactionBattle || factionBattle?.id == battle.id) return;
+            if (battle.orbit != StationIndex || !CanHostFactionBattle || factionBattle?.id == battle.id || battle.expires < NpcFactionWar.Now) return;
             RetireFactionBattle();
             factionBattle = battle;
             for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
             {
+                if ((casualties & (1UL << slot)) != 0) continue;
                 bool defender = slot < battle.shipsPerSide;
                 int race = defender ? battle.defender : battle.attacker;
                 int column = slot % battle.shipsPerSide;
@@ -534,8 +535,13 @@ namespace GoF2Remake.World
         void RetireFactionBattle()
         {
             if (!factionBattle.HasValue) return;
-            var battle = factionBattle.Value;
-            factionBattle = null;
+            EndFactionBattle(factionBattle.Value);
+        }
+
+        // The server can retire a fleet even if this runner inherited its ships from another player.
+        public void EndFactionBattle(NpcFactionWar.Battle battle)
+        {
+            if (factionBattle?.id == battle.id) factionBattle = null;
             foreach (var ship in Ships)
             {
                 if (ship == null || ship.Gone || !ship.Target.Alive) continue;
