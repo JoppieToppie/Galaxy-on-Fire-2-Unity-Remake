@@ -294,6 +294,9 @@ namespace GoF2Remake.Data
 
             bool Frontline(Database db, SystemData system, int attacker)
             {
+                if (!ModNpcFactionWar.CanContest(system)) return false;
+                if (ModNpcFactionWar.IsExplicitFrontline(system)) return true;
+                if (!ModNpcFactionWar.DynamicFrontlines) return false;
                 if (system.stations.Exists(station => ModNpcFactionWar.IsWarOrbit(station) && OrbitOwner(system, station) == attacker))
                     return true;
                 int nearest = system.jumpRoutesTo == null || system.jumpRoutesTo.Count == 0 ? Nearest(db, system) : -1;

@@ -23,6 +23,25 @@ namespace GoF2Remake.Tests
         static string ItemName(ModProject p) => p.Items.Single().Name;
 
         [Test]
+        public void FactionWarRulesSurviveSaveLoadAndUndo()
+        {
+            var p = ModProject.Create("War history", "tests");
+            p.Save();
+            history = new ModProjectHistory(p);
+            p.NpcFactionWarRules["frontlineSystems"] = new Newtonsoft.Json.Linq.JArray(3, 13);
+            p.NpcFactionWarRules["dynamicFrontlines"] = false;
+            p.Save();
+            Assert.IsTrue(history.Commit());
+            var loaded = ModProject.Load(p.Folder);
+            Assert.IsTrue(Newtonsoft.Json.Linq.JToken.DeepEquals(p.NpcFactionWarRules, loaded.NpcFactionWarRules));
+            Assert.IsTrue(history.Undo());
+            Assert.IsEmpty(p.NpcFactionWarRules);
+            Assert.IsFalse(File.Exists(Path.Combine(p.Folder, ModNpcFactionWar.File)));
+            Assert.IsTrue(history.Redo());
+            Assert.AreEqual(2, ((Newtonsoft.Json.Linq.JArray)p.NpcFactionWarRules["frontlineSystems"]).Count);
+        }
+
+        [Test]
         public void AnEditIsUndoneAndRedone()
         {
             var p = ModProject.Create("History test", "tests");

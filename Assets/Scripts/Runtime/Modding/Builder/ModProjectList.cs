@@ -189,6 +189,12 @@ namespace GoF2Remake.Modding
                     try { p.PlayerInfrastructure = JObject.Parse(File.ReadAllText(infrastructure)); }
                     catch (Exception e) { p.LoadError ??= $"{ModPlayerInfrastructure.FileName}: {e.Message}"; }
                 }
+                string factionWar = Path.Combine(folder, ModNpcFactionWar.File);
+                if (File.Exists(factionWar))
+                {
+                    try { p.NpcFactionWarRules = JObject.Parse(File.ReadAllText(factionWar)); }
+                    catch (Exception e) { p.LoadError ??= $"{ModNpcFactionWar.File}: {e.Message}"; }
+                }
                 string events = Path.Combine(folder, ProjectQuest.Folder);
                 if (Directory.Exists(events))
                     foreach (var f in Directory.GetFiles(events, "*." + ProjectQuest.Extension).Concat(Directory.GetFiles(events, "*." + ProjectQuest.LegacyExtension))
@@ -248,6 +254,9 @@ namespace GoF2Remake.Modding
             string infrastructure = Path.Combine(Folder, ModPlayerInfrastructure.FileName);
             if (PlayerInfrastructure.Count > 0) Write(ModPlayerInfrastructure.FileName, PlayerInfrastructure.ToString(Formatting.Indented));
             else if (File.Exists(infrastructure)) File.Delete(infrastructure);
+            string factionWar = Path.Combine(Folder, ModNpcFactionWar.File);
+            if (NpcFactionWarRules.Count > 0) Write(ModNpcFactionWar.File, NpcFactionWarRules.ToString(Formatting.Indented));
+            else if (File.Exists(factionWar)) File.Delete(factionWar);
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
             Modified = DateTime.UtcNow;

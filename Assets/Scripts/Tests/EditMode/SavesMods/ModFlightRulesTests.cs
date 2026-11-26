@@ -15,6 +15,39 @@ namespace GoF2Remake.Tests
         const string Mod = "t_flightrules";
 
         [Test]
+        public void ExplicitFrontlinesOverrideDefaultHubsButNotExclusionsOrSecurity()
+        {
+            WriteMod("war", Mod, "1.0", "",
+                ("npc-faction-war.json", "{ 'enabled': true, 'dynamicFrontlines': false, 'frontlineSystems': [3, 14, 30, 31, 13], 'excludedSystems': [30], 'coreSystems': [31] }"));
+            ScanAndEnable(Mod);
+            var db = Database.Load();
+            var campaign = new NpcFactionWar.Campaign();
+            Assert.IsTrue(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 3)));
+            Assert.IsTrue(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 13)));
+            Assert.IsFalse(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 8)));
+            Assert.IsFalse(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 14)));
+            Assert.IsFalse(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 30)));
+            Assert.IsFalse(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 31)));
+            var hub = db.Systems.Find(s => s.index == 3);
+            Assert.IsTrue(campaign.TryStart(db, hub.stations[0], 1000, out var battle));
+            Assert.AreEqual(0, battle.attacker);
+        }
+
+        [Test]
+        public void DynamicFrontlinesRemainTheDefaultAndCanBeExcluded()
+        {
+            WriteMod("war", Mod, "1.0", "",
+                ("npc-faction-war.json", "{ 'enabled': true, 'excludedSystems': [31] }"));
+            ScanAndEnable(Mod);
+            var db = Database.Load();
+            var campaign = new NpcFactionWar.Campaign();
+            Assert.IsTrue(GoF2Remake.Modding.ModNpcFactionWar.DynamicFrontlines);
+            Assert.IsTrue(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 30)));
+            Assert.IsFalse(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 31)));
+            Assert.IsFalse(campaign.IsFrontline(db, db.Systems.Find(s => s.index == 3)));
+        }
+
+        [Test]
         public void ClassifiedHullDefaultsToEqualDirectionalSpeed()
         {
             Assert.IsTrue(GoF2Remake.Modding.ModFlight.RulesFor(new ShipData { shipClass = "interceptor" }).equalDirectionalTopSpeed);

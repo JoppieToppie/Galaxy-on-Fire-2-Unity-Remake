@@ -851,11 +851,61 @@ namespace GoF2Remake.UI
             Act(box, T("mbDependencies", "Dependencies"), ShowDependencies, "mbv-menu-item");
             Act(box, T("mbModDetails", "Mod details"), ShowModDetails, "mbv-menu-item");
             Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
+            Act(box, T("mbNpcFactionWar", "NPC faction warfare"), ShowNpcFactionWarRules, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
             Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
             Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { CloseModal(); SaveNow(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
             modal.AddToClassList("mbv-modal--shown");
+        }
+
+        void ShowNpcFactionWarRules()
+        {
+            if (Project == null) return;
+            modal.Clear();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, T("mbNpcFactionWar", "NPC faction warfare"));
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            var rules = Project.NpcFactionWarRules;
+            bool Bool(string key, bool fallback) => rules[key]?.Type == JTokenType.Boolean ? (bool)rules[key] : fallback;
+            int Number(string key, int fallback) => int.TryParse(rules[key]?.ToString(), out int n) ? n : fallback;
+            FlagButton(Row(scroll), T("mbNpcWarEnabled", "Enable NPC faction warfare"), Bool("enabled", false),
+                v => rules["enabled"] = v, ShowNpcFactionWarRules);
+            FlagButton(Row(scroll), T("mbDynamicFrontlines", "Dynamic frontlines"), Bool("dynamicFrontlines", true),
+                v => rules["dynamicFrontlines"] = v, ShowNpcFactionWarRules);
+            Note(scroll, "When off, only explicitly selected frontlines can host battles. Exclusions and core protection win.");
+            Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, 24, v => { rules["shipsPerSide"] = v; MarkDirty(); });
+            Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
+            Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
+            SystemList("frontlineSystems", "Explicit frontline systems");
+            SystemList("excludedSystems", "Excluded systems");
+            SystemList("coreSystems", "Protected core systems");
+            Note(scroll, "Explicit frontlines can override built-in hub protection, but not an explicit core, exclusion or maximum security.");
+            Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
+            modal.AddToClassList("mbv-modal--shown");
+
+            void SystemList(string key, string title)
+            {
+                Heading(scroll, title);
+                var values = rules[key] as JArray ?? new JArray();
+                foreach (var token in values.ToList())
+                {
+                    var row = Row(scroll);
+                    string reference = token.ToString();
+                    Add(row, new Label(RefLabel(RefKind.System, reference, reference)), "mbv-inline-label");
+                    Act(row, "×", () => { token.Remove(); MarkDirty(); ShowNpcFactionWarRules(); }, "mbv-step");
+                }
+                Act(scroll, "+ System", () => PickRef(RefKind.System, title, entry =>
+                {
+                    if (entry != null)
+                    {
+                        if (!values.Any(t => t.ToString() == entry.value)) values.Add(ProjectEntry.RefToken(entry.value));
+                        if (rules[key] != values) rules[key] = values;
+                        MarkDirty();
+                    }
+                    ShowNpcFactionWarRules();
+                }), "mbv-add");
+            }
         }
 
         JObject displayedInfrastructure;
