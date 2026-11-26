@@ -51,6 +51,7 @@ namespace GoF2Remake.Flight
         public static PlayerCloak Attach(GameObject player, Database db, int ship, Target target, Transform model)
         {
             var item = Shop.FirstMounted(db, 21) ?? (db.IntegratedCloak(ship) >= 0 ? db.Item(db.IntegratedCloak(ship)) : null);
+            if (target != null) target.passiveStealthGenerator = item != null;
             if (item == null) return null;
             var c = player.AddComponent<PlayerCloak>();
             c.Rules = new Cloak(item.index, item.Attr(35, 10000), item.Attr(36, 2000), item.Attr(38, 1), Session.Difficulty, item.Attr(Cloak.CooldownAttr));

@@ -824,7 +824,7 @@ namespace GoF2Remake.Flight
             foreach (var t in Target.All)
             {
                 if (t == null || t == owner || !t.Alive || t.untargetable || !t.isActiveAndEnabled || t.playerProof) continue;   // multiplayer: squadmates
-                if (t.isAsteroid) continue;   // the remake's beams took a rock near the crosshair while fighting
+                if (t.isAsteroid || !CombatRadar.PlayerDetects(t)) continue;   // beam auto-aim needs sensor contact
                 if (smart && t.isShip && !t.hostileToPlayer && t != LockTarget) continue;
                 var d = t.transform.position - transform.position;
                 if (t.isShip ? d.magnitude >= BeamRangeUnits * M

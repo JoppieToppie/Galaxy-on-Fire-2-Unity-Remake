@@ -78,11 +78,16 @@ namespace GoF2Remake.World
 
         /// <summary>pickEnemy 0x182e90: the nearest (Euclidean) active target within 50000 that is hostile to this turret's race;
         /// the player only when the turret is hostile to it; the last unreachable one only when nothing else is there.</summary>
+        NpcShip sensorHost;
+        bool TurretDetects(Target t) => PlayerOwned ? CombatRadar.PlayerDetects(t) :
+            sensorHost != null ? sensorHost.Detects(t) : Detects(t);
+
         void MakeTurretPicking()
         {
             turretPicking = new TurretTargeting(TurretTargeting.Rule.Timed, TurretRangeUnits)
             {
                 accelerationLead = true,
+                Sensor = TurretDetects,
                 boundFactor = 0.3f,   // Measure: at least the distance to the target's sphere, x0.3 for a turret hunter
                 Candidate = e => Valid(e) && !e.cloaked   // PlayerTurret::handleTurret: no aiming at a cloaked target
                     && (PlayerOwned ? !e.isPlayer && e.isShip && e.hostileToPlayer
@@ -107,7 +112,7 @@ namespace GoF2Remake.World
                 turretHostLooked = true;
                 var hostShip = Spec.capitalHost != null && traffic != null ? traffic.Ships.Find(s => s != null && s.Spec == Spec.capitalHost) : null;
                 if (hostShip == null && transform.parent != null) hostShip = transform.parent.GetComponentInParent<NpcShip>();
-                if (hostShip != null && hostShip != this) turretCore.Host = hostShip.transform;
+                if (hostShip != null && hostShip != this) { turretCore.Host = hostShip.transform; sensorHost = hostShip; }
             }
             var target = turretPicking.Update(dtMs, enemies, transform.position);
             if (turretPicking.JustPicked) turretTargetFixed = target != null && IsTurretTarget(target);

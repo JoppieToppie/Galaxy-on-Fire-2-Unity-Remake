@@ -293,7 +293,7 @@ namespace GoF2Remake.World
                 foreach (var s in traffic.Ships)
                 {
                     if (s == this || s.Gone || s.IsWingman || s.Current != State.Fly || s.Hidden) continue;
-                    if (s.Target.Alive && s.Target.hostileToPlayer) { target = s.Target; attacking = true; break; }
+                    if (s.Target.Alive && s.Target.hostileToPlayer && Detects(s.Target)) { target = s.Target; attacking = true; break; }
                 }
             // Multiplayer: another game's hostile ship here (the orbit's authority runs them).
             if (!attacking && wingCommand != 3 && gun != null && GoF2Remake.Data.NetSession.Active)

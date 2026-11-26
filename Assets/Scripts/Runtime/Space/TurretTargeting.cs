@@ -53,6 +53,8 @@ namespace GoF2Remake.Flight
         public float intervalMs = PickMs;
         /// <summary>May 't' be picked at all (hostility, cloak, radar-hidden...). Null = any.</summary>
         public Func<Target, bool> Candidate;
+        /// <summary>Sensor contact, checked on acquisition and every frame of retention.</summary>
+        public Func<Target, bool> Sensor;
         /// <summary>Its distance in metres from 'from' (default: to its position), given the best distance so far (metres);
         /// the enhanced turrets measure to a big hull's nearest point and weight a turret hunter's prey once it is nearer
         /// than the best so far (CapitalShips).</summary>
@@ -328,8 +330,10 @@ namespace GoF2Remake.Flight
         {
             JustPicked = false;
             pickMs += dtMs;
-            bool pick = rule == Rule.Timed ? pickMs > intervalMs
-                : pickMs >= intervalMs || Current == null || !Current.Alive || !Current.isActiveAndEnabled || Current.cloaked || Current.untargetable;   // Modified: untargetable (a jump scene) too
+            bool lostSensor = Current != null && Sensor != null && !Sensor(Current);
+            if (lostSensor) Current = null;
+            bool pick = lostSensor || (rule == Rule.Timed ? pickMs > intervalMs
+                : pickMs >= intervalMs || Current == null || !Current.Alive || !Current.isActiveAndEnabled || Current.cloaked || Current.untargetable);   // Modified: untargetable (a jump scene) too
             if (pick)
             {
                 pickMs = 0f;
@@ -368,7 +372,7 @@ namespace GoF2Remake.Flight
                         float r = t.BroadSphere(frame, out var c);
                         if (r < 0f || Mathf.Max(0f, (c - from).magnitude - r) * boundFactor >= bestD) continue;   // destroyed, or can't win
                     }
-                    if (t == null || (Candidate != null && !Candidate(t))) continue;
+                    if (t == null || (Sensor != null && !Sensor(t)) || (Candidate != null && !Candidate(t))) continue;
                     if (rule == Rule.Retarget)
                     {
                         if (t == Unreachable) continue;

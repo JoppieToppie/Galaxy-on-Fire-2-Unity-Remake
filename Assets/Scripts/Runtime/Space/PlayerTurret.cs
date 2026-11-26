@@ -281,6 +281,7 @@ namespace GoF2Remake.Flight
             picking = new TurretTargeting(TurretTargeting.Rule.Retarget, item.Attr(109) > 0 ? item.Attr(109) : AutoRangeUnits, true)
             {
                 accelerationLead = true,
+                Sensor = CombatRadar.PlayerDetects,
                 Candidate = t => t.isShip && t.hostileToPlayer && t.Alive && !t.untargetable && t.isActiveAndEnabled
                                  && !t.cloaked   // a cloaked ship (Target.cloaked, NpcShip: a Specter past a quarter of its fade)
                                  && !(t.GetComponent<World.NpcShip>() is World.NpcShip npc && npc.RadarHidden),   // KIPlayer+0x70

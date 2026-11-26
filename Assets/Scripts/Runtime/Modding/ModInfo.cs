@@ -70,6 +70,10 @@ namespace GoF2Remake.Modding
                 if (Manifest.fighterNpcShields) Add("fighterNpcShields:true\n");
                 if (Manifest.shieldRechargeDelayMs >= 0) Add($"shieldRechargeDelayMs:{Manifest.shieldRechargeDelayMs}\n");
                 if (Manifest.scannerGeneratorDetectionPercent >= 0) Add($"scannerGeneratorDetectionPercent:{Manifest.scannerGeneratorDetectionPercent}\n");
+                if (Manifest.npcScannerDetection) Add("npcScannerDetection:true\n");
+                var npcClasses = new List<string>(Manifest.npcScannerRangeUnits.Keys);
+                npcClasses.Sort(StringComparer.Ordinal);
+                foreach (var id in npcClasses) Add($"npcScannerRangeUnits:{id}:{Manifest.npcScannerRangeUnits[id]}\n");
                 var detectionClasses = new List<string>(Manifest.scannerClassDetectionPercent.Keys);
                 detectionClasses.Sort(StringComparer.Ordinal);
                 foreach (var id in detectionClasses) Add($"scannerClassDetectionPercent:{id}:{Manifest.scannerClassDetectionPercent[id]}\n");

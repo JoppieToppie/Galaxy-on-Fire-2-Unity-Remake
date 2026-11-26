@@ -313,6 +313,16 @@ namespace GoF2Remake.World
                 {
                     var t = o.target;
                     if (t == null || !t.Alive || !t.gameObject.activeInHierarchy) { FinishOrder(); return false; }
+                    if (!Detects(t))
+                    {
+                        // Keep the explicit attack order, but do not track the unseen ship's live position.
+                        target = null; attacking = false; followingWaypoint = true;
+                        targetPos = transform.position + transform.forward * (20000f * M);
+                        Steer(dtMs);
+                        Avoid(true, dtMs);
+                        Avoid(false, dtMs);
+                        return true;
+                    }
                     target = t;
                     targetPos = t.transform.position;
                     attacking = true;

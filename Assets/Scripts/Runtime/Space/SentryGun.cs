@@ -99,6 +99,7 @@ namespace GoF2Remake.Flight
             picking = new TurretTargeting(TurretTargeting.Rule.Retarget, RangeUnits)
             {
                 accelerationLead = true,
+                Sensor = t => !CombatRadar.NpcSensorsEnabled(db) || CombatRadar.DetectsFrom(db, transform.position, RangeUnits, t),
                 Candidate = t => t.isShip && t.hostileToPlayer && t.Alive && !t.untargetable && !t.cloaked && t.isActiveAndEnabled,
             };
 

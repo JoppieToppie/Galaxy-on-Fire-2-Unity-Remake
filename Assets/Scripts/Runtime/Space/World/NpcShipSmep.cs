@@ -194,7 +194,7 @@ namespace GoF2Remake.World
                 bool mobile = ProtectedMobileTarget(candidate);
                 if (desktopOnly && mobile) continue;
                 float distance = (candidate.transform.position - origin).sqrMagnitude;
-                if (distance > detectSq || !SmepAiRules.PreferPlayerTarget(mobile, distance, best != null, bestMobile, bestDistance))
+                if ((!UsesScannerDetection && distance > detectSq) || !SmepAiRules.PreferPlayerTarget(mobile, distance, best != null, bestMobile, bestDistance))
                     continue;
                 best = candidate;
                 bestMobile = mobile;

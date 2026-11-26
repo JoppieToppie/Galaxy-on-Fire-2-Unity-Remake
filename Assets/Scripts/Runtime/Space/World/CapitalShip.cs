@@ -392,7 +392,7 @@ namespace GoF2Remake.World
         {
             if (!missilesTried) SetupMissiles();
             if (missiles == null) return;
-            var lockTarget = missileTarget != null && missileTarget.Alive && !missileTarget.cloaked ? missileTarget : null;
+            var lockTarget = missileTarget != null && missileTarget.Alive && !missileTarget.cloaked && ship.Detects(missileTarget) ? missileTarget : null;
             missiles.Update(dtMs, ship.HitTargets, lockTarget);   // a boost shakes off the missiles in flight (Gun, Target.boosting)
             missileRig.UpdateVisuals(dtMs, Camera.main, ship.transform.up);
             // ...and calls off the rest of the salvo at that ship.
@@ -426,7 +426,7 @@ namespace GoF2Remake.World
             foreach (var s in traffic.Ships)
             {
                 if (s == null || s.IsTurret || s.Spec.capital != 0 || !s.Target.Alive || s.Current != NpcShip.State.Fly || s.Target.cloaked) continue;
-                if (!Standing.RacesHostile(s.Race, ship.Race)) continue;
+                if (!Standing.RacesHostile(s.Race, ship.Race) || !ship.Detects(s.Target)) continue;
                 if ((ship.Target.NearestPoint(s.transform.position) - s.transform.position).sqrMagnitude > reach * reach) continue;
                 fighters.Add(s.Target);
             }
@@ -458,13 +458,13 @@ namespace GoF2Remake.World
         /// (the player only while hostile to it).</summary>
         Target PickMissileTarget()
         {
-            if (foe != null && foe.Target.Alive && foe.Current == NpcShip.State.Fly && !foe.Gone)
+            if (foe != null && foe.Target.Alive && foe.Current == NpcShip.State.Fly && !foe.Gone && ship.Detects(foe.Target))
                 return foe.Target;
             Target best = null;
             float bestD = CapitalShips.MissileRangeUnits * M;
             foreach (var e in ship.enemies)
             {
-                if (e == null || !e.Targetable || e.cloaked) continue;
+                if (e == null || !e.Targetable || e.cloaked || !ship.Detects(e)) continue;
                 bool hostile = e.isPlayer ? ship.Target.hostileToPlayer : e.isShip && e.race >= 0 && Standing.RacesHostile(e.race, ship.Race);
                 if (!hostile) continue;
                 float d = (ship.Target.NearestPoint(e.transform.position) - e.transform.position).magnitude;
@@ -475,7 +475,7 @@ namespace GoF2Remake.World
             if (remote != null && NpcShip.HostileToRemote != null)
                 foreach (var r in remote)
                 {
-                    if (r == null || !r.Alive || !r.isActiveAndEnabled || r.cloaked || !NpcShip.HostileToRemote(ship, r)) continue;
+                    if (r == null || !r.Alive || !r.isActiveAndEnabled || r.cloaked || !NpcShip.HostileToRemote(ship, r) || !ship.Detects(r)) continue;
                     float d = (ship.Target.NearestPoint(r.transform.position) - r.transform.position).magnitude;
                     if (d < bestD) { bestD = d; best = r; }
                 }

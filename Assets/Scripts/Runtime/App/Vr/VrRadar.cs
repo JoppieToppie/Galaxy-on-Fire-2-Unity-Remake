@@ -107,11 +107,11 @@ namespace GoF2Remake.Vr
                 stationDot.gameObject.SetActive(level.Layout != null && level.Layout.stationObject);
                 stationDot.localPosition = OnScope(ship, Vector3.zero, out _);
                 var self = level.Health != null ? level.Health.Target : null;
-                bool scanner = level.Radar != null && level.Radar.HasScanner;
+                bool scanner = level.Radar != null && level.Radar.HasScanner && !RadarJam.Active;
                 if (scanner)
                     foreach (var t in Target.All)
                     {
-                        if (t == null || t == self || !t.isShip || !t.Alive || t.untargetable || t.cloaked || !t.isActiveAndEnabled) continue;
+                        if (t == null || t == self || !t.isShip || !t.Alive || t.untargetable || t.cloaked || !t.isActiveAndEnabled || !level.Radar.Detects(t)) continue;
                         if (used >= 64) break;
                         if (used == dots.Count) dots.Add(Quad("Radar dot", Vector3.zero, DotSize, yellow));
                         var d = dots[used++];

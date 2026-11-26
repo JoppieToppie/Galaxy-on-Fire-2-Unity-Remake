@@ -69,6 +69,7 @@ namespace GoF2Remake.World
                 t.picking = new TurretTargeting(TurretTargeting.Rule.Timed, item.Attr(109) > 0 ? item.Attr(109) : RangeUnits)
                 {
                     accelerationLead = true,
+                    Sensor = ship.Detects,
                     Candidate = e => e != null && e.Targetable && !e.cloaked   // no aiming at a cloaked target
                         && (e.isPlayer ? ship.Target.hostileToPlayer : e.isShip && e.race >= 0 && Standing.RacesHostile(e.race, ship.Race)),
                 };

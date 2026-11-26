@@ -85,8 +85,70 @@ namespace GoF2Remake.Flight
             nav != null && !nav.Paused && !nav.MenuOpen && !nav.Conversation && !nav.RadarOff && !nav.Jumping ? weapons : null;
         /// <summary>Maximum detection range in game units. Zero keeps the original unlimited range.</summary>
         public int ScannerRangeUnits { get; private set; }
-        readonly Dictionary<string, int> detectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        int generatorDetectionPercent = 80;
+        static readonly Dictionary<string, int> detectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, int> npcRanges = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        static int generatorDetectionPercent = 80;
+        static Database sensorDatabase;
+        static bool npcSensors;
+        static CombatRadar localRadar;
+
+        static void ConfigureSensors(Database database, bool refresh = false)
+        {
+            if (!refresh && object.ReferenceEquals(sensorDatabase, database)) return;
+            sensorDatabase = database;
+            detectionPercent.Clear();
+            npcRanges.Clear();
+            detectionPercent[Modding.ShipClassRules.StealthFighter] = 50;
+            detectionPercent[Modding.ShipClassRules.StealthBomber] = 60;
+            generatorDetectionPercent = 80;
+            npcSensors = false;
+            foreach (var mod in Modding.ModManager.Active)
+                if (mod != null && !mod.IsBase && mod.Manifest != null)
+                {
+                    var m = mod.Manifest;
+                    foreach (var pair in m.scannerClassDetectionPercent) detectionPercent[pair.Key] = pair.Value;
+                    foreach (var pair in m.npcScannerRangeUnits) npcRanges[pair.Key] = pair.Value;
+                    if (m.scannerGeneratorDetectionPercent >= 0) generatorDetectionPercent = m.scannerGeneratorDetectionPercent;
+                    npcSensors |= m.npcScannerDetection || m.npcScannerRangeUnits.Count > 0;
+                }
+        }
+
+        public static bool NpcSensorsEnabled(Database database)
+        {
+            ConfigureSensors(database);
+            return npcSensors;
+        }
+
+        /// <summary>Explicit scripted detection ranges take precedence over class defaults.</summary>
+        public static float NpcSensorRange(Database database, int shipIndex, float explicitRange, float fallback)
+        {
+            ConfigureSensors(database);
+            if (explicitRange >= 0f) return explicitRange;
+            var cls = shipIndex >= 0 && database != null ? Modding.ShipClassRules.ClassOf(database.Ship(shipIndex)) : null;
+            return cls != null && npcRanges.TryGetValue(cls, out int range) ? range : fallback;
+        }
+
+        public static bool PlayerDetects(Target target) => localRadar == null || localRadar.Detects(target);
+
+        public static bool DetectsFrom(Database database, Vector3 origin, float rangeUnits, Target target)
+        {
+            if (target == null) return false;
+            if (rangeUnits <= 0f) return false;
+            ConfigureSensors(database);
+            int percent = 100;
+            string cls = null;
+            int index = target.netShipIndex >= 0 ? target.netShipIndex : target.isPlayer ? Session.ShipIndex : target.shipType;
+            bool generator = target.passiveStealthGenerator;
+            if (index >= 0 && database != null)
+            {
+                cls = Modding.ShipClassRules.ClassOf(database.Ship(index));
+                if (cls != null && detectionPercent.TryGetValue(cls, out int configured)) percent = configured;
+                if (!generator && !DedicatedStealth(cls)) generator = database.IntegratedCloak(index) >= 0;
+            }
+            percent = EffectiveDetectionPercent(cls, percent, generator, generatorDetectionPercent);
+            float reach = rangeUnits * M * (percent / 100f);
+            return (target.transform.position - origin).sqrMagnitude <= reach * reach;
+        }
 
         public static bool DedicatedStealth(string cls) =>
             string.Equals(cls, Modding.ShipClassRules.StealthFighter, StringComparison.OrdinalIgnoreCase) ||
@@ -112,21 +174,7 @@ namespace GoF2Remake.Flight
         /// <summary>One shared rule for visible markers and acquisition/retention of a ship lock.</summary>
         public bool Detects(Target target)
         {
-            if (target == null) return false;
-            if (ScannerRangeUnits <= 0) return true;
-            int percent = 100;
-            string cls = null;
-            int index = target.netShipIndex >= 0 ? target.netShipIndex : target.shipType;
-            bool generator = target.passiveStealthGenerator;
-            if (index >= 0 && db != null)
-            {
-                cls = Modding.ShipClassRules.ClassOf(db.Ship(index));
-                if (cls != null && detectionPercent.TryGetValue(cls, out int configured)) percent = configured;
-                // Integrated cloak equipment belongs to the hull, so this works for local NPCs and their proxies too.
-                if (!generator && !DedicatedStealth(cls)) generator = db.IntegratedCloak(index) >= 0;
-            }
-            percent = EffectiveDetectionPercent(cls, percent, generator, generatorDetectionPercent);
-            return WithinScannerRange((target.transform.position - transform.position).sqrMagnitude, ScannerRangeUnits, percent);
+            return target != null && (ScannerRangeUnits <= 0 || DetectsFrom(db, transform.position, ScannerRangeUnits, target));
         }
         /// <summary>The lock candidate: a Target (ship) or null.</summary>
         public Target Candidate { get; private set; }
@@ -221,18 +269,8 @@ namespace GoF2Remake.Flight
             HasScanner = scanner != null;
             ScanLead = scanner != null && scanner.Attr(ScanLeadAttr) > 0;
             ScannerRangeUnits = scanner != null ? Mathf.Max(0, scanner.Attr(ScannerRangeAttr)) : 0;
-            detectionPercent.Clear();
-            // Finite-range scanners recognise dedicated stealth hulls even without explicit overrides.
-            detectionPercent[Modding.ShipClassRules.StealthFighter] = 50;
-            detectionPercent[Modding.ShipClassRules.StealthBomber] = 60;
-            generatorDetectionPercent = 80;
-            foreach (var mod in Modding.ModManager.Active)
-                if (mod != null && !mod.IsBase && mod.Manifest != null)
-                {
-                    foreach (var pair in mod.Manifest.scannerClassDetectionPercent) detectionPercent[pair.Key] = pair.Value;
-                    if (mod.Manifest.scannerGeneratorDetectionPercent >= 0)
-                        generatorDetectionPercent = mod.Manifest.scannerGeneratorDetectionPercent;
-                }
+            ConfigureSensors(db, true);
+            localRadar = this;
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
             cargoScan = scanner != null ? Mathf.Clamp(scanner.Attr(31), 0, 2) : 0;
@@ -301,6 +339,7 @@ namespace GoF2Remake.Flight
 
         void OnDestroy()
         {
+            if (localRadar == this) localRadar = null;
             if (beam != null) Destroy(beam.gameObject);
             for (int i = extra.Count - 1; i >= 0; i--) ReleaseExtra(i);
         }
