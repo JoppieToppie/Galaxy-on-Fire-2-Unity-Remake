@@ -87,6 +87,8 @@ namespace GoF2Remake.Flight
         public int ScannerRangeUnits { get; private set; }
         static readonly Dictionary<string, int> detectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         static readonly Dictionary<string, int> npcRanges = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Opt-in NPC sensor baseline: 240000 game units = 12 km. Vanilla AI and weapons keep their original ranges.</summary>
+        public const int DefaultNpcScannerRangeUnits = 240000;
         static int generatorDetectionPercent = 80;
         static Database sensorDatabase;
         static bool npcSensors;

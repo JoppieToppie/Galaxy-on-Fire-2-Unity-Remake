@@ -47,7 +47,7 @@ namespace GoF2Remake.World
             if (t == null) return false;
             if (!UsesScannerDetection) return true;
             return CombatRadar.DetectsFrom(db, transform.position,
-                CombatRadar.NpcSensorRange(db, Spec != null ? Spec.ship : -1, detectRange, NpcTables.DetectRange), t);
+                CombatRadar.NpcSensorRange(db, Spec != null ? Spec.ship : -1, detectRange, CombatRadar.DefaultNpcScannerRangeUnits), t);
         }
 
         bool InBox(Target t)

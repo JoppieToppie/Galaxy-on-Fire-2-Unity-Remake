@@ -53,6 +53,17 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(expected, CombatRadar.WithinScannerRange(metres * metres, 100000, percent));
         }
 
+        [TestCase(100, 12000f)]
+        [TestCase(80, 9600f)]
+        [TestCase(60, 7200f)]
+        [TestCase(50, 6000f)]
+        public void NpcDefaultScannerRangeUsesTwelveKilometreBaseline(int signature, float reach)
+        {
+            Assert.AreEqual(240000, CombatRadar.DefaultNpcScannerRangeUnits);
+            Assert.IsTrue(CombatRadar.WithinScannerRange((reach - 1f) * (reach - 1f), CombatRadar.DefaultNpcScannerRangeUnits, signature));
+            Assert.IsFalse(CombatRadar.WithinScannerRange((reach + 1f) * (reach + 1f), CombatRadar.DefaultNpcScannerRangeUnits, signature));
+        }
+
         [Test]
         public void PipPredictsRealInterceptAndRejectsUnreachableShots()
         {
