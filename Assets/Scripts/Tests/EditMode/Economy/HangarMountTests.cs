@@ -275,6 +275,58 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void SwapCannotReplaceAnUnrelatedMount()
+        {
+            Session.Cargo.Add(new ItemStack(55, 1));
+            var h = Dis();
+            Assert.AreEqual(Hangar.Result.Swap, h.CanMount(55, out int correct));
+            Assert.AreEqual(4, correct);
+            Assert.IsFalse(h.Swap(3, 55));
+            Assert.AreEqual(1, h.CargoOf(55));
+            Assert.AreEqual(1, Mounted(54));
+        }
+
+        [Test]
+        public void AutoReplenishmentAndDockingRespectClassRefusal()
+        {
+            var previous = Hangar.MountRefusal;
+            try
+            {
+                Hangar.MountRefusal = (ship, item) => item == 36 ? "Restricted" : null;
+                Session.Cargo.Add(new ItemStack(36, 5));
+                Assert.IsEmpty(Dis().AutoEquipSecondaries());
+                Assert.AreEqual(5, Shop.CargoOf(36));
+                Assert.AreEqual(1, Hangar.FitToSlots(Db));
+                Assert.AreEqual(0, Mounted(36));
+                Assert.AreEqual(11, Shop.CargoOf(36));
+            }
+            finally { Hangar.MountRefusal = previous; }
+        }
+
+        [Test]
+        public void BlueprintAmmoRemainsAvailableForOptInDistribution()
+        {
+            string dir = System.IO.Path.Combine(Sandbox, "secondary-blueprint-opt-in");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "mod.json"),
+                "{\"id\":\"secondary_blueprint_opt_in\",\"multipleSecondaryMounts\":true}");
+            GoF2Remake.Modding.ModManager.SetBuilderProject(dir);
+            try
+            {
+                Session.ShipIndex = 44;
+                Session.Equipment = new List<ItemStack> { new ItemStack(37, 2) { slot = 1 } };
+                Session.Cargo = new List<ItemStack>();
+                Assert.IsTrue(Blueprints.Produce(Db, 37, 70));
+                Assert.AreEqual(10, Shop.CargoOf(37));
+                Assert.AreEqual(2, AmountMounted(37));
+                Assert.IsTrue(Dis().DistributeSecondaries(37, new[] { 1, 2 }));
+                Assert.AreEqual(12, AmountMounted(37));
+                Assert.AreEqual(0, Shop.CargoOf(37));
+            }
+            finally { GoF2Remake.Modding.ModManager.SetBuilderProject(null); }
+        }
+
+        [Test]
         public void SwapRefusesBadInput()
         {
             var h = Dis();

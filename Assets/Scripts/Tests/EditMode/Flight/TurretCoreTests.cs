@@ -325,6 +325,30 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AccelerationLeadPredictsAReachableBoundedIntercept()
+        {
+            var relative = new Vector3(0f, 0f, 1000f);
+            var velocity = new Vector3(20f, 0f, 0f);
+            var acceleration = new Vector3(60f, 0f, 0f);
+            var linear = TurretTargeting.PredictIntercept(relative, velocity, Vector3.zero, 800f, 2f);
+            var predicted = TurretTargeting.PredictIntercept(relative, velocity, acceleration, 800f, 2f);
+            Assert.Greater(predicted.x, linear.x);
+            float time = predicted.magnitude / 800f;
+            float horizon = Mathf.Min(time, 1.25f);
+            Assert.Less(Vector3.Distance(predicted, relative + velocity * time + acceleration * (0.5f * horizon * horizon)), 0.1f);
+            Assert.LessOrEqual(Vector3.Distance(predicted, linear), 150f);
+        }
+
+        [Test]
+        public void PredictionRejectsUnreachableAndExpiredIntercepts()
+        {
+            var relative = new Vector3(0f, 0f, 1000f);
+            Assert.AreEqual(relative, TurretTargeting.PredictIntercept(relative, Vector3.forward * 900f, Vector3.right * 60f, 800f, 3f));
+            Assert.AreEqual(relative, TurretTargeting.PredictIntercept(relative, Vector3.right * 40f, Vector3.right * 60f, 800f, 0.5f));
+            Assert.AreEqual(relative, TurretTargeting.PredictIntercept(relative, Vector3.right * 40f, Vector3.right * 60f, 0f, 3f));
+        }
+
+        [Test]
         public void TheLeadPointIsFifteenHundredUnitsAhead()
         {
             var t = NewTarget(new Vector3(10f, 0f, 0f));

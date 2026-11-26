@@ -683,9 +683,19 @@ namespace GoF2Remake.Data
                 // Remake: turrets (8) and plasma collectors (35) are one per turret slot, not one per ship, so a ship with
                 // two turret slots (a custom ship) takes a second one; the swap only once every turret slot is taken.
                 bool perSlot = type == 2 && SlotCount(2) > 1 && MountedOfType(2).Count < SlotCount(2);
-                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => !e.builtIn && Shop.Replaces(it, db.Item(e.item)));
-                if (swapWith >= 0 && (type != 1 || Modding.ShipClassRules.SecondarySlotFits(it, db.Ship(Session.ShipIndex), SlotPositions(db, Session.Equipment)[swapWith] + 1))) return Result.Swap;
-                swapWith = -1;
+                if (!perSlot)
+                {
+                    var positions = type == 1 ? SlotPositions(db, Session.Equipment) : null;
+                    for (int i = 0; i < Session.Equipment.Count; i++)
+                    {
+                        var e = Session.Equipment[i];
+                        if (e.builtIn || !IsSaleable(e.item) || !Shop.Replaces(it, db.Item(e.item))) continue;
+                        if (type == 1 && (positions[i] < 0 || positions[i] >= SlotCount(1) ||
+                            !Modding.ShipClassRules.SecondarySlotFits(it, db.Ship(Session.ShipIndex), positions[i] + 1))) continue;
+                        swapWith = i;
+                        return Result.Swap;
+                    }
+                }
             }
             if (BayTakes(db, Session.ShipIndex, item, Session.Equipment)) return Result.Ok;   // the cloak bay (remake option)
             if (type == 1) return FreeSecondarySlot(item) > 0 ? Result.Ok : Result.NoFreeSlot;

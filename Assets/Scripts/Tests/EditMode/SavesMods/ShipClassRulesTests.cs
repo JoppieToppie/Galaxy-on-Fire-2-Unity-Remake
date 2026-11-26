@@ -152,6 +152,15 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void MultiplePrimaryLocksAreExplicitAlternatives()
+        {
+            var hull = Ship("cruiser", "primaryOnly:test:beam", "primaryOnly:test:cannon");
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:beam" }, hull));
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:cannon" }, hull));
+            Assert.IsFalse(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:other" }, hull));
+        }
+
+        [Test]
         public void PrimaryLockDoesNotRestrictSecondaries()
         {
             var hull = Ship("cruiser", "primaryOnly:test:beam");

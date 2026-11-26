@@ -37,8 +37,6 @@ namespace GoF2Remake.World
             smepFighterAi = false;
             smepHoldFire = true;
             smepDogfightState = null;
-            smepMotionTarget = null;
-            smepMotionInitialized = false;
             smepReciprocalHasPosition = false;
             smepMovementFrame = -1;
             smepPathInitialized = false;

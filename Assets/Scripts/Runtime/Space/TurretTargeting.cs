@@ -238,26 +238,30 @@ namespace GoF2Remake.Flight
 
         static float InterceptSeconds(Vector3 relative, Vector3 velocity, float projectileSpeed, float lifetimeSeconds)
         {
-            float c = Vector3.Dot(relative, relative);
-            if (c <= 1e-8f) return 0f;
-            float a = Vector3.Dot(velocity, velocity) - projectileSpeed * projectileSpeed;
-            float b = 2f * Vector3.Dot(relative, velocity);
-            float time = 0f;
-            if (Mathf.Abs(a) < 1e-5f)
+            // Solve in double precision and avoid subtracting nearly equal quadratic roots.
+            double c = (double)relative.x * relative.x + (double)relative.y * relative.y + (double)relative.z * relative.z;
+            if (c <= 1e-8 || !(projectileSpeed > 0f)) return 0f;
+            double a = (double)velocity.x * velocity.x + (double)velocity.y * velocity.y +
+                       (double)velocity.z * velocity.z - (double)projectileSpeed * projectileSpeed;
+            double b = 2.0 * ((double)relative.x * velocity.x + (double)relative.y * velocity.y + (double)relative.z * velocity.z);
+            double solution = 0.0;
+            if (Math.Abs(a) < 1e-8)
             {
-                if (b < -1e-5f) time = -c / b;
+                if (b < -1e-8) solution = -c / b;
             }
             else
             {
-                float discriminant = b * b - 4f * a * c;
-                if (discriminant >= 0f)
+                double discriminant = b * b - 4.0 * a * c;
+                if (discriminant >= 0.0)
                 {
-                    float root = Mathf.Sqrt(discriminant);
-                    float first = (-b - root) / (2f * a), second = (-b + root) / (2f * a);
-                    if (first > 0f) time = first;
-                    if (second > 0f && (time <= 0f || second < time)) time = second;
+                    double root = Math.Sqrt(discriminant);
+                    double q = -0.5 * (b + (b >= 0.0 ? root : -root));
+                    double first = q / a, second = q == 0.0 ? 0.0 : c / q;
+                    if (first > 0.0) solution = first;
+                    if (second > 0.0 && (solution <= 0.0 || second < solution)) solution = second;
                 }
             }
+            float time = (float)solution;
             // No positive root means the projectile cannot intercept this target under the
             // measured constant-velocity model. Do not invent a direct-flight-time lead.
             if (time <= 0f || float.IsNaN(time) || float.IsInfinity(time)) return 0f;
