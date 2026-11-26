@@ -321,6 +321,64 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void HudLeadRequiresExplicitScannerOptIn()
+        {
+            Assert.IsFalse(CombatRadar.ScannerHasLead(null));
+            Assert.IsFalse(CombatRadar.ScannerHasLead(new ItemData { attrKeys = new[] { 29 }, attrValues = new[] { 1800 } }));
+            foreach (int value in new[] { 0, 1 })
+            {
+                var scanner = new ItemData { attrKeys = new[] { CombatRadar.ScanLeadAttr }, attrValues = new[] { value } };
+                Assert.AreEqual(value == 1, CombatRadar.ScannerHasLead(scanner));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HudLeadDisplayIsFrameRateIndependentAndTracksTargetTranslation(bool remote)
+        {
+            float Simulate(int fps)
+            {
+                var display = new TurretTargeting.HudLeadDisplay();
+                var profile = new WeaponSystem.LeadProfile { speed = 200f, lifetime = 2f };
+                display.BeginFrame();
+                display.Smooth(profile, Vector3.zero, Vector3.zero, 0f, remote);
+                display.EndFrame();
+                Vector3 result = Vector3.zero, target = Vector3.forward * 500f;
+                for (int i = 0; i < fps / 10; i++)
+                {
+                    display.BeginFrame();
+                    result = display.Smooth(profile, target, target + Vector3.right * 100f, 1f / fps, remote);
+                    Assert.AreEqual(target.z, result.z, 0.001f, "translation must not lag");
+                    display.EndFrame();
+                }
+                return result.x;
+            }
+            float at30 = Simulate(30), at120 = Simulate(120);
+            Assert.Greater(at30, 50f);
+            Assert.Less(at30, 95f);
+            Assert.AreEqual(at30, at120, 0.001f);
+        }
+
+        [Test]
+        public void HudLeadDisplayKeepsProfilesSeparateAndDropsMissingOrResetHistory()
+        {
+            var display = new TurretTargeting.HudLeadDisplay();
+            var a = new WeaponSystem.LeadProfile { speed = 200f, lifetime = 2f };
+            var b = new WeaponSystem.LeadProfile { speed = 400f, lifetime = 2f };
+            display.BeginFrame();
+            display.Smooth(a, Vector3.zero, Vector3.right * 100f, 0f, false);
+            display.Smooth(b, Vector3.zero, Vector3.left * 100f, 0f, false);
+            display.EndFrame();
+            display.BeginFrame();
+            Assert.Greater(display.Smooth(a, Vector3.zero, Vector3.zero, 0.01f, false).x, 0f);
+            display.EndFrame(); // B is not visible this frame
+            display.BeginFrame();
+            Assert.AreEqual(Vector3.zero, display.Smooth(b, Vector3.zero, Vector3.zero, 0.01f, false));
+            display.Reset(); // lock switch, cloak, teleport, or hidden HUD
+            Assert.AreEqual(Vector3.zero, display.Smooth(a, Vector3.zero, Vector3.zero, 0.01f, false));
+        }
+
+        [Test]
         public void HudLeadAllowsAllVisiblePilotsRegardlessOfPvpProtection()
         {
             var t = NewTarget(Vector3.forward * 100f);

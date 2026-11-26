@@ -256,6 +256,46 @@ namespace GoF2Remake.Flight
             }
         }
 
+        /// <summary>Display-only smoothing of the lead offset relative to the target's current world position.
+        /// Each ballistic profile has its own history; only profiles visible on consecutive frames are blended.
+        /// No screen-space filtering, so camera motion and target translation do not introduce extra lag.</summary>
+        public sealed class HudLeadDisplay
+        {
+            Dictionary<(bool beam, float speed, float lifetime, float range), Vector3> previous =
+                new Dictionary<(bool, float, float, float), Vector3>();
+            Dictionary<(bool beam, float speed, float lifetime, float range), Vector3> current =
+                new Dictionary<(bool, float, float, float), Vector3>();
+
+            public void Reset() { previous.Clear(); current.Clear(); }
+            public void BeginFrame() => current.Clear();
+            public void EndFrame()
+            {
+                var spare = previous;
+                previous = current;
+                current = spare;
+            }
+
+            public Vector3 Smooth(WeaponSystem.LeadProfile profile, Vector3 targetPosition, Vector3 predicted, float dt, bool remote)
+            {
+                var key = (profile.beam, profile.speed, profile.lifetime, profile.beamRange);
+                var offset = predicted - targetPosition;
+                // Exponential damping with a 45 ms local / 70 ms remote half-life. A long frame snaps rather
+                // than dragging an old prediction across a pause. No change to the intercept calculation itself.
+                if (dt >= 0f && dt <= 0.25f && previous.TryGetValue(key, out var old))
+                {
+                    float halfLife = remote ? 0.070f : 0.045f;
+                    offset = Vector3.Lerp(old, offset, 1f - Mathf.Exp(-0.69314718f * dt / halfLife));
+                }
+                current[key] = offset;
+                return targetPosition + offset;
+            }
+
+            public void Forget(WeaponSystem.LeadProfile profile)
+            {
+                current.Remove((profile.beam, profile.speed, profile.lifetime, profile.beamRange));
+            }
+        }
+
         static Vector3 PredictFromLinearTime(Vector3 relative, Vector3 velocity, Vector3 acceleration, float speed, float lifetime, float linearTime)
         {
             Vector3 linear = relative + velocity * linearTime;

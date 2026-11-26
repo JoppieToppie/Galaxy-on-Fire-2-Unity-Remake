@@ -80,7 +80,9 @@ namespace GoF2Remake.Flight
         /// <summary>Remake mods: the scanner names a locked ship's hull on the plate (attr 140 "scanShip").</summary>
         public bool ShipScan { get; private set; }
         public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = 194, ScanLeadAttr = 195;
+        /// <summary>Mod opt-in only: stock scanners and absent/zero scanLead attributes do not show PIPs.</summary>
         public bool ScanLead { get; private set; }
+        public static bool ScannerHasLead(ItemData scanner) => scanner != null && scanner.HasAttr(ScanLeadAttr) && scanner.Attr(ScanLeadAttr) > 0;
         public WeaponSystem LeadWeapons => ScanLead && weapons != null && !weapons.TurretView && !weapons.PrimaryBlocked &&
             nav != null && !nav.Paused && !nav.MenuOpen && !nav.Conversation && !nav.RadarOff && !nav.Jumping ? weapons : null;
         /// <summary>Maximum detection range in game units. Zero keeps the original unlimited range.</summary>
@@ -269,7 +271,7 @@ namespace GoF2Remake.Flight
             assets = CombatAssets.Load();
             var scanner = Shop.FirstMounted(db, 17);
             HasScanner = scanner != null;
-            ScanLead = scanner != null && scanner.Attr(ScanLeadAttr) > 0;
+            ScanLead = ScannerHasLead(scanner);
             ScannerRangeUnits = scanner != null ? Mathf.Max(0, scanner.Attr(ScannerRangeAttr)) : 0;
             ConfigureSensors(db, true);
             localRadar = this;

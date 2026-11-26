@@ -60,6 +60,7 @@ namespace GoF2Remake.UI
         readonly List<WeaponSystem.LeadProfile> leadProfiles = new List<WeaponSystem.LeadProfile>();
         readonly List<VisualElement> leadMarkers = new List<VisualElement>();
         readonly TurretTargeting.HudLeadMotion leadMotion = new TurretTargeting.HudLeadMotion();
+        readonly TurretTargeting.HudLeadDisplay leadDisplay = new TurretTargeting.HudLeadDisplay();
         readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
         // 3: the player's wingmen (remake #216): the friend images, tinted (FactionTextures).
         static readonly string[] Faction = { "enemy", "friend", "neutral", "friend" };
@@ -358,7 +359,7 @@ namespace GoF2Remake.UI
                     lockClass.style.display = DisplayStyle.None;
                 }
             }
-            if (!show) { HideLeadMarkers(0); leadMotion.Reset(); }
+            if (!show) { HideLeadMarkers(0); leadMotion.Reset(); leadDisplay.Reset(); }
             List<Object> gone = null;
             foreach (var kv in markers)
             {
@@ -395,7 +396,11 @@ namespace GoF2Remake.UI
             if (weapons != null && TurretTargeting.HudLeadEligible(target) && radar.Detects(target))
             {
                 // Sample only the locked target once per render frame, regardless of weapon count.
-                leadMotion.Sample(target);
+                if (!leadMotion.Sample(target)) leadDisplay.Reset();
+                leadDisplay.BeginFrame();
+                var targetPosition = target.transform.position;
+                bool remote = target.netShipIndex >= 0 || target.netPilot;
+                float dt = Time.unscaledDeltaTime;
                 weapons.CollectLeadProfiles(leadProfiles);
                 if (leadProfiles.Count > 0)
                 {
@@ -409,7 +414,11 @@ namespace GoF2Remake.UI
                             if ((point - profile.muzzle).sqrMagnitude > profile.beamRange * profile.beamRange) continue;
                         }
                         else if (!leadMotion.TryLead(aim, profile.muzzle, profile.speed, profile.lifetime, out point)) continue;
+                        // Check the real prediction before smoothing: lost or off-screen solutions hide immediately.
                         if (!Project(cam, point, origin, centre, out var p, out _)) continue;
+                        var smoothed = leadDisplay.Smooth(profile, targetPosition, point, dt, remote);
+                        if (Project(cam, smoothed, origin, centre, out var filtered, out _)) p = filtered;
+                        else leadDisplay.Forget(profile); // fall back to the visible raw point; do not carry stale history
                         VisualElement marker;
                         if (used == leadMarkers.Count)
                         {
@@ -428,8 +437,9 @@ namespace GoF2Remake.UI
                         used++;
                     }
                 }
+                leadDisplay.EndFrame();
             }
-            else leadMotion.Reset();
+            else { leadMotion.Reset(); leadDisplay.Reset(); }
             HideLeadMarkers(used);
         }
 
