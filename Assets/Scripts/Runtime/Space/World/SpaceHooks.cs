@@ -55,6 +55,8 @@ namespace GoF2Remake.World
         IEnumerable<ulong> Aggressors { get; }
         /// <summary>The ship as a spawn of this game's traffic at 'gamePosition' (ship -1 = not a ship).</summary>
         SpawnSpec AdoptSpec(Vector3 gamePosition);
+        /// <summary>Restore the adopted NPC's shield state and recharge delay from this proxy.</summary>
+        void RestoreShield(NpcShip adopted);
         /// <summary>This game took it over: the old copy goes, here and in the other games.</summary>
         void Adopt();
     }

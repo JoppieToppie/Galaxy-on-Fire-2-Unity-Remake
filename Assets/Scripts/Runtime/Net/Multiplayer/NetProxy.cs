@@ -165,7 +165,7 @@ namespace GoF2Remake.Multiplayer
         public float HullFraction => St.HullFraction;
 
         /// <summary>Preserve shield capacity and charge on handover, including regenerated child ships.</summary>
-        internal void RestoreShield(NpcShip adopted)
+        public void RestoreShield(NpcShip adopted)
         {
             var original = Spec?.spec;
             var hp = adopted?.Hp;
