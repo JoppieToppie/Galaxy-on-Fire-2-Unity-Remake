@@ -144,6 +144,39 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(-100f * TurretAim.RadPerMs, core.Aim.Pitch, 1e-6f, "held at the limit");
         }
 
+        [Test]
+        public void LeadServoUsesTheActualBarrelWhenItFacesBackwardsInItsPivot()
+        {
+            using (new SettingsScope<bool>(() => Settings.TurretLeadAim, v => Settings.TurretLeadAim = v))
+            {
+                Settings.TurretLeadAim = true;
+                var (_, pivot, gun) = Model();
+                gun.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                var aim = new TurretAim(pivot, gun);
+                var point = gun.position + Vector3.back * 100f;
+                Assert.IsTrue(aim.Step(point, 16f));
+                Assert.AreEqual(0f, aim.Yaw, 1e-4f);
+                Assert.IsFalse(aim.LimitHit);
+            }
+        }
+
+        [Test]
+        public void LeadServoDoesNotRejectTargetWhileYawIsStillTurning()
+        {
+            using (new SettingsScope<bool>(() => Settings.TurretLeadAim, v => Settings.TurretLeadAim = v))
+            {
+                Settings.TurretLeadAim = true;
+                var (_, pivot, gun) = Model();
+                var aim = new TurretAim(pivot, gun) { pitchMin = -0.1f, pitchMax = 0.8f };
+                Vector3 point = gun.position + new Vector3(0f, 20f, -100f);
+                Assert.IsFalse(aim.Step(point, 16f));
+                Assert.IsFalse(aim.LimitHit);
+                bool aligned = false;
+                for (int i = 0; i < 300 && !aligned; i++) aligned = aim.Step(point, 16f);
+                Assert.IsTrue(aligned);
+            }
+        }
+
         // ---- shots --------------------------------------------------------------------------------------------------
 
         [Test]
