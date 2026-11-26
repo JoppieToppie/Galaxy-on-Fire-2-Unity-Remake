@@ -181,8 +181,15 @@ namespace GoF2Remake.UI
             // plasma is in range); else the ship's nose.
             var viewTurret = level != null ? level.Turret : null;
             bool turretView = viewTurret != null && viewTurret.InTurretView;
+            var hull = level?.Database?.Ship(Session.ShipIndex);
+            var freeLook = level?.FreeLook;
+            bool centered = !turretView && freeLook != null && freeLook.FreeLookActive
+                && Modding.ModShipView.FreeLookTargeting(hull, Settings.RemakeFreeLook);
+            bool capitalOffset = Modding.ShipClassRules.IsLargeShipClass(hull)
+                && (freeLook == null || !freeLook.FirstPersonActive);
             var aim = turretView ? viewTurret.GunPosition + viewTurret.AimForward * CrosshairDistanceMeters
-                                 : ChaseCamera.AimOrigin(ship.transform) + ship.transform.forward * CrosshairDistanceMeters;
+                : centered ? cam.ViewportToWorldPoint(new Vector3(.5f, .5f, Mathf.Max(1f, cam.nearClipPlane + 1f)))
+                : CombatRadar.ShipCrosshairWorldPoint(ship.transform, capitalOffset);
             bool collector = turretView && viewTurret.IsCollector;
             crosshair.EnableInClassList("crosshair--plasma", collector);
             // PlayerEgo::draw: 0x1f5d while Radar::isPlasmaInRange, else 0x1f5e (#78: the remake showed 0x1f5d all the time).
