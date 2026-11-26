@@ -48,6 +48,8 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer (NetPlayer): the database ship another player flies, -1 = not a player's ship (an NPC's comes from
         /// its spawn spec). A class scanner reads the ship's class from it (Modding.ShipClassRules).</summary>
         [NonSerialized] public int netShipIndex = -1;
+        /// <summary>Fitted cloak generator signature, independent of active cloaking (NetPlayer).</summary>
+        [NonSerialized] public bool passiveStealthGenerator;
         [Tooltip("Player+0x5c / +0x5d: hostile to / friend of the player (recomputed every frame by the ship).")]
         public bool hostileToPlayer, friendToPlayer;
         [Tooltip("Player+0x5e: NPCs don't attack it.")]

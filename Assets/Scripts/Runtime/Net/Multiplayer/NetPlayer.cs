@@ -52,6 +52,7 @@ namespace GoF2Remake.Multiplayer
         static readonly NetworkVariableWritePermission Write = NetworkVariableWritePermission.Owner;
 
         readonly NetworkVariable<int> ship = new NetworkVariable<int>(-1, Read, Write);
+        readonly NetworkVariable<bool> fittedStealthGenerator = new NetworkVariable<bool>(false, Read, Write);
         readonly NetworkVariable<FixedString128Bytes> pilot = new NetworkVariable<FixedString128Bytes>(default, Read, Write);
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1, Read, Write);
         readonly NetworkVariable<byte> place = new NetworkVariable<byte>((byte)Place.None, Read, Write);
@@ -764,6 +765,8 @@ namespace GoF2Remake.Multiplayer
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
             target.netShipIndex = ship.Value;
+            target.passiveStealthGenerator = fittedStealthGenerator.Value;
+            fittedStealthGenerator.OnValueChanged += (_, value) => { if (target != null) target.passiveStealthGenerator = value; };
             target.netPilot = true;
             target.customDeath = true;
             target.maxHp = 100f;
@@ -1381,6 +1384,9 @@ namespace GoF2Remake.Multiplayer
             NetFollow.Tick(this);
             if (distress.Value != NetDistress.Active) distress.Value = NetDistress.Active;
             if (ship.Value != Session.ShipIndex) ship.Value = Session.ShipIndex;   // bought another
+            // SpaceLevel builds the actual mounted/integrated cloak on launch. No per-frame equipment search.
+            bool hasGenerator = level != null && level.Cloak != null;
+            if (fittedStealthGenerator.Value != hasGenerator) fittedStealthGenerator.Value = hasGenerator;
             if (standing0.Value != Session.Standing[0]) standing0.Value = Session.Standing[0];
             if (standing1.Value != Session.Standing[1]) standing1.Value = Session.Standing[1];
             int sig = Standing.SignatureRace;

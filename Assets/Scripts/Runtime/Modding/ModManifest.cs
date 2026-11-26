@@ -48,6 +48,8 @@ namespace GoF2Remake.Modding
         public int shieldRechargeDelayMs = -1;
         /// <summary>Target signature by canonical ship class, as a percentage of the observing scanner range.</summary>
         public Dictionary<string, int> scannerClassDetectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>-1: default 80%; 100 disables the fitted generator signature bonus.</summary>
+        public int scannerGeneratorDetectionPercent = -1;
         public Dictionary<string, string> name, description, credits;
         /// <summary>Remake (TorchOP's request, 2026-10-23): the tag shown after the names of what the mod adds, null = none.</summary>
         public Dictionary<string, string> tag;
@@ -138,6 +140,12 @@ namespace GoF2Remake.Modding
                 dependencies = ModJson.Strings(o, "dependencies"),
                 multiplayerIgnore = ModJson.Strings(o, "multiplayerIgnore"),
             };
+            if (ModJson.Get(o, "scannerGeneratorDetectionPercent") is JToken generator)
+            {
+                if (generator.Type != JTokenType.Integer || (long)generator < 1 || (long)generator > 100)
+                    throw new ModJsonException($"{ModJson.Where(generator, FileName)}: scannerGeneratorDetectionPercent must be an integer from 1 to 100");
+                m.scannerGeneratorDetectionPercent = (int)generator;
+            }
             if (ModJson.Get(o, "scannerClassDetectionPercent") is JToken detection)
             {
                 if (!(detection is JObject classes)) throw new ModJsonException($"{FileName}: scannerClassDetectionPercent must be an object");

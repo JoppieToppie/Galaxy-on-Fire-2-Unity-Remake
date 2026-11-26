@@ -68,6 +68,17 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(r, point);
         }
 
+        [TestCase("light_fighter", 100, true, 80)]
+        [TestCase("light_fighter", 100, false, 100)]
+        [TestCase("stealth_fighter", 50, true, 50)]
+        [TestCase("stealth_bomber", 60, true, 60)]
+        [TestCase("carrier", 200, true, 160)]
+        [TestCase(null, 100, true, 80)]
+        public void GeneratorSignatureDoesNotStackWithStealthHull(string cls, int signature, bool fitted, int expected)
+        {
+            Assert.AreEqual(expected, CombatRadar.EffectiveDetectionPercent(cls, signature, fitted, 80));
+        }
+
         [Test]
         public void LegacyScannersRemainUnlimited()
         {
