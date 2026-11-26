@@ -142,7 +142,7 @@ namespace GoF2Remake.Multiplayer
             itemStock.amount += amount;
             // Storage and donated stock belong to the same registry. Journal both together;
             // there is no intermediate cargo transfer or client inventory notification.
-            bool committed = fromStorage ? CommitProfileTransaction(null, null, null)
+            bool committed = fromStorage ? CommitProfileTransaction(null, null, null, registryOnly: true)
                                          : CommitCargoTransaction(account, (item, -amount));
             if (!committed)
             {

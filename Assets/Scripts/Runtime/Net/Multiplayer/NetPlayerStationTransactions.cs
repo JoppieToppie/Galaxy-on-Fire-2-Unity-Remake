@@ -143,7 +143,7 @@ namespace GoF2Remake.Multiplayer
             List<(string account, long delta)> creditChanges,
             List<(string factionId, long delta)> factionBankChanges,
             List<(string account, List<StoredShip> ships)> shipChanges = null,
-            StationRecoveryTarget recoveryTarget = null)
+            StationRecoveryTarget recoveryTarget = null, bool registryOnly = false)
         {
             if (!NetGame.IsServer || persistenceFaulted || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
@@ -205,7 +205,7 @@ namespace GoF2Remake.Multiplayer
                 shipTargets[change.account] = new List<StoredShip>(change.ships);
             }
             if (recoveryTarget != null && (string.IsNullOrEmpty(recoveryTarget.account) || recoveryTarget.recoveries == null)) return false;
-            if (cargoTargets.Count == 0 && creditTargets.Count == 0 && factionBankTargets.Count == 0 && shipTargets.Count == 0 && recoveryTarget == null) return false;
+            if (!registryOnly && cargoTargets.Count == 0 && creditTargets.Count == 0 && factionBankTargets.Count == 0 && shipTargets.Count == 0 && recoveryTarget == null) return false;
             if (!CanPublishStationSnapshot(Snapshot)) return false;
             var journal = new StationTransactionJournal { registryJson = JsonUtility.ToJson(registry, true) };
             foreach (var target in cargoTargets)
