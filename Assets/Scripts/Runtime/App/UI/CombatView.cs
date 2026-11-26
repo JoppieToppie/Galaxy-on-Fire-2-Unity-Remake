@@ -40,7 +40,7 @@ namespace GoF2Remake.UI
         class Marker
         {
             public VisualElement dot, bar, fill, bracket, emp, empFill;
-            public VisualElement shieldBar, shieldFill, armorFill;   // another player's pools, made on first use (DrawPools)
+            public VisualElement shieldBar, shieldFill, armorFill;   // ship health pools, made on first use (DrawPools)
             public Label distance;
             public Label pilot;   // another player's name over their marker, made on first use (DrawPilotName)
             public bool used;
@@ -270,8 +270,14 @@ namespace GoF2Remake.UI
                         }
                         if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingOnly || s.Target.untargetable) continue;
                         int f = s.Target.hostileToPlayer ? 0 : s.Target.friendToPlayer ? (s.Target.wingman ? 3 : 1) : 2;
-                        DrawShip(Get(s), s.transform.position, f, s.Target.HullFraction, radar.Locked == s.Target, cam, origin, centre);
-                        DrawEmp(Get(s), s.Hp != null ? s.Hp.EmpFraction : 1f);
+                        var m = Get(s);
+                        bool lockedShip = radar.Locked == s.Target;
+                        var hp = s.Hp;
+                        DrawShip(m, s.transform.position, f, s.Target.HullFraction, lockedShip, cam, origin, centre);
+                        // Locally simulated NPCs have real health pools, unlike network proxies' replicated fractions.
+                        DrawPools(m, hp != null && hp.maxShield > 0 ? hp.ShieldFraction : -1f,
+                            hp != null && hp.maxArmor > 0 ? hp.ArmorFraction : -1f, lockedShip);
+                        DrawEmp(m, hp != null ? hp.EmpFraction : 1f);
                     }
                 foreach (var o in Target.NetShips)   // multiplayer: the other players, the host's ships on a client
                     if (o != null && o.Alive && !o.untargetable)
@@ -551,7 +557,7 @@ namespace GoF2Remake.UI
             m.empFill.style.width = Mathf.Clamp01(emp) * 110f;
         }
 
-        /// <summary>Remake (multiplayer): another player's shield bar 11 px above their hull bar, and the hull bar in the status
+        /// <summary>Remake: a ship's shield bar 11 px above its hull bar, and the hull bar in the status
         /// bar's red with their armor over it in yellow (Player::damage takes shield, then armor, then hull). A pool of -1 isn't
         /// there; with neither the marker stays as DrawShip drew it.</summary>
         void DrawPools(Marker m, float shield, float armor, bool locked)
