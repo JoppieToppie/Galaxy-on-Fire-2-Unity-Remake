@@ -355,25 +355,29 @@ namespace GoF2Remake.UI
             UiFocus.SkipScrollBars(identityOverlay);
             identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => evt.StopPropagation());
             identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
-            if (!local && identityController && string.IsNullOrEmpty(identityPreset) && !identityBriefingComplete)
+            if (identityController && string.IsNullOrEmpty(identityPreset) && !identityBriefingComplete)
                 BuildIdentityBriefing(scroll);
             if (identityBriefing == null && InputMode.Current == InputKind.Gamepad) FocusIdentityChoice();
         }
 
         // These files are read from the active mod set before a pilot exists; no Lua approval or save state is needed.
         const string IdentityBriefingFile = "tutorials/preIdentity.json";
+        const string StagedIdentityBriefingFile = "text/tutorials/preIdentity.json";
 
         void BuildIdentityBriefing(ScrollView identityScroll)
         {
             var pages = new List<(string mod, JObject page)>();
             foreach (var mod in ModManager.Active)
             {
-                if (mod.Broken || !mod.Source.Exists(IdentityBriefingFile)) continue;
+                if (mod.Broken) continue;
+                string file = mod.Source.Exists(IdentityBriefingFile) ? IdentityBriefingFile : StagedIdentityBriefingFile;
+                if (!mod.Source.Exists(file)) continue;
                 try
                 {
-                    if (!(ModJson.Read(mod.Source, IdentityBriefingFile) is JObject document) ||
+                    if (!(ModJson.Read(mod.Source, file) is JObject document) ||
                         !(document["pages"] is JArray list) || list.Count > 20)
                         throw new ModJsonException("Expected a pages array with at most 20 entries.");
+                    if (singlePlayerIdentity != null && (bool?)document["singlePlayer"] != true) continue;
                     var parsed = new List<(string mod, JObject page)>();
                     foreach (var entry in list)
                     {
@@ -488,7 +492,7 @@ namespace GoF2Remake.UI
                     FocusIdentityChoice();
                 }) { name = "briefingContinue", text = identityBriefingIndex + 1 < pages.Count ? "CONTINUE" : "CONTINUE TO RACE SELECTION" };
                 var disconnect = new Button(() => NetGame.RefuseJoin("Pilot setup cancelled.")) { text = "DISCONNECT" };
-                foreach (var button in new[] { back, next, disconnect })
+                foreach (var button in singlePlayerIdentity != null ? new[] { back, next } : new[] { back, next, disconnect })
                 {
                     button.style.minHeight = 48;
                     button.style.flexGrow = 1;
