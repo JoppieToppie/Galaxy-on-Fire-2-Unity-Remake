@@ -226,6 +226,14 @@ namespace GoF2Remake.UI
                 }
             }
 
+            Float(ship, T("mbCrosshairOffsetX", "Crosshair horizontal offset (m; positive right)"),
+                  JFloat(s.Get("crosshairOffsetX")) ?? 0f, -ModShipView.MaxCrosshairOffset, ModShipView.MaxCrosshairOffset,
+                  v => { s.Set("crosshairOffsetX", (JToken)Math.Round(v, 2)); MarkDirty(); });
+            Float(ship, T("mbCrosshairOffsetY", "Crosshair vertical offset (m; positive up)"),
+                  JFloat(s.Get("crosshairOffsetY")) ?? 0f, -ModShipView.MaxCrosshairOffset, ModShipView.MaxCrosshairOffset,
+                  v => { s.Set("crosshairOffsetY", (JToken)Math.Round(v, 2)); MarkDirty(); });
+            Note(ship, T("mbCrosshairOffsetNote", "Ship-local targeting reference only. Free-look targeting stays centred; cockpit and weapon mounts are unchanged."));
+
             PointsField(s, "cockpit", T("mbOwnCockpit", "Its own cockpit seat"), single: true);
             PointsField(s, "smoke", T("mbSmokePoints", "Damage smoke points"), single: false);
 

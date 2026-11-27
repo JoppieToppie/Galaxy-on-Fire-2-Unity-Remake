@@ -305,7 +305,7 @@ namespace GoF2Remake.Modding
             "addParts",   // the original's additive layers beside the hull: lights, engine glows (ModShipBuilder)
             "sounds",     // the ship's own engine and boost sounds (ModShipSounds)
             "integrated", // a built-in Khador Drive / cloak (ApplyIntegrated)
-            "camera", "cockpit", "smoke", "explosionScale",   // how the ship is seen (ModShipView)
+            "camera", "cockpit", "smoke", "explosionScale", "crosshairOffsetX", "crosshairOffsetY",   // how the ship is seen (ModShipView)
             "subsystems", "shieldMaterial", "shieldedDamage", "shieldBlocks", "hullDamage", "engineStyle", "es2Engine", "hullFactor", "hullRegen", "retreat",   // a capital ship's subsystems (World.CapitalSubsystems)
             "crate", "crateSize", "wreck", "deathFx", "deathThroes", "warpIn",   // its loot container's and wreck's models (ModCrates, World.WreckBreakup)
             "wingmanDevice",   // a hired wingman's device in it (ModWingmen, Flight.WingmanDevice)

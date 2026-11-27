@@ -15,6 +15,20 @@ namespace GoF2Remake.Tests
     public class ShipClassRulesTests
     {
         [Test]
+        public void CrosshairOffsetsArePerShipAndPreserveUnspecifiedAxes()
+        {
+            var a = new ShipData();
+            var b = new ShipData();
+            ModShipView.ApplyShip(a, JObject.Parse("{\"crosshairOffsetX\":125,\"crosshairOffsetY\":-80}"));
+            ModShipView.ApplyShip(a, JObject.Parse("{\"crosshairOffsetX\":2000}"));
+            Assert.AreEqual(new UnityEngine.Vector2(1000f, -80f), ModShipView.CrosshairOffset(a));
+            Assert.AreEqual(UnityEngine.Vector2.zero, ModShipView.CrosshairOffset(b));
+            Assert.AreEqual(UnityEngine.Vector2.zero, ModShipView.CrosshairOffset(a, true));
+            ModShipView.ApplyShip(a, JObject.Parse("{\"crosshairOffsetX\":0}"));
+            Assert.AreEqual(new UnityEngine.Vector2(0f, -80f), ModShipView.CrosshairOffset(a));
+        }
+
+        [Test]
         public void CanonicalTaxonomyContainsExactlySixteenClasses()
         {
             Assert.AreEqual(16, ShipClassRules.CanonicalClassIds.Length);

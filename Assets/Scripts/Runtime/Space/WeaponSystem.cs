@@ -829,7 +829,10 @@ namespace GoF2Remake.Flight
             bool smart = !Settings.OriginalTargetLock;
             var cam = Camera.main;
             if (cam == null) return null;
-            var aim = cam.WorldToScreenPoint(ChaseCamera.AimOrigin(transform) + transform.forward * 22000f * M);
+            var view = GetComponent<FreeLookCamera>();
+            var offset = Modding.ModShipView.CrosshairOffset(db?.Ship(Session.ShipIndex), view != null && view.FirstPersonActive);
+            // Free-look locks can use the camera centre, but forward weapons retain their ship-local aim reference.
+            var aim = cam.WorldToScreenPoint(CombatRadar.ShipCrosshairWorldPoint(transform, offset));
             float box = Screen.width / 16f * tolerance, best = float.MaxValue;
             Target found = null;
             foreach (var t in Target.All)
