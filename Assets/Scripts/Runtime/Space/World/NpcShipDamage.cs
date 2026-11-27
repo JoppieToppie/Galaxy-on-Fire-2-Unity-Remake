@@ -508,7 +508,7 @@ namespace GoF2Remake.World
         /// ship; the capture takes from the ship's own list (StealFrom).</summary>
         public Crate CreateStealCrate()
         {
-            if (!HasCargo) return null;
+            if (!HasCargo || Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag)) return null;
             string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
             var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Stolen cargo";
@@ -535,7 +535,7 @@ namespace GoF2Remake.World
         {
             // A fixed object dropped its crate as it died (OnDied) and again at the end of its dying (UpdateDying): a pirate
             // outpost's loot came twice. One crate per death.
-            if (crateDropped || loot.Count == 0 || assets == null) return;
+            if (crateDropped || loot.Count == 0 || assets == null || Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag)) return;
             crateDropped = true;
             // The beam was already pulling the ship's own crate (KIPlayer+0x74): that one is its crate now.
             if (stealCrate != null)
