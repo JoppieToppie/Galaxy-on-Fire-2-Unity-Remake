@@ -32,6 +32,41 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void FreightTimingRangesAreBoundedAndOrdered()
+        {
+            Assert.AreEqual((30, 90), ModAdvancedEconomy.FreightInterval(30, 90));
+            Assert.AreEqual((60, 60), ModAdvancedEconomy.FreightInterval(60, 10));
+            Assert.AreEqual((1, 86400), ModAdvancedEconomy.FreightInterval(-1, int.MaxValue));
+        }
+
+        [Test]
+        public void FreightCountdownSeparatesAbstractTravelPhysicalFlightAndUnloading()
+        {
+            int remaining = 30;
+            for (int i = 0; i < 29; i++)
+                remaining = AdvancedEconomyLedger.FreightCountdown(remaining, false, true, false);
+            Assert.AreEqual(1, remaining);
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightCountdown(remaining, false, true, false));
+            Assert.AreEqual(30, AdvancedEconomyLedger.FreightCountdown(30, true, false, false));
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightCountdown(30, true, true, false));
+            Assert.AreEqual(15, AdvancedEconomyLedger.FreightCountdown(15, true, false, true));
+            Assert.AreEqual(14, AdvancedEconomyLedger.FreightCountdown(15, true, true, true));
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightCountdown(0, false, true, true));
+        }
+
+        [Test]
+        public void FreightSnapshotSupportsLegacyAndIndependentCountdowns()
+        {
+            const string start = "{\"version\":1,\"rows\":[],\"shipments\":[";
+            const string ship = "{\"key\":\"s|d|i\",\"amount\":100,\"resale\":0,\"ticks\":1,\"freightTag\":800000123,\"orbit\":1,\"totalTicks\":2";
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + "}]}"));
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"remainingSeconds\":30}]}"));
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"remainingSeconds\":0}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"remainingSeconds\":-2}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"remainingSeconds\":86401}]}"));
+        }
+
+        [Test]
         public void FreightSnapshotsRejectInvalidHullAndDuplicateLiveWreckIdentity()
         {
             const string start = "{\"version\":1,\"rows\":[],\"shipments\":[";
