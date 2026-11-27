@@ -3094,7 +3094,11 @@ Every script has the global table `game`:
 | `saving` | just before `game.saved` is written | |
 | `stop` | your scripts are about to stop | |
 
-`update` runs every frame for every handler: keep it light, or use `game.every`. For anything else the game does, look at
+`update` runs every frame for every handler: keep it light, or use `game.every`. Each handler the game calls costs a
+little whatever it does, so with many scripts register one `update` handler that calls your scripts' functions in turn
+(plain Lua calls are far cheaper), and register it only where it has work: `game.on("update", ...)` in a `station` or
+`space` handler, `game.off` it on `scene`. The same goes for `game.patch`: every call of a patched method runs your
+function, so patch methods the game calls now and then, not every frame. For anything else the game does, look at
 the hook classes ([Hooks](#hooks)): most of what happens passes through one.
 
 ### Waiting
