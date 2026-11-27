@@ -459,7 +459,7 @@ namespace GoF2Remake.UI
         {
             if (k != ModBuilder.Kind.AiTools && !EditsHere(k))   // the AI tools' tab is shown wherever the builder is
             {
-                SaveNow();
+                if (!TrySaveNow()) return;
                 if (ModBuilder.GoTo(k)) return;
             }
             var was = kind;
@@ -496,11 +496,24 @@ namespace GoF2Remake.UI
             saveAtMs = nowMs + 400f;
         }
 
-        protected void SaveNow()
+        protected void SaveNow() => TrySaveNow();
+
+        bool TrySaveNow()
         {
-            saveDirty = false;
-            Project?.Save();
-            ModBuilder.History?.Commit();   // a save point is an undo step (when anything changed)
+            try
+            {
+                Project?.Save();
+                ModBuilder.History?.Commit();   // a save point is an undo step (when anything changed)
+                saveDirty = false;
+                return true;
+            }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            {
+                saveDirty = true;
+                saveAtMs = nowMs + 2000f;
+                Status("Could not save the project: " + e.Message + " (will retry).", true);
+                return false;
+            }
         }
 
         /// <summary>The game reads the project again soon ('soon': a structural change, half a second after the last one).</summary>
@@ -539,7 +552,7 @@ namespace GoF2Remake.UI
         {
             var h = ModBuilder.History;
             if (h == null || Project == null || Dragging) return;
-            SaveNow();
+            if (!TrySaveNow()) return;
             var restore = BeforeUndo();
             if (!(redo ? h.Redo() : h.Undo()))
             {
@@ -855,8 +868,8 @@ namespace GoF2Remake.UI
             Act(box, T("mbNpcFactionWar", "NPC faction warfare"), ShowNpcFactionWarRules, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
-            Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
-            Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { CloseModal(); SaveNow(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
+            Act(box, T("mbSave", "Save"), () => { if (!TrySaveNow()) return; CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
+            Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { if (!TrySaveNow()) return; CloseModal(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
             modal.AddToClassList("mbv-modal--shown");
         }
 
@@ -1578,7 +1591,7 @@ namespace GoF2Remake.UI
             if (saveDirty && nowMs >= saveAtMs) SaveNow();
             UpdateOptimize();
             UpdateUndoButtons();
-            if (reloadPending && nowMs >= reloadAtMs && CanReload)
+            if (reloadPending && !saveDirty && nowMs >= reloadAtMs && CanReload)
             {
                 reloadPending = false;
                 reloading = true;
