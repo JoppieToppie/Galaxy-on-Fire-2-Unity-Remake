@@ -284,7 +284,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         static bool AdvanceFreight(Database db, ModAdvancedEconomy.Route route, Shipment ship,
-            IReadOnlyList<int> systems, AdvancedEconomyRoutes graph, Dictionary<(int orbit, int tag), NetProxy> proxies)
+            IReadOnlyList<int> systems, Dictionary<(int orbit, int tag), NetProxy> proxies)
         {
             if (ship.RemainingSeconds < 0)
             {
@@ -294,10 +294,9 @@ namespace GoF2Remake.Multiplayer
             bool unloading = ship.Orbit == route.Destination;
             bool materialized = proxies.ContainsKey((ship.Orbit, ship.FreightTag));
             bool ready = !materialized || FreightLegReady(db, ship, proxies);
-            int currentSystem = Shop.SystemOf(db, ship.Orbit);
-            int destinationSystem = Shop.SystemOf(db, route.Destination);
-            var remainingPath = graph.Path(currentSystem, destinationSystem);
-            if (!unloading && (currentSystem < 0 || remainingPath == null)) return false;
+            // The caller resolves the route from the current saved orbit, rather than the supplier.
+            var remainingPath = systems;
+            if (!unloading && (remainingPath == null || remainingPath.Count == 0)) return false;
             int next = FreightCountdown(ship.RemainingSeconds, materialized, ready, unloading);
             if (next != ship.RemainingSeconds) { ship.RemainingSeconds = next; dirty = true; }
             if (next > 0 || !ready) return false;
@@ -308,14 +307,13 @@ namespace GoF2Remake.Multiplayer
             {
                 int system = remainingPath[1];
                 orbit = db.Systems.Find(s => s.index == system)?.jumpgateStation ?? -1;
-                if (orbit < 0 || Shop.SystemOf(db, orbit) != system)
+                if (orbit < 0 || !db.Stations.Exists(s => s.index == orbit && s.system == system))
                     orbit = db.Stations.Where(s => s.system == system && !Shop.UsesPlayerMarketplace(s.index))
                         .Select(s => s.index).DefaultIfEmpty(-1).Min();
                 if (orbit < 0) return false;
             }
             ship.Orbit = orbit;
             ship.Ticks = Math.Max(0, remainingPath.Count - 2); // fallback if physical freight is later disabled
-            ship.Hops = Math.Max(ship.Hops, Math.Min(96, systems.Count - 1));
             ship.RemainingSeconds = orbit == route.Destination ? UnloadSeconds() : TravelSeconds();
             dirty = true;
             return false;
@@ -502,6 +500,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!ModAdvancedEconomy.RegionalTrade) return new Dictionary<(int station, int item), int>();
             Load();
+            if (!dispatch && shipments.Count == 0) return new Dictionary<(int station, int item), int>();
             var routes = ModAdvancedEconomy.Routes.Where(r => dispatch || shipments.ContainsKey(RouteKey(r))).ToList();
             var keys = new HashSet<string>(routes.Select(RouteKey));
             // Restore previously dispatched automatic routes even if they no longer have
@@ -520,42 +519,42 @@ namespace GoF2Remake.Multiplayer
                 }
                 if (dispatch)
                 {
-                // Discover destinations with deficits and sources with surpluses, grouped
-                // by commodity. Only one automatically selected supplier per deficit per tick.
-                var suppliers = new Dictionary<int, List<int>>();
-                var deficits = new List<(int station, int item)>();
-                foreach (int station in ModAdvancedEconomy.Stations.OrderBy(s => s))
-                {
-                    if (!participates(station)) continue;
-                    foreach (var rule in ModAdvancedEconomy.At(station).Values.OrderBy(r => r.Item))
+                    // Discover destinations with deficits and sources with surpluses, grouped
+                    // by commodity. Only one automatically selected supplier per deficit per tick.
+                    var suppliers = new Dictionary<int, List<int>>();
+                    var deficits = new List<(int station, int item)>();
+                    foreach (int station in ModAdvancedEconomy.Stations.OrderBy(s => s))
                     {
-                        if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
-                        int amount = Get(station, rule).Amount;
-                        if (amount > rule.Target)
+                        if (!participates(station)) continue;
+                        foreach (var rule in ModAdvancedEconomy.At(station).Values.OrderBy(r => r.Item))
                         {
-                            if (!suppliers.TryGetValue(rule.Item, out var sources))
-                                suppliers[rule.Item] = sources = new List<int>();
-                            sources.Add(station);
+                            if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                            int amount = Get(station, rule).Amount;
+                            if (amount > rule.Target)
+                            {
+                                if (!suppliers.TryGetValue(rule.Item, out var sources))
+                                    suppliers[rule.Item] = sources = new List<int>();
+                                sources.Add(station);
+                            }
+                            else if (amount < rule.Target) deficits.Add((station, rule.Item));
                         }
-                        else if (amount < rule.Target) deficits.Add((station, rule.Item));
                     }
-                }
-                foreach (var deficit in deficits)
-                {
-                    if (!suppliers.TryGetValue(deficit.item, out var sources)) continue;
-                    int destinationSystem = Shop.SystemOf(db, deficit.station);
-                    int best = -1, bestHops = int.MaxValue;
-                    foreach (int source in sources)
+                    foreach (var deficit in deficits)
                     {
-                        int hops = graph.Distance(Shop.SystemOf(db, source), destinationSystem);
-                        if (hops < 0 || hops > ModAdvancedEconomy.MaxAutoHops || hops >= bestHops) continue;
-                        best = source; bestHops = hops;
+                        if (!suppliers.TryGetValue(deficit.item, out var sources)) continue;
+                        int destinationSystem = Shop.SystemOf(db, deficit.station);
+                        int best = -1, bestHops = int.MaxValue;
+                        foreach (int source in sources)
+                        {
+                            int hops = graph.Distance(Shop.SystemOf(db, source), destinationSystem);
+                            if (hops < 0 || hops > ModAdvancedEconomy.MaxAutoHops || hops >= bestHops) continue;
+                            best = source; bestHops = hops;
+                        }
+                        if (best < 0) continue;
+                        var route = new ModAdvancedEconomy.Route(best, deficit.station, deficit.item,
+                            ModAdvancedEconomy.AutoCapacity, 1, ModAdvancedEconomy.AutoWarLoss);
+                        if (keys.Add(RouteKey(route))) routes.Add(route);
                     }
-                    if (best < 0) continue;
-                    var route = new ModAdvancedEconomy.Route(best, deficit.station, deficit.item,
-                        ModAdvancedEconomy.AutoCapacity, 1, ModAdvancedEconomy.AutoWarLoss);
-                    if (keys.Add(RouteKey(route))) routes.Add(route);
-                }
                 }
             }
             var incoming = new Dictionary<(int station, int item), int>();
@@ -578,19 +577,24 @@ namespace GoF2Remake.Multiplayer
                 var to = ModAdvancedEconomy.At(route.Destination);
                 if (from == null || to == null || !from.TryGetValue(route.Item, out var sourceRule) ||
                     !to.TryGetValue(route.Item, out var destinationRule)) continue;
-                var path = graph.Path(Shop.SystemOf(db, route.Source), Shop.SystemOf(db, route.Destination));
+                string key = RouteKey(route);
+                shipments.TryGetValue(key, out var shipment);
+                if (shipment != null && !advance) continue;
+                int origin = physical && shipment != null && shipment.RemainingSeconds >= 0 ? shipment.Orbit : route.Source;
+                var originStation = db.Stations.Find(s => s.index == origin);
+                var destinationStation = db.Stations.Find(s => s.index == route.Destination);
+                if (originStation == null || destinationStation == null) continue;
+                var path = graph.Path(originStation.system, destinationStation.system);
                 if (path == null) continue;
                 var source = Get(route.Source, sourceRule);
                 var destination = Get(route.Destination, destinationRule);
-                string key = RouteKey(route);
                 var incomingKey = (route.Destination, route.Item);
                 incoming.TryGetValue(incomingKey, out int reserved);
-                if (shipments.TryGetValue(key, out var shipment))
+                if (shipment != null)
                 {
-                    if (!advance) continue;
                     if (physical)
                     {
-                        if (!AdvanceFreight(db, route, shipment, path, graph, freightProxies)) continue;
+                        if (!AdvanceFreight(db, route, shipment, path, freightProxies)) continue;
                     }
                     else
                     {
