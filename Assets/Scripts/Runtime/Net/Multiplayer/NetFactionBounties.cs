@@ -510,16 +510,19 @@ namespace GoF2Remake.Multiplayer
             if (reward <= 0 || !SaveBounties()) return false;
             var hunterAccount = NetProfiles.AccountOf(hunter.OwnerClientId);
             foreach (var record in claimed) bountyFile.records.Remove(record);
+            if (pirate) piracy.pirate = false;
             bountyDirty = true;
             if (!SaveBounties())
             {
                 bountyFile.records.AddRange(claimed);
+                if (pirate) piracy.pirate = true;
                 bountyDirty = false;
                 return false;
             }
             if (!NetProfiles.MoveCredits(hunter.OwnerClientId, hunterAccount, reward))
             {
                 bountyFile.records.AddRange(claimed);
+                if (pirate) piracy.pirate = true;
                 bountyDirty = true;
                 SaveBounties();
                 ReindexBounties();
@@ -694,6 +697,38 @@ namespace GoF2Remake.Multiplayer
             }
             if (total > shown) result.AppendLine().Append($"Showing {shown} of {total} active bounties.");
             return shown == 0 ? "There are no active faction bounties." : result.ToString();
+        }
+
+        static string SetFactionBounty(ulong client, string account, string arg)
+        {
+            var faction = Of(account);
+            if (!PiracyEnabled || bountyFile == null || !NetProfiles.Controls(client) || faction == null || !IsOfficer(faction, account))
+                return "Only faction officers may fund bounties.";
+            int split = arg.LastIndexOf(' ');
+            if (split <= 0 || !long.TryParse(arg.Substring(split + 1), out long amount) || amount <= 0)
+                return "Usage: /faction bounty PILOT AMOUNT";
+            string target = NetProfiles.FindAccount(arg.Substring(0, split).Trim());
+            if (target == null || target == account || Of(target) == faction) return "Choose a pilot outside your faction.";
+            string issuer = "faction:" + faction.id;
+            var record = FindBounty(target, issuer);
+            if (record == null || record.wantedUntil <= UnixNow) return "That pilot is not wanted by your faction.";
+            if (amount <= record.reward) return "The new bounty must exceed the existing funded bounty.";
+            long cost = amount - record.reward;
+            if (faction.bank < cost || !SaveBounties()) return "Insufficient faction funds or bounty storage unavailable.";
+            faction.bank -= cost;
+            if (!Save()) { faction.bank += cost; return "Could not save faction treasury."; }
+            long previous = record.reward;
+            record.reward = amount;
+            bountyDirty = true;
+            if (!SaveBounties())
+            {
+                record.reward = previous;
+                bountyDirty = false;
+                faction.bank += cost;
+                Save();
+                return "Could not save bounty.";
+            }
+            return $"Funded bounty: {amount:N0} credits.";
         }
 
         static string SetPiracyRelation(ulong client, string account, string target, bool rival, bool enabled)
