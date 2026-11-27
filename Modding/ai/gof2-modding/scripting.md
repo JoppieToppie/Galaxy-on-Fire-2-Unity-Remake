@@ -2063,3 +2063,19 @@ reach outside the game (Application, PlayerPrefs, the clipboard, asset bundles, 
 - `UnityEngine.UI` (61 classes)
 - `UnityEngine.UIElements` (440 classes)
 - `UnityEngine.VFX` (18 classes)
+
+
+### Native interaction rule registration
+
+These functions register native rules once. They return a handle removable with `game.off(handle)`, and rules disappear when the mod stops. They do not patch methods or invoke Lua for each check. Unclassified ships are unaffected. Existing mission restrictions still apply.
+
+- `game.restrictMiningClass(classId, message)`: deny drilling and beam mining for a class.
+- `game.restrictDerelictBoardingClass(classId, message)`: deny boarding hackable freighter wrecks only; other object docking is unchanged.
+- `game.weightLoungeRace(systemName, raceKey, chancePercent)`: assign a custom race's visitor silhouette with a 0–100 percentage weight. System names compare case-insensitively, ignoring punctuation and spaces. Weights for different races are cumulative (keep their total at or below 100); the remainder preserves the original visitor selection. Later registrations override the same system/race pair and take priority if totals exceed 100. Explicit character races still take precedence.
+
+```lua
+local h = game.restrictMiningClass("cruiser", "Cruisers cannot mine asteroids.")
+game.restrictDerelictBoardingClass("freighter", "This ship is too large to board the wreck.")
+game.weightLoungeRace("My System", "my_mod:my_race", 65)
+-- game.off(h) lifts the mining restriction.
+```

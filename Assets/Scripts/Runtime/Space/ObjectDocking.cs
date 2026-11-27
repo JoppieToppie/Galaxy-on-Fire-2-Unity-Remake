@@ -131,6 +131,7 @@ namespace GoF2Remake.Flight
                 string refusal = CapitalShips.DockRefusal(target);
                 if (refusal != null) { Say(refusal); return false; }
             }
+            if (SpaceHooks.DerelictBoardingClassRefusal(Session.ShipIndex, target) is string classRefusal) { Say(classRefusal); return false; }
             if (Refusal?.Invoke(target) is string levelRefusal) { Say(levelRefusal); return false; }
             var points = target.DockingType == ConstructionSite ? null : SpacePoints.Set(target.SpacePointSet);
             if (target.DockingType == ConstructionSite)

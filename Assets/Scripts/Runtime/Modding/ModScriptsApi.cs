@@ -598,6 +598,16 @@ LIMITS
                 }, "class");
                 script.Globals.MetaTable = meta;
 
+                Fn(g, "restrictMiningClass", a => OwnRule(GoF2Remake.World.SpaceHooks.RegisterMiningRestriction(
+                    a.AsType(0, "game.restrictMiningClass", DataType.String).String,
+                    a.AsType(1, "game.restrictMiningClass", DataType.String).String)));
+                Fn(g, "restrictDerelictBoardingClass", a => OwnRule(GoF2Remake.World.SpaceHooks.RegisterDerelictBoardingRestriction(
+                    a.AsType(0, "game.restrictDerelictBoardingClass", DataType.String).String,
+                    a.AsType(1, "game.restrictDerelictBoardingClass", DataType.String).String)));
+                Fn(g, "weightLoungeRace", a => OwnRule(GoF2Remake.World.SpaceHooks.RegisterLoungeWeight(
+                    a.AsType(0, "game.weightLoungeRace", DataType.String).String,
+                    a.AsType(1, "game.weightLoungeRace", DataType.String).String,
+                    (float)a.AsType(2, "game.weightLoungeRace", DataType.Number).Number)));
                 Fn(g, "hook", a => Hook(a, "game.hook", true));
                 Fn(g, "listen", a => Hook(a, "game.listen", false));
 
@@ -653,6 +663,14 @@ LIMITS
                     l[i] = ScriptAccess.FromLua(a[2], Arg(l.GetType(), 0));
                     return DynValue.Nil;
                 });
+            }
+
+            DynValue OwnRule(Action remove)
+            {
+                int id = nextId++;
+                undo.Add(remove);
+                undoById[id] = remove;
+                return DynValue.NewNumber(id);
             }
 
             DynValue Fn(Table g, string name, Func<CallbackArguments, DynValue> body)
