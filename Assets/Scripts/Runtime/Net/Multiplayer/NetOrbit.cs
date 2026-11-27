@@ -533,16 +533,19 @@ namespace GoF2Remake.Multiplayer
             foreach (string row in (manifest ?? "").Split(';'))
             {
                 string[] fields = row.Split(',');
-                if (fields.Length != 7 || !int.TryParse(fields[0], out int tag) ||
+                if (fields.Length != 10 || !int.TryParse(fields[0], out int tag) ||
                     !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
                     !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
+                    !int.TryParse(fields[7], out int race) || !int.TryParse(fields[8], out int ship) ||
+                    !int.TryParse(fields[9], out int speed) || speed < 10 || speed > 500 ||
+                    (race < 0 || (race > 10 && Modding.ModRaces.Get(race) == null)) || level.Database.Ship(ship) == null ||
                     !int.TryParse(fields[6], out int hull) || hull < 1 || hull > 65535 ||
                     !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
                     level.Database.Item(item) == null || !active.Add(tag)) continue;
                 int index = slot++;
                 // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
-                bool large = fields[5] == "1";
-                string label = (large ? "Rhino" : "Cormorant") + " Freight (" + amount + " t)";
+                string hullName = ship == 13 || ship == 15 ? "Freighter" : GameNames.Ship(ship);
+                string label = hullName + " Freight (" + amount + " t)";
                 var existing = traffic.Ships.Find(x => x != null && x.Spec.eventTag == tag && !x.Gone);
                 if (existing != null)
                 {
@@ -555,9 +558,6 @@ namespace GoF2Remake.Multiplayer
                     continue;
                 }
                 if (System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
-                int race = level.Layout.raceId;
-                int configured = large ? Modding.ModAdvancedEconomy.RhinoShip : Modding.ModAdvancedEconomy.CormorantShip;
-                int ship = configured >= 0 ? configured : Modding.ModRaces.Look(race) == 1 ? 13 : 15;
                 // Freighters fly straight. Keep them in parallel lanes outside the station's hull.
                 Vector3 offset = new Vector3((index % 2 == 0 ? 1f : -1f) * (1800f + 800f * index),
                     350f + index * 100f, 2300f);
@@ -583,9 +583,8 @@ namespace GoF2Remake.Multiplayer
                     group = NpcGroup.Freighter, race = race, ship = ship, freighter = true,
                     eventTag = tag, noLoot = true, lootItem = item, lootAmount = amount,
                     position = level.Layout.Unplace(GamePosition(at)), route = freightRoute,
-                    scale = configured >= 0 || large ? 1f : 0.65f,
-                    hitpoints = NpcTables.Hull(1, ship), speed = NpcTables.FreighterSpeed * (large ?
-                        Modding.ModAdvancedEconomy.RhinoFreightSpeedPercent : Modding.ModAdvancedEconomy.CormorantFreightSpeedPercent) / 100f,
+                    scale = 1f,
+                    hitpoints = NpcTables.Hull(1, ship), speed = NpcTables.FreighterSpeed * speed / 100f,
                     name = label
                 });
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
