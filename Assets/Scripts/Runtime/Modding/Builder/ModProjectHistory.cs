@@ -148,7 +148,8 @@ namespace GoF2Remake.Modding
                     if (h != null) d[rel] = h;
                 }
             }
-            foreach (string rel in new[] { ModPvpPiracy.File, GoF2Remake.Multiplayer.PlayerIdentity.OriginsFile })
+            // Keep the race origins file in history without depending on the multiplayer assembly.
+            foreach (string rel in new[] { ModPvpPiracy.File, "raceOrigins.json" })
             {
                 string path = Full(rel);
                 if (File.Exists(path) && Hash(path) is string hash) d[rel] = hash;
