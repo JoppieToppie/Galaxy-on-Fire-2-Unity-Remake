@@ -258,7 +258,7 @@ namespace GoF2Remake.World
             if (subsystems == null && spec.modCapital) db.ShipSubsystems.TryGetValue(spec.ship, out subsystems);
             if (subsystems != null && subsystems.Count > 0) CapitalSubsystems.Attach(ship, this, db, subsystems);
             // ... one that jumps away instead of dying (ships.json "retreat": EVERSPACE 2's Dreadnought; npcships.json too)
-            if ((spec.modCapital && CustomShips.Get(spec.ship)?.retreat == true) || spec.npcType?.retreat == true) CapitalRetreat.Attach(ship, this);
+            if (!NpcFactionWar.IsWarTag(spec.eventTag) && ((spec.modCapital && CustomShips.Get(spec.ship)?.retreat == true) || spec.npcType?.retreat == true)) CapitalRetreat.Attach(ship, this);
             // ... a freighter's escort follows it, fighting what it meets on the way (TrafficPlan.AddNpcEscorts).
             if (spec.escortLeader != null && Ships.Find(x => x != null && x.Spec == spec.escortLeader) is NpcShip leader)
                 ship.SetOrder(new NpcOrder { kind = NpcOrder.Kind.Follow, leader = leader.transform, offset = spec.escortOffset, fight = true });
@@ -284,7 +284,8 @@ namespace GoF2Remake.World
             bool myfft = host.Spec.ship == 45;
             var spec = new SpawnSpec
             {
-                group = NpcGroup.Turret, race = myfft ? Standing.Pirate : 0, ship = -1, turretAssembly = "turret_002_static",
+                group = NpcGroup.Turret, race = NpcFactionWar.IsWarTag(host.Spec.eventTag) ? host.Race : myfft ? Standing.Pirate : 0, ship = -1, turretAssembly = "turret_002_static",
+                eventTag = NpcFactionWar.AuxiliaryTag(host.Spec.eventTag) == host.Spec.eventTag ? 0 : NpcFactionWar.AuxiliaryTag(host.Spec.eventTag),
                 hitpoints = Mathf.Max(1, host.Hp.maxHull), noLoot = true, nameText = 1666, stationary = true,
                 alwaysEnemy = host.Spec.alwaysEnemy, alwaysFriend = host.Spec.alwaysFriend, position = host.Spec.position,
             };
@@ -552,15 +553,15 @@ namespace GoF2Remake.World
             if (factionBattle?.id == battle.id) factionBattle = null;
             foreach (var ship in Ships)
             {
-                if (ship == null || ship.Gone || !ship.Target.Alive) continue;
-                int slot = battle.Slot(ship.Spec.eventTag);
-                if (slot >= 0 && slot < 2 * battle.shipsPerSide) ship.Vanish();
+                if (ship == null || ship.Gone) continue;
+                if (battle.OwnsTag(ship.Spec.eventTag) || (ship.Spec.capitalHost != null && battle.OwnsTag(ship.Spec.capitalHost.eventTag))) ship.Vanish();
             }
         }
 
         void UpdateFactionWar()
         {
-            if (!Modding.ModNpcFactionWar.Enabled || Time.unscaledTime < nextWarCheck) return;
+            if (!Modding.ModNpcFactionWar.Enabled) { RetireFactionBattle(); return; }
+            if (Time.unscaledTime < nextWarCheck) return;
             nextWarCheck = Time.unscaledTime + 5f;
             var system = db.Systems.Find(s => s.index == systemIndex);
             int owner = NpcFactionWar.OrbitOwner(system, StationIndex);
@@ -571,9 +572,18 @@ namespace GoF2Remake.World
             }
             long now = NpcFactionWar.Now;
             // Multiplayer expiry is decided by the server; its deadline can pause/resume after spawning.
-            if (!NetSession.Active && factionBattle.HasValue && factionBattle.Value.expires < now) RetireFactionBattle();
+            if (!NetSession.Active && factionBattle.HasValue && !NpcFactionWar.LocalCampaign.TryGetBattle(StationIndex, now, out _))
+            {
+                NpcFactionWar.LocalCampaign.RemoveBattle(factionBattle.Value);
+                RetireFactionBattle();
+            }
             if (NetSession.Active || !CanHostFactionBattle) return;
             var campaign = NpcFactionWar.LocalCampaign;
+            if (campaign.TryGetBattle(StationIndex, now, out var existing))
+            {
+                BeginFactionBattle(existing, campaign.Casualties(existing));
+                return;
+            }
             if (campaign.TryStart(db, StationIndex, now, out var battle))
             {
                 NpcFactionWar.SaveLocal();

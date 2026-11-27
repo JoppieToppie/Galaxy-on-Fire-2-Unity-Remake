@@ -69,6 +69,9 @@ namespace GoF2Remake.Data
         }
 
         public static bool IsWarTag(int tag) => tag >= FirstTag && tag < FirstTag + SlotsPerBattle * LastBattleId;
+        // Every attachment shares the reserved final slot of its engagement, never a casualty slot.
+        public static bool IsAuxiliaryTag(int tag) => IsWarTag(tag) && (tag - FirstTag) % SlotsPerBattle == SlotsPerBattle - 1;
+        public static int AuxiliaryTag(int tag) => IsWarTag(tag) ? tag - (tag - FirstTag) % SlotsPerBattle + SlotsPerBattle - 1 : tag;
 
         // Preserve the winning-side contribution requirement, but never reward a pilot who substantially
         // damaged both fleets. Zero disables only this exclusion; the normal participation rule remains.
@@ -102,6 +105,8 @@ namespace GoF2Remake.Data
 
             public int Tag(int slot) => FirstTag + (id - 1) * SlotsPerBattle + slot;
             public int Slot(int tag) => tag - Tag(0);
+            public bool OwnsTag(int tag) => Slot(tag) >= 0 && Slot(tag) < SlotsPerBattle;
+            public bool IsRosterTag(int tag) => Slot(tag) >= 0 && Slot(tag) < 2 * shipsPerSide;
         }
 
         [Serializable]
@@ -163,6 +168,10 @@ namespace GoF2Remake.Data
         public sealed class Campaign
         {
             readonly Dictionary<string, int> held = new Dictionary<string, int>(StringComparer.Ordinal);
+            // Keep unresolved stable keys on disk when a content mod is temporarily absent.
+            readonly List<HeldOrbit> dormantHeld = new List<HeldOrbit>();
+            readonly List<VictoryReward> dormantRewards = new List<VictoryReward>();
+            readonly List<Participation> dormantParticipation = new List<Participation>();
             readonly Dictionary<int, Engagement> battles = new Dictionary<int, Engagement>();
             readonly List<VictoryReward> rewards = new List<VictoryReward>();
             readonly Dictionary<(string account, int race), int> participation = new Dictionary<(string account, int race), int>();
@@ -180,6 +189,7 @@ namespace GoF2Remake.Data
             {
                 string key = Key(orbit);
                 rewards.RemoveAll(r => r.orbitKey == key);
+                dormantRewards.RemoveAll(r => r.orbitKey == key);
                 foreach (var reward in pending)
                 {
                     reward.orbitKey = key;
@@ -214,18 +224,30 @@ namespace GoF2Remake.Data
                     campaign.nextBattle = saved.nextBattle;
                     if (saved.held != null)
                         foreach (var entry in saved.held)
-                            if (entry != null && !string.IsNullOrEmpty(entry.orbit) && Major(SavedRace(entry.raceKey, entry.race)))
-                                campaign.held[entry.orbit] = SavedRace(entry.raceKey, entry.race);
+                            if (entry != null && !string.IsNullOrEmpty(entry.orbit))
+                            {
+                                int race = SavedRace(entry.raceKey, entry.race);
+                                if (Major(race)) campaign.held[entry.orbit] = race;
+                                else if (!string.IsNullOrEmpty(entry.raceKey)) campaign.dormantHeld.Add(entry);
+                            }
                     if (saved.rewards != null)
                         foreach (var reward in saved.rewards)
                             if (reward != null && !string.IsNullOrEmpty(reward.id) &&
                                 !string.IsNullOrEmpty(reward.account) && reward.account.StartsWith("profile:", StringComparison.Ordinal) &&
-                                !string.IsNullOrEmpty(reward.orbitKey) && Major(SavedRace(reward.raceKey, reward.race)) && reward.credits >= 0)
-                            { reward.race = SavedRace(reward.raceKey, reward.race); campaign.rewards.Add(reward); }
+                                !string.IsNullOrEmpty(reward.orbitKey) && reward.credits >= 0)
+                            {
+                                int race = SavedRace(reward.raceKey, reward.race);
+                                if (Major(race)) { reward.race = race; campaign.rewards.Add(reward); }
+                                else if (!string.IsNullOrEmpty(reward.raceKey)) campaign.dormantRewards.Add(reward);
+                            }
                     if (saved.participation != null)
                         foreach (var entry in saved.participation)
-                            if (entry != null && entry.account != null && entry.account.StartsWith("profile:", StringComparison.Ordinal) && Major(SavedRace(entry.raceKey, entry.race)) && entry.count > 0)
-                                campaign.participation[(entry.account, SavedRace(entry.raceKey, entry.race))] = entry.count;
+                            if (entry != null && entry.account != null && entry.account.StartsWith("profile:", StringComparison.Ordinal) && entry.count > 0)
+                            {
+                                int race = SavedRace(entry.raceKey, entry.race);
+                                if (Major(race)) campaign.participation[(entry.account, race)] = entry.count;
+                                else if (!string.IsNullOrEmpty(entry.raceKey)) campaign.dormantParticipation.Add(entry);
+                            }
                     // Active entries are sent to clients only, not written to the profile save.
                     if (saved.active != null)
                         foreach (var entry in saved.active)
@@ -248,11 +270,13 @@ namespace GoF2Remake.Data
             {
                 var saved = new WarSave { nextBattle = nextBattle };
                 foreach (var entry in held) saved.held.Add(new HeldOrbit { orbit = entry.Key, race = entry.Value, raceKey = RaceKey(entry.Value) });
+                if (!includeActive) saved.held.AddRange(dormantHeld);
                 // Never broadcast private reward entitlements in the public map snapshot.
                 if (!includeActive)
                 {
                     saved.rewards = rewards.FindAll(r => r.account.StartsWith("profile:", StringComparison.Ordinal));
                     foreach (var reward in saved.rewards) reward.raceKey = RaceKey(reward.race);
+                    saved.rewards.AddRange(dormantRewards);
                 }
                 if (!includeActive)
                 {
@@ -260,6 +284,7 @@ namespace GoF2Remake.Data
                     foreach (var entry in participation)
                         if (entry.Key.account.StartsWith("profile:", StringComparison.Ordinal))
                             saved.participation.Add(new Participation { account = entry.Key.account, race = entry.Key.race, raceKey = RaceKey(entry.Key.race), count = entry.Value });
+                    saved.participation.AddRange(dormantParticipation);
                 }
                 if (includeActive)
                 {
@@ -309,14 +334,14 @@ namespace GoF2Remake.Data
             public int OrbitOwner(SystemData system, int orbit)
             {
                 if (system == null) return -1;
-                return ModNpcFactionWar.CanContest(system) && held.Count > 0 && held.TryGetValue(Key(orbit), out int race)
+                return held.Count > 0 && held.TryGetValue(Key(orbit), out int race)
                     ? race : system.raceId;
             }
 
             public int SystemOwner(SystemData system)
             {
                 if (system == null) return -1;
-                if (held.Count == 0 || system.stations == null || system.stations.Count == 0 || !ModNpcFactionWar.CanContest(system))
+                if (held.Count == 0 || system.stations == null || system.stations.Count == 0)
                     return system.raceId;
                 var totals = new Dictionary<int, int>();
                 int orbits = 0;
@@ -448,9 +473,24 @@ namespace GoF2Remake.Data
                 else active.attackersLost++;
                 if (active.defendersLost < battle.shipsPerSide && active.attackersLost < battle.shipsPerSide) return false;
                 winner = defending ? battle.attacker : battle.defender;
-                if (winner == battle.attacker) held[Key(battle.orbit)] = winner;
+                if (winner == battle.attacker)
+                {
+                    string key = Key(battle.orbit);
+                    dormantHeld.RemoveAll(x => x.orbit == key);
+                    held[key] = winner;
+                    // Invalidate old entitlements even if the new capture generates no rewards.
+                    ReplaceOrbitRewards(battle.orbit, Array.Empty<VictoryReward>());
+                }
                 battles.Remove(battle.system);
                 return true;
+            }
+
+            public int[] Casualties(Battle battle)
+            {
+                if (!battles.TryGetValue(battle.system, out var active) || active.battle.id != battle.id) return Array.Empty<int>();
+                var result = new int[active.casualties.Count];
+                active.casualties.CopyTo(result);
+                return result;
             }
 
             public bool TryGetBattle(int orbit, long now, out Battle battle)

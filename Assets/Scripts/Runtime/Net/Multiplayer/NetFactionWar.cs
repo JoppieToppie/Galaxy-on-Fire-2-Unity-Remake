@@ -186,8 +186,7 @@ namespace GoF2Remake.Multiplayer
                 if (obj == null || !obj.IsSpawned) continue;
                 var ship = obj.GetComponent<NetProxy>();
                 if (ship == null || ship.Station != battle.orbit) continue;
-                int slot = battle.Slot(ship.EventTag);
-                if (slot >= 0 && slot < 2 * battle.shipsPerSide) remove.Add(obj);
+                if (battle.OwnsTag(ship.EventTag)) remove.Add(obj);
             }
             foreach (var obj in remove)
                 if (obj.IsSpawned) obj.Despawn();
@@ -226,11 +225,12 @@ namespace GoF2Remake.Multiplayer
         internal bool IsFactionWarShip(NetProxy ship, int race)
         {
             if (!IsServer || !ModNpcFactionWar.Enabled || ship == null || ship.IsJunk || ship.IsWingman ||
+                ship.Spec?.spec == null || ship.Spec.spec.capitalPart || ship.Spec.spec.group == NpcGroup.Turret ||
                 !fleetByOrbit.TryGetValue(ship.Station, out var roster) ||
                 roster.creator == ulong.MaxValue || roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt) return false;
             var battle = roster.battle;
             int slot = battle.Slot(ship.EventTag);
-            if (slot < 0 || slot >= 2 * battle.shipsPerSide || race != (slot < battle.shipsPerSide ? battle.defender : battle.attacker))
+            if (!battle.IsRosterTag(ship.EventTag) || race != (slot < battle.shipsPerSide ? battle.defender : battle.attacker))
                 return false;
             if (roster.ships.TryGetValue(slot, out ulong id)) return id == ship.NetworkObjectId;
             if (roster.casualties.Contains(slot)) return false;

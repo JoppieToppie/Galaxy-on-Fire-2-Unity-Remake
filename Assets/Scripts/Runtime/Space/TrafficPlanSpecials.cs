@@ -133,6 +133,7 @@ namespace GoF2Remake.Flight
                 var part = specs[i];
                 if (part.group != NpcGroup.Turret) { specs.RemoveAt(i); continue; }
                 part.race = race; part.capitalEnhanced = true; part.noLoot = true;
+                part.eventTag = NpcFactionWar.AuxiliaryTag(tag);
                 part.hitpoints = Mathf.Max(1, (int)((500 + 50 * Mathf.Min(Session.Rank, 20)) * Session.DifficultyFactor));
             }
             return specs;
