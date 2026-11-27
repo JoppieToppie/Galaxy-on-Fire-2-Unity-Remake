@@ -39,6 +39,52 @@ namespace GoF2Remake.Modding
             int min = Math.Clamp(minimum, 1, MaxFreightSeconds);
             return (min, Math.Clamp(maximum, min, MaxFreightSeconds));
         }
+        public static int NativeFreighterCapacity { get; private set; } = 2500;
+        public static int NativeFreighterSpeedPercent { get; private set; } = 100;
+        public sealed class FreightHull
+        {
+            public readonly int Ship, Capacity, Weight, SpeedPercent;
+            public readonly string Reference;
+            public FreightHull(int ship, string reference, int capacity, int weight, int speedPercent)
+            {
+                Ship = ship; Reference = reference;
+                Capacity = Math.Clamp(capacity, 1, MaxStock);
+                Weight = Math.Clamp(weight, 1, 1000);
+                SpeedPercent = Math.Clamp(speedPercent, 10, 500);
+            }
+        }
+
+        static readonly Dictionary<int, List<FreightHull>> freightFleets = new Dictionary<int, List<FreightHull>>();
+        public static int NativeFreighter(int race) => ModRaces.Look(race) == 1 ? 13 : 15;
+        public static IReadOnlyList<FreightHull> FreightFleet(int race)
+        {
+            if (freightFleets.TryGetValue(race, out var fleet)) return fleet;
+            var native = new FreightHull(NativeFreighter(race), "native", NativeFreighterCapacity, 1, NativeFreighterSpeedPercent);
+            var defaults = new List<FreightHull> { native };
+            if (race == 0)
+            {
+                if (CormorantShip >= 0) defaults.Add(new FreightHull(CormorantShip, ModContent.FreightShipKey(CormorantShip), CormorantCapacity, 1, CormorantFreightSpeedPercent));
+                if (RhinoShip >= 0) defaults.Add(new FreightHull(RhinoShip, ModContent.FreightShipKey(RhinoShip), RhinoCapacity, 1, RhinoFreightSpeedPercent));
+            }
+            return defaults;
+        }
+
+        // Prefer a hull able to carry the requested load; otherwise use the largest available
+        // capacity. Weights are relative among eligible ships, not across ineligible hulls.
+        public static FreightHull PickFreightHull(IReadOnlyList<FreightHull> fleet, int requested, int roll)
+        {
+            int largest = 0;
+            foreach (var h in fleet) largest = Math.Max(largest, h.Capacity);
+            int needed = Math.Min(Math.Max(1, requested), largest);
+            int total = 0;
+            foreach (var h in fleet) if (h.Capacity >= needed) total += h.Weight;
+            if (total == 0) return null;
+            int choice = (int)((uint)roll % (uint)total);
+            foreach (var h in fleet)
+                if (h.Capacity >= needed && (choice -= h.Weight) < 0) return h;
+            return null;
+        }
+
         public static int RhinoShip { get; private set; } = 51;
         public static int CormorantShip { get; private set; } = 36;
         public static int FreightCapacity(int requested, int large, int small) =>
@@ -165,7 +211,8 @@ namespace GoF2Remake.Modding
             Enabled = PersistentInventory = SaveInventory = SimulateUnvisitedStations = Production = Consumption = false;
             TickSeconds = 900;
             rules.Clear();
-            routes.Clear();
+            routes.Clear(); freightFleets.Clear();
+            NativeFreighterCapacity = 2500; NativeFreighterSpeedPercent = 100;
             RegionalTrade = WarPressure = TradeDisruption = PlayerGateRouting = RestrictedGateRouting = AutomaticRoutes = false;
             FrontlinePressure = 50; BattlePressure = 100;
             DynamicPricing = TransportCosts = PlayerMarketTrade = NpcConstructionSupply = false;
@@ -218,6 +265,37 @@ namespace GoF2Remake.Modding
                     }
                     int rhinoShip = physical ? ResolveFreighter("rhinoShip", 51) : 51;
                     int cormorantShip = physical ? ResolveFreighter("cormorantShip", 36) : 36;
+                    int nativeCapacity = Math.Clamp(ModJson.Int(o, "nativeFreighterCapacity", largeFreight, File), 1, MaxStock);
+                    int nativeSpeed = Math.Clamp(ModJson.Int(o, "nativeFreighterSpeedPercent", 100, File), 10, 500);
+                    var parsedFleets = new Dictionary<int, List<FreightHull>>();
+                    if (physical && ModJson.Get(o, "freightFleets") is JToken fleetToken)
+                    {
+                        if (!(fleetToken is JArray fleetRows) || fleetRows.Count > 1024)
+                            throw new ModJsonException(File + ": freightFleets must be an array of at most 1024 rows");
+                        foreach (var entry in fleetRows)
+                        {
+                            if (!(entry is JObject row)) throw new ModJsonException(File + ": freight fleet row must be an object");
+                            string raceRef = ModJson.Str(row, "race"), shipRef = ModJson.Str(row, "ship");
+                            if (!ModRaces.TryResolve(raceRef, mod, out int race))
+                                throw new ModJsonException(File + ": unknown freight race " + raceRef);
+                            int ship;
+                            if (string.Equals(shipRef, "native", StringComparison.OrdinalIgnoreCase))
+                            { ship = NativeFreighter(race); shipRef = "native"; }
+                            else
+                            {
+                                if (string.IsNullOrEmpty(shipRef) ||
+                                    (!ModContent.TryResolveShip(shipRef, out ship) && !ModContent.TryResolveShip(mod.Id + ":" + shipRef, out ship)) ||
+                                    db.Ship(ship) == null)
+                                    throw new ModJsonException(File + ": unknown freight hull " + shipRef);
+                                shipRef = ModContent.FreightShipKey(ship);
+                            }
+                            var hull = new FreightHull(ship, shipRef, ModJson.Int(row, "capacity", nativeCapacity, File),
+                                ModJson.Int(row, "weight", 1, File), ModJson.Int(row, "speedPercent", 100, File));
+                            if (!parsedFleets.TryGetValue(race, out var fleet)) parsedFleets[race] = fleet = new List<FreightHull>();
+                            if (fleet.Count >= 64) throw new ModJsonException(File + ": at most 64 freight hull entries per race");
+                            fleet.Add(hull);
+                        }
+                    }
                     bool war = ModJson.Bool(o, "warPressure", false, File);
                     bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
                     bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
@@ -355,6 +433,8 @@ namespace GoF2Remake.Modding
                         FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
                         FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;
                         FreightWreckLifetimeSeconds = wreckSeconds;
+                        NativeFreighterCapacity = nativeCapacity; NativeFreighterSpeedPercent = nativeSpeed;
+                        foreach (var fleet in parsedFleets) freightFleets[fleet.Key] = fleet.Value;
                     }
                     else if (physical) Debug.LogWarning($"[{mod.Id}] {File}: physical freight requires regional trade and saved inventory; disabled.");
                     WarPressure |= war;
