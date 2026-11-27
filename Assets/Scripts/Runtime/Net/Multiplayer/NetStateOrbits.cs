@@ -221,7 +221,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetRateLimit.Allow(client, crate ? NetRateLimit.Kind.CrateSpawn : NetRateLimit.Kind.ProxySpawn)) return;
             if (localId < 0 || !NetGuard.Orbit(station) || NetSquad.Find(client) == null) { NetRateLimit.Reject(client, $"a spawn {localId} in orbit {station}"); return; }
             owned.TryGetValue(client, out var n);
-            if (crate ? n.crates >= MaxCrates : n.proxies >= MaxProxies) { NetRateLimit.Reject(client, crate ? "too many crates" : "too many ships"); return; }
+            if (crate ? n.crates >= MaxCrates : n.proxies >= MaxProxies + (Modding.ModNpcFactionWar.Enabled ? 2 * Mathf.Max(0, Modding.ModNpcFactionWar.ShipsPerSide - 24) : 0)) { NetRateLimit.Reject(client, crate ? "too many crates" : "too many ships"); return; }
             var request = new SpawnRequest { client = client, station = station, localId = localId, crate = crate, time = Time.unscaledTime };
             if (NetGuard.InOrbit(client, station)) Spawn(request);
             else if (pendingSpawns.Count < MaxPendingSpawns) pendingSpawns.Add(request);

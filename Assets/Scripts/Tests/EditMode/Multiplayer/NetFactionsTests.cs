@@ -67,6 +67,34 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void MaximumFactionFleetHasDistinctSlotsAndTags()
+        {
+            int count = NpcFactionWar.MaxShipsPerSide;
+            Assert.AreEqual(100, count);
+            var a = new NpcFactionWar.Battle(1, 11, 0, 0, 1, count, 1000);
+            var b = new NpcFactionWar.Battle(2, 12, 1, 1, 0, count, 1000);
+            var tags = new HashSet<int>();
+            for (int slot = 0; slot < 2 * count; slot++)
+            {
+                Assert.IsTrue(tags.Add(a.Tag(slot)));
+                Assert.IsTrue(tags.Add(b.Tag(slot)));
+                Assert.AreEqual(slot, a.Slot(a.Tag(slot)));
+                Assert.IsTrue(NpcFactionWar.IsWarTag(a.Tag(slot)));
+            }
+            Assert.AreEqual(400, tags.Count);
+        }
+
+        [Test]
+        public void MaximumFactionFleetSurvivesMapSnapshot()
+        {
+            var campaign = NpcFactionWar.Campaign.Read("{\"active\":[{\"id\":1,\"orbit\":11,\"system\":0,\"defender\":0,\"attacker\":1,\"shipsPerSide\":100,\"defendersLost\":65,\"attackersLost\":99,\"expires\":1000,\"pausedSeconds\":-1}]}");
+            var restored = NpcFactionWar.Campaign.Read(campaign.Snapshot(true));
+            Assert.IsTrue(restored.TryGetStatus(0, 11, 1, out var status));
+            Assert.AreEqual(35, status.DefendersAlive);
+            Assert.AreEqual(1, status.AttackersAlive);
+        }
+
+        [Test]
         public void VictoryCreditPoolIsConserved()
         {
             Assert.AreEqual(100000L, NpcFactionWar.Campaign.CreditShare(100000, 1, 0));

@@ -663,7 +663,7 @@ namespace GoF2Remake.Multiplayer
             state.RequestFactionBattleRpc(Station);
         }
 
-        internal void BeginFactionBattle(NpcFactionWar.Battle battle, ulong casualties)
+        internal void BeginFactionBattle(NpcFactionWar.Battle battle, int[] casualties)
         {
             if (Authority && level.Traffic != null && battle.orbit == Station) level.Traffic.BeginFactionBattle(battle, casualties);
         }

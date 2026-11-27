@@ -11,8 +11,10 @@ namespace GoF2Remake.Data
     public static class NpcFactionWar
     {
         public const int FirstTag = 0x20000000;
-        const int SlotsPerBattle = 64;
-        const int LastBattleId = 0x7ffffe;
+        public const int MaxShipsPerSide = 100;
+        // Keep the original reserved event-tag namespace while allowing 200 distinct fleet slots.
+        const int SlotsPerBattle = 256;
+        const int LastBattleId = 0x1ffffe;
         public static Campaign NetworkCampaign { get; private set; }
         static string localJson;
         static Campaign local;
@@ -225,7 +227,7 @@ namespace GoF2Remake.Data
                         foreach (var entry in saved.active)
                         {
                             if (entry.id <= 0 || entry.id > LastBattleId || entry.system < 0 || !ModNpcFactionWar.IsWarOrbit(entry.orbit) ||
-                                !Major(entry.defender) || !Major(entry.attacker) || entry.shipsPerSide < 4 || entry.shipsPerSide > 24 ||
+                                !Major(entry.defender) || !Major(entry.attacker) || entry.shipsPerSide < 4 || entry.shipsPerSide > MaxShipsPerSide ||
                                 entry.defendersLost < 0 || entry.defendersLost >= entry.shipsPerSide ||
                                 entry.attackersLost < 0 || entry.attackersLost >= entry.shipsPerSide) continue;
                             var battle = new Battle(entry.id, entry.orbit, entry.system, entry.defender, entry.attacker, entry.shipsPerSide, entry.expires);

@@ -16,7 +16,7 @@ namespace GoF2Remake.Multiplayer
         {
             public NpcFactionWar.Battle battle;
             public ulong creator = ulong.MaxValue;
-            public ulong casualties;
+            public readonly HashSet<int> casualties = new HashSet<int>();
             public long nextLossAt;
             public int lossInterval;
             public long pausedLossSeconds;
@@ -139,7 +139,7 @@ namespace GoF2Remake.Multiplayer
                     if (UnityEngine.Random.value < 0.25f) continue;
                     int selected = -1, count = 0;
                     for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
-                        if ((roster.casualties & (1UL << slot)) == 0 && UnityEngine.Random.Range(0, ++count) == 0) selected = slot;
+                        if (!roster.casualties.Contains(slot) && UnityEngine.Random.Range(0, ++count) == 0) selected = slot;
                     if (selected >= 0) RecordWarLoss(roster, selected, now);
                 }
                 foreach (int orbit in retiredWarOrbits) fleetByOrbit.Remove(orbit);
@@ -211,12 +211,12 @@ namespace GoF2Remake.Multiplayer
             else if (roster.creator != client) return;
             var battle = roster.battle;
             StartFactionBattleRpc(battle.id, battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide,
-                battle.expires, roster.casualties, RpcTarget.Single(client, RpcTargetUse.Temp));
+                battle.expires, new List<int>(roster.casualties).ToArray(), RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void StartFactionBattleRpc(int id, int orbit, int system, int defender, int attacker, int ships, long expires,
-            ulong casualties, RpcParams rpc = default) =>
+            int[] casualties, RpcParams rpc = default) =>
             NetOrbit.Current?.BeginFactionBattle(new NpcFactionWar.Battle(id, orbit, system, defender, attacker, ships, expires), casualties);
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
@@ -233,7 +233,7 @@ namespace GoF2Remake.Multiplayer
             if (slot < 0 || slot >= 2 * battle.shipsPerSide || race != (slot < battle.shipsPerSide ? battle.defender : battle.attacker))
                 return false;
             if (roster.ships.TryGetValue(slot, out ulong id)) return id == ship.NetworkObjectId;
-            if ((roster.casualties & (1UL << slot)) != 0) return false;
+            if (roster.casualties.Contains(slot)) return false;
             roster.ships.Add(slot, ship.NetworkObjectId);
             return true;
         }
@@ -258,7 +258,7 @@ namespace GoF2Remake.Multiplayer
             var roster = fleetByOrbit[ship.Station];
             if (roster.finished || roster.battle.expires < NpcFactionWar.Now) return;
             int slot = roster.battle.Slot(ship.EventTag);
-            if ((roster.casualties & (1UL << slot)) != 0) return;
+            if (roster.casualties.Contains(slot)) return;
             var pilot = NetSquad.Find(shooter);
             if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != ship.Station) return;
             string account = RewardAccount(pilot);
@@ -481,7 +481,7 @@ namespace GoF2Remake.Multiplayer
             var roster = fleetByOrbit[ship.Station];
             if (roster.finished) return;
             int slot = roster.battle.Slot(ship.EventTag);
-            if ((roster.casualties & (1UL << slot)) != 0) return;
+            if (roster.casualties.Contains(slot)) return;
             RecordWarContribution(roster, ship, killer);
             RecordWarLoss(roster, slot, NpcFactionWar.Now);
         }
@@ -490,8 +490,8 @@ namespace GoF2Remake.Multiplayer
         {
             var battle = roster.battle;
             if (roster.finished || battle.expires < now || slot < 0 || slot >= 2 * battle.shipsPerSide ||
-                (roster.casualties & (1UL << slot)) != 0) return;
-            roster.casualties |= 1UL << slot;
+                roster.casualties.Contains(slot)) return;
+            roster.casualties.Add(slot);
             int race = slot < battle.shipsPerSide ? battle.defender : battle.attacker;
             factionWarViewDirty = true;
             if (!factionWar.RecordCasualty(battle, battle.Tag(slot), race, now, out int winner)) return;

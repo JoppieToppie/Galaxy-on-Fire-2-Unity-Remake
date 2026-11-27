@@ -506,14 +506,15 @@ namespace GoF2Remake.World
             !VoidAttack && !holdEnemies && waiting.Count == 0 && Player != null && Player.Alive &&
             !TrafficPlan.InformerOrbit(StationIndex);
 
-        public void BeginFactionBattle(NpcFactionWar.Battle battle, ulong casualties = 0)
+        public void BeginFactionBattle(NpcFactionWar.Battle battle, int[] casualties = null)
         {
             if (battle.orbit != StationIndex || !CanHostFactionBattle || factionBattle?.id == battle.id || battle.expires < NpcFactionWar.Now) return;
             RetireFactionBattle();
             factionBattle = battle;
+            var lostSlots = casualties == null ? null : new HashSet<int>(casualties);
             for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
             {
-                if ((casualties & (1UL << slot)) != 0) continue;
+                if (lostSlots?.Contains(slot) == true) continue;
                 bool defender = slot < battle.shipsPerSide;
                 int race = defender ? battle.defender : battle.attacker;
                 int column = slot % battle.shipsPerSide;

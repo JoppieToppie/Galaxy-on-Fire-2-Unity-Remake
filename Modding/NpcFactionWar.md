@@ -26,7 +26,7 @@ Players can join a battle by fighting either fleet. Kills affect ordinary reputa
 
 Host or single-player Lua scripts can listen for `npcFactionBattleResolved(orbit, system, winnerRace, captured)`.
 
-Use `game.on("npcFactionBattleStarted", function(orbit, system, defenderRace, attackerRace, shipsPerSide) ... end)` for a campaign announcement or participation objective. The host or single-player game emits it once when it starts the encounter. Fleet sizes range from 4 to 24 ships per side. The minimum interval ranges from 60 to 86,400 seconds and the battle time limit ranges from 60 to 3,600 seconds.
+Use `game.on("npcFactionBattleStarted", function(orbit, system, defenderRace, attackerRace, shipsPerSide) ... end)` for a campaign announcement or participation objective. The host or single-player game emits it once when it starts the encounter. Fleet sizes range from 4 to 100 ships per side (200 battle ships total, before ambient traffic). Large fleets increase orbit-runner CPU and network load; profile before deploying them. Server and clients must use the same build because the battle casualty RPC and event-tag spacing changed. The minimum interval ranges from 60 to 86,400 seconds and the battle time limit ranges from 60 to 3,600 seconds.
 
 ## Mod-defined frontlines
 

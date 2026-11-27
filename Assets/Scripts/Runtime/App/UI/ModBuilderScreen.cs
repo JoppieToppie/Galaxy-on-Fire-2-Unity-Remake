@@ -1192,7 +1192,7 @@ namespace GoF2Remake.UI
             FlagButton(Row(scroll), T("mbGateOnlyFrontlines", "Gate-only frontlines"), Bool("gateOnlyFrontlines", false),
                 v => rules["gateOnlyFrontlines"] = v, ShowNpcFactionWarRules);
             Note(scroll, "When enabled, nearby systems without gate links cannot create a frontier. Captured footholds still count.");
-            Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, 30, v => { rules["shipsPerSide"] = v; MarkDirty(); });
+            Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, NpcFactionWar.MaxShipsPerSide, v => { rules["shipsPerSide"] = v; MarkDirty(); });
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
             Heading(scroll, "Victory rewards");
