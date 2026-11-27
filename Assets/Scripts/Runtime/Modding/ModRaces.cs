@@ -291,7 +291,7 @@ namespace GoF2Remake.Modding
         {
             var d = Get(race);
             if (d == null) return;
-            if (Flight.Standing.PiracyLocked) return;
+            if (Flight.Standing.PiracyLocked || Flight.Standing.ServerManaged) return;
             SetStandingKey(d.key, value);
         }
 

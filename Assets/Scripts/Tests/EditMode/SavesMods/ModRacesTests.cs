@@ -14,6 +14,8 @@ using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Modding;
 using GoF2Remake.World;
+using GoF2Remake.Multiplayer;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -67,6 +69,62 @@ namespace GoF2Remake.Tests
         }
 
         static int Race(string id) { Assert.IsTrue(ModRaces.TryResolve("t_fac:" + id, null, out int r), id); return r; }
+
+        void LoadIndependentReputation()
+        {
+            WriteMod("f", "t_fac", "1.0", "", ("races.json", Races),
+                ("piracy.json", "{\"enabled\":true,\"independentReputation\":true}"));
+            ScanAndEnable("t_fac");
+            Database.Load();
+            Assert.IsTrue(Standing.Independent);
+        }
+
+        [Test]
+        public void IndependentReputationCutoffAndSignature()
+        {
+            LoadIndependentReputation();
+            var standings = new Dictionary<string, int>();
+            int Read(int race) => Standing.EarnedWith(race, 30, 0, standings);
+            void Write(int race, int value) => standings[Standing.ReputationKey(race)] = value;
+            Write(0, -70);
+            Write(1, -71);
+            Standing.IndependentKill(Standing.Pirate, 0, false, 1, Read, Write);
+            Standing.IndependentKill(Standing.Pirate, 1, false, 1, Read, Write);
+            Assert.AreEqual(-69, Read(0));
+            Assert.AreEqual(-71, Read(1));
+            Write(0, -100);
+            Assert.IsTrue(Standing.IsEnemyWith(0, 30, 0, 0, standings));
+            Assert.IsTrue(Standing.IsEnemyWith(1, 30, 0, 1, standings));
+        }
+
+        [Test]
+        public void CanonicalReputationRejectsClientEditsAndAccumulatesPenalties()
+        {
+            LoadIndependentReputation();
+            var prior = new SaveData { standing = new[] { 30, 0 } };
+            NetProfiles.ApplySavedPenalty(prior, false, 20);
+            NetProfiles.ApplySavedPenalty(prior, false, 20);
+            Assert.AreEqual(-10, NetProfiles.SavedStanding(prior, 0, NetProfiles.SavedReputation(prior)));
+            Assert.AreEqual(-70, NetProfiles.SavedStanding(prior, 1, NetProfiles.SavedReputation(prior)));
+            var uploaded = new SaveData { standing = new[] { 100, 100 }, modRaceStanding = new List<string> { Standing.ReputationKey(0) + "|100" } };
+            NetProfiles.PreserveServerReputation(uploaded, prior, false, false);
+            Assert.AreEqual(-10, NetProfiles.SavedStanding(uploaded, 0, NetProfiles.SavedReputation(uploaded)));
+            Assert.AreEqual(-70, NetProfiles.SavedStanding(uploaded, 1, NetProfiles.SavedReputation(uploaded)));
+        }
+
+        [Test]
+        public void PardonOnlyRestoresIssuerAndFutureFactionsRemainHostile()
+        {
+            LoadIndependentReputation();
+            var save = new SaveData { standing = new[] { 30, 0 } };
+            NetProfiles.ApplySavedPenalty(save, true, 1);
+            NetProfiles.SetPardonReputation(save, 0, true);
+            var standings = NetProfiles.SavedReputation(save);
+            Assert.AreEqual(-35, NetProfiles.SavedStanding(save, 0, standings));
+            Assert.AreEqual(-100, NetProfiles.SavedStanding(save, 1, standings));
+            standings.Remove(Standing.ReputationKey(Race("allies")));
+            Assert.AreEqual(-100, Standing.EarnedWith(Race("allies"), 0, 0, standings));
+        }
 
         [Test]
         public void ModRacesAreRacesOfTheirOwn()
