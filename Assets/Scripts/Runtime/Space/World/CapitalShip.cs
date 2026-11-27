@@ -108,7 +108,8 @@ namespace GoF2Remake.World
             // Every enhanced host carries a crate (the Terran battleship had only a freighter's roll). Remake mods: a type's own
             // "loot" was rolled with its spec (TrafficPlan.RollNpcLoot), the game's crate added only with "keep".
             var loot = host.Spec.npcType?.loot;
-            if (loot == null) host.SetLoot(CapitalShips.RollLoot(db, out c.gearLoot));
+            if (host.Spec.noLoot && NpcFactionWar.IsWarTag(host.Spec.eventTag)) host.SetLoot(new List<ItemStack>());
+            else if (loot == null) host.SetLoot(CapitalShips.RollLoot(db, out c.gearLoot));
             else if (loot.keep)
             {
                 var all = CapitalShips.RollLoot(db, out c.gearLoot);
@@ -167,7 +168,7 @@ namespace GoF2Remake.World
             if (sinceAttackMs < float.MaxValue) sinceAttackMs += dtMs;
             if (ship.Spec.fleetBattle) UpdateBattle(dtMs);
             if (ship.Spec.npcType == null || ship.Spec.npcType.Missiles) UpdateMissiles(dtMs);   // remake mods: "missiles": false
-            if (!CapitalShips.HasDeck(ship.Spec) || launched >= CapitalShips.LaunchTotal(ship.Spec) || pads.Count == 0) return;
+            if (NpcFactionWar.IsWarTag(ship.Spec.eventTag) || !CapitalShips.HasDeck(ship.Spec) || launched >= CapitalShips.LaunchTotal(ship.Spec) || pads.Count == 0) return;
             if (sinceAttackMs >= CapitalShips.UnderAttackMs) return;
             waveMs -= dtMs;
             if (waveMs > 0f) return;
@@ -496,8 +497,8 @@ namespace GoF2Remake.World
             missileRig?.HideAll();
             missiles?.RemoveAll();
             if (ship.Spec.fleetBattle) BattleOver(t);
-            if (CapitalShips.Killable(ship.Spec)) traffic.DestroyCapitalTurrets(ship.Spec);
-            if (t.killedByNpc) return;
+            if (CapitalShips.Killable(ship.Spec) || NpcFactionWar.IsWarTag(ship.Spec.eventTag)) traffic.DestroyCapitalTurrets(ship.Spec);
+            if (t.killedByNpc || NpcFactionWar.IsWarTag(ship.Spec.eventTag)) return;
             if (CapitalShips.Killable(ship.Spec))
             {
                 Standing.ApplyDelict(ship.Race, 20);

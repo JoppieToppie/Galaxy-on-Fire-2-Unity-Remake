@@ -60,7 +60,7 @@ namespace GoF2Remake.Data
         [Serializable]
         public struct BattleStatus
         {
-            public int id, orbit, system, defender, attacker, shipsPerSide, defendersLost, attackersLost;
+            public int id, orbit, system, defender, attacker, shipsPerSide, defendersLost, attackersLost, defenderHull, attackerHull;
             public long expires, pausedSeconds;
             public bool Paused => pausedSeconds >= 0;
             public int DefendersAlive => shipsPerSide - defendersLost;
@@ -85,10 +85,10 @@ namespace GoF2Remake.Data
 
         public readonly struct Battle
         {
-            public readonly int id, orbit, system, defender, attacker, shipsPerSide;
+            public readonly int id, orbit, system, defender, attacker, shipsPerSide, defenderHull, attackerHull;
             public readonly long expires;
 
-            public Battle(int id, int orbit, int system, int defender, int attacker, int shipsPerSide, long expires)
+            public Battle(int id, int orbit, int system, int defender, int attacker, int shipsPerSide, long expires, int defenderHull = 0, int attackerHull = 0)
             {
                 this.id = id;
                 this.orbit = orbit;
@@ -97,6 +97,7 @@ namespace GoF2Remake.Data
                 this.attacker = attacker;
                 this.shipsPerSide = shipsPerSide;
                 this.expires = expires;
+                this.defenderHull = defenderHull; this.attackerHull = attackerHull;
             }
 
             public int Tag(int slot) => FirstTag + (id - 1) * SlotsPerBattle + slot;
@@ -106,7 +107,7 @@ namespace GoF2Remake.Data
         [Serializable]
         sealed class HeldOrbit
         {
-            public string orbit;
+            public string orbit, raceKey;
             public int race;
         }
 
@@ -120,7 +121,7 @@ namespace GoF2Remake.Data
         [Serializable]
         public sealed class VictoryReward
         {
-            public string id, account, orbitKey;
+            public string id, account, orbitKey, raceKey;
             public int race;
             public long credits;
             public List<RewardItem> loot = new List<RewardItem>();
@@ -129,7 +130,7 @@ namespace GoF2Remake.Data
         [Serializable]
         sealed class Participation
         {
-            public string account;
+            public string account, raceKey;
             public int race, count;
         }
 
@@ -154,7 +155,8 @@ namespace GoF2Remake.Data
             {
                 id = battle.id, orbit = battle.orbit, system = battle.system, defender = battle.defender,
                 attacker = battle.attacker, shipsPerSide = battle.shipsPerSide, expires = battle.expires,
-                defendersLost = defendersLost, attackersLost = attackersLost, pausedSeconds = pausedSeconds
+                defendersLost = defendersLost, attackersLost = attackersLost, pausedSeconds = pausedSeconds,
+                defenderHull = battle.defenderHull, attackerHull = battle.attackerHull
             };
         }
 
@@ -197,7 +199,9 @@ namespace GoF2Remake.Data
             long nextBattle;
 
             static string Key(int orbit) => ModWorld.StationKey(orbit) ?? orbit.ToString(CultureInfo.InvariantCulture);
-            static bool Major(int race) => race >= 0 && race <= 3;
+            static bool Major(int race) => ModNpcFactionWar.ValidRace(race);
+            static string RaceKey(int race) => ModRaces.Get(race)?.key;
+            static int SavedRace(string key, int race) => string.IsNullOrEmpty(key) ? race : ModRaces.TryResolve(key, null, out int resolved) ? resolved : -1;
 
             public static Campaign Read(string json)
             {
@@ -210,18 +214,18 @@ namespace GoF2Remake.Data
                     campaign.nextBattle = saved.nextBattle;
                     if (saved.held != null)
                         foreach (var entry in saved.held)
-                            if (entry != null && !string.IsNullOrEmpty(entry.orbit) && Major(entry.race))
-                                campaign.held[entry.orbit] = entry.race;
+                            if (entry != null && !string.IsNullOrEmpty(entry.orbit) && Major(SavedRace(entry.raceKey, entry.race)))
+                                campaign.held[entry.orbit] = SavedRace(entry.raceKey, entry.race);
                     if (saved.rewards != null)
                         foreach (var reward in saved.rewards)
                             if (reward != null && !string.IsNullOrEmpty(reward.id) &&
                                 !string.IsNullOrEmpty(reward.account) && reward.account.StartsWith("profile:", StringComparison.Ordinal) &&
-                                !string.IsNullOrEmpty(reward.orbitKey) && Major(reward.race) && reward.credits >= 0)
-                                campaign.rewards.Add(reward);
+                                !string.IsNullOrEmpty(reward.orbitKey) && Major(SavedRace(reward.raceKey, reward.race)) && reward.credits >= 0)
+                            { reward.race = SavedRace(reward.raceKey, reward.race); campaign.rewards.Add(reward); }
                     if (saved.participation != null)
                         foreach (var entry in saved.participation)
-                            if (entry != null && entry.account != null && entry.account.StartsWith("profile:", StringComparison.Ordinal) && Major(entry.race) && entry.count > 0)
-                                campaign.participation[(entry.account, entry.race)] = entry.count;
+                            if (entry != null && entry.account != null && entry.account.StartsWith("profile:", StringComparison.Ordinal) && Major(SavedRace(entry.raceKey, entry.race)) && entry.count > 0)
+                                campaign.participation[(entry.account, SavedRace(entry.raceKey, entry.race))] = entry.count;
                     // Active entries are sent to clients only, not written to the profile save.
                     if (saved.active != null)
                         foreach (var entry in saved.active)
@@ -230,7 +234,7 @@ namespace GoF2Remake.Data
                                 !Major(entry.defender) || !Major(entry.attacker) || entry.shipsPerSide < 4 || entry.shipsPerSide > MaxShipsPerSide ||
                                 entry.defendersLost < 0 || entry.defendersLost >= entry.shipsPerSide ||
                                 entry.attackersLost < 0 || entry.attackersLost >= entry.shipsPerSide) continue;
-                            var battle = new Battle(entry.id, entry.orbit, entry.system, entry.defender, entry.attacker, entry.shipsPerSide, entry.expires);
+                            var battle = new Battle(entry.id, entry.orbit, entry.system, entry.defender, entry.attacker, entry.shipsPerSide, entry.expires, entry.defenderHull, entry.attackerHull);
                             campaign.battles[entry.system] = new Engagement { battle = battle, pausedSeconds = entry.pausedSeconds,
                                 defendersLost = entry.defendersLost, attackersLost = entry.attackersLost };
                             campaign.nextBattleId = Math.Max(campaign.nextBattleId, entry.id);
@@ -243,15 +247,19 @@ namespace GoF2Remake.Data
             public string Snapshot(bool includeActive = false)
             {
                 var saved = new WarSave { nextBattle = nextBattle };
-                foreach (var entry in held) saved.held.Add(new HeldOrbit { orbit = entry.Key, race = entry.Value });
+                foreach (var entry in held) saved.held.Add(new HeldOrbit { orbit = entry.Key, race = entry.Value, raceKey = RaceKey(entry.Value) });
                 // Never broadcast private reward entitlements in the public map snapshot.
-                if (!includeActive) saved.rewards = rewards.FindAll(r => r.account.StartsWith("profile:", StringComparison.Ordinal));
+                if (!includeActive)
+                {
+                    saved.rewards = rewards.FindAll(r => r.account.StartsWith("profile:", StringComparison.Ordinal));
+                    foreach (var reward in saved.rewards) reward.raceKey = RaceKey(reward.race);
+                }
                 if (!includeActive)
                 {
                     saved.participation = new List<Participation>();
                     foreach (var entry in participation)
                         if (entry.Key.account.StartsWith("profile:", StringComparison.Ordinal))
-                            saved.participation.Add(new Participation { account = entry.Key.account, race = entry.Key.race, count = entry.Value });
+                            saved.participation.Add(new Participation { account = entry.Key.account, race = entry.Key.race, raceKey = RaceKey(entry.Key.race), count = entry.Value });
                 }
                 if (includeActive)
                 {
@@ -289,7 +297,7 @@ namespace GoF2Remake.Data
                     active.pausedSeconds = -1;
                 }
                 active.battle = updated = new Battle(battle.id, battle.orbit, battle.system, battle.defender,
-                    battle.attacker, battle.shipsPerSide, expires);
+                    battle.attacker, battle.shipsPerSide, expires, battle.defenderHull, battle.attackerHull);
                 return true;
             }
 
@@ -310,18 +318,17 @@ namespace GoF2Remake.Data
                 if (system == null) return -1;
                 if (held.Count == 0 || system.stations == null || system.stations.Count == 0 || !ModNpcFactionWar.CanContest(system))
                     return system.raceId;
-                Span<int> totals = stackalloc int[4];
-                totals.Clear();
+                var totals = new Dictionary<int, int>();
                 int orbits = 0;
                 foreach (int station in system.stations)
                 {
                     if (!ModNpcFactionWar.IsWarOrbit(station)) continue;
                     orbits++;
                     int race = OrbitOwner(system, station);
-                    if (Major(race)) totals[race]++;
+                    if (Major(race)) { totals.TryGetValue(race, out int count); totals[race] = count + 1; }
                 }
-                for (int race = 0; race < totals.Length; race++)
-                    if (totals[race] > orbits / 2) return race;
+                foreach (var pair in totals)
+                    if (pair.Value > orbits / 2) return pair.Key;
                 // No strict majority means the system is contested.
                 return orbits == 0 ? system.raceId : -1;
             }
@@ -335,10 +342,14 @@ namespace GoF2Remake.Data
                 if (!ModNpcFactionWar.CanContest(system)) return false;
                 if (battles.TryGetValue(system.index, out var existing) && existing.battle.expires >= now) return false;
                 int defender = OrbitOwner(system, orbit);
-                int attacker = defender ^ 1;
-                if (!Major(defender) || !Frontline(db, system, attacker)) return false;
+                var attackers = new List<int>();
+                foreach (int enemy in ModNpcFactionWar.Opponents(defender))
+                    if (Frontline(db, system, enemy)) attackers.Add(enemy);
+                if (attackers.Count == 0) return false;
+                int attacker = attackers[UnityEngine.Random.Range(0, attackers.Count)];
                 battle = new Battle(++nextBattleId, orbit, system.index, defender, attacker,
-                    ModNpcFactionWar.ShipsPerSide, now + ModNpcFactionWar.BattleSeconds);
+                    ModNpcFactionWar.ShipsPerSide, now + ModNpcFactionWar.BattleSeconds,
+                    ModNpcFactionWar.RollBattleship(defender), ModNpcFactionWar.RollBattleship(attacker));
                 battles[system.index] = new Engagement { battle = battle };
                 nextBattle = now + ModNpcFactionWar.IntervalSeconds;
                 return true;
@@ -370,15 +381,16 @@ namespace GoF2Remake.Data
             public bool IsFrontline(Database db, SystemData system)
             {
                 if (db?.Systems == null || !ModNpcFactionWar.CanContest(system) || system.stations == null) return false;
-                int heldFactions = 0;
+                var heldFactions = new HashSet<int>();
                 foreach (int station in system.stations)
                 {
                     if (!ModNpcFactionWar.IsWarOrbit(station)) continue;
                     int owner = OrbitOwner(system, station);
-                    if (Major(owner)) heldFactions |= 1 << owner;
+                    if (Major(owner)) heldFactions.Add(owner);
                 }
-                for (int race = 0; race < 4; race++)
-                    if ((heldFactions & (1 << race)) != 0 && Frontline(db, system, race ^ 1)) return true;
+                foreach (int race in heldFactions)
+                    foreach (int enemy in ModNpcFactionWar.Opponents(race))
+                        if (Frontline(db, system, enemy)) return true;
                 return false;
             }
 
@@ -393,7 +405,7 @@ namespace GoF2Remake.Data
                 int nearest = !gateOnly && (system.jumpRoutesTo == null || system.jumpRoutesTo.Count == 0) ? Nearest(db, system) : -1;
                 foreach (var other in db.Systems)
                 {
-                    if (other == null || other.index == system.index || !Major(other.raceId)) continue;
+                    if (other == null || other.index == system.index || !ModNpcFactionWar.Participates(other.raceId)) continue;
                     bool adjacent = system.jumpRoutesTo?.Contains(other.index) == true || other.jumpRoutesTo?.Contains(system.index) == true;
                     if (!adjacent && (gateOnly || (other.index != nearest && other.jumpRoutesTo?.Count > 0))) continue;
                     bool foothold = other.stations?.Exists(station => ModNpcFactionWar.IsWarOrbit(station) && OrbitOwner(other, station) == attacker) == true;
@@ -411,7 +423,7 @@ namespace GoF2Remake.Data
                 if (pos == null) return nearest;
                 foreach (var other in db.Systems)
                 {
-                    if (other == null || other.index == from.index || !Major(other.raceId) || other.mapPosition == null) continue;
+                    if (other == null || other.index == from.index || !ModNpcFactionWar.Participates(other.raceId) || other.mapPosition == null) continue;
                     var p = other.mapPosition;
                     double x = (double)pos.x - p.x, y = (double)pos.y - p.y, z = (double)pos.z - p.z;
                     double distance = x * x + y * y + z * z;

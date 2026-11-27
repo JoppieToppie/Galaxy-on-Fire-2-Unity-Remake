@@ -211,13 +211,13 @@ namespace GoF2Remake.Multiplayer
             else if (roster.creator != client) return;
             var battle = roster.battle;
             StartFactionBattleRpc(battle.id, battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide,
-                battle.expires, new List<int>(roster.casualties).ToArray(), RpcTarget.Single(client, RpcTargetUse.Temp));
+                battle.expires, battle.defenderHull, battle.attackerHull, new List<int>(roster.casualties).ToArray(), RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void StartFactionBattleRpc(int id, int orbit, int system, int defender, int attacker, int ships, long expires,
+        void StartFactionBattleRpc(int id, int orbit, int system, int defender, int attacker, int ships, long expires, int defenderHull, int attackerHull,
             int[] casualties, RpcParams rpc = default) =>
-            NetOrbit.Current?.BeginFactionBattle(new NpcFactionWar.Battle(id, orbit, system, defender, attacker, ships, expires), casualties);
+            NetOrbit.Current?.BeginFactionBattle(new NpcFactionWar.Battle(id, orbit, system, defender, attacker, ships, expires, defenderHull, attackerHull), casualties);
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void EndFactionBattleRpc(int id, int orbit, int ships, RpcParams rpc = default) =>

@@ -18,7 +18,7 @@ Add `npc-faction-war.json` to an active mod to enable the campaign. It is disabl
 }
 ```
 
-The interval is a campaign-wide minimum delay between battle starts. In multiplayer the server starts battles in eligible frontier orbits whether or not any player is present, with at most one active engagement per system. In single-player battles start in the player's occupied frontier orbit. Multiplayer battles without an active local fleet use lightweight, symmetric random attrition on the server; a runner entering the orbit spawns only surviving ships and takes over combat. If any player is in space in the battle orbit, both abstract attrition and the automatic resolution countdown pause. Physical combat can still win the battle, regardless of elapsed time. When the last player leaves, the remaining time and attrition schedule resume, without resetting casualties. Unresolved battles still time out after consuming their unoccupied time budget, and server news announces starts and resolved outcomes. The galaxy and orbit maps pulse a crossed-swords marker over active engagements; selecting it shows surviving ships per faction, the remaining background time and whether it is paused. Active battle state is synchronized on changes and when players join; existing persistence rules for captured territory are unchanged. Terran fights Vossk and Nivelian fights Midorian. Frontiers follow gate links, captured footholds, and nearest-neighbour links for systems without a gate route. Ordinary pirate traffic and scripted encounters retain their own rules.
+The interval is a campaign-wide minimum delay between battle starts. In multiplayer the server starts battles in eligible frontier orbits whether or not any player is present, with at most one active engagement per system. In single-player battles start in the player's occupied frontier orbit. Multiplayer battles without an active local fleet use lightweight, symmetric random attrition on the server; a runner entering the orbit spawns only surviving ships and takes over combat. If any player is in space in the battle orbit, both abstract attrition and the automatic resolution countdown pause. Physical combat can still win the battle, regardless of elapsed time. When the last player leaves, the remaining time and attrition schedule resume, without resetting casualties. Unresolved battles still time out after consuming their unoccupied time budget, and server news announces starts and resolved outcomes. The galaxy and orbit maps pulse a crossed-swords marker over active engagements; selecting it shows surviving ships per faction, the remaining background time and whether it is paused. Active battle state is synchronized on changes and when players join; existing persistence rules for captured territory are unchanged. By default Terran fights Vossk and Nivelian fights Midorian. Mods can add other war pairs, including custom factions. Frontiers follow gate links, captured footholds, and nearest-neighbour links for systems without a gate route. Ordinary pirate traffic and scripted encounters retain their own rules.
 
 Maximum-security systems cannot be captured. V'ikka, Wolf-Reiser, Weymire, Mido, Loma, and Shima are protected by default. An explicit frontline can override default hub protection (but never maximum security). Mods can add protected systems using `coreSystems`. Losing an entire battle fleet lets the winner hold that orbit. Frontier systems are marked on the star map. The side with more than half the system's eligible orbits controls the system. A tie leaves the system contested. Station models and player-built infrastructure stay in place. New ambient traffic follows the faction holding the orbit.
 
@@ -27,6 +27,24 @@ Players can join a battle by fighting either fleet. Kills affect ordinary reputa
 Host or single-player Lua scripts can listen for `npcFactionBattleResolved(orbit, system, winnerRace, captured)`.
 
 Use `game.on("npcFactionBattleStarted", function(orbit, system, defenderRace, attackerRace, shipsPerSide) ... end)` for a campaign announcement or participation objective. The host or single-player game emits it once when it starts the encounter. Fleet sizes range from 4 to 100 ships per side (200 battle ships total, before ambient traffic). Large fleets increase orbit-runner CPU and network load; profile before deploying them. Server and clients must use the same build because the battle casualty RPC and event-tag spacing changed. The minimum interval ranges from 60 to 86,400 seconds and the battle time limit ranges from 60 to 3,600 seconds.
+
+## Custom factions and battleship fleets
+
+Configure `warPairs` as an array of two-element arrays of race names, IDs or stable mod race keys. Pairs are symmetric. Set `includeDefaultWars: false` with an explicit `warPairs` array to replace the inherited pair set; otherwise pairs accumulate. Declared pairs also make the factions hostile in NPC combat while warfare is enabled. A faction may have multiple opponents; only opponents with an eligible frontline can attack. All existing core/security restrictions still apply.
+
+```json
+{
+  "enabled": true,
+  "warPairs": [["your_mod:grey", "your_mod:octopod"], ["terran", "your_mod:grey"]],
+  "battleships": {
+    "0": {"chancePercent": 80, "hulls": ["native_terran"]},
+    "1": {"chancePercent": 80, "hulls": ["native_vossk"]},
+    "your_mod:grey": {"chancePercent": 100, "hulls": [{"ship":"your_mod:cruiser", "weight":3}, {"ship":"your_mod:dreadnought", "weight":1}]}
+  }
+}
+```
+
+Each faction's battleship pool replaces earlier entries for that faction; absence means no battleship. A chance of 100 guarantees one hull from the selection; 0 disables it. Hull references are ship IDs or mod keys, or `native_terran`/`native_vossk` for the original NPC capital types (including their NPC type overrides). Weights default to 1. The server chooses once when the engagement starts, independently for each side; a battleship replaces slot zero, counts toward the fleet total and cannot reroll when the orbit is reopened. Turrets are not roster members. The hull uses the native capital spawn path, no docking or additional launch waves, and no separate capital loot. For custom hulls configure their turret mounts/subsystems. Victory reward entries also accept race names and mod race keys; persistent faction ownership and reward records store stable custom race keys. Mod Builder exposes pair, chance and hull controls. Restart and use matching server/client builds.
 
 ## Mod-defined frontlines
 

@@ -518,6 +518,13 @@ namespace GoF2Remake.World
                 bool defender = slot < battle.shipsPerSide;
                 int race = defender ? battle.defender : battle.attacker;
                 int column = slot % battle.shipsPerSide;
+                int capital = defender ? battle.defenderHull : battle.attackerHull;
+                if (column == 0 && capital > 0)
+                {
+                    var capitalPosition = new Vector3((defender ? -1 : 1) * 42000f, 7000f, 85000f);
+                    foreach (var spec in TrafficPlan.WarBattleship(db, race, capital, capitalPosition, battle.Tag(slot))) SpawnShip(spec);
+                    continue;
+                }
                 float x = (defender ? -1 : 1) * (14000f + column % 4 * 2200f);
                 float y = 7000f + column / 4 * 1800f;
                 float z = 85000f + column % 4 * 2600f;

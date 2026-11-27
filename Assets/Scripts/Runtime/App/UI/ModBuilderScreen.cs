@@ -1195,6 +1195,38 @@ namespace GoF2Remake.UI
             Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, NpcFactionWar.MaxShipsPerSide, v => { rules["shipsPerSide"] = v; MarkDirty(); });
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
+            Heading(scroll, "Faction wars and battleships");
+            var pairs = rules["warPairs"] as JArray ?? new JArray();
+            FlagButton(Row(scroll), "Include original faction wars", Bool("includeDefaultWars", true), v => { rules["includeDefaultWars"] = v; rules["warPairs"] = pairs; }, ShowNpcFactionWarRules);
+            foreach (var pair in pairs.OfType<JArray>().Where(p => p.Count == 2).ToList())
+            {
+                Text(scroll, "Faction A (name or mod_id:race_id)", pair[0].ToString(), 256, v => { pair[0] = v.Trim(); MarkDirty(); });
+                Text(scroll, "Faction B (name or mod_id:race_id)", pair[1].ToString(), 256, v => { pair[1] = v.Trim(); MarkDirty(); });
+                Act(scroll, "Remove war pair", () => { pair.Remove(); MarkDirty(); ShowNpcFactionWarRules(); }, "mbv-step");
+            }
+            Act(scroll, "+ War pair", () => { if (rules["warPairs"] == null) rules["warPairs"] = pairs; pairs.Add(new JArray("terran", "vossk")); MarkDirty(); ShowNpcFactionWarRules(); }, "mbv-add");
+            var capitals = rules["battleships"] as JObject ?? new JObject();
+            foreach (var faction in new[] { ("0", "Terran"), ("1", "Vossk"), ("2", "Nivelian"), ("3", "Midorian"), ("4", "Octopod"), ("5", "Cyborg"), ("6", "Bobolian"), ("7", "Grey"), ("8", "Pirates"), ("9", "Void"), ("10", "Specters") }.Concat(ModRaces.All.Select(d => (d.key, ModRaces.Name(d.race)))))
+            {
+                string key = faction.Item1;
+                var fleet = capitals[key] as JObject ?? new JObject();
+                var hulls = fleet["hulls"] as JArray ?? new JArray();
+                Heading(scroll, faction.Item2 + " battleships");
+                void AttachFleet() { fleet["hulls"] = hulls; capitals[key] = fleet; rules["battleships"] = capitals; MarkDirty(); }
+                Int(scroll, "Spawn chance (%)", (int?)fleet["chancePercent"] ?? 0, 0, 100, v => { fleet["chancePercent"] = v; AttachFleet(); });
+                foreach (var hull in hulls.ToList())
+                {
+                    string ship = hull is JObject obj ? obj["ship"]?.ToString() : hull.ToString();
+                    var row = Row(scroll);
+                    Add(row, new Label(ship == "native_terran" || ship == "native_vossk" ? ship : RefLabel(RefKind.Ship, ship, "Unknown hull")), "mbv-inline-label");
+                    if (hull is JObject weighted) Int(row, "Weight", (int?)weighted["weight"] ?? 1, 1, 1000, v => { weighted["weight"] = v; MarkDirty(); });
+                    Act(row, "×", () => { hull.Remove(); AttachFleet(); ShowNpcFactionWarRules(); }, "mbv-step");
+                }
+                void AddHull(string ship) { if (hulls.Count >= 64) return; hulls.Add(new JObject { ["ship"] = ship, ["weight"] = 1 }); if (fleet["chancePercent"] == null) fleet["chancePercent"] = 80; AttachFleet(); ShowNpcFactionWarRules(); }
+                Act(scroll, "+ Select hull", () => PickRef(RefKind.Ship, "Choose battleship hull", e => { if (e != null) AddHull(e.value); else ShowNpcFactionWarRules(); }), "mbv-add");
+                Act(scroll, "+ Native Terran battleship", () => AddHull("native_terran"), "mbv-add");
+                Act(scroll, "+ Native Vossk battleship", () => AddHull("native_vossk"), "mbv-add");
+            }
             Heading(scroll, "Victory rewards");
             Int(scroll, "Double-sided damage threshold (%)", Number("doubleSidedDamageThresholdPercent", ModNpcFactionWar.DefaultDoubleSidedDamageThresholdPercent),
                 0, ModNpcFactionWar.MaxDoubleSidedDamageThresholdPercent,
@@ -1207,6 +1239,8 @@ namespace GoF2Remake.UI
             RewardSection("1", "Vossk victory");
             RewardSection("2", "Nivelian victory");
             RewardSection("3", "Midorian victory");
+            for (int race = 4; race <= 10; race++) RewardSection(race.ToString(), GoF2Remake.Flight.Standing.RaceName(race) + " victory");
+            foreach (var race in ModRaces.All) RewardSection(race.key, ModRaces.Name(race.race) + " victory");
 
             void RewardSection(string key, string title)
             {

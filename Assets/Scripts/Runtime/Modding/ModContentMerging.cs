@@ -104,7 +104,7 @@ namespace GoF2Remake.Modding
             ModWorld.Apply(db);
             ModWanted.Apply(db);   // (the criminals' ships, items and systems are numbered by now)
             ModPvpPiracy.Apply();
-            ModNpcFactionWar.Apply();
+            ModNpcFactionWar.Apply(db);
             ModAdvancedEconomy.Apply(db);
             ModWingmen.Apply(db);   // (its crews' ships too)
         }

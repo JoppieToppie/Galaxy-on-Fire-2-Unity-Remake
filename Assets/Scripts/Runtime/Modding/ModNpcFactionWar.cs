@@ -1,4 +1,4 @@
-// Opt-in territorial warfare between the four major NPC factions.
+// Opt-in territorial warfare between configured NPC factions.
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using GoF2Remake.Data;
@@ -62,6 +62,81 @@ namespace GoF2Remake.Modding
         public static RewardSettings RewardFor(int race) =>
             factionRewards.TryGetValue(race, out var reward) ? reward : defaultReward;
 
+        static readonly Dictionary<int, HashSet<int>> opponents = new Dictionary<int, HashSet<int>>();
+        static readonly Dictionary<int, (int chance, List<(int hull, int weight)> pool)> battleships = new Dictionary<int, (int, List<(int, int)>)>();
+        public static bool ValidRace(int race) => (race >= 0 && race <= 10) || ModRaces.Get(race) != null;
+        public static bool Participates(int race) => opponents.ContainsKey(race);
+        public static bool AtWar(int a, int b) => opponents.TryGetValue(a, out var enemies) && enemies.Contains(b);
+        public static IEnumerable<int> Opponents(int race) => opponents.TryGetValue(race, out var enemies) ? (IEnumerable<int>)enemies : System.Array.Empty<int>();
+        static void Pair(int a, int b)
+        {
+            if (!opponents.TryGetValue(a, out var aa)) opponents[a] = aa = new HashSet<int>();
+            if (!opponents.TryGetValue(b, out var bb)) opponents[b] = bb = new HashSet<int>();
+            aa.Add(b); bb.Add(a);
+        }
+        // 0 = absent, 1/2 = native Terran/Vossk NPC type, 3+ = explicit ship index + 3.
+        public static int RollBattleship(int race)
+        {
+            if (!battleships.TryGetValue(race, out var config) || config.pool.Count == 0 || Random.Range(0, 100) >= config.chance) return 0;
+            int total = 0;
+            foreach (var entry in config.pool) total += entry.weight;
+            int roll = Random.Range(0, total);
+            foreach (var entry in config.pool) { roll -= entry.weight; if (roll < 0) return entry.hull; }
+            return 0;
+        }
+        static int RaceRef(string reference, ModInfo mod)
+        {
+            if (!ModRaces.TryResolve(reference, mod, out int race) || !ValidRace(race))
+                throw new ModJsonException($"{File}: unknown faction {reference}.");
+            return race;
+        }
+        static void ReadFleetRules(JObject options, ModInfo mod, Database db)
+        {
+            if (ModJson.Get(options, "warPairs") is JToken token)
+            {
+                if (!(token is JArray list) || list.Count > 1024) throw new ModJsonException($"{File}: warPairs must be an array (max 1024).");
+                var parsed = new List<(int a, int b)>();
+                foreach (var entry in list)
+                {
+                    if (!(entry is JArray pair) || pair.Count != 2) throw new ModJsonException($"{File}: each war pair requires two factions.");
+                    int a = RaceRef(pair[0].ToString(), mod), b = RaceRef(pair[1].ToString(), mod);
+                    if (a == b) throw new ModJsonException($"{File}: a faction cannot fight itself.");
+                    parsed.Add((a,b));
+                }
+                if (!ModJson.Bool(options, "includeDefaultWars", true, File))
+                {
+                    opponents.Clear();
+                }
+                foreach (var pair in parsed) Pair(pair.a, pair.b);
+            }
+            if (ModJson.Get(options, "battleships") is JToken fleets)
+            {
+                if (!(fleets is JObject map)) throw new ModJsonException($"{File}: battleships must be an object keyed by faction.");
+                var parsed = new Dictionary<int, (int chance, List<(int hull, int weight)> pool)>();
+                foreach (var prop in map.Properties())
+                {
+                    int race = RaceRef(prop.Name, mod);
+                    if (!(prop.Value is JObject row) || !(row["hulls"] is JArray hulls) || hulls.Count > 64)
+                        throw new ModJsonException($"{File}: battleship faction requires a hulls array (max 64).");
+                    int chance = Mathf.Clamp(ModJson.Int(row, "chancePercent", 80, File), 0, 100);
+                    var pool = new List<(int hull, int weight)>();
+                    foreach (var h in hulls)
+                    {
+                        string key = h is JObject o ? ModJson.Str(o, "ship") : h.ToString();
+                        int weight = h is JObject w ? Mathf.Clamp(ModJson.Int(w, "weight", 1, File), 1, 1000) : 1;
+                        int hull;
+                        if (key == "native_terran") hull = 1;
+                        else if (key == "native_vossk") hull = 2;
+                        else if (!string.IsNullOrEmpty(key) && (ModContent.TryResolveShip(key, out int ship) || ModContent.TryResolveShip(mod.Id + ":" + key, out ship)) && db.Ship(ship) != null && ship >= 0 && ship <= int.MaxValue - 3) hull = ship + 3;
+                        else throw new ModJsonException($"{File}: unknown battleship hull {key}.");
+                        pool.Add((hull, weight));
+                    }
+                    parsed[race] = (chance, pool);
+                }
+                foreach (var entry in parsed) battleships[entry.Key] = entry.Value;
+            }
+        }
+
         // Default protected hubs. Additional core systems can be listed by active mods.
         static readonly HashSet<int> DefaultCores = new HashSet<int> { 3, 6, 9, 15, 25, 26 };
         static readonly HashSet<int> ExtraCores = new HashSet<int>();
@@ -70,15 +145,17 @@ namespace GoF2Remake.Modding
         static readonly HashSet<int> ExcludedSystems = new HashSet<int>();
         public static bool IsExplicitFrontline(SystemData system) => system != null && ExplicitFrontlines.Contains(system.index);
         public static bool IsWarOrbit(int orbit) => orbit >= 0 && orbit < 100000;
-        public static bool CanContest(SystemData system) => system != null && system.raceId >= 0 && system.raceId <= 3 &&
+        public static bool CanContest(SystemData system) => system != null && Participates(system.raceId) &&
             system.securityLevel < 3 && !ExtraCores.Contains(system.index) && !ExcludedSystems.Contains(system.index) &&
             (!DefaultCores.Contains(system.index) || UnprotectedDefaultCores.Contains(system.index) || IsExplicitFrontline(system));
 
-        internal static void Apply()
+        internal static void Apply(Database db)
         {
             Enabled = false;
             defaultReward = new RewardSettings { credits = 100000 };
             factionRewards.Clear();
+            opponents.Clear(); Pair(0, 1); Pair(2, 3);
+            battleships.Clear();
             PirateMoveMin = 600; PirateMoveMax = 1200; PirateEscapeSeconds = 12; PirateGuardCount = 0; PirateCapitalShip = -1;
             ShipsPerSide = 12;
             IntervalSeconds = 1200;
@@ -113,7 +190,8 @@ namespace GoF2Remake.Modding
                     var cores = ReadSystems(options, "coreSystems", mod.Id);
                     var frontlines = ReadSystems(options, "frontlineSystems", mod.Id);
                     var excluded = ReadSystems(options, "excludedSystems", mod.Id);
-                    ReadRewards(options, mod.Id);
+                    if (enabled) ReadFleetRules(options, mod, db);
+                    ReadRewards(options, mod);
                     UnprotectedDefaultCores.UnionWith(unprotected);
                     ExtraCores.UnionWith(cores);
                     ExplicitFrontlines.UnionWith(frontlines);
@@ -132,16 +210,19 @@ namespace GoF2Remake.Modding
 
         // Numeric race IDs 0..3 refer to the existing NPC warfare factions. Faction entries override
         // the default credit pool and/or the complete loot list; omission inherits the default.
-        static void ReadRewards(JObject options, string modId)
+        static void ReadRewards(JObject options, ModInfo mod)
         {
             var token = ModJson.Get(options, "rewards");
             if (token == null) return;
             if (!(token is JObject root)) throw new ModJsonException($"{File}: rewards must be an object.");
             if (root["default"] != null)
-                defaultReward = ReadReward(root["default"], defaultReward, modId);
-            for (int race = 0; race < 4; race++)
-                if (root[race.ToString(System.Globalization.CultureInfo.InvariantCulture)] is JToken entry)
-                    factionRewards[race] = ReadReward(entry, RewardFor(race), modId);
+                defaultReward = ReadReward(root["default"], defaultReward, mod.Id);
+            foreach (var prop in root.Properties())
+            {
+                if (prop.Name == "default") continue;
+                int race = RaceRef(prop.Name, mod);
+                factionRewards[race] = ReadReward(prop.Value, RewardFor(race), mod.Id);
+            }
         }
 
         static RewardSettings ReadReward(JToken token, RewardSettings fallback, string modId)

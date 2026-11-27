@@ -221,9 +221,10 @@ namespace GoF2Remake.Flight
 
         /// <summary>NPC vs NPC: do ships of races a and b fight each other? (The player's ship counts as race 0.)</summary>
         public static bool RacesHostile(int a, int b) =>
-            Modding.ModRaces.Is(a) || Modding.ModRaces.Is(b) ? Modding.ModRaces.Relation(a, b) == Modding.ModRaces.Enemy :
+            (Modding.ModNpcFactionWar.Enabled && Modding.ModNpcFactionWar.AtWar(a, b)) ||
+            (Modding.ModRaces.Is(a) || Modding.ModRaces.Is(b) ? Modding.ModRaces.Relation(a, b) == Modding.ModRaces.Enemy :
             (a == Pirate) != (b == Pirate) || (a == Void) != (b == Void) || (a == Specter) != (b == Specter)
-            || (a == 0 && b == 1) || (a == 1 && b == 0) || (a == 2 && b == 3) || (a == 3 && b == 2);
+            || (a == 0 && b == 1) || (a == 1 && b == 0) || (a == 2 && b == 3) || (a == 3 && b == 2));
 
         /// <summary>A race by its word ("vossk", "pirates", or the language's race name), -1 = none (the admin commands, mods' characters).</summary>
         public static int RaceWord(string w)
