@@ -69,11 +69,11 @@ namespace GoF2Remake.Tests
         [Test]
         public void VictoryCreditPoolIsConserved()
         {
-            Assert.AreEqual(100000L, NpcFactionWar.CreditShare(100000, 1, 0));
-            Assert.AreEqual(33334L, NpcFactionWar.CreditShare(100000, 3, 0));
-            Assert.AreEqual(33333L, NpcFactionWar.CreditShare(100000, 3, 1));
-            Assert.AreEqual(33333L, NpcFactionWar.CreditShare(100000, 3, 2));
-            Assert.AreEqual(0L, NpcFactionWar.CreditShare(100000, 0, 0));
+            Assert.AreEqual(100000L, NpcFactionWar.Campaign.CreditShare(100000, 1, 0));
+            Assert.AreEqual(33334L, NpcFactionWar.Campaign.CreditShare(100000, 3, 0));
+            Assert.AreEqual(33333L, NpcFactionWar.Campaign.CreditShare(100000, 3, 1));
+            Assert.AreEqual(33333L, NpcFactionWar.Campaign.CreditShare(100000, 3, 2));
+            Assert.AreEqual(0L, NpcFactionWar.Campaign.CreditShare(100000, 0, 0));
         }
 
         [Test]
