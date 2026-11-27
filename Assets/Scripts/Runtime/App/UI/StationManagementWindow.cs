@@ -6,6 +6,8 @@ using GoF2Remake.Data;
 using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.UIElements;
+using GoF2Remake.Modding;
+using Newtonsoft.Json.Linq;
 
 namespace GoF2Remake.UI
 {
@@ -69,11 +71,166 @@ namespace GoF2Remake.UI
         float feedbackTime;
         float pressedAt = -10f;
 
+        // Native, opt-in mod tutorials; no Lua method interception or per-frame script callbacks.
+        public static bool NativeTutorials => true;
+        static WeakReference<StationManagementWindow> tutorialWindow;
+        const string StationTutorialFile = "tutorials/stationManagement.json";
+        const string WelcomeTutorialFile = "tutorials/preIdentity.json";
+        Button tutorialButton, tutorialContinue;
+        VisualElement tutorialOverlay;
+        List<(string heading, string text)> stationTutorial;
+        bool stationTutorialLoaded, stationTutorialSeen;
+        string stationTutorialAccount;
+
+        static List<(string heading, string text)> ReadTutorial(string file)
+        {
+            var result = new List<(string heading, string text)>();
+            foreach (var mod in ModManager.Active)
+            {
+                if (mod.Broken) continue;
+                string path = mod.Source.Exists(file) ? file : "text/" + file;
+                if (!mod.Source.Exists(path)) continue;
+                try
+                {
+                    if (!(ModJson.Read(mod.Source, path) is JObject document) ||
+                        !(document["pages"] is JArray pages) || pages.Count == 0 || pages.Count > 20)
+                        throw new ModJsonException("Expected 1-20 tutorial pages.");
+                    var parsed = new List<(string heading, string text)>();
+                    foreach (var entry in pages)
+                    {
+                        if (!(entry is JObject page) || !(page["sections"] is JArray sections) ||
+                            sections.Count == 0 || sections.Count > 24)
+                            throw new ModJsonException("Each page requires 1-24 sections.");
+                        foreach (var section in sections)
+                        {
+                            if (!(section is JObject block) || block["text"]?.Type != JTokenType.String ||
+                                string.IsNullOrWhiteSpace((string)block["text"]) || ((string)block["text"]).Length > 2000 ||
+                                (block["heading"] != null && (block["heading"].Type != JTokenType.String ||
+                                    ((string)block["heading"]).Length > 120)))
+                                throw new ModJsonException("Invalid tutorial section.");
+                            parsed.Add(((string)block["heading"] ?? "", (string)block["text"]));
+                        }
+                    }
+                    result.AddRange(parsed);
+                }
+                catch (Exception e) { Debug.LogWarning("Mod " + mod.Id + " " + path + ": " + e.Message); }
+            }
+            return result;
+        }
+
+        bool TutorialEligible => open && !marketplaceOnly && selected != null && !selected.underConstruction &&
+            selected.offeredForClaimUtc == 0 && NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true;
+
+        void UpdateStationTutorial()
+        {
+            if (!TutorialEligible) { tutorialButton.style.display = DisplayStyle.None; return; }
+            if (!stationTutorialLoaded)
+            {
+                stationTutorial = ReadTutorial(StationTutorialFile);
+                stationTutorialLoaded = true;
+            }
+            tutorialButton.style.display = stationTutorial.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            if (stationTutorial.Count == 0 || tutorialOverlay != null) return;
+            string account = Convert.ToString(NetPlayer.Local?.ProfileAccount) ?? "";
+            if (stationTutorialAccount != account)
+            {
+                stationTutorialAccount = account;
+                stationTutorialSeen = account.Length > 0 && PlayerPrefs.GetInt("mod.stationTutorial." + account, 0) != 0;
+            }
+            if (!stationTutorialSeen) ShowTutorial(stationTutorial, true);
+        }
+
+        void ShowTutorial(List<(string heading, string text)> pages, bool station)
+        {
+            if (!open || tutorialOverlay != null || pages == null || pages.Count == 0) return;
+            tutorialOverlay = new VisualElement { name = "modStationTutorial" };
+            tutorialOverlay.AddToClassList("player-station-window");
+            tutorialOverlay.style.position = Position.Absolute;
+            tutorialOverlay.style.left = tutorialOverlay.style.right = tutorialOverlay.style.top = tutorialOverlay.style.bottom = 0;
+            tutorialOverlay.style.backgroundColor = new Color(0.06f, 0.10f, 0.14f, 1f);
+            tutorialOverlay.style.paddingLeft = tutorialOverlay.style.paddingRight = 24;
+            tutorialOverlay.style.paddingTop = tutorialOverlay.style.paddingBottom = 16;
+            var title = new Label(station ? "YOUR STATION, YOUR RULES" : "SERVER BRIEFING") { enableRichText = false };
+            title.AddToClassList("player-station-title");
+            tutorialOverlay.Add(title);
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1;
+            scroll.style.flexBasis = 0;
+            scroll.style.minHeight = 0;
+            foreach (var page in pages)
+            {
+                if (!string.IsNullOrEmpty(page.heading))
+                {
+                    var heading = new Label(page.heading) { enableRichText = false };
+                    heading.style.fontSize = 20;
+                    heading.style.whiteSpace = WhiteSpace.Normal;
+                    heading.style.marginTop = 10;
+                    scroll.Add(heading);
+                }
+                var text = new Label(page.text) { enableRichText = false };
+                text.style.whiteSpace = WhiteSpace.Normal;
+                text.style.fontSize = 16;
+                text.style.marginBottom = 10;
+                scroll.Add(text);
+            }
+            tutorialOverlay.Add(scroll);
+            var footer = new VisualElement();
+            footer.style.flexDirection = FlexDirection.Row;
+            var up = new Button(() => scroll.scrollOffset = new Vector2(0, Mathf.Max(0, scroll.scrollOffset.y - scroll.resolvedStyle.height * .75f))) { text = "SCROLL UP" };
+            var down = new Button(() => scroll.scrollOffset = new Vector2(0, Mathf.Min(scroll.verticalScroller.highValue, scroll.scrollOffset.y + scroll.resolvedStyle.height * .75f))) { text = "SCROLL DOWN" };
+            tutorialContinue = new Button(() =>
+            {
+                if (station)
+                {
+                    stationTutorialSeen = true;
+                    if (!string.IsNullOrEmpty(stationTutorialAccount))
+                    {
+                        PlayerPrefs.SetInt("mod.stationTutorial." + stationTutorialAccount, 1);
+                        PlayerPrefs.Save();
+                    }
+                }
+                CloseTutorial();
+            }) { text = "CONTINUE" };
+            foreach (var button in new[] { up, down, tutorialContinue })
+            {
+                button.AddToClassList("player-station-action");
+                button.style.flexGrow = 1;
+                footer.Add(button);
+            }
+            tutorialOverlay.Add(footer);
+            tutorialOverlay.RegisterCallback<NavigationCancelEvent>(e => e.StopPropagation());
+            panel.SetEnabled(false);
+            overlay.Add(tutorialOverlay);
+            UiFocus.SkipScrollBars(tutorialOverlay);
+            tutorialContinue.Focus();
+        }
+
+        void CloseTutorial()
+        {
+            if (tutorialOverlay == null) return;
+            tutorialOverlay.RemoveFromHierarchy();
+            tutorialOverlay = null;
+            tutorialContinue = null;
+            panel.SetEnabled(true);
+            if (open) closeButton.Focus();
+        }
+
+        // Optional non-intercepting Lua /tutorial command and native replay button.
+        public static bool ReplayTutorial(bool station)
+        {
+            if (tutorialWindow == null || !tutorialWindow.TryGetTarget(out var window) || !window.open ||
+                window.tutorialOverlay != null || (station && !window.TutorialEligible)) return false;
+            var pages = station ? ReadTutorial(StationTutorialFile) : ReadTutorial(WelcomeTutorialFile);
+            if (pages.Count == 0) return false;
+            window.ShowTutorial(pages, station);
+            return true;
+        }
+
         public bool IsOpen => open;
         internal bool IsTyping => open && TextFieldKeys.InTextField(panel.focusController?.focusedElement);
         internal Button MenuButton => openButton;
-        internal void FocusFirst() => closeButton.Focus();
-        public VisualElement[] NavItems() => panel.Query<VisualElement>().ToList()
+        internal void FocusFirst() => (tutorialContinue ?? closeButton).Focus();
+        public VisualElement[] NavItems() => (tutorialOverlay ?? panel).Query<VisualElement>().ToList()
             .Where(element => element.ClassListContains("player-station-action") || element.ClassListContains("player-station-row") ||
                 element.ClassListContains("player-station-close") || element.ClassListContains("player-station-field"))
             .Where(element => element.focusable).ToArray();
@@ -118,7 +275,11 @@ namespace GoF2Remake.UI
             closeButton = new Button(Back) { text = "BACK" }; closeButton.AddToClassList("player-station-close");
             closeButton.clicked += () => menu?.PlayRelease();
             closeButton.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
-            top.Add(closeButton); panel.Add(top);
+            top.Add(closeButton);
+            tutorialButton = new Button(() => ShowTutorial(stationTutorial, true)) { text = "TUTORIAL" };
+            tutorialButton.AddToClassList("player-station-close");
+            tutorialButton.style.display = DisplayStyle.None;
+            top.Add(tutorialButton); panel.Add(top);
 
             var shell = new VisualElement(); shell.AddToClassList("player-station-shell");
             primaryNav = new VisualElement(); primaryNav.AddToClassList("player-station-primary-nav"); shell.Add(primaryNav);
@@ -306,6 +467,7 @@ namespace GoF2Remake.UI
             overlay.style.display = DisplayStyle.Flex;
             overlay.BringToFront();
             open = true;
+            tutorialWindow = new WeakReference<StationManagementWindow>(this);
             managementPage = marketplaceOnly ? "market" : "overview";
             selected = null; stationListSignature = null; moduleDetail = null;
             refresh = 0;
@@ -317,11 +479,12 @@ namespace GoF2Remake.UI
             managementCatalogue = null; directoryPage = 0; nextManagementQuery = 0;
             RefreshManagementCatalogue();
             RebuildBody();
-            if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) closeButton.Focus();
+            if (InputMode.Current != InputKind.Touch && !InputMode.MousePointing) FocusFirst();
         }
 
         internal void Back()
         {
+            if (tutorialOverlay != null) return; // acknowledge the briefing explicitly
             if (choicePickerKey != null) CloseChoicePicker();
             else if (modelPickerKey != null) CloseModelPicker();
             else if (marketplaceOnly) { Close(); menu?.OpenOutfitting(); }
@@ -333,6 +496,8 @@ namespace GoF2Remake.UI
         public void Close()
         {
             if (!open) return;
+            CloseTutorial();
+            if (tutorialWindow != null && tutorialWindow.TryGetTarget(out var window) && window == this) tutorialWindow = null;
             DestroyPlacementPreview();
             placementDrafts.Clear();
             placementRotationDrafts.Clear();
@@ -475,6 +640,8 @@ namespace GoF2Remake.UI
             }).ExecuteLater(1);
             RebuildPageBar();
             var dataStatus = StationDataStatus();
+            if (dataStatus == null) UpdateStationTutorial();
+            else tutorialButton.style.display = DisplayStyle.None;
             if (dataStatus != null)
             {
                 AddSection("STATION MANAGEMENT", dataStatus);
