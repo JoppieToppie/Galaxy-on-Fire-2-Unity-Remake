@@ -9,6 +9,40 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void FreightLoadsAreBoundedAndSalvageConservesCargo()
+        {
+            Assert.AreEqual(2500, ModAdvancedEconomy.FreightCapacity(5000, 2500, 400));
+            Assert.AreEqual(380, ModAdvancedEconomy.FreightCapacity(380, 2500, 400));
+            Assert.AreEqual(0, ModAdvancedEconomy.FreightCapacity(-1, 2500, 400));
+            int stolen = ModAdvancedEconomy.FreightClaimAmount(1200, 300, 500);
+            Assert.AreEqual(300, stolen);
+            Assert.AreEqual(225, ModAdvancedEconomy.FreightSalvageAmount(1200 - stolen, 25));
+            Assert.AreEqual(50, ModAdvancedEconomy.FreightClaimAmount(225, 50, 225));
+            Assert.AreEqual(0, ModAdvancedEconomy.FreightClaimAmount(0, 50, 225));
+        }
+
+        [Test]
+        public void FreightProgressVisitsEverySystemInOrder()
+        {
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightLeg(4, 4, 4));
+            Assert.AreEqual(1, AdvancedEconomyLedger.FreightLeg(4, 3, 4));
+            Assert.AreEqual(2, AdvancedEconomyLedger.FreightLeg(4, 2, 4));
+            Assert.AreEqual(3, AdvancedEconomyLedger.FreightLeg(4, 1, 4));
+            Assert.AreEqual(3, AdvancedEconomyLedger.FreightLeg(4, 0, 4));
+        }
+
+        [Test]
+        public void FreightSnapshotsRejectInvalidHullAndDuplicateLiveWreckIdentity()
+        {
+            const string start = "{\"version\":1,\"rows\":[],\"shipments\":[";
+            const string ship = "{\"key\":\"s|d|i\",\"amount\":100,\"resale\":0,\"ticks\":1,\"freightTag\":800000123,\"orbit\":1,\"totalTicks\":2";
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"hull\":32768}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"hull\":0}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship +
+                "}],\"freightWrecks\":[{\"tag\":800000123,\"orbit\":1,\"amount\":25,\"race\":0,\"item\":\"i\",\"expires\":1,\"x\":0,\"y\":0,\"z\":0}]}"));
+        }
+
+        [Test]
         public void AbsoluteCargoReplayCannotDuplicateStock()
         {
             var cargo = new List<ItemStack> { new ItemStack(10, 7), new ItemStack(10, 3), new ItemStack(11, 4) };
