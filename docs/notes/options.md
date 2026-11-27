@@ -530,6 +530,9 @@ verified on a Mac or an iPhone.
   display, a build): found and on (HDR10, `A2B10G10R10`, 0 - 400 nits, paper white 160), off again by the option at
   the start, and on together with DLSS-G (2.00 frames shown, no tag errors) and with FSR frame generation (its context
   made for the 10-bit format). Not checked: the picture itself by eye, the calibration pattern, a change while flying.
+  Phones (Discord 2026-11-22, a OnePlus 7T on the 2026.11.21 build: the picture very dark, half the frame rate): the
+  "Allow" / "Use" settings are global, so the Android build started in HDR too and `ApplyHdr`'s switch-off didn't take
+  there; `MobileHdrGuard` (Editor) builds Android and iOS with both off and puts them back after the build.
   - **Calibration** (the "HDR calibration…" row, `HdrCalibration` + `Resources/GoF2PostFx/HdrCalibration.shader`; only
     with HDR on and applied): a test pattern in place of the scene (`PatternPass`, before the post-processing: nits
     through the same tonemapping the game gets, the bloom and colour adjustments held neutral) with two sliders. Left:
