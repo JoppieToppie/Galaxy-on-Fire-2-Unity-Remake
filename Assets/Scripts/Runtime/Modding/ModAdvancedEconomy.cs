@@ -31,6 +31,8 @@ namespace GoF2Remake.Modding
         public static int FreightCapacity(int requested, int large, int small) =>
             Math.Min(Math.Max(0, requested), Math.Max(large, small));
         public static bool IsFreightTag(int tag) => tag >= 800000000 && tag < 900000000;
+        public static int FreightSalvageAmount(int cargo, int percent) => (int)((long)Math.Max(0, cargo) * Math.Clamp(percent, 0, 100) / 100);
+        public static int FreightClaimAmount(int cargo, int room, int requested) => Math.Max(0, Math.Min(cargo, Math.Min(room, requested)));
         public static bool WarPressure { get; private set; }
         public static bool TradeDisruption { get; private set; }
         public static int TickSeconds { get; private set; } = 900;
