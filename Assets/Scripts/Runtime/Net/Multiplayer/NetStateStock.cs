@@ -16,9 +16,12 @@ namespace GoF2Remake.Multiplayer
         internal void RequestFreightRpc(int orbit, RpcParams rpc = default)
         {
             ulong client = rpc.Receive.SenderClientId;
-            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Request) || !NetGuard.InOrbit(client, orbit) ||
-                RunnerOf(orbit)?.OwnerClientId != client || NetArena.IsArenaOrbit(orbit)) return;
-            FreightManifestRpc(orbit, AdvancedEconomyLedger.FreightManifest(orbit),
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request) ||
+                !NetGuard.InOrbit(client, orbit) || NetArena.IsArenaOrbit(orbit)) return;
+            if (RunnerOf(orbit)?.OwnerClientId == client)
+                FreightManifestRpc(orbit, AdvancedEconomyLedger.FreightManifest(orbit),
+                    RpcTarget.Single(client, RpcTargetUse.Temp));
+            FreightWreckManifestRpc(orbit, AdvancedEconomyLedger.FreightWreckManifest(orbit),
                 RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
@@ -27,6 +30,40 @@ namespace GoF2Remake.Multiplayer
         {
             if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ApplyFreightManifest(manifest);
         }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightWreckManifestRpc(int orbit, string manifest, RpcParams rpc = default)
+        {
+            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ApplyFreightWreckManifest(manifest);
+        }
+
+        [Rpc(SendTo.Server)]
+        internal void RequestFreightClaimRpc(int tag, ulong proxyId, int room, int sequence, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            int amount = 0, item = -1;
+            var pilot = NetSquad.Find(client);
+            if (sequence > 0 && NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) &&
+                NetProfiles.Controls(client) && pilot != null && pilot.InSpace && pilot.Hull > 0f &&
+                pilot.HasCurrentWreckClaimPose && !NetArena.IsArenaOrbit(pilot.Station) &&
+                (NetGame.PersistentHost && client == NetGame.LocalId || NetProfiles.ConsumeActionUpload(client, sequence)))
+            {
+                NetProxy proxy = null;
+                bool valid = proxyId == ulong.MaxValue;
+                if (!valid && NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(proxyId, out var obj))
+                {
+                    proxy = obj.GetComponent<NetProxy>();
+                    valid = proxy != null;
+                }
+                if (valid)
+                    amount = AdvancedEconomyLedger.ClaimFreight(pilot, NetProfiles.AccountOf(client), tag, proxy, room, out item);
+            }
+            FreightClaimResultRpc(sequence, item, amount, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightClaimResultRpc(int sequence, int item, int amount, RpcParams rpc = default) =>
+            NetProfileClient.ApplyFreightClaim(sequence, item, amount);
 
         /// <summary>A player docked at 'station': the host's stock there (made now if it has none).</summary>
         [Rpc(SendTo.Server)]
