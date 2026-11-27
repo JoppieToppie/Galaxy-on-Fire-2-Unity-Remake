@@ -51,6 +51,40 @@ namespace GoF2Remake.Multiplayer
                 !PlayerIdentity.TryResolveSelectableRace(savedRace, out _)) savedRace = null;
             if (!PlayerIdentity.CanChoose(savedRace, login.account.playerPortrait, raceKey))
                 return "Your pilot identity is permanent and cannot be changed.";
+            // Only a genuinely new profile gets origin benefits. Persist before completing identity,
+            // so a disconnect cannot reroll the origin or receive it again.
+            if (!NetGame.CoopSession)
+            {
+                try
+                {
+                    string path = ProfilePath(login.account.id);
+                    if (!File.Exists(path) && !File.Exists(path + ".bak") && login.account.playSeconds <= 0f)
+                    {
+                        var initial = PlayerIdentity.CreateOriginProfile(NetGame.Db, race, words[2]);
+                        if (initial != null)
+                        {
+                            string json = JsonUtility.ToJson(initial, false);
+                            if (!SaveGame.TryParse(json, NetGame.Db, out _, out string problem))
+                                return "Race origin profile is invalid: " + problem;
+                            if (!Write(path, json)) return "Could not persist your starting profile. Try again.";
+                            login.account.worth = Worth(initial);
+                        }
+                    }
+                    else if (File.Exists(path))
+                    {
+                        var prior = ReadSave(login.account.id);
+                        if (prior != null && prior.playSeconds <= 0f &&
+                            !string.IsNullOrEmpty(prior.playerIdentityRace) &&
+                            !string.Equals(prior.playerIdentityRace, raceKey, StringComparison.Ordinal))
+                            return "Your starting profile has already been assigned a different race.";
+                    }
+                }
+                catch (Exception error)
+                {
+                    Debug.LogWarning("Race origin: " + error.Message);
+                    return "Race origin configuration could not be applied: " + error.Message;
+                }
+            }
             if (!SavePlayerIdentity(login.account, raceKey, words[2])) return "Pilot appearance could not be saved. Try again.";
             foreach (var device in logins.Values)
                 if (device.account == login.account)
