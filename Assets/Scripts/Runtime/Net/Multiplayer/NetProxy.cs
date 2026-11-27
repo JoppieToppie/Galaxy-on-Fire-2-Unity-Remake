@@ -834,7 +834,7 @@ namespace GoF2Remake.Multiplayer
             if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700031 && Spec?.spec != null)
                 NetState.Instance?.RecordPirateDefender(this);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))
-                NetState.Instance?.RecordFactionWarCasualty(this);
+                NetState.Instance?.RecordFactionWarCasualty(this, after.killer);
         }
 
         void RecordOwnerBountyKill(NetProxyStatus before, NetProxyStatus after)

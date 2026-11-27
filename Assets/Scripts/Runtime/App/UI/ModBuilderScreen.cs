@@ -1134,6 +1134,79 @@ namespace GoF2Remake.UI
             Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, 24, v => { rules["shipsPerSide"] = v; MarkDirty(); });
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
+            Heading(scroll, "Victory rewards");
+            Note(scroll, "The credit pool is split equally among eligible players when an orbit is captured. Each receives the faction loot only after docking at the captured station.");
+            var rewards = rules["rewards"] as JObject ?? new JObject();
+            RewardSection("default", "Default victory rewards");
+            RewardSection("0", "Terran victory");
+            RewardSection("1", "Vossk victory");
+            RewardSection("2", "Nivelian victory");
+            RewardSection("3", "Midorian victory");
+
+            void RewardSection(string key, string title)
+            {
+                Heading(scroll, title);
+                bool isDefault = key == "default";
+                var section = rewards[key] as JObject ?? new JObject();
+                var fallback = rewards["default"] as JObject;
+                int inherited = int.TryParse(fallback?["credits"]?.ToString(), out int pool) ? pool : 100000;
+                int credits = int.TryParse(section["credits"]?.ToString(), out int n) ? n : inherited;
+                void Attach()
+                {
+                    if (rewards[key] != section) rewards[key] = section;
+                    if (rules["rewards"] != rewards) rules["rewards"] = rewards;
+                    MarkDirty();
+                }
+                Int(scroll, "Shared credit pool", credits, 0, int.MaxValue, value =>
+                {
+                    section["credits"] = value;
+                    Attach();
+                });
+                if (!isDefault)
+                    Act(scroll, "Inherit default credits", () =>
+                    {
+                        section.Remove("credits"); Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+
+                var loot = section["loot"] as JArray;
+                if (loot == null && !isDefault)
+                {
+                    Note(scroll, "Loot inherits the default list.");
+                    Act(scroll, "Override loot", () =>
+                    {
+                        section["loot"] = fallback?["loot"]?.DeepClone() as JArray ?? new JArray();
+                        Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+                    return;
+                }
+                loot ??= new JArray();
+                foreach (var entry in loot.OfType<JObject>().ToList())
+                {
+                    var row = Row(scroll);
+                    string reference = entry["item"]?.ToString();
+                    Add(row, new Label(RefLabel(RefKind.Item, reference, "Unknown item")), "mbv-inline-label");
+                    int amount = int.TryParse(entry["amount"]?.ToString(), out int count) ? count : 1;
+                    Int(row, "Quantity per player", amount, 1, 10000, value => { entry["amount"] = value; Attach(); });
+                    Act(row, "×", () => { entry.Remove(); Attach(); ShowNpcFactionWarRules(); }, "mbv-step");
+                }
+                if (loot.Count < 32)
+                    Act(scroll, "+ Equipment", () => PickRef(RefKind.Item, "Select victory loot", entry =>
+                    {
+                        if (entry != null)
+                        {
+                            loot.Add(new JObject { ["item"] = ProjectEntry.RefToken(entry.value), ["amount"] = 1 });
+                            if (section["loot"] != loot) section["loot"] = loot;
+                            Attach();
+                        }
+                        ShowNpcFactionWarRules();
+                    }), "mbv-add");
+                if (!isDefault)
+                    Act(scroll, "Inherit default loot", () =>
+                    {
+                        section.Remove("loot"); Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+            }
+
             Heading(scroll, "Pirate activity");
             Int(scroll, "Bounty movement minimum (seconds)", Number("pirateMoveMin", 600), 60, 3600, v => { rules["pirateMoveMin"] = v; MarkDirty(); });
             Int(scroll, "Bounty movement maximum (seconds)", Number("pirateMoveMax", 1200), 60, 7200, v => { rules["pirateMoveMax"] = v; MarkDirty(); });

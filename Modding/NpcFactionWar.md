@@ -39,3 +39,61 @@ In the Mod Builder choose **Menu > NPC faction warfare**. Select systems by name
 - `coreSystems`: explicit protection always wins, as does security level 3. All four lists accept numeric IDs or mod system keys. Lists accumulate across active mods; the last explicit dynamic and gate-only settings win.
 
 These rules govern new engagements. Restart the session after changing rules so previously spawned fleets cannot finish under the old settings. Existing territory is not erased by changing the dynamic setting. The example above is illustrative, not a change to the default campaign.
+
+
+## Multiplayer capture rewards
+
+The server freezes a credit pool and a loot list when an attacking NPC faction captures an orbit. Credit pools are shared equally across eligible contributors, with remainder credits assigned in stable account order. Each eligible pilot receives the full configured equipment list, not a fraction of it. A pilot must have killed or recently hit a destroyed defender, and must have more such contributions against defenders than attackers. Unoccupied simulated casualties, spectators and repelled attacks do not create rewards. A pilot who leaves before the victory can still qualify if they contributed.
+
+Claim by flying into the captured station's hangar after victory. A different station, simply loading a docked profile or a death respawn does not redeem the reward. The entitlement is retained until claimed or until the orbit changes hands again. Shares are never redistributed. Persistent profile servers save the private entitlements and atomically write the credits, cargo and reward receipt; reconnecting cannot pay twice. If cargo space is insufficient, make room and remain docked or dock again. Profile-less sessions use an in-memory entitlement and apply rewards to the docked player's cargo. Guests on a profile server are not eligible. Single-player territorial battles do not yet use this multiplayer reward path.
+
+Configure rewards in **Menu > NPC faction warfare > Victory rewards** or in `npc-faction-war.json`:
+
+```json
+{
+  "enabled": true,
+  "rewards": {
+    "default": {
+      "credits": 100000,
+      "loot": []
+    },
+    "0": {
+      "credits": 250000,
+      "loot": [
+        { "item": "your_mod:terran_reward_equipment", "amount": 1 }
+      ]
+    },
+    "1": {
+      "loot": [
+        { "item": "your_mod:vossk_reward_equipment", "amount": 2 }
+      ]
+    },
+    "2": { "credits": 150000 },
+    "3": { "loot": [] }
+  }
+}
+```
+
+IDs 0, 1, 2 and 3 are Terran, Vossk, Nivelian and Midorian respectively. Omitted faction values inherit defaults; an explicit empty loot array disables loot for that faction. Item references can be base-game numeric IDs or mod item keys. The built-in credit pool is 100,000 and the built-in loot list is empty; mods choose real items. The sample keys are illustrative.
+
+### First-time reward tutorial
+
+Client-side events: `npcFactionWarRewardAvailable(orbit, winnerRace, credits)` is raised for eligible connected pilots on capture; `npcFactionWarRewardClaimed(orbit, winnerRace, credits)` is raised after delivery. These events also drive data-only tutorials, without Lua approval. For example, add to `tutorials/gameplay.json`:
+
+```json
+{
+  "tutorials": [
+    {
+      "id": "orbit_victory_reward",
+      "title": "Faction victory rewards",
+      "text": "Help a faction capture an orbit by destroying enemy ships or assisting in their destruction. Your share of the credits and any faction equipment is waiting at the captured station. Dock there to collect it before the station changes hands again.",
+      "trigger": "npcFactionWarRewardAvailable",
+      "presentation": "popup",
+      "repeatable": false,
+      "persistPending": true,
+      "multiplayer": true,
+      "category": "Faction warfare"
+    }
+  ]
+}
+```

@@ -370,6 +370,17 @@ namespace GoF2Remake.Multiplayer
             }
             if (Flight.Standing.Independent && pilot != null && pilot.IsPirate)
                 foreach (int race in Flight.Standing.ReputationRaces()) SetSavedReputation(save, Flight.Standing.ReputationKey(race), -100);
+            // Reward receipts are server-owned. Refuse an upload that predates a payout even if
+            // the client has already received the newer economy revision.
+            if (prior?.factionWarRewardReceipts != null &&
+                prior.factionWarRewardReceipts.Exists(id => save.factionWarRewardReceipts?.Contains(id) != true))
+            {
+                Reject(login, "your profile has not acknowledged the latest faction war reward");
+                if (!IsHostClient(client)) RefreshProfile(client);
+                return;
+            }
+            save.factionWarRewardReceipts = prior?.factionWarRewardReceipts == null
+                ? new List<string>() : new List<string>(prior.factionWarRewardReceipts);
             // The origin grant is a creation-only server intent, never accepted from an upload.
             save.originStartAsPirate = false;
             // Recovery records belong to the server, not to the uploading client.
@@ -410,6 +421,7 @@ namespace GoF2Remake.Multiplayer
             account.lastSeen = Now();
             login.acceptedAt = now;
             SaveIndex();
+            if (!handing) NetState.Instance?.ClaimVictoryReward(pilot, save);
             if (handing)
             {
                 handovers.Remove(account.id);

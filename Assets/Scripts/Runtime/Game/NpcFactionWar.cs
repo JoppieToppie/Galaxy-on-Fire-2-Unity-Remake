@@ -96,11 +96,28 @@ namespace GoF2Remake.Data
         }
 
         [Serializable]
+        public sealed class RewardItem
+        {
+            public string item;
+            public int amount;
+        }
+
+        [Serializable]
+        public sealed class VictoryReward
+        {
+            public string id, account, orbitKey;
+            public int race;
+            public long credits;
+            public List<RewardItem> loot = new List<RewardItem>();
+        }
+
+        [Serializable]
         sealed class WarSave
         {
             public List<HeldOrbit> held = new List<HeldOrbit>();
             public long nextBattle;
             public List<BattleStatus> active;
+            public List<VictoryReward> rewards;
         }
 
         sealed class Engagement
@@ -122,7 +139,29 @@ namespace GoF2Remake.Data
         {
             readonly Dictionary<string, int> held = new Dictionary<string, int>(StringComparer.Ordinal);
             readonly Dictionary<int, Engagement> battles = new Dictionary<int, Engagement>();
+            readonly List<VictoryReward> rewards = new List<VictoryReward>();
             int nextBattleId;
+
+            public void ReplaceOrbitRewards(int orbit, IEnumerable<VictoryReward> pending)
+            {
+                string key = Key(orbit);
+                rewards.RemoveAll(r => r.orbitKey == key);
+                foreach (var reward in pending)
+                {
+                    reward.orbitKey = key;
+                    rewards.Add(reward);
+                }
+            }
+
+            public VictoryReward RewardAt(string account, int orbit) =>
+                string.IsNullOrEmpty(account) ? null :
+                rewards.Find(r => r.account == account && r.orbitKey == Key(orbit));
+
+            public void RemoveReward(VictoryReward reward) => rewards.Remove(reward);
+
+            public static long CreditShare(long pool, int count, int position) =>
+                count <= 0 || position < 0 || position >= count ? 0 :
+                Math.Max(0L, pool) / count + (position < Math.Max(0L, pool) % count ? 1L : 0L);
             long nextBattle;
 
             static string Key(int orbit) => ModWorld.StationKey(orbit) ?? orbit.ToString(CultureInfo.InvariantCulture);
@@ -141,6 +180,12 @@ namespace GoF2Remake.Data
                         foreach (var entry in saved.held)
                             if (entry != null && !string.IsNullOrEmpty(entry.orbit) && Major(entry.race))
                                 campaign.held[entry.orbit] = entry.race;
+                    if (saved.rewards != null)
+                        foreach (var reward in saved.rewards)
+                            if (reward != null && !string.IsNullOrEmpty(reward.id) &&
+                                !string.IsNullOrEmpty(reward.account) && reward.account.StartsWith("profile:", StringComparison.Ordinal) &&
+                                !string.IsNullOrEmpty(reward.orbitKey) && Major(reward.race) && reward.credits >= 0)
+                                campaign.rewards.Add(reward);
                     // Active entries are sent to clients only, not written to the profile save.
                     if (saved.active != null)
                         foreach (var entry in saved.active)
@@ -163,6 +208,8 @@ namespace GoF2Remake.Data
             {
                 var saved = new WarSave { nextBattle = nextBattle };
                 foreach (var entry in held) saved.held.Add(new HeldOrbit { orbit = entry.Key, race = entry.Value });
+                // Never broadcast private reward entitlements in the public map snapshot.
+                if (!includeActive) saved.rewards = rewards.FindAll(r => r.account.StartsWith("profile:", StringComparison.Ordinal));
                 if (includeActive)
                 {
                     saved.active = new List<BattleStatus>(battles.Count);

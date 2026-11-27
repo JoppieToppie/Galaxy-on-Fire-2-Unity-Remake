@@ -652,6 +652,37 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Server-moved cargo for a docked station project or marketplace. The active host's live hold is the
         /// authority for its own save; another player's last uploaded profile is changed before its game is updated.</summary>
+        // Credits, equipment and the claim receipt are one atomic profile write. A surviving
+        // campaign entitlement can be replayed after a crash without issuing the reward twice.
+        internal static bool PayVictoryReward(NetPlayer pilot, SaveData save, NpcFactionWar.VictoryReward reward, List<ItemStack> loot)
+        {
+            string account = AccountOf(pilot.OwnerClientId);
+            if (!Controls(pilot.OwnerClientId) || account == null || NetPlayerStations.ProfileWritesBlocked) return false;
+            long quantity = 0;
+            foreach (var row in loot) quantity += row.amount;
+            if (quantity > WreckSalvageCargoRoom(pilot, account))
+            {
+                NetState.Instance?.Notify(pilot.OwnerClientId, "Make cargo room at this station to collect your victory reward.");
+                return false;
+            }
+            save.cargo ??= new List<ItemStack>();
+            foreach (var row in loot)
+            {
+                var stack = save.cargo.Find(s => s != null && s.item == row.item);
+                if (stack != null && (long)stack.amount + row.amount > int.MaxValue) return false;
+            }
+            foreach (var row in loot)
+            {
+                var stack = save.cargo.Find(s => s != null && s.item == row.item);
+                if (stack == null) save.cargo.Add(new ItemStack(row.item, row.amount));
+                else stack.amount += row.amount;
+            }
+            save.credits = Session.SaturatingAdd(save.credits, reward.credits);
+            save.factionWarRewardReceipts ??= new List<string>();
+            save.factionWarRewardReceipts.Add(reward.id);
+            return PersistRecoveryProfile(account, save);
+        }
+
         internal static bool MoveCargo(ulong client, string id, int item, int delta)
         {
             if (id == null || item < 0 || delta == 0 || NetGame.Db.Item(item) == null ||

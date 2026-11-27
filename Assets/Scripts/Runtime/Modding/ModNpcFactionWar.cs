@@ -24,6 +24,17 @@ namespace GoF2Remake.Modding
         public static bool DynamicFrontlines { get; private set; } = true;
         public static bool GateOnlyFrontlines { get; private set; }
 
+        public sealed class RewardSettings
+        {
+            public long credits;
+            public List<NpcFactionWar.RewardItem> loot = new List<NpcFactionWar.RewardItem>();
+        }
+
+        static RewardSettings defaultReward = new RewardSettings { credits = 100000 };
+        static readonly Dictionary<int, RewardSettings> factionRewards = new Dictionary<int, RewardSettings>();
+        public static RewardSettings RewardFor(int race) =>
+            factionRewards.TryGetValue(race, out var reward) ? reward : defaultReward;
+
         // Default protected hubs. Additional core systems can be listed by active mods.
         static readonly HashSet<int> DefaultCores = new HashSet<int> { 3, 6, 9, 15, 25, 26 };
         static readonly HashSet<int> ExtraCores = new HashSet<int>();
@@ -39,6 +50,8 @@ namespace GoF2Remake.Modding
         internal static void Apply()
         {
             Enabled = false;
+            defaultReward = new RewardSettings { credits = 100000 };
+            factionRewards.Clear();
             PirateMoveMin = 600; PirateMoveMax = 1200; PirateEscapeSeconds = 12; PirateGuardCount = 0; PirateCapitalShip = -1;
             ShipsPerSide = 12;
             IntervalSeconds = 1200;
@@ -71,6 +84,7 @@ namespace GoF2Remake.Modding
                     var cores = ReadSystems(options, "coreSystems", mod.Id);
                     var frontlines = ReadSystems(options, "frontlineSystems", mod.Id);
                     var excluded = ReadSystems(options, "excludedSystems", mod.Id);
+                    ReadRewards(options, mod.Id);
                     UnprotectedDefaultCores.UnionWith(unprotected);
                     ExtraCores.UnionWith(cores);
                     ExplicitFrontlines.UnionWith(frontlines);
@@ -84,6 +98,50 @@ namespace GoF2Remake.Modding
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
             }
+        }
+
+        // Numeric race IDs 0..3 refer to the existing NPC warfare factions. Faction entries override
+        // the default credit pool and/or the complete loot list; omission inherits the default.
+        static void ReadRewards(JObject options, string modId)
+        {
+            var token = ModJson.Get(options, "rewards");
+            if (token == null) return;
+            if (!(token is JObject root)) throw new ModJsonException($"{File}: rewards must be an object.");
+            if (root["default"] != null)
+                defaultReward = ReadReward(root["default"], defaultReward, modId);
+            for (int race = 0; race < 4; race++)
+                if (root[race.ToString(System.Globalization.CultureInfo.InvariantCulture)] is JToken entry)
+                    factionRewards[race] = ReadReward(entry, RewardFor(race), modId);
+        }
+
+        static RewardSettings ReadReward(JToken token, RewardSettings fallback, string modId)
+        {
+            if (!(token is JObject obj)) throw new ModJsonException($"{File}: reward must be an object.");
+            var reward = new RewardSettings
+            {
+                credits = Mathf.Clamp(ModJson.Int(obj, "credits", (int)fallback.credits, File), 0, int.MaxValue),
+                loot = new List<NpcFactionWar.RewardItem>(fallback.loot)
+            };
+            if (ModJson.Get(obj, "loot") == null) return reward;
+            if (!(obj["loot"] is JArray entries) || entries.Count > 32)
+                throw new ModJsonException($"{File}: reward loot must be an array of at most 32 entries.");
+            reward.loot.Clear();
+            foreach (var entry in entries)
+            {
+                if (!(entry is JObject row)) throw new ModJsonException($"{File}: invalid reward loot entry.");
+                string key = row["item"]?.ToString();
+                int amount = ModJson.Int(row, "amount", 1, File);
+                if (string.IsNullOrEmpty(key) || amount < 1 || amount > 10000 ||
+                    (!ModContent.TryResolveItem(key, out int item) &&
+                     !ModContent.TryResolveItem(modId + ":" + key, out item)))
+                    throw new ModJsonException($"{File}: unknown or invalid reward item {key}.");
+                reward.loot.Add(new NpcFactionWar.RewardItem
+                {
+                    item = ModContent.ItemKey(item) ?? item.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    amount = amount
+                });
+            }
+            return reward;
         }
 
         static HashSet<int> ReadSystems(JObject options, string field, string modId)

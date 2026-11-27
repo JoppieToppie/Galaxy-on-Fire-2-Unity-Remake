@@ -1460,7 +1460,7 @@ namespace GoF2Remake.Multiplayer
             if (build.Value.ToString() != buildNow) build.Value = buildNow;
             bool runsHangar = dock != null && NetHangar.Running;
             if (hangarRun.Value != runsHangar) hangarRun.Value = runsHangar;
-            bool flew = dock != null && dock.ArrivedFlying;
+            bool flew = docked || (dock != null && dock.ArrivedFlying);
             if (arrivedFlying.Value != flew) arrivedFlying.Value = flew;
             var mining = level != null ? level.Mining : null;
             int drilling = mining != null && mining.State == Mining.Phase.Mining && NetOrbit.Current != null ? NetOrbit.Current.IndexOf(mining.Target) : -1;

@@ -43,6 +43,32 @@ namespace GoF2Remake.Tests
         public void StopServer() => NetServerFixture.Stop();
 
         [Test]
+        public void VictoryCreditPoolIsConserved()
+        {
+            Assert.AreEqual(100000L, NpcFactionWar.CreditShare(100000, 1, 0));
+            Assert.AreEqual(33334L, NpcFactionWar.CreditShare(100000, 3, 0));
+            Assert.AreEqual(33333L, NpcFactionWar.CreditShare(100000, 3, 1));
+            Assert.AreEqual(33333L, NpcFactionWar.CreditShare(100000, 3, 2));
+            Assert.AreEqual(0L, NpcFactionWar.CreditShare(100000, 0, 0));
+        }
+
+        [Test]
+        public void VictoryRewardsArePrivateAndReplacedOnRecapture()
+        {
+            var campaign = new NpcFactionWar.Campaign();
+            var reward = new NpcFactionWar.VictoryReward { id = "battle-reward", account = "profile:a", race = 0, credits = 50000 };
+            campaign.ReplaceOrbitRewards(AlphaStation, new[] { reward });
+            Assert.AreSame(reward, campaign.RewardAt("profile:a", AlphaStation));
+            Assert.IsNull(campaign.RewardAt("profile:b", AlphaStation));
+            Assert.IsNull(campaign.RewardAt("profile:a", SoloStation));
+            Assert.IsNull(NpcFactionWar.Campaign.Read(campaign.Snapshot(true)).RewardAt("profile:a", AlphaStation));
+            var restored = NpcFactionWar.Campaign.Read(campaign.Snapshot());
+            Assert.AreEqual("battle-reward", restored.RewardAt("profile:a", AlphaStation).id);
+            restored.ReplaceOrbitRewards(AlphaStation, new NpcFactionWar.VictoryReward[0]);
+            Assert.IsNull(restored.RewardAt("profile:a", AlphaStation));
+        }
+
+        [Test]
         public void TheDocumentedNumbers()
         {
             Assert.AreEqual(24, NetFactions.MaxNameLength);

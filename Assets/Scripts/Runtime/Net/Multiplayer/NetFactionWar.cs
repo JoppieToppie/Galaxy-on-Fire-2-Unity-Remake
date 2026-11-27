@@ -22,10 +22,14 @@ namespace GoF2Remake.Multiplayer
             public long pausedLossSeconds;
             public bool finished;
             public float startedAt;
+            public readonly Dictionary<string, int> againstDefenders = new Dictionary<string, int>();
+            public readonly Dictionary<string, int> againstAttackers = new Dictionary<string, int>();
             public readonly Dictionary<int, ulong> ships = new Dictionary<int, ulong>();
         }
 
         readonly Dictionary<int, FleetRoster> fleetByOrbit = new Dictionary<int, FleetRoster>();
+        readonly Dictionary<NetPlayer, string> sessionRewardKeys = new Dictionary<NetPlayer, string>();
+        readonly Dictionary<ulong, float> nextRewardUpload = new Dictionary<ulong, float>();
         bool factionWarDirty, factionWarViewDirty;
         float retryWarSaveAt;
         float nextWarScheduleAt;
@@ -154,6 +158,7 @@ namespace GoF2Remake.Multiplayer
                     ModScripts.Raise("npcFactionBattleStarted", battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide);
                 }
             }
+            TickVictoryRewards();
             // Coalesce all casualties/clock transitions in this sweep into one small reliable update.
             if (factionWarViewDirty && factionWar != null)
             {
@@ -228,11 +233,185 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        internal void RecordFactionWarCasualty(NetProxy ship)
+        string RewardAccount(NetPlayer pilot)
+        {
+            if (pilot == null || pilot.Observer) return null;
+            if (NetProfiles.Controls(pilot.OwnerClientId))
+                return "profile:" + NetProfiles.AccountOf(pilot.OwnerClientId);
+            if (NetProfiles.Enabled) return null; // guests cannot write a persistent profile
+            if (!sessionRewardKeys.TryGetValue(pilot, out string key))
+                sessionRewardKeys[pilot] = key = "session:" + System.Guid.NewGuid().ToString("N");
+            return key;
+        }
+
+        void RecordWarContribution(FleetRoster roster, NetProxy ship, ulong killer)
+        {
+            var scores = ship.Race == roster.battle.defender ? roster.againstDefenders : roster.againstAttackers;
+            foreach (var pilot in NetPlayer.All)
+            {
+                if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != ship.Station) continue;
+                ulong client = pilot.OwnerClientId;
+                // The orbit owner's local kills use the game's existing owner-authoritative kill report.
+                // Other players must have a server-checked hit on the destroyed NPC.
+                if (!(client == killer && client == ship.OwnerClientId) &&
+                    !HitRecently(ship.NetworkObjectId, client, 15f)) continue;
+                string account = RewardAccount(pilot);
+                if (account == null) continue;
+                scores.TryGetValue(account, out int score);
+                scores[account] = score + 1;
+            }
+        }
+
+        void CreateVictoryRewards(FleetRoster roster, int winner)
+        {
+            var settings = ModNpcFactionWar.RewardFor(winner);
+            var eligible = new List<string>();
+            foreach (var entry in roster.againstDefenders)
+            {
+                roster.againstAttackers.TryGetValue(entry.Key, out int opposite);
+                if (entry.Value > opposite) eligible.Add(entry.Key);
+            }
+            eligible.Sort(System.StringComparer.Ordinal);
+            var pending = new List<NpcFactionWar.VictoryReward>();
+            for (int i = 0; i < eligible.Count; i++)
+            {
+                long credits = NpcFactionWar.CreditShare(settings.credits, eligible.Count, i);
+                if (credits == 0 && settings.loot.Count == 0) continue;
+                pending.Add(new NpcFactionWar.VictoryReward
+                {
+                    id = System.Guid.NewGuid().ToString("N"), account = eligible[i], race = winner,
+                    credits = credits, loot = new List<NpcFactionWar.RewardItem>(settings.loot)
+                });
+            }
+            factionWar.ReplaceOrbitRewards(roster.battle.orbit, pending);
+        }
+
+        void NotifyVictoryRewards(int orbit)
+        {
+            foreach (var pilot in NetPlayer.All)
+            {
+                if (pilot == null || !pilot.IsSpawned) continue;
+                var reward = factionWar.RewardAt(RewardAccount(pilot), orbit);
+                if (reward == null) continue;
+                VictoryRewardAvailableRpc(orbit, reward.race, reward.credits,
+                    RpcTarget.Single(pilot.OwnerClientId, RpcTargetUse.Temp));
+            }
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void VictoryRewardAvailableRpc(int orbit, int race, long credits, RpcParams rpc = default)
+        {
+            NetChat.Notice($"Victory reward available at {NetNews.Place(orbit)}. Dock there to collect your share.");
+            ModScripts.Raise("npcFactionWarRewardAvailable", orbit, race, credits);
+        }
+
+        void TickVictoryRewards()
+        {
+            if (factionWar == null || factionWarDirty) return;
+            foreach (var pilot in NetPlayer.All)
+            {
+                if (pilot == null || !pilot.IsSpawned || pilot.Where != NetPlayer.Place.Hangar ||
+                    !pilot.ArrivedFlying || pilot.Observer || pilot.HasRecordedDeath) continue;
+                var reward = factionWar.RewardAt(RewardAccount(pilot), pilot.Station);
+                if (reward == null) continue;
+                ulong client = pilot.OwnerClientId;
+                if (NetProfiles.Enabled)
+                {
+                    // Ask for a current docked snapshot, not the stale profile from before combat.
+                    if (nextRewardUpload.TryGetValue(client, out float next) && Time.unscaledTime < next) continue;
+                    nextRewardUpload[client] = Time.unscaledTime + 15f;
+                    VictoryRewardUploadRpc(RpcTarget.Single(client, RpcTargetUse.Temp));
+                }
+                else
+                {
+                    // Nonpersistent sessions have no saved profile. Consume the entitlement in memory.
+                    if (!TryResolveVictoryLoot(reward, out var loot)) continue;
+                    factionWar.RemoveReward(reward);
+                    SendVictoryReward(client, reward, loot);
+                }
+            }
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void VictoryRewardUploadRpc(RpcParams rpc = default)
+        {
+            if (NetProfiles.IsHostClient(Unity.Netcode.NetworkManager.ServerClientId) && IsServer)
+                NetProfileClient.SaveHostNow();
+            else NetProfileClient.Upload();
+        }
+
+        internal static bool TryResolveVictoryLoot(NpcFactionWar.VictoryReward reward, out List<ItemStack> loot)
+        {
+            loot = new List<ItemStack>();
+            if (reward.loot == null) return true;
+            foreach (var row in reward.loot)
+            {
+                if (row == null || row.amount <= 0 || !ModContent.TryResolveItem(row.item, out int item) ||
+                    ModContent.IsMissingItem(item) || NetGame.Db.Item(item) == null) return false;
+                var existing = loot.Find(s => s.item == item);
+                if (existing == null) loot.Add(new ItemStack(item, row.amount));
+                else
+                {
+                    if ((long)existing.amount + row.amount > int.MaxValue) return false;
+                    existing.amount += row.amount;
+                }
+            }
+            return true;
+        }
+
+        // Invoked only after the profile's docked upload was accepted and persisted.
+        internal void ClaimVictoryReward(NetPlayer pilot, SaveData save)
+        {
+            if (!IsServer || factionWar == null || factionWarDirty || pilot == null || pilot.Observer ||
+                pilot.Where != NetPlayer.Place.Hangar || !pilot.ArrivedFlying || pilot.HasRecordedDeath ||
+                save == null || save.station != pilot.Station || save.lastDockedStation != pilot.Station ||
+                !NetProfiles.Controls(pilot.OwnerClientId)) return;
+            var reward = factionWar.RewardAt(RewardAccount(pilot), pilot.Station);
+            if (reward == null) return;
+            if (save.factionWarRewardReceipts?.Contains(reward.id) == true)
+            {
+                factionWar.RemoveReward(reward);
+                factionWarDirty = true;
+                return;
+            }
+            if (!TryResolveVictoryLoot(reward, out var loot)) return;
+            if (!NetProfiles.PayVictoryReward(pilot, save, reward, loot)) return;
+            factionWar.RemoveReward(reward);
+            factionWarDirty = true;
+            SendVictoryReward(pilot.OwnerClientId, reward, loot);
+        }
+
+        void SendVictoryReward(ulong client, NpcFactionWar.VictoryReward reward, List<ItemStack> loot)
+        {
+            var items = new int[loot.Count];
+            var amounts = new int[loot.Count];
+            for (int i = 0; i < loot.Count; i++) { items[i] = loot[i].item; amounts[i] = loot[i].amount; }
+            VictoryRewardPaidRpc(reward.id, reward.race, reward.credits, items, amounts,
+                RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void VictoryRewardPaidRpc(string id, int race, long credits, int[] items, int[] amounts, RpcParams rpc = default)
+        {
+            if (Session.FactionWarRewardReceipts.Contains(id)) return;
+            Session.FactionWarRewardReceipts.Add(id);
+            Session.Credits = Session.SaturatingAdd(Session.Credits, credits);
+            for (int i = 0; i < items.Length; i++) Shop.AddToCargo(items[i], amounts[i]);
+            GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+            GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+            NetChat.Notice($"Victory reward collected: {credits:N0} credits and {items.Length} equipment type(s).");
+            ModScripts.Raise("npcFactionWarRewardClaimed", Session.StationIndex, race, credits);
+        }
+
+        internal void RecordFactionWarCasualty(NetProxy ship, ulong killer)
         {
             if (factionWar == null || !IsFactionWarShip(ship, ship.Race)) return;
             var roster = fleetByOrbit[ship.Station];
-            RecordWarLoss(roster, roster.battle.Slot(ship.EventTag), NpcFactionWar.Now);
+            if (roster.finished) return;
+            int slot = roster.battle.Slot(ship.EventTag);
+            if ((roster.casualties & (1UL << slot)) != 0) return;
+            RecordWarContribution(roster, ship, killer);
+            RecordWarLoss(roster, slot, NpcFactionWar.Now);
         }
 
         void RecordWarLoss(FleetRoster roster, int slot, long now)
@@ -247,6 +426,7 @@ namespace GoF2Remake.Multiplayer
             roster.finished = true;
 
             bool captured = winner == battle.attacker;
+            if (captured) CreateVictoryRewards(roster, winner);
             factionWarDirty = true;
             FlushFactionWar();
             NetNews.Post(NetNews.Kind.War, captured
@@ -257,6 +437,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var pilot in NetPlayer.All)
                 if (pilot != null && pilot.IsSpawned && pilot.InSpace && pilot.Station == battle.orbit)
                     Notify(pilot.OwnerClientId, notice);
+            if (captured) NotifyVictoryRewards(battle.orbit);
             ModScripts.Raise("npcFactionBattleResolved", battle.orbit, battle.system, winner, captured);
         }
     }
