@@ -550,6 +550,14 @@ namespace GoF2Remake.Multiplayer
             return record.pirate;
         }
 
+        // Use the server's persistent piracy record as well as its replicated pilot flag.
+        internal static bool PirateHunter(NetPlayer pilot)
+        {
+            if (pilot == null || !Modding.ModPvpPiracy.Enabled) return false;
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            return pilot.IsPirate || (account != null && piracyByAccount.TryGetValue(account, out var status) && status.pirate);
+        }
+
         internal static bool ClaimBounties(NetPlayer victim, NetPlayer hunter)
         {
             if (!PiracyEnabled || bountyFile == null || !NetProfiles.Controls(hunter.OwnerClientId)) return false;
@@ -559,15 +567,19 @@ namespace GoF2Remake.Multiplayer
             bool pirate = piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
             bountiesByAccount.TryGetValue(account, out var records);
             var hunterAccount = NetProfiles.AccountOf(hunter.OwnerClientId);
+            bool pirateHunter = PirateHunter(hunter);
+            bool claimPirateReward = pirate && !pirateHunter;
             var claimed = records == null ? new List<BountyRecord>() : records.FindAll(record =>
-                record.issuer.StartsWith("npc:", StringComparison.Ordinal) ||
-                (record.reward > 0 && record.wantedUntil > now && record.acceptedBy.Contains(hunterAccount) && BountyIssuerName(record.issuer) != null));
-            long reward = pirate ? PirateReward(piracy) : 0;
+                (record.issuer.StartsWith("npc:", StringComparison.Ordinal) &&
+                    (!pirateHunter || (record.wantedUntil > now && BountyIssuerName(record.issuer) != null && NpcReward(record) > 0))) ||
+                (record.issuer.StartsWith("faction:", StringComparison.Ordinal) && record.reward > 0 &&
+                    record.wantedUntil > now && record.acceptedBy.Contains(hunterAccount) && BountyIssuerName(record.issuer) != null));
+            long reward = claimPirateReward ? PirateReward(piracy) : 0;
             long factionReward = 0;
             foreach (var record in claimed)
             {
                 if (record.wantedUntil <= now || BountyIssuerName(record.issuer) == null) continue;
-                if (record.issuer.StartsWith("npc:", StringComparison.Ordinal)) { if (!pirate) reward = Math.Max(reward, NpcReward(record)); }
+                if (record.issuer.StartsWith("npc:", StringComparison.Ordinal)) { if (!claimPirateReward) reward = Math.Max(reward, NpcReward(record)); }
                 else factionReward = Session.SaturatingAdd(factionReward, record.reward);
             }
             reward = Session.SaturatingAdd(reward, factionReward);
@@ -575,19 +587,19 @@ namespace GoF2Remake.Multiplayer
             bool oldReduced = pirate && piracy.reducedBounty;
             int oldKills = pirate ? piracy.killsSinceClaim : 0;
             foreach (var record in claimed) bountyFile.records.Remove(record);
-            if (pirate) { piracy.reducedBounty = true; piracy.killsSinceClaim = 0; }
+            if (claimPirateReward) { piracy.reducedBounty = true; piracy.killsSinceClaim = 0; }
             bountyDirty = true;
             if (!SaveBounties())
             {
                 bountyFile.records.AddRange(claimed);
-                if (pirate) { piracy.reducedBounty = oldReduced; piracy.killsSinceClaim = oldKills; }
+                if (claimPirateReward) { piracy.reducedBounty = oldReduced; piracy.killsSinceClaim = oldKills; }
                 bountyDirty = false;
                 return false;
             }
             if (!NetProfiles.MoveCredits(hunter.OwnerClientId, hunterAccount, reward))
             {
                 bountyFile.records.AddRange(claimed);
-                if (pirate) { piracy.reducedBounty = oldReduced; piracy.killsSinceClaim = oldKills; }
+                if (claimPirateReward) { piracy.reducedBounty = oldReduced; piracy.killsSinceClaim = oldKills; }
                 bountyDirty = true;
                 SaveBounties();
                 ReindexBounties();

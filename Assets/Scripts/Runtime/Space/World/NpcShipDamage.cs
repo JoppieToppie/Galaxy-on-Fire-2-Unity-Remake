@@ -17,6 +17,21 @@ namespace GoF2Remake.World
         /// The hull damage itself comes in as an NPC's hit (no standing or kill credit for this game's player).</summary>
         public void OnRemoteHit(ulong client, int dmg)
         {
+            if (dmg <= 0) return;
+            // Pirate NPCs normally spare pirate pilots. Track aggression by client/squad,
+            // not globally: unrelated pirate pilots must remain friendly.
+            if (Race == Standing.Pirate && Modding.ModPvpPiracy.Enabled && !IsWingman && !alwaysFriend && !noFriendlyFire)
+            {
+                if (aggressors.Contains(client)) return;
+                int pirateDamage = (remoteHullDamage.TryGetValue(client, out int prior) ? prior : 0) + dmg;
+                remoteHullDamage[client] = pirateDamage;
+                if (pirateDamage >= Hp.maxHull * Modding.ModPvpPiracy.PirateHullTolerance(Session.IsExtreme))
+                {
+                    aggressors.Add(client);
+                    Wake();
+                }
+                return;
+            }
             if (alwaysEnemy || IsWingman || Race == Standing.Pirate || Race == Standing.Void || Race == Standing.Specter) return;
             // Remake (CapitalShips): a capital ship, its turrets and escorts turn on another player's squad at the first hit.
             if (Spec.capitalEnhanced && (Spec.capital != 0 || Spec.capitalPart)) { aggressors.Add(client); return; }
@@ -31,11 +46,16 @@ namespace GoF2Remake.World
         {
             if (Target.Alive) BreakCloak();
             if (Hp == null || !Target.Alive || Hp.emp <= 0) return;
-            if (!alwaysEnemy && !IsWingman && Race != Standing.Void && Race != Standing.Specter)
+            bool pirateCrew = Race == Standing.Pirate && Modding.ModPvpPiracy.Enabled && !alwaysFriend && !noFriendlyFire;
+            if ((pirateCrew || !alwaysEnemy) && !IsWingman && Race != Standing.Void && Race != Standing.Specter)
             {
                 int total = (remoteEmp.TryGetValue(client, out int e) ? e : 0) + emp;
                 remoteEmp[client] = total;
-                if (total > Hp.maxEmp / 3) aggressors.Add(client);
+                if (pirateCrew ? total >= Hp.maxEmp * Modding.ModPvpPiracy.PirateEmpTolerance(Session.IsExtreme) : total > Hp.maxEmp / 3)
+                {
+                    aggressors.Add(client);
+                    if (pirateCrew) Wake();
+                }
             }
             Hp.DamageEmp(emp);
         }
@@ -176,6 +196,16 @@ namespace GoF2Remake.World
             if (!byNpc && Spec.wantedIndex >= 0) { traffic.AttackWanted(this, dmg); return; }
             // Player::damage 0xafd80: hitting a pirate in Loma arms and alarms them all and revokes the toll.
             if (!byNpc && Race == Standing.Pirate) traffic.LomaPirateHit();
+            if (!byNpc && PirateFriendlyFire)
+            {
+                if (dmg > 0 && !turnedEnemy)
+                {
+                    damageByPlayer += dmg;
+                    if (damageByPlayer >= Hp.maxHull * Modding.ModPvpPiracy.PirateHullTolerance(Session.IsExtreme))
+                        RetaliateAgainstLocalPirate();
+                }
+                return;
+            }
             if (byNpc || alwaysEnemy || noFriendlyFire || IsWingman || Race == Standing.Void || Race == Standing.Specter) return;
             if (Target.hostileToPlayer && !turnedEnemy) return;
             if (Race != traffic.SystemRace && Race != traffic.AttackRace) return;
@@ -197,11 +227,31 @@ namespace GoF2Remake.World
         /// player ("Hold your fire!", Level::friendTurnedEnemy).</summary>
         public void OnPlayerEmp(int emp)
         {
+            if (PirateFriendlyFire)
+            {
+                if (emp > 0 && !turnedEnemy)
+                {
+                    empByPlayer += emp;
+                    if (empByPlayer >= Hp.maxEmp * Modding.ModPvpPiracy.PirateEmpTolerance(Session.IsExtreme))
+                        RetaliateAgainstLocalPirate();
+                }
+                return;
+            }
             if (alwaysEnemy) return;
             if (Race != Standing.Void && Race != Standing.Specter && Spec.wantedIndex >= 0) { traffic.AttackWanted(this, 0); return; }
             if (IsWingman || Race == Standing.Void || Race == Standing.Specter || Race != traffic.SystemRace) return;
             empByPlayer += emp;
             if (empByPlayer > Hp.maxEmp / 3) { turnedEnemy = true; traffic.FriendTurnedEnemy(Race); }
+        }
+
+        bool PirateFriendlyFire => Modding.ModPvpPiracy.Enabled && Race == Standing.Pirate &&
+            !IsWingman && !alwaysFriend && !noFriendlyFire && GameHooks.LocalPilotIsPirate?.Invoke() == true;
+
+        void RetaliateAgainstLocalPirate()
+        {
+            turnedEnemy = true;
+            if (NetSession.Active) aggressors.Add(NetSession.LocalId);
+            Wake();
         }
 
         /// <summary>Player::damageEmp's disable: the system's race all turn hostile (alarmAllFriends(race, false), no radio);

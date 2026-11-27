@@ -17,6 +17,10 @@ namespace GoF2Remake.Modding
         public static int NpcBountyIncrement { get; private set; } = 10000;
         public static int ShipRecoverySeconds { get; private set; } = 1800;
 
+        // Pirate crews are quicker to retaliate than ordinary factions.
+        public static float PirateHullTolerance(bool extreme) => extreme ? 0.05f : 0.10f;
+        public static float PirateEmpTolerance(bool extreme) => extreme ? 0.10f : 0.15f;
+
         public const int DefaultEmergencyShip = 10;
         public static string EmergencyShipReference { get; private set; } = "10";
         static string warnedEmergencyShip;

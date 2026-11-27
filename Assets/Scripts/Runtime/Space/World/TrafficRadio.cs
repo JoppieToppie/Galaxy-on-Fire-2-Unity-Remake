@@ -148,6 +148,8 @@ namespace GoF2Remake.World
                     return;
                 }
             }
+            // Unreported pirate encounters pay locally, unlike reported multiplayer contracts.
+            if (Modding.ModPvpPiracy.Enabled && GameHooks.LocalPilotIsPirate?.Invoke() == true) return;
             Session.Credits += reward;
             BountyCollected?.Invoke(reward);
         }

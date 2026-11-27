@@ -137,20 +137,27 @@ namespace GoF2Remake.Multiplayer
             if (!NetworkManager.ConnectedClients.ContainsKey(killer)) killer = client;
             var team = new List<ulong>();
             var who = NetPlayer.All.Find(p => p != null && p.IsSpawned && p.OwnerClientId == killer);
-            if (who != null && who.SquadId != 0)
+            // Resolve the report even when a pirate kills it, but do not pay that bounty.
+            if (who == null || NetFactions.PirateHunter(who)) return;
+            if (who.SquadId != 0)
                 foreach (var p in NetPlayer.All)
                     if (p != null && p.IsSpawned && p.SquadId == who.SquadId && NetworkManager.ConnectedClients.ContainsKey(p.OwnerClientId))
                         team.Add(p.OwnerClientId);
             if (team.Count == 0) team.Add(killer);
             int share = Mathf.Max(1, bounty / team.Count);
-            foreach (ulong c in team) PirateBountyRpc(share, team.Count, RpcTarget.Single(c, RpcTargetUse.Temp));
+            foreach (ulong c in team)
+            {
+                var recipient = NetSquad.Find(c);
+                if (recipient != null && !NetFactions.PirateHunter(recipient))
+                    PirateBountyRpc(share, team.Count, RpcTarget.Single(c, RpcTargetUse.Temp));
+            }
         }
         /// <summary>A reported pirate's bounty (or this player's share of it, 'shares' > 1: the squad's): the flight HUD's bounty
         /// line in flight, a chat notice for a share.</summary>
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void PirateBountyRpc(int amount, int shares, RpcParams rpc = default)
         {
-            if (amount <= 0) return;
+            if (amount <= 0 || (Modding.ModPvpPiracy.Enabled && NetPlayer.Local?.IsPirate == true)) return;
             var traffic = FindAnyObjectByType<GoF2Remake.World.Traffic>();
             if (traffic != null) traffic.PayBounty(amount);
             else { Session.Credits += amount; GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke(); }

@@ -14,6 +14,12 @@ Piracy and faction bounties are disabled by default. A mod can set `playerKillsF
 - A lounge diplomat can clear your pending NPC kills with their faction and revoke pirate status. PvP kill history for faction bounties and existing bounties survive the deal.
 - `/faction bounties` lists active bounties. A verified player kill claims the target's active bounties and removes them from the board. Outside Secure systems, a pilot who dies with removable, saleable equipment fitted loses one equipped item. In Secure systems, only pilots with active pirate status lose equipment. Security is effective security (including Shima after the pilot's Kaamo siege), not only the initial galaxy table. A protected death does not charge a respawn docking fine; in single-player it saves current progress at the respawn station rather than loading the old autosave or deleting the hardcore run. The rule applies to PvP and other deaths regardless of bounty status. Organized arena matches are exempt. Other pilots can tractor the dropped item using the normal loot controls.
 
+## Pirate friendly fire and bounty eligibility
+
+Pirate NPCs normally spare pirate pilots, but retaliate after accumulated damage reaches 10% of maximum hull (5% on Extreme) or 15% of their EMP pool (10% on Extreme). Local and remote attacks are tracked, with existing squad aggression rules. Script-protected friends and wingmen are excluded. Ordinary faction thresholds and special Loma toll rules remain unchanged.
+
+Pirate pilots may collect active NPC-faction wanted rewards and accepted, funded player-faction contracts. This includes the faction-issued portion of a wanted pirate's bounty, not the general pirate-status bounty. Pirate boss/outpost rewards and general pirate-status rewards are forbidden to pirate hunters. Destroyed boss/outpost reports still resolve; if the killer is a pirate there is no payout. If an eligible killer shares with a squad, pirate members' shares are withheld rather than redistributed. Faction Most Wanted boards for NPC targets remain available.
+
 ## Ship recovery
 
 On a penalized multiplayer death the server removes the active owned hull, cargo and remaining removable equipment into a durable recovery record. One eligible fitted item is still dropped as wreck loot. A bare emergency hull (the Phantom by default) replaces the flown hull; it has zero trade-in value and cannot be stored as an owned hull. Dying again in the loaner does not create another recoverable hull.
