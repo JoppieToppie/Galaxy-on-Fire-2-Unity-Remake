@@ -12,6 +12,22 @@ namespace GoF2Remake.Multiplayer
 {
     public partial class NetState
     {
+        [Rpc(SendTo.Server)]
+        internal void RequestFreightRpc(int orbit, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Request) || !NetGuard.InOrbit(client, orbit) ||
+                RunnerOf(orbit)?.OwnerClientId != client || NetArena.IsArenaOrbit(orbit)) return;
+            FreightManifestRpc(orbit, AdvancedEconomyLedger.FreightManifest(orbit),
+                RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightManifestRpc(int orbit, string manifest, RpcParams rpc = default)
+        {
+            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ApplyFreightManifest(manifest);
+        }
+
         /// <summary>A player docked at 'station': the host's stock there (made now if it has none).</summary>
         [Rpc(SendTo.Server)]
         public void StockRequestRpc(int station, RpcParams rpc = default)
