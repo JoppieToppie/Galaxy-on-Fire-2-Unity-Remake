@@ -73,7 +73,7 @@ namespace GoF2Remake.Multiplayer
                 case "claims": return ClaimsText(arg.Length > 0 ? ByTag(arg) : Of(me));
                 case "siege": return DeclareSiege(client, me);
                 case "sieges": return SiegesText();
-                case "bounties": return BountiesText();
+                case "bounties": return BountiesText(client);
                 case "rival": return SetPiracyRelation(client, me, arg, rival: true, enabled: true);
                 case "unrival": return SetPiracyRelation(client, me, arg, rival: true, enabled: false);
                 case "hostile": return SetPiracyRelation(client, me, arg, rival: false, enabled: true);
