@@ -2,11 +2,28 @@ using System.Linq;
 using GoF2Remake.Modding;
 using GoF2Remake.Multiplayer;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 
 namespace GoF2Remake.Tests
 {
     public class PlayerIdentityTests
     {
+        [TestCase(true)]
+        [TestCase(false)]
+        public void PirateOriginAcceptsBoolean(bool enabled)
+        {
+            var options = new JObject { ["origins"] = new JObject
+                { ["pirates"] = new JObject { ["startingStation"] = 105, ["startAsPirate"] = enabled } } };
+            Assert.DoesNotThrow(() => PlayerIdentity.ValidateOrigins(options));
+        }
+
+        [Test]
+        public void PirateOriginRejectsNonBoolean()
+        {
+            var options = JObject.Parse("{\"origins\":{\"pirates\":{\"startAsPirate\":1}}}");
+            Assert.Throws<ModJsonException>(() => PlayerIdentity.ValidateOrigins(options));
+        }
+
         [Test]
         public void EveryStockRaceHasAValidatedPortrait()
         {
