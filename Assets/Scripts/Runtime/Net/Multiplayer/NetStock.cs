@@ -380,7 +380,7 @@ namespace GoF2Remake.Multiplayer
         // One batch for the entire configured network; unopened shops need no generated dealer or item lists.
         static void TickEconomy(NetState state)
         {
-            if (!AdvancedEconomyLedger.Active || NetPlayerStations.ProfileWritesBlocked) return;
+            if (!AdvancedEconomyLedger.Active || NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.RetryFreightLosses()) return;
             if (nextEconomyTick <= 0) nextEconomyTick = Time.unscaledTime + ModAdvancedEconomy.TickSeconds;
             if (Time.unscaledTime >= nextEconomyTick)
             {
