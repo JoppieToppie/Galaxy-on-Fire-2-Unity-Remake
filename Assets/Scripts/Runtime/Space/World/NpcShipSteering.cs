@@ -505,8 +505,18 @@ namespace GoF2Remake.World
             transform.position += transform.forward * speed * dtMs * M;
             if (speed > 100f)
             {
-                if (Spec.pirateEvent == SpawnSpec.EventBoss && Spec.sightingId >= 0 && NetSession.Active)
-                    SpaceHooks.PirateEscaped?.Invoke(Spec.sightingId, traffic.StationIndex);
+                if (Spec.pirateEvent == SpawnSpec.EventBoss && Spec.sightingId >= 0)
+                {
+                    if (NetSession.Active) SpaceHooks.PirateEscaped?.Invoke(Spec.sightingId, traffic.StationIndex);
+                    else if (!PirateReports.Escape(Database.Shared, PirateReports.Find(Spec.sightingId),
+                        Session.PirateSightings, st => st == traffic.StationIndex))
+                    {
+                        Current = State.Fly;
+                        speed = baseSpeed;
+                        bountyEscapeCharge = 0f;
+                        return;
+                    }
+                }
                 SetDead();
             }
         }
