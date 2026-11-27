@@ -308,7 +308,7 @@ namespace GoF2Remake.Multiplayer
             var pair = shipments.FirstOrDefault(p => p.Value.FreightTag == tag && p.Value.Orbit == orbit);
             if (pair.Value == null) return false;
             string[] keys = pair.Key.Split('|');
-            int recoverable = (int)((long)pair.Value.Amount * ModAdvancedEconomy.FreightSalvagePercent / 100);
+            int recoverable = ModAdvancedEconomy.FreightSalvageAmount(pair.Value.Amount, ModAdvancedEconomy.FreightSalvagePercent);
             bool hasWreck = recoverable > 0 && keys.Length == 3 && NetGuard.Position(position);
             shipments.Remove(pair.Key);
             if (hasWreck)
@@ -363,7 +363,7 @@ namespace GoF2Remake.Multiplayer
                 var keys = pair.Key.Split('|');
                 if (keys.Length != 3 || !ModContent.TryResolveItem(keys[2], out item)) return 0;
                 var ship = pair.Value;
-                amount = Math.Min(ship.Amount, Math.Min(room, requested));
+                amount = ModAdvancedEconomy.FreightClaimAmount(ship.Amount, room, requested);
                 int oldAmount = ship.Amount, oldResale = ship.Resale;
                 ship.Amount -= amount; ship.Resale = Math.Min(ship.Resale, ship.Amount);
                 if (ship.Amount == 0) shipments.Remove(pair.Key);
@@ -378,7 +378,7 @@ namespace GoF2Remake.Multiplayer
             {
                 if (!wrecks.TryGetValue(tag, out var w) || w.Orbit != orbit || w.Expires <= DateTime.UtcNow.Ticks ||
                     (pilot.Position - w.Position).sqrMagnitude > reach * reach || !ModContent.TryResolveItem(w.Item, out item)) return 0;
-                amount = Math.Min(w.Amount, Math.Min(room, requested));
+                amount = ModAdvancedEconomy.FreightClaimAmount(w.Amount, room, requested);
                 int oldAmount = w.Amount;
                 w.Amount -= amount;
                 if (w.Amount == 0) wrecks.Remove(tag);
@@ -394,24 +394,31 @@ namespace GoF2Remake.Multiplayer
 
         // Occupied legs do not advance while a freighter is disabled or still approaching its
         // lane endpoint. Unmaterialized legs use the ordinary lightweight economic clock.
-        static bool FreightLegReady(Database db, Shipment ship)
+        static Dictionary<(int orbit, int tag), NetProxy> PhysicalFreightProxies()
         {
-            if (!Physical || ship.FreightTag == 0 || ship.Orbit < 0 || NetState.RunnerOf(ship.Orbit) == null) return true;
+            var result = new Dictionary<(int, int), NetProxy>();
+            if (!Physical) return result;
             var state = NetState.Instance;
-            if (state == null || state.NetworkManager == null || state.NetworkManager.SpawnManager == null) return true;
+            if (state == null || state.NetworkManager == null || state.NetworkManager.SpawnManager == null) return result;
             foreach (var obj in state.NetworkManager.SpawnManager.SpawnedObjectsList)
             {
                 var proxy = obj.GetComponent<NetProxy>();
-                if (proxy == null || !proxy.IsSpawned || proxy.Station != ship.Orbit || proxy.EventTag != ship.FreightTag ||
-                    !proxy.FlyingNow || proxy.OwnerClientId != NetState.RunnerOf(ship.Orbit)?.OwnerClientId) continue;
-                if (proxy.Status.Has(NetProxyStatus.EmpDisabled)) return false;
-                var route = proxy.Spec?.spec?.route;
-                if (route == null || route.points.Count == 0 || !proxy.ScanVisible) return false;
-                var layout = GoF2Remake.World.OrbitLayout.Build(db, ship.Orbit);
-                Vector3 end = GoF2Remake.World.OrbitLayout.ToUnity(layout.Place(route.points[0]));
-                return NetGuard.Position(proxy.WorldPosition) && (proxy.WorldPosition - end).sqrMagnitude < 500f * 500f;
+                if (proxy == null || !proxy.IsSpawned || !proxy.FlyingNow || !ModAdvancedEconomy.IsFreightTag(proxy.EventTag) ||
+                    NetState.RunnerOf(proxy.Station)?.OwnerClientId != proxy.OwnerClientId) continue;
+                result[(proxy.Station, proxy.EventTag)] = proxy;
             }
-            return true;
+            return result;
+        }
+
+        static bool FreightLegReady(Database db, Shipment ship, Dictionary<(int orbit, int tag), NetProxy> proxies)
+        {
+            if (!proxies.TryGetValue((ship.Orbit, ship.FreightTag), out var proxy)) return true;
+            if (proxy.Status.Has(NetProxyStatus.EmpDisabled)) return false;
+            var route = proxy.Spec?.spec?.route;
+            if (route == null || route.points.Count == 0 || !proxy.ScanVisible) return false;
+            var layout = GoF2Remake.World.OrbitLayout.Build(db, ship.Orbit);
+            Vector3 end = GoF2Remake.World.OrbitLayout.ToUnity(layout.Place(route.points[0]));
+            return NetGuard.Position(proxy.WorldPosition) && (proxy.WorldPosition - end).sqrMagnitude < 500f * 500f;
         }
 
         // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
@@ -483,6 +490,7 @@ namespace GoF2Remake.Multiplayer
                 incoming[key] = (int)Math.Min(ModAdvancedEconomy.MaxStock, (long)total + shipment.Amount);
             }
             var systemPressure = new Dictionary<int, int>();
+            var freightProxies = PhysicalFreightProxies();
             foreach (var route in routes)
             {
                 if (!participates(route.Source) || !participates(route.Destination) ||
@@ -507,7 +515,7 @@ namespace GoF2Remake.Multiplayer
                 incoming.TryGetValue(incomingKey, out int reserved);
                 if (shipments.TryGetValue(key, out var shipment))
                 {
-                    if (!FreightLegReady(db, shipment)) continue;
+                    if (!FreightLegReady(db, shipment, freightProxies)) continue;
                     if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
                     if (shipment.Ticks > 0 || shipment.TotalTicks > 0) UpdateFreight(db, route, shipment, path);
                     if (shipment.Ticks > 0) continue;
