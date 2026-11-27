@@ -503,7 +503,12 @@ namespace GoF2Remake.World
         {
             speed *= Mathf.Pow(1.1f, dtMs / OriginalFrame.Ms);
             transform.position += transform.forward * speed * dtMs * M;
-            if (speed > 100f) SetDead();
+            if (speed > 100f)
+            {
+                if (Spec.pirateEvent == SpawnSpec.EventBoss && Spec.sightingId >= 0 && NetSession.Active)
+                    SpaceHooks.PirateEscaped?.Invoke(Spec.sightingId, traffic.StationIndex);
+                SetDead();
+            }
         }
     }
 }
