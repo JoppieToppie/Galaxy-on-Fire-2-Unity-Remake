@@ -73,7 +73,46 @@ No physical convoy, no coordinate-proximity trade routes, no offline catch-up.
 
 Enable automaticRoutes to discover suppliers for shortages, using shortest reachable paths with deterministic ties, automaticRouteCapacity, maxAutomaticHops, ticksPerHop and automaticRouteWarLossPercent. Explicit routes also discover multi-hop paths. A route without a path pauses in-flight cargo; path reopening resumes it. Enable playerGateRouting separately for directional operational public gates without access restrictions. Gate topology and war classification are refreshed each tick; the highest route pressure determines departure losses. This is abstract transport, not a per-hop physical convoy.
 
-Next phases: reusable named production/consumption profiles, server-authoritative price
-quotes/transactions, scarcity and logistics pricing, player-station integration
-and full economic information UI. Do not
-activate the advanced economy for production servers until these are validated.
+
+## Dynamic pricing and freight
+
+Enable `dynamicPricing` together with `saveInventory` on a persistent profile server.
+Only explicitly managed commodity rows use the server-priced transaction path.
+The host uses the existing station-specific base price, then adds scarcity, war pressure
+and optional weighted import-hop costs, or applies a surplus discount. A configurable
+buy/sell spread prevents same-price round trips. Both the quote and the actual credit/cargo
+transfer are checked on the server; changed quotes are rejected and refreshed. The existing
+station transaction journal contains the economy snapshot, player balances and faction VAT
+targets so interrupted transactions can be replayed without a second debit. Existing player
+profile upload validation still applies; this is not a complete rewrite of profile security.
+
+Settings (all feature switches default false): `dynamicPricing`, `transportCosts`,
+`scarcityMarkupPercent` (100), `surplusDiscountPercent` (30), `warMarkupPercent` (50),
+`transportCostPerHopPercent` (5), `sellSpreadPercent` (10). Prices are bounded between
+10% and 2000% of the underlying list price and int range before faction adjustments.
+The hangar shows buy/sell quotes, stock target, war pressure and weighted import hops.
+
+## Player marketplace procurement
+
+Enable `playerMarketTrade` alongside dynamic pricing and saveInventory. Set
+`playerMarketBudgetPerTick` (default 0 credits) and `playerMarketUnitsPerTick` (100).
+A finance-authorized player-station manager must also opt their station in under
+Marketplace settings or /station npc-market <id> on|off.
+
+After NPC shipments and production/consumption, NPC stations with shortages can buy
+commodity escrow listings from opted-in player stations in the same system. Purchases are
+bounded by deficit, per-tick global credit and unit budgets, and the destination's quoted
+price including marketplace taxes. Escrow, seller/faction proceeds, station taxes and NPC
+stock are journalled together. This is an abstract NPC credit source, not a transfer from
+a player treasury. No private storage, factory stock, ship listings or construction escrow
+is modified. NPC buyers are anonymous; enabling this specific market channel authorizes
+them independently of player-specific access rules. Player-to-player listings remain priced
+by their owners. Cross-system player-market procurement and NPC sales into construction
+orders are not included; player-built gates are already usable for NPC-to-NPC shipments.
+
+## Verification
+
+Edit-mode tests cover stock bounds, zero balances, routing, demand, shipment losses and
+price calculations. Unity compilation, test execution, dedicated-server restart recovery,
+client profile handover and multiplayer price race tests are required before enabling the
+system on production servers. Offline simulation intentionally pauses.

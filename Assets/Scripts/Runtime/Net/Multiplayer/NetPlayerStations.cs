@@ -246,6 +246,7 @@ namespace GoF2Remake.Multiplayer
         public float stationIntegrity, stationIntegrityCapacity;
         public long stationBankCredits;
         public int marketplaceTaxPercent;
+        public bool npcEconomyPurchases;
         public List<PlayerStationMarketRule> marketplacePilotRules;
         public List<PlayerStationPlacement> placements;
         public long offeredForClaimUtc;

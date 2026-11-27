@@ -381,11 +381,14 @@ namespace GoF2Remake.Multiplayer
                         var balance = AdvancedEconomyLedger.Get(station, rule);
                         int next = rule.Advance(balance.Amount, ModAdvancedEconomy.Production, ModAdvancedEconomy.Consumption, Pressure(station));
                         if (next == balance.Amount) continue;
+                        int before = balance.Amount;
                         AdvancedEconomyLedger.Set(station, rule, next, balance.Resale);
+                        if (next > before) balance.ImportHops = (int)Math.Round((long)before * balance.ImportHops / (double)next);
                         changed.Add(station);
                     }
                 }
                 AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed);
+                TickPlayerMarket(Participates, changed);
                 if (ModAdvancedEconomy.DynamicPricing)
                     foreach (int station in ModAdvancedEconomy.Stations)
                         if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
@@ -397,6 +400,60 @@ namespace GoF2Remake.Multiplayer
                     }
             }
             AdvancedEconomyLedger.Flush();
+        }
+
+        // Player listings supply local NPC demand only after the ordinary shipment pass.
+        // This cannot touch personal storage, factories, ships, or construction escrow.
+        static void TickPlayerMarket(Func<int, bool> participates, HashSet<int> changed)
+        {
+            if (!ModAdvancedEconomy.PlayerMarketTrade || !NetProfiles.Enabled ||
+                NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
+                NetPlayerStations.Stations == null) return;
+            long budget = ModAdvancedEconomy.PlayerMarketBudget;
+            int remainingUnits = ModAdvancedEconomy.PlayerMarketUnits;
+            if (budget <= 0 || remainingUnits <= 0) return;
+            var markets = new List<PlayerStationRecord>(NetPlayerStations.Stations);
+            markets.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
+            foreach (int station in ModAdvancedEconomy.Stations)
+            {
+                if (!participates(station)) continue;
+                int system = Shop.SystemOf(db, station);
+                foreach (var rule in ModAdvancedEconomy.At(station).Values)
+                {
+                    if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                    var balance = AdvancedEconomyLedger.Get(station, rule);
+                    if (balance.Amount >= rule.Target) continue;
+                    foreach (var market in markets)
+                    {
+                        if (market == null || market.system != system || !market.npcEconomyPurchases ||
+                            market.listings == null) continue;
+                        // Sort by ask price; the original escrow list is not reordered.
+                        var listings = new List<PlayerStationListing>(market.listings);
+                        listings.Sort((a, b) => (a?.unitPrice ?? long.MaxValue).CompareTo(b?.unitPrice ?? long.MaxValue));
+                        foreach (var listing in listings)
+                        {
+                            if (listing == null || listing.item != rule.Item) continue;
+                            int need = Math.Min(remainingUnits, rule.Target - balance.Amount);
+                            if (need <= 0) break;
+                            int ceiling = HostQuote(station, rule, balance).buy;
+                            int old = balance.Amount, resale = balance.Resale, hops = balance.ImportHops;
+                            int count = NetPlayerStations.PurchaseForNpcEconomy(market, listing, need, ceiling, budget,
+                                units =>
+                                {
+                                    AdvancedEconomyLedger.Set(station, rule, old + units, resale + units);
+                                    balance.ImportHops = (int)Math.Round((long)old * hops / (double)(old + units));
+                                },
+                                () =>
+                                {
+                                    AdvancedEconomyLedger.Set(station, rule, old, resale);
+                                    balance.ImportHops = hops;
+                                }, out long spent);
+                            if (count > 0) { changed.Add(station); budget -= spent; remainingUnits -= count; }
+                            if (NetPlayerStations.ProfileWritesBlocked || budget <= 0 || remainingUnits <= 0) return;
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>A faction station's VAT thins its goods: every row keeps (100 - rate) % of its units (at least 1), the dealer

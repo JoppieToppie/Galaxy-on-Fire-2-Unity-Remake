@@ -1005,7 +1005,10 @@ namespace GoF2Remake.UI
             Flag("tradeDisruption", "War-related shipment losses");
             Flag("dynamicPricing", "Dynamic server prices (requires saved inventory and profiles)");
             Flag("transportCosts", "Import transport costs in dynamic prices");
+            Flag("playerMarketTrade", "Allow opt-in NPC purchases from player marketplaces");
             void Option(string key, string label, int fallback, int min, int max) => Int(scroll, label, Number(key, fallback), min, max, v => { rules[key] = v; MarkDirty(); });
+            Option("playerMarketBudgetPerTick", "NPC player-market credits per tick", 0, 0, 1000000000);
+            Option("playerMarketUnitsPerTick", "NPC player-market units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
             Option("scarcityMarkupPercent", "Maximum scarcity markup (%)", 100, 0, 500);
             Option("surplusDiscountPercent", "Maximum surplus discount (%)", 30, 0, 90);
             Option("warMarkupPercent", "Maximum war price markup (%)", 50, 0, 500);

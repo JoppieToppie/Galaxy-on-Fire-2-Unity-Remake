@@ -25,6 +25,9 @@ namespace GoF2Remake.Modding
         public static int FrontlinePressure { get; private set; } = 50;
         public static int BattlePressure { get; private set; } = 100;
         public static bool DynamicPricing { get; private set; }
+        public static bool PlayerMarketTrade { get; private set; }
+        public static int PlayerMarketBudget { get; private set; }
+        public static int PlayerMarketUnits { get; private set; } = 100;
         public static bool TransportCosts { get; private set; }
         public static int ScarcityMarkup { get; private set; } = 100;
         public static int SurplusDiscount { get; private set; } = 30;
@@ -121,7 +124,8 @@ namespace GoF2Remake.Modding
             routes.Clear();
             RegionalTrade = WarPressure = TradeDisruption = PlayerGateRouting = AutomaticRoutes = false;
             FrontlinePressure = 50; BattlePressure = 100;
-            DynamicPricing = TransportCosts = false;
+            DynamicPricing = TransportCosts = PlayerMarketTrade = false;
+            PlayerMarketBudget = 0; PlayerMarketUnits = 100;
             ScarcityMarkup = 100; SurplusDiscount = 30; WarMarkup = 50; TransportPerHop = 5; SellSpread = 10;
             AutoCapacity = 100; AutoWarLoss = 0; TicksPerHop = 1; MaxAutoHops = 8;
             foreach (var mod in ModManager.Active)
@@ -144,6 +148,9 @@ namespace GoF2Remake.Modding
                     bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
                     bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
                     bool freight = ModJson.Bool(o, "transportCosts", false, File);
+                    bool market = ModJson.Bool(o, "playerMarketTrade", false, File);
+                    int marketBudget = Math.Clamp(ModJson.Int(o, "playerMarketBudgetPerTick", 0, File), 0, 1000000000);
+                    int marketUnits = Math.Clamp(ModJson.Int(o, "playerMarketUnitsPerTick", 100, File), 1, MaxStock);
                     int scarcity = Math.Clamp(ModJson.Int(o, "scarcityMarkupPercent", 100, File), 0, 500);
                     int surplus = Math.Clamp(ModJson.Int(o, "surplusDiscountPercent", 30, File), 0, 90);
                     int warPrice = Math.Clamp(ModJson.Int(o, "warMarkupPercent", 50, File), 0, 500);
@@ -254,6 +261,8 @@ namespace GoF2Remake.Modding
                         SellSpread = spread; TransportCosts = freight; TransportPerHop = freightPrice;
                     }
                     else if (pricing) Debug.LogWarning($"[{mod.Id}] {File}: dynamic pricing requires saveInventory; disabled.");
+                    if (market && pricing && save) { PlayerMarketTrade = true; PlayerMarketBudget = marketBudget; PlayerMarketUnits = marketUnits; }
+                    else if (market) Debug.LogWarning($"[{mod.Id}] {File}: player market trade requires dynamic pricing and saved inventory; disabled.");
                     SimulateUnvisitedStations |= unvisited;
                     Production |= production;
                     Consumption |= consumption;

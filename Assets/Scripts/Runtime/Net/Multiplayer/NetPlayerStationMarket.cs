@@ -382,6 +382,76 @@ namespace GoF2Remake.Multiplayer
             return $"Withdrew {amount:N0} credits from {station.name}'s station bank.";
         }
 
+        internal static string SetNpcEconomyPurchases(NetPlayer by, int id, bool enabled)
+        {
+            if (!Modding.ModAdvancedEconomy.PlayerMarketTrade) return "NPC market procurement is disabled by the server's mod configuration.";
+            var station = Find(id);
+            if (!IsStationContext(by, station, out string account) || !CanManageMarketPolicy(station, account))
+                return "Dock with finance authority to change NPC market procurement.";
+            bool previous = station.npcEconomyPurchases;
+            if (previous == enabled) return enabled ? "NPC purchases are already enabled." : "NPC purchases are already disabled.";
+            station.npcEconomyPurchases = enabled;
+            if (Save()) return enabled ? "NPC purchases enabled for public commodity listings." : "NPC purchases disabled.";
+            station.npcEconomyPurchases = previous;
+            return "The setting could not be saved.";
+        }
+
+        // Optional, budgeted NPC demand. Only existing escrow listings are bought;
+        // the owner's market prices and seller rights are never overridden.
+        internal static int PurchaseForNpcEconomy(PlayerStationRecord station, PlayerStationListing listing,
+            int units, int ceiling, long budget, Action<int> stageStock, Action rollbackStock, out long spent)
+        {
+            spent = 0;
+            if (!NetGame.IsServer || !NetProfiles.Enabled || ProfileWritesBlocked ||
+                !Modding.ModAdvancedEconomy.PlayerMarketTrade || !AdvancedEconomyLedger.CanJournal ||
+                station == null || !station.npcEconomyPurchases || station.retired || station.destroyed ||
+                station.underConstruction || station.reconstructing || station.offeredForClaimUtc > 0 ||
+                StationClosedByCombat(station.stationIndex) || station.listings == null ||
+                listing == null || listing.amount <= 0 || listing.unitPrice <= 0 ||
+                string.IsNullOrEmpty(listing.sellerProfile) || units <= 0 || ceiling <= 0 || budget <= 0 ||
+                !NetGuard.Item(listing.item)) return 0;
+            int index = station.listings.IndexOf(listing);
+            if (index < 0 || listing.unitPrice > ceiling) return 0;
+            units = Math.Min(500, Math.Min(units, listing.amount));
+            // Include ordinary sales tax in the NPC's willingness-to-pay and budget.
+            long total = 0, tax = 0, charge = 0, proceeds = 0;
+            while (units > 0)
+            {
+                total = listing.unitPrice * units;
+                tax = (total * Math.Clamp(station.marketplaceTaxPercent, 0, 10) + 99) / 100;
+                var settlement = StationMarketSettlement(station, null, listing.sellerProfile, total, tax);
+                charge = settlement.charge; proceeds = settlement.proceeds; tax = settlement.ownerRevenue;
+                if (charge > 0 && charge <= budget && charge <= (long)ceiling * units) break;
+                units--;
+            }
+            if (units <= 0 || tax < 0 || proceeds < 0 || station.stationBankCredits > long.MaxValue - tax) return 0;
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            if (proceeds > 0)
+            {
+                if (!string.IsNullOrEmpty(listing.payoutFactionId)) banks.Add((listing.payoutFactionId, proceeds));
+                else credits.Add((listing.sellerProfile, proceeds));
+            }
+            long oldBank = station.stationBankCredits;
+            int oldAmount = listing.amount;
+            station.stationBankCredits += tax;
+            listing.amount -= units;
+            if (listing.amount == 0) station.listings.RemoveAt(index);
+            stageStock(units);
+            if (!CommitProfileTransaction(null, credits, banks, registryOnly: true, economyJson: AdvancedEconomyLedger.Snapshot()))
+            {
+                rollbackStock();
+                station.stationBankCredits = oldBank;
+                listing.amount = oldAmount;
+                if (!station.listings.Contains(listing)) station.listings.Insert(index, listing);
+                return 0;
+            }
+            if (proceeds > 0 && string.IsNullOrEmpty(listing.payoutFactionId))
+                NotifyProfileCreditChange(listing.sellerProfile, proceeds, "NPC marketplace purchase");
+            spent = charge;
+            return units;
+        }
+
         internal static string SetMarketplaceTax(NetPlayer by, int id, int percent)
         {
             var station = Find(id);

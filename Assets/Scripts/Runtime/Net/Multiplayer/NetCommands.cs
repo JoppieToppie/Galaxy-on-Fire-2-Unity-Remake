@@ -745,6 +745,14 @@ namespace GoF2Remake.Multiplayer
                 return NetPlayerStations.SettleMarketplaceShip(by as NetPlayer, shipStation, shipIndex,
                     words[0].Equals("delist-ship", StringComparison.OrdinalIgnoreCase));
             }
+            const string npcMarket = "npc-market ";
+            if (args.StartsWith(npcMarket, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(npcMarket.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId) ||
+                    (words[1] != "on" && words[1] != "off")) return "/station npc-market <id> on|off";
+                return NetPlayerStations.SetNpcEconomyPurchases(by as NetPlayer, stationId, words[1] == "on");
+            }
             const string tax = "tax ";
             if (args.StartsWith(tax, StringComparison.OrdinalIgnoreCase))
             {

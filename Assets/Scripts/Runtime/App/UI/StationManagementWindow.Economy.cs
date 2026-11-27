@@ -37,6 +37,13 @@ namespace GoF2Remake.UI
                 AddSection("MARKETPLACE TAX", "");
                 AddNumber("salesTax", "Sales tax (%)", selected.marketplaceTaxPercent, 0, 10);
                 AddAction("Set marketplace tax", () => Send("/station tax " + id + " " + Value("salesTax")));
+                if (Modding.ModAdvancedEconomy.PlayerMarketTrade)
+                {
+                    AddSection("NPC MARKET PROCUREMENT", "Allows budgeted NPC purchases from public commodity listings at your listed prices. Private storage is untouched.");
+                    AddInfo("NPC purchases", selected.npcEconomyPurchases ? "Enabled" : "Disabled");
+                    AddAction(selected.npcEconomyPurchases ? "Disable NPC purchases" : "Enable NPC purchases",
+                        () => Send("/station npc-market " + id + (selected.npcEconomyPurchases ? " off" : " on")));
+                }
             }
             AddDirectoryPager();
             AddAccountField("marketPilot", "Pilot");
