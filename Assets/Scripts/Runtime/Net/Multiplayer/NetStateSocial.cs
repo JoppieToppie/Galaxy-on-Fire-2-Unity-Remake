@@ -449,7 +449,7 @@ namespace GoF2Remake.Multiplayer
                 {
                     bool secure = NetFactions.SecureForBounties(death.station, victim.OwnerClientId);
                     if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
-                    if (victim.IsWanted) NetFactions.ClaimBounties(victim, death.killer);
+                    if (victim.IsWanted || victim.IsPirate) NetFactions.ClaimBounties(victim, death.killer);
                 }
             }
             victim.RecordDeathRespawn(victim.Station);
@@ -725,7 +725,7 @@ namespace GoF2Remake.Multiplayer
             var pilot = NetSquad.Find(client);
             if (!IsServer || !ProfilesOn || pilot == null || !NetGuard.DockedAt(client, pilot.Station) ||
                 !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
-            string json = JsonUtility.ToJson(NetFactions.PlayerWantedBoard());
+            string json = JsonUtility.ToJson(NetFactions.PlayerWantedBoard(pilot.Station));
             PlayerWantedReplyRpc(json, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
