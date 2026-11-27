@@ -69,6 +69,7 @@ namespace GoF2Remake.Multiplayer
         {
             public string id, name, squad, created, lastSeen;
             public string stationPolicyRace, playerPortrait;
+            public List<string> originCompletedMissions = new List<string>();
             public List<Device> devices = new List<Device>();
             public long worth;     // at the last accepted upload (Worth)
             public float playSeconds;
@@ -220,6 +221,10 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>The player's device controls its profile (a signed-in controller, not a guest or an observer).</summary>
+        internal static bool OriginMissionBlocked(ulong client, string mission) =>
+            Enabled && logins.TryGetValue(client, out var login) &&
+            login.account?.originCompletedMissions?.Contains(mission) == true;
+
         static bool NeedsIdentity(Account account) => account != null && Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled &&
             !PlayerIdentity.IsComplete(account.stationPolicyRace, account.playerPortrait);
 
