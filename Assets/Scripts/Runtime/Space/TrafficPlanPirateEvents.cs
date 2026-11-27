@@ -150,6 +150,12 @@ namespace GoF2Remake.Flight
                         position = at + new Vector3(S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000),
                     });
                 }
+                int capital = Modding.ModNpcFactionWar.PirateCapitalShip;
+                if (capital >= 0 && db.Ships.Exists(x => x.index == capital) && (sighting == null || (sighting.guardLossMask & (1 << 30)) == 0))
+                    list.Add(new SpawnSpec { group = NpcGroup.Guard, race = Standing.Pirate, ship = capital,
+                        modCapital = true, capital = SpawnSpec.CapitalMod, capitalEnhanced = true,
+                        position = at + new Vector3(25000f, 0f, 25000f), alwaysEnemy = true,
+                        pirateEvent = SpawnSpec.EventGuard, sightingId = sightingId, eventTag = sightingId >= 0 ? 700031 : 0 });
                 for (int i = 0; i < OutpostTurretCount[t] && i < OutpostTurrets.Length; i++)
                 {
                     if (sighting != null && (sighting.guardLossMask & (1 << (24 + i))) != 0) continue;
