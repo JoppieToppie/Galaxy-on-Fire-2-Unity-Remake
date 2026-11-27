@@ -421,6 +421,8 @@ namespace GoF2Remake.UI
                 || level.Navigation.PauseMenuOpen || StarMap.IsOpen || MultiplayerWindow.IsOpenAny
                 || (level.SystemJump != null && level.SystemJump.Cinematic)
                 || (health != null && health.Dead) || Time.timeScale <= 0f) return false;
+            // A networked universe does not pause. Never seize flight controls for a tutorial.
+            if (NetSession.Active) return false;
             pauseMenu.Ask(level, GoF2Remake.World.FlightHints.KeyTokens(title + "\n\n" + text), null, null, null, null);
             return true;
         }

@@ -3011,6 +3011,41 @@ Add `tutorials/preIdentity.json` to an active mod. On a multiplayer server using
 
 Use `layout: "column"` (default) or `"cards"` (responsive wrapping cards), and section styles `"text"` (default), `"card"` or `"warning"`. Pages have a title and 1–24 sections, each with text and an optional heading. Up to 20 pages per mod; title/heading limit 120 characters, section text limit 2000 characters. Malformed files are logged and skipped. This is a local UI briefing, not a server-side proof of acknowledgement; do not treat it as authorization. Files in this folder are included in normal mod exports and Mod Builder history.
 
+### Declarative gameplay tutorials
+
+Add `tutorials/gameplay.json` to an active mod. These definitions are data, not Lua, and work without script approval.
+
+```json
+{
+  "tutorials": [
+    {
+      "id": "first_station",
+      "title": "Station facilities",
+      "text": "Visit the hangar to inspect your ship.",
+      "category": "navigation",
+      "trigger": "station",
+      "presentation": "popup",
+      "enabledByDefault": true,
+      "mandatory": false,
+      "repeatable": false,
+      "persistPending": true,
+      "cooldownSeconds": 0
+    }
+  ]
+}
+```
+
+- `trigger`: a discrete game event from the Lua event list, or omit for manual activation. Frame events are forbidden.
+- `presentation`: `popup` or non-blocking `hint` (existing message plate/toast). Multiplayer flight never opens a blocking popup; a pending popup waits for a station interface.
+- `enabledByDefault`: false disables automatic triggering. `mandatory`: true bypasses the optional Tutorial Hints preference, not interface safety. Manual activation also bypasses that preference.
+- `repeatable`: false by default; progress is stored separately from Lua data in the current save when shown. `cooldownSeconds` limits repeatable automatic triggers in the current session.
+- `persistPending`: true retains a pending request across scene changes, until a save restore or mod change. False discards it on scene change.
+- `multiplayer`: optional boolean restricting the tutorial to multiplayer or single-player.
+- `requires`: optional array of tutorial IDs in the same mod which must already have been shown.
+- `category`: optional metadata for organizing definitions; not a rendered handbook.
+- Maximum 256 definitions per mod, 20 pending declarative requests, title 120 characters and body 2000 characters. IDs are scoped to the mod.
+- Lua: `game.tutorialShow(id)` manually queues a definition; `game.tutorialSeen(id)` queries progress. The existing `game.tutorial(id, title, text, repeatable)` still works, but its modal cannot open in multiplayer flight.
+
 ### Mod tutorial popups
 
 Scripts can call `game.tutorial(id, title, text[, repeatable])` from any gameplay event. For example:

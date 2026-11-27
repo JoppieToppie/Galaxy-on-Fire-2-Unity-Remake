@@ -26,6 +26,7 @@ using System.Linq;
 using System.Reflection;
 using GoF2Remake.Data;
 using MoonSharp.Interpreter;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace GoF2Remake.Modding
@@ -191,6 +192,135 @@ LIMITS
   browser, never crash the game. Players are asked before a mod with
   scripts runs.";
 
+        // Declarative tutorials do not execute scripts and are not subject to script approval.
+        // Progress is separate from game.saved so data-only mods can persist it.
+        const string DefinedTutorialFile = "tutorials/gameplay.json";
+        sealed class DefinedTutorial
+        {
+            public string mod, id, title, text, trigger, presentation, category;
+            public string[] requires;
+            public bool enabled, mandatory, repeatable, persistPending;
+            public bool? multiplayer;
+            public float cooldown;
+        }
+
+        static readonly List<DefinedTutorial> definitions = new List<DefinedTutorial>();
+        static readonly List<(DefinedTutorial item, int scene)> definedPending = new List<(DefinedTutorial, int)>();
+        static readonly Dictionary<string, float> definedLast = new Dictionary<string, float>();
+        static int definedRevision = -1;
+        static string DefinedKey(string mod, string id) => "__mod_tutorial/" + mod + "/" + id;
+        static bool DefinedSeen(string mod, string id) => Session.ScriptData.ContainsKey(DefinedKey(mod, id));
+
+        static void ClearDefinedTutorials()
+        {
+            definitions.Clear();
+            definedPending.Clear();
+            definedLast.Clear();
+            definedRevision = -1;
+        }
+
+        static void SyncDefinedTutorials()
+        {
+            if (definedRevision == ModManager.Revision) return;
+            definitions.Clear();
+            definedPending.Clear();
+            definedRevision = ModManager.Revision;
+            foreach (var mod in ModManager.Active)
+            {
+                if (mod.Broken || !mod.Source.Exists(DefinedTutorialFile)) continue;
+                try
+                {
+                    var root = ModJson.Read(mod.Source, DefinedTutorialFile) as JObject;
+                    if (!(root?["tutorials"] is JArray entries) || entries.Count > 256)
+                        throw new FormatException("Expected a tutorials array (maximum 256).");
+                    var ids = new HashSet<string>(StringComparer.Ordinal);
+                    var parsed = new List<DefinedTutorial>();
+                    foreach (var entry in entries)
+                    {
+                        if (!(entry is JObject obj)) throw new FormatException("Tutorial must be an object.");
+                        var t = new DefinedTutorial
+                        {
+                            mod = mod.Id, id = (string)obj["id"], title = (string)obj["title"],
+                            text = (string)obj["text"], trigger = (string)obj["trigger"],
+                            presentation = (string)obj["presentation"] ?? "popup",
+                            category = (string)obj["category"] ?? "",
+                            enabled = (bool?)obj["enabledByDefault"] ?? true,
+                            mandatory = (bool?)obj["mandatory"] ?? false,
+                            repeatable = (bool?)obj["repeatable"] ?? false,
+                            persistPending = (bool?)obj["persistPending"] ?? true,
+                            multiplayer = (bool?)obj["multiplayer"],
+                            cooldown = (float?)obj["cooldownSeconds"] ?? 0,
+                            requires = obj["requires"] == null ? Array.Empty<string>() : obj["requires"].ToObject<string[]>()
+                        };
+                        if (string.IsNullOrWhiteSpace(t.id) || t.id.Length > 128 || t.id.Contains("/") ||
+                            !ids.Add(t.id) || string.IsNullOrWhiteSpace(t.title) || t.title.Length > 120 ||
+                            string.IsNullOrWhiteSpace(t.text) || t.text.Length > 2000 ||
+                            (t.presentation != "popup" && t.presentation != "hint") ||
+                            t.trigger == "update" || t.trigger == "lateUpdate" ||
+                            float.IsNaN(t.cooldown) || float.IsInfinity(t.cooldown) || t.cooldown < 0 ||
+                            t.requires == null || t.requires.Length > 64 ||
+                            t.requires.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 128 || x.Contains("/")))
+                            throw new FormatException("Invalid tutorial definition: " + t.id);
+                        parsed.Add(t);
+                    }
+                    definitions.AddRange(parsed);
+                }
+                catch (Exception e) { Debug.LogWarning("Mod " + mod.Id + " " + DefinedTutorialFile + ": " + e.Message); }
+            }
+        }
+
+        static bool QueueDefined(DefinedTutorial t, bool manual = false)
+        {
+            if ((!manual && !t.enabled) || (!manual && !t.mandatory && !Settings.TutorialHints) ||
+                (t.multiplayer.HasValue && t.multiplayer.Value != NetSession.Active) ||
+                (!manual && !t.repeatable && DefinedSeen(t.mod, t.id)) ||
+                t.requires.Any(id => !DefinedSeen(t.mod, id)) ||
+                definedPending.Count >= 20 || definedPending.Any(p => p.item.mod == t.mod && p.item.id == t.id))
+                return false;
+            if (!manual && definedLast.TryGetValue(DefinedKey(t.mod, t.id), out float last) &&
+                Time.realtimeSinceStartup - last < t.cooldown) return false;
+            definedPending.Add((t, UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle));
+            return true;
+        }
+
+        static void RaiseDefinedTutorials(string name)
+        {
+            if (name == "update" || name == "lateUpdate" || name == "saving" || name == "stop") return;
+            SyncDefinedTutorials();
+            foreach (var t in definitions)
+                if (t.trigger == name) QueueDefined(t);
+        }
+
+        static void ShowDefinedTutorials()
+        {
+            if (definedPending.Count == 0) return;
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            for (int i = 0; i < definedPending.Count; i++)
+            {
+                var pending = definedPending[i];
+                var t = pending.item;
+                if ((!t.persistPending && pending.scene != scene) ||
+                    (t.multiplayer.HasValue && t.multiplayer.Value != NetSession.Active))
+                { definedPending.RemoveAt(i--); continue; }
+                try
+                {
+                    bool shown = t.presentation == "hint"
+                        ? GameHooks.Notice != null && GameHooks.Notice(t.title + ": " + t.text)
+                        : GameHooks.TutorialPopup != null && GameHooks.TutorialPopup(t.title, t.text);
+                    if (!shown) continue;
+                    definedPending.RemoveAt(i);
+                    Session.ScriptData[DefinedKey(t.mod, t.id)] = "true";
+                    definedLast[DefinedKey(t.mod, t.id)] = Time.realtimeSinceStartup;
+                    return;
+                }
+                catch (Exception e)
+                {
+                    definedPending.RemoveAt(i--);
+                    Debug.LogWarning("Mod tutorial " + t.mod + ":" + t.id + ": " + e.Message);
+                }
+            }
+        }
+
         sealed class Tutorial
         {
             public string modId, id, title, text;
@@ -307,6 +437,14 @@ LIMITS
                     if (messages.Count < 20) messages.Add(new Message { text = text, left = 3f });
                     return DynValue.Nil;
                 });
+                Fn(g, "tutorialShow", a =>
+                {
+                    string id = a.AsType(0, "game.tutorialShow", DataType.String).String;
+                    SyncDefinedTutorials();
+                    var t = definitions.FirstOrDefault(x => x.mod == mod.Id && x.id == id);
+                    return DynValue.NewBoolean(t != null && QueueDefined(t, true));
+                });
+                Fn(g, "tutorialSeen", a => DynValue.NewBoolean(DefinedSeen(mod.Id, a.AsType(0, "game.tutorialSeen", DataType.String).String)));
                 Fn(g, "tutorial", a =>
                 {
                     string id = a.AsType(0, "game.tutorial", DataType.String).String.Trim();
