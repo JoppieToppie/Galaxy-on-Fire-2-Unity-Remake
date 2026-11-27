@@ -874,6 +874,9 @@ namespace GoF2Remake.UI
             FlagButton(Row(scroll), T("mbDynamicFrontlines", "Dynamic frontlines"), Bool("dynamicFrontlines", true),
                 v => rules["dynamicFrontlines"] = v, ShowNpcFactionWarRules);
             Note(scroll, "When off, only explicitly selected frontlines can host battles. Exclusions and core protection win.");
+            FlagButton(Row(scroll), T("mbGateOnlyFrontlines", "Gate-only frontlines"), Bool("gateOnlyFrontlines", false),
+                v => rules["gateOnlyFrontlines"] = v, ShowNpcFactionWarRules);
+            Note(scroll, "When enabled, nearby systems without gate links cannot create a frontier. Captured footholds still count.");
             Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, 24, v => { rules["shipsPerSide"] = v; MarkDirty(); });
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
@@ -886,6 +889,7 @@ namespace GoF2Remake.UI
             SystemList("frontlineSystems", "Explicit frontline systems");
             SystemList("excludedSystems", "Excluded systems");
             SystemList("coreSystems", "Protected core systems");
+            SystemList("unprotectedDefaultCores", "Default cores with protection removed");
             Note(scroll, "Explicit frontlines can override built-in hub protection, but not an explicit core, exclusion or maximum security.");
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
