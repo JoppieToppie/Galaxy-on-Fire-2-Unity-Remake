@@ -180,9 +180,9 @@ namespace GoF2Remake.Modding
             if (!Directory.Exists(dir)) return;
             foreach (var f in Directory.GetFiles(dir, "*." + ProjectQuest.Extension))
                 if (!Quests.Any(q => string.Equals(q.Name, Path.GetFileNameWithoutExtension(f), StringComparison.OrdinalIgnoreCase)))
-                    try { File.Delete(f); } catch { }
+                    DeleteSavedFile(f);
             foreach (var f in Directory.GetFiles(dir, "*." + ProjectQuest.LegacyExtension))
-                try { File.Delete(f); } catch { }
+                DeleteSavedFile(f);
         }
         /// <summary>The event graphs made in the Unity Editor (events/*.gof2event): listed, not edited by the builder.</summary>
         public List<string> EventGraphs()
