@@ -10,6 +10,8 @@ namespace GoF2Remake.Modding
     public static class ModNpcFactionWar
     {
         public const string File = "npc-faction-war.json";
+        // Also accept a staged config from older Mod Builder MCP versions that cannot write this root file.
+        public const string StagedFile = "text/npc-faction-war.json";
         public static bool Enabled { get; private set; }
         public static int PirateMoveMin { get; private set; } = 600;
         public static int PirateMoveMax { get; private set; } = 1200;
@@ -51,7 +53,7 @@ namespace GoF2Remake.Modding
             {
                 try
                 {
-                    var value = ModJson.Read(mod.Source, File);
+                    var value = ModJson.Read(mod.Source, mod.Source.Exists(File) ? File : StagedFile);
                     if (value == null) continue;
                     if (!(value is JObject options)) throw new ModJsonException($"{File} must contain an object.");
                     PirateMoveMin = Mathf.Clamp(ModJson.Int(options, "pirateMoveMin", PirateMoveMin, File), 60, 3600);
