@@ -288,6 +288,38 @@ namespace GoF2Remake.Data
         static readonly List<PirateSighting> serverBoard = new List<PirateSighting>();
         static int serverNextId;
 
+        public static string ServerSnapshot()
+        {
+            var copy = JsonUtility.FromJson<Shared>(JsonUtility.ToJson(new Shared { items = serverBoard }));
+            float now = Now;
+            foreach (var item in copy.items)
+            {
+                item.reportedAt -= now;
+                item.expiresAt -= now;
+                if (item.nextMoveAt > 0f) item.nextMoveAt = Mathf.Max(1f, item.nextMoveAt - now);
+            }
+            return JsonUtility.ToJson(copy);
+        }
+
+        public static void ServerRestore(string json)
+        {
+            var saved = JsonUtility.FromJson<Shared>(json)?.items;
+            if (saved == null) return;
+            ServerReset();
+            float now = Now;
+            foreach (var item in saved)
+            {
+                if (item == null || item.done || (!item.established && item.expiresAt <= 0f)) continue;
+                item.reportedAt += now;
+                item.expiresAt += now;
+                if (item.nextMoveAt > 0f) item.nextMoveAt += now;
+                serverBoard.Add(item);
+                serverNextId = Mathf.Max(serverNextId, item.id + 1);
+            }
+        }
+
+        public static string ServerBoardJson() => JsonUtility.ToJson(new Shared { items = serverBoard });
+
         /// <summary>Server, every few seconds: the board kept full and published when it changed. 'publish' writes NetState.</summary>
         public static void ServerTick(Database db, Action<string> publish, Func<int, bool> occupied = null)
         {
