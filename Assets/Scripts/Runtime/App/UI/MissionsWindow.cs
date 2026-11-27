@@ -42,6 +42,8 @@ namespace GoF2Remake.UI
         readonly ScrollView wantedList, wantedScroll;
         readonly Label wantedName, wantedStatus, wantedBounty, wantedText;
         readonly List<Button> wantedRows = new List<Button>();
+        readonly List<Button> contractButtons = new List<Button>();
+        readonly VisualElement contractActions;
         enum Tab { Missions, Wanted, Pirates }
 
         const string PirateHelpEnglish = "Pirate activity\n\nThe authorities report pirate outposts and pirate bosses sighted in the systems. The board names the system but not the station: you have to search its orbits. Each report shows its threat level, the bounty and how long it stays on the board. Destroy the outpost or the boss to collect the bounty.";
@@ -117,6 +119,9 @@ namespace GoF2Remake.UI
             wantedTab = Bind("wantedTab", () => ShowTab(Tab.Wanted));
             pirateTab = Bind("pirateTab", () => ShowTab(Tab.Pirates));
             wantedMap = Bind("wantedMap", () => { if (tab == Tab.Pirates) ShowPirateOnMap(); else ShowWantedOnMap(); });
+            contractActions = new VisualElement();
+            wantedMap.parent.Insert(wantedMap.parent.IndexOf(wantedMap), contractActions);
+            Show(contractActions, false);
             missionsTab.text = T(129).UiCaps();
             wantedTab.text = T(3219).UiCaps();
             pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").UiCaps();
@@ -328,6 +333,7 @@ namespace GoF2Remake.UI
             if (wantedShown)
             {
                 l.AddRange(wantedRows);
+                l.AddRange(contractButtons.FindAll(button => button.enabledSelf));
                 if (wantedMap.style.display != DisplayStyle.None) l.Add(wantedMap);
             }
             else
@@ -394,8 +400,38 @@ namespace GoF2Remake.UI
             menu.Focus(wantedRows.Count > 0 ? wantedRows[Mathf.Max(0, selectedRow)] : close);
         }
 
+        void ClearContractActions()
+        {
+            contractActions.Clear();
+            contractButtons.Clear();
+            Show(contractActions, false);
+        }
+
+        void ShowContractActions(NetFactions.PlayerWantedEntry player)
+        {
+            if (player.contracts == null || player.contracts.Count == 0) return;
+            Show(contractActions, true);
+            foreach (var contract in player.contracts)
+            {
+                var button = new Button();
+                foreach (string cls in wantedMap.GetClasses()) button.AddToClassList(cls);
+                button.text = (contract.accepted ? "ACCEPTED: " : "ACCEPT: ") + contract.issuerName + $" ({contract.reward:N0} CR)";
+                button.SetEnabled(!contract.accepted);
+                button.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+                button.clicked += () =>
+                {
+                    menu.PlayRelease();
+                    menu.ShowDialog($"Accept {contract.issuerName}'s bounty on {player.name} for {contract.reward:N0} credits?", () =>
+                        NetState.Instance?.AcceptPlayerBountyRpc(contract.issuerId, player.name));
+                };
+                contractActions.Add(button);
+                contractButtons.Add(button);
+            }
+        }
+
         void ShowWantedDetails()
         {
+            ClearContractActions();
             var db = level.Database;
             var player = SelectedPlayerWanted;
             if (player != null)
@@ -411,6 +447,7 @@ namespace GoF2Remake.UI
                     Mathf.Max(0, (int)(age / 60)) + " min ago\nReported by: " + player.reporter : T(3229));
                 wantedScroll.scrollOffset = Vector2.zero;
                 Show(wantedMap, known);
+                ShowContractActions(player);
                 return;
             }
             var w = wantedSelected >= 0 && wantedSelected < db.Wanted.Count ? db.Wanted[wantedSelected] : null;
@@ -477,6 +514,7 @@ namespace GoF2Remake.UI
 
         void ShowPirateDetails()
         {
+            ClearContractActions();
             var db = level.Database;
             var s = PirateReports.Find(pirateSelected);
             wantedPortrait.EnableInClassList("portrait-hidden", s == null);
