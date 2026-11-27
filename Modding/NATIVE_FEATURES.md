@@ -181,7 +181,7 @@ Additional piracy settings in piracy.json: `maximumNpcBounty` defaults to 300000
 
 ## Player identities and origins (raceOrigins.json)
 
-A root object configures the server-generated starting profile for a chosen permanent pilot race. Enable player identity through `playerInfrastructure.json` (`playerIdentityEnabled: true`), then opt into the origin file separately with `enabled: true`. No persistent racial stat buffs are implied. Stock races use their recognized race keys and custom races use stable mod:id keys. Void and Specters cannot be selected; a custom race is selectable only with a matching character portrait marked `playerPortrait: true` in characters.json. Give that character a race and portrait path. The server validates the choice; do not trust a client-created start profile.
+A root object configures the server-generated starting profile for a chosen permanent pilot race. Enable player identity through `playerInfrastructure.json` (`playerIdentityEnabled: true`), then opt into the origin file separately with `enabled: true`. No persistent racial stat buffs are implied. Stock races use their recognized race keys and custom races use stable mod:id keys. Void and Specters cannot be selected; a custom race is selectable only with a matching character portrait marked with `playerPortrait` set to true (boolean, default false) in characters.json. Give that character a race and portrait path. The server validates the choice; do not trust a client-created start profile.
 
 | Root key | Meaning |
 |---|---|
@@ -243,6 +243,18 @@ Rules follow active-mod order. These options do not create a custom crew by them
 The native SMEP fighter AI is the gameplay/session option `smepFighterAi` (Settings.SmepFighterAi; default false), not an arbitrary manifest key. It enables the ES2 aim/flight model for eligible ordinary NPC fighters, independent of the global ES2 options. It excludes frigate, freighter, cruiser and carrier classes, freighter/capital specs, stationary objects, turrets and tagged event encounters. The native custom movement is disabled when the target is a protected mobile pilot; capital/freighter-class mobile players are not protected by that special case. Eligible ambient multiplayer fighters favor desktop targets, with mobile targets retained as a fallback. Ordered/mission targets and cloak/EMP restrictions retain their own rules. Test mobile and desktop players, mixed fleets, wingmen, pursuit and collision at different frame rates.
 
 Flight style priority is event > forced multiplayer session style > ship > campaign > enabled new-game option > player setting. Per-hull `flight.rules` override global flight.json values; per-axis zero rules fall back to shared legacy values. Use the main guide's Flight styles / Flight rules sections for the tunable field catalogue. Do not confuse player options with mod content fields or add a Lua patch to intercept every frame simply to enable a native option.
+
+## System population (systems.json)
+
+System entries support `population`, a numeric ambient population multiplier (default 1; clamped to 0–4), and `derelictFreighters`, a boolean (default true). For example, a system entry can contain:
+
+```json
+{ "id": "quiet_frontier", "population": 0.35, "derelictFreighters": false }
+```
+
+These are native system settings, not universal limits on scripted missions or faction-war fleets. Existing systems can also be overridden. Use the normal system entry format and supply its other required fields for a new system.
+
+Legacy mods can still supply `text/npc_population.json` with a `defaultPopulation` number and a `systems` object keyed by system identifier or display name, each containing `population` and/or `derelictFreighters`. Matching ignores case and non-alphanumeric characters. Explicit system fields win over legacy values; the legacy default applies to new systems, while existing system overrides require a matching per-system rule. The legacy custom race ID `miscallaneous` has a special vacant-system default of zero and suppresses derelicts in new empty systems unless explicitly configured. Prefer the direct system fields for new mods.
 
 ## Maintenance and verification
 
