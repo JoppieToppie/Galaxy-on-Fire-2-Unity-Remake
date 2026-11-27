@@ -238,7 +238,7 @@ namespace GoF2Remake.Multiplayer
         {
             var a = index?.accounts.Find(x => x.id == id);
             if (a == null) return;
-            a.worth += delta;
+            a.worth = Math.Max(0L, Session.SaturatingAdd(a.worth, delta));
             SaveIndex();
         }
 
@@ -258,6 +258,14 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Credits the server moved out of (negative) or into a profile: its saved game and its recorded worth.
         /// False, nothing changed, when the saved game hasn't that many. The hosting player's own game only moves the worth
         /// (its profile is written when it leaves).</summary>
+        internal static bool TryApplyCreditDelta(long balance, long delta, out long next)
+        {
+            next = balance;
+            if (balance < 0 || (delta > 0 && balance > long.MaxValue - delta) || delta < -balance) return false;
+            next = balance + delta;
+            return true;
+        }
+
         internal static bool MoveCredits(ulong client, string id, long delta)
         {
             if (id == null || NetPlayerStations.ProfileWritesBlocked) return false;
@@ -265,11 +273,14 @@ namespace GoF2Remake.Multiplayer
             var save = ReadSave(id);
             if (save == null)
             {
-                if (delta < 0) return false;
-                AdjustWorth(id, delta);   // no saved game yet: its first upload carries the credits
+                // The advanced economy must not acknowledge a transfer which exists only
+                // in the client's future upload; a durable profile is required first.
+                if (delta < 0 || Modding.ModAdvancedEconomy.DynamicPricing) return false;
+                AdjustWorth(id, delta);   // legacy: no saved game yet
                 return true;
             }
             long now = Session.SaturatingAdd(save.credits, delta);
+            if (Modding.ModAdvancedEconomy.DynamicPricing && !TryApplyCreditDelta(save.credits, delta, out now)) return false;
             if (now < 0) return false;
             save.credits = now;
             if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
