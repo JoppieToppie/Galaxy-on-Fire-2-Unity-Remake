@@ -191,8 +191,9 @@ namespace GoF2Remake.Multiplayer
             if (ship.TotalTicks == 0) { ship.TotalTicks = Math.Max(1, ship.Ticks); dirty = true; }
             int leg = FreightLeg(ship.TotalTicks, ship.Ticks, systems.Count);
             int orbit = leg == 0 ? route.Source : leg == systems.Count - 1 ? route.Destination :
-                db.Stations.Where(s => s.system == systems[leg] && !Shop.UsesPlayerMarketplace(s.index))
-                    .Select(s => s.index).DefaultIfEmpty(-1).Min();
+                (db.Systems.Find(s => s.index == systems[leg])?.jumpgateStation ?? -1);
+            if (orbit < 0) orbit = db.Stations.Where(s => s.system == systems[leg] && !Shop.UsesPlayerMarketplace(s.index))
+                .Select(s => s.index).DefaultIfEmpty(-1).Min();
             if (systems.Count == 1 && ship.Ticks < ship.TotalTicks) orbit = route.Destination;
             if (ship.Orbit != orbit) { ship.Orbit = orbit; dirty = true; }
         }
@@ -368,7 +369,11 @@ namespace GoF2Remake.Multiplayer
                     var dispatched = new Shipment { Amount = survive, Resale = resaleSurvives,
                         Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)),
                         Hops = Math.Min(96, path.Count - 1) };
-                    if (Physical) UpdateFreight(db, route, dispatched, path);
+                    if (Physical)
+                    {
+                        dispatched.Ticks = Math.Max(dispatched.Ticks, Math.Max(2, path.Count));
+                        UpdateFreight(db, route, dispatched, path);
+                    }
                     shipments[key] = dispatched;
                     incoming[incomingKey] = reserved + survive;
                     dirty = true;
