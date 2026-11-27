@@ -28,6 +28,25 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AStartThatNeverReachedTheMenuPutsTheSkiesBack()
+        {
+            var keys = new[] { "skyStyle", "nebulaClouds", "startupPending" };
+            try
+            {
+                Settings.SkyStyle = Settings.SkyEs2;
+                Settings.NebulaClouds = true;
+                Assert.IsFalse(Settings.GuardStartup(), "the first start: nothing failed before it");
+                Settings.StartupReached();
+                Assert.IsFalse(Settings.GuardStartup(), "the menu came up last time: the skies stay");
+                Assert.AreEqual(Settings.SkyEs2, Settings.SkyStyle);
+                Assert.IsTrue(Settings.GuardStartup(), "the last start hung before the menu (#371)");
+                Assert.AreEqual(Settings.SkyOriginal, Settings.SkyStyle);
+                Assert.IsFalse(Settings.NebulaClouds);
+            }
+            finally { Settings.Reset(keys); }
+        }
+
+        [Test]
         public void ThereAreMoreCloudsUnderFullerSkies()
         {
             Assert.AreEqual(0, NebulaClouds.CountFor(0.01f));

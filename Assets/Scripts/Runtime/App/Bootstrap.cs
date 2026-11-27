@@ -48,6 +48,7 @@ namespace GoF2Remake
             if (Multiplayer.DedicatedServer.Enabled) { Multiplayer.DedicatedServer.Boot(); return; }
             // Remake: an install played before the Original experience became the default keeps its options (once).
             Settings.MigrateExperienceDefaults();
+            if (!Application.isEditor) Settings.GuardStartup();   // a start that hung before the menu: the skies back (#371)
             int editorVSync = QualitySettings.vSyncCount;
             if (Application.isMobilePlatform) Screen.sleepTimeout = SleepTimeout.NeverSleep;   // no screen dimming while playing
             urp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;

@@ -1420,6 +1420,39 @@ namespace GoF2Remake.Data
             cache[key] = value;
         }
 
+        /// <summary>Remake (2026-11-27, #371: "Skies" EVERSPACE 2 style crashed a Realme phone, and every start after hung at
+        /// the loading screen, the option out of reach): each start is marked until the main menu has been up a few seconds
+        /// (StartupReached); a start that finds the mark of one that never got there puts the skies the menu's background
+        /// builds back to the original's. True when it did.</summary>
+        public static bool GuardStartup()
+        {
+            bool failed = PlayerPrefs.GetInt(Prefix + StartupKey, 0) == 1 && (SkyStyle != SkyOriginal || NebulaClouds);
+            if (failed)
+            {
+                WriteQuiet("skyStyle", SkyOriginal);
+                WriteQuiet("nebulaClouds", 0f);
+                Debug.LogWarning("Settings: the last start never reached the main menu: Skies back to Original, Nebula clouds off");
+            }
+            PlayerPrefs.SetInt(Prefix + StartupKey, 1);
+            PlayerPrefs.Save();
+            return failed;
+        }
+
+        /// <summary>The main menu has been up a while: this start worked (GuardStartup).</summary>
+        public static void StartupReached()
+        {
+            if (PlayerPrefs.GetInt(Prefix + StartupKey, 0) == 0) return;
+            PlayerPrefs.SetInt(Prefix + StartupKey, 0);
+            PlayerPrefs.Save();
+        }
+
+        const string StartupKey = "startupPending";
+
+        /// <summary>The dev remote (UI.DevRemote): an option as stored under its key (NaN: never set, its default).</summary>
+        public static float Raw(string key) => PlayerPrefs.HasKey(Prefix + key) ? PlayerPrefs.GetFloat(Prefix + key) : float.NaN;
+        /// <summary>The dev remote: stores an option by its key, past the Graphics tab's staging, and tells the game.</summary>
+        public static void SetRaw(string key, float value) { WriteQuiet(key, value); PlayerPrefs.Save(); RaiseChanged(); }
+
         static void Set(string key, float value, bool force = false)
         {
             if (StagedNow) { Stage(key, value); return; }
