@@ -1004,6 +1004,12 @@ namespace GoF2Remake.UI
             Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
             Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
             Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
+            Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
+            Option("freightTravelMinSeconds", "Abstract jump minimum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
+            Option("freightTravelMaxSeconds", "Abstract jump maximum (seconds)", 90, 1, ModAdvancedEconomy.MaxFreightSeconds);
+            Option("freightUnloadMinSeconds", "Unloading minimum (seconds)", 15, 1, ModAdvancedEconomy.MaxFreightSeconds);
+            Option("freightUnloadMaxSeconds", "Unloading maximum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
+            Option("freightWreckLifetimeSeconds", "Freight wreck lifetime (seconds)", 300, 1, ModAdvancedEconomy.MaxFreightSeconds);
             Option("rhinoFreightSpeedPercent", "Rhino speed (% of normal freighter speed)", 75, 10, 500);
             Option("cormorantFreightSpeedPercent", "Cormorant speed (% of normal freighter speed)", 125, 10, 500);
             RefField(scroll, "Bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
@@ -1036,9 +1042,9 @@ namespace GoF2Remake.UI
             Option("battlePressurePercent", "Active battle pressure (%)", 100, 0, 100);
             Option("automaticRouteCapacity", "Automatic route cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
             Option("automaticRouteWarLossPercent", "Automatic route max wartime loss (%)", 0, 0, 100);
-            Option("ticksPerHop", "Minimum ticks per gate hop", 1, 1, 12);
+            Option("ticksPerHop", "Minimum ticks per gate hop (legacy abstract trade)", 1, 1, 12);
             Option("maxAutomaticHops", "Maximum automatic route hops", 8, 1, 8);
-            Int(scroll, "Tick interval (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
+            Int(scroll, "Station production / consumption tick (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
                 v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
             Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
             var rows = rules["stockRules"] as JArray ?? new JArray();
@@ -1097,7 +1103,7 @@ namespace GoF2Remake.UI
                     Int(scroll, label, int.TryParse(route[key]?.ToString(), out int n) ? n : fallback, min, max,
                         v => { route[key] = v; MarkDirty(); });
                 RouteField("capacity", "Cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
-                RouteField("travelTicks", "Travel time (economy ticks)", 1, 1, 96);
+                RouteField("travelTicks", "Travel time (legacy economy ticks)", 1, 1, 96);
                 RouteField("warLossPercent", "Maximum war loss (%)", 0, 0, 100);
                 Act(scroll, "Remove route", () => { route.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
             }
