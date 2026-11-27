@@ -714,6 +714,30 @@ namespace GoF2Remake.Multiplayer
         {
             if (NetRateLimit.Allow(rpc.Receive.SenderClientId, NetRateLimit.Kind.Mission)) NetFactions.OnCharged(rpc.Receive.SenderClientId, token, paid);
         }
+        public NetFactions.PlayerWantedSnapshot PlayerWanted { get; private set; } = new NetFactions.PlayerWantedSnapshot();
+        public int PlayerWantedRevision { get; private set; }
+        string playerWantedJson;
+
+        [Rpc(SendTo.Server)]
+        public void PlayerWantedRequestRpc(RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            var pilot = NetSquad.Find(client);
+            if (!IsServer || !ProfilesOn || pilot == null || !NetGuard.DockedAt(client, pilot.Station) ||
+                !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
+            string json = JsonUtility.ToJson(NetFactions.PlayerWantedBoard());
+            PlayerWantedReplyRpc(json, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void PlayerWantedReplyRpc(string json, RpcParams rpc = default)
+        {
+            if (json == playerWantedJson) return;
+            PlayerWanted = JsonUtility.FromJson<NetFactions.PlayerWantedSnapshot>(json) ?? new NetFactions.PlayerWantedSnapshot();
+            playerWantedJson = json;
+            PlayerWantedRevision++;
+        }
+
         // ---- the station's Faction / Arena / Profile window (NetPanel) ----------------------------------------
         /// <summary>The window asks for its snapshot.</summary>
         [Rpc(SendTo.Server)]

@@ -22,6 +22,7 @@
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
+using GoF2Remake.Multiplayer;
 using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -47,6 +48,23 @@ namespace GoF2Remake.UI
         Tab tab;
         bool wantedShown => tab != Tab.Missions;   // the list-and-details panel (the Most Wanted's or the pirates')
         int wantedSelected = -1, pirateSelected = -1;
+        string playerWantedSelected;
+        int playerWantedRevision = -1;
+        NetState playerWantedSource;
+        static bool PlayerBoardHere => NetGame.Active && NetState.Instance?.ProfilesOn == true && Modding.ModPvpPiracy.Enabled;
+        NetFactions.PlayerWantedEntry SelectedPlayerWanted => NetState.Instance?.PlayerWanted.entries.Find(e => e.name == playerWantedSelected);
+        void RefreshPlayerWanted()
+        {
+            if (!IsOpen || !PlayerBoardHere) return;
+            var state = NetState.Instance;
+            state.PlayerWantedRequestRpc();
+            if (state != playerWantedSource || playerWantedRevision != state.PlayerWantedRevision)
+            {
+                playerWantedSource = state;
+                playerWantedRevision = state.PlayerWantedRevision;
+                if (tab == Tab.Wanted) FillWanted();
+            }
+        }
 
         static string T(int id) => Localization.Get(id);
 
@@ -103,6 +121,7 @@ namespace GoF2Remake.UI
             wantedTab.text = T(3219).UiCaps();
             pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").UiCaps();
             wantedMap.text = T(424).UiCaps();
+            root.schedule.Execute(RefreshPlayerWanted).Every(3000);
         }
 
         ScrollView Scroll(string name)
@@ -145,6 +164,7 @@ namespace GoF2Remake.UI
             root.AddToClassList("missions-open");
             tab = Tab.Missions;
             Fill();
+            RefreshPlayerWanted();
         }
 
         public void Close()
@@ -154,7 +174,7 @@ namespace GoF2Remake.UI
             menu.OnMissionsClosed();
         }
 
-        bool BoardHere => level.Station != null && WantedBoard.Accessible(level.Database, level.Station.index);
+        bool BoardHere => level.Station != null && (PlayerBoardHere || WantedBoard.Accessible(level.Database, level.Station.index));
 
         /// <summary>The Pirate activity tab: the pirate events on (a session's rule) and they can happen for this pilot yet
         /// (rank 2, campaign 0x10), or a session's board.</summary>
@@ -326,6 +346,8 @@ namespace GoF2Remake.UI
             wantedRows.Clear();
             var list = WantedBoard.ListFor(db, level.Station.index);
             int story = WantedBoard.StorylineRow;
+            var players = PlayerBoardHere ? NetState.Instance.PlayerWanted.entries : new List<NetFactions.PlayerWantedEntry>();
+            if (!players.Exists(e => e.name == playerWantedSelected)) playerWantedSelected = null;
             // WantedWindow::init: the first active entry is selected.
             if (wantedSelected < 0 || !list.Exists(w => w.index == wantedSelected))
                 wantedSelected = (list.Find(w => WantedBoard.State(db, w.index)?.active == true) ?? (list.Count > 0 ? list[0] : null))?.index ?? -1;
@@ -339,20 +361,55 @@ namespace GoF2Remake.UI
                 b.EnableInClassList("wanted-row--active", st != null && st.active);
                 b.EnableInClassList("wanted-row--dead", st != null && st.terminated);
                 b.EnableInClassList("wanted-row--story", index == story);
-                b.EnableInClassList("wanted-row--selected", index == wantedSelected);
+                b.EnableInClassList("wanted-row--selected", playerWantedSelected == null && index == wantedSelected);
                 b.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
-                b.clicked += () => { menu.PlayRelease(); wantedSelected = index; FillWanted(); };
-                b.RegisterCallback<FocusInEvent>(_ => { if (wantedSelected != index) { wantedSelected = index; ShowWantedDetails(); foreach (var r in wantedRows) r.EnableInClassList("wanted-row--selected", r == b); } });
+                b.clicked += () => { menu.PlayRelease(); playerWantedSelected = null; wantedSelected = index; FillWanted(); };
+                b.RegisterCallback<FocusInEvent>(_ => { if (playerWantedSelected != null || wantedSelected != index) { playerWantedSelected = null; wantedSelected = index; ShowWantedDetails(); foreach (var r in wantedRows) r.EnableInClassList("wanted-row--selected", r == b); } });
+                wantedList.Add(b);
+                wantedRows.Add(b);
+            }
+            if (playerWantedSelected == null && list.Count == 0 && players.Count > 0) playerWantedSelected = players[0].name;
+            int selectedRow = playerWantedSelected == null ? list.FindIndex(w => w.index == wantedSelected) : -1;
+            foreach (var entry in players)
+            {
+                var b = new Button { text = (entry.pirate ? "[Pirate] " : "[Wanted] ") + entry.name };
+                b.AddToClassList("wanted-row");
+                b.AddToClassList("gof-semibold");
+                b.EnableInClassList("wanted-row--active", true);
+                b.EnableInClassList("wanted-row--selected", playerWantedSelected == entry.name);
+                if (playerWantedSelected == entry.name) selectedRow = wantedRows.Count;
+                b.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+                b.clicked += () => { menu.PlayRelease(); playerWantedSelected = entry.name; FillWanted(); };
+                b.RegisterCallback<FocusInEvent>(_ =>
+                {
+                    if (playerWantedSelected == entry.name) return;
+                    playerWantedSelected = entry.name;
+                    ShowWantedDetails();
+                    foreach (var row in wantedRows) row.EnableInClassList("wanted-row--selected", row == b);
+                });
                 wantedList.Add(b);
                 wantedRows.Add(b);
             }
             ShowWantedDetails();
-            menu.Focus(wantedRows.Count > 0 ? wantedRows[Mathf.Max(0, list.FindIndex(w => w.index == wantedSelected))] : close);
+            menu.Focus(wantedRows.Count > 0 ? wantedRows[Mathf.Max(0, selectedRow)] : close);
         }
 
         void ShowWantedDetails()
         {
             var db = level.Database;
+            var player = SelectedPlayerWanted;
+            if (player != null)
+            {
+                wantedPortrait.EnableInClassList("portrait-hidden", true);
+                wantedName.text = player.name;
+                wantedStatus.text = player.pirate ? "Player pirate" : "Wanted player";
+                wantedBounty.text = string.IsNullOrEmpty(player.issuers) ? "Piracy notice" : "Bounty issuers: " + player.issuers;
+                var place = db.Stations.Find(s => s.index == player.station);
+                wantedText.text = "Last sighting:\\n" + (place == null ? T(3229) : place.name + " (" + place.systemName + ")");
+                wantedScroll.scrollOffset = Vector2.zero;
+                Show(wantedMap, place != null);
+                return;
+            }
             var w = wantedSelected >= 0 && wantedSelected < db.Wanted.Count ? db.Wanted[wantedSelected] : null;
             var st = w != null ? WantedBoard.State(db, w.index) : null;
             wantedPortrait.EnableInClassList("portrait-hidden", w == null);
@@ -471,6 +528,12 @@ namespace GoF2Remake.UI
         /// <summary>WantedWindow::OnTouchEnd 424: the star map on the criminal's destination (Mission(0, 0, travelsTo)).</summary>
         void ShowWantedOnMap()
         {
+            var player = SelectedPlayerWanted;
+            if (player != null)
+            {
+                if (player.station >= 0) ShowOnMap(player.station, wantedMap);
+                return;
+            }
             var st = WantedBoard.State(level.Database, wantedSelected);
             if (st == null || st.travelsTo < 0) return;
             // WantedWindow: a dummy Mission(0, 0, travelsTo) and setStart(system of lastSeen): the route of the criminal's trip.

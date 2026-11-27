@@ -39,6 +39,49 @@ namespace GoF2Remake.Multiplayer
             public List<PiracyRecord> piracy = new List<PiracyRecord>();
         }
 
+        [Serializable]
+        public sealed class PlayerWantedEntry
+        {
+            public string name, issuers;
+            public bool pirate;
+            public int station = -1;
+            public long seenAt;
+        }
+
+        [Serializable]
+        public sealed class PlayerWantedSnapshot
+        {
+            public List<PlayerWantedEntry> entries = new List<PlayerWantedEntry>();
+        }
+
+        internal static PlayerWantedSnapshot PlayerWantedBoard()
+        {
+            var result = new PlayerWantedSnapshot();
+            if (!PiracyEnabled || bountyFile == null) return result;
+            var accounts = new HashSet<string>(piracyByAccount.Keys, StringComparer.Ordinal);
+            accounts.UnionWith(bountiesByAccount.Keys);
+            long now = UnixNow;
+            foreach (string account in accounts)
+            {
+                bool pirate = piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
+                var issuers = new List<string>();
+                if (bountiesByAccount.TryGetValue(account, out var records))
+                    foreach (var record in records)
+                    {
+                        if (record.wantedUntil <= now) continue;
+                        string issuer = BountyIssuerName(record.issuer);
+                        if (!string.IsNullOrEmpty(issuer)) issuers.Add(issuer);
+                    }
+                if (!pirate && issuers.Count == 0) continue;
+                string name = NetProfiles.AccountName(account);
+                if (string.IsNullOrEmpty(name)) continue;
+                issuers.Sort(StringComparer.OrdinalIgnoreCase);
+                result.entries.Add(new PlayerWantedEntry { name = name, pirate = pirate, issuers = string.Join(", ", issuers) });
+            }
+            result.entries.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.name, b.name));
+            return result;
+        }
+
         const int MaxPiracyWindowSeconds = 365 * 86400;
         const int MaxPiracyKillThreshold = 1000;
         static bool PiracyEnabled => Modding.ModPvpPiracy.Enabled && NetProfiles.Enabled;
