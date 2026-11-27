@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using GoF2Remake.Data;
 using GoF2Remake.Modding;
 using GoF2Remake.Multiplayer;
 using NUnit.Framework;
@@ -6,6 +8,35 @@ namespace GoF2Remake.Tests
 {
     public class AdvancedEconomyTests
     {
+        [Test]
+        public void AbsoluteCargoReplayCannotDuplicateStock()
+        {
+            var cargo = new List<ItemStack> { new ItemStack(10, 7), new ItemStack(10, 3), new ItemStack(11, 4) };
+            Assert.AreEqual(10, NetProfiles.SavedCargoAmount(cargo, 10));
+            NetProfiles.ApplyAbsoluteCargoTarget(cargo, 10, 5);
+            NetProfiles.ApplyAbsoluteCargoTarget(cargo, 10, 5);
+            Assert.AreEqual(5, NetProfiles.SavedCargoAmount(cargo, 10));
+            Assert.AreEqual(1, cargo.FindAll(x => x.item == 10).Count);
+            Assert.AreEqual(4, NetProfiles.SavedCargoAmount(cargo, 11));
+            NetProfiles.ApplyAbsoluteCargoTarget(cargo, 10, 0);
+            NetProfiles.ApplyAbsoluteCargoTarget(cargo, 10, 0);
+            Assert.AreEqual(0, NetProfiles.SavedCargoAmount(cargo, 10));
+        }
+
+        [Test]
+        public void ProfileWorthCannotWrapNegative()
+        {
+            Assert.AreEqual(long.MaxValue, NetAudit.SumWorth(long.MaxValue, 500));
+            Assert.AreEqual(60L, NetAudit.SumWorth(10, 20, 30));
+        }
+
+        [Test]
+        public void EconomyJournalRejectsInvalidSnapshotBeforeSettlement()
+        {
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot("{\"version\":1,\"rows\":[],\"shipments\":[]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot("{\"version\":1,\"rows\":[{\"station\":\"s\",\"item\":\"i\",\"amount\":0,\"resale\":1}]}"));
+        }
+
         [Test]
         public void BulkRoundTripCannotProfitFromItsOwnScarcity()
         {

@@ -282,7 +282,9 @@ namespace GoF2Remake.Multiplayer
         static bool FinishTransaction(StationTransactionJournal journal, bool preserveLiveRegistry = false)
         {
             if (journal.completed) return CleanupCompletedJournal();
-            // Validate the registry before changing any participant's durable balance.
+            // Validate the economy snapshot and registry before changing any participant's durable balance.
+            if (!string.IsNullOrEmpty(journal.advancedEconomyJson) &&
+                !AdvancedEconomyLedger.ValidateJournalSnapshot(journal.advancedEconomyJson)) return false;
             var recovered = JsonUtility.FromJson<Registry>(journal.registryJson);
             if (recovered == null || recovered.stations == null || recovered.jumpgates == null) return false;
             var bankTargets = new Dictionary<string, long>(StringComparer.Ordinal);

@@ -127,3 +127,5 @@ All regional economy phases share one topology and shortest-path cache per tick.
 ## Restricted player-built gates
 
 Enable `restrictedGateRouting` alongside `regionalTrade` and `playerGateRouting` to let authorized gate managers explicitly allow anonymous abstract NPC commerce through restricted gates. The security tab and `/station jumpgate-npc <orbit> on|off` manage this consent. No player access rule is altered. Consent is tied to the current owner; reclaimed gates clear it. Scrapped, unbuilt, destroyed, EMP-disabled or unlinked gates remain unavailable. Unrestricted public routing continues to work independently.
+
+Profile settlement rejects malformed duplicate/integrated cargo rows on advanced-pricing client uploads, uses saturating worth calculations, and replays absolute cargo targets without duplicating rows. Economy journal snapshots are validated before any account is changed. EditMode regression coverage is provided; actual process-kill and restart tests remain required. The general client-authoritative gameplay income model remains unchanged.

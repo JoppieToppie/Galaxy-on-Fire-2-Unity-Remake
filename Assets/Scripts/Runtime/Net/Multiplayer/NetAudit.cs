@@ -38,7 +38,19 @@ namespace GoF2Remake.Multiplayer
         internal struct Parts
         {
             public long credits, ship, equipment, cargo, kaamo, parked;
-            public long Total => credits + ship + equipment + cargo + kaamo + parked;
+            public long Total => SumWorth(credits, ship, equipment, cargo, kaamo, parked);
+        }
+
+        internal static long SumWorth(params long[] values)
+        {
+            long result = 0;
+            foreach (long value in values)
+            {
+                long positive = Math.Max(0L, value);
+                if (result > long.MaxValue - positive) return long.MaxValue;
+                result += positive;
+            }
+            return result;
         }
 
         internal static Parts Of(SaveData s)
@@ -52,15 +64,15 @@ namespace GoF2Remake.Multiplayer
             p.equipment = Items(s.equipment);
             p.cargo = Items(s.cargo);
             p.kaamo = Items(s.kaamoItems);
-            if (s.kaamoShips != null) foreach (var k in s.kaamoShips) if (k != null) p.kaamo += ShipPrice(k.ship) + Items(k.equipment);
-            if (s.hasParkedShip && s.parkedShip != null) p.parked = ShipPrice(s.parkedShip.ship) + Items(s.parkedShip.equipment) + Items(s.parkedShip.cargo);
+            if (s.kaamoShips != null) foreach (var k in s.kaamoShips) if (k != null) p.kaamo = SumWorth(p.kaamo, ShipPrice(k.ship), Items(k.equipment));
+            if (s.hasParkedShip && s.parkedShip != null) p.parked = SumWorth(ShipPrice(s.parkedShip.ship), Items(s.parkedShip.equipment), Items(s.parkedShip.cargo));
             return p;
         }
 
         static long Items(List<ItemStack> list)
         {
             long v = 0;
-            if (list != null) foreach (var st in list) if (st != null && !st.builtIn) v += (long)(NetGame.Db.Item(st.item)?.minPrice ?? 0) * Math.Max(0, st.amount);   // built-ins are the hull's
+            if (list != null) foreach (var st in list) if (st != null && !st.builtIn) v = SumWorth(v, (long)Math.Max(0, NetGame.Db.Item(st.item)?.minPrice ?? 0) * Math.Max(0, st.amount));   // built-ins are the hull's
             return v;
         }
 

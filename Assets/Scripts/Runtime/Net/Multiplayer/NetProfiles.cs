@@ -843,7 +843,28 @@ namespace GoF2Remake.Multiplayer
                     return Shop.CargoOf(item);
             var save = ReadSave(id);
             if (save == null) return -1;
-            return save.cargo?.Find(x => x != null && x.item == item)?.amount ?? 0;
+            return SavedCargoAmount(save.cargo, item);
+        }
+
+        internal static int SavedCargoAmount(List<ItemStack> cargo, int item)
+        {
+            long total = 0;
+            if (cargo != null)
+                foreach (var stack in cargo)
+                    if (stack != null && stack.item == item)
+                    {
+                        if (stack.amount < 0) return -1;
+                        total += stack.amount;
+                        if (total > int.MaxValue) return -1;
+                    }
+            return (int)total;
+        }
+
+        // Absolute targets remove every duplicate row, including on replay after a partial write.
+        internal static void ApplyAbsoluteCargoTarget(List<ItemStack> cargo, int item, int amount)
+        {
+            cargo.RemoveAll(x => x != null && x.item == item);
+            if (amount > 0) cargo.Add(new ItemStack(item, amount));
         }
 
         /// <summary>Set, rather than increment, a saved cargo count. This makes journal replay idempotent.</summary>
@@ -862,19 +883,10 @@ namespace GoF2Remake.Multiplayer
                     break;
                 }
             save.cargo ??= new List<ItemStack>();
-            var stack = save.cargo.Find(x => x != null && x.item == item);
-            int previous = host ? liveBefore : stack?.amount ?? 0;
-            if ((stack?.amount ?? 0) != amount)
-            {
-                if (stack == null && amount > 0) save.cargo.Add(new ItemStack(item, amount));
-                else if (stack != null)
-                {
-                    stack.amount = amount;
-                    if (amount == 0) save.cargo.Remove(stack);
-                }
-                if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false)))
-                    return false;
-            }
+            int previous = host ? liveBefore : SavedCargoAmount(save.cargo, item);
+            if (previous < 0) return false;
+            ApplyAbsoluteCargoTarget(save.cargo, item, amount);
+            if (!Write(ProfilePath(id), JsonUtility.ToJson(save, false))) return false;
 
             if (host)
             {
@@ -1105,15 +1117,7 @@ namespace GoF2Remake.Multiplayer
             if (save == null) return false;
             save.cargo ??= new List<ItemStack>();
             foreach (var pair in cargo)
-            {
-                var stack = save.cargo.Find(x => x != null && x.item == pair.Key);
-                if (stack == null && pair.Value > 0) save.cargo.Add(new ItemStack(pair.Key, pair.Value));
-                else if (stack != null)
-                {
-                    stack.amount = pair.Value;
-                    if (pair.Value == 0) save.cargo.Remove(stack);
-                }
-            }
+                ApplyAbsoluteCargoTarget(save.cargo, pair.Key, pair.Value);
             if (credits.HasValue) save.credits = credits.Value;
             if (ships != null) save.kaamoShips = new List<StoredShip>(ships);
             if (recoveries != null) save.deathRecoveries = new List<DeathRecovery>(recoveries);

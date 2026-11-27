@@ -334,6 +334,12 @@ namespace GoF2Remake.Multiplayer
 
         // The station/profile write-ahead journal includes the entire economy snapshot.
         // Recovery uses absolute targets and therefore cannot debit or credit stock twice.
+        internal static bool ValidateJournalSnapshot(string json)
+        {
+            try { Read(json); ReadShipments(JObject.Parse(json)); return true; }
+            catch (Exception e) { Debug.LogWarning($"Advanced economy: invalid journal snapshot ({e.Message})."); return false; }
+        }
+
         internal static bool PersistJournalSnapshot(string json, bool recover)
         {
             if (string.IsNullOrEmpty(NetProfiles.Folder)) return false;

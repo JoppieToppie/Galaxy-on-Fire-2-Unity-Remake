@@ -334,6 +334,16 @@ namespace GoF2Remake.Multiplayer
                 Reject(login, problem);
                 return;
             }
+            if (!IsHostClient(client) && Modding.ModAdvancedEconomy.DynamicPricing && save.cargo != null)
+            {
+                var seen = new HashSet<int>();
+                foreach (var stack in save.cargo)
+                    if (stack != null && (stack.builtIn || !seen.Add(stack.item)))
+                    {
+                        Reject(login, "your cargo contains duplicate or integrated item rows");
+                        return;
+                    }
+            }
             // Settle the server-observed death before reading the canonical profile.
             // Settlement can replace the profile and invalidate the upload revision.
             var pilot = NetSquad.Find(client);
@@ -434,8 +444,9 @@ namespace GoF2Remake.Multiplayer
             if (save.kaamoShips != null && save.kaamoShips.Exists(k => k.ship == 13 || k.ship == 14 || k.ship == 15)) return "a stored ship nobody can own";
             float minutes = Mathf.Max(0f, Time.realtimeSinceStartup - login.acceptedAt) / 60f;
             long allowed = EarnBurst + (long)(minutes * EarnPerMinute);
-            if (worth - login.account.worth > allowed)
-                return $"its worth grew by {worth - login.account.worth:N0} in {minutes:0.#} minutes (at most {allowed:N0})";
+            long growth = worth - Math.Max(0L, login.account.worth);
+            if (growth > allowed)
+                return $"its worth grew by {growth:N0} in {minutes:0.#} minutes (at most {allowed:N0})";
             return null;
         }
         /// <summary>What a profile owns: credits, the ships (their price) and every item at its lowest price.</summary>
