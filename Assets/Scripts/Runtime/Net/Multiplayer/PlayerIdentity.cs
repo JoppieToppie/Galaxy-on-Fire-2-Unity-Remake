@@ -51,13 +51,10 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
-        // The server builds the initial profile rather than trusting the client's chosen origin.
-        // Return null for an unconfigured race, preserving the normal multiplayer start.
-        internal static SaveData CreateOriginProfile(Database db, int race, string portrait)
+        static JObject FindOrigin(int race, out ModInfo source)
         {
-            if (db == null) return null;
             JObject selected = null;
-            ModInfo source = null;
+            source = null;
             foreach (var mod in ModManager.Active)
             {
                 var token = ModJson.Read(mod.Source, OriginsFile);
@@ -69,6 +66,27 @@ namespace GoF2Remake.Multiplayer
                     if (ModRaces.TryResolve(entry.Name, mod, out int resolved) && resolved == race)
                     { selected = (JObject)entry.Value; source = mod; }
             }
+            return selected;
+        }
+
+        internal static int EmergencyShip(Database db, string raceKey)
+        {
+            if (db != null && TryResolveRace(raceKey, out int race))
+            {
+                var origin = FindOrigin(race, out _);
+                if (origin != null && ModJson.Get(origin, "startingShip") is JToken hull &&
+                    hull.Type == JTokenType.Integer && NetGuard.Ship((int)hull))
+                    return (int)hull;
+            }
+            return ModPvpPiracy.EmergencyShip(db);
+        }
+
+        // The server builds the initial profile rather than trusting the client's chosen origin.
+        // Return null for an unconfigured race, preserving the normal multiplayer start.
+        internal static SaveData CreateOriginProfile(Database db, int race, string portrait)
+        {
+            if (db == null) return null;
+            var selected = FindOrigin(race, out var source);
             if (selected == null) return null;
 
             string Reference(JToken value)
@@ -85,14 +103,32 @@ namespace GoF2Remake.Multiplayer
             bool startAsPirate = ModJson.Bool(selected, "startAsPirate", false, OriginsFile);
             if (startAsPirate && !ModPvpPiracy.Enabled)
                 throw new ModJsonException($"{OriginsFile}: startAsPirate requires enabled piracy.json.");
+            int ship = ModJson.Int(selected, "startingShip", NetGame.StartShip, OriginsFile);
+            if (!NetGuard.Ship(ship)) throw new ModJsonException($"{OriginsFile}: invalid startingShip {ship}.");
+            int credits = ModJson.Int(selected, "startingCredits", NetGame.StartCredits, OriginsFile);
+            if (credits < 0) throw new ModJsonException($"{OriginsFile}: startingCredits must be nonnegative.");
+            var equipment = NetGame.StartEquipment();
+            if (ModJson.Get(selected, "startingEquipment") is JArray loadout)
+            {
+                equipment = new List<ItemStack>();
+                foreach (var stack in loadout)
+                {
+                    if (!(stack is JObject entry)) throw new ModJsonException($"{OriginsFile}: invalid starting equipment.");
+                    int item = ModJson.Int(entry, "item", -1, OriginsFile);
+                    int amount = ModJson.Int(entry, "amount", 1, OriginsFile);
+                    if (item < 0 || db.Item(item) == null || amount <= 0)
+                        throw new ModJsonException($"{OriginsFile}: invalid starting equipment item or amount.");
+                    equipment.Add(new ItemStack(item, amount));
+                }
+            }
             var save = new SaveData
             {
                 originStartAsPirate = startAsPirate,
                 campaign = (int)Campaign.GalaxyOnFire2, campaignMission = Story.LastIndex, freePlay = true,
                 difficulty = Session.DifficultyNormal, economy = (int)NetSession.Economy,
                 station = station, lastDockedStation = station, previousStation = -1,
-                ship = NetGame.StartShip, credits = NetGame.StartCredits,
-                equipment = NetGame.StartEquipment(), cargo = new List<ItemStack>(),
+                ship = ship, credits = credits,
+                equipment = equipment, cargo = new List<ItemStack>(),
                 standing = new[] { 30, 0 }, modRaceStanding = new List<string>(),
                 playerIdentityRace = RaceKey(race), playerIdentityPortrait = portrait,
                 runId = Guid.NewGuid().ToString("N"), graphQuestsDone = new List<string>(),
