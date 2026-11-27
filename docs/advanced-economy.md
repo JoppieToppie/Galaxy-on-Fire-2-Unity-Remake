@@ -69,9 +69,9 @@ classifies frontlines; normal systems have pressure 0, frontline stations defaul
 and stations in active battle systems default to 100. Configure both with frontlinePressurePercent and battlePressurePercent (0–100). Extra consumption scales with pressure.
 Enable `tradeDisruption` as well for deterministic losses on shipments
 according to `warLossPercent` and the higher endpoint's pressure.
-No physical convoy, no coordinate-proximity trade routes, no offline catch-up.
+Physical freight is optional (see below); no coordinate-proximity trade routes or offline catch-up.
 
-Enable automaticRoutes to discover suppliers for shortages, using shortest reachable paths with deterministic ties, automaticRouteCapacity, maxAutomaticHops, ticksPerHop and automaticRouteWarLossPercent. Explicit routes also discover multi-hop paths. A route without a path pauses in-flight cargo; path reopening resumes it. Enable playerGateRouting separately for directional operational public gates without access restrictions. Gate topology and war classification are refreshed each tick; the highest route pressure determines departure losses. This is abstract transport, not a per-hop physical convoy.
+Enable automaticRoutes to discover suppliers for shortages, using shortest reachable paths with deterministic ties, automaticRouteCapacity, maxAutomaticHops, ticksPerHop and automaticRouteWarLossPercent. Explicit routes also discover multi-hop paths. A route without a path pauses in-flight cargo; path reopening resumes it. Enable playerGateRouting separately for directional operational public gates without access restrictions. Gate topology and war classification are refreshed each tick; the highest route pressure determines departure losses. By default this is abstract transport; physical freight can materialize these shipments in occupied orbits.
 
 
 ## Dynamic pricing and freight
@@ -133,3 +133,32 @@ Profile settlement rejects malformed duplicate/integrated cargo rows on advanced
 ## Release verification checklist
 
 Use disposable persistent server profiles and keep copies of the economy and station registry files. Run EditMode AdvancedEconomyTests before multiplayer testing. In a two-client session, race purchases of the last units, attempt stale quotes, test a funded construction order with a partial fill, cancel the remainder, and compare source stock, escrow and delivered quantities. Disconnect during a pending trade and reconnect; the server's persisted balances must prevail. Interrupt a disposable server after durable journal creation, after profile settlement, after writing the economy snapshot and before journal cleanup, then restart each time; compare final cargo, credits, faction VAT, construction escrow and stock against the same uninterrupted control trade. Test public, restricted/consented, owner-transferred, and EMP-disabled gate paths. Run a long session with the intended number of systems and managed rows and profile the economy tick, including journal disk writes. None of these process-kill or load tests is implied by the EditMode regression coverage.
+
+## Physical freight (persistent multiplayer)
+
+Enable physical freight in the Advanced Economy settings of the Mod Builder, or add these fields to the existing advanced economy configuration:
+
+```json
+{
+  "persistentInventory": true,
+  "saveInventory": true,
+  "regionalTrade": true,
+  "automaticRoutes": true,
+  "physicalFreight": true,
+  "automaticRouteCapacity": 2500,
+  "rhinoCapacity": 2500,
+  "cormorantCapacity": 400,
+  "freightPerOrbit": 4,
+  "freightSalvagePercent": 25,
+  "rhinoFreightSpeedPercent": 75,
+  "cormorantFreightSpeedPercent": 125
+}
+```
+
+Physical freight requires a persistent server profile and saved regional inventory. Existing installations retain abstract transport unless opted in. The default hulls are Rhino (51) and Cormorant (36); override the optional `rhinoShip` and `cormorantShip` fields with ship references. NPC freight capacities are independent of purchasable ship stats. A shipment carries a single commodity, with its quantity constrained by supplier surplus, destination deficit and route capacity. Shipments of up to the Cormorant capacity use the light hull; larger shipments use the bulk hull. Set route capacity and stock targets sufficiently high for bulk loads to occur.
+
+The persistent ledger reserves cargo from suppliers, records freight identity, hull fraction, current orbit, cargo remaining and progress, and credits only surviving deliveries. In occupied orbits a bounded number of freighters materialize via the existing NPC network runner, moving between station and gate/arrival lanes. Materialized legs wait for waypoint arrival and EMP recovery; other legs advance through the economy tick, including systems with no players. Some generic ambient freighters are replaced rather than adding traffic indefinitely. The flight is hybrid: exact gate traversal, docking and spatial position continuity are not simulated across every orbit.
+
+EMP-disabled freight can be tractor-stolen. Destroying a freighter cancels its delivery and creates a recoverable wreck with the configured fraction of remaining cargo. Wrecks expire after five minutes. Claims are limited by the ledger's cargo, the claimant's available hold capacity and tractor reach, and journalled with persistent profile changes. NPC combat remains orbit-runner simulated under the existing multiplayer model. Player-market procurement and construction orders remain abstract; escorts and per-faction fleet composition are not implemented by this option.
+
+Suggested multiplayer validation: compare source/destination inventory before and after delivery, theft, destruction and simultaneous salvage attempts; restart during a shipment; transfer orbit ownership; verify both hulls, EMP delays, scaled station/gate approaches and ambient replacement limits.
