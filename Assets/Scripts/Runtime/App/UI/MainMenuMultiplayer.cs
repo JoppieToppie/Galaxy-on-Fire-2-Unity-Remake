@@ -55,7 +55,7 @@ namespace GoF2Remake.UI
             {
                 if (InputMode.Current == InputKind.Gamepad &&
                     (root.focusController?.focusedElement is not VisualElement briefingFocus || !identityBriefing.Contains(briefingFocus)))
-                    identityBriefing.Q<Button>()?.Focus();
+                    identityBriefing.Q<Button>("briefingContinue")?.Focus();
                 return true;
             }
             bool pending = !local && NetProfileClient.IdentitySubmitting;
@@ -411,6 +411,19 @@ namespace GoF2Remake.UI
                 body.style.flexBasis = 0;
                 body.style.minHeight = 0;
                 identityBriefing.Add(body);
+                // Keep long briefings readable without a mouse or touch screen.
+                var scrollControls = new VisualElement();
+                scrollControls.style.flexDirection = FlexDirection.Row;
+                scrollControls.style.flexShrink = 0;
+                identityBriefing.Add(scrollControls);
+                var up = new Button(() => body.scrollOffset = new Vector2(0, Mathf.Max(0, body.scrollOffset.y - body.resolvedStyle.height * 0.75f))) { text = "SCROLL UP" };
+                var down = new Button(() => body.scrollOffset = new Vector2(0, Mathf.Min(body.verticalScroller.highValue, body.scrollOffset.y + body.resolvedStyle.height * 0.75f))) { text = "SCROLL DOWN" };
+                foreach (var button in new[] { up, down })
+                {
+                    button.style.flexGrow = 1;
+                    button.style.minHeight = 36;
+                    scrollControls.Add(button);
+                }
                 var sections = new VisualElement();
                 bool cards = (string)entry.page["layout"] == "cards";
                 sections.style.flexDirection = cards ? FlexDirection.Row : FlexDirection.Column;
@@ -461,7 +474,7 @@ namespace GoF2Remake.UI
                     identityBriefing = null;
                     identityScroll.style.display = DisplayStyle.Flex;
                     FocusIdentityChoice();
-                }) { text = identityBriefingIndex + 1 < pages.Count ? "CONTINUE" : "CONTINUE TO RACE SELECTION" };
+                }) { name = "briefingContinue", text = identityBriefingIndex + 1 < pages.Count ? "CONTINUE" : "CONTINUE TO RACE SELECTION" };
                 var disconnect = new Button(() => NetGame.RefuseJoin("Pilot setup cancelled.")) { text = "DISCONNECT" };
                 foreach (var button in new[] { back, next, disconnect })
                 {
