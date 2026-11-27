@@ -60,6 +60,9 @@ namespace GoF2Remake.Multiplayer
             public long Expires;
         }
         static readonly Dictionary<int, FreightWreck> wrecks = new Dictionary<int, FreightWreck>();
+        static readonly Dictionary<(int orbit, int tag), (int race, Vector3 position)> pendingFreightLosses =
+            new Dictionary<(int, int), (int, Vector3)>();
+        static float nextLossRetry;
         static bool loaded, dirty, readFailed;
         static float nextSave;
         static string path;
@@ -71,7 +74,7 @@ namespace GoF2Remake.Multiplayer
             balances.Clear();
             live.Clear();
             shipments.Clear();
-            wrecks.Clear();
+            wrecks.Clear(); pendingFreightLosses.Clear(); nextLossRetry = 0;
             loaded = dirty = readFailed = false;
             path = null;
             nextSave = 0;
@@ -97,6 +100,7 @@ namespace GoF2Remake.Multiplayer
                     var parsed = Read(json);
                     var cargo = ReadShipments(JObject.Parse(json));
                     var debris = ReadWrecks(JObject.Parse(json));
+                    ValidateFreightIdentities(cargo, debris);
                     foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
                     foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
                     foreach (var pair in debris) wrecks.Add(pair.Key, pair.Value);
@@ -168,10 +172,12 @@ namespace GoF2Remake.Multiplayer
                 if ((tag != 0 && (!ModAdvancedEconomy.IsFreightTag(tag) || result.Values.Any(s => s.FreightTag == tag))) ||
                     orbit < -1 || totalTicks < 0 || totalTicks > 96 || (totalTicks != 0 && totalTicks < ticks))
                     throw new JsonException("Invalid physical freight identity or progress.");
+                int hull = row["hull"] == null ? 65535 : (int)row["hull"];
+                if (hull < 1 || hull > 65535) throw new JsonException("Invalid freight hull fraction.");
                 result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
                     FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks,
                     Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"],
-                    Hull = row["hull"] == null ? 65535 : Math.Clamp((int)row["hull"], 1, 65535) });
+                    Hull = hull });
             }
             return result;
         }
@@ -194,6 +200,13 @@ namespace GoF2Remake.Multiplayer
                 result.Add(tag, new FreightWreck { Orbit = orbit, Amount = amount, Race = race, Item = item, Position = position, Expires = expiry });
             }
             return result;
+        }
+
+        static void ValidateFreightIdentities(Dictionary<string, Shipment> cargo, Dictionary<int, FreightWreck> debris)
+        {
+            foreach (var shipment in cargo.Values)
+                if (shipment.FreightTag != 0 && debris.ContainsKey(shipment.FreightTag))
+                    throw new JsonException("A freight identity cannot be both in transit and wrecked.");
         }
 
         static string RouteKey(ModAdvancedEconomy.Route route)
@@ -264,9 +277,32 @@ namespace GoF2Remake.Multiplayer
             dirty = true;
         }
 
+        // A death can arrive while a station journal blocks profile writes. Do not let
+        // the economic clock deliver that cargo before the death can be settled.
+        internal static void ReportFreightLoss(int orbit, int tag, int race, Vector3 position)
+        {
+            if (!ModAdvancedEconomy.PhysicalFreight || !ModAdvancedEconomy.IsFreightTag(tag)) return;
+            pendingFreightLosses[(orbit, tag)] = (race, position);
+            RetryFreightLosses();
+        }
+
+        internal static bool RetryFreightLosses()
+        {
+            if (pendingFreightLosses.Count == 0) return true;
+            if (!Physical || NetPlayerStations.ProfileWritesBlocked || Time.unscaledTime < nextLossRetry) return false;
+            nextLossRetry = Time.unscaledTime + 1f;
+            foreach (var pair in pendingFreightLosses.ToList())
+            {
+                if (!shipments.Values.Any(s => s.FreightTag == pair.Key.tag && s.Orbit == pair.Key.orbit) ||
+                    LoseFreight(pair.Key.orbit, pair.Key.tag, pair.Value.race, pair.Value.position))
+                    pendingFreightLosses.Remove(pair.Key);
+            }
+            return pendingFreightLosses.Count == 0;
+        }
+
         // A destroyed physical ship cannot later deliver. The absolute ledger is written before
         // accepting the loss; repeated reports and late reports from earlier orbits do nothing.
-        internal static bool LoseFreight(int orbit, int tag, int race, Vector3 position)
+        static bool LoseFreight(int orbit, int tag, int race, Vector3 position)
         {
             if (!Physical || !ModAdvancedEconomy.IsFreightTag(tag) || NetPlayerStations.ProfileWritesBlocked) return false;
             var pair = shipments.FirstOrDefault(p => p.Value.FreightTag == tag && p.Value.Orbit == orbit);
@@ -354,6 +390,28 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             return amount;
+        }
+
+        // Occupied legs do not advance while a freighter is disabled or still approaching its
+        // lane endpoint. Unmaterialized legs use the ordinary lightweight economic clock.
+        static bool FreightLegReady(Database db, Shipment ship)
+        {
+            if (!Physical || ship.FreightTag == 0 || ship.Orbit < 0 || NetState.RunnerOf(ship.Orbit) == null) return true;
+            var state = NetState.Instance;
+            if (state == null || state.NetworkManager == null || state.NetworkManager.SpawnManager == null) return true;
+            foreach (var obj in state.NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                var proxy = obj.GetComponent<NetProxy>();
+                if (proxy == null || !proxy.IsSpawned || proxy.Station != ship.Orbit || proxy.EventTag != ship.FreightTag ||
+                    !proxy.FlyingNow || proxy.OwnerClientId != NetState.RunnerOf(ship.Orbit)?.OwnerClientId) continue;
+                if (proxy.Status.Has(NetProxyStatus.EmpDisabled)) return false;
+                var route = proxy.Spec?.spec?.route;
+                if (route == null || route.points.Count == 0 || !proxy.ScanVisible) return false;
+                var layout = GoF2Remake.World.OrbitLayout.Build(db, ship.Orbit);
+                Vector3 end = GoF2Remake.World.OrbitLayout.ToUnity(layout.Place(route.points[0]));
+                return NetGuard.Position(proxy.WorldPosition) && (proxy.WorldPosition - end).sqrMagnitude < 500f * 500f;
+            }
+            return true;
         }
 
         // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
@@ -449,6 +507,7 @@ namespace GoF2Remake.Multiplayer
                 incoming.TryGetValue(incomingKey, out int reserved);
                 if (shipments.TryGetValue(key, out var shipment))
                 {
+                    if (!FreightLegReady(db, shipment)) continue;
                     if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
                     if (shipment.Ticks > 0 || shipment.TotalTicks > 0) UpdateFreight(db, route, shipment, path);
                     if (shipment.Ticks > 0) continue;
@@ -558,7 +617,7 @@ namespace GoF2Remake.Multiplayer
         // Recovery uses absolute targets and therefore cannot debit or credit stock twice.
         internal static bool ValidateJournalSnapshot(string json)
         {
-            try { Read(json); ReadShipments(JObject.Parse(json)); ReadWrecks(JObject.Parse(json)); return true; }
+            try { Read(json); var root = JObject.Parse(json); ValidateFreightIdentities(ReadShipments(root), ReadWrecks(root)); return true; }
             catch (Exception e) { Debug.LogWarning($"Advanced economy: invalid journal snapshot ({e.Message})."); return false; }
         }
 
@@ -568,6 +627,7 @@ namespace GoF2Remake.Multiplayer
             var parsed = Read(json);
             var cargo = ReadShipments(JObject.Parse(json));
             var debris = ReadWrecks(JObject.Parse(json));
+            ValidateFreightIdentities(cargo, debris);
             string target = Path.Combine(NetProfiles.Folder, "advanced-economy-stock.json");
             if (!NetProfiles.Write(target, json)) return false;
             if (recover && loaded)
