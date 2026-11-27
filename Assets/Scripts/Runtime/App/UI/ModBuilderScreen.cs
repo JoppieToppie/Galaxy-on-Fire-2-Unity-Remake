@@ -999,8 +999,17 @@ namespace GoF2Remake.UI
             Flag("stationProduction", "Station production");
             Flag("stationConsumption", "Station consumption");
             Flag("regionalTrade", "Abstract regional trade");
+            Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
+            Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
             Flag("warPressure", "Frontline commodity demand");
             Flag("tradeDisruption", "War-related shipment losses");
+            void Option(string key, string label, int fallback, int min, int max) => Int(scroll, label, Number(key, fallback), min, max, v => { rules[key] = v; MarkDirty(); });
+            Option("frontlinePressurePercent", "Frontline pressure (%)", 50, 0, 100);
+            Option("battlePressurePercent", "Active battle pressure (%)", 100, 0, 100);
+            Option("automaticRouteCapacity", "Automatic route cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
+            Option("automaticRouteWarLossPercent", "Automatic route max wartime loss (%)", 0, 0, 100);
+            Option("ticksPerHop", "Minimum ticks per gate hop", 1, 1, 12);
+            Option("maxAutomaticHops", "Maximum automatic route hops", 8, 1, 8);
             Int(scroll, "Tick interval (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
                 v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
             Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
@@ -1086,7 +1095,7 @@ namespace GoF2Remake.UI
                     }, e => e.type == 4);
                 }, e => e.value != source.value);
             }), "mbv-add");
-            Note(scroll, "Routes require managed stock for the commodity at both stations and a same-system or direct jumpgate connection. Invalid routes are reported on reload. Dynamic pricing will follow.");
+            Note(scroll, "Routes require managed stock for the commodity at both stations and an operational path through the jumpgate network. Invalid routes are reported on reload. Dynamic pricing will follow.");
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
         }

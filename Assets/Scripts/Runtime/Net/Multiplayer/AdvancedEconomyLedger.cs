@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
 using Newtonsoft.Json;
@@ -159,8 +160,62 @@ namespace GoF2Remake.Multiplayer
         {
             if (!ModAdvancedEconomy.RegionalTrade) return;
             Load();
+            var graph = AdvancedEconomyRoutes.Build(db);
+            var routes = ModAdvancedEconomy.Routes.ToList();
+            var keys = new HashSet<string>(routes.Select(RouteKey));
+            // Restore previously dispatched automatic routes even if they no longer have
+            // a surplus. A disconnected route keeps its cargo until a path reopens.
+            if (ModAdvancedEconomy.AutomaticRoutes)
+            {
+                foreach (string key in shipments.Keys)
+                {
+                    var parts = key.Split('|');
+                    if (parts.Length != 3 || !ModWorld.TryResolveStation(parts[0], out int source) ||
+                        !ModWorld.TryResolveStation(parts[1], out int destination) ||
+                        !ModContent.TryResolveItem(parts[2], out int item)) continue;
+                    var route = new ModAdvancedEconomy.Route(source, destination, item,
+                        ModAdvancedEconomy.AutoCapacity, 1, ModAdvancedEconomy.AutoWarLoss);
+                    if (keys.Add(key)) routes.Add(route);
+                }
+                // Discover destinations with deficits and sources with surpluses, grouped
+                // by commodity. Only one automatically selected supplier per deficit per tick.
+                var suppliers = new Dictionary<int, List<int>>();
+                var deficits = new List<(int station, int item)>();
+                foreach (int station in ModAdvancedEconomy.Stations.OrderBy(s => s))
+                {
+                    if (!participates(station)) continue;
+                    foreach (var rule in ModAdvancedEconomy.At(station).Values.OrderBy(r => r.Item))
+                    {
+                        if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                        int amount = Get(station, rule).Amount;
+                        if (amount > rule.Target)
+                        {
+                            if (!suppliers.TryGetValue(rule.Item, out var sources))
+                                suppliers[rule.Item] = sources = new List<int>();
+                            sources.Add(station);
+                        }
+                        else if (amount < rule.Target) deficits.Add((station, rule.Item));
+                    }
+                }
+                foreach (var deficit in deficits)
+                {
+                    if (!suppliers.TryGetValue(deficit.item, out var sources)) continue;
+                    int destinationSystem = Shop.SystemOf(db, deficit.station);
+                    int best = -1, bestHops = int.MaxValue;
+                    foreach (int source in sources)
+                    {
+                        var path = graph.Path(Shop.SystemOf(db, source), destinationSystem);
+                        if (path == null || path.Count - 1 > ModAdvancedEconomy.MaxAutoHops || path.Count - 1 >= bestHops) continue;
+                        best = source; bestHops = path.Count - 1;
+                    }
+                    if (best < 0) continue;
+                    var route = new ModAdvancedEconomy.Route(best, deficit.station, deficit.item,
+                        ModAdvancedEconomy.AutoCapacity, 1, ModAdvancedEconomy.AutoWarLoss);
+                    if (keys.Add(RouteKey(route))) routes.Add(route);
+                }
+            }
             var incoming = new Dictionary<(int station, int item), int>();
-            foreach (var route in ModAdvancedEconomy.Routes)
+            foreach (var route in routes)
             {
                 if (!participates(route.Source) || !participates(route.Destination)) continue;
                 if (!shipments.TryGetValue(RouteKey(route), out var shipment)) continue;
@@ -168,7 +223,8 @@ namespace GoF2Remake.Multiplayer
                 incoming.TryGetValue(key, out int total);
                 incoming[key] = (int)Math.Min(ModAdvancedEconomy.MaxStock, (long)total + shipment.Amount);
             }
-            foreach (var route in ModAdvancedEconomy.Routes)
+            var systemPressure = new Dictionary<int, int>();
+            foreach (var route in routes)
             {
                 if (!participates(route.Source) || !participates(route.Destination) ||
                     !ModAdvancedEconomy.Eligible(db, route.Item)) continue;
@@ -176,6 +232,15 @@ namespace GoF2Remake.Multiplayer
                 var to = ModAdvancedEconomy.At(route.Destination);
                 if (from == null || to == null || !from.TryGetValue(route.Item, out var sourceRule) ||
                     !to.TryGetValue(route.Item, out var destinationRule)) continue;
+                var path = graph.Path(Shop.SystemOf(db, route.Source), Shop.SystemOf(db, route.Destination));
+                if (path == null) continue;
+                int routePressure = Math.Max(pressure(route.Source), pressure(route.Destination));
+                foreach (int system in path)
+                {
+                    if (!systemPressure.TryGetValue(system, out int p))
+                        systemPressure[system] = p = ModAdvancedEconomy.SystemPressure(db, system);
+                    routePressure = Math.Max(routePressure, p);
+                }
                 var source = Get(route.Source, sourceRule);
                 var destination = Get(route.Destination, destinationRule);
                 string key = RouteKey(route);
@@ -205,13 +270,13 @@ namespace GoF2Remake.Multiplayer
                 if (send <= 0) continue;
                 int resaleSent = Math.Min(send, source.Resale);
                 int survive = ModAdvancedEconomy.SurvivingCargo(send, route.WarLossPercent,
-                    Math.Max(pressure(route.Source), pressure(route.Destination)));
+                    routePressure);
                 Set(route.Source, sourceRule, source.Amount - send, source.Resale - resaleSent);
                 changed.Add(route.Source);
                 if (survive > 0)
                 {
                     int resaleSurvives = Math.Min(resaleSent, survive);
-                    shipments[key] = new Shipment { Amount = survive, Resale = resaleSurvives, Ticks = route.TravelTicks };
+                    shipments[key] = new Shipment { Amount = survive, Resale = resaleSurvives, Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)) };
                     incoming[incomingKey] = reserved + survive;
                     dirty = true;
                 }

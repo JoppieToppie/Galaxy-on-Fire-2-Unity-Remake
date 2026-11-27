@@ -48,8 +48,7 @@ excluded. No configuration is automatically installed or activated.
 
 Enable `regionalTrade` to process directed `tradeRoutes` (default false). Both
 endpoints must have a managed stock rule for the commodity. Each route links
-distinct NPC stations in the same system or directly connected by existing
-jumpgate links. The source exports surplus above target, capped by capacity
+distinct NPC stations with a reachable path through the jumpgate graph. The source exports surplus above target, capped by capacity
 and the destination's shortfall, including reserved incoming cargo.
 
 Example route (replace references with actual station and commodity IDs):
@@ -66,13 +65,15 @@ stations must have generated shops before the route operates.
 
 Enable `warPressure` for category-specific extra demand via each commodity
 row's `warDemandPerTick` (default 0). The existing NPC faction campaign
-classifies frontlines; normal systems have pressure 0, frontline stations 50
-and stations in active battles 100. Extra consumption scales with pressure.
+classifies frontlines; normal systems have pressure 0, frontline stations default to 50
+and stations in active battle systems default to 100. Configure both with frontlinePressurePercent and battlePressurePercent (0–100). Extra consumption scales with pressure.
 Enable `tradeDisruption` as well for deterministic losses on shipments
 according to `warLossPercent` and the higher endpoint's pressure.
 No physical convoy, no coordinate-proximity trade routes, no offline catch-up.
 
+Enable automaticRoutes to discover suppliers for shortages, using shortest reachable paths with deterministic ties, automaticRouteCapacity, maxAutomaticHops, ticksPerHop and automaticRouteWarLossPercent. Explicit routes also discover multi-hop paths. A route without a path pauses in-flight cargo; path reopening resumes it. Enable playerGateRouting separately for directional operational public gates without access restrictions. Gate topology and war classification are refreshed each tick; the highest route pressure determines departure losses. This is abstract transport, not a per-hop physical convoy.
+
 Next phases: reusable named production/consumption profiles, server-authoritative price
 quotes/transactions, scarcity and logistics pricing, player-station integration
-and dynamic player-built gate routing. Do not
+and full economic information UI. Do not
 activate the advanced economy for production servers until these are validated.

@@ -500,6 +500,18 @@ namespace GoF2Remake.Multiplayer
 
         // A player-built gate travels in its configured direction. Respawn routing must
         // consider the actual pilot's permissions, not the public reciprocal habitation graph.
+        // Anonymous NPC freight may use only unrestricted operational public gates.
+        internal static IEnumerable<(int from, int to)> PublicEconomyGateRoutes()
+        {
+            if (!NetGame.IsServer || registry?.jumpgates == null) yield break;
+            foreach (var gate in registry.jumpgates)
+                if (gate != null && gate.accessMode == PlayerJumpgateAccessMode.Everyone &&
+                    (gate.raceAccess == null || gate.raceAccess.Count == 0) &&
+                    (gate.blacklist == null || gate.blacklist.Count == 0) &&
+                    JumpgateAccessAllowed(gate, null, null))
+                    yield return (gate.system, gate.destinationSystem);
+        }
+
         internal static Dictionary<int, List<int>> AccessiblePlayerGateRoutes(string account, string factionId)
         {
             var routes = new Dictionary<int, List<int>>();

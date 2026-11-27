@@ -22,6 +22,14 @@ namespace GoF2Remake.Modding
         public static bool WarPressure { get; private set; }
         public static bool TradeDisruption { get; private set; }
         public static int TickSeconds { get; private set; } = 900;
+        public static int FrontlinePressure { get; private set; } = 50;
+        public static int BattlePressure { get; private set; } = 100;
+        public static bool PlayerGateRouting { get; private set; }
+        public static bool AutomaticRoutes { get; private set; }
+        public static int AutoCapacity { get; private set; } = 100;
+        public static int AutoWarLoss { get; private set; }
+        public static int TicksPerHop { get; private set; } = 1;
+        public static int MaxAutoHops { get; private set; } = 8;
 
         public sealed class Rule
         {
@@ -90,7 +98,9 @@ namespace GoF2Remake.Modding
             TickSeconds = 900;
             rules.Clear();
             routes.Clear();
-            RegionalTrade = WarPressure = TradeDisruption = false;
+            RegionalTrade = WarPressure = TradeDisruption = PlayerGateRouting = AutomaticRoutes = false;
+            FrontlinePressure = 50; BattlePressure = 100;
+            AutoCapacity = 100; AutoWarLoss = 0; TicksPerHop = 1; MaxAutoHops = 8;
             foreach (var mod in ModManager.Active)
             {
                 if (mod == null || mod.IsBase) continue;
@@ -109,6 +119,14 @@ namespace GoF2Remake.Modding
                     bool trade = ModJson.Bool(o, "regionalTrade", false, File);
                     bool war = ModJson.Bool(o, "warPressure", false, File);
                     bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
+                    bool playerGates = ModJson.Bool(o, "playerGateRouting", false, File);
+                    bool automatic = ModJson.Bool(o, "automaticRoutes", false, File);
+                    int frontline = Math.Clamp(ModJson.Int(o, "frontlinePressurePercent", 50, File), 0, 100);
+                    int battle = Math.Clamp(ModJson.Int(o, "battlePressurePercent", 100, File), 0, 100);
+                    int capacityAuto = Math.Clamp(ModJson.Int(o, "automaticRouteCapacity", 100, File), 1, MaxStock);
+                    int lossAuto = Math.Clamp(ModJson.Int(o, "automaticRouteWarLossPercent", 0, File), 0, 100);
+                    int hopTicks = Math.Clamp(ModJson.Int(o, "ticksPerHop", 1, File), 1, 12);
+                    int maxHops = Math.Clamp(ModJson.Int(o, "maxAutomaticHops", 8, File), 1, 8);
                     int interval = Math.Clamp(ModJson.Int(o, "tickIntervalSeconds", 900, File), 60, 86400);
                     var parsed = new Dictionary<(int station, int item), Rule>();
                     var systemDefaults = new Dictionary<(int station, int item), Rule>();
@@ -183,9 +201,8 @@ namespace GoF2Remake.Modding
                                 throw new ModJsonException(File + ": unknown trade route reference");
                             var a = db.Stations.Find(s => s.index == source);
                             var b = db.Stations.Find(s => s.index == destination);
-                            if (source == destination || a == null || b == null || db.Item(item)?.TypeId != 4 ||
-                                !GateLinked(db, a.system, b.system))
-                                throw new ModJsonException(File + ": trade route requires distinct stations in the same or gate-linked systems");
+                            if (source == destination || a == null || b == null || db.Item(item)?.TypeId != 4)
+                                throw new ModJsonException(File + ": trade route requires distinct stations and a commodity");
                             int capacity = ModJson.Int(row, "capacity", 100, File);
                             int ticks = ModJson.Int(row, "travelTicks", 1, File);
                             int loss = ModJson.Int(row, "warLossPercent", 0, File);
@@ -206,6 +223,14 @@ namespace GoF2Remake.Modding
                     RegionalTrade |= trade;
                     WarPressure |= war;
                     TradeDisruption |= disruption;
+                    if (war) { FrontlinePressure = frontline; BattlePressure = battle; }
+                    if (trade)
+                    {
+                        PlayerGateRouting |= playerGates;
+                        AutomaticRoutes |= automatic;
+                        TicksPerHop = hopTicks;
+                        if (automatic) { AutoCapacity = capacityAuto; AutoWarLoss = disruption ? lossAuto : 0; MaxAutoHops = maxHops; }
+                    }
                     foreach (var pair in parsedRoutes) routes[pair.Key] = pair.Value;
                     TickSeconds = interval;
                     foreach (var pair in parsed)
@@ -227,8 +252,19 @@ namespace GoF2Remake.Modding
             if (!WarPressure || !ModNpcFactionWar.Enabled || NpcFactionWar.NetworkCampaign == null) return 0;
             int system = Shop.SystemOf(db, station);
             var data = db.Systems.Find(s => s.index == system);
-            if (NpcFactionWar.TryGetBattleStatus(system, station, out _)) return 100;
-            return NpcFactionWar.NetworkCampaign.IsFrontline(db, data) ? 50 : 0;
+            if (NpcFactionWar.TryGetBattleStatus(system, station, out _)) return BattlePressure;
+            return SystemPressure(db, system);
+        }
+
+        public static int SystemPressure(Database db, int system)
+        {
+            if (!WarPressure || !ModNpcFactionWar.Enabled || NpcFactionWar.NetworkCampaign == null) return 0;
+            var data = db.Systems.Find(s => s.index == system);
+            if (data == null) return 0;
+            if (data.stations != null)
+                foreach (int station in data.stations)
+                    if (NpcFactionWar.TryGetBattleStatus(system, station, out _)) return BattlePressure;
+            return NpcFactionWar.NetworkCampaign.IsFrontline(db, data) ? FrontlinePressure : 0;
         }
 
         public static bool Eligible(Database db, int item) =>

@@ -7,6 +7,21 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void RoutingDiscoversMultiHopAndHonoursDirection()
+        {
+            var graph = new AdvancedEconomyRoutes();
+            graph.Add(1, 2);
+            graph.Add(2, 3);
+            graph.Add(1, 4);
+            graph.Add(4, 5);
+            graph.Add(5, 3);
+            CollectionAssert.AreEqual(new[] { 1, 2, 3 }, graph.Path(1, 3));
+            Assert.IsNull(graph.Path(3, 1));
+            graph.Add(1, 3);
+            CollectionAssert.AreEqual(new[] { 1, 3 }, graph.Path(1, 3));
+        }
+
+        [Test]
         public void TradeUsesOnlySurplusAndDoesNotOversupplyTarget()
         {
             Assert.AreEqual(0, ModAdvancedEconomy.DispatchAmount(100, 100, 0, 100, 50));
