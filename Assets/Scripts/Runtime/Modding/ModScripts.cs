@@ -334,6 +334,7 @@ namespace GoF2Remake.Modding
             readonly List<Timer> timers = new List<Timer>();
             readonly List<Action> undo = new List<Action>();
             readonly Dictionary<int, Action> undoById = new Dictionary<int, Action>();
+            readonly Stack<MoonSharp.Interpreter.Coroutine> spare = new Stack<MoonSharp.Interpreter.Coroutine>();   // finished, for Call to reuse
             int nextId = 1;
             bool stopped;
 
@@ -376,7 +377,7 @@ namespace GoF2Remake.Modding
                 stopped = true;
                 for (int i = undo.Count - 1; i >= 0; i--)
                     try { undo[i](); } catch (Exception e) { Debug.LogWarning($"Mod script {mod.Id}: undoing a hook: {e.Message}"); }
-                undo.Clear(); undoById.Clear(); handlers.Clear(); timers.Clear();
+                undo.Clear(); undoById.Clear(); handlers.Clear(); timers.Clear(); spare.Clear();
                 StopMore();   // its components, textures, waiting functions and commands; game.config written
                 if (script != null) byScript.Remove(script);
             }
@@ -395,9 +396,13 @@ namespace GoF2Remake.Modding
             {
                 ok = false;
                 if (stopped || fn == null || (fn.Type != DataType.Function && fn.Type != DataType.ClrFunction)) return DynValue.Nil;
+                MoonSharp.Interpreter.Coroutine co = null;
                 try
                 {
-                    var co = script.CreateCoroutine(fn).Coroutine;
+                    // A new coroutine allocates two 131072-entry stacks (~2 MB, ~0.2 ms): every handler, timer and patch
+                    // call made one, the GC stalls of Discord's 12-handler mod (2026-11-28). A finished one is reused.
+                    co = fn.Type == DataType.Function && spare.Count > 0
+                        ? script.RecycleCoroutine(spare.Pop(), fn).Coroutine : script.CreateCoroutine(fn).Coroutine;
                     co.AutoYieldCounter = CallBudget;
                     var result = co.Resume(args);
                     if (co.State == CoroutineState.ForceSuspended) { Error("a call ran for too long and was stopped (an endless loop?)"); return DynValue.Nil; }
@@ -417,6 +422,11 @@ namespace GoF2Remake.Modding
                     // (a game method that threw under a script's call: its message, never the log's exception counter)
                     var inner = e is System.Reflection.TargetInvocationException t && t.InnerException != null ? t.InnerException : e;
                     Error($"{inner.GetType().Name}: {inner.Message}");
+                }
+                finally
+                {
+                    // (a suspended one is a Routine now, a nested call's may still run: only a dead Lua one is kept)
+                    if (co != null && co.State == CoroutineState.Dead && co.Type == MoonSharp.Interpreter.Coroutine.CoroutineType.Coroutine && spare.Count < 2) spare.Push(co);
                 }
                 return DynValue.Nil;
             }
