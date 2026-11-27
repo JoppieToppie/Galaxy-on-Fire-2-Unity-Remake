@@ -403,7 +403,7 @@ namespace GoF2Remake.UI
                 wantedPortrait.EnableInClassList("portrait-hidden", true);
                 wantedName.text = player.name;
                 wantedStatus.text = player.pirate ? "Player pirate" : "Wanted player";
-                wantedBounty.text = string.IsNullOrEmpty(player.issuers) ? "Piracy notice" : "Bounty issuers: " + player.issuers;
+                wantedBounty.text = $"{player.reward:N0} CR" + (string.IsNullOrEmpty(player.issuers) ? "" : " | " + player.issuers);
                 var place = db.Stations.Find(s => s.index == player.station);
                 long age = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - player.seenAt;
                 bool known = place != null && player.seenAt > 0 && age < 900;
