@@ -35,6 +35,13 @@ namespace GoF2Remake.Multiplayer
                 pirateSaveDirty = false;
         }
 
+        internal void RecordPirateDefender(NetProxy proxy)
+        {
+            if (!IsServer || proxy == null || proxy.Spec?.spec == null) return;
+            PirateReports.ServerDefenderLoss(proxy.Spec.spec.sightingId, proxy.EventTag - 700000,
+                station => station == proxy.Station, SetPirateBoard);
+        }
+
         void SetPirateBoard(string json)
         {
             if (!IsServer) return;
