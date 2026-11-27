@@ -880,8 +880,7 @@ namespace GoF2Remake.World
                 else bountyEscapeCharge += dtMs;
                 if (bountyEscapeCharge >= Modding.ModNpcFactionWar.PirateEscapeSeconds * 1000f)
                 {
-                    if (NetSession.Active || PirateReports.Escape(Database.Shared, PirateReports.Find(Spec.sightingId),
-                        Session.PirateSightings, st => st == traffic.StationIndex))
+                    if (PirateReports.Find(Spec.sightingId) is PirateSighting report && !report.done)
                     {
                         JumpOut();
                         return;
