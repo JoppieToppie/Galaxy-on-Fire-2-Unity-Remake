@@ -24,6 +24,8 @@ namespace GoF2Remake.Modding
         public static int CormorantCapacity { get; private set; } = 400;
         public static int FreightPerOrbit { get; private set; } = 4;
         public static int FreightSalvagePercent { get; private set; } = 25;
+        public static int RhinoFreightSpeedPercent { get; private set; } = 75;
+        public static int CormorantFreightSpeedPercent { get; private set; } = 125;
         public static int RhinoShip { get; private set; } = 51;
         public static int CormorantShip { get; private set; } = 36;
         public static int FreightCapacity(int requested, int large, int small) =>
@@ -158,6 +160,7 @@ namespace GoF2Remake.Modding
             AutoCapacity = 100; AutoWarLoss = 0; TicksPerHop = 1; MaxAutoHops = 8;
             PhysicalFreight = false; RhinoCapacity = 2500; CormorantCapacity = 400;
             FreightPerOrbit = 4; FreightSalvagePercent = 25; RhinoShip = 51; CormorantShip = 36;
+            RhinoFreightSpeedPercent = 75; CormorantFreightSpeedPercent = 125;
             foreach (var mod in ModManager.Active)
             {
                 if (mod == null || mod.IsBase) continue;
@@ -179,6 +182,8 @@ namespace GoF2Remake.Modding
                     int largeFreight = Math.Clamp(ModJson.Int(o, "rhinoCapacity", 2500, File), smallFreight, MaxStock);
                     int freightLimit = Math.Clamp(ModJson.Int(o, "freightPerOrbit", 4, File), 1, 16);
                     int freightSalvage = Math.Clamp(ModJson.Int(o, "freightSalvagePercent", 25, File), 0, 100);
+                    int rhinoSpeed = Math.Clamp(ModJson.Int(o, "rhinoFreightSpeedPercent", 75, File), 10, 500);
+                    int cormorantSpeed = Math.Clamp(ModJson.Int(o, "cormorantFreightSpeedPercent", 125, File), 10, 500);
                     int ResolveFreighter(string key, int fallback)
                     {
                         string value = ModJson.Str(o, key);
@@ -322,6 +327,7 @@ namespace GoF2Remake.Modding
                     {
                         PhysicalFreight = true; RhinoCapacity = largeFreight; CormorantCapacity = smallFreight;
                         FreightPerOrbit = freightLimit; FreightSalvagePercent = freightSalvage; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
+                        RhinoFreightSpeedPercent = rhinoSpeed; CormorantFreightSpeedPercent = cormorantSpeed;
                     }
                     else if (physical) Debug.LogWarning($"[{mod.Id}] {File}: physical freight requires regional trade and saved inventory; disabled.");
                     WarPressure |= war;
