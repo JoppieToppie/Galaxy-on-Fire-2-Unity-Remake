@@ -12,7 +12,9 @@ namespace GoF2Remake.Modding
         public static bool Enabled { get; private set; }
 
         public static int PlayerKillsForBounty { get; private set; }
-        public static int NpcKillsForBounty { get; private set; }
+        public static int NpcKillsForBounty { get; private set; } = 5;
+        public static int MaximumNpcBounty { get; private set; } = 300000;
+        public static int NpcBountyIncrement { get; private set; } = 10000;
         public static int ShipRecoverySeconds { get; private set; } = 1800;
 
         public const int DefaultEmergencyShip = 10;
@@ -42,11 +44,11 @@ namespace GoF2Remake.Modding
             var flag = ModJson.Get(options, "enabled");
             if (flag != null && flag.Type != JTokenType.Boolean)
                 throw new ModJsonException($"{File}: enabled must be true or false.");
-            foreach (var key in new[] { "playerKillsForBounty", "npcKillsForBounty", "shipRecoverySeconds" })
+            foreach (var key in new[] { "playerKillsForBounty", "npcKillsForBounty", "maximumNpcBounty", "npcBountyIncrement", "shipRecoverySeconds" })
                 if (ModJson.Get(options, key) is JToken value && value.Type != JTokenType.Integer)
                     throw new ModJsonException($"{File}: {key} must be an integer.");
             ModJson.Int(options, "playerKillsForBounty", 5, File);
-            ModJson.Int(options, "npcKillsForBounty", 100, File);
+            ModJson.Int(options, "npcKillsForBounty", 5, File);
             ModJson.Int(options, "shipRecoverySeconds", 1800, File);
             var emergency = ModJson.Get(options, "emergencyShip");
             if (emergency != null)
@@ -63,7 +65,9 @@ namespace GoF2Remake.Modding
         {
             Enabled = false;
             PlayerKillsForBounty = 5;
-            NpcKillsForBounty = 100;
+            NpcKillsForBounty = 5;
+            MaximumNpcBounty = 300000;
+            NpcBountyIncrement = 10000;
             ShipRecoverySeconds = 1800;
             EmergencyShipReference = "10";
             warnedEmergencyShip = null;
@@ -95,6 +99,8 @@ namespace GoF2Remake.Modding
                     Enabled |= flag != null && (bool)flag;
                     PlayerKillsForBounty = players;
                     NpcKillsForBounty = npcs;
+                    MaximumNpcBounty = Mathf.Max(1, ModJson.Int(options, "maximumNpcBounty", MaximumNpcBounty, File));
+                    NpcBountyIncrement = Mathf.Max(1, ModJson.Int(options, "npcBountyIncrement", NpcBountyIncrement, File));
                     ShipRecoverySeconds = recovery;
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
