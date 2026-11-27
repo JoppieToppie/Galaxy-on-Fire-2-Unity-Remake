@@ -595,11 +595,13 @@ namespace GoF2Remake.World
             Asleep = spec.asleep || spec.inactive;
             inactive = spec.inactive;
             parked = spec.stationary;
-            if (spec.freighter)
+            bool economyHull = Modding.ModAdvancedEconomy.IsFreightTag(spec.eventTag) && spec.ship != 13 && spec.ship != 15;
+            if (spec.freighter && !economyHull)
             {
                 obstacle = gameObject.AddComponent<Obstacle>();
                 obstacle.projectFromVolume = false;
-                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForFreighter(spec.ship, spec.race), spec.HullScale);
+                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForFreighter(spec.ship,
+                    Modding.ModAdvancedEconomy.IsFreightTag(spec.eventTag) ? Modding.ModRaces.Look(spec.race) : spec.race), spec.HullScale);
                 Target.boxes = LocalBoxes(obstacle.volumes);
             }
             else if (spec.fixedObject != null && spec.collisionId >= 0)
@@ -612,7 +614,7 @@ namespace GoF2Remake.World
             }
             // Explicitly classified large hulls without a stock obstacle need a hull-aligned avoidance volume.
             // Bounds are measured once at spawn, never while steering.
-            if (obstacle == null && modelGo != null && GoF2Remake.Modding.ShipClassRules.IsLargeShipClass(database.Ship(spec.ship)))
+            if (obstacle == null && modelGo != null && (economyHull || GoF2Remake.Modding.ShipClassRules.IsLargeShipClass(database.Ship(spec.ship))))
             {
                 var bounds = CapitalObstacleBounds(model, transform);
                 if (bounds.HasValue)
