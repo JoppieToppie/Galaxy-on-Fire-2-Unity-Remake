@@ -182,6 +182,9 @@ namespace GoF2Remake.Flight
         public static Vector3 AimOrigin(Transform ship) =>
             fpActive != null && fpActive.fpShown && fpActive.target != null && fpActive.target.transform == ship ? fpActive.transform.position : ship.position;
 
+        public static Vector3 AimDirection(Transform ship) =>
+            fpActive != null && fpActive.fpShown && fpActive.target != null && fpActive.target.transform == ship ? fpActive.transform.forward : ship.forward;
+
         void Awake() => cam = GetComponent<Camera>();
         void OnEnable() { lookValid = false; cruiseTracked = false; es2Valid = false; }
         // Disabled = another camera holds it (the launch / arrival fly-in, a cutscene, a jump, mining, object docking, the
@@ -771,6 +774,7 @@ namespace GoF2Remake.Flight
         float fpNear, fpScanMs;
         Transform fpModel;
         Vector3 fpSeat;
+        GameObject fpInterior, fpInteriorTemplate;
 
         void PlaceFirstPerson(Transform ship, float dtMs, bool boosting, float boostRumble, float mass)
         {
@@ -796,6 +800,7 @@ namespace GoF2Remake.Flight
                 fpScanMs = 500f;
                 HideHull();
                 fpSeat = FirstPersonSeat();
+                RefreshFirstPersonInterior();
             }
             var rot = ship.rotation;
             if (Es2Mode)
@@ -831,31 +836,50 @@ namespace GoF2Remake.Flight
         /// bow (a big hull's nine tenths), but behind the frontmost primary gun (so its muzzle flash and shots start in view)
         /// and never behind the middle of the bow half. From the hull's meshes (no glow layers: PlayerHull.HullBounds), so
         /// game ships, mods' glTF and kit builds and the debug capital hulls alike. A mod ship's own "cockpit" (ModShipView)
-        /// is taken as it is, only kept behind the frontmost primary gun too.</summary>
+        /// takes precedence exactly, including capital bridges; only automatic seats are constrained by gun placement.</summary>
         public Vector3 FirstPersonSeat()
         {
             if (target == null) return Vector3.zero;
             var ship = target.transform;
+            var own = GoF2Remake.Data.Database.Shared.Ship(GoF2Remake.Data.Session.ShipIndex)?.cockpit;
+            if (own.HasValue && !World.PlayerHull.Big)
+                return Modding.ModShipView.ToLocal(own.Value, target.metersPerUnit);
             var model = target.visualModel != null ? target.visualModel : ship;
             var b = World.PlayerHull.HullBounds(ship, model);
             if (b.size == Vector3.zero) return new Vector3(0f, 1f, 2f);
             bool big = b.extents.z > 150f;   // the debug capital hulls (PlayerHull.Big): no guns, the bow
-            var own = big || World.PlayerHull.Big ? null : GoF2Remake.Data.Database.Shared.Ship(GoF2Remake.Data.Session.ShipIndex)?.cockpit;
-            float z = own.HasValue ? own.Value.z * target.metersPerUnit : Mathf.Lerp(b.center.z, b.max.z, big ? 0.9f : 0.8f);
+            float z = Mathf.Lerp(b.center.z, b.max.z, big ? 0.9f : 0.8f);
             var weapons = big ? null : target.GetComponent<WeaponSystem>();
             if (weapons != null)
             {
                 float gunZ = float.NegativeInfinity;
                 foreach (var g in weapons.Guns) if (!g.isSecondary) gunZ = Mathf.Max(gunZ, g.mountLocal.z);
-                if (own.HasValue) { if (gunZ > float.NegativeInfinity) z = Mathf.Min(z, gunZ - 0.5f); }
-                else if (gunZ > b.center.z) z = Mathf.Max(Mathf.Lerp(b.center.z, b.max.z, 0.5f), Mathf.Min(z, gunZ - 0.5f));
-            }
-            if (own.HasValue)
-            {
-                var seat = Modding.ModShipView.ToLocal(own.Value, target.metersPerUnit);
-                return new Vector3(seat.x, seat.y, z);
+                if (gunZ > b.center.z) z = Mathf.Max(Mathf.Lerp(b.center.z, b.max.z, 0.5f), Mathf.Min(z, gunZ - 0.5f));
             }
             return new Vector3(0f, Mathf.Clamp(b.center.y + 0.2f * b.extents.y, -1.5f, 1.5f), z);
+        }
+
+        // Local visual only: the GLB origin is the pilot's eye, metres, +Z forward, +Y up.
+        void RefreshFirstPersonInterior()
+        {
+            var template = Modding.ModShips.CockpitTemplate(GoF2Remake.Data.Session.ShipIndex);
+            if (template == fpInteriorTemplate && fpInterior != null) return;
+            ClearFirstPersonInterior();
+            if (template == null) return;
+            fpInteriorTemplate = template;
+            fpInterior = Instantiate(template, transform, false);
+            fpInterior.transform.localPosition = Vector3.zero;
+            fpInterior.transform.localRotation = Quaternion.identity;
+            fpInterior.SetActive(true);
+            if (cam != null) cam.nearClipPlane = Mathf.Min(fpNear, 0.03f);
+        }
+
+        void ClearFirstPersonInterior()
+        {
+            if (fpInterior != null) { fpInterior.SetActive(false); Destroy(fpInterior); }
+            fpInterior = null;
+            fpInteriorTemplate = null;
+            if (fpShown && cam != null) cam.nearClipPlane = Mathf.Min(fpNear, FirstPersonNear);
         }
 
         void HideHull()
@@ -885,6 +909,7 @@ namespace GoF2Remake.Flight
         void EndFirstPerson()
         {
             if (!fpShown) return;
+            ClearFirstPersonInterior();
             fpShown = false;
             if (fpActive == this) fpActive = null;
             RestoreHullLayers();

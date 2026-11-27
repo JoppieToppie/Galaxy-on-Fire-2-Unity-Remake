@@ -69,6 +69,13 @@ namespace GoF2Remake.Modding
                         mod.Warnings.Add($"{ModJson.Where(od, file)}: \"orbitDistance\" {(float)od} is outside {MinOrbitDistance}..{MaxOrbitDistance} (clamped)");
                 }
             }
+            if (ModJson.Get(o, "cockpitModel") is JToken interior)
+            {
+                if (interior.Type != JTokenType.String) throw new ModJsonException($"{where}: cockpitModel must be a GLB path or an empty string");
+                string path = (string)interior;
+                if (!string.IsNullOrEmpty(path) && !mod.Source.Exists(path))
+                    throw new ModJsonException($"{where}: cockpit model {path} is not in the mod");
+            }
             if (ModJson.Get(o, "cockpit") is JToken k && !TryPoint(k, out _))
                 throw new ModJsonException($"{ModJson.Where(k, file)}: \"cockpit\" must be a point [x, y, z]");
             if (ModJson.Get(o, "smoke") is JToken s)

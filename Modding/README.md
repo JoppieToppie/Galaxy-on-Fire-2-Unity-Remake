@@ -1110,6 +1110,7 @@ How a ship is seen, for a new ship or an original through `override` (each one o
 ```json
 "camera": { "distance": 2400, "height": 900, "lookHeight": 900, "lookAhead": -1100 },
 "cockpit": [0, 90, 760],
+"cockpitModel": "models/bridge.glb",
 "smoke": [[39, 68, -64], [-62, 65, 10]],
 "explosionScale": 1.2
 ```
@@ -1120,8 +1121,13 @@ How a ship is seen, for a new ship or an original through `override` (each one o
   A field left out keeps the game's. Without a `camera`, a hull over 150 m across gets one fitted to its size. Free
   flight's EVERSPACE 2 camera uses `distance` and `height` only: it looks along the ship.
 - `cockpit`: where the cockpit view (F2, or holding the camera button) sits, a point like a hardpoint's `position_engine`
-  (x the pilot's left, y up, z the nose). Without it the game puts the seat on the bow from the hull's shape. Either way
-  the seat stays behind the frontmost gun, so its shots start in view.
+  (x the pilot's left, y up, z the nose). An explicit seat is used exactly, including large capital hulls. Without it the
+  automatic seat remains near the bow, constrained by gun placement where applicable.
+- `cockpitModel`: optional local GLB interior, authored in metres with the origin at the pilot's eye, +Z forward and +Y up
+  in the imported Unity frame. Visible only in first-person view; no collision, hardpoints or external ship geometry.
+  Empty string disables an earlier mod's interior. Import it under Camera and damage in Mod Builder.
+- `crosshairOffsetX` and `crosshairOffsetY`: third-person targeting offsets in metres, positive right and up, respectively.
+  Cockpit targeting is centred and independent of these offsets.
 - `smoke`: up to 4 points where the ship trails smoke and fire once it is below a third of its hull (NPC ships); without
   them it smokes from its middle. The smoke is shared between the points, so two points don't make twice as much.
 - `explosionScale`: how big the explosion is when the ship dies, as a multiple of a fighter's (1); 0.25 to 20. The NPC

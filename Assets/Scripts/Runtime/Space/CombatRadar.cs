@@ -759,7 +759,7 @@ namespace GoF2Remake.Flight
         /// <summary>The lock-acquisition point: the ship's forward aim line normally, the active camera's viewport centre while free look is active.</summary>
         public static Vector3 ShipCrosshairWorldPoint(Transform ship, Vector2 offset)
         {
-            Vector3 point = ChaseCamera.AimOrigin(ship) + ship.forward * CrosshairDistanceMeters;
+            Vector3 point = ChaseCamera.AimOrigin(ship) + ChaseCamera.AimDirection(ship) * CrosshairDistanceMeters;
             point += ship.right * offset.x + ship.up * offset.y;
             return point;
         }

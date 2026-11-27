@@ -234,7 +234,19 @@ namespace GoF2Remake.UI
                   v => { s.Set("crosshairOffsetY", (JToken)Math.Round(v, 2)); MarkDirty(); });
             Note(ship, T("mbCrosshairOffsetNote", "Ship-local targeting reference only. Free-look targeting stays centred; cockpit and weapon mounts are unchanged."));
 
-            PointsField(s, "cockpit", T("mbOwnCockpit", "Its own cockpit seat"), single: true);
+            PointsField(s, "cockpit", T("mbOwnCockpit", "Its own cockpit / bridge seat"), single: true);
+            var interior = s.Get("cockpitModel")?.ToString();
+            Note(ship, string.IsNullOrEmpty(interior) ? T("mbCockpitModelNone", "No first-person interior model") : interior);
+            Act(ship, T("mbCockpitModelImport", "Import first-person cockpit model"), () => PickGlb(T("mbCockpitModelPick", "Choose cockpit GLB"), path =>
+            {
+                string name = (s.IsOverride ? "ship_" + s.OverrideIndex : s.LocalId) + "_cockpit";
+                s.Set("cockpitModel", Project.AddModel(path, name));
+                RequestReload(false);
+                BuildShipPage();
+            }));
+            if (!string.IsNullOrEmpty(interior)) Act(ship, T("mbCockpitModelRemove", "Remove cockpit model"), () =>
+            { s.Set("cockpitModel", (JToken)""); RequestReload(false); BuildShipPage(); });
+            Note(ship, T("mbCockpitModelNote", "GLB in metres, origin at the pilot eye, +Z forward, +Y up. Only visible in first-person view."));
             PointsField(s, "smoke", T("mbSmokePoints", "Damage smoke points"), single: false);
 
             Float(ship, T("mbExplosionScale", "Explosion size (1 = a fighter's)"), JFloat(s.Get("explosionScale")) ?? 1f, ModShipView.MinExplosion, ModShipView.MaxExplosion,
