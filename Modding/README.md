@@ -161,6 +161,26 @@ description, author, views and downloads. To list yours, add one small file to
 point the file at your own GitHub repository. Then every new release there, with a higher `version` in `mod.json`,
 reaches players as an update within the hour, with no further pull request.
 
+## Native feature reference
+
+Use **Mod Builder > Menu > Modding documentation** for the searchable offline reference. MCP assistants can call
+`read_guide` (with no arguments to list files) or read `gof2-guide://<file>` resources. These surfaces use the same
+canonical documents as the repository, including the specialist manuals below.
+
+| Guide | Coverage |
+|---|---|
+| [Native features](NATIVE_FEATURES.md) | Gameplay manifest, native item stats, station construction, external docks, orbital defenses, recipes, origins, wingmen, cameras and NPC AI |
+| [Scanner detection](SCANNER_DETECTION.md) | Scanner ranges, target signatures, passive stealth, NPC sensors and turret contact |
+| [Predictive targeting](PIP_LEADS.md) | Primary projectile and beam lead indicators |
+| [Squad friendly fire](SQUAD_FRIENDLY_FIRE.md) | Optional squadmate damage, PvP permissions |
+| [NPC faction warfare](NpcFactionWar.md) | Frontline eligibility, battles, timers, territory and configuration |
+| [Piracy and recovery](Piracy.md) | Bounties, death loss, recovery and Lua hooks |
+| [Jump drive rules](JUMP_DRIVE_RULES.md) | Fuel, misjumps, item availability and server authority |
+
+The native reference records a known overlapping item-attribute ID issue; consult it before using the affected
+per-axis equipment and scanner/weapon stats together. For an existing native feature, use its data contract rather
+than writing a global method patch.
+
 ## mod.json
 
 Every mod needs a `mod.json` at its top level:
