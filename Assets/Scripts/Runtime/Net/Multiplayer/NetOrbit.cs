@@ -629,7 +629,7 @@ namespace GoF2Remake.Multiplayer
                 if (!NetGuard.Position(position)) continue;
                 if (!freightWrecks.TryGetValue(tag, out var crate) || crate == null)
                 {
-                    crate = Crate.Spawn(position, new[] { new ItemStack(item, amount) }, race, Crate.LookContainer);
+                    crate = GoF2Remake.Flight.Crate.Spawn(position, new[] { new ItemStack(item, amount) }, race, GoF2Remake.Flight.Crate.LookContainer);
                     crate.transform.position = position;
                     crate.remote = true;
                     crate.keep = true;
