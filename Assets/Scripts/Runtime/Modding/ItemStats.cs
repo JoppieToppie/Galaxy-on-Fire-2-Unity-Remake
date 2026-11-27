@@ -12,6 +12,11 @@ namespace GoF2Remake.Modding
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class ItemStats
     {
+        // Shared IDs for Game, Space and Net. 191–202 are reserved for ModFlight's axis bonuses;
+        // 189 belongs to ItemData.CoreYieldAttr. Never reuse those IDs for another mechanic.
+        public const int StrictShipClassAttr = 203, FixedBeamAttr = 204, TurretDefenseRoleAttr = 205,
+                         ScannerRangeAttr = 206, ScanLeadAttr = 207, StructuralDamageAttr = 208;
+
         /// <summary>The names a mod may use (the readable ones first; items.json's statList names work too).</summary>
         static readonly Dictionary<string, int> Ids = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
@@ -63,7 +68,7 @@ namespace GoF2Remake.Modding
             ["energyResistance"] = 183, ["ballisticResistance"] = 184,
             // Player-built structures: weapons with structuralDamage 1 can damage hull integrity.
             // EMP effects always apply independently of structural weapon eligibility.
-            ["structuralDamage"] = 189,
+            ["structuralDamage"] = StructuralDamageAttr,
             // A weapon's echo (Flight.GunEcho): a second, weaker blast at each hit, echoDelayMs after it (0 = none), at
             // echoPercent of the damage, EMP and size; echoRadius is that blast's reach in game units (0 = blastRadius, 14);
             // echoExplosion is the explosion type it shows (0 ship, 8-10 scatter, 11 shock blast, 13 fireworks; -1 none).
@@ -121,10 +126,10 @@ namespace GoF2Remake.Modding
             // on each new lock (beside radarShowsCargo, 31: 1 the first cargo entry, 2 the whole hold).
             ["scanShip"] = 140, ["scanHitpoints"] = 141, ["scanWeapons"] = 142,
             // Project ship-class identification; separate from hull, hitpoint and weapon readouts.
-            ["scanClass"] = 143, ["scannerRange"] = 194, ["scanLead"] = 195,
+            ["scanClass"] = 143, ["scannerRange"] = ScannerRangeAttr, ["scanLead"] = ScanLeadAttr,
             // Strict allow-lists apply even to unclassified ships. Fixed beams do not snap onto targets.
             // Per-mount defense roles: 0 legacy, 1 offensive, 2 balanced, 3 dedicated.
-            ["strictShipClass"] = 191, ["fixedBeam"] = 192, ["turretDefenseRole"] = 193,
+            ["strictShipClass"] = StrictShipClassAttr, ["fixedBeam"] = FixedBeamAttr, ["turretDefenseRole"] = TurretDefenseRoleAttr,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,

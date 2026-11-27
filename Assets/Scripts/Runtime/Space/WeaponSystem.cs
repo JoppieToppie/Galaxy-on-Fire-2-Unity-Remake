@@ -436,7 +436,7 @@ namespace GoF2Remake.Flight
                     gun.damage = (int)(gun.damage * damageFactor);
                     gun.reloadMs = Mathf.Max(1f, (int)(gun.reloadMs * fireRate));
                 }
-                if (gun.isBeam && item.Attr(192) == 0)
+                if (gun.isBeam && item.Attr(Modding.ItemStats.FixedBeamAttr) == 0)
                 {
                     float tolerance = Mathf.Clamp(item.Attr(Gun.BeamAimToleranceAttr, 100), 0, 1000) * 0.01f;
                     if (tolerance > 0f) gun.AutoAim = () => BeamTarget(tolerance, gun);

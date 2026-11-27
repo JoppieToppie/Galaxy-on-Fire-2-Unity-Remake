@@ -113,7 +113,7 @@ namespace GoF2Remake.Modding
             var deny = item.excludedClasses;
             bool hasAllow = allow != null && allow.Length > 0, hasDeny = deny != null && deny.Length > 0;
             if (!hasAllow && !hasDeny) return true;   // the common case: nothing to check
-            if (!IsClassified(ship)) return item.Attr(191) == 0 || !hasAllow;     // unclassified: the lists don't engage
+            if (!IsClassified(ship)) return item.Attr(ItemStats.StrictShipClassAttr) == 0 || !hasAllow;     // unclassified: the lists don't engage
             if (hasDeny && Matches(ship, deny)) return false;
             return !hasAllow || Matches(ship, allow);
         }

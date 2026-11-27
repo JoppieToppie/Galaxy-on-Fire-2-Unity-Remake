@@ -33,7 +33,7 @@ namespace GoF2Remake.Flight
         public const int CycleAttribute = 187;
         /// <summary>Optional maximum number of concurrent interceptions; 0 means unlimited.</summary>
         public const int CapacityAttribute = 188;
-        public const int TurretRoleAttribute = 193;
+        public const int TurretRoleAttribute = Modding.ItemStats.TurretDefenseRoleAttr;
         public const int HomingMissileTarget = 1, RocketTarget = 2, NukeTarget = 4;
         const int AllTargets = HomingMissileTarget | RocketTarget | NukeTarget;
 

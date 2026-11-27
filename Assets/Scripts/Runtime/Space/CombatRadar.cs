@@ -79,7 +79,7 @@ namespace GoF2Remake.Flight
         public bool HasScanner { get; private set; }
         /// <summary>Remake mods: the scanner names a locked ship's hull on the plate (attr 140 "scanShip").</summary>
         public bool ShipScan { get; private set; }
-        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = 194, ScanLeadAttr = 195;
+        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = Modding.ItemStats.ScannerRangeAttr, ScanLeadAttr = Modding.ItemStats.ScanLeadAttr;
         /// <summary>Mod opt-in only: stock scanners and absent/zero scanLead attributes do not show PIPs.</summary>
         public bool ScanLead { get; private set; }
         public static bool ScannerHasLead(ItemData scanner) => scanner != null && scanner.HasAttr(ScanLeadAttr) && scanner.Attr(ScanLeadAttr) > 0;
