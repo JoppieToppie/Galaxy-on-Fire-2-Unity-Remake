@@ -772,6 +772,7 @@ namespace GoF2Remake.Multiplayer
         void StealUpRpc(int item, int amount, RpcParams rpc = default)
         {
             ulong thief = rpc.Receive.SenderClientId;
+            if (Modding.ModAdvancedEconomy.IsFreightTag(EventTag)) return; // economic cargo is not a client-granted crate
             if (thief == OwnerClientId || !NetRateLimit.Allow(thief, NetRateLimit.Kind.Claim)) return;
             var s = St;
             if (!s.Has(NetProxyStatus.EmpDisabled) || item != s.stealItem || amount < 1 || amount > s.stealAmount)
@@ -831,6 +832,9 @@ namespace GoF2Remake.Multiplayer
 
         void ReportFactionWarCasualty(NetProxyStatus before, NetProxyStatus after)
         {
+            if (IsServer && Modding.ModAdvancedEconomy.IsFreightTag(EventTag) && before.life == Flying && after.life != Flying && after.hull == 0 &&
+                NetState.RunnerOf(Station)?.OwnerClientId == OwnerClientId && Spec?.spec?.freighter == true)
+                AdvancedEconomyLedger.LoseFreight(Station, EventTag);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700031 && Spec?.spec != null)
                 NetState.Instance?.RecordPirateDefender(this);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))
@@ -1107,7 +1111,7 @@ namespace GoF2Remake.Multiplayer
             target.displayName = IsJunk ? Target.JunkName : Label.Length > 0 && team ? NetNews.Safe(Label) : null;
             // A steal candidate while it is disabled with cargo; a mission ship's cargo only for the mission's team (like its
             // crates, NetCrate).
-            bool stealable = TargetLockRules.RemoteStealable(empDisabled, st.life == Flying, team, st.stealItem, st.stealAmount);
+            bool stealable = !Modding.ModAdvancedEconomy.IsFreightTag(EventTag) && TargetLockRules.RemoteStealable(empDisabled, st.life == Flying, team, st.stealItem, st.stealAmount);
             target.netStealItem = stealable ? st.stealItem : -1;
             target.netStealAmount = stealable ? st.stealAmount : 0;
             if (st.life != shownLife)
