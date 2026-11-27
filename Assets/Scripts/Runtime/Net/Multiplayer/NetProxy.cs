@@ -914,7 +914,7 @@ namespace GoF2Remake.Multiplayer
                 NetState.RunnerOf(Station)?.OwnerClientId == OwnerClientId && Spec?.spec?.freighter == true)
             {
                 if (before.life == Flying && after.life != Flying && after.hull == 0)
-                    AdvancedEconomyLedger.LoseFreight(Station, EventTag, Race, WorldPosition);
+                    AdvancedEconomyLedger.ReportFreightLoss(Station, EventTag, Race, WorldPosition);
                 else if (after.life == Flying && after.hull > 0)
                     AdvancedEconomyLedger.RecordFreightHull(Station, EventTag, after.hull);
             }
