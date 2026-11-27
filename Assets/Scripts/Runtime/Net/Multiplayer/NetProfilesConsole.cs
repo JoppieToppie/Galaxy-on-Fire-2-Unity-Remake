@@ -67,6 +67,8 @@ namespace GoF2Remake.Multiplayer
                             if (!SaveGame.TryParse(json, NetGame.Db, out _, out string problem))
                                 return "Race origin profile is invalid: " + problem;
                             if (!Write(path, json)) return "Could not persist your starting profile. Try again.";
+                            if (initial.originStartAsPirate && !NetFactions.GrantStartingPiracy(login.account.id))
+                                return "Starting pirate status could not be saved. Try again.";
                             login.account.worth = Worth(initial);
                             login.account.originCompletedMissions = initial.graphQuestsDone ?? new List<string>();
                         }
@@ -79,7 +81,11 @@ namespace GoF2Remake.Multiplayer
                             !string.Equals(prior.playerIdentityRace, raceKey, StringComparison.Ordinal))
                             return "Your starting profile has already been assigned a different race.";
                         if (prior != null && prior.playSeconds <= 0f && prior.playerIdentityRace == raceKey)
+                        {
+                            if (prior.originStartAsPirate && !NetFactions.GrantStartingPiracy(login.account.id))
+                                return "Starting pirate status could not be saved. Try again.";
                             login.account.originCompletedMissions = prior.graphQuestsDone ?? new List<string>();
+                        }
                     }
                 }
                 catch (Exception error)
@@ -95,6 +101,7 @@ namespace GoF2Remake.Multiplayer
                     SetObserverFlag(device.client, !device.controller);
                     SendProfile(device, null);
                 }
+            NetFactions.RefreshPiracyFlags();
             return "Pilot identity saved permanently.";
         }
 
