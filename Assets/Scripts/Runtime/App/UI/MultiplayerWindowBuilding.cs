@@ -116,7 +116,8 @@ namespace GoF2Remake.UI
 
             // A click / tap (or the "Multiplayer window" binding, N) opens it; never the focus (Space or a controller's A on a
             // focused button pressed it again in flight).
-            if (plateButton != null) plateButton.focusable = false;
+            // In flight avoid accidental activation; docked players need keyboard/controller access.
+            if (plateButton != null) plateButton.focusable = !flight;
 
             window = new VisualElement { name = "factionWindow" };
             if (sheet != null) window.styleSheets.Add(sheet);
