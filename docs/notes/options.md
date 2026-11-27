@@ -412,8 +412,9 @@ verified on a Mac or an iPhone.
     focus and where VSync already fills the display's refresh rate.
   - **The DLLs** (`Assets/Plugins/Windows/x86_64`, Win64 only): `sl.interposer.dll`, `sl.common.dll`, `sl.dlss_g.dll`,
     `sl.reflex.dll`, `sl.pcl.dll` (Streamline 2.14.16, production, NVIDIA-signed) and `nvngx_dlssg.dll` (310.9.16), under
-    NVIDIA's RTX SDKs licence (kept with the SDK's in `Native/Streamline/redist`, git-ignored); without them the options
-    are not shown. The plugin builds against the SDK's headers of the same version (`Native/Streamline/sdk`, git-ignored:
+    NVIDIA's RTX SDKs licence (in the repository since 2026-11-28, so builds from a clone have frame generation; the
+    licences beside the plugin's source, `Native/Streamline/*-LICENSE.txt`; the SDK's other DLLs stay in
+    `Native/Streamline/redist`, git-ignored); without them the options are not shown. The plugin builds against the SDK's headers of the same version (`Native/Streamline/sdk`, git-ignored:
     the clone command and the build are in `Native/Streamline/CMakeLists.txt`). `DlssRedist` (Editor, after a Windows
     build) puts a newer `nvngx_dlss.dll` from `Native/Streamline/redist` in place of the one Unity ships (310.5.3 →
     310.9.16: the upscaler's newer models).
