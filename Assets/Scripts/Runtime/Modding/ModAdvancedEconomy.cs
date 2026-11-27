@@ -26,6 +26,19 @@ namespace GoF2Remake.Modding
         public static int FreightSalvagePercent { get; private set; } = 25;
         public static int RhinoFreightSpeedPercent { get; private set; } = 75;
         public static int CormorantFreightSpeedPercent { get; private set; } = 125;
+        public const int MaxFreightSeconds = 86400;
+        public static int FreightDispatchSeconds { get; private set; } = 60;
+        public static int FreightTravelMinSeconds { get; private set; } = 30;
+        public static int FreightTravelMaxSeconds { get; private set; } = 90;
+        public static int FreightUnloadMinSeconds { get; private set; } = 15;
+        public static int FreightUnloadMaxSeconds { get; private set; } = 30;
+        public static int FreightWreckLifetimeSeconds { get; private set; } = 300;
+
+        public static (int min, int max) FreightInterval(int minimum, int maximum)
+        {
+            int min = Math.Clamp(minimum, 1, MaxFreightSeconds);
+            return (min, Math.Clamp(maximum, min, MaxFreightSeconds));
+        }
         public static int RhinoShip { get; private set; } = 51;
         public static int CormorantShip { get; private set; } = 36;
         public static int FreightCapacity(int requested, int large, int small) =>
@@ -163,6 +176,8 @@ namespace GoF2Remake.Modding
             PhysicalFreight = false; RhinoCapacity = 2500; CormorantCapacity = 400;
             FreightPerOrbit = 4; FreightSalvagePercent = 25; RhinoShip = 51; CormorantShip = 36;
             RhinoFreightSpeedPercent = 75; CormorantFreightSpeedPercent = 125;
+            FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
+            FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
             foreach (var mod in ModManager.Active)
             {
                 if (mod == null || mod.IsBase) continue;
@@ -186,6 +201,12 @@ namespace GoF2Remake.Modding
                     int freightSalvage = Math.Clamp(ModJson.Int(o, "freightSalvagePercent", 25, File), 0, 100);
                     int rhinoSpeed = Math.Clamp(ModJson.Int(o, "rhinoFreightSpeedPercent", 75, File), 10, 500);
                     int cormorantSpeed = Math.Clamp(ModJson.Int(o, "cormorantFreightSpeedPercent", 125, File), 10, 500);
+                    int dispatchSeconds = Math.Clamp(ModJson.Int(o, "freightDispatchSeconds", 60, File), 1, MaxFreightSeconds);
+                    var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
+                        ModJson.Int(o, "freightTravelMaxSeconds", 90, File));
+                    var unloadSeconds = FreightInterval(ModJson.Int(o, "freightUnloadMinSeconds", 15, File),
+                        ModJson.Int(o, "freightUnloadMaxSeconds", 30, File));
+                    int wreckSeconds = Math.Clamp(ModJson.Int(o, "freightWreckLifetimeSeconds", 300, File), 1, MaxFreightSeconds);
                     int ResolveFreighter(string key, int fallback)
                     {
                         string value = ModJson.Str(o, key);
@@ -330,6 +351,10 @@ namespace GoF2Remake.Modding
                         PhysicalFreight = true; RhinoCapacity = largeFreight; CormorantCapacity = smallFreight;
                         FreightPerOrbit = freightLimit; FreightSalvagePercent = freightSalvage; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
                         RhinoFreightSpeedPercent = rhinoSpeed; CormorantFreightSpeedPercent = cormorantSpeed;
+                        FreightDispatchSeconds = dispatchSeconds;
+                        FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
+                        FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;
+                        FreightWreckLifetimeSeconds = wreckSeconds;
                     }
                     else if (physical) Debug.LogWarning($"[{mod.Id}] {File}: physical freight requires regional trade and saved inventory; disabled.");
                     WarPressure |= war;
