@@ -29,6 +29,9 @@ namespace GoF2Remake.UI
             if (PlayerMarketplace && (selected.item != Freelance.Documents || PlayerStorageTab))
                 return TradePlayerMarket(direction, units);
             if (PlayerMarketplace && direction < 0) return false;
+            if (GoF2Remake.Multiplayer.NetStock.PriceTradePending) return false;
+            if (!PlayerMarketplace && !hangar.Storage && GoF2Remake.Multiplayer.NetStock.ManagedPricing(hangar.Station, selected.item))
+                return GoF2Remake.Multiplayer.NetStock.RequestPricedTrade(hangar.Station, selected.item, units, direction > 0);
             bool changed = false;
             for (int n = 0; n < units; n++)
             {

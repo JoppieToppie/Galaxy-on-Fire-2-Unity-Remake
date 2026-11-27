@@ -307,7 +307,7 @@ namespace GoF2Remake.Multiplayer
 
         static int UploadSnapshot(bool handover)
         {
-            if (!Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return 0;
+            if (NetStock.PriceTradePending || !Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return 0;
             if (SaveGame.HostSaves) return 0;   // the co-op host's game is in its save slots
             if (NetArenaClient.InMatch) return 0;   // nothing of an arena match is saved (its start uploaded the profile)
             uploadTimer = UploadSeconds;

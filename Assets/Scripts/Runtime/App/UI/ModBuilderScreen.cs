@@ -1003,7 +1003,14 @@ namespace GoF2Remake.UI
             Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
             Flag("warPressure", "Frontline commodity demand");
             Flag("tradeDisruption", "War-related shipment losses");
+            Flag("dynamicPricing", "Dynamic server prices (requires saved inventory and profiles)");
+            Flag("transportCosts", "Import transport costs in dynamic prices");
             void Option(string key, string label, int fallback, int min, int max) => Int(scroll, label, Number(key, fallback), min, max, v => { rules[key] = v; MarkDirty(); });
+            Option("scarcityMarkupPercent", "Maximum scarcity markup (%)", 100, 0, 500);
+            Option("surplusDiscountPercent", "Maximum surplus discount (%)", 30, 0, 90);
+            Option("warMarkupPercent", "Maximum war price markup (%)", 50, 0, 500);
+            Option("transportCostPerHopPercent", "Import cost per hop (%)", 5, 0, 100);
+            Option("sellSpreadPercent", "Buy/sell spread (%)", 10, 1, 99);
             Option("frontlinePressurePercent", "Frontline pressure (%)", 50, 0, 100);
             Option("battlePressurePercent", "Active battle pressure (%)", 100, 0, 100);
             Option("automaticRouteCapacity", "Automatic route cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
@@ -1095,7 +1102,7 @@ namespace GoF2Remake.UI
                     }, e => e.type == 4);
                 }, e => e.value != source.value);
             }), "mbv-add");
-            Note(scroll, "Routes require managed stock for the commodity at both stations and an operational path through the jumpgate network. Invalid routes are reported on reload. Dynamic pricing will follow.");
+            Note(scroll, "Routes require managed stock for the commodity at both stations and an operational path through the jumpgate network. Invalid routes are reported on reload. Dynamic pricing requires durable inventory saving on a profile server.");
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
         }

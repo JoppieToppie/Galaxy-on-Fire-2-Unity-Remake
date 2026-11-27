@@ -18,6 +18,7 @@ namespace GoF2Remake.Multiplayer
         {
             public int Amount { get; private set; }
             public int Resale { get; private set; }
+            public int ImportHops { get; internal set; }
             public Balance(int amount, int resale, int maximum) => Set(amount, resale, maximum);
             public bool Set(int amount, int resale, int maximum)
             {
@@ -44,7 +45,7 @@ namespace GoF2Remake.Multiplayer
         static readonly Dictionary<(int station, int item), Balance> live = new Dictionary<(int, int), Balance>();
         sealed class Shipment
         {
-            public int Amount, Resale, Ticks;
+            public int Amount, Resale, Ticks, Hops;
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         static bool loaded, dirty, readFailed;
@@ -121,7 +122,9 @@ namespace GoF2Remake.Multiplayer
                     throw new JsonException("Invalid advanced economy stock balance.");
                 var key = new Key(station, item);
                 if (result.ContainsKey(key)) throw new JsonException("Duplicate advanced economy stock row.");
-                result.Add(key, new Balance((int)amount, (int)resale, ModAdvancedEconomy.MaxStock));
+                int hops = row["importHops"] == null ? 0 : (int)row["importHops"];
+                if (hops < 0 || hops > 96) throw new JsonException("Invalid import distance.");
+                result.Add(key, new Balance((int)amount, (int)resale, ModAdvancedEconomy.MaxStock) { ImportHops = hops });
             }
             return result;
         }
@@ -142,7 +145,9 @@ namespace GoF2Remake.Multiplayer
                 if (string.IsNullOrEmpty(key) || amount < 1 || amount > ModAdvancedEconomy.MaxStock ||
                     resale < 0 || resale > amount || ticks < 0 || ticks > 96 || result.ContainsKey(key))
                     throw new JsonException("Invalid shipment balance.");
-                result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks });
+                int hops = row["hops"] == null ? 0 : (int)row["hops"];
+                if (hops < 0 || hops > 96) throw new JsonException("Invalid shipment distance.");
+                result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops });
             }
             return result;
         }
@@ -254,7 +259,10 @@ namespace GoF2Remake.Multiplayer
                     if (delivered > 0)
                     {
                         int resale = Math.Min(delivered, shipment.Resale);
+                        int hops = (int)Math.Round(((long)destination.Amount * destination.ImportHops +
+                            (long)delivered * shipment.Hops) / (double)(destination.Amount + delivered));
                         Set(route.Destination, destinationRule, destination.Amount + delivered, destination.Resale + resale);
+                        destination.ImportHops = hops;
                         shipment.Amount -= delivered;
                         shipment.Resale -= resale;
                         incoming[incomingKey] = Math.Max(0, reserved - delivered);
@@ -276,7 +284,7 @@ namespace GoF2Remake.Multiplayer
                 if (survive > 0)
                 {
                     int resaleSurvives = Math.Min(resaleSent, survive);
-                    shipments[key] = new Shipment { Amount = survive, Resale = resaleSurvives, Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)) };
+                    shipments[key] = new Shipment { Amount = survive, Resale = resaleSurvives, Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)), Hops = Math.Min(96, path.Count - 1) };
                     incoming[incomingKey] = reserved + survive;
                     dirty = true;
                 }
@@ -305,21 +313,50 @@ namespace GoF2Remake.Multiplayer
             if (Get(station, rule).Set(amount, resale, rule.Maximum)) dirty = true;
         }
 
-        internal static void Flush(bool force = false)
+        internal static bool CanJournal
         {
-            if (!loaded || !dirty || readFailed || path == null ||
-                (!force && (!Active || !ModAdvancedEconomy.SaveInventory || Time.unscaledTime < nextSave))) return;
-            nextSave = Time.unscaledTime + 10f;
+            get { Load(); return path != null && !readFailed; }
+        }
+
+        internal static string Snapshot()
+        {
             var rows = new JArray();
             foreach (var pair in balances)
                 rows.Add(new JObject { ["station"] = pair.Key.Station, ["item"] = pair.Key.Item,
-                    ["amount"] = pair.Value.Amount, ["resale"] = pair.Value.Resale });
+                    ["amount"] = pair.Value.Amount, ["resale"] = pair.Value.Resale, ["importHops"] = pair.Value.ImportHops });
             var cargo = new JArray();
             foreach (var pair in shipments)
                 cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
-                    ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks });
+                    ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops });
             var root = new JObject { ["version"] = 1, ["rows"] = rows, ["shipments"] = cargo };
-            if (NetProfiles.Write(path, root.ToString(Formatting.None))) dirty = false;
+            return root.ToString(Formatting.None);
+        }
+
+        // The station/profile write-ahead journal includes the entire economy snapshot.
+        // Recovery uses absolute targets and therefore cannot debit or credit stock twice.
+        internal static bool PersistJournalSnapshot(string json, bool recover)
+        {
+            if (string.IsNullOrEmpty(NetProfiles.Folder)) return false;
+            var parsed = Read(json);
+            var cargo = ReadShipments(JObject.Parse(json));
+            string target = Path.Combine(NetProfiles.Folder, "advanced-economy-stock.json");
+            if (!NetProfiles.Write(target, json)) return false;
+            if (recover && loaded)
+            {
+                balances.Clear(); live.Clear(); shipments.Clear();
+                foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
+                foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
+            }
+            dirty = false;
+            return true;
+        }
+
+        internal static void Flush(bool force = false)
+        {
+            if (!loaded || !dirty || readFailed || path == null || NetPlayerStations.ProfileWritesBlocked ||
+                (!force && (!Active || !ModAdvancedEconomy.SaveInventory || Time.unscaledTime < nextSave))) return;
+            nextSave = Time.unscaledTime + 10f;
+            if (NetProfiles.Write(path, Snapshot())) dirty = false;
         }
     }
 }

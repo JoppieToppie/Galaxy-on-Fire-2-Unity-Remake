@@ -63,6 +63,8 @@ namespace GoF2Remake.Data
         public static Action<StationStock> StockEntered;
         /// <summary>A unit bought / sold at the station: station, item, delta, price (NetStock.ItemChanged).</summary>
         public static Action<int, int, int, int> StockItemChanged;
+        public static Func<int, int, bool> AdvancedPricedItem;
+        public static Func<int, int, int?> AdvancedBuyQuote;
         /// <summary>A dealer ship swapped: station, removed, added (NetStock.ShipChanged).</summary>
         public static Action<int, int, int> StockShipChanged;
         /// <summary>A faction station's buying / selling price (NetFactionsClient); unset: the price.</summary>

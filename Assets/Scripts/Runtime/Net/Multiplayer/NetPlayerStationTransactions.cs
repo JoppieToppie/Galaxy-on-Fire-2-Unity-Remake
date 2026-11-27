@@ -50,6 +50,7 @@ namespace GoF2Remake.Multiplayer
             // Legacy single-profile field: retained so an interrupted journal from the first version can recover.
             public string account;
             public string registryJson;
+            public string advancedEconomyJson;
             // Durable completion marker; old journals deserialize as unfinished.
             public bool completed;
             public List<StationCargoTarget> cargo = new List<StationCargoTarget>();
@@ -138,12 +139,22 @@ namespace GoF2Remake.Multiplayer
                 new List<(string account, List<StoredShip> ships)> { (account, new List<StoredShip>(targetShips)) });
         }
 
+        internal static bool CommitEconomyTrade(string account, int item, int delta, long credits,
+            string faction, long tax, string economyJson)
+        {
+            if (string.IsNullOrEmpty(economyJson)) return false;
+            return CommitProfileTransaction(new List<(string account, int item, int delta)> { (account, item, delta) },
+                credits == 0 ? null : new List<(string account, long delta)> { (account, credits) },
+                tax == 0 ? null : new List<(string factionId, long delta)> { (faction, tax) },
+                economyJson: economyJson);
+        }
+
         static bool CommitProfileTransaction(
             List<(string account, int item, int delta)> cargoChanges,
             List<(string account, long delta)> creditChanges,
             List<(string factionId, long delta)> factionBankChanges,
             List<(string account, List<StoredShip> ships)> shipChanges = null,
-            StationRecoveryTarget recoveryTarget = null, bool registryOnly = false)
+            StationRecoveryTarget recoveryTarget = null, bool registryOnly = false, string economyJson = null)
         {
             if (!NetGame.IsServer || persistenceFaulted || registry == null || string.IsNullOrEmpty(path)) return false;
             if (File.Exists(TransactionPath))
@@ -207,7 +218,7 @@ namespace GoF2Remake.Multiplayer
             if (recoveryTarget != null && (string.IsNullOrEmpty(recoveryTarget.account) || recoveryTarget.recoveries == null)) return false;
             if (!registryOnly && cargoTargets.Count == 0 && creditTargets.Count == 0 && factionBankTargets.Count == 0 && shipTargets.Count == 0 && recoveryTarget == null) return false;
             if (!CanPublishStationSnapshot(Snapshot)) return false;
-            var journal = new StationTransactionJournal { registryJson = JsonUtility.ToJson(registry, true) };
+            var journal = new StationTransactionJournal { registryJson = JsonUtility.ToJson(registry, true), advancedEconomyJson = economyJson };
             foreach (var target in cargoTargets)
                 journal.cargo.Add(new StationCargoTarget { account = target.Key.account, item = target.Key.item, amount = target.Value });
             foreach (var target in creditTargets)
@@ -320,6 +331,8 @@ namespace GoF2Remake.Multiplayer
             }
             if (!NetFactions.SetBankAmounts(bankTargets)) return false;
 
+            if (!string.IsNullOrEmpty(journal.advancedEconomyJson) &&
+                !AdvancedEconomyLedger.PersistJournalSnapshot(journal.advancedEconomyJson, !preserveLiveRegistry)) return false;
             if (!NetProfiles.Write(path, journal.registryJson)) return false;
             // A normal synchronous commit already has exactly this state in memory. Keep
             // object identity for callers; only recovery must replace the live registry.

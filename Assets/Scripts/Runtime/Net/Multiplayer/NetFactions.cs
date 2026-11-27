@@ -90,6 +90,22 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Server: the VAT rate of the station's claim (0 = no holder or none).</summary>
         public static int VatAt(int station) => list == null ? 0 : Mathf.Clamp(ClaimAt(station)?.vat ?? 0, 0, MaxVat);
+
+        internal static int EconomyPrice(ulong client, int station, int basis, bool buy, int taxableUnits,
+            out string faction, out long tax)
+        {
+            faction = null; tax = 0;
+            var claim = ClaimAt(station);
+            if (claim == null || basis <= 0) return basis;
+            if (OfClient(client)?.id == claim.faction)
+                return Mathf.RoundToInt(basis * (100 - MemberDiscountPercent) / 100f);
+            if (!buy) return basis;
+            int rate = VatAt(station);
+            int price = VatMarkup(basis, rate);
+            faction = claim.faction;
+            tax = (long)Math.Round(price * (long)taxableUnits / (1.0 + rate / 1000.0) * rate / 100.0);
+            return price;
+        }
         const long SiegeDelaySeconds = 600, SiegeSeconds = 900, ProtectionHours = 24;
         const long SiegeMeetSeconds = 2 * 86400, SiegeForfeitSeconds = 60, StandoffSeconds = 3600, LapsedLockSeconds = 48 * 3600;
         const int MaxExtensions = 4, LapseFloorDays = 3;

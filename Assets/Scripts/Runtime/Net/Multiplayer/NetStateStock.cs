@@ -33,6 +33,11 @@ namespace GoF2Remake.Multiplayer
                 NetRateLimit.Reject(client, $"a trade of {delta} x item {item} at {station}");
                 return;
             }
+            if (NetStock.HostManagedPricing(station, item))
+            {
+                NetRateLimit.Reject(client, "legacy stock RPC for a server-priced commodity");
+                return;
+            }
             int done = NetStock.HostItem(station, item, delta, out int vatUnits);
             NetAudit.Trade(client, station, item, delta < 0 ? -done : done, price);   // the money log: what was granted
             if (delta < 0 && done < -delta)
@@ -40,6 +45,25 @@ namespace GoF2Remake.Multiplayer
             if (delta < 0 && vatUnits > 0 && NetProfiles.Enabled) NetFactions.OnPurchase(client, station, item, price, vatUnits);   // a faction station's VAT
             dirtyStock.Add(station);
         }
+        [Rpc(SendTo.Server)]
+        public void EconomyTradeRpc(int station, int item, int units, bool buy, int quote, int sequence, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            int delta = 0; long credits = 0;
+            string result = "Invalid or rate-limited commodity trade.";
+            if (NetRateLimit.Allow(client, NetRateLimit.Kind.Trade) && NetGuard.Station(station) &&
+                NetGuard.Item(item) && NetGuard.DockedAt(client, station))
+            {
+                result = NetStock.HostPricedTrade(client, station, item, units, buy, quote, sequence, out delta, out credits);
+                dirtyStock.Add(station);
+            }
+            EconomyTradeResultRpc(station, item, delta, credits, result, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void EconomyTradeResultRpc(int station, int item, int delta, long credits, string result, RpcParams rpc = default) =>
+            NetStock.PriceTradeResult(station, item, delta, credits, result);
+
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void ItemRefusedRpc(int station, int item, int price, int count, RpcParams rpc = default) => NetStock.ItemRefused(station, item, price, count);
         /// <summary>A player docked at 'station' wants the dealer's ship 'ship': theirs if it is still there (then off the list).</summary>

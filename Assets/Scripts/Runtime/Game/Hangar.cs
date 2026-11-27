@@ -111,6 +111,7 @@ namespace GoF2Remake.Data
         public bool Storage => KaamoClub.StorageAt(Station);
         public int PriceOf(int item)
         {
+            if (!Storage && GameHooks.AdvancedBuyQuote?.Invoke(Station, item) is int quote) return quote;
             // An item that joined the list after this opening (multiplayer: another player's sale) gets its price now.
             if (!prices.ContainsKey(item)) { AddPrices(new List<int> { item }); PinPrices(); }
             return Story.AdjustPrice(Station, item, prices.TryGetValue(item, out int p) ? p : 0);
@@ -529,6 +530,7 @@ namespace GoF2Remake.Data
         public Result Buy(int item, out int need)
         {
             need = 0;
+            if (!Storage && GameHooks.AdvancedPricedItem?.Invoke(Station, item) == true) return Result.NoStock;
             if (!Storage && !Modding.ModContent.ItemAvailableFor(item, "shops")) return Result.NoStock;
             var row = Stock.items.Find(s => s.item == item && s.amount > 0);
             if (row == null) return Result.NoStock;
@@ -550,6 +552,7 @@ namespace GoF2Remake.Data
         /// <summary>Sell one unit (Item::transaction(false)): same price as buying, the unit joins the station's stock.</summary>
         public Result Sell(int item)
         {
+            if (!Storage && GameHooks.AdvancedPricedItem?.Invoke(Station, item) == true) return Result.NothingToSell;
             var stack = Session.Cargo.Find(s => s.item == item && s.amount > 0);
             if (stack == null) return Result.NothingToSell;
             if (!IsSaleable(item)) return Result.NotSaleable;

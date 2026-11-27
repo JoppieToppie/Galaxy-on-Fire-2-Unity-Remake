@@ -7,6 +7,14 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void DynamicQuoteRespondsToScarcityWarAndFreight()
+        {
+            Assert.AreEqual((100, 90), ModAdvancedEconomy.Quote(100, 100, 100, 0, 0, 100, 30, 50, 5, 10));
+            Assert.AreEqual((260, 234), ModAdvancedEconomy.Quote(100, 0, 100, 100, 2, 100, 30, 50, 5, 10));
+            Assert.AreEqual((70, 63), ModAdvancedEconomy.Quote(100, 200, 100, 0, 0, 100, 30, 50, 5, 10));
+        }
+
+        [Test]
         public void RoutingDiscoversMultiHopAndHonoursDirection()
         {
             var graph = new AdvancedEconomyRoutes();

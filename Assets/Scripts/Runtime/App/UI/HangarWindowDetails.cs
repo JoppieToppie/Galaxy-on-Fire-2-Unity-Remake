@@ -464,7 +464,8 @@ namespace GoF2Remake.UI
                         tradeMounted.text = mounted > 0 ? MountedNote(mounted) : "";
                         tradeMounted.style.display = mounted > 0 ? DisplayStyle.Flex : DisplayStyle.None;   // Modified: under the price, only when there is one
                     }
-                    tradePrice.text = store ? "" : ItemInfo.Credits(price);
+                    string economyInfo = GoF2Remake.Multiplayer.NetStock.EconomyInfo(hangar.Station, item);
+                    tradePrice.text = store ? "" : economyInfo.Length > 0 ? economyInfo : ItemInfo.Credits(price);
                     tradePrice.EnableInClassList("trade-price--expensive", !store && price > Session.Credits);
                     sellButton.EnableInClassList("trade-arrow--disabled", cargo <= 0);
                     buyButton.EnableInClassList("trade-arrow--disabled", stock <= 0);

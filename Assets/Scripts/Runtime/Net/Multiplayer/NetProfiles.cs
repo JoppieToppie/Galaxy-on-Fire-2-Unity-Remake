@@ -827,6 +827,14 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>Absolute cargo count used by the station transaction journal. Reapplying a target is safe after a crash.</summary>
+        internal static bool EconomySaleable(ulong client, int item)
+        {
+            if (!Controls(client)) return false;
+            if (IsHostClient(client)) return Hangar.IsSaleable(item);
+            var save = ReadSave(AccountOf(client));
+            return save != null && save.unsaleable?.Contains(item) != true;
+        }
+
         internal static int CargoAmount(string id, int item)
         {
             if (id == null || item < 0) return -1;
