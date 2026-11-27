@@ -674,3 +674,20 @@
     border-radius: 0;
     background-color: rgba(0, 0, 0, 0.45);
 }
+
+/* Permanent identity and server briefing. */
+.ui-style-original #firstJoinIdentity,
+.ui-style-original .identity-briefing-card {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png"); background-repeat: repeat; background-size: 320px 320px; background-color: rgba(5,5,8,0.94); border-width: 1px; border-color: var(--gof-line); border-radius: 0;
+}
+.ui-style-original .identity-choice {
+    background-image: url("project://database/Assets/UI/Original/og_row.png"); -unity-slice-left: 75; -unity-slice-right: 75; -unity-slice-top: 20; -unity-slice-bottom: 20; -unity-slice-scale: 0.5px; background-color: rgba(0,0,0,0); border-width: 0; border-radius: 0;
+}
+.ui-style-original .identity-choice--selected,
+.ui-style-original .identity-choice--focused,
+.ui-style-original .identity-choice:focus {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png"); background-color: rgba(0,0,0,0); border-width: 0;
+}
+.ui-style-original .identity-briefing-warning {
+    background-color: rgba(65,37,12,0.94); border-width: 1px; border-color: var(--gof-amber); border-radius: 0;
+}
