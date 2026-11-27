@@ -532,9 +532,10 @@ namespace GoF2Remake.Multiplayer
             foreach (string row in (manifest ?? "").Split(';'))
             {
                 string[] fields = row.Split(',');
-                if (fields.Length != 6 || !int.TryParse(fields[0], out int tag) ||
+                if (fields.Length != 7 || !int.TryParse(fields[0], out int tag) ||
                     !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
                     !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
+                    !int.TryParse(fields[6], out int hull) || hull < 1 || hull > 65535 ||
                     !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
                     level.Database.Item(item) == null || !active.Add(tag)) continue;
                 int index = slot++;
@@ -573,20 +574,37 @@ namespace GoF2Remake.Multiplayer
                 if (fromStation) at = traffic.StationPosition + direction * 2200f + lane;
                 else if (toStation) at = gate + lane;
                 else at = gate - direction * 1800f + lane;
+                Vector3 end = toStation ? traffic.StationPosition + direction * 1800f + lane : gate + direction * 1800f + lane;
+                var freightRoute = new Route(false);
+                freightRoute.points.Add(level.Layout.Unplace(GamePosition(end)));
                 var npc = traffic.SpawnShip(new SpawnSpec
                 {
                     group = NpcGroup.Freighter, race = race, ship = ship, freighter = true,
                     eventTag = tag, noLoot = true, lootItem = item, lootAmount = amount,
-                    position = GamePosition(at), scale = configured >= 0 || large ? 1f : 0.65f,
-                    hitpoints = NpcTables.Hull(1, ship), speed = large ? 0.75f : 1.25f,
+                    position = level.Layout.Unplace(GamePosition(at)), route = freightRoute,
+                    scale = configured >= 0 || large ? 1f : 0.65f,
+                    hitpoints = NpcTables.Hull(1, ship), speed = NpcTables.FreighterSpeed * (large ?
+                        Modding.ModAdvancedEconomy.RhinoFreightSpeedPercent : Modding.ModAdvancedEconomy.CormorantFreightSpeedPercent) / 100f,
                     name = label
                 });
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
                 npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
+                npc.Target.hp = npc.Hp.hull = Mathf.Clamp(Mathf.RoundToInt(npc.Hp.maxHull * (hull / 65535f)), 1, npc.Hp.maxHull);
             }
             foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone &&
                 Modding.ModAdvancedEconomy.IsFreightTag(x.Spec.eventTag) && x.Target != null && x.Target.Alive))
                 if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
+            // Remove only the same number of ordinary ambient freighters; mission and custom
+            // traffic are untouched, and no decorative ships are removed without economic traffic.
+            int ordinary = active.Count;
+            foreach (var npc in traffic.Ships)
+            {
+                if (ordinary <= 0) break;
+                if (npc == null || npc.Gone || npc.Current != NpcShip.State.Fly || npc.Spec.group != NpcGroup.Freighter ||
+                    npc.Spec.eventTag != 0 || npc.Spec.convoyRole != 0 || (npc.Spec.ship != 13 && npc.Spec.ship != 15)) continue;
+                npc.JumpOut();
+                ordinary--;
+            }
             traffic.ConnectPlayers();
         }
 
