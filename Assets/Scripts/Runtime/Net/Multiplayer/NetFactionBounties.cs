@@ -154,9 +154,18 @@ namespace GoF2Remake.Multiplayer
         }
 
         [Serializable]
+        public sealed class PlayerBountyContract
+        {
+            public string issuerId, issuerName;
+            public long reward;
+            public bool accepted;
+        }
+
+        [Serializable]
         public sealed class PlayerWantedEntry
         {
             public string name, issuers, reporter;
+            public List<PlayerBountyContract> contracts = new List<PlayerBountyContract>();
             public bool pirate;
             public long reward;
             public int station = -1;
@@ -169,7 +178,7 @@ namespace GoF2Remake.Multiplayer
             public List<PlayerWantedEntry> entries = new List<PlayerWantedEntry>();
         }
 
-        internal static PlayerWantedSnapshot PlayerWantedBoard(int station)
+        internal static PlayerWantedSnapshot PlayerWantedBoard(int station, string viewer)
         {
             var result = new PlayerWantedSnapshot();
             if (!PiracyEnabled || bountyFile == null) return result;
@@ -180,6 +189,7 @@ namespace GoF2Remake.Multiplayer
             {
                 bool pirate = piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
                 var issuers = new List<string>();
+                var contracts = new List<PlayerBountyContract>();
                 long reward = pirate ? PirateReward(piracy) : 0;
                 long factionReward = 0;
                 int system = PiracySystemAt(station)?.index ?? -1;
@@ -189,8 +199,13 @@ namespace GoF2Remake.Multiplayer
                         if (record.wantedUntil <= now) continue;
                         bool npc = record.issuer.StartsWith("npc:", StringComparison.Ordinal);
                         if (npc && !record.issuingSystems.Contains(system)) continue;
+                        if (!npc && (!FactionBountyStation(record.issuer, station) || record.reward <= 0)) continue;
                         if (npc && !pirate) reward = Math.Max(reward, NpcReward(record));
-                        else if (!npc) factionReward = Session.SaturatingAdd(factionReward, record.reward);
+                        else if (!npc)
+                        {
+                            factionReward = Session.SaturatingAdd(factionReward, record.reward);
+                            if (viewer != null && viewer != account) contracts.Add(new PlayerBountyContract { issuerId = record.issuer, issuerName = BountyIssuerName(record.issuer), reward = record.reward, accepted = record.acceptedBy.Contains(viewer) });
+                        }
                         string issuer = BountyIssuerName(record.issuer);
                         if (!string.IsNullOrEmpty(issuer)) issuers.Add(issuer);
                     }
@@ -198,7 +213,7 @@ namespace GoF2Remake.Multiplayer
                 string name = NetProfiles.AccountName(account);
                 if (string.IsNullOrEmpty(name)) continue;
                 issuers.Sort(StringComparer.OrdinalIgnoreCase);
-                var entry = new PlayerWantedEntry { name = name, pirate = pirate, reward = Session.SaturatingAdd(reward, factionReward), issuers = string.Join(", ", issuers) };
+                var entry = new PlayerWantedEntry { name = name, pirate = pirate, contracts = contracts, reward = Session.SaturatingAdd(reward, factionReward), issuers = string.Join(", ", issuers) };
                 if (sightingsByAccount.TryGetValue(account, out var sighting) && sighting.seenAt > 0 &&
                     now - sighting.seenAt < SightingLifetime && now >= sighting.seenAt)
                 {
@@ -747,6 +762,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var r in bountyFile.records)
             {
                 if (r.wantedUntil <= now) continue;
+                if (r.issuer.StartsWith("faction:", StringComparison.Ordinal) && (!FactionBountyStation(r.issuer, DockedAt(client)) || r.reward <= 0)) continue;
                 if (r.issuer.StartsWith("npc:", StringComparison.Ordinal) && !r.issuingSystems.Contains(PiracySystemAt(NetSquad.Find(client)?.Station ?? -1)?.index ?? -1)) continue;
                 string issuer = BountyIssuerName(r.issuer);
                 string pilot = NetProfiles.AccountName(r.account);
@@ -760,6 +776,14 @@ namespace GoF2Remake.Multiplayer
             return shown == 0 ? "There are no active faction bounties." : result.ToString();
         }
 
+        static bool FactionBountyStation(string issuer, int station)
+        {
+            if (station < 0 || !issuer.StartsWith("faction:", StringComparison.Ordinal)) return false;
+            string id = issuer.Substring(8);
+            var built = NetPlayerStations.Find(station);
+            return FindById(id) != null && (built != null ? built.ownerFactionId == id : ClaimAt(station)?.faction == id);
+        }
+
         static string AcceptFactionBounty(ulong client, string account, string arg)
         {
             if (!PiracyEnabled || bountyFile == null || !NetProfiles.Controls(client) || !SaveBounties())
@@ -769,7 +793,18 @@ namespace GoF2Remake.Multiplayer
             var issuer = ByTag(arg.Substring(0, split));
             string target = NetProfiles.FindAccount(arg.Substring(split + 1).Trim());
             if (issuer == null || target == null || target == account) return "Unknown faction or target.";
-            var record = FindBounty(target, "faction:" + issuer.id);
+            return AcceptFactionBountyContract(client, "faction:" + issuer.id, arg.Substring(split + 1).Trim());
+        }
+
+        internal static string AcceptFactionBountyContract(ulong client, string issuer, string pilotName)
+        {
+            if (!PiracyEnabled || bountyFile == null || !NetProfiles.Controls(client) || !SaveBounties()) return "Bounty contracts are unavailable.";
+            string account = NetProfiles.AccountOf(client);
+            string target = NetProfiles.FindAccount(pilotName);
+            var pilot = NetSquad.Find(client);
+            if (account == null || target == null || target == account || pilot == null || !NetGuard.DockedAt(client, pilot.Station) ||
+                string.IsNullOrEmpty(issuer) || !FactionBountyStation(issuer, pilot.Station)) return "Visit a station owned by the issuing faction to accept its bounty.";
+            var record = FindBounty(target, issuer);
             if (record == null || record.wantedUntil <= UnixNow || record.reward <= 0) return "No funded contract.";
             if (record.acceptedBy.Contains(account)) return "Contract already accepted.";
             record.acceptedBy.Add(account);
