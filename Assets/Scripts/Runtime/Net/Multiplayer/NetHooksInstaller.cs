@@ -193,6 +193,7 @@ namespace GoF2Remake.Multiplayer
                 if (s != null && s.IsSpawned) s.SiegeWonRpc(station);
             };
             SpaceHooks.PirateSightingDone = (id, killer) => NetState.Instance?.PirateSightingDoneRpc(id, killer);
+            SpaceHooks.PirateEscaped = (id, station) => NetState.Instance?.PirateEscapedRpc(id, station);
             SpaceHooks.WreckHacked = (station, name) =>
             {
                 if (EventHost.Local) EventRunner.OnWreckHacked(LocalPilot.Instance, station, name);
