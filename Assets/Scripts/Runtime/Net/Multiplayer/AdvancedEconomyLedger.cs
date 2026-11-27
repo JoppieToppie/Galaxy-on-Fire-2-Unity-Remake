@@ -52,6 +52,8 @@ namespace GoF2Remake.Multiplayer
             public int Hull = 65535;
             // -1 is a legacy tick-based shipment. Nonnegative values are active server seconds.
             public int RemainingSeconds = -1;
+            public string FleetRace, FleetHull;
+            public int FleetSpeed = 100;
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         sealed class FreightWreck
@@ -177,12 +179,17 @@ namespace GoF2Remake.Multiplayer
                 int remainingSeconds = row["remainingSeconds"] == null ? -1 : (int)row["remainingSeconds"];
                 if (remainingSeconds < -1 || remainingSeconds > ModAdvancedEconomy.MaxFreightSeconds)
                     throw new JsonException("Invalid freight travel countdown.");
+                string fleetRace = (string)row["fleetRace"], fleetHull = (string)row["fleetHull"];
+                int fleetSpeed = row["fleetSpeed"] == null ? 100 : (int)row["fleetSpeed"];
+                if ((string.IsNullOrEmpty(fleetRace) != string.IsNullOrEmpty(fleetHull)) ||
+                    fleetSpeed < 10 || fleetSpeed > 500 || (fleetRace?.Length ?? 0) > 256 || (fleetHull?.Length ?? 0) > 256)
+                    throw new JsonException("Invalid freight fleet identity.");
                 int hull = row["hull"] == null ? 65535 : (int)row["hull"];
                 if (hull < 1 || hull > 65535) throw new JsonException("Invalid freight hull fraction.");
                 result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
                     FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks,
                     Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"],
-                    Hull = hull, RemainingSeconds = remainingSeconds });
+                    Hull = hull, RemainingSeconds = remainingSeconds, FleetRace = fleetRace, FleetHull = fleetHull, FleetSpeed = fleetSpeed });
             }
             return result;
         }
@@ -252,6 +259,38 @@ namespace GoF2Remake.Multiplayer
             if (ship.Orbit != orbit) { ship.Orbit = orbit; dirty = true; }
         }
 
+        static int OriginRace(Database db, int station)
+        {
+            int system = Shop.SystemOf(db, station);
+            int race = NpcFactionWar.OrbitOwner(db.Systems.Find(s => s.index == system), station);
+            return race >= 0 && race <= 10 || ModRaces.Get(race) != null ? race : 0;
+        }
+
+        static void AssignFleet(Shipment ship, int race, ModAdvancedEconomy.FreightHull hull)
+        {
+            ship.FleetRace = ModRaces.Get(race)?.key ?? race.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            ship.FleetHull = hull.Reference;
+            ship.FleetSpeed = hull.SpeedPercent;
+            dirty = true;
+        }
+
+        static bool ResolveFleet(Database db, Shipment ship, int source, out int race, out int hull)
+        {
+            race = OriginRace(db, source);
+            hull = ModAdvancedEconomy.NativeFreighter(race);
+            if (string.IsNullOrEmpty(ship.FleetHull))
+            {
+                var selected = ModAdvancedEconomy.PickFreightHull(ModAdvancedEconomy.FreightFleet(race), ship.Amount,
+                    UnityEngine.Random.Range(0, int.MaxValue));
+                if (selected == null) return false;
+                AssignFleet(ship, race, selected); // old shipments keep all of their already reserved cargo
+            }
+            if (!ModRaces.TryResolve(ship.FleetRace, null, out race)) return false;
+            if (ship.FleetHull == "native") hull = ModAdvancedEconomy.NativeFreighter(race);
+            else if (!ModContent.TryResolveShip(ship.FleetHull, out hull)) return false;
+            return db.Ship(hull) != null;
+        }
+
         static int RandomSeconds(int min, int max) => UnityEngine.Random.Range(min, max + 1);
         static int TravelSeconds() => RandomSeconds(ModAdvancedEconomy.FreightTravelMinSeconds, ModAdvancedEconomy.FreightTravelMaxSeconds);
         static int UnloadSeconds() => RandomSeconds(ModAdvancedEconomy.FreightUnloadMinSeconds, ModAdvancedEconomy.FreightUnloadMaxSeconds);
@@ -291,6 +330,8 @@ namespace GoF2Remake.Multiplayer
                 StartFreightClock(db, route, ship, systems);
                 return false;
             }
+            // Freeze physical progress if the saved hull or race was removed by a mod change.
+            if (!ResolveFleet(db, ship, route.Source, out _, out _)) return false;
             bool unloading = ship.Orbit == route.Destination;
             bool materialized = proxies.ContainsKey((ship.Orbit, ship.FreightTag));
             bool ready = !materialized || FreightLegReady(db, ship, proxies);
@@ -323,9 +364,9 @@ namespace GoF2Remake.Multiplayer
         internal static string FreightManifest(int orbit)
         {
             if (!Physical || NetPlayerStations.ProfileWritesBlocked) return null;
-            Flush(true);
-            if (dirty) return null;
             var rows = new List<string>();
+            var db = NetGame.Db;
+            if (db == null) return null;
             foreach (var pair in shipments.OrderBy(p => p.Key, StringComparer.Ordinal))
             {
                 var ship = pair.Value;
@@ -333,10 +374,12 @@ namespace GoF2Remake.Multiplayer
                 var keys = pair.Key.Split('|');
                 if (keys.Length != 3 || !ModContent.TryResolveItem(keys[2], out int item) ||
                     !ModWorld.TryResolveStation(keys[0], out int source) || !ModWorld.TryResolveStation(keys[1], out int destination)) continue;
-                rows.Add($"{ship.FreightTag},{item},{ship.Amount},{source},{destination},{(ship.Bulk ? 1 : 0)},{ship.Hull}");
+                if (!ResolveFleet(db, ship, source, out int race, out int hull)) continue;
+                rows.Add($"{ship.FreightTag},{item},{ship.Amount},{source},{destination},{(ship.Bulk ? 1 : 0)},{ship.Hull},{race},{hull},{ship.FleetSpeed}");
                 if (rows.Count >= ModAdvancedEconomy.FreightPerOrbit) break;
             }
-            return string.Join(";", rows);
+            Flush(true);
+            return dirty ? null : string.Join(";", rows);
         }
 
         internal static void RecordFreightHull(int orbit, int tag, int hull)
@@ -630,8 +673,17 @@ namespace GoF2Remake.Multiplayer
                 }
                 int send = ModAdvancedEconomy.DispatchAmount(source.Amount, sourceRule.Target,
                     destination.Amount + reserved, destinationRule.Target, route.Capacity);
-                if (physical) send = ModAdvancedEconomy.FreightCapacity(send, ModAdvancedEconomy.RhinoCapacity, ModAdvancedEconomy.CormorantCapacity);
                 if (send <= 0) continue;
+                int fleetRace = -1;
+                ModAdvancedEconomy.FreightHull fleetHull = null;
+                if (physical)
+                {
+                    fleetRace = OriginRace(db, route.Source);
+                    fleetHull = ModAdvancedEconomy.PickFreightHull(ModAdvancedEconomy.FreightFleet(fleetRace), send,
+                        UnityEngine.Random.Range(0, int.MaxValue));
+                    if (fleetHull == null || db.Ship(fleetHull.Ship) == null) continue;
+                    send = Math.Min(send, fleetHull.Capacity);
+                }
                 int resaleSent = Math.Min(send, source.Resale);
                 int survive = ModAdvancedEconomy.SurvivingCargo(send, route.WarLossPercent,
                     routePressure);
@@ -649,6 +701,7 @@ namespace GoF2Remake.Multiplayer
                         dispatched.Bulk = survive > ModAdvancedEconomy.CormorantCapacity;
                         dispatched.Orbit = route.Source;
                         dispatched.RemainingSeconds = TravelSeconds();
+                        AssignFleet(dispatched, fleetRace, fleetHull);
                     }
                     shipments[key] = dispatched;
                     incoming[incomingKey] = reserved + survive;
@@ -696,7 +749,8 @@ namespace GoF2Remake.Multiplayer
                 cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
                     ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops, ["freightTag"] = pair.Value.FreightTag,
                     ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks, ["bulk"] = pair.Value.Bulk, ["hull"] = pair.Value.Hull,
-                    ["remainingSeconds"] = pair.Value.RemainingSeconds });
+                    ["remainingSeconds"] = pair.Value.RemainingSeconds, ["fleetRace"] = pair.Value.FleetRace,
+                    ["fleetHull"] = pair.Value.FleetHull, ["fleetSpeed"] = pair.Value.FleetSpeed });
             var debris = new JArray();
             foreach (var pair in wrecks)
             {
