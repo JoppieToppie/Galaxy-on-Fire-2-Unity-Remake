@@ -8,6 +8,10 @@ bar missions and events as steps, which the Mod Builder also shows as a node gra
 command, `scripting.md` the mod scripts' reference (Lua: the `game` table, the events, the hook classes and the game's
 classes a script can use), and `guide.md` the full modders' guide. With both, an assistant can write a working mod for you.
 
+## Native and multiplayer features
+
+The current native feature reference is [NATIVE_FEATURES.md](../NATIVE_FEATURES.md), with specialist manuals for scanner detection, PIP leads, squad friendly fire, NPC faction warfare, piracy and jump drive rules linked from [the main guide](../README.md). In the Mod Builder choose **Menu > Modding documentation** to browse or search the bundled guides. Connected assistants should call `read_guide` to discover and read those same files; no additional repository access is needed. For an offline assistant, attach the relevant specialist documents from the parent Modding directory alongside the AI skill.
+
 ## Claude
 
 - **claude.ai (Skills):** zip the `gof2-modding` folder and upload it as a custom skill in claude.ai's settings. Then ask, for
