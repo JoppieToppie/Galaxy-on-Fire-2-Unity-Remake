@@ -19,6 +19,15 @@ namespace GoF2Remake.Modding
         public static bool Production { get; private set; }
         public static bool Consumption { get; private set; }
         public static bool RegionalTrade { get; private set; }
+        public static bool PhysicalFreight { get; private set; }
+        public static int RhinoCapacity { get; private set; } = 2500;
+        public static int CormorantCapacity { get; private set; } = 400;
+        public static int FreightPerOrbit { get; private set; } = 4;
+        public static int RhinoShip { get; private set; } = -1;
+        public static int CormorantShip { get; private set; } = -1;
+        public static int FreightCapacity(int requested, int large, int small) =>
+            Math.Min(Math.Max(0, requested), Math.Max(large, small));
+        public static bool IsFreightTag(int tag) => tag >= 800000000 && tag < 900000000;
         public static bool WarPressure { get; private set; }
         public static bool TradeDisruption { get; private set; }
         public static int TickSeconds { get; private set; } = 900;
@@ -146,6 +155,8 @@ namespace GoF2Remake.Modding
             PlayerMarketBudget = 0; PlayerMarketUnits = 100;
             ScarcityMarkup = 100; SurplusDiscount = 30; WarMarkup = 50; TransportPerHop = 5; SellSpread = 10;
             AutoCapacity = 100; AutoWarLoss = 0; TicksPerHop = 1; MaxAutoHops = 8;
+            PhysicalFreight = false; RhinoCapacity = 2500; CormorantCapacity = 400;
+            FreightPerOrbit = 4; RhinoShip = CormorantShip = -1;
             foreach (var mod in ModManager.Active)
             {
                 if (mod == null || mod.IsBase) continue;
@@ -162,6 +173,20 @@ namespace GoF2Remake.Modding
                     bool production = ModJson.Bool(o, "stationProduction", false, File);
                     bool consumption = ModJson.Bool(o, "stationConsumption", false, File);
                     bool trade = ModJson.Bool(o, "regionalTrade", false, File);
+                    bool physical = ModJson.Bool(o, "physicalFreight", false, File);
+                    int smallFreight = Math.Clamp(ModJson.Int(o, "cormorantCapacity", 400, File), 1, MaxStock);
+                    int largeFreight = Math.Clamp(ModJson.Int(o, "rhinoCapacity", 2500, File), smallFreight, MaxStock);
+                    int freightLimit = Math.Clamp(ModJson.Int(o, "freightPerOrbit", 4, File), 1, 16);
+                    int ResolveFreighter(string key)
+                    {
+                        string value = ModJson.Str(o, key);
+                        if (string.IsNullOrEmpty(value) || value == "-1") return -1;
+                        if ((!ModContent.TryResolveShip(value, out int ship) && !ModContent.TryResolveShip(mod.Id + ":" + value, out ship)) || db.Ship(ship) == null)
+                            throw new ModJsonException(File + ": unknown freight hull " + value);
+                        return ship;
+                    }
+                    int rhinoShip = physical ? ResolveFreighter("rhinoShip") : -1;
+                    int cormorantShip = physical ? ResolveFreighter("cormorantShip") : -1;
                     bool war = ModJson.Bool(o, "warPressure", false, File);
                     bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
                     bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
@@ -290,6 +315,12 @@ namespace GoF2Remake.Modding
                     Production |= production;
                     Consumption |= consumption;
                     RegionalTrade |= trade;
+                    if (physical && trade && save)
+                    {
+                        PhysicalFreight = true; RhinoCapacity = largeFreight; CormorantCapacity = smallFreight;
+                        FreightPerOrbit = freightLimit; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
+                    }
+                    else if (physical) Debug.LogWarning($"[{mod.Id}] {File}: physical freight requires regional trade and saved inventory; disabled.");
                     WarPressure |= war;
                     TradeDisruption |= disruption;
                     if (war) { FrontlinePressure = frontline; BattlePressure = battle; }
