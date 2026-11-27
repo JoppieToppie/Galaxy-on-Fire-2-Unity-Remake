@@ -540,7 +540,7 @@ namespace GoF2Remake.Multiplayer
                 int index = slot++;
                 // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
                 if (traffic.Ships.Exists(x => x != null && x.Spec.eventTag == tag && !x.Gone) ||
-                    NetProxy.All.Exists(x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
+                    System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
                 bool large = amount > Modding.ModAdvancedEconomy.CormorantCapacity;
                 int race = level.Layout.raceId;
                 int configured = large ? Modding.ModAdvancedEconomy.RhinoShip : Modding.ModAdvancedEconomy.CormorantShip;
