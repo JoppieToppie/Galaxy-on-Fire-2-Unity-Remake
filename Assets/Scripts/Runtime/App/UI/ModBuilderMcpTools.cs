@@ -162,7 +162,7 @@ namespace GoF2Remake.UI
             {
                 name = "write_file", title = "Write a file",
                 description = "Writes a file into the project (folders: models, textures, icons, portraits, fx, sky, cards, music, sounds, voices, text, events, scripts (Lua, scripts/main.lua and the others: read_guide scripting.md; the answer names a syntax error); images png / jpg / tga / bmp / dds / aei, models .glb or the game's own .aem (converted to .glb: the answer gives the .glb's path and its length for modelLength), audio ogg / wav / mp3, texts json / txt). Give 'text' for a text file or 'base64' for a binary one. " +
-                              "A texture named like a game texture (textures/<name>.png) replaces it everywhere, textures/<assembly>/<name>.png on that model only, textures/ships/<ship id>/<name>.png on a new ship of the project that uses a game model (\"gof2:...\") alone. music/<name>.ogg named like a game track (search_content kind music) replaces it, any other name is a new track. sounds/<name>.ogg named like a game sound (kind sound) replaces it everywhere, any other name is a new sound for a quest's Sound step. voices/<clip>.ogg is a voice line in every language, voices/<language>/<clip>.ogg in one (en, de, fr, es, it, nl, pl, ru, pt, zh, hi); named like a game line (kind voice) it replaces that line, the story's included. Use playerInfrastructure.json to edit the player-built station and gate rules. Use root piracy.json and raceOrigins.json for piracy and racial origins. Other entries (ships.json...) go through put_entry instead.",
+                              "A texture named like a game texture (textures/<name>.png) replaces it everywhere, textures/<assembly>/<name>.png on that model only, textures/ships/<ship id>/<name>.png on a new ship of the project that uses a game model (\"gof2:...\") alone. music/<name>.ogg named like a game track (search_content kind music) replaces it, any other name is a new track. sounds/<name>.ogg named like a game sound (kind sound) replaces it everywhere, any other name is a new sound for a quest's Sound step. voices/<clip>.ogg is a voice line in every language, voices/<language>/<clip>.ogg in one (en, de, fr, es, it, nl, pl, ru, pt, zh, hi); named like a game line (kind voice) it replaces that line, the story's included. Use playerInfrastructure.json to edit the player-built station and gate rules. Use root piracy.json and raceOrigins.json for piracy and racial origins. Use npc-faction-war.json to edit NPC warfare rules. Other entries (ships.json...) go through put_entry instead.",
                 input = Input(("path", "string", "its path in the project, e.g. portraits/vega.png", true), ("text", "string", "a text file's content", false),
                               ("base64", "string", "a binary file's content", false)),
                 run = WriteFile, timeoutSeconds = 60f, ask = a => $"write the file {Str(a, "path")} into the project",
@@ -663,8 +663,9 @@ namespace GoF2Remake.UI
             if (screen == null) { c.Fail(why); return; }
             string rel = Str(a, "path");
             bool infrastructure = string.Equals(rel?.Trim(), ModPlayerInfrastructure.FileName, StringComparison.OrdinalIgnoreCase);
-            string full = infrastructure ? null : ProjectPath(rel, true, out why);
-            if (!infrastructure && full == null) { c.Fail(why); return; }
+            bool factionWar = string.Equals(rel?.Trim(), ModNpcFactionWar.File, StringComparison.OrdinalIgnoreCase);
+            string full = infrastructure || factionWar ? null : ProjectPath(rel, true, out why);
+            if (!infrastructure && !factionWar && full == null) { c.Fail(why); return; }
             byte[] bytes;
             if (a["text"] is JValue t && t.Type == JTokenType.String) bytes = Encoding.UTF8.GetBytes((string)t);
             else if (a["base64"] is JValue b && b.Type == JTokenType.String)
@@ -674,6 +675,20 @@ namespace GoF2Remake.UI
             }
             else { c.Fail("Give 'text' or 'base64'."); return; }
             if (bytes.Length > 64 * 1024 * 1024) { c.Fail("Over 64 MB."); return; }
+            if (factionWar)
+            {
+                JObject rules;
+                try { rules = JObject.Parse(Encoding.UTF8.GetString(bytes)); }
+                catch (JsonException error) { c.Fail("Not a JSON object: " + error.Message); return; }
+                string errorMessage = screen.ExternalEdit(state =>
+                {
+                    state["npcFactionWar"] = rules;
+                    return null;
+                }, ModNpcFactionWar.File);
+                if (errorMessage != null) { c.Fail(errorMessage); return; }
+                AnswerAfterReload(c, screen, ModNpcFactionWar.File, null, null);
+                return;
+            }
             if (infrastructure)
             {
                 JObject rules;
