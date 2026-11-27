@@ -134,7 +134,7 @@ namespace GoF2Remake.Data
         public static int Done(int id)
         {
             var s = Find(id);
-            if (s == null || s.done) return -1;
+            if (s == null || !Active(s, Now)) return -1;
             s.done = true;
             return s.bounty;
         }
@@ -148,12 +148,13 @@ namespace GoF2Remake.Data
             Fill(db, Session.PirateSightings, Wanted, Session.Rank, Session.StationIndex, false, () => Session.NextPirateSightingId++);
         }
 
-        static void Fill(Database db, List<PirateSighting> board, int want, int rank, int notAt, bool anyRank, Func<int> nextId)
+        static void Fill(Database db, List<PirateSighting> board, int want, int rank, int notAt, bool anyRank, Func<int> nextId, Func<int, bool> occupied = null)
         {
             float now = Now;
             board.RemoveAll(s => !Active(s, now) || !db.Stations.Exists(x => x.index == s.station));   // (a mod's station gone)
             if (board.Count >= want) return;
             var candidates = Candidates(db, notAt, anyRank);
+            if (occupied != null) candidates.RemoveAll(c => occupied(c.station));
             while (board.Count < want && candidates.Count > 0)
             {
                 int k = Random.Range(0, candidates.Count);
@@ -248,7 +249,7 @@ namespace GoF2Remake.Data
             var sb = new StringBuilder();
             foreach (var s in Session.PirateSightings)
             {
-                if (s.done || s.expiresAt <= now) continue;
+                if (!Active(s, now)) continue;
                 if (s.system != system && (sys == null || !sys.jumpRoutesTo.Contains(s.system))) continue;
                 sb.Append(Report(db, s)).Append(NewsTicker.Separator);
             }
@@ -298,7 +299,7 @@ namespace GoF2Remake.Data
             int before = serverBoard.Count;
             bool changed = serverBoard.RemoveAll(s => !Active(s, Now)) > 0;
             changed |= Relocate(db, serverBoard, occupied ?? (_ => false), true);
-            Fill(db, serverBoard, 4, 10, -1, true, () => serverNextId++);   // rank 10's bounties: the session's pilots differ
+            Fill(db, serverBoard, 4, 10, -1, true, () => serverNextId++, occupied);   // rank 10's bounties: the session's pilots differ
             if (changed || serverBoard.Count != before) publish(JsonUtility.ToJson(new Shared { items = serverBoard }));
         }
 
