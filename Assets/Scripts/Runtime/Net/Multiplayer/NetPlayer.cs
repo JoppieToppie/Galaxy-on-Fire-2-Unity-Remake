@@ -182,6 +182,17 @@ namespace GoF2Remake.Multiplayer
         public int PreviousShip { get; private set; } = -1;
         public int SquadId => squad.Value;
         /// <summary>This player's standing axes and signature (their Session): Standing.IsEnemyWith / IsFriendWith.</summary>
+        static bool HostileToFriendlyRace(NetPlayer other)
+        {
+            var local = Local;
+            if (local == null || other == null) return false;
+            bool Enemy(int race) => Standing.IsFriendWith(race, local.Standing0, local.Standing1, -1, local.ModRaceStandings) &&
+                Standing.IsEnemyWith(race, other.Standing0, other.Standing1, -1, other.ModRaceStandings);
+            for (int race = 0; race < 4; race++) if (Enemy(race)) return true;
+            foreach (var race in Modding.ModRaces.All) if (Enemy(race.race)) return true;
+            return false;
+        }
+
         public int Standing0 => standing0.Value;
         public int Standing1 => standing1.Value;
         public int Signature => signature.Value;
@@ -1374,7 +1385,7 @@ namespace GoF2Remake.Multiplayer
                     // An enemy after attacking this player, until one of them is destroyed (NetAggression): a red marker, the
                     // turrets and sentries fire at them (only where players may fight).
                     target.hostileToPlayer = !mate && PvpWith(this) &&
-                ((Local != null && Local.IsPirate != IsPirate) || NetAggression.IsHostile(OwnerClientId));
+                ((Local != null && Local.IsPirate != IsPirate) || NetAggression.IsHostile(OwnerClientId) || HostileToFriendlyRace(this));
                 }
                 mirror?.Update(Time.deltaTime * 1000f);
                 return;
