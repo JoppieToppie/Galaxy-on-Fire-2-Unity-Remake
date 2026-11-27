@@ -10,6 +10,8 @@ Example (replace station and item references with valid station/commodity IDs or
 {
   "enabled": true,
   "persistentInventory": true,
+  "saveInventory": true,
+  "simulateUnvisitedStations": true,
   "stationProduction": true,
   "stationConsumption": true,
   "tickIntervalSeconds": 900,
@@ -29,10 +31,10 @@ Example (replace station and item references with valid station/commodity IDs or
 
 Each row is opt-in; unmanaged rows follow vanilla restocking including rare goods.
 The target is a reference for future pricing/trade, not an automatic refill.
-The host retains managed stock through vanilla shipments for the lifetime of its session.
+The host retains managed stock through vanilla shipments. With saveInventory enabled on a persistent host or dedicated profile server, balances (including zero and resale provenance) are saved in advanced-economy-stock.json in the server profile folder, with atomic writes and backup recovery. Saving is batched at most every ten seconds and attempted at orderly shutdown. A corrupt primary and backup suspend saving rather than overwrite recovery data. No offline catch-up is simulated.
 Production and consumption use explicit units per tick. Stock is updated from existing
 server stock transactions, and the ordinary stock broadcast carries changes to clients.
-The initial phase only simulates stations that have generated stock. Sales over a row's
+With simulateUnvisitedStations enabled, all configured NPC stations run on one economy tick, even if nobody has visited them. Otherwise only generated shops participate. No vanilla dealer lists are generated for unvisited stations. Sales over a row's
 maximum follow the existing shop-cap behaviour: excess is accepted but not retained.
 The underlying vanilla credit transaction protocol has not yet been changed.
 
@@ -43,7 +45,7 @@ override a duplicate station/item row; their inventory tick interval also wins.
 Disabled files contribute nothing. Emergency fuel at the three special stations is
 excluded. No configuration is automatically installed or activated.
 
-Next phases: server restart snapshots, global unvisited-station simulation, category
+Next phases: category
 profiles and specialization, server-authoritative price quotes/transactions, demand and
 scarcity pricing, abstract shipments, and gate-based frontline war pressure. Do not
 activate the advanced economy for production servers until these are validated.

@@ -354,6 +354,7 @@ namespace GoF2Remake.Multiplayer
             if (Instance == this) { Instance = null; NetProfileClient.ClearIdentitySetup(); }
             retryWarSaveAt = 0f;
             FlushFactionWar();
+            AdvancedEconomyLedger.Flush(force: true);
             NpcFactionWar.SetNetworkCampaign(null);
             playerStationJson = "";
             appliedPlayerStationRevision = 0;

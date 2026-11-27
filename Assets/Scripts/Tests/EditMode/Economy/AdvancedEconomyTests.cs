@@ -1,10 +1,24 @@
 using GoF2Remake.Modding;
+using GoF2Remake.Multiplayer;
 using NUnit.Framework;
 
 namespace GoF2Remake.Tests
 {
     public class AdvancedEconomyTests
     {
+        [Test]
+        public void LedgerPreservesZeroAndClampsResale()
+        {
+            var balance = new AdvancedEconomyLedger.Balance(10, 8, 100);
+            Assert.IsTrue(balance.Set(0, 8, 100));
+            Assert.AreEqual(0, balance.Amount);
+            Assert.AreEqual(0, balance.Resale);
+            Assert.IsFalse(balance.Set(0, 0, 100));
+            Assert.IsTrue(balance.Set(200, 150, 100));
+            Assert.AreEqual(100, balance.Amount);
+            Assert.AreEqual(100, balance.Resale);
+        }
+
         [Test]
         public void EmptyStockDoesNotAutomaticallyReturnToTarget()
         {

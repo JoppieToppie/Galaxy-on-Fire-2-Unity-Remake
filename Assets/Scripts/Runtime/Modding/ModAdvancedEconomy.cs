@@ -14,6 +14,8 @@ namespace GoF2Remake.Modding
         public const int MaxStock = 100000;
         public static bool Enabled { get; private set; }
         public static bool PersistentInventory { get; private set; }
+        public static bool SaveInventory { get; private set; }
+        public static bool SimulateUnvisitedStations { get; private set; }
         public static bool Production { get; private set; }
         public static bool Consumption { get; private set; }
         public static int TickSeconds { get; private set; } = 900;
@@ -45,9 +47,11 @@ namespace GoF2Remake.Modding
         public static IReadOnlyDictionary<int, Rule> At(int station) =>
             Enabled && PersistentInventory && rules.TryGetValue(station, out var rows) ? rows : null;
 
+        public static IEnumerable<int> Stations => rules.Keys;
+
         internal static void Apply(Database db)
         {
-            Enabled = PersistentInventory = Production = Consumption = false;
+            Enabled = PersistentInventory = SaveInventory = SimulateUnvisitedStations = Production = Consumption = false;
             TickSeconds = 900;
             rules.Clear();
             foreach (var mod in ModManager.Active)
@@ -61,6 +65,8 @@ namespace GoF2Remake.Modding
                     // A disabled config cannot contribute any settings or rows.
                     if (!ModJson.Bool(o, "enabled", false, File)) continue;
                     bool inventory = ModJson.Bool(o, "persistentInventory", false, File);
+                    bool save = ModJson.Bool(o, "saveInventory", false, File);
+                    bool unvisited = ModJson.Bool(o, "simulateUnvisitedStations", false, File);
                     bool production = ModJson.Bool(o, "stationProduction", false, File);
                     bool consumption = ModJson.Bool(o, "stationConsumption", false, File);
                     int interval = Math.Clamp(ModJson.Int(o, "tickIntervalSeconds", 900, File), 60, 86400);
@@ -99,6 +105,8 @@ namespace GoF2Remake.Modding
                     Enabled = true;
                     if (!inventory) continue;
                     PersistentInventory = true;
+                    SaveInventory |= save;
+                    SimulateUnvisitedStations |= unvisited;
                     Production |= production;
                     Consumption |= consumption;
                     TickSeconds = interval;

@@ -994,6 +994,8 @@ namespace GoF2Remake.UI
                 v => rules[key] = v, ShowAdvancedEconomyRules);
             Flag("enabled", "Enable advanced economy");
             Flag("persistentInventory", "Persistent commodity stock (multiplayer session)");
+            Flag("saveInventory", "Save stock across persistent server restarts");
+            Flag("simulateUnvisitedStations", "Simulate unvisited configured stations");
             Flag("stationProduction", "Station production");
             Flag("stationConsumption", "Station consumption");
             Int(scroll, "Tick interval (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
@@ -1015,7 +1017,7 @@ namespace GoF2Remake.UI
                 Field("consumptionPerTick", "Consumption per tick", 0, 0);
                 Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
             }
-            Note(scroll, "Add station and commodity references in advanced-economy.json (stockRules); the existing rows can be edited here. Restart persistence, pricing and shipping will follow.");
+            Note(scroll, "Add station and commodity references in advanced-economy.json (stockRules); the existing rows can be edited here. Pricing and shipping will follow.");
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
         }
