@@ -46,6 +46,8 @@ namespace GoF2Remake.Multiplayer
         sealed class Shipment
         {
             public int Amount, Resale, Ticks, Hops;
+            // The tag is a server-issued identity, never a cargo quantity supplied by an orbit client.
+            public int FreightTag, Orbit = -1, TotalTicks;
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         static bool loaded, dirty, readFailed;
@@ -147,7 +149,14 @@ namespace GoF2Remake.Multiplayer
                     throw new JsonException("Invalid shipment balance.");
                 int hops = row["hops"] == null ? 0 : (int)row["hops"];
                 if (hops < 0 || hops > 96) throw new JsonException("Invalid shipment distance.");
-                result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops });
+                int tag = row["freightTag"] == null ? 0 : (int)row["freightTag"];
+                int orbit = row["orbit"] == null ? -1 : (int)row["orbit"];
+                int totalTicks = row["totalTicks"] == null ? 0 : (int)row["totalTicks"];
+                if ((tag != 0 && (!ModAdvancedEconomy.IsFreightTag(tag) || result.Values.Any(s => s.FreightTag == tag))) ||
+                    orbit < -1 || totalTicks < 0 || totalTicks > 96 || (totalTicks != 0 && totalTicks < ticks))
+                    throw new JsonException("Invalid physical freight identity or progress.");
+                result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
+                    FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks });
             }
             return result;
         }
@@ -157,6 +166,70 @@ namespace GoF2Remake.Multiplayer
             var a = StableKey(route.Source, route.Item);
             var b = StableKey(route.Destination, route.Item);
             return a.Station + "|" + b.Station + "|" + a.Item;
+        }
+
+        static bool Physical => Active && ModAdvancedEconomy.PhysicalFreight && NetProfiles.Enabled && CanJournal;
+
+        static int NewFreightTag()
+        {
+            int tag;
+            do { tag = UnityEngine.Random.Range(800000000, 900000000); }
+            while (shipments.Values.Any(s => s.FreightTag == tag));
+            return tag;
+        }
+
+        internal static int FreightLeg(int totalTicks, int ticks, int pathCount)
+        {
+            if (pathCount <= 1) return 0;
+            return Math.Clamp((int)((long)Math.Max(0, totalTicks - ticks) * pathCount / Math.Max(1, totalTicks)), 0, pathCount - 1);
+        }
+
+        static void UpdateFreight(Database db, ModAdvancedEconomy.Route route, Shipment ship, IReadOnlyList<int> systems)
+        {
+            if (!Physical) return;
+            if (ship.FreightTag == 0) { ship.FreightTag = NewFreightTag(); dirty = true; }
+            if (ship.TotalTicks == 0) { ship.TotalTicks = Math.Max(1, ship.Ticks); dirty = true; }
+            int leg = FreightLeg(ship.TotalTicks, ship.Ticks, systems.Count);
+            int orbit = leg == 0 ? route.Source : leg == systems.Count - 1 ? route.Destination :
+                db.Stations.Where(s => s.system == systems[leg] && !Shop.UsesPlayerMarketplace(s.index))
+                    .Select(s => s.index).DefaultIfEmpty(-1).Min();
+            if (systems.Count == 1 && ship.Ticks < ship.TotalTicks) orbit = route.Destination;
+            if (ship.Orbit != orbit) { ship.Orbit = orbit; dirty = true; }
+        }
+
+        // Only persisted, in-transit shipments are exposed; the amount is a manifest, not a grant.
+        internal static string FreightManifest(int orbit)
+        {
+            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return "";
+            Flush(true);
+            if (dirty) return "";
+            var rows = new List<string>();
+            foreach (var pair in shipments.OrderBy(p => p.Key, StringComparer.Ordinal))
+            {
+                var ship = pair.Value;
+                if (ship.Orbit != orbit || ship.FreightTag == 0 || ship.Amount <= 0) continue;
+                var keys = pair.Key.Split('|');
+                if (keys.Length != 3 || !ModContent.TryResolveItem(keys[2], out int item) ||
+                    !ModWorld.TryResolveStation(keys[0], out int source) || !ModWorld.TryResolveStation(keys[1], out int destination)) continue;
+                rows.Add($"{ship.FreightTag},{item},{ship.Amount},{source},{destination}");
+                if (rows.Count >= ModAdvancedEconomy.FreightPerOrbit) break;
+            }
+            return string.Join(";", rows);
+        }
+
+        // A destroyed physical ship cannot later deliver. The absolute ledger is written before
+        // accepting the loss; repeated reports and late reports from earlier orbits do nothing.
+        internal static bool LoseFreight(int orbit, int tag)
+        {
+            if (!Physical || !ModAdvancedEconomy.IsFreightTag(tag) || NetPlayerStations.ProfileWritesBlocked) return false;
+            var pair = shipments.FirstOrDefault(p => p.Value.FreightTag == tag && p.Value.Orbit == orbit);
+            if (pair.Value == null) return false;
+            shipments.Remove(pair.Key);
+            dirty = true;
+            Flush(true);
+            if (!dirty) return true;
+            shipments.Add(pair.Key, pair.Value);
+            return false;
         }
 
         // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
@@ -253,7 +326,15 @@ namespace GoF2Remake.Multiplayer
                 if (shipments.TryGetValue(key, out var shipment))
                 {
                     if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
+                    if (shipment.Ticks > 0 || shipment.TotalTicks > 0) UpdateFreight(db, route, shipment, path);
                     if (shipment.Ticks > 0) continue;
+                    // Give a newly reached destination one full tick of visibility before unloading.
+                    if (Physical && shipment.Orbit == route.Destination && shipment.TotalTicks > 0)
+                    {
+                        shipment.TotalTicks = 0;
+                        dirty = true;
+                        continue;
+                    }
                     int delivered = Math.Min(shipment.Amount, destinationRule.Maximum - destination.Amount);
                     if (delivered > 0)
                     {
@@ -274,6 +355,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 int send = ModAdvancedEconomy.DispatchAmount(source.Amount, sourceRule.Target,
                     destination.Amount + reserved, destinationRule.Target, route.Capacity);
+                if (Physical) send = ModAdvancedEconomy.FreightCapacity(send, ModAdvancedEconomy.RhinoCapacity, ModAdvancedEconomy.CormorantCapacity);
                 if (send <= 0) continue;
                 int resaleSent = Math.Min(send, source.Resale);
                 int survive = ModAdvancedEconomy.SurvivingCargo(send, route.WarLossPercent,
@@ -283,7 +365,11 @@ namespace GoF2Remake.Multiplayer
                 if (survive > 0)
                 {
                     int resaleSurvives = Math.Min(resaleSent, survive);
-                    shipments[key] = new Shipment { Amount = survive, Resale = resaleSurvives, Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)), Hops = Math.Min(96, path.Count - 1) };
+                    var dispatched = new Shipment { Amount = survive, Resale = resaleSurvives,
+                        Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)),
+                        Hops = Math.Min(96, path.Count - 1) };
+                    if (Physical) UpdateFreight(db, route, dispatched, path);
+                    shipments[key] = dispatched;
                     incoming[incomingKey] = reserved + survive;
                     dirty = true;
                 }
@@ -327,7 +413,8 @@ namespace GoF2Remake.Multiplayer
             var cargo = new JArray();
             foreach (var pair in shipments)
                 cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
-                    ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops });
+                    ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops, ["freightTag"] = pair.Value.FreightTag,
+                    ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks });
             var root = new JObject { ["version"] = 1, ["rows"] = rows, ["shipments"] = cargo };
             return root.ToString(Formatting.None);
         }
