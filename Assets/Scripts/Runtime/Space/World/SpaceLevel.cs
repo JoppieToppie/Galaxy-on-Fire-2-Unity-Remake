@@ -119,6 +119,7 @@ namespace GoF2Remake.World
         public PlayerDevices Devices { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
         public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, StoryLocked) || (Siege != null && Siege.Active) || FreelanceBlocks
+                                      || PirateReports.BlocksDocking(Layout.stationIndex)
                                       || GoF2Remake.World.SpaceHooks.NoDocking
                                       || GameHooks.StationClosedByCombat?.Invoke(Layout.stationIndex) == true;   // an event's Restrict Travel
         bool freelanceMissionOrbit;
