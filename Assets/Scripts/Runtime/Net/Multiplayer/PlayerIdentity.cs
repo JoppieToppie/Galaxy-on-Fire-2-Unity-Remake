@@ -20,12 +20,26 @@ namespace GoF2Remake.Multiplayer
         {
             if (ModJson.Get(options, "enabled") is JToken enabled && enabled.Type != JTokenType.Boolean)
                 throw new ModJsonException($"{OriginsFile}: enabled must be boolean.");
+            ValidateNonnegativeInteger(options, "defaultStartingCredits");
             var entries = ModJson.Get(options, "origins");
             if (entries == null) return;
             if (!(entries is JObject origins)) throw new ModJsonException($"{OriginsFile}: origins must be an object.");
             foreach (var entry in origins.Properties())
             {
                 if (!(entry.Value is JObject origin)) throw new ModJsonException($"{OriginsFile}: {entry.Name} must be an object.");
+                ValidateNonnegativeInteger(origin, "startingShip");
+                ValidateNonnegativeInteger(origin, "startingCredits");
+                if (ModJson.Get(origin, "startingEquipment") is JToken equipment)
+                {
+                    if (!(equipment is JArray stacks)) throw new ModJsonException($"{OriginsFile}: startingEquipment must be an array.");
+                    foreach (var stack in stacks)
+                    {
+                        if (!(stack is JObject item) || ModJson.Get(item, "item") == null)
+                            throw new ModJsonException($"{OriginsFile}: invalid starting equipment.");
+                        ValidateNonnegativeInteger(item, "item");
+                        ValidateNonnegativeInteger(item, "amount", 1);
+                    }
+                }
                 if (ModJson.Get(origin, "startingStation") is JToken station &&
                     station.Type != JTokenType.String && station.Type != JTokenType.Integer)
                     throw new ModJsonException($"{OriginsFile}: startingStation must be a station reference.");
@@ -51,10 +65,18 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
-        static JObject FindOrigin(int race, out ModInfo source)
+        static void ValidateNonnegativeInteger(JObject obj, string key, int minimum = 0)
+        {
+            if (ModJson.Get(obj, key) is JToken value &&
+                (value.Type != JTokenType.Integer || (long)value < minimum || (long)value > int.MaxValue))
+                throw new ModJsonException($"{OriginsFile}: {key} must be an integer from {minimum} to {int.MaxValue}.");
+        }
+
+        static JObject FindOrigin(int race, out ModInfo source, out int defaultCredits)
         {
             JObject selected = null;
             source = null;
+            defaultCredits = NetGame.StartCredits;
             foreach (var mod in ModManager.Active)
             {
                 var token = ModJson.Read(mod.Source, OriginsFile);
@@ -64,7 +86,11 @@ namespace GoF2Remake.Multiplayer
                 if (!ModJson.Bool(options, "enabled", false, OriginsFile) || !(ModJson.Get(options, "origins") is JObject entries)) continue;
                 foreach (var entry in entries.Properties())
                     if (ModRaces.TryResolve(entry.Name, mod, out int resolved) && resolved == race)
-                    { selected = (JObject)entry.Value; source = mod; }
+                    {
+                        selected = (JObject)entry.Value;
+                        source = mod;
+                        defaultCredits = ModJson.Int(options, "defaultStartingCredits", NetGame.StartCredits, OriginsFile);
+                    }
             }
             return selected;
         }
@@ -73,7 +99,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (db != null && TryResolveRace(raceKey, out int race))
             {
-                var origin = FindOrigin(race, out _);
+                var origin = FindOrigin(race, out _, out _);
                 if (origin != null && ModJson.Get(origin, "startingShip") is JToken hull &&
                     hull.Type == JTokenType.Integer && NetGuard.Ship((int)hull))
                     return (int)hull;
@@ -86,7 +112,7 @@ namespace GoF2Remake.Multiplayer
         internal static SaveData CreateOriginProfile(Database db, int race, string portrait)
         {
             if (db == null) return null;
-            var selected = FindOrigin(race, out var source);
+            var selected = FindOrigin(race, out var source, out int defaultCredits);
             if (selected == null) return null;
 
             string Reference(JToken value)
@@ -105,7 +131,7 @@ namespace GoF2Remake.Multiplayer
                 throw new ModJsonException($"{OriginsFile}: startAsPirate requires enabled piracy.json.");
             int ship = ModJson.Int(selected, "startingShip", NetGame.StartShip, OriginsFile);
             if (!NetGuard.Ship(ship)) throw new ModJsonException($"{OriginsFile}: invalid startingShip {ship}.");
-            int credits = ModJson.Int(selected, "startingCredits", NetGame.StartCredits, OriginsFile);
+            int credits = ModJson.Int(selected, "startingCredits", defaultCredits, OriginsFile);
             if (credits < 0) throw new ModJsonException($"{OriginsFile}: startingCredits must be nonnegative.");
             var equipment = NetGame.StartEquipment();
             if (ModJson.Get(selected, "startingEquipment") is JArray loadout)
