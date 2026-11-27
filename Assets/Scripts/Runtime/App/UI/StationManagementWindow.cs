@@ -103,6 +103,8 @@ namespace GoF2Remake.UI
             // The same resource stylesheet drives the docked and in-flight interface.
             var sheet = Resources.Load<StyleSheet>("GoF2Net/PlayerStationWindow");
             if (sheet != null) overlay.styleSheets.Add(sheet);
+            var original = Resources.Load<StyleSheet>("GoF2UI/OriginalStyle");
+            if (original != null) overlay.styleSheets.Add(original);
             overlay.style.display = DisplayStyle.None;
             safeArea.Add(overlay);
             panel = new VisualElement { name = "playerStationManagement" };
