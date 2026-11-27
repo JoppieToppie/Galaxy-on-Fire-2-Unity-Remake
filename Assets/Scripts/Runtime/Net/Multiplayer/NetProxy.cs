@@ -834,9 +834,14 @@ namespace GoF2Remake.Multiplayer
 
         void ReportFactionWarCasualty(NetProxyStatus before, NetProxyStatus after)
         {
-            if (IsServer && Modding.ModAdvancedEconomy.IsFreightTag(EventTag) && before.life == Flying && after.life != Flying && after.hull == 0 &&
+            if (IsServer && Modding.ModAdvancedEconomy.IsFreightTag(EventTag) &&
                 NetState.RunnerOf(Station)?.OwnerClientId == OwnerClientId && Spec?.spec?.freighter == true)
-                AdvancedEconomyLedger.LoseFreight(Station, EventTag, Race, WorldPosition);
+            {
+                if (before.life == Flying && after.life != Flying && after.hull == 0)
+                    AdvancedEconomyLedger.LoseFreight(Station, EventTag, Race, WorldPosition);
+                else if (after.life == Flying && after.hull > 0)
+                    AdvancedEconomyLedger.RecordFreightHull(Station, EventTag, after.hull);
+            }
             if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700031 && Spec?.spec != null)
                 NetState.Instance?.RecordPirateDefender(this);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))
