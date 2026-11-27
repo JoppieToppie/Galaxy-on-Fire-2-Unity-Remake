@@ -415,6 +415,16 @@ namespace GoF2Remake.Multiplayer
             bool local = host != null && IsHostClient(host.OwnerClientId);
             var save = local ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : prior;
             if (save == null) return false;
+            ApplySavedPenalty(save, pirate, penalty);
+            save.reputationRevision = revision;
+            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
+            InvalidateEconomyUploads(account);
+            PublishReputation(host, save, notifyOwner: true, penalty: true);
+            return true;
+        }
+
+        internal static void ApplySavedPenalty(SaveData save, bool pirate, int penalty)
+        {
             var standings = SavedReputation(save);
             if (pirate) SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
             foreach (int race in Flight.Standing.ReputationRaces())
@@ -423,11 +433,6 @@ namespace GoF2Remake.Multiplayer
                 int value = pirate ? -100 : Mathf.Max(-100, SavedStanding(save, race, standings) - Mathf.Clamp(penalty, 1, 100));
                 SetSavedReputation(save, key, value);
             }
-            save.reputationRevision = revision;
-            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
-            InvalidateEconomyUploads(account);
-            PublishReputation(host, save, notifyOwner: true, penalty: true);
-            return true;
         }
 
         static NetPlayer ControllerForReputation(string account)
@@ -462,9 +467,17 @@ namespace GoF2Remake.Multiplayer
         {
             if (account == null || price < 0 || NetPlayerStations.ProfileWritesBlocked) return false;
             var prior = ReadSave(account);
-            if (prior?.reputationRevision == revision) return true;
             var pilot = ControllerForReputation(account);
             bool local = pilot != null && IsHostClient(pilot.OwnerClientId);
+            if (prior?.reputationRevision == revision)
+            {
+                if (local && Session.ReputationRevision != revision)
+                {
+                    Session.Credits = prior.credits;
+                    PublishReputation(pilot, prior, true);
+                }
+                return true;
+            }
             var save = local ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : prior;
             if (save == null || !TryApplyCreditDelta(save.credits, -price, out long balance)) return false;
             save.credits = balance;
@@ -473,6 +486,8 @@ namespace GoF2Remake.Multiplayer
             if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
             AdjustWorth(account, -price);
             InvalidateEconomyUploads(account);
+            if (local) Session.Credits = balance;
+            PublishReputation(pilot, save, notifyOwner: local);
             return true;
         }
 

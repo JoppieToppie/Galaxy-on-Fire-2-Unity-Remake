@@ -261,8 +261,8 @@ namespace GoF2Remake.Multiplayer
                 if (account == null) continue;
                 scores.TryGetValue(account, out int score);
                 scores[account] = score + 1;
-                roster.attackerReputation[account] = Standing.EarnedWith(roster.battle.attacker, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
-                roster.defenderReputation[account] = Standing.EarnedWith(roster.battle.defender, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
+                roster.attackerReputation[account] = NetProfiles.ProfileStanding(pilot, roster.battle.attacker);
+                roster.defenderReputation[account] = NetProfiles.ProfileStanding(pilot, roster.battle.defender);
             }
         }
 

@@ -118,7 +118,7 @@ namespace GoF2Remake.Multiplayer
 
         static bool QueueReputationEvent(PendingReputation pending)
         {
-            if (bountyFile == null || !SaveBounties()) return false;
+            if (bountyFile == null) return false;
             bountyFile.reputation.Add(pending);
             bountyDirty = true;
             if (!SaveBounties()) return false; // retain the unsaved intent for retry
@@ -431,7 +431,13 @@ namespace GoF2Remake.Multiplayer
                 !r.pveKills.Exists(k => k > now - BountyWindowSeconds)) > 0;
             bountyDirty |= bountyFile.piracy.RemoveAll(r => !r.pirate && !r.everPirate && !HasPendingReputation(r.account) && !r.kills.Exists(k => k >= now - MaxPiracyWindowSeconds)) > 0;
             if (before != bountyFile.records.Count + bountyFile.piracy.Count) ReindexBounties();
-            SaveBounties();
+            if (SaveBounties() && bountyFile.reputation.Count != 0)
+            {
+                var accounts = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var pending in bountyFile.reputation) accounts.Add(pending.account);
+                foreach (string account in accounts) ReplayPendingReputation(account);
+                RefreshPiracyFlags();
+            }
         }
 
         static string NpcBountyIssuer(int race)

@@ -695,7 +695,8 @@ namespace GoF2Remake.Multiplayer
         {
             npcDiplomacyReplyDeadline = 0f;
             if (!accepted) { NetChat.Notice(refusal); return; }
-            Session.Credits = System.Math.Max(0L, Session.Credits - price);
+            if (!Flight.Standing.Independent || Session.ReputationRevision != reputationRevision)
+                Session.Credits = System.Math.Max(0L, Session.Credits - price);
             if (Flight.Standing.Independent || Flight.Standing.RawToward(race) <= -71) Flight.Standing.Rehabilitate(race);
             if (Flight.Standing.Independent) Session.ReputationRevision = reputationRevision;
             GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
