@@ -23,8 +23,8 @@ namespace GoF2Remake.Modding
         public static int RhinoCapacity { get; private set; } = 2500;
         public static int CormorantCapacity { get; private set; } = 400;
         public static int FreightPerOrbit { get; private set; } = 4;
-        public static int RhinoShip { get; private set; } = -1;
-        public static int CormorantShip { get; private set; } = -1;
+        public static int RhinoShip { get; private set; } = 51;
+        public static int CormorantShip { get; private set; } = 36;
         public static int FreightCapacity(int requested, int large, int small) =>
             Math.Min(Math.Max(0, requested), Math.Max(large, small));
         public static bool IsFreightTag(int tag) => tag >= 800000000 && tag < 900000000;
@@ -156,7 +156,7 @@ namespace GoF2Remake.Modding
             ScarcityMarkup = 100; SurplusDiscount = 30; WarMarkup = 50; TransportPerHop = 5; SellSpread = 10;
             AutoCapacity = 100; AutoWarLoss = 0; TicksPerHop = 1; MaxAutoHops = 8;
             PhysicalFreight = false; RhinoCapacity = 2500; CormorantCapacity = 400;
-            FreightPerOrbit = 4; RhinoShip = CormorantShip = -1;
+            FreightPerOrbit = 4; RhinoShip = 51; CormorantShip = 36;
             foreach (var mod in ModManager.Active)
             {
                 if (mod == null || mod.IsBase) continue;
@@ -177,16 +177,17 @@ namespace GoF2Remake.Modding
                     int smallFreight = Math.Clamp(ModJson.Int(o, "cormorantCapacity", 400, File), 1, MaxStock);
                     int largeFreight = Math.Clamp(ModJson.Int(o, "rhinoCapacity", 2500, File), smallFreight, MaxStock);
                     int freightLimit = Math.Clamp(ModJson.Int(o, "freightPerOrbit", 4, File), 1, 16);
-                    int ResolveFreighter(string key)
+                    int ResolveFreighter(string key, int fallback)
                     {
                         string value = ModJson.Str(o, key);
-                        if (string.IsNullOrEmpty(value) || value == "-1") return -1;
+                        if (string.IsNullOrEmpty(value)) return fallback;
+                        if (value == "-1") return -1;
                         if ((!ModContent.TryResolveShip(value, out int ship) && !ModContent.TryResolveShip(mod.Id + ":" + value, out ship)) || db.Ship(ship) == null)
                             throw new ModJsonException(File + ": unknown freight hull " + value);
                         return ship;
                     }
-                    int rhinoShip = physical ? ResolveFreighter("rhinoShip") : -1;
-                    int cormorantShip = physical ? ResolveFreighter("cormorantShip") : -1;
+                    int rhinoShip = physical ? ResolveFreighter("rhinoShip", 51) : 51;
+                    int cormorantShip = physical ? ResolveFreighter("cormorantShip", 36) : 36;
                     bool war = ModJson.Bool(o, "warPressure", false, File);
                     bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
                     bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
