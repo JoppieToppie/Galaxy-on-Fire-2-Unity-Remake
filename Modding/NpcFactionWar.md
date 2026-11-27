@@ -11,7 +11,9 @@ Add `npc-faction-war.json` to an active mod to enable the campaign. It is disabl
   "coreSystems": ["your_mod:home_system"],
   "frontlineSystems": [3],
   "excludedSystems": [30, 31],
-  "dynamicFrontlines": true
+  "dynamicFrontlines": true,
+  "gateOnlyFrontlines": false,
+  "unprotectedDefaultCores": []
 }
 ```
 
@@ -32,6 +34,8 @@ In the Mod Builder choose **Menu > NPC faction warfare**. Select systems by name
 - `frontlineSystems`: additional eligible frontlines, even without hostile gate neighbours. They use the usual opposing faction pair and require eligible orbits. Explicit entries override built-in hub protection only.
 - `excludedSystems`: never eligible for new territorial battles or the frontline marker, even if explicitly included.
 - `dynamicFrontlines`: defaults to true. When false, only explicitly listed frontlines may host new battles; when true the normal frontier algorithm is also used.
-- `coreSystems`: explicit protection always wins, as does security level 3. All three lists accept numeric IDs or mod system keys. Lists accumulate across active mods; the last explicit dynamic setting wins.
+- `gateOnlyFrontlines`: defaults to false for compatibility. When true, dynamic frontlines use gate links and existing captured footholds, never coordinate-based nearest neighbours. Explicit frontlines still work.
+- `unprotectedDefaultCores`: removes built-in hub protection without forcing a system to become a frontline. Explicit cores, exclusions and maximum security still win.
+- `coreSystems`: explicit protection always wins, as does security level 3. All four lists accept numeric IDs or mod system keys. Lists accumulate across active mods; the last explicit dynamic and gate-only settings win.
 
 These rules govern new engagements. Restart the session after changing rules so previously spawned fleets cannot finish under the old settings. Existing territory is not erased by changing the dynamic setting. The example above is illustrative, not a change to the default campaign.
