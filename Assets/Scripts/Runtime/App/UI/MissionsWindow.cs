@@ -442,7 +442,7 @@ namespace GoF2Remake.UI
                 + " " + TierHint(s.tier);
             wantedText.text = $"{Localization.Extra("pirateLastSeen", "Last seen in")}\n{PirateReports.SystemName(db, s.system)} ({security})\n\n"
                 + $"{string.Format(Localization.Extra("pirateThreat", "Threat: {0}"), PirateReports.TierName(s.tier))}\n"
-                + (s.done ? "" : string.Format(Localization.Extra("pirateReportedAgo", "Reported {0} min ago, off the board in {1} min."), ago, left) + "\n\n")
+                + (s.done ? "" : s.established ? Localization.Extra("pirateBlockade", "Active blockade: station docking is unavailable until the outpost is destroyed.") + "\n\n" : string.Format(Localization.Extra("pirateReportedAgo", "Reported {0} min ago, off the board in {1} min."), ago, left) + "\n\n")
                 + what + "\n\n" + Localization.Extra("pirateSearchHint", "Its exact position is unknown: search the system's station orbits.");
             wantedScroll.scrollOffset = Vector2.zero;
             Show(wantedMap, !s.done);
