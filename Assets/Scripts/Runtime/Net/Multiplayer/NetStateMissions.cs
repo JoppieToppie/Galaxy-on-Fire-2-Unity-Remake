@@ -35,6 +35,16 @@ namespace GoF2Remake.Multiplayer
                 pirateSaveDirty = false;
         }
 
+        [Rpc(SendTo.Server)]
+        public void PirateEscapedRpc(int id, int station, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || !pilot.OrbitAuthority || !NetGuard.InOrbit(client, station) ||
+                !NetRateLimit.Allow(client, NetRateLimit.Kind.Kill)) return;
+            PirateReports.ServerEscape(Database.Shared, id, station, WarOrbitOccupied, SetPirateBoard);
+        }
+
         internal void RecordPirateDefender(NetProxy proxy)
         {
             if (!IsServer || proxy == null || proxy.Spec?.spec == null) return;
