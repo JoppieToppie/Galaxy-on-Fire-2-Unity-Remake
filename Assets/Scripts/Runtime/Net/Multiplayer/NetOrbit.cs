@@ -513,6 +513,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         float freightRequestAt;
+        int freightAmbientReplacements;
 
         void RequestFreight(NetState state)
         {
@@ -596,13 +597,14 @@ namespace GoF2Remake.Multiplayer
                 if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
             // Remove only the same number of ordinary ambient freighters; mission and custom
             // traffic are untouched, and no decorative ships are removed without economic traffic.
-            int ordinary = active.Count;
+            int ordinary = Mathf.Max(0, active.Count - freightAmbientReplacements);
             foreach (var npc in traffic.Ships)
             {
                 if (ordinary <= 0) break;
                 if (npc == null || npc.Gone || npc.Current != NpcShip.State.Fly || npc.Spec.group != NpcGroup.Freighter ||
                     npc.Spec.eventTag != 0 || npc.Spec.convoyRole != 0 || (npc.Spec.ship != 13 && npc.Spec.ship != 15)) continue;
                 npc.JumpOut();
+                freightAmbientReplacements++;
                 ordinary--;
             }
             traffic.ConnectPlayers();
