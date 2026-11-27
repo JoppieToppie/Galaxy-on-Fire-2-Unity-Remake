@@ -520,6 +520,7 @@ namespace GoF2Remake.UI
             if (ownerName != displayedPlayerStationName) RefreshStationTitle(dockedStation, ownerName);
             dryDock?.Update();
             stationManagement?.Update();
+            UpdateStationButtonTexts();
             // The layout first: the Mod Builder's screen below shares this panel and its scale.
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
             if (builderView != null) { builderView.Update(); return; }   // the Mod Builder's hangar
