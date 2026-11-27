@@ -95,6 +95,7 @@ namespace GoF2Remake.Modding
         public JObject FlightRules = new JObject();
         public JObject PlayerInfrastructure = new JObject();
         public JObject NpcFactionWarRules = new JObject();
+        public JObject AdvancedEconomyRules = new JObject();
         public const string CampaignFile = "campaign.json", InteriorsFile = "interiors.json";
         JObject manifest = new JObject();
         JObject builder = new JObject();

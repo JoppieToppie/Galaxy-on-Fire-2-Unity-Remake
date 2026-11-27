@@ -866,6 +866,7 @@ namespace GoF2Remake.UI
             Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-menu-item");
             Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
             Act(box, T("mbNpcFactionWar", "NPC faction warfare"), ShowNpcFactionWarRules, "mbv-menu-item");
+            Act(box, T("mbAdvancedEconomy", "Advanced economy"), ShowAdvancedEconomyRules, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
             Act(box, T("mbSave", "Save"), () => { if (!TrySaveNow()) return; CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
@@ -977,6 +978,46 @@ namespace GoF2Remake.UI
                 Act(row, T("mbModDocumentationNext", "Next"), () => ShowModdingGuidePage(file, end + 1), "mbv-step");
             Act(row, T("mbModDocumentationContents", "Contents"), () => ShowModdingGuideFile(file), "mbv-step");
             Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-step");
+        }
+
+        void ShowAdvancedEconomyRules()
+        {
+            if (Project == null) return;
+            modal.Clear();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, T("mbAdvancedEconomy", "Advanced economy"));
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            var rules = Project.AdvancedEconomyRules;
+            bool Bool(string key) => rules[key]?.Type == JTokenType.Boolean && (bool)rules[key];
+            int Number(string key, int fallback) => int.TryParse(rules[key]?.ToString(), out int n) ? n : fallback;
+            void Flag(string key, string label) => FlagButton(Row(scroll), label, Bool(key),
+                v => rules[key] = v, ShowAdvancedEconomyRules);
+            Flag("enabled", "Enable advanced economy");
+            Flag("persistentInventory", "Persistent commodity stock (multiplayer session)");
+            Flag("stationProduction", "Station production");
+            Flag("stationConsumption", "Station consumption");
+            Int(scroll, "Tick interval (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
+                v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
+            Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
+            var rows = rules["stockRules"] as JArray ?? new JArray();
+            Heading(scroll, "Commodity stock rules");
+            foreach (var row in rows.OfType<JObject>().ToList())
+            {
+                int Value(string key, int fallback) => int.TryParse(row[key]?.ToString(), out int n) ? n : fallback;
+                void Field(string key, string label, int fallback, int min) =>
+                    Int(scroll, label, Value(key, fallback), min, ModAdvancedEconomy.MaxStock,
+                        v => { row[key] = v; MarkDirty(); });
+                Heading(scroll, $"Station {row["station"]} / item {row["item"]}");
+                Field("targetStock", "Target stock", 100, 1);
+                Field("maximumStock", "Maximum stock", 100, 1);
+                Field("initialStock", "Initial stock", 100, 0);
+                Field("productionPerTick", "Production per tick", 0, 0);
+                Field("consumptionPerTick", "Consumption per tick", 0, 0);
+                Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+            }
+            Note(scroll, "Add station and commodity references in advanced-economy.json (stockRules); the existing rows can be edited here. Restart persistence, pricing and shipping will follow.");
+            Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
+            modal.AddToClassList("mbv-modal--shown");
         }
 
         void ShowNpcFactionWarRules()

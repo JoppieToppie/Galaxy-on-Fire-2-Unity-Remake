@@ -43,6 +43,7 @@ namespace GoF2Remake.Modding
                 ["flightRules"] = FlightRules.DeepClone(),
                 ["playerInfrastructure"] = PlayerInfrastructure.DeepClone(),
                 ["npcFactionWar"] = NpcFactionWarRules.DeepClone(),
+                ["advancedEconomy"] = AdvancedEconomyRules.DeepClone(),
                 ["quests"] = quests,
                 ["builder"] = b,
             };
@@ -76,6 +77,7 @@ namespace GoF2Remake.Modding
             PlayerInfrastructure = state["playerInfrastructure"] is JObject infrastructure
                 ? (JObject)infrastructure.DeepClone() : new JObject();
             NpcFactionWarRules = state["npcFactionWar"] is JObject war ? (JObject)war.DeepClone() : new JObject();
+            AdvancedEconomyRules = state["advancedEconomy"] is JObject economy ? (JObject)economy.DeepClone() : new JObject();
             Quests.Clear();
             if (state["quests"] is JObject qs)
                 foreach (var prop in qs.Properties()) if (prop.Value is JObject qo) Quests.Add(new ProjectQuest(prop.Name, (JObject)qo.DeepClone()));

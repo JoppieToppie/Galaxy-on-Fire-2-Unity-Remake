@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using GoF2Remake.Data;
+using GoF2Remake.Modding;
 using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
@@ -58,6 +59,7 @@ namespace GoF2Remake.Multiplayer
             public readonly Dictionary<int, int> rareTarget = new Dictionary<int, int>();   // item -> the units it restocks to
             public readonly Dictionary<int, int> resale = new Dictionary<int, int>();       // item -> units players sold into it (no VAT bought back)
             public float rareNext;
+            public float economyDue;
         }
 
         static readonly Dictionary<int, Entry> stocks = new Dictionary<int, Entry>();   // the host's
@@ -232,7 +234,7 @@ namespace GoF2Remake.Multiplayer
             HostExtras(station, e.items);
             ThinForVat(station, e);
             foreach (var r in e.items) if (IsRare(r.item)) e.rareTarget[r.item] = r.amount;
-            if (old == null) return e;   // a first list: full
+            if (old == null) { CarryEconomy(station, e, null); return e; }   // a first list: full
             e.items.RemoveAll(r => IsRare(r.item));
             foreach (var r in old.items)
             {
@@ -242,7 +244,66 @@ namespace GoF2Remake.Multiplayer
             }
             e.rareNext = old.rareNext;
             e.rareDue = old.rareDue;
+            CarryEconomy(station, e, old);
             return e;
+        }
+
+        // Only explicitly managed commodity rows survive the normal shipment replacement.
+        // The remaining goods and dealer ships still use the vanilla generator and rare-goods clock.
+        static void CarryEconomy(int station, Entry entry, Entry old)
+        {
+            var rules = ModAdvancedEconomy.At(station);
+            if (rules == null) return;
+            entry.economyDue = old != null && old.economyDue > 0
+                ? old.economyDue : Time.unscaledTime + ModAdvancedEconomy.TickSeconds;
+            foreach (var rule in rules.Values)
+            {
+                entry.rareTarget.Remove(rule.Item);
+                entry.items.RemoveAll(r => r.item == rule.Item);
+                if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                var previous = old?.items.Find(r => r.item == rule.Item);
+                int current = old == null ? rule.Initial : previous?.amount ?? 0;
+                SetEconomyRow(entry, rule.Item, Math.Clamp(current, 0, rule.Maximum));
+                if (old != null && old.resale.TryGetValue(rule.Item, out int resale))
+                    entry.resale[rule.Item] = Math.Min(resale, current);
+            }
+        }
+
+        static void SetEconomyRow(Entry entry, int item, int amount)
+        {
+            var row = entry.items.Find(r => r.item == item);
+            if (amount <= 0)
+            {
+                if (row != null) entry.items.Remove(row);
+                entry.resale.Remove(item);
+                return;
+            }
+            if (row != null) row.amount = amount;
+            else
+            {
+                int at = entry.items.FindIndex(r => r.item > item);
+                entry.items.Insert(at < 0 ? entry.items.Count : at, new ItemStack(item, amount));
+            }
+            if (entry.resale.TryGetValue(item, out int resale) && resale > amount) entry.resale[item] = amount;
+        }
+
+        static bool UpdateEconomy(int station, Entry entry)
+        {
+            var rules = ModAdvancedEconomy.At(station);
+            if (rules == null || Time.unscaledTime < entry.economyDue) return false;
+            entry.economyDue = Time.unscaledTime + ModAdvancedEconomy.TickSeconds;
+            bool changed = false;
+            foreach (var rule in rules.Values)
+            {
+                var row = entry.items.Find(r => r.item == rule.Item);
+                int current = row?.amount ?? 0;
+                int next = ModAdvancedEconomy.Eligible(db, rule.Item)
+                    ? rule.Advance(current, ModAdvancedEconomy.Production, ModAdvancedEconomy.Consumption) : 0;
+                if (next == current) continue;
+                SetEconomyRow(entry, rule.Item, next);
+                changed = true;
+            }
+            return changed;
         }
 
         /// <summary>A faction station's VAT thins its goods: every row keeps (100 - rate) % of its units (at least 1), the dealer
@@ -344,6 +405,21 @@ namespace GoF2Remake.Multiplayer
                 return granted;
             }
             if (Shop.NotInSession(db, item)) return delta;   // a time extender sold: paid for, not on sale (Shop.NotInSession)
+            var managed = ModAdvancedEconomy.At(station);
+            if (managed != null && managed.TryGetValue(item, out var rule))
+            {
+                if (!ModAdvancedEconomy.Eligible(db, item)) return delta;
+                int have = row?.amount ?? 0;
+                int retained = (int)Math.Min((long)delta, Math.Max(0, rule.Maximum - have));
+                if (retained > 0)
+                {
+                    SetEconomyRow(e, item, have + retained);
+                    e.resale.TryGetValue(item, out int resoldUnits);
+                    e.resale[item] = Math.Min(have + retained, resoldUnits + retained);
+                }
+                // As with vanilla's row cap, overflow is sold but does not grow public stock.
+                return delta;
+            }
             e.resale.TryGetValue(item, out int sold);
             e.resale[item] = (int)Math.Min((long)sold + delta, MaxRowAmount);
             if (row != null) row.amount = Math.Min(row.amount + delta, MaxRowAmount);   // a seller can't grow a row without end
@@ -381,14 +457,15 @@ namespace GoF2Remake.Multiplayer
             {
                 if (Shop.UsesPlayerMarketplace(kv.Key)) (playerStations ??= new List<int>()).Add(kv.Key);
                 else if (Time.unscaledTime >= kv.Value.due) (expired ??= new List<int>()).Add(kv.Key);
-                else if (UpdateRare(kv.Value)) (restocked ??= new List<int>()).Add(kv.Key);
+                else if (UpdateRare(kv.Value) | UpdateEconomy(kv.Key, kv.Value)) (restocked ??= new List<int>()).Add(kv.Key);
             }
             if (playerStations != null)
                 foreach (int station in playerStations) stocks.Remove(station);
             if (expired != null)
                 foreach (int station in expired)
                 {
-                    stocks[station] = Make(station, stocks[station]);   // the rare goods carried over (what is left)
+                    stocks[station] = Make(station, stocks[station]);   // the rare and managed goods carried over
+                    UpdateEconomy(station, stocks[station]);
                     state.BroadcastStock(station);
                 }
             if (restocked != null)

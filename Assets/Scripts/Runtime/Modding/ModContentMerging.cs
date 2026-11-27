@@ -105,6 +105,7 @@ namespace GoF2Remake.Modding
             ModWanted.Apply(db);   // (the criminals' ships, items and systems are numbered by now)
             ModPvpPiracy.Apply();
             ModNpcFactionWar.Apply();
+            ModAdvancedEconomy.Apply(db);
             ModWingmen.Apply(db);   // (its crews' ships too)
         }
         /// <summary>A ship on one of the game's ship models (GameModels) takes that ship's hardpoints (weapons, turrets, exhausts)

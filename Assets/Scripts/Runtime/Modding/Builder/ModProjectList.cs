@@ -196,6 +196,12 @@ namespace GoF2Remake.Modding
                     try { p.NpcFactionWarRules = JObject.Parse(File.ReadAllText(factionWar)); }
                     catch (Exception e) { p.LoadError ??= $"{ModNpcFactionWar.File}: {e.Message}"; }
                 }
+                string economy = Path.Combine(folder, ModAdvancedEconomy.File);
+                if (File.Exists(economy))
+                {
+                    try { p.AdvancedEconomyRules = JObject.Parse(File.ReadAllText(economy)); }
+                    catch (Exception e) { p.LoadError ??= $"{ModAdvancedEconomy.File}: {e.Message}"; }
+                }
                 string events = Path.Combine(folder, ProjectQuest.Folder);
                 if (Directory.Exists(events))
                     foreach (var f in Directory.GetFiles(events, "*." + ProjectQuest.Extension).Concat(Directory.GetFiles(events, "*." + ProjectQuest.LegacyExtension))
@@ -267,6 +273,9 @@ namespace GoF2Remake.Modding
             else if (File.Exists(factionWar)) DeleteSavedFile(factionWar);
             string stagedFactionWar = Path.Combine(Folder, ModNpcFactionWar.StagedFile);
             if (File.Exists(stagedFactionWar)) DeleteSavedFile(stagedFactionWar);
+            string economy = Path.Combine(Folder, ModAdvancedEconomy.File);
+            if (AdvancedEconomyRules.Count > 0) Write(ModAdvancedEconomy.File, AdvancedEconomyRules.ToString(Formatting.Indented));
+            else if (File.Exists(economy)) DeleteSavedFile(economy);
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
             Modified = DateTime.UtcNow;
