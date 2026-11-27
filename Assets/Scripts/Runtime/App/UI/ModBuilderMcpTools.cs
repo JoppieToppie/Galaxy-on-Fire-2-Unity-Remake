@@ -605,7 +605,7 @@ namespace GoF2Remake.UI
             if (write)
             {
                 string folder = rel.Split('/')[0];
-                if (!FileFolders.Contains(folder) && !string.Equals(rel, ModWingmen.File, StringComparison.OrdinalIgnoreCase) && !string.Equals(rel, ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
+                if (!FileFolders.Contains(folder) && !string.Equals(rel, ModWingmen.File, StringComparison.OrdinalIgnoreCase) && !string.Equals(rel, ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase) && !string.Equals(rel, GoF2Remake.Multiplayer.PlayerIdentity.OriginsFile, StringComparison.OrdinalIgnoreCase)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
                 if (!FileExtensions.Contains(ext)) { why = $"Not a file type a mod uses: {ext}"; return null; }
             }
             string full = Path.GetFullPath(Path.Combine(Project.Folder, rel));
@@ -688,6 +688,12 @@ namespace GoF2Remake.UI
             if (string.Equals(rel?.Trim(), ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase))
             {
                 try { ModPvpPiracy.Validate(JObject.Parse(Encoding.UTF8.GetString(bytes))); }
+                catch (Exception error) when (error is JsonException || error is ModJsonException || error is FormatException || error is OverflowException)
+                { c.Fail(error.Message); return; }
+            }
+            if (string.Equals(rel?.Trim(), GoF2Remake.Multiplayer.PlayerIdentity.OriginsFile, StringComparison.OrdinalIgnoreCase))
+            {
+                try { GoF2Remake.Multiplayer.PlayerIdentity.ValidateOrigins(JObject.Parse(Encoding.UTF8.GetString(bytes))); }
                 catch (Exception error) when (error is JsonException || error is ModJsonException || error is FormatException || error is OverflowException)
                 { c.Fail(error.Message); return; }
             }
