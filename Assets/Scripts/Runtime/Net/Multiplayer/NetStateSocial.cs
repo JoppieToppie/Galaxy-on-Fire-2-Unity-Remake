@@ -383,7 +383,7 @@ namespace GoF2Remake.Multiplayer
         }
         readonly Dictionary<ulong, (NetPlayer killer, int station, bool initiated, float deadline)> pendingPiracyDeaths =
             new Dictionary<ulong, (NetPlayer, int, bool, float)>();
-        readonly Dictionary<ulong, float> uncreditedBountyDeaths = new Dictionary<ulong, float>();
+        readonly Dictionary<ulong, (float deadline, string account)> uncreditedBountyDeaths = new Dictionary<ulong, (float, string)>();
         readonly HashSet<ulong> registeredPiracyDeaths = new HashSet<ulong>();
         readonly HashSet<ulong> attemptedBountyDrops = new HashSet<ulong>();
         readonly HashSet<ulong> witnessedLiveFlight = new HashSet<ulong>();
@@ -400,17 +400,13 @@ namespace GoF2Remake.Multiplayer
                     if (death.Value.deadline < Time.unscaledTime) expired.Add(death.Key);
                 foreach (ulong id in expired) pendingPiracyDeaths.Remove(id);
             }
-            foreach (var entry in new List<KeyValuePair<ulong, float>>(uncreditedBountyDeaths))
+            foreach (var entry in new List<KeyValuePair<ulong, (float deadline, string account)>>(uncreditedBountyDeaths))
             {
-                if (entry.Value > Time.unscaledTime) continue;
+                if (entry.Value.deadline > Time.unscaledTime) continue;
                 uncreditedBountyDeaths.Remove(entry.Key);
                 if (registeredPiracyDeaths.Contains(entry.Key)) continue;
-                if (NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(entry.Key, out var obj))
-                {
-                    var victim = obj.GetComponent<NetPlayer>();
-                    if (victim != null && registeredPiracyDeaths.Add(entry.Key))
-                        NetFactions.ReduceWantedOnNonPlayerDeath(victim);
-                }
+                if (registeredPiracyDeaths.Add(entry.Key))
+                    NetFactions.ReduceWantedOnNonPlayerDeath(entry.Value.account);
             }
             registeredPiracyDeaths.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
             attemptedBountyDrops.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
@@ -424,6 +420,8 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer || victim == null) return;
             ulong id = victim.NetworkObjectId;
             attemptedBountyDrops.Remove(id);
+            if (uncreditedBountyDeaths.TryGetValue(id, out var uncredited) && !registeredPiracyDeaths.Contains(id))
+                NetFactions.ReduceWantedOnNonPlayerDeath(uncredited.account);
             uncreditedBountyDeaths.Remove(id);
             registeredPiracyDeaths.Remove(id);
             pendingPiracyDeaths.Remove(id);
@@ -463,12 +461,13 @@ namespace GoF2Remake.Multiplayer
                 {
                     uncreditedBountyDeaths.Remove(id);
                     bool secure = NetFactions.SecureForBounties(death.station, victim.OwnerClientId);
+                    NetFactions.RecordPirateRecoveryPvpKill(victim, death.killer);
                     if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
                     if (victim.IsWanted || victim.IsPirate) NetFactions.ClaimBounties(victim, death.killer);
                 }
             }
             if (!registeredPiracyDeaths.Contains(id) && !uncreditedBountyDeaths.ContainsKey(id))
-                uncreditedBountyDeaths.Add(id, Time.unscaledTime + 5f);
+                uncreditedBountyDeaths.Add(id, (Time.unscaledTime + 5f, NetFactions.WantedDeathAccount(victim)));
             victim.RecordDeathRespawn(victim.Station);
             EnsureDeathPenalty(victim);
         }
