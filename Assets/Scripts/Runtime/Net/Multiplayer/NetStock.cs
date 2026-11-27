@@ -139,6 +139,8 @@ namespace GoF2Remake.Multiplayer
             GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
         }
         static float nextEconomyTick, nextFreightPulse, nextFreightDispatch;
+        static bool economyDiagnosticStarted;
+        static float nextEconomyDiagnosticWarning;
         static readonly List<Action> pending = new List<Action>();
         /// <summary>A player's: each station's clocks as the last list said (seconds left, -1 = none) and when it arrived.</summary>
         static readonly Dictionary<int, (float at, int reset, int rare)> clocks = new Dictionary<int, (float, int, int)>();
@@ -162,6 +164,8 @@ namespace GoF2Remake.Multiplayer
             stocks.Clear();
             quotes.Clear(); priceTradePending = false;
             nextEconomyTick = nextFreightPulse = nextFreightDispatch = 0;
+            economyDiagnosticStarted = false;
+            nextEconomyDiagnosticWarning = 0;
             db = null;
             AdvancedEconomyLedger.Reset();
             pending.Clear();
@@ -380,8 +384,28 @@ namespace GoF2Remake.Multiplayer
         // One batch for the entire configured network; unopened shops need no generated dealer or item lists.
         static void TickEconomy(NetState state)
         {
-            if (!AdvancedEconomyLedger.Active || NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.RetryFreightLosses()) return;
+            if (!ModAdvancedEconomy.Enabled) return;
             float now = Time.unscaledTime;
+            bool active = AdvancedEconomyLedger.Active;
+            bool blocked = NetPlayerStations.ProfileWritesBlocked;
+            if (!active || blocked || !AdvancedEconomyLedger.RetryFreightLosses())
+            {
+                if (now >= nextEconomyDiagnosticWarning)
+                {
+                    nextEconomyDiagnosticWarning = now + 60f;
+                    Debug.LogWarning($"[AdvancedEconomy] paused: ledgerActive={active}, profileWritesBlocked={blocked}, profiles={NetProfiles.Enabled}");
+                }
+                return;
+            }
+            if (!economyDiagnosticStarted)
+            {
+                economyDiagnosticStarted = true;
+                int stations = 0, rows = 0;
+                foreach (int station in ModAdvancedEconomy.Stations)
+                { stations++; rows += ModAdvancedEconomy.At(station)?.Count ?? 0; }
+                Debug.Log($"[AdvancedEconomy] active: stations={stations}, rows={rows}, tickSeconds={ModAdvancedEconomy.TickSeconds}, saved={ModAdvancedEconomy.SaveInventory}, pricing={ModAdvancedEconomy.DynamicPricing}, freight={ModAdvancedEconomy.PhysicalFreight}");
+                if (rows == 0) Debug.LogWarning("[AdvancedEconomy] no managed stock rules; NPC commodity stock remains vanilla.");
+            }
             bool freightClock = AdvancedEconomyLedger.IndependentFreightClock;
             if (nextEconomyTick <= 0) nextEconomyTick = now + ModAdvancedEconomy.TickSeconds;
             if (freightClock && nextFreightPulse <= 0) nextFreightPulse = now + 1f;
@@ -405,6 +429,9 @@ namespace GoF2Remake.Multiplayer
                     return p;
                 }
                 var changed = new HashSet<int>();
+                var diagnosticTimer = economyDue || dispatchDue ? System.Diagnostics.Stopwatch.StartNew() : null;
+                int diagnosticRows = 0, diagnosticShort = 0, diagnosticEmpty = 0;
+                long diagnosticNetFlow = 0;
                 if (economyDue) foreach (int station in ModAdvancedEconomy.Stations)
                 {
                     if (!Participates(station)) continue;
@@ -413,6 +440,10 @@ namespace GoF2Remake.Multiplayer
                         if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
                         var balance = AdvancedEconomyLedger.Get(station, rule);
                         int next = rule.Advance(balance.Amount, ModAdvancedEconomy.Production, ModAdvancedEconomy.Consumption, Pressure(station));
+                        diagnosticRows++;
+                        if (next < rule.Target) diagnosticShort++;
+                        if (next == 0) diagnosticEmpty++;
+                        diagnosticNetFlow += (long)next - balance.Amount;
                         if (next == balance.Amount) continue;
                         int before = balance.Amount;
                         AdvancedEconomyLedger.Set(station, rule, next, balance.Resale);
@@ -438,6 +469,11 @@ namespace GoF2Remake.Multiplayer
                         CarryEconomy(station, entry);
                         state.BroadcastStock(station);
                     }
+                if (diagnosticTimer != null)
+                {
+                    diagnosticTimer.Stop();
+                    Debug.Log($"[AdvancedEconomy] tick: productionDue={economyDue}, dispatchDue={dispatchDue}, rows={diagnosticRows}, preTradeShort={diagnosticShort}, preTradeEmpty={diagnosticEmpty}, netLocalFlow={diagnosticNetFlow}, changedStations={changed.Count}, ms={diagnosticTimer.Elapsed.TotalMilliseconds:F2}");
+                }
             }
             AdvancedEconomyLedger.Flush();
         }
