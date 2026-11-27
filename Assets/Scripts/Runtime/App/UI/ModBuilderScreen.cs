@@ -877,6 +877,12 @@ namespace GoF2Remake.UI
             Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, 24, v => { rules["shipsPerSide"] = v; MarkDirty(); });
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
+            Heading(scroll, "Pirate activity");
+            Int(scroll, "Bounty movement minimum (seconds)", Number("pirateMoveMin", 600), 60, 3600, v => { rules["pirateMoveMin"] = v; MarkDirty(); });
+            Int(scroll, "Bounty movement maximum (seconds)", Number("pirateMoveMax", 1200), 60, 7200, v => { rules["pirateMoveMax"] = v; MarkDirty(); });
+            Int(scroll, "Escape charge (seconds)", Number("pirateEscapeSeconds", 12), 3, 120, v => { rules["pirateEscapeSeconds"] = v; MarkDirty(); });
+            Int(scroll, "Outpost defenders (0 = tier default)", Number("pirateGuardCount", 0), 0, 24, v => { rules["pirateGuardCount"] = v; MarkDirty(); });
+            Int(scroll, "Optional pirate capital ship ID (-1 = none)", Number("pirateCapitalShip", -1), -1, 1000000, v => { rules["pirateCapitalShip"] = v; MarkDirty(); });
             SystemList("frontlineSystems", "Explicit frontline systems");
             SystemList("excludedSystems", "Excluded systems");
             SystemList("coreSystems", "Protected core systems");
