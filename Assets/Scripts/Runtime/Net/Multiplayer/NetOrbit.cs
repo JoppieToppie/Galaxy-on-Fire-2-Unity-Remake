@@ -517,8 +517,8 @@ namespace GoF2Remake.Multiplayer
         void RequestFreight(NetState state)
         {
             var me = NetPlayer.Local;
-            if (!Modding.ModAdvancedEconomy.PhysicalFreight || !Authority || level.Traffic == null ||
-                me == null || NetState.RunnerOf(Station) != me || Time.unscaledTime < freightRequestAt) return;
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || level.Traffic == null ||
+                me == null || !me.InSpace || me.Station != Station || Time.unscaledTime < freightRequestAt) return;
             freightRequestAt = Time.unscaledTime + 5f;
             state.RequestFreightRpc(Station);
         }
@@ -532,16 +532,27 @@ namespace GoF2Remake.Multiplayer
             foreach (string row in (manifest ?? "").Split(';'))
             {
                 string[] fields = row.Split(',');
-                if (fields.Length != 5 || !int.TryParse(fields[0], out int tag) ||
+                if (fields.Length != 6 || !int.TryParse(fields[0], out int tag) ||
                     !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
                     !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
                     !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
                     level.Database.Item(item) == null || !active.Add(tag)) continue;
                 int index = slot++;
                 // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
-                if (traffic.Ships.Exists(x => x != null && x.Spec.eventTag == tag && !x.Gone) ||
-                    System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
-                bool large = amount > Modding.ModAdvancedEconomy.CormorantCapacity;
+                bool large = fields[5] == "1";
+                string label = (large ? "Rhino" : "Cormorant") + " Freight (" + amount + " t)";
+                var existing = traffic.Ships.Find(x => x != null && x.Spec.eventTag == tag && !x.Gone);
+                if (existing != null)
+                {
+                    if (existing.Target != null && existing.Target.Alive && existing.Spec.lootAmount != amount)
+                    {
+                        existing.Spec.lootAmount = amount;
+                        existing.SetLoot(new List<ItemStack> { new ItemStack(item, amount) });
+                        existing.Target.displayName = existing.Spec.name = label;
+                    }
+                    continue;
+                }
+                if (System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
                 int race = level.Layout.raceId;
                 int configured = large ? Modding.ModAdvancedEconomy.RhinoShip : Modding.ModAdvancedEconomy.CormorantShip;
                 int ship = configured >= 0 ? configured : Modding.ModRaces.Look(race) == 1 ? 13 : 15;
@@ -568,7 +579,7 @@ namespace GoF2Remake.Multiplayer
                     eventTag = tag, noLoot = true, lootItem = item, lootAmount = amount,
                     position = GamePosition(at), scale = configured >= 0 || large ? 1f : 0.65f,
                     hitpoints = NpcTables.Hull(1, ship), speed = large ? 0.75f : 1.25f,
-                    name = (large ? "Rhino" : "Cormorant") + " Freight (" + amount + " t)"
+                    name = label
                 });
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
                 npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
@@ -577,6 +588,49 @@ namespace GoF2Remake.Multiplayer
                 Modding.ModAdvancedEconomy.IsFreightTag(x.Spec.eventTag) && x.Target != null && x.Target.Alive))
                 if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
             traffic.ConnectPlayers();
+        }
+
+        readonly Dictionary<int, Crate> freightWrecks = new Dictionary<int, Crate>();
+        internal void ApplyFreightWreckManifest(string manifest)
+        {
+            var active = new HashSet<int>();
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (string row in (manifest ?? "").Split(';'))
+            {
+                string[] fields = row.Split(',');
+                if (fields.Length != 7 || !int.TryParse(fields[0], out int tag) ||
+                    !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
+                    !int.TryParse(fields[3], out int race) || !Modding.ModAdvancedEconomy.IsFreightTag(tag) ||
+                    amount <= 0 || level.Database.Item(item) == null ||
+                    !float.TryParse(fields[4], System.Globalization.NumberStyles.Float, culture, out float x) ||
+                    !float.TryParse(fields[5], System.Globalization.NumberStyles.Float, culture, out float y) ||
+                    !float.TryParse(fields[6], System.Globalization.NumberStyles.Float, culture, out float z) ||
+                    !active.Add(tag)) continue;
+                var position = new Vector3(x, y, z);
+                if (!NetGuard.Position(position)) continue;
+                if (!freightWrecks.TryGetValue(tag, out var crate) || crate == null)
+                {
+                    crate = Crate.Spawn(position, new[] { new ItemStack(item, amount) }, race, Crate.LookContainer);
+                    crate.transform.position = position;
+                    crate.remote = true;
+                    crate.keep = true;
+                    crate.name = "Freight salvage";
+                    crate.CollectStationSalvage = room => NetProfileClient.RequestFreightClaim(tag, ulong.MaxValue, room);
+                    freightWrecks[tag] = crate;
+                }
+                else
+                {
+                    crate.loot.Clear();
+                    crate.loot.Add(new ItemStack(item, amount));
+                    if (!crate.pulled) crate.transform.position = position;
+                }
+            }
+            foreach (int tag in new List<int>(freightWrecks.Keys))
+            {
+                if (active.Contains(tag)) continue;
+                if (freightWrecks[tag] != null) Destroy(freightWrecks[tag].gameObject);
+                freightWrecks.Remove(tag);
+            }
         }
 
         float factionWarRequestAt;
