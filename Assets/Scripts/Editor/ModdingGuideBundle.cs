@@ -37,7 +37,7 @@ namespace GoF2Remake.EditorTools
             int copied = 0;
             foreach (var (file, _) in ModdingGuide.Files)
             {
-                string source = Path.Combine(ModdingGuide.RepositoryFolder, file);
+                string source = ModdingGuide.RepositoryPath(file);
                 if (!File.Exists(source)) { UnityEngine.Debug.LogWarning("GoF2: the modding guide has no " + source); continue; }
                 string target = Folder + "/" + file;
                 File.Copy(source, target, true);
