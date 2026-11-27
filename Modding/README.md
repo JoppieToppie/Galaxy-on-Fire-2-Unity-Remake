@@ -2982,6 +2982,35 @@ look station`, `/camera chase`, `/fade out 1 ffffff`, `/letterbox on`, `/cutscen
 
 ## Scripts
 
+### Server onboarding pages (before permanent race selection)
+
+Add `tutorials/preIdentity.json` to an active mod. On a multiplayer server using permanent pilot identities, first-time pilots who have not chosen a race see these pages before the race picker. Pages from active mods are shown in mod load order. They are independent of Lua and the optional Tutorial Hints setting. Players can go back, continue, or disconnect; existing identities are not prompted again.
+
+```json
+{
+  "pages": [
+    {
+      "title": "Welcome to the server",
+      "layout": "cards",
+      "sections": [
+        {
+          "heading": "Permanent race",
+          "text": "Your race cannot be changed after confirmation.",
+          "style": "warning"
+        },
+        {
+          "heading": "Station access",
+          "text": "Station and jumpgate owners may set access policies.",
+          "style": "card"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Use `layout: "column"` (default) or `"cards"` (responsive wrapping cards), and section styles `"text"` (default), `"card"` or `"warning"`. Pages have a title and 1–24 sections, each with text and an optional heading. Up to 20 pages per mod; title/heading limit 120 characters, section text limit 2000 characters. Malformed files are logged and skipped. This is a local UI briefing, not a server-side proof of acknowledgement; do not treat it as authorization. Files in this folder are included in normal mod exports and Mod Builder history.
+
 ### Mod tutorial popups
 
 Scripts can call `game.tutorial(id, title, text[, repeatable])` from any gameplay event. For example:

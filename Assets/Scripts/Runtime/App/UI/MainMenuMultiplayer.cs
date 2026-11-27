@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using GoF2Remake.Modding;
 using GoF2Remake.Multiplayer;
 using GoF2Remake.Data;
@@ -30,6 +31,9 @@ namespace GoF2Remake.UI
         List<(string Key, string Name)> identityRaces, identityPortraits;
         string identityRace, identityPortrait, identityPreset;
         bool identityController;
+        VisualElement identityBriefing;
+        int identityBriefingIndex;
+        bool identityBriefingComplete;
         Action<string, string> singlePlayerIdentity;
 
         bool UpdatePlayerIdentitySetup()
@@ -39,11 +43,21 @@ namespace GoF2Remake.UI
             {
                 identityOverlay?.RemoveFromHierarchy();
                 identityOverlay = null;
+                identityBriefing = null;
+                identityBriefingIndex = 0;
+                identityBriefingComplete = false;
                 return false;
             }
             if (identityOverlay == null || identityOverlay.parent != root || (!local &&
                 (identityPreset != NetProfileClient.IdentityRace || identityController != NetProfileClient.Controller))) BuildIdentitySetup();
             identityOverlay.BringToFront();
+            if (identityBriefing != null)
+            {
+                if (InputMode.Current == InputKind.Gamepad &&
+                    (root.focusController?.focusedElement is not VisualElement briefingFocus || !identityBriefing.Contains(briefingFocus)))
+                    identityBriefing.Q<Button>()?.Focus();
+                return true;
+            }
             bool pending = !local && NetProfileClient.IdentitySubmitting;
             identityFeedback.text = local ? "" : NetProfileClient.IdentityMessage ?? "";
             identityConsent.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityPortrait));
@@ -92,6 +106,7 @@ namespace GoF2Remake.UI
         void BuildIdentitySetup()
         {
             identityOverlay?.RemoveFromHierarchy();
+            identityBriefing = null;
             bool local = singlePlayerIdentity != null;
             identityPreset = local ? null : NetProfileClient.IdentityRace;
             identityController = local || NetProfileClient.Controller;
@@ -330,8 +345,140 @@ namespace GoF2Remake.UI
             UiFocus.SkipScrollBars(identityOverlay);
             identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => evt.StopPropagation());
             identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
-            if (InputMode.Current == InputKind.Gamepad) FocusIdentityChoice();
+            if (!local && identityController && string.IsNullOrEmpty(identityPreset) && !identityBriefingComplete)
+                BuildIdentityBriefing(scroll);
+            if (identityBriefing == null && InputMode.Current == InputKind.Gamepad) FocusIdentityChoice();
         }
+
+        // These files are read from the active mod set before a pilot exists; no Lua approval or save state is needed.
+        const string IdentityBriefingFile = "tutorials/preIdentity.json";
+
+        void BuildIdentityBriefing(ScrollView identityScroll)
+        {
+            var pages = new List<(string mod, JObject page)>();
+            foreach (var mod in ModManager.Active)
+            {
+                if (mod.Broken || !mod.Source.Exists(IdentityBriefingFile)) continue;
+                try
+                {
+                    if (!(ModJson.Read(mod.Source, IdentityBriefingFile) is JObject document) ||
+                        !(document["pages"] is JArray list) || list.Count > 20)
+                        throw new ModJsonException("Expected a pages array with at most 20 entries.");
+                    var parsed = new List<(string mod, JObject page)>();
+                    foreach (var entry in list)
+                    {
+                        if (!(entry is JObject page) || !ValidBriefingText(page["title"], 120) ||
+                            !(page["sections"] is JArray sections) || sections.Count == 0 || sections.Count > 24)
+                            throw new ModJsonException("Each page needs a title and 1-24 sections.");
+                        foreach (var section in sections)
+                            if (!(section is JObject block) || !ValidBriefingText(block["text"], 2000) ||
+                                (block["heading"] != null && !ValidBriefingText(block["heading"], 120)) ||
+                                (block["style"] != null && (block["style"].Type != JTokenType.String ||
+                                    !new[] { "text", "card", "warning" }.Contains((string)block["style"]))))
+                                throw new ModJsonException("Each section needs text, an optional heading and a valid style.");
+                        if (page["layout"] != null && (page["layout"].Type != JTokenType.String ||
+                            !new[] { "column", "cards" }.Contains((string)page["layout"])))
+                            throw new ModJsonException("Page layout must be column or cards.");
+                        parsed.Add((mod.Name, page));
+                    }
+                    pages.AddRange(parsed);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("Mod " + mod.Id + " " + IdentityBriefingFile + ": " + e.Message);
+                }
+            }
+            if (pages.Count == 0) return;
+            identityBriefingIndex = Mathf.Clamp(identityBriefingIndex, 0, pages.Count - 1);
+            identityScroll.style.display = DisplayStyle.None;
+            identityBriefing = new VisualElement { name = "modIdentityBriefing" };
+            identityBriefing.style.width = Length.Percent(96);
+            identityBriefing.style.height = Length.Percent(94);
+            identityBriefing.style.maxWidth = 1100;
+            identityBriefing.style.paddingLeft = identityBriefing.style.paddingRight = 20;
+            identityBriefing.style.paddingTop = identityBriefing.style.paddingBottom = 12;
+            identityOverlay.Add(identityBriefing);
+
+            void DrawPage()
+            {
+                identityBriefing.Clear();
+                var entry = pages[identityBriefingIndex];
+                identityBriefing.Add(IdentityLabel(entry.mod + "  |  SERVER BRIEFING  |  " +
+                    (identityBriefingIndex + 1) + " / " + pages.Count, 16));
+                identityBriefing.Add(IdentityLabel((string)entry.page["title"], 32));
+                var body = new ScrollView(ScrollViewMode.Vertical);
+                body.style.flexGrow = 1;
+                body.style.flexBasis = 0;
+                body.style.minHeight = 0;
+                identityBriefing.Add(body);
+                var sections = new VisualElement();
+                bool cards = (string)entry.page["layout"] == "cards";
+                sections.style.flexDirection = cards ? FlexDirection.Row : FlexDirection.Column;
+                sections.style.flexWrap = cards ? Wrap.Wrap : Wrap.NoWrap;
+                body.Add(sections);
+                foreach (JObject block in (JArray)entry.page["sections"])
+                {
+                    string style = (string)block["style"] ?? "text";
+                    var panel = new VisualElement();
+                    panel.style.flexShrink = 0;
+                    panel.style.marginBottom = 10;
+                    panel.style.paddingLeft = panel.style.paddingRight = 14;
+                    panel.style.paddingTop = panel.style.paddingBottom = 12;
+                    if (cards)
+                    {
+                        panel.style.flexBasis = Length.Percent(46);
+                        panel.style.flexGrow = 1;
+                        panel.style.marginRight = 8;
+                    }
+                    if (style != "text")
+                        panel.style.backgroundColor = style == "warning" ? new Color(0.26f, 0.15f, 0.055f) : new Color(0.07f, 0.17f, 0.23f);
+                    if (block["heading"] != null) panel.Add(IdentityLabel((string)block["heading"], 23));
+                    panel.Add(IdentityLabel((string)block["text"], 18));
+                    sections.Add(panel);
+                }
+                if (cards)
+                    body.RegisterCallback<GeometryChangedEvent>(e =>
+                    {
+                        bool narrow = e.newRect.width < 700;
+                        sections.style.flexDirection = narrow ? FlexDirection.Column : FlexDirection.Row;
+                        foreach (var panel in sections.Children())
+                        {
+                            panel.style.flexBasis = narrow ? new StyleLength(StyleKeyword.Auto) : new StyleLength(Length.Percent(46));
+                            panel.style.flexGrow = narrow ? 0 : 1;
+                        }
+                    });
+                var footer = new VisualElement();
+                footer.style.flexDirection = FlexDirection.Row;
+                footer.style.flexShrink = 0;
+                identityBriefing.Add(footer);
+                var back = new Button(() => { identityBriefingIndex--; DrawPage(); }) { text = "BACK" };
+                back.SetEnabled(identityBriefingIndex > 0);
+                var next = new Button(() =>
+                {
+                    if (identityBriefingIndex + 1 < pages.Count) { identityBriefingIndex++; DrawPage(); return; }
+                    identityBriefingComplete = true;
+                    identityBriefing.RemoveFromHierarchy();
+                    identityBriefing = null;
+                    identityScroll.style.display = DisplayStyle.Flex;
+                    FocusIdentityChoice();
+                }) { text = identityBriefingIndex + 1 < pages.Count ? "CONTINUE" : "CONTINUE TO RACE SELECTION" };
+                var disconnect = new Button(() => NetGame.RefuseJoin("Pilot setup cancelled.")) { text = "DISCONNECT" };
+                foreach (var button in new[] { back, next, disconnect })
+                {
+                    button.style.minHeight = 48;
+                    button.style.flexGrow = 1;
+                    button.style.whiteSpace = WhiteSpace.Normal;
+                    footer.Add(button);
+                }
+                UiFocus.SkipScrollBars(identityBriefing);
+                if (InputMode.Current == InputKind.Gamepad) next.Focus();
+            }
+            DrawPage();
+        }
+
+        static bool ValidBriefingText(JToken token, int max) =>
+            token != null && token.Type == JTokenType.String &&
+            !string.IsNullOrWhiteSpace((string)token) && ((string)token).Length <= max;
 
         /// <summary>The name a public game is listed under: the Game name field, else "<pilot>'s universe".</summary>
         string SessionName()
