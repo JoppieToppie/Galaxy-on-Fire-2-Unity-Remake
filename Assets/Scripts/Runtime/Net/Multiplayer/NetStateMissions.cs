@@ -178,7 +178,7 @@ namespace GoF2Remake.Multiplayer
         {
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command) || !NetGuard.Station(station)) return;
-            string offers = EventMissions.Offers(station);
+            string offers = EventMissions.Offers(station, client: client);
             if (offers.Length > 0 && offers.Length < 16000) EventOffersRpc(station, offers, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
