@@ -34,7 +34,7 @@ Example manifest fragment (add your own id/name/version):
 
 ## Native item attributes (items.json)
 
-> **Attribute compatibility:** The six native attributes below have unique IDs (203–208). IDs 191–202 remain per-axis flight bonuses and 189 remains mining `coreYield`. Named `stats` entries migrate automatically when the mod is loaded by the updated game; no JSON rewrite is needed. Lua or external tools using the former numeric IDs must replace them **according to the intended mechanic**, not by globally replacing numbers. The `attributes` JSON object only accepts 0–99; use named `stats` for remake attributes. Rebuild clients and servers together.
+> **Attribute compatibility:** The existing native attributes retain IDs 191–195. Mining `coreYield` retains 189 and `structuralDamage` uses 208. The twelve per-axis equipment flight bonuses now use 209–220 (formerly 191–202). IDs 196–207 are not assigned to these mechanics. Named `stats` entries migrate automatically when the mod is loaded by the updated game; no JSON rewrite is needed. Lua or external tools using the former numeric IDs must replace them **according to the intended mechanic**, not by globally replacing numbers. The `attributes` JSON object only accepts 0–99; use named `stats` for remake attributes. Rebuild clients and servers together.
 
 Place these integer values inside an item entry's `stats` object. The attribute column is the runtime ID for scripts and tools; remake stats above 99 must be set by name in JSON. Do not set an unrelated attribute just because its name resembles the mechanic. Distances normally use 20 game units per metre; milliseconds are not seconds. Original stat-list aliases are accepted by ItemStats.IdOf, but the readable names are recommended.
 
@@ -47,12 +47,12 @@ Place these integer values inside an item entry's `stats` object. The attribute 
 | `energyResistance` | 183 | Shield energy resistance, percent 0..100. |
 | `ballisticResistance` | 184 | Shield ballistic resistance, percent 0..100; the penetration rule is distinct from energy resistance. |
 | `structuralDamage` | 208 | A positive value permits damage to player-built structure integrity (nukes qualify independently); EMP effects apply independently of this weapon eligibility. |
-| `strictShipClass` | 203 | 1 applies equipment class allow-lists even to an unclassified hull. Requires the applicable class restrictions; not a standalone class list. |
-| `fixedBeam` | 204 | Nonzero disables beam target snapping; aim along the actual firing direction. |
-| `turretDefenseRole` | 205 | Per-mount defense role: 0 legacy, 1 offensive, 2 balanced, 3 dedicated. |
+| `strictShipClass` | 191 | 1 applies equipment class allow-lists even to an unclassified hull. Requires the applicable class restrictions; not a standalone class list. |
+| `fixedBeam` | 192 | Nonzero disables beam target snapping; aim along the actual firing direction. |
+| `turretDefenseRole` | 193 | Per-mount defense role: 0 legacy, 1 offensive, 2 balanced, 3 dedicated. |
 | `scanClass` | 143 | 1 adds the locked ship's class label independently of hull, health and weapon readouts. |
-| `scannerRange` | 206 | Maximum sensor range in game units; absent/0 keeps unlimited legacy detection. |
-| `scanLead` | 207 | Positive enables predictive primary weapon PIPs; default off. See PIP_LEADS.md. |
+| `scannerRange` | 194 | Maximum sensor range in game units; absent/0 keeps unlimited legacy detection. |
+| `scanLead` | 195 | Positive enables predictive primary weapon PIPs; default off. See PIP_LEADS.md. |
 
 For a precision beam with 14 km reach: `"stats": {"beamReach": 280000, "beamAimTolerancePercent": 5}`. For a non-snapping beam, use `fixedBeam: 1` instead. For a projectile weapon, tune `speed`, `lifetimeMs`, and `projectileSpread` separately; beamReach does not turn it into a beam. Verify close, far, hit and miss reload behavior separately. For the remainder of the stat catalogue and point-defense settings use the main guide's Stats section.
 

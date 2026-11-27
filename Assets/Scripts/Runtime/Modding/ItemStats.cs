@@ -12,10 +12,10 @@ namespace GoF2Remake.Modding
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class ItemStats
     {
-        // Shared IDs for Game, Space and Net. 191–202 are reserved for ModFlight's axis bonuses;
-        // 189 belongs to ItemData.CoreYieldAttr. Never reuse those IDs for another mechanic.
-        public const int StrictShipClassAttr = 203, FixedBeamAttr = 204, TurretDefenseRoleAttr = 205,
-                         ScannerRangeAttr = 206, ScanLeadAttr = 207, StructuralDamageAttr = 208;
+        // Shared IDs for Game, Space and Net. Preserve existing native IDs 191–195;
+        // ModFlight's per-axis equipment bonuses occupy 209–220. 189 belongs to ItemData.CoreYieldAttr.
+        public const int StrictShipClassAttr = 191, FixedBeamAttr = 192, TurretDefenseRoleAttr = 193,
+                         ScannerRangeAttr = 194, ScanLeadAttr = 195, StructuralDamageAttr = 208;
 
         /// <summary>The names a mod may use (the readable ones first; items.json's statList names work too).</summary>
         static readonly Dictionary<string, int> Ids = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)

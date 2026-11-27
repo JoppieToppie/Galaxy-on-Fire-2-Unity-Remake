@@ -355,17 +355,17 @@ energy cells.
 | `scanShip` | 140 | Scanners: 1 = the lock plate names the locked ship's hull, "Pirate · Phantom 85%" (see [Scanner readouts](#scanner-readouts)) |
 | `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
 | `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
-| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 191 to 193 | Independent pitch, yaw and roll rate bonuses (%) |
-| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 194 to 196 | Independent pitch, yaw and roll response / ramp bonuses (%) |
-| `strafeAcceleration` | 197 | Lateral acceleration bonus (%) in free flight |
-| `hoverSpeed`, `hoverAcceleration` | 198 to 199 | Vertical thrust speed and acceleration bonuses (%) in free flight |
-| `reverseSpeed`, `reverseAcceleration` | 200 to 201 | Reverse thrust speed and acceleration bonuses (%) in free flight |
-| `forwardAcceleration` | 202 | Forward thrust acceleration bonus (%) in free flight |
-| `strictShipClass` | 203 | 1 applies equipment class allow-lists even to an unclassified hull. Requires the applicable class restrictions; not a standalone class list. |
-| `fixedBeam` | 204 | Nonzero disables beam target snapping; aim along the actual firing direction. |
-| `turretDefenseRole` | 205 | Per-mount defense role: 0 legacy, 1 offensive, 2 balanced, 3 dedicated. |
-| `scannerRange` | 206 | Maximum sensor range in game units; absent/0 keeps unlimited legacy detection. |
-| `scanLead` | 207 | Positive enables predictive primary weapon PIPs; default off. See PIP_LEADS.md. |
+| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 209 to 211 | Independent pitch, yaw and roll rate bonuses (%) |
+| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 212 to 214 | Independent pitch, yaw and roll response / ramp bonuses (%) |
+| `strafeAcceleration` | 215 | Lateral acceleration bonus (%) in free flight |
+| `hoverSpeed`, `hoverAcceleration` | 216 to 217 | Vertical thrust speed and acceleration bonuses (%) in free flight |
+| `reverseSpeed`, `reverseAcceleration` | 218 to 219 | Reverse thrust speed and acceleration bonuses (%) in free flight |
+| `forwardAcceleration` | 220 | Forward thrust acceleration bonus (%) in free flight |
+| `strictShipClass` | 191 | 1 applies equipment class allow-lists even to an unclassified hull. Requires the applicable class restrictions; not a standalone class list. |
+| `fixedBeam` | 192 | Nonzero disables beam target snapping; aim along the actual firing direction. |
+| `turretDefenseRole` | 193 | Per-mount defense role: 0 legacy, 1 offensive, 2 balanced, 3 dedicated. |
+| `scannerRange` | 194 | Maximum sensor range in game units; absent/0 keeps unlimited legacy detection. |
+| `scanLead` | 195 | Positive enables predictive primary weapon PIPs; default off. See PIP_LEADS.md. |
 | `structuralDamage` | 208 | A positive value permits damage to player-built structure integrity (nukes qualify independently); EMP effects apply independently of this weapon eligibility. |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. |

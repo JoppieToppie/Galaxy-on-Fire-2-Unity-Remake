@@ -27,17 +27,24 @@ namespace GoF2Remake.Tests
                 .Select(g => g.Key + ": " + string.Join(", ", g.Select(p => p.Key))).ToArray();
             Assert.IsEmpty(collisions, string.Join("; ", collisions));
             Assert.AreEqual(189, ItemStats.IdOf("coreYield"));
-            Assert.AreEqual(191, ItemStats.IdOf("pitchTurnRate"));
-            Assert.AreEqual(192, ItemStats.IdOf("yawTurnRate"));
-            Assert.AreEqual(193, ItemStats.IdOf("rollTurnRate"));
-            Assert.AreEqual(194, ItemStats.IdOf("pitchTurnAcceleration"));
-            Assert.AreEqual(195, ItemStats.IdOf("yawTurnAcceleration"));
-            Assert.AreEqual(203, ItemStats.IdOf("strictShipClass"));
-            Assert.AreEqual(204, ItemStats.IdOf("fixedBeam"));
-            Assert.AreEqual(205, ItemStats.IdOf("turretDefenseRole"));
+            Assert.AreEqual(209, ItemStats.IdOf("pitchTurnRate"));
+            Assert.AreEqual(210, ItemStats.IdOf("yawTurnRate"));
+            Assert.AreEqual(211, ItemStats.IdOf("rollTurnRate"));
+            Assert.AreEqual(212, ItemStats.IdOf("pitchTurnAcceleration"));
+            Assert.AreEqual(213, ItemStats.IdOf("yawTurnAcceleration"));
+            Assert.AreEqual(214, ItemStats.IdOf("rollTurnAcceleration"));
+            Assert.AreEqual(215, ItemStats.IdOf("strafeAcceleration"));
+            Assert.AreEqual(216, ItemStats.IdOf("hoverSpeed"));
+            Assert.AreEqual(217, ItemStats.IdOf("hoverAcceleration"));
+            Assert.AreEqual(218, ItemStats.IdOf("reverseSpeed"));
+            Assert.AreEqual(219, ItemStats.IdOf("reverseAcceleration"));
+            Assert.AreEqual(220, ItemStats.IdOf("forwardAcceleration"));
+            Assert.AreEqual(191, ItemStats.IdOf("strictShipClass"));
+            Assert.AreEqual(192, ItemStats.IdOf("fixedBeam"));
+            Assert.AreEqual(193, ItemStats.IdOf("turretDefenseRole"));
             Assert.AreEqual(PointDefense.TurretRoleAttribute, ItemStats.IdOf("turretDefenseRole"));
-            Assert.AreEqual(206, ItemStats.IdOf("scannerRange"));
-            Assert.AreEqual(207, ItemStats.IdOf("scanLead"));
+            Assert.AreEqual(194, ItemStats.IdOf("scannerRange"));
+            Assert.AreEqual(195, ItemStats.IdOf("scanLead"));
             Assert.AreEqual(208, ItemStats.IdOf("structuralDamage"));
         }
 
@@ -49,7 +56,9 @@ namespace GoF2Remake.Tests
                     'strictShipClass': 1, 'fixedBeam': 1, 'turretDefenseRole': 3, 'scannerRange': 100000,
                     'scanLead': 1, 'structuralDamage': 1, 'coreYield': 4,
                     'pitchTurnRate': 11, 'yawTurnRate': 12, 'rollTurnRate': 13,
-                    'pitchTurnAcceleration': 14, 'yawTurnAcceleration': 15
+                    'pitchTurnAcceleration': 14, 'yawTurnAcceleration': 15, 'rollTurnAcceleration': 16,
+                    'strafeAcceleration': 17, 'hoverSpeed': 18, 'hoverAcceleration': 19,
+                    'reverseSpeed': 20, 'reverseAcceleration': 21, 'forwardAcceleration': 22
                 }},
                 { 'id': 'structural', 'base': 84, 'name': 'Structural only', 'stats': { 'structuralDamage': 2 }},
                 { 'id': 'mining', 'base': 84, 'name': 'Mining only', 'stats': { 'coreYield': 4 }}
@@ -70,6 +79,13 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(13, combined.Attr(ModFlight.RollTurnRate));
             Assert.AreEqual(14, combined.Attr(ModFlight.PitchTurnAcceleration));
             Assert.AreEqual(15, combined.Attr(ModFlight.YawTurnAcceleration));
+            Assert.AreEqual(16, combined.Attr(ModFlight.RollTurnAcceleration));
+            Assert.AreEqual(17, combined.Attr(ModFlight.StrafeAcceleration));
+            Assert.AreEqual(18, combined.Attr(ModFlight.HoverSpeed));
+            Assert.AreEqual(19, combined.Attr(ModFlight.HoverAcceleration));
+            Assert.AreEqual(20, combined.Attr(ModFlight.ReverseSpeed));
+            Assert.AreEqual(21, combined.Attr(ModFlight.ReverseAcceleration));
+            Assert.AreEqual(22, combined.Attr(ModFlight.ForwardAcceleration));
             var structural = db.Item(ModContent.ItemIndexOf("t_native_stats:structural"));
             var mining = db.Item(ModContent.ItemIndexOf("t_native_stats:mining"));
             Assert.AreEqual(1, structural.CoreYield, "structural damage must not modify mining yield");
