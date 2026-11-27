@@ -138,7 +138,7 @@ namespace GoF2Remake.Multiplayer
             Changed?.Invoke(station);
             GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
         }
-        static float nextEconomyTick;
+        static float nextEconomyTick, nextFreightPulse, nextFreightDispatch;
         static readonly List<Action> pending = new List<Action>();
         /// <summary>A player's: each station's clocks as the last list said (seconds left, -1 = none) and when it arrived.</summary>
         static readonly Dictionary<int, (float at, int reset, int rare)> clocks = new Dictionary<int, (float, int, int)>();
@@ -161,7 +161,7 @@ namespace GoF2Remake.Multiplayer
         {
             stocks.Clear();
             quotes.Clear(); priceTradePending = false;
-            nextEconomyTick = 0;
+            nextEconomyTick = nextFreightPulse = nextFreightDispatch = 0;
             db = null;
             AdvancedEconomyLedger.Reset();
             pending.Clear();
@@ -381,10 +381,19 @@ namespace GoF2Remake.Multiplayer
         static void TickEconomy(NetState state)
         {
             if (!AdvancedEconomyLedger.Active || NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.RetryFreightLosses()) return;
-            if (nextEconomyTick <= 0) nextEconomyTick = Time.unscaledTime + ModAdvancedEconomy.TickSeconds;
-            if (Time.unscaledTime >= nextEconomyTick)
+            float now = Time.unscaledTime;
+            bool freightClock = AdvancedEconomyLedger.IndependentFreightClock;
+            if (nextEconomyTick <= 0) nextEconomyTick = now + ModAdvancedEconomy.TickSeconds;
+            if (freightClock && nextFreightPulse <= 0) nextFreightPulse = now + 1f;
+            if (freightClock && nextFreightDispatch <= 0) nextFreightDispatch = now + ModAdvancedEconomy.FreightDispatchSeconds;
+            bool economyDue = now >= nextEconomyTick;
+            bool freightDue = freightClock && now >= nextFreightPulse;
+            bool dispatchDue = freightClock && now >= nextFreightDispatch;
+            if (economyDue || freightDue || dispatchDue)
             {
-                nextEconomyTick = Time.unscaledTime + ModAdvancedEconomy.TickSeconds;
+                if (economyDue) nextEconomyTick = now + ModAdvancedEconomy.TickSeconds;
+                if (freightDue) nextFreightPulse = now + 1f;
+                if (dispatchDue) nextFreightDispatch = now + ModAdvancedEconomy.FreightDispatchSeconds;
                 if (db == null) db = Database.Load();
                 bool Participates(int station) => !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
                     (ModAdvancedEconomy.SimulateUnvisitedStations || stocks.ContainsKey(station));
@@ -396,7 +405,7 @@ namespace GoF2Remake.Multiplayer
                     return p;
                 }
                 var changed = new HashSet<int>();
-                foreach (int station in ModAdvancedEconomy.Stations)
+                if (economyDue) foreach (int station in ModAdvancedEconomy.Stations)
                 {
                     if (!Participates(station)) continue;
                     foreach (var rule in ModAdvancedEconomy.At(station).Values)
@@ -412,11 +421,15 @@ namespace GoF2Remake.Multiplayer
                     }
                 }
                 var graph = ModAdvancedEconomy.RegionalTrade ? AdvancedEconomyRoutes.Build(db) : null;
-                var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed, graph);
-                var autoGraph = ModAdvancedEconomy.AutomaticRoutes ? graph : null;
-                TickPlayerMarket(Participates, changed, incoming, autoGraph);
-                TickNpcConstruction(Participates, changed, autoGraph);
-                if (ModAdvancedEconomy.DynamicPricing)
+                var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed, graph,
+                    advance: freightClock ? freightDue : economyDue, dispatch: freightClock ? dispatchDue : economyDue);
+                if (economyDue)
+                {
+                    var autoGraph = ModAdvancedEconomy.AutomaticRoutes ? graph : null;
+                    TickPlayerMarket(Participates, changed, incoming, autoGraph);
+                    TickNpcConstruction(Participates, changed, autoGraph);
+                }
+                if (economyDue && ModAdvancedEconomy.DynamicPricing)
                     foreach (int station in ModAdvancedEconomy.Stations)
                         if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
                 foreach (int station in changed)
