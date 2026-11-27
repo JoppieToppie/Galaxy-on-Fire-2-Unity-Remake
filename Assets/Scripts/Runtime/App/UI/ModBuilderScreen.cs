@@ -850,6 +850,7 @@ namespace GoF2Remake.UI
             Act(box, Localization.Get(31), ShowOptions, "mbv-menu-item");   // Options
             Act(box, T("mbDependencies", "Dependencies"), ShowDependencies, "mbv-menu-item");
             Act(box, T("mbModDetails", "Mod details"), ShowModDetails, "mbv-menu-item");
+            Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-menu-item");
             Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
             Act(box, T("mbNpcFactionWar", "NPC faction warfare"), ShowNpcFactionWarRules, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
@@ -857,6 +858,112 @@ namespace GoF2Remake.UI
             Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
             Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { CloseModal(); SaveNow(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
             modal.AddToClassList("mbv-modal--shown");
+        }
+
+        // Documentation uses the same read-only source as MCP read_guide. Load only when opened;
+        // never reparse the full reference during a builder update or in space.
+        VisualElement DocumentationBox(string heading)
+        {
+            CloseModal();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, heading);
+            modal.AddToClassList("mbv-modal--shown");
+            return box;
+        }
+
+        ScrollView DocumentationScroll(VisualElement box)
+        {
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            new DragScroll(scroll);
+            return scroll;
+        }
+
+        void ShowModdingDocumentation()
+        {
+            ModdingGuide.Preload();
+            var box = DocumentationBox(T("mbModDocumentation", "Modding documentation"));
+            Note(box, T("mbModDocumentationIntro", "The bundled modding guide. The same files and sections are available to an MCP assistant through read_guide."));
+            var query = Add(box, new TextField { maxLength = 200 }, "mbv-field", "mbv-search");
+            Act(box, T("mbModDocumentationSearch", "Search documentation"), () => ShowModdingGuideSearch(query.value), "mbv-step");
+            var scroll = DocumentationScroll(box);
+            foreach (var (file, about) in ModdingGuide.Files)
+            {
+                if (!ModdingGuide.Has(file)) continue;
+                string selected = file;
+                Act(scroll, file, () => ShowModdingGuideFile(selected), "mbv-menu-item");
+                Note(scroll, about);
+            }
+            if (!ModdingGuide.Files.Any(f => ModdingGuide.Has(f.file)))
+                Note(scroll, T("mbModDocumentationUnavailable", "This build does not contain the modding guide."));
+            Act(box, T("mbBack", "Back"), ShowMenu, "mbv-step");
+        }
+
+        void ShowModdingGuideSearch(string query)
+        {
+            var box = DocumentationBox(T("mbModDocumentationSearch", "Search documentation"));
+            Note(box, query ?? "");
+            var scroll = DocumentationScroll(box);
+            var hits = ModdingGuide.Search(query, null, 40);
+            if (hits.Count == 0) Note(scroll, T("mbModDocumentationNoResults", "No matches. Try fewer or different words."));
+            foreach (var (file, line, heading, text) in hits)
+            {
+                string selected = file;
+                int from = line;
+                Act(scroll, $"{file}:{line}  {heading}", () => ShowModdingGuidePage(selected, from), "mbv-menu-item");
+                Note(scroll, text);
+            }
+            if (hits.Count == 40)
+                Note(scroll, T("mbModDocumentationMoreMatches", "First 40 matches shown. Narrow your search for more specific results."));
+            Act(box, T("mbBack", "Back"), ShowModdingDocumentation, "mbv-step");
+        }
+
+        void ShowModdingGuideFile(string file)
+        {
+            var box = DocumentationBox(file);
+            var scroll = DocumentationScroll(box);
+            Act(scroll, T("mbModDocumentationBeginning", "Read from beginning"), () => ShowModdingGuidePage(file, 1), "mbv-menu-item");
+            foreach (var (line, level, title) in ModdingGuide.Headings(file))
+            {
+                int from = line;
+                Act(scroll, new string(' ', (level - 1) * 2) + title, () => ShowModdingGuidePage(file, from), "mbv-menu-item");
+            }
+            Act(box, T("mbBack", "Back"), ShowModdingDocumentation, "mbv-step");
+        }
+
+        void ShowModdingGuidePage(string file, int line)
+        {
+            // Bounded pages keep the large original-data reference usable on phones.
+            // Track the actual lines included so a long table never skips entries.
+            string all = ModdingGuide.Text(file);
+            if (all == null) { ShowModdingDocumentation(); return; }
+            var lines = all.Split('\n');
+            int start = Mathf.Clamp(line - 1, 0, lines.Length - 1), end = start, size = 0;
+            while (end < lines.Length && end - start < 60 &&
+                (end == start || size + lines[end].Length + 1 <= 16000))
+                size += lines[end++].Length + 1;
+            var box = DocumentationBox(file);
+            Note(box, $"{start + 1}–{end} / {lines.Length}");
+            var scroll = DocumentationScroll(box);
+            Add(scroll, new TextField
+            {
+                value = string.Join("\n", lines, start, end - start),
+                multiline = true,
+                isReadOnly = true
+            }, "mbv-field", "mbv-script");
+            var row = Row(box);
+            if (start > 0)
+            {
+                int previous = start, previousSize = 0;
+                while (previous > 0 && start - previous < 60 &&
+                    (previous == start || previousSize + lines[previous - 1].Length + 1 <= 16000))
+                    previousSize += lines[--previous].Length + 1;
+                // End the previous page at the current start rather than skipping text.
+                Act(row, T("mbModDocumentationPrevious", "Previous"), () => ShowModdingGuidePage(file, previous + 1), "mbv-step");
+            }
+            if (end < lines.Length)
+                Act(row, T("mbModDocumentationNext", "Next"), () => ShowModdingGuidePage(file, end + 1), "mbv-step");
+            Act(row, T("mbModDocumentationContents", "Contents"), () => ShowModdingGuideFile(file), "mbv-step");
+            Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-step");
         }
 
         void ShowNpcFactionWarRules()
