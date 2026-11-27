@@ -409,6 +409,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed);
                 TickPlayerMarket(Participates, changed, incoming);
+                TickNpcConstruction(Participates, changed);
                 if (ModAdvancedEconomy.DynamicPricing)
                     foreach (int station in ModAdvancedEconomy.Stations)
                         if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
@@ -420,6 +421,55 @@ namespace GoF2Remake.Multiplayer
                     }
             }
             AdvancedEconomyLedger.Flush();
+        }
+
+        // Supply only from surplus, after ordinary NPC routes and procurement have run.
+        static void TickNpcConstruction(Func<int, bool> participates, HashSet<int> changed)
+        {
+            if (!ModAdvancedEconomy.NpcConstructionSupply || !NetProfiles.Enabled ||
+                NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
+                NetPlayerStations.Stations == null) return;
+            int remaining = ModAdvancedEconomy.NpcConstructionUnits;
+            var graph = ModAdvancedEconomy.RegionalTrade && ModAdvancedEconomy.AutomaticRoutes
+                ? AdvancedEconomyRoutes.Build(db) : null;
+            var sources = new List<int>(ModAdvancedEconomy.Stations);
+            sources.Sort();
+            var projects = new List<PlayerStationRecord>(NetPlayerStations.Stations);
+            projects.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
+            foreach (var project in projects)
+            {
+                if (project?.buyOrders == null || project.retired || project.destroyed || project.wreckClaimOpen ||
+                    project.offeredForClaimUtc > 0) continue;
+                foreach (var order in new List<PlayerStationBuyOrder>(project.buyOrders))
+                {
+                    if (order == null || order.remaining <= 0 || order.unitPrice <= 0 ||
+                        !ModAdvancedEconomy.Eligible(db, order.item)) continue;
+                    foreach (int station in sources)
+                    {
+                        if (remaining <= 0 || NetPlayerStations.ProfileWritesBlocked) return;
+                        if (order.remaining <= 0 || !project.buyOrders.Contains(order)) break;
+                        if (!participates(station) || !ModAdvancedEconomy.At(station).TryGetValue(order.item, out var rule)) continue;
+                        int system = Shop.SystemOf(db, station);
+                        int distance = system == project.system ? 0 : graph?.Distance(system, project.system) ?? -1;
+                        if (distance < 0 || distance > ModAdvancedEconomy.MaxAutoHops) continue;
+                        var balance = AdvancedEconomyLedger.Get(station, rule);
+                        int count = ModAdvancedEconomy.ConstructionSupplyAmount(balance.Amount, rule.Target,
+                            order.remaining, order.remaining, remaining);
+                        if (count == 0) continue;
+                        int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
+                        int pressure = ModAdvancedEconomy.Pressure(db, station);
+                        // Require the bid to cover the most expensive marginal unit, including delivery distance.
+                        while (count > 0 && order.unitPrice < UnitPrice(basis, balance.Amount - count + 1,
+                            rule.Target, pressure, balance.ImportHops + distance, true)) count--;
+                        if (count == 0 || basis <= 0) continue;
+                        int old = balance.Amount, resale = balance.Resale, hops = balance.ImportHops;
+                        int shipped = NetPlayerStations.SupplyNpcConstruction(project, order, count,
+                            () => AdvancedEconomyLedger.Set(station, rule, old - count, Math.Max(0, resale - count)),
+                            () => { AdvancedEconomyLedger.Set(station, rule, old, resale); balance.ImportHops = hops; });
+                        if (shipped > 0) { changed.Add(station); remaining -= shipped; }
+                    }
+                }
+            }
         }
 
         // Player listings supply local NPC demand only after the ordinary shipment pass.

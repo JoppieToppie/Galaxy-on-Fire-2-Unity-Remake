@@ -109,7 +109,7 @@ stock are journalled together. This is an abstract NPC credit source, not a tran
 a player treasury. No private storage, factory stock, ship listings or construction escrow
 is modified. NPC buyers are anonymous; enabling this specific market channel authorizes
 them independently of player-specific access rules. Player-to-player listings remain priced
-by their owners. NPC sales into construction orders are not included; player-built gates are already usable for NPC-to-NPC shipments.
+by their owners. NPC construction supply is separately opt-in; player-built gates are already usable for NPC-to-NPC shipments.
 
 ## Verification
 
@@ -117,3 +117,7 @@ Edit-mode tests cover stock bounds, zero balances, routing, demand, shipment los
 price calculations. Unity compilation, test execution, dedicated-server restart recovery,
 client profile handover and multiplayer price race tests are required before enabling the
 system on production servers. Offline simulation intentionally pauses.
+
+## NPC construction supply
+
+Enable `npcConstructionSupply` with dynamic pricing and saved inventory, and set `npcConstructionUnitsPerTick` (default 100). NPC stations supply only managed commodity surplus above target, after ordinary trade routes. Funded construction and module buy orders are consent to supply; the bid must cover the marginal source price including route distance. Supply is local unless regional automatic routing is active. The posted bid is consumed from existing escrow as an NPC credit sink. No player seller is credited. The same journal records stock, delivered materials, build funding and any refunds. Deliveries are abstract and immediate. No independent jumpgate construction contribution is supplied.

@@ -207,6 +207,64 @@ namespace GoF2Remake.Multiplayer
                 (complete ? " Project funded; remaining order escrow was refunded." : " Materials were added to the construction project.");
         }
 
+        // NPC suppliers consume existing escrow, not a player account or faction treasury.
+        // All project, stock and refund mutations are recorded in the same durable journal.
+        internal static int SupplyNpcConstruction(PlayerStationRecord record, PlayerStationBuyOrder order,
+            int units, Action stageStock, Action rollbackStock)
+        {
+            if (!NetGame.IsServer || !NetProfiles.Enabled || ProfileWritesBlocked ||
+                !Modding.ModAdvancedEconomy.NpcConstructionSupply || !AdvancedEconomyLedger.CanJournal ||
+                record == null || order == null || record.buyOrders == null ||
+                !record.buyOrders.Contains(order) || units <= 0 || units > 500 || units > order.remaining ||
+                order.unitPrice <= 0 || order.unitPrice > long.MaxValue / order.remaining ||
+                order.reservedCredits != order.unitPrice * order.remaining ||
+                string.IsNullOrEmpty(order.fundedByProfile) == string.IsNullOrEmpty(order.fundedByFactionId) ||
+                (!record.underConstruction && StationClosedByCombat(record.stationIndex))) return 0;
+            var materials = ProcurementMaterials(record);
+            var material = materials?.Find(x => x != null && x.item == order.item);
+            if (material == null || material.delivered < 0 || units > material.required - material.delivered) return 0;
+            int oldDelivered = material.delivered, oldRemaining = order.remaining;
+            long oldEscrow = order.reservedCredits;
+            var oldOrders = new List<PlayerStationBuyOrder>(record.buyOrders);
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            var refunds = new List<(string account, long amount)>();
+            material.delivered += units;
+            order.remaining -= units;
+            order.reservedCredits -= order.unitPrice * units;
+            if (order.remaining == 0) record.buyOrders.Remove(order);
+            bool complete = materials.TrueForAll(x => x != null && x.delivered >= x.required);
+            bool stationProject = record.underConstruction;
+            Action rollbackCompletion = null;
+            if (complete)
+            {
+                if (!StageConstructionEscrowRefunds(record.buyOrders, credits, banks, refunds))
+                {
+                    material.delivered = oldDelivered;
+                    order.remaining = oldRemaining; order.reservedCredits = oldEscrow;
+                    record.buyOrders = oldOrders;
+                    return 0;
+                }
+                rollbackCompletion = stationProject ? FundStationConstruction(record) :
+                    FundModuleConstruction(record, record.moduleConstructionKind);
+                record.buyOrders.Clear();
+            }
+            stageStock();
+            if (!CommitProfileTransaction(null, credits, banks, registryOnly: true, economyJson: AdvancedEconomyLedger.Snapshot()))
+            {
+                rollbackStock();
+                rollbackCompletion?.Invoke();
+                material.delivered = oldDelivered;
+                order.remaining = oldRemaining; order.reservedCredits = oldEscrow;
+                record.buyOrders = oldOrders;
+                return 0;
+            }
+            if (complete && stationProject) Apply(NetGame.Db);
+            foreach (var refund in refunds)
+                NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
+            return units;
+        }
+
         static bool StageConstructionEscrowRefunds(List<PlayerStationBuyOrder> orders,
             List<(string account, long delta)> credits, List<(string factionId, long delta)> banks,
             List<(string account, long amount)> profileRefunds)

@@ -26,6 +26,8 @@ namespace GoF2Remake.Modding
         public static int BattlePressure { get; private set; } = 100;
         public static bool DynamicPricing { get; private set; }
         public static bool PlayerMarketTrade { get; private set; }
+        public static bool NpcConstructionSupply { get; private set; }
+        public static int NpcConstructionUnits { get; private set; } = 100;
         public static int PlayerMarketBudget { get; private set; }
         public static int PlayerMarketUnits { get; private set; } = 100;
         public static bool TransportCosts { get; private set; }
@@ -107,6 +109,10 @@ namespace GoF2Remake.Modding
         public static int DispatchAmount(int source, int sourceTarget, int destination, int destinationTarget, int capacity) =>
             Math.Min(Math.Max(0, capacity), Math.Min(Math.Max(0, source - sourceTarget), Math.Max(0, destinationTarget - destination)));
 
+        public static int ConstructionSupplyAmount(int stock, int target, int orderRemaining, int projectRemaining, int budget) =>
+            Math.Min(500, Math.Min(Math.Max(0, stock - target), Math.Min(Math.Max(0, orderRemaining),
+                Math.Min(Math.Max(0, projectRemaining), Math.Max(0, budget)))));
+
         public static int SurvivingCargo(int amount, int lossPercent, int pressure) =>
             Math.Max(0, amount) - (int)((long)Math.Max(0, amount) * Math.Clamp(lossPercent, 0, 100) *
                 Math.Clamp(pressure, 0, 100) / 10000);
@@ -134,7 +140,8 @@ namespace GoF2Remake.Modding
             routes.Clear();
             RegionalTrade = WarPressure = TradeDisruption = PlayerGateRouting = AutomaticRoutes = false;
             FrontlinePressure = 50; BattlePressure = 100;
-            DynamicPricing = TransportCosts = PlayerMarketTrade = false;
+            DynamicPricing = TransportCosts = PlayerMarketTrade = NpcConstructionSupply = false;
+            NpcConstructionUnits = 100;
             PlayerMarketBudget = 0; PlayerMarketUnits = 100;
             ScarcityMarkup = 100; SurplusDiscount = 30; WarMarkup = 50; TransportPerHop = 5; SellSpread = 10;
             AutoCapacity = 100; AutoWarLoss = 0; TicksPerHop = 1; MaxAutoHops = 8;
@@ -159,6 +166,8 @@ namespace GoF2Remake.Modding
                     bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
                     bool freight = ModJson.Bool(o, "transportCosts", false, File);
                     bool market = ModJson.Bool(o, "playerMarketTrade", false, File);
+                    bool construction = ModJson.Bool(o, "npcConstructionSupply", false, File);
+                    int constructionUnits = Math.Clamp(ModJson.Int(o, "npcConstructionUnitsPerTick", 100, File), 1, MaxStock);
                     int marketBudget = Math.Clamp(ModJson.Int(o, "playerMarketBudgetPerTick", 0, File), 0, 1000000000);
                     int marketUnits = Math.Clamp(ModJson.Int(o, "playerMarketUnitsPerTick", 100, File), 1, MaxStock);
                     int scarcity = Math.Clamp(ModJson.Int(o, "scarcityMarkupPercent", 100, File), 0, 500);
@@ -273,6 +282,8 @@ namespace GoF2Remake.Modding
                     else if (pricing) Debug.LogWarning($"[{mod.Id}] {File}: dynamic pricing requires saveInventory; disabled.");
                     if (market && pricing && save) { PlayerMarketTrade = true; PlayerMarketBudget = marketBudget; PlayerMarketUnits = marketUnits; }
                     else if (market) Debug.LogWarning($"[{mod.Id}] {File}: player market trade requires dynamic pricing and saved inventory; disabled.");
+                    if (construction && pricing && save) { NpcConstructionSupply = true; NpcConstructionUnits = constructionUnits; }
+                    else if (construction) Debug.LogWarning($"[{mod.Id}] {File}: NPC construction supply requires dynamic pricing and saved inventory; disabled.");
                     SimulateUnvisitedStations |= unvisited;
                     Production |= production;
                     Consumption |= consumption;

@@ -53,6 +53,26 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ConstructionSupplyIsLimitedBySurplusOrderProjectAndBudget()
+        {
+            Assert.AreEqual(0, ModAdvancedEconomy.ConstructionSupplyAmount(100, 100, 50, 50, 100));
+            Assert.AreEqual(12, ModAdvancedEconomy.ConstructionSupplyAmount(150, 100, 30, 12, 100));
+            Assert.AreEqual(7, ModAdvancedEconomy.ConstructionSupplyAmount(150, 100, 30, 12, 7));
+            Assert.AreEqual(500, ModAdvancedEconomy.ConstructionSupplyAmount(2000, 100, 900, 900, 900));
+        }
+
+        [Test]
+        public void RouteDistanceRespectsDirectionAndInvalidation()
+        {
+            var graph = new AdvancedEconomyRoutes();
+            graph.Add(1, 2); graph.Add(2, 3);
+            Assert.AreEqual(2, graph.Distance(1, 3));
+            Assert.AreEqual(-1, graph.Distance(3, 1));
+            graph.Add(1, 3);
+            Assert.AreEqual(1, graph.Distance(1, 3));
+        }
+
+        [Test]
         public void WarPressureScalesDemandAndShipmentLoss()
         {
             var rule = new ModAdvancedEconomy.Rule(1, 100, 100, 200, 0, 0, 40);
