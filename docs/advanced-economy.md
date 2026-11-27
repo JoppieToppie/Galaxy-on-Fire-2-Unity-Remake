@@ -38,8 +38,7 @@ With simulateUnvisitedStations enabled, all configured NPC stations run on one e
 maximum follow the existing shop-cap behaviour: excess is accepted but not retained.
 The underlying vanilla credit transaction protocol has not yet been changed.
 
-Mod Builder > Advanced economy edits toggles, interval and existing stock rows.
-New rows can be added in the JSON file before loading the project. The root file is
+Mod Builder > Advanced economy edits toggles, interval, commodity rows, system profiles and routes. Station, system and commodity pickers use normal mod dependencies. Stock rules can use a system reference instead of a station reference to apply to each NPC station in the system. An explicit station rule overrides that mod's system default for the same commodity, irrespective of JSON order. The root file is
 included in multiplayer mod checks and export. Later active enabled configurations
 override a duplicate station/item row; their inventory tick interval also wins.
 Disabled files contribute nothing. Emergency fuel at the three special stations is
@@ -73,7 +72,7 @@ Enable `tradeDisruption` as well for deterministic losses on shipments
 according to `warLossPercent` and the higher endpoint's pressure.
 No physical convoy, no coordinate-proximity trade routes, no offline catch-up.
 
-Next phases: category profiles and specialization, server-authoritative price
+Next phases: reusable named production/consumption profiles, server-authoritative price
 quotes/transactions, scarcity and logistics pricing, player-station integration
 and dynamic player-built gate routing. Do not
 activate the advanced economy for production servers until these are validated.

@@ -1012,7 +1012,10 @@ namespace GoF2Remake.UI
                 void Field(string key, string label, int fallback, int min) =>
                     Int(scroll, label, Value(key, fallback), min, ModAdvancedEconomy.MaxStock,
                         v => { row[key] = v; MarkDirty(); });
-                Heading(scroll, $"Station {row["station"]} / item {row["item"]}");
+                bool systemRule = row["system"] != null;
+                string location = (systemRule ? row["system"] : row["station"])?.ToString();
+                string commodity = row["item"]?.ToString();
+                Heading(scroll, $"{RefLabel(systemRule ? RefKind.System : RefKind.Station, location, "Unknown location")} / {RefLabel(RefKind.Item, commodity, "Unknown commodity")}");
                 Field("targetStock", "Target stock", 100, 1);
                 Field("maximumStock", "Maximum stock", 100, 1);
                 Field("initialStock", "Initial stock", 100, 0);
@@ -1021,7 +1024,69 @@ namespace GoF2Remake.UI
                 Field("warDemandPerTick", "Extra demand at maximum war pressure", 0, 0);
                 Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
             }
-            Note(scroll, "Add station and commodity references in advanced-economy.json (stockRules); the existing rows can be edited here. Add directed tradeRoutes in the JSON file. Dynamic pricing will follow.");
+            void AddStockRule(RefKind kind, string key)
+            {
+                PickRef(kind, kind == RefKind.System ? "Select system" : "Select station", location =>
+                {
+                    if (location == null) { ShowAdvancedEconomyRules(); return; }
+                    PickRef(RefKind.Item, "Select commodity", item =>
+                    {
+                        if (item != null && !rows.OfType<JObject>().Any(r =>
+                            r[key]?.ToString() == location.value && r["item"]?.ToString() == item.value))
+                        {
+                            rows.Add(new JObject { [key] = ProjectEntry.RefToken(location.value),
+                                ["item"] = ProjectEntry.RefToken(item.value), ["initialStock"] = 100,
+                                ["targetStock"] = 100, ["maximumStock"] = 200,
+                                ["productionPerTick"] = 0, ["consumptionPerTick"] = 0, ["warDemandPerTick"] = 0 });
+                            if (rules["stockRules"] != rows) rules["stockRules"] = rows;
+                            MarkDirty();
+                        }
+                        ShowAdvancedEconomyRules();
+                    }, e => e.type == 4);
+                });
+            }
+            Act(scroll, "+ Station commodity rule", () => AddStockRule(RefKind.Station, "station"), "mbv-add");
+            Act(scroll, "+ System commodity profile", () => AddStockRule(RefKind.System, "system"), "mbv-add");
+            Note(scroll, "System rules apply to NPC stations in the selected system. Explicit station rules override the same commodity's system rule within this mod.");
+            Heading(scroll, "Trade routes");
+            var routes = rules["tradeRoutes"] as JArray ?? new JArray();
+            foreach (var route in routes.OfType<JObject>().ToList())
+            {
+                string from = RefLabel(RefKind.Station, route["source"]?.ToString(), "Unknown source");
+                string to = RefLabel(RefKind.Station, route["destination"]?.ToString(), "Unknown destination");
+                string item = RefLabel(RefKind.Item, route["item"]?.ToString(), "Unknown commodity");
+                Heading(scroll, $"{from} → {to}: {item}");
+                void RouteField(string key, string label, int fallback, int min, int max) =>
+                    Int(scroll, label, int.TryParse(route[key]?.ToString(), out int n) ? n : fallback, min, max,
+                        v => { route[key] = v; MarkDirty(); });
+                RouteField("capacity", "Cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
+                RouteField("travelTicks", "Travel time (economy ticks)", 1, 1, 96);
+                RouteField("warLossPercent", "Maximum war loss (%)", 0, 0, 100);
+                Act(scroll, "Remove route", () => { route.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+            }
+            Act(scroll, "+ Trade route", () => PickRef(RefKind.Station, "Select source station", source =>
+            {
+                if (source == null) { ShowAdvancedEconomyRules(); return; }
+                PickRef(RefKind.Station, "Select destination station", destination =>
+                {
+                    if (destination == null) { ShowAdvancedEconomyRules(); return; }
+                    PickRef(RefKind.Item, "Select commodity", commodity =>
+                    {
+                        if (commodity != null && !routes.OfType<JObject>().Any(r =>
+                            r["source"]?.ToString() == source.value && r["destination"]?.ToString() == destination.value &&
+                            r["item"]?.ToString() == commodity.value))
+                        {
+                            routes.Add(new JObject { ["source"] = ProjectEntry.RefToken(source.value),
+                                ["destination"] = ProjectEntry.RefToken(destination.value), ["item"] = ProjectEntry.RefToken(commodity.value),
+                                ["capacity"] = 100, ["travelTicks"] = 1, ["warLossPercent"] = 0 });
+                            if (rules["tradeRoutes"] != routes) rules["tradeRoutes"] = routes;
+                            MarkDirty();
+                        }
+                        ShowAdvancedEconomyRules();
+                    }, e => e.type == 4);
+                }, e => e.value != source.value);
+            }), "mbv-add");
+            Note(scroll, "Routes require managed stock for the commodity at both stations and a same-system or direct jumpgate connection. Invalid routes are reported on reload. Dynamic pricing will follow.");
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
         }

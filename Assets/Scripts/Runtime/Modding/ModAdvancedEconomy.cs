@@ -111,24 +111,39 @@ namespace GoF2Remake.Modding
                     bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
                     int interval = Math.Clamp(ModJson.Int(o, "tickIntervalSeconds", 900, File), 60, 86400);
                     var parsed = new Dictionary<(int station, int item), Rule>();
+                    var systemDefaults = new Dictionary<(int station, int item), Rule>();
                     if (ModJson.Get(o, "stockRules") is JToken entries)
                     {
                         if (!(entries is JArray list)) throw new ModJsonException(File + ": stockRules must be an array");
                         foreach (var entry in list)
                         {
                             if (!(entry is JObject row)) throw new ModJsonException(File + ": stockRules entries must be objects");
-                            string st = ModJson.Str(row, "station"), it = ModJson.Str(row, "item");
-                            if (!ModWorld.TryResolveStation(st, out int station) &&
-                                !ModWorld.TryResolveStation(mod.Id + ":" + st, out station))
-                                throw new ModJsonException(File + ": unknown station " + st);
+                            string st = ModJson.Str(row, "station"), sys = ModJson.Str(row, "system"), it = ModJson.Str(row, "item");
+                            if (string.IsNullOrEmpty(st) == string.IsNullOrEmpty(sys))
+                                throw new ModJsonException(File + ": a stock rule requires exactly one station or system");
+                            var stations = new List<int>();
+                            if (!string.IsNullOrEmpty(st))
+                            {
+                                if (!ModWorld.TryResolveStation(st, out int station) &&
+                                    !ModWorld.TryResolveStation(mod.Id + ":" + st, out station))
+                                    throw new ModJsonException(File + ": unknown station " + st);
+                                if (!db.Stations.Exists(s => s.index == station))
+                                    throw new ModJsonException(File + ": unknown station " + st);
+                                stations.Add(station);
+                            }
+                            else
+                            {
+                                if (!ModWorld.TryResolveSystem(sys, out int system) &&
+                                    !ModWorld.TryResolveSystem(mod.Id + ":" + sys, out system))
+                                    throw new ModJsonException(File + ": unknown system " + sys);
+                                foreach (var station in db.Stations)
+                                    if (station.system == system) stations.Add(station.index);
+                            }
                             if (!ModContent.TryResolveItem(it, out int item) &&
                                 !ModContent.TryResolveItem(mod.Id + ":" + it, out item))
                                 throw new ModJsonException(File + ": unknown item " + it);
-                            if (!db.Stations.Exists(s => s.index == station) || db.Item(item)?.TypeId != 4)
-                                throw new ModJsonException(File + ": stockRules require a station and a commodity");
-                            // Keep emergency fuel at deep-space stations under the existing safety rules.
-                            if ((station == 10 || station == 100 || station == 101) && item == GalaxyMap.EnergyCellItem)
-                                throw new ModJsonException(File + ": emergency energy cells cannot be managed here");
+                            if (db.Item(item)?.TypeId != 4)
+                                throw new ModJsonException(File + ": stockRules require a commodity");
                             int target = ModJson.Int(row, "targetStock", 100, File);
                             int maximum = ModJson.Int(row, "maximumStock", target, File);
                             int initial = ModJson.Int(row, "initialStock", target, File);
@@ -138,10 +153,22 @@ namespace GoF2Remake.Modding
                             if (target < 1 || maximum < target || maximum > MaxStock || initial < 0 || initial > maximum ||
                                 made < 0 || made > MaxStock || used < 0 || used > MaxStock || demand < 0 || demand > MaxStock)
                                 throw new ModJsonException(File + ": invalid stock limits or flow for " + st + "/" + it);
-                            parsed[(station, item)] = new Rule(item, initial, target, maximum,
-                                production ? made : 0, consumption ? used : 0, war ? demand : 0);
+                            foreach (int station in stations)
+                            {
+                                // System-wide profiles leave emergency fuel at special stations under vanilla rules.
+                                if ((station == 10 || station == 100 || station == 101) && item == GalaxyMap.EnergyCellItem)
+                                {
+                                    if (st != null) throw new ModJsonException(File + ": emergency energy cells cannot be managed here");
+                                    continue;
+                                }
+                                var rule = new Rule(item, initial, target, maximum,
+                                    production ? made : 0, consumption ? used : 0, war ? demand : 0);
+                                (st != null ? parsed : systemDefaults)[(station, item)] = rule;
+                            }
                         }
                     }
+                    foreach (var pair in systemDefaults)
+                        if (!parsed.ContainsKey(pair.Key)) parsed.Add(pair.Key, pair.Value);
                     var parsedRoutes = new Dictionary<(int source, int destination, int item), Route>();
                     if (trade && ModJson.Get(o, "tradeRoutes") is JToken routeEntries)
                     {
@@ -190,6 +217,9 @@ namespace GoF2Remake.Modding
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
             }
+            foreach (var route in routes.Values)
+                if (At(route.Source)?.ContainsKey(route.Item) != true || At(route.Destination)?.ContainsKey(route.Item) != true)
+                    Debug.LogWarning($"{File}: route {route.Source} -> {route.Destination}, item {route.Item}, requires managed stock at both endpoints; ignored until configured.");
         }
 
         public static int Pressure(Database db, int station)
