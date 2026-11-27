@@ -59,13 +59,6 @@
       "source": "builtin",
       "dependencies": {}
     },
-    "com.unity.ide.rider": {
-      "version": "3.1.1",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://packages.unity.com"
-    },
     "com.unity.ide.visualstudio": {
       "version": "2.0.29",
       "depth": 0,
