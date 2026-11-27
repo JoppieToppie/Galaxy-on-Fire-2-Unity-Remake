@@ -328,7 +328,8 @@ namespace GoF2Remake.Multiplayer
                 label = ship.Target != null && !string.IsNullOrEmpty(ship.Target.displayName) ? ship.Target.displayName : "",
                 explosionScale = ship.IsFixed ? sp.explosionScale : ship.IsFreighter ? ship.FreighterExplosionScale : ship.FighterExplosionScale,   // NpcShip.UpdateDying
                 leavesWreck = (ship.IsFixed || ship.IsFreighter) && !sp.modCapital,   // (a mod capital ship leaves none)
-                hitVolume = sp.freighter ? FreighterVolumes + sp.ship * 16 + Mathf.Clamp(sp.race, 0, 15)
+                hitVolume = sp.freighter && (!Modding.ModAdvancedEconomy.IsFreightTag(sp.eventTag) || sp.ship == 13 || sp.ship == 15)
+                          ? FreighterVolumes + sp.ship * 16 + Mathf.Clamp(Modding.ModAdvancedEconomy.IsFreightTag(sp.eventTag) ? Modding.ModRaces.Look(sp.race) : sp.race, 0, 15)
                           : sp.capitalEnhanced && sp.fixedObject != null && sp.collisionId >= 0 ? sp.collisionId : -1,
                 missionShip = ship.MissionShip,
                 maxHull = ship.Hp != null ? ship.Hp.maxHull : -1,
