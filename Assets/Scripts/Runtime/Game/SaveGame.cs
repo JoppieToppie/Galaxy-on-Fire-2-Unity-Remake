@@ -38,6 +38,7 @@ namespace GoF2Remake.Data
         public bool originStartAsPirate;
         public List<DeathRecovery> deathRecoveries;
         public string lastDeathPenaltyId;
+        public string reputationRevision;
         public List<string> factionWarRewardReceipts;
         public List<StationStock> recentStations;
         public List<int> seenItems, visitedStations, attackedStations;
@@ -474,6 +475,7 @@ namespace GoF2Remake.Data
                 ship = Session.ShipIndex,
                 deathLoaner = Session.DeathLoaner,
                 lastDeathPenaltyId = Session.LastDeathPenaltyId,
+                reputationRevision = Session.ReputationRevision,
                 factionWarRewardReceipts = new List<string>(Session.FactionWarRewardReceipts),
                 deathRecoveries = new List<DeathRecovery>(Session.DeathRecoveries),
                 credits = Session.Credits,
@@ -656,6 +658,7 @@ namespace GoF2Remake.Data
             Session.ShipIndex = s.ship;
             Session.DeathLoaner = s.deathLoaner;
             Session.LastDeathPenaltyId = s.lastDeathPenaltyId;
+            Session.ReputationRevision = s.reputationRevision;
             Session.FactionWarRewardReceipts = s.factionWarRewardReceipts ?? new List<string>();
             Session.DeathRecoveries = s.deathRecoveries ?? new List<DeathRecovery>();
             Session.Credits = s.credits;

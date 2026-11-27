@@ -634,13 +634,13 @@ namespace GoF2Remake.Multiplayer
                 : (GameHooks.ModJumpResult?)null);
         }
 
-        internal void SendReputationPenalty(ulong client, string snapshot)
+        internal void SendReputationPenalty(ulong client, string snapshot, string revision)
         {
-            if (IsServer) ReputationPenaltyRpc(snapshot, RpcTarget.Single(client, RpcTargetUse.Temp));
+            if (IsServer) ReputationPenaltyRpc(snapshot, revision, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void ReputationPenaltyRpc(string snapshot, RpcParams rpc = default)
+        void ReputationPenaltyRpc(string snapshot, string revision, RpcParams rpc = default)
         {
             if (!Flight.Standing.Independent) return;
             foreach (var entry in snapshot.Split(';'))
@@ -649,6 +649,7 @@ namespace GoF2Remake.Multiplayer
                 if (eq > 0 && int.TryParse(entry.Substring(eq + 1), out int value))
                     Modding.ModRaces.SetStandingKey(entry.Substring(0, eq), value);
             }
+            Session.ReputationRevision = revision;
             NetChat.Notice("Reputation reduced with all NPC factions.");
         }
 
@@ -671,17 +672,18 @@ namespace GoF2Remake.Multiplayer
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command)) return;
             bool accepted = NetFactions.TryCompleteNpcDiplomacy(NetSquad.Find(client), station, race, quote, uploadSequence,
-                out int price, out int forgiven, out string refusal);
-            NpcDiplomacyResultRpc(accepted, race, price, forgiven, refusal ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
+                out int price, out int forgiven, out string refusal, out string reputationRevision);
+            NpcDiplomacyResultRpc(accepted, race, price, forgiven, refusal ?? "", reputationRevision ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void NpcDiplomacyResultRpc(bool accepted, int race, int price, int forgiven, string refusal, RpcParams rpc = default)
+        void NpcDiplomacyResultRpc(bool accepted, int race, int price, int forgiven, string refusal, string reputationRevision, RpcParams rpc = default)
         {
             npcDiplomacyReplyDeadline = 0f;
             if (!accepted) { NetChat.Notice(refusal); return; }
             Session.Credits = System.Math.Max(0L, Session.Credits - price);
             if (Flight.Standing.Independent || Flight.Standing.RawToward(race) <= -71) Flight.Standing.Rehabilitate(race);
+            if (Flight.Standing.Independent) Session.ReputationRevision = reputationRevision;
             GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
             NetChat.Notice(forgiven > 0
                 ? $"Diplomacy deal completed. {forgiven} NPC kills forgiven."

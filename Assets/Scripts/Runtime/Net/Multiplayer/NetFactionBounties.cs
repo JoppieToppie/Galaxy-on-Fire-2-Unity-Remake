@@ -24,6 +24,7 @@ namespace GoF2Remake.Multiplayer
             public long wantedUntil;
             public long reward;
             public long deathReduction;
+            public long pardonedNpcReward; // bounty already vested when PvE history is forgiven
             public List<string> acceptedBy = new List<string>();
             public List<int> issuingSystems = new List<int>();
         }
@@ -33,7 +34,7 @@ namespace GoF2Remake.Multiplayer
         {
             public string account;
             public List<long> kills = new List<long>();
-            public bool pirate;
+            public bool pirate, everPirate;
             public bool reducedBounty;
             public int killsSinceClaim;
         }
@@ -44,6 +45,78 @@ namespace GoF2Remake.Multiplayer
             public List<BountyRecord> records = new List<BountyRecord>();
             public List<PiracyRecord> piracy = new List<PiracyRecord>();
             public List<WantedSighting> sightings = new List<WantedSighting>();
+            public List<PendingReputation> reputation = new List<PendingReputation>();
+        }
+
+        [Serializable]
+        sealed class PendingReputation
+        {
+            public string id, account, issuer;
+            public int race, amount, forgiven;
+            public bool pirate, pardon;
+        }
+
+        internal static bool IsPirateAccount(string account) =>
+            account != null && piracyByAccount.TryGetValue(account, out var record) && record.pirate;
+        internal static bool HasPiracyHistory(string account) =>
+            account != null && piracyByAccount.TryGetValue(account, out var record) && (record.pirate || record.everPirate);
+        internal static bool HasPendingReputation(string account) =>
+            bountyFile?.reputation?.Exists(p => p.account == account) == true;
+
+        // A durable bounty-file intent precedes each profile write. Do not remove an
+        // intent until both sides have committed; the profile's revision is its receipt.
+        internal static bool ReplayPendingReputation(string account)
+        {
+            if (bountyFile == null) return true;
+            if (!SaveBounties()) return false;
+            foreach (var pending in new List<PendingReputation>(bountyFile.reputation))
+            {
+                if (pending.account != account) continue;
+                if (pending.pardon)
+                {
+                    if (!NetProfiles.CommitReputationPardon(account, pending.race, pending.pirate, pending.amount, pending.id)) return false;
+                    var record = FindBounty(account, pending.issuer);
+                    var piracy = piracyByAccount.TryGetValue(account, out var indexed) ? indexed : null;
+                    var oldKills = record == null ? null : new List<long>(record.pveKills);
+                    long oldVested = record?.pardonedNpcReward ?? 0;
+                    bool oldPirate = piracy?.pirate == true;
+                    if (record != null) ForgiveNpcHistory(record);
+                    if (piracy != null && pending.pirate) { piracy.pirate = false; piracy.everPirate = true; }
+                    int index = bountyFile.reputation.IndexOf(pending);
+                    bountyFile.reputation.RemoveAt(index);
+                    bountyDirty = true;
+                    if (!SaveBounties())
+                    {
+                        if (record != null) { record.pveKills = oldKills; record.pardonedNpcReward = oldVested; }
+                        if (piracy != null) piracy.pirate = oldPirate;
+                        bountyFile.reputation.Insert(index, pending);
+                        bountyDirty = true;
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (!NetProfiles.ApplyReputationPenalty(account, pending.pirate, pending.amount, pending.id)) return false;
+                    int index = bountyFile.reputation.IndexOf(pending);
+                    bountyFile.reputation.RemoveAt(index);
+                    bountyDirty = true;
+                    if (!SaveBounties())
+                    {
+                        bountyFile.reputation.Insert(index, pending);
+                        bountyDirty = true;
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        static void ForgiveNpcHistory(BountyRecord record)
+        {
+            long before = NpcReward(record);
+            record.pveKills.Clear();
+            if (record.wantedUntil > UnixNow)
+                record.pardonedNpcReward = Session.SaturatingAdd(record.pardonedNpcReward, Math.Max(0L, before - NpcReward(record)));
         }
 
         const long SightingLifetime = 900;
@@ -274,9 +347,11 @@ namespace GoF2Remake.Multiplayer
                 if (bountyFile?.records == null) throw new InvalidDataException("Missing bounty records.");
                 bountyFile.sightings ??= new List<WantedSighting>();
                 bountyFile.sightings.RemoveAll(x => x == null || string.IsNullOrEmpty(x.account));
+                bountyFile.reputation ??= new List<PendingReputation>();
+                bountyFile.reputation.RemoveAll(p => p == null || string.IsNullOrEmpty(p.id) || string.IsNullOrEmpty(p.account));
                 bountyFile.piracy ??= new List<PiracyRecord>();
                 bountyFile.piracy.RemoveAll(r => r == null || string.IsNullOrEmpty(r.account));
-                foreach (var r in bountyFile.piracy) r.kills ??= new List<long>();
+                foreach (var r in bountyFile.piracy) { r.kills ??= new List<long>(); r.everPirate |= r.pirate; }
                 bountyFile.records.RemoveAll(r => r == null || string.IsNullOrEmpty(r.account) || string.IsNullOrEmpty(r.issuer));
                 foreach (var record in bountyFile.records)
                 {
@@ -313,10 +388,10 @@ namespace GoF2Remake.Multiplayer
             if (bountyFile == null) return;
             long now = UnixNow;
             int before = bountyFile.records.Count + bountyFile.piracy.Count;
-            bountyDirty |= bountyFile.records.RemoveAll(r => r.wantedUntil <= now &&
+            bountyDirty |= bountyFile.records.RemoveAll(r => r.wantedUntil <= now && !HasPendingReputation(r.account) &&
                 !r.pvpKills.Exists(k => k > now - BountyWindowSeconds) &&
                 !r.pveKills.Exists(k => k > now - BountyWindowSeconds)) > 0;
-            bountyDirty |= bountyFile.piracy.RemoveAll(r => !r.pirate && !r.kills.Exists(k => k >= now - MaxPiracyWindowSeconds)) > 0;
+            bountyDirty |= bountyFile.piracy.RemoveAll(r => !r.pirate && !r.everPirate && !HasPendingReputation(r.account) && !r.kills.Exists(k => k >= now - MaxPiracyWindowSeconds)) > 0;
             if (before != bountyFile.records.Count + bountyFile.piracy.Count) ReindexBounties();
             SaveBounties();
         }
@@ -354,7 +429,7 @@ namespace GoF2Remake.Multiplayer
 
         static long NpcReward(BountyRecord record) =>
             Math.Max(0L, Math.Min((long)Modding.ModPvpPiracy.MaximumNpcBounty,
-                ((long)record.pveKills.Count + record.pvpKills.Count) / Math.Max(1, Modding.ModPvpPiracy.NpcKillsForBounty) * Modding.ModPvpPiracy.NpcBountyIncrement) - record.deathReduction);
+                Session.SaturatingAdd(record.pardonedNpcReward, ((long)record.pveKills.Count + record.pvpKills.Count) / Math.Max(1, Modding.ModPvpPiracy.NpcKillsForBounty) * Modding.ModPvpPiracy.NpcBountyIncrement)) - record.deathReduction);
 
         static long PirateReward(PiracyRecord record) => record.reducedBounty
             ? Modding.ModPvpPiracy.MaximumNpcBounty / 2L : Modding.ModPvpPiracy.MaximumNpcBounty;
@@ -504,6 +579,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (record.pirate) return true;
             record.pirate = true;
+            record.everPirate = true;
             bountyDirty = true;
             if (SaveBounties()) return true;
             record.pirate = false;
@@ -544,6 +620,7 @@ namespace GoF2Remake.Multiplayer
             if (count >= threshold)
             {
                 record.pirate = true;
+                record.everPirate = true;
                 record.reducedBounty = false;
                 record.killsSinceClaim = 0;
                 record.kills.Clear();
@@ -651,10 +728,17 @@ namespace GoF2Remake.Multiplayer
                 if (Standing.IsFriendWith(race.race, victim.Standing0, victim.Standing1, -1, victim.ModRaceStandings))
                     CountKill("npc:" + race.key);
 
+            if (Standing.Independent && (secure || IsPirateAccount(account)))
+            {
+                bountyFile.reputation.Add(new PendingReputation { id = Guid.NewGuid().ToString("N"),
+                    account = account, pirate = IsPirateAccount(account), amount = Modding.ModPvpPiracy.SecureKillStandingPenalty });
+                bountyDirty = true;
+            }
             if (SaveBounties())
             {
                 RefreshPiracyFlag(killer);
-                if (Standing.Independent && (secure || killer.IsPirate)) NetProfiles.ApplyReputationPenalty(killer, killer.IsPirate);
+                if (!ReplayPendingReputation(account))
+                    Debug.LogError("PvP reputation settlement pending for " + account);
                 if (count > 0)
                     Modding.ModScripts.Raise("piracyKillRegistered", (double)killer.OwnerClientId, (double)victim.OwnerClientId,
                         victim.Station, count, threshold, windowSeconds);
@@ -690,9 +774,10 @@ namespace GoF2Remake.Multiplayer
         }
 
         internal static bool TryCompleteNpcDiplomacy(NetPlayer pilot, int station, int race, int quotedPrice,
-            int uploadSequence, out int price, out int forgiven, out string refusal)
+            int uploadSequence, out int price, out int forgiven, out string refusal, out string reputationRevision)
         {
             price = forgiven = 0;
+            reputationRevision = null;
             refusal = "Diplomacy is available while docked on your controlling profile.";
             if (!PiracyEnabled || pilot == null) return false;
             ulong client = pilot.OwnerClientId;
@@ -710,7 +795,7 @@ namespace GoF2Remake.Multiplayer
             }
 
             bool host = NetProfiles.IsHostClient(client);
-            int standing = Standing.Independent && pilot.IsPirate ? -100 : host ? Standing.RawToward(race) : Standing.TowardWith(race, pilot.Standing0, pilot.Standing1, -1, pilot.ModRaceStandings);
+            int standing = Standing.Independent ? NetProfiles.ProfileStanding(pilot, race) : host ? Standing.RawToward(race) : Standing.TowardWith(race, pilot.Standing0, pilot.Standing1, -1, pilot.ModRaceStandings);
             refusal = "Diplomats can reconcile hostile standing or pardon a pirate.";
             var wantedRecord = FindBounty(NetProfiles.AccountOf(client), issuer);
             if (standing > -71 && !pilot.IsPirate && !(wantedRecord != null && wantedRecord.wantedUntil > UnixNow)) return false;
@@ -723,12 +808,48 @@ namespace GoF2Remake.Multiplayer
             if (bountyFile == null || !SaveBounties()) return false;
 
             string account = NetProfiles.AccountOf(client);
+            if (HasPendingReputation(account)) { refusal = "A prior reputation transaction is pending."; return false; }
+            if (Standing.Independent)
+            {
+                refusal = "The server could not collect the diplomacy fee.";
+                if ((host ? Session.Credits : NetProfiles.SpendableCredits(client, account)) < price) return false;
+                var pending = new PendingReputation { id = Guid.NewGuid().ToString("N"), account = account,
+                    issuer = issuer, race = race, amount = price, pirate = IsPirateAccount(account), pardon = true,
+                    forgiven = wantedRecord?.pveKills.FindAll(k => k > UnixNow - BountyWindowSeconds).Count ?? 0 };
+                bountyFile.reputation.Add(pending);
+                bountyDirty = true;
+                if (!SaveBounties())
+                {
+                    bountyFile.reputation.Remove(pending);
+                    bountyDirty = true;
+                    refusal = "Diplomacy could not be journalled; no fee was charged.";
+                    return false;
+                }
+                if (!ReplayPendingReputation(account))
+                {
+                    refusal = "Diplomacy is awaiting durable recovery. Reconnect after the server recovers it.";
+                    if (!host) NetGame.Kick(client, refusal);
+                    return false;
+                }
+                reputationRevision = pending.id;
+                forgiven = pending.forgiven;
+                RefreshPiracyFlag(pilot);
+                if (pending.pirate)
+                {
+                    NetState.Instance?.Notify(client, "Your pirate status has been revoked. Active faction bounties remain.");
+                    Modding.ModScripts.Raise("piracyStatusChanged", (double)client, false);
+                }
+                refusal = null;
+                return true;
+            }
             refusal = "The server could not collect the diplomacy fee.";
             if ((host && Session.Credits < price) || !NetProfiles.MoveCredits(client, account, -price)) return false;
 
             var record = FindBounty(account, issuer);
             var piracy = piracyByAccount.TryGetValue(account, out var indexedPiracy) && indexedPiracy.pirate ? indexedPiracy : null;
             var pveKills = record?.pveKills;
+            var oldPveKills = pveKills == null ? null : new List<long>(pveKills);
+            long oldVested = record?.pardonedNpcReward ?? 0;
             if (record != null || piracy != null)
             {
                 if (pveKills?.Count > 0)
@@ -737,12 +858,12 @@ namespace GoF2Remake.Multiplayer
                     forgiven = pveKills.FindAll(k => k > cutoff).Count;
                     
                 }
-                if (record != null) bountyFile.records.Remove(record);
+                if (record != null) ForgiveNpcHistory(record);
                 if (piracy != null) piracy.pirate = false;
                 bountyDirty = true;
                 if (!SaveBounties())
                 {
-                    if (record != null) bountyFile.records.Add(record);
+                    if (record != null) { record.pveKills = oldPveKills; record.pardonedNpcReward = oldVested; }
                     if (piracy != null) piracy.pirate = true;
                     bountyDirty = false;
                     if (!NetProfiles.MoveCredits(client, account, price))
@@ -757,7 +878,6 @@ namespace GoF2Remake.Multiplayer
             }
 
             ReindexBounties();
-            if (Standing.Independent) NetProfiles.PersistReputationPardon(pilot, race, piracy != null);
             RefreshPiracyFlag(pilot);
             if (piracy != null)
             {

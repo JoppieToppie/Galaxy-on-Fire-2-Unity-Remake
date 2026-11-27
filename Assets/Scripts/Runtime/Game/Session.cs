@@ -321,6 +321,7 @@ namespace GoF2Remake.Data
         // Emergency hulls are not owned assets: they cannot be kept or sold for a trade-in credit.
         public static bool DeathLoaner;
         public static string LastDeathPenaltyId;
+        public static string ReputationRevision;
         public static List<string> FactionWarRewardReceipts = new List<string>();
         public static List<DeathRecovery> DeathRecoveries = new List<DeathRecovery>();
 
@@ -577,6 +578,7 @@ namespace GoF2Remake.Data
         {
             DeathLoaner = false;
             LastDeathPenaltyId = null;
+            ReputationRevision = null;
             FactionWarRewardReceipts = new List<string>();
             DeathRecoveries = new List<DeathRecovery>();
             PlaySeconds = 0f;

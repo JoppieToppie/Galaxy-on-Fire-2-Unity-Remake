@@ -289,44 +289,115 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
-        internal static void ApplyReputationPenalty(NetPlayer pilot, bool pirate)
+        // The profile is the authoritative baseline for server-imposed changes. Never
+        // compute a second penalty from the owner's delayed network snapshot.
+        internal static Dictionary<string, int> SavedReputation(SaveData save)
         {
-            string account = AccountOf(pilot.OwnerClientId);
-            if (account == null) return;
-            var save = IsHostClient(pilot.OwnerClientId) ? null : ReadSave(account);
-            var snapshot = new System.Text.StringBuilder();
+            var result = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (save == null) return result;
+            var entries = save.modRaceStanding != null && save.modRaceStanding.Count > 0 ? save.modRaceStanding : save.factionStanding;
+            if (entries != null)
+                foreach (string entry in entries)
+                {
+                    int bar = entry?.LastIndexOf('|') ?? -1;
+                    if (bar > 0 && int.TryParse(entry.Substring(bar + 1), out int value))
+                        result[entry.Substring(0, bar)] = Mathf.Clamp(value, -100, 100);
+                }
+            return result;
+        }
+
+        internal static int SavedStanding(SaveData save, int race, IReadOnlyDictionary<string, int> standings)
+        {
+            int axis0 = save?.standing != null && save.standing.Length == 2 ? save.standing[0] : 0;
+            int axis1 = save?.standing != null && save.standing.Length == 2 ? save.standing[1] : 0;
+            return Flight.Standing.EarnedWith(race, Mathf.Clamp(axis0, -100, 100), Mathf.Clamp(axis1, -100, 100), standings);
+        }
+
+        internal static int ProfileStanding(NetPlayer pilot, int race)
+        {
+            if (Flight.Standing.Independent && pilot.IsPirate) return -100;
+            if (IsHostClient(pilot.OwnerClientId)) return Flight.Standing.RawToward(race);
+            if (Flight.Standing.Independent && Controls(pilot.OwnerClientId))
+            {
+                var save = ReadSave(AccountOf(pilot.OwnerClientId));
+                if (save != null) return SavedStanding(save, race, SavedReputation(save));
+            }
+            return Flight.Standing.EarnedWith(race, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
+        }
+
+        internal static bool ApplyReputationPenalty(string account, bool pirate, int penalty, string revision)
+        {
+            if (account == null || NetPlayerStations.ProfileWritesBlocked) return false;
+            var prior = ReadSave(account);
+            if (prior?.reputationRevision == revision) return true;
+            var host = ControllerForReputation(account);
+            bool local = host != null && IsHostClient(host.OwnerClientId);
+            var save = local ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : prior;
+            if (save == null) return false;
+            var standings = SavedReputation(save);
+            if (pirate) SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
             foreach (int race in Flight.Standing.ReputationRaces())
             {
                 string key = Flight.Standing.ReputationKey(race);
-                int value = pirate ? -100 : Mathf.Max(-100, Flight.Standing.EarnedWith(race, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings) - Modding.ModPvpPiracy.SecureKillStandingPenalty);
-                if (save != null) SetSavedReputation(save, key, value);
-                snapshot.Append(key).Append('=').Append(value).Append(';');
+                int value = pirate ? -100 : Mathf.Max(-100, SavedStanding(save, race, standings) - Mathf.Clamp(penalty, 1, 100));
+                SetSavedReputation(save, key, value);
             }
-            if (save != null && !Write(ProfilePath(account), JsonUtility.ToJson(save, false)))
-                Debug.LogError("Could not persist secure-kill reputation penalty for " + account);
+            save.reputationRevision = revision;
+            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
             InvalidateEconomyUploads(account);
-            NetState.Instance?.SendReputationPenalty(pilot.OwnerClientId, snapshot.ToString());
+            if (host != null)
+            {
+                var snapshot = new System.Text.StringBuilder();
+                foreach (var kv in SavedReputation(save)) snapshot.Append(kv.Key).Append('=').Append(kv.Value).Append(';');
+                NetState.Instance?.SendReputationPenalty(host.OwnerClientId, snapshot.ToString(), revision);
+            }
+            return true;
+        }
+
+        static NetPlayer ControllerForReputation(string account)
+        {
+            foreach (var login in logins.Values)
+                if (login.controller && login.account?.id == account) return NetSquad.Find(login.client);
+            return null;
         }
 
         static void SetSavedReputation(SaveData save, string key, int value)
         {
-            save.modRaceStanding ??= new List<string>();
+            if (save.modRaceStanding == null || save.modRaceStanding.Count == 0)
+                save.modRaceStanding = save.factionStanding == null ? new List<string>() : new List<string>(save.factionStanding);
             save.modRaceStanding.RemoveAll(entry => entry != null && entry.StartsWith(key + "|", StringComparison.Ordinal));
             save.modRaceStanding.Add(key + "|" + value.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
-        internal static void PersistReputationPardon(NetPlayer pilot, int race, bool wasPirate)
+        internal static void SetPardonReputation(SaveData save, int race, bool wasPirate)
         {
-            if (IsHostClient(pilot.OwnerClientId)) return;
-            string account = AccountOf(pilot.OwnerClientId);
-            var save = account == null ? null : ReadSave(account);
-            if (save == null) return;
             if (wasPirate)
-                foreach (int other in Flight.Standing.ReputationRaces()) SetSavedReputation(save, Flight.Standing.ReputationKey(other), -100);
+            {
+                SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
+                foreach (int other in Flight.Standing.ReputationRaces())
+                    SetSavedReputation(save, Flight.Standing.ReputationKey(other), -100);
+            }
             SetSavedReputation(save, Flight.Standing.ReputationKey(race), Modding.ModRaces.Is(race) ? 0 : -35);
-            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false)))
-                Debug.LogError("Could not persist diplomatic standing for " + account);
+        }
+
+        // Credits and rehabilitation are one atomic profile write, identified by the
+        // durable intent id. A replay may finish the bounty side without charging twice.
+        internal static bool CommitReputationPardon(string account, int race, bool wasPirate, int price, string revision)
+        {
+            if (account == null || price < 0 || NetPlayerStations.ProfileWritesBlocked) return false;
+            var prior = ReadSave(account);
+            if (prior?.reputationRevision == revision) return true;
+            var pilot = ControllerForReputation(account);
+            bool local = pilot != null && IsHostClient(pilot.OwnerClientId);
+            var save = local ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : prior;
+            if (save == null || !TryApplyCreditDelta(save.credits, -price, out long balance)) return false;
+            save.credits = balance;
+            SetPardonReputation(save, race, wasPirate);
+            save.reputationRevision = revision;
+            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
+            AdjustWorth(account, -price);
             InvalidateEconomyUploads(account);
+            return true;
         }
 
         static void ScheduleRecoveries(string account, List<DeathRecovery> recoveries)

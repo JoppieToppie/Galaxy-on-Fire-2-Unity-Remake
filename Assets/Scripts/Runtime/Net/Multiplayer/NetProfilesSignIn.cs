@@ -57,9 +57,9 @@ namespace GoF2Remake.Multiplayer
                 if (name.Length > 0)
                     NetNews.Post(NetNews.Kind.Pilot, $"New pilot in the sector: {NetNews.Safe(NetGame.Clean(name))} registers at Dis", -1, "newpilot", 120f);
             }
-            if (!ReplayPendingDeath(account.id))
+            if (!NetFactions.ReplayPendingReputation(account.id) || !ReplayPendingDeath(account.id))
             {
-                NetGame.Kick(client, "Your death recovery transaction is pending. Reconnect after the server recovers it.");
+                NetGame.Kick(client, "Your reputation or death recovery transaction is pending. Reconnect after the server recovers it.");
                 return;
             }
             // One connection per device: the older one goes (a reconnect while the dropped one still times out).
@@ -159,7 +159,7 @@ namespace GoF2Remake.Multiplayer
         static void Promote(Login login)
         {
             if (login.account != null && ControllerOf(login.account) != null) return;
-            if (NetPlayerStations.ProfileWritesBlocked || (login.account != null && !ReplayPendingDeath(login.account.id))) return;
+            if (NetPlayerStations.ProfileWritesBlocked || (login.account != null && (!NetFactions.ReplayPendingReputation(login.account.id) || !ReplayPendingDeath(login.account.id)))) return;
             login.controller = true;
             login.acceptedUploadSequence = 0;
             incoming.Remove(login.client);
@@ -340,9 +340,9 @@ namespace GoF2Remake.Multiplayer
                 Reject(login, "a station transaction is awaiting durable recovery; retry after recovery completes");
                 return;
             }
-            if (HasPendingDeath(account.id))
+            if (HasPendingDeath(account.id) || NetFactions.HasPendingReputation(account.id))
             {
-                Reject(login, "a death penalty transaction is pending");
+                Reject(login, "a death or reputation transaction is pending");
                 return;
             }
             if (acceptedSequence != 0 && acceptedSequence <= login.lastAcceptedUploadSequence) return;
@@ -392,8 +392,25 @@ namespace GoF2Remake.Multiplayer
                 if (!IsHostClient(client)) RefreshProfile(client);
                 return;
             }
-            if (Flight.Standing.Independent && pilot != null && pilot.IsPirate)
-                foreach (int race in Flight.Standing.ReputationRaces()) SetSavedReputation(save, Flight.Standing.ReputationKey(race), -100);
+            if (Flight.Standing.Independent)
+            {
+                if (!IsHostClient(client) && !string.IsNullOrEmpty(prior?.reputationRevision) &&
+                    !string.Equals(prior.reputationRevision, save.reputationRevision, StringComparison.Ordinal))
+                {
+                    Reject(login, "your profile has not acknowledged the latest reputation change");
+                    RefreshProfile(client);
+                    return;
+                }
+                if (SavedReputation(prior).ContainsKey(Flight.Standing.PiracyHistoryKey) || NetFactions.HasPiracyHistory(account.id))
+                    SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
+                if (NetFactions.IsPirateAccount(account.id))
+                {
+                    SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
+                    foreach (int race in Flight.Standing.ReputationRaces())
+                        SetSavedReputation(save, Flight.Standing.ReputationKey(race), -100);
+                }
+                if (!IsHostClient(client)) save.reputationRevision = prior?.reputationRevision;
+            }
             // Reward receipts are server-owned. Refuse an upload that predates a payout even if
             // the client has already received the newer economy revision.
             if (prior?.factionWarRewardReceipts != null &&
