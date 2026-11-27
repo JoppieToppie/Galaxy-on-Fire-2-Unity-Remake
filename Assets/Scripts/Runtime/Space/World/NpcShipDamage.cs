@@ -221,7 +221,7 @@ namespace GoF2Remake.World
             // PlayerFighter's death: a hostile Void ship leaves 1-3 t Alien Remains (131).
             if (Race == Standing.Void && !Spec.noLoot && Target.hostileToPlayer && !loot.Exists(s => s.item == 131))
                 loot = new List<ItemStack> { new ItemStack(131, Random.Range(0, 3) + 1) };
-            if (!NetSession.Active && Spec.sightingId >= 0 && Spec.eventTag > 700000 && Spec.eventTag <= 700030)
+            if (!NetSession.Active && Spec.sightingId >= 0 && Spec.eventTag > 700000 && Spec.eventTag <= 700031)
                 PirateReports.RecordDefenderLoss(PirateReports.Find(Spec.sightingId), Spec.eventTag - 700000);
             traffic.OnShipDied(this, !Target.killedByNpc);
             // Remake mods: a ship the player destroys may drop a mod blueprint (blueprints.json "drops") in a data crate.
