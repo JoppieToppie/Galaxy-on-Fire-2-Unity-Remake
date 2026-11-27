@@ -982,3 +982,63 @@
     scale: 0.6 0.6;
     translate: -6px -5px;
 }
+
+/* Original skin for player infrastructure. Layout and functionality remain shared. */
+.ui-style-original .player-station-window,
+.ui-style-original .drydock-window,
+.ui-style-original .player-station-dashboard-card,
+.ui-style-original .player-station-composer,
+.ui-style-original .player-station-primary-nav,
+.ui-style-original .player-station-race-directory,
+.ui-style-original .player-station-orbit-controls,
+.ui-style-original .drydock-blueprint-list,
+.ui-style-original .drydock-details {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png"); background-repeat: repeat; background-size: 320px 320px; background-color: rgba(5,5,8,0.94); border-width: 1px; border-color: var(--gof-line); border-radius: 0;
+}
+.ui-style-original .player-station-row,
+.ui-style-original .player-station-primary-tab,
+.ui-style-original .player-station-secondary-tab,
+.ui-style-original .drydock-blueprint-row {
+    background-image: url("project://database/Assets/UI/Original/og_row.png"); -unity-slice-left: 75; -unity-slice-right: 75; -unity-slice-top: 20; -unity-slice-bottom: 20; -unity-slice-scale: 0.5px; background-color: rgba(0,0,0,0); border-width: 0; border-radius: 0;
+}
+.ui-style-original .player-station-row--selected,
+.ui-style-original .player-station-primary-tab.player-station-row--selected,
+.ui-style-original .player-station-secondary-tab.player-station-row--selected,
+.ui-style-original .drydock-blueprint-row--selected,
+.ui-style-original .player-station-row:focus,
+.ui-style-original .player-station-primary-tab:focus,
+.ui-style-original .player-station-secondary-tab:focus,
+.ui-style-original .drydock-blueprint-row:focus {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png"); background-color: rgba(0,0,0,0); border-width: 0; color: #FFFFFF;
+}
+.ui-style-original .player-station-action,
+.ui-style-original .player-station-close,
+.ui-style-original .drydock-close,
+.ui-style-original .drydock-build {
+    background-image: url("project://database/Assets/UI/Original/og_button.png"); -unity-slice-left: 50; -unity-slice-right: 54; -unity-slice-top: 24; -unity-slice-bottom: 24; -unity-slice-scale: 0.6px; background-color: rgba(0,0,0,0); border-width: 0; border-radius: 0; color: var(--gof-text);
+}
+.ui-style-original .player-station-action:focus,
+.ui-style-original .player-station-action:active,
+.ui-style-original .player-station-close:focus,
+.ui-style-original .player-station-close:active,
+.ui-style-original .drydock-close:focus,
+.ui-style-original .drydock-close:active,
+.ui-style-original .drydock-build:focus,
+.ui-style-original .drydock-build:active {
+    background-image: url("project://database/Assets/UI/Original/og_button_on.png"); color: #FFFFFF;
+}
+.ui-style-original .player-station-header,
+.ui-style-original .drydock-header,
+.ui-style-original .player-station-policy-row,
+.ui-style-original .player-station-secondary-nav,
+.ui-style-original .player-station-orbit-viewport {
+    border-color: var(--gof-line);
+}
+.ui-style-original .player-station-section,
+.ui-style-original .player-station-preview,
+.ui-style-original .drydock-recipe {
+    background-color: rgba(0,0,0,0.38); border-width: 1px; border-color: var(--gof-line); border-radius: 0;
+}
+.ui-style-original .player-station-section-title {
+    color: var(--gof-cyan);
+}
