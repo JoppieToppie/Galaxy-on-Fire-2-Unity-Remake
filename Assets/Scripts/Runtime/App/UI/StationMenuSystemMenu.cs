@@ -371,7 +371,9 @@ namespace GoF2Remake.UI
                     var text = new Label(World.FlightHints.KeyTokens(a.text));
                     text.style.whiteSpace = WhiteSpace.Normal;
                     results.Add(text);
-                    handbookItems.Add(SystemButton("ACKNOWLEDGE", -1, () => ModScripts.AcknowledgeHandbookArticle(a.mod, a.id), results));
+                    Button ack = null;
+                    ack = SystemButton(ModScripts.HandbookArticleSeen(a.mod, a.id) ? "ACKNOWLEDGED" : "ACKNOWLEDGE", -1, () => { ModScripts.AcknowledgeHandbookArticle(a.mod, a.id); ack.text = "ACKNOWLEDGED"; }, results);
+                    handbookItems.Add(ack);
                 }
                 handbookItems.Add(back);
             }

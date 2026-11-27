@@ -212,6 +212,7 @@ LIMITS
         static int definedRevision = -1, tutorialGeneration;
         static string DefinedKey(string mod, string id) => "__mod_tutorial/" + mod + "/" + id;
         static bool DefinedSeen(string mod, string id) => Session.ScriptData.ContainsKey(DefinedKey(mod, id));
+        public static bool HandbookArticleSeen(string mod, string id) => DefinedSeen(mod, id);
 
         static void ClearDefinedTutorials()
         {
@@ -335,7 +336,7 @@ LIMITS
                 definedPending.Count >= 20 || definedPending.Any(p => p.item.mod == t.mod && p.item.id == t.id))
                 return false;
             if (!manual && definedLast.TryGetValue(DefinedKey(t.mod, t.id), out float last) &&
-                Time.realtimeSinceStartup - last < t.cooldown) return false;
+                Time.realtimeSinceStartup - last < Math.Max(t.cooldown, t.presentation == "hint" && !t.repeatable ? 30f : 0f)) return false;
             definedPending.Add((t, UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle));
             return true;
         }

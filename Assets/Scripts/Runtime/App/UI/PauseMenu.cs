@@ -497,7 +497,6 @@ namespace GoF2Remake.UI
                 case Page.Handbook:
                     title.text = Modding.ModScripts.HandbookTitle();
                     BuildHandbook();
-                    BackItem(() => Show(Page.Main));
                     break;
                 case Page.Photo:
                     backdrop.RemoveFromClassList("pause-backdrop--shown");
@@ -634,6 +633,8 @@ namespace GoF2Remake.UI
             void Refresh()
             {
                 results.Clear();
+                items.Clear();
+                actions.Clear();
                 foreach (var article in Modding.ModScripts.HandbookArticles(handbookSearch))
                 {
                     var a = article;
@@ -643,9 +644,21 @@ namespace GoF2Remake.UI
                     var content = new Label(World.FlightHints.KeyTokens(a.text));
                     content.style.whiteSpace = WhiteSpace.Normal;
                     results.Add(content);
-                    var ack = new Button(() => Modding.ModScripts.AcknowledgeHandbookArticle(a.mod, a.id)) { text = "ACKNOWLEDGE" };
+                    var ack = new Button { text = Modding.ModScripts.HandbookArticleSeen(a.mod, a.id) ? "ACKNOWLEDGED" : "ACKNOWLEDGE" };
+                    Action acknowledge = () => { Modding.ModScripts.AcknowledgeHandbookArticle(a.mod, a.id); ack.text = "ACKNOWLEDGED"; };
+                    ack.clicked += acknowledge;
+                    ack.AddToClassList("autopilot-menu-item");
                     results.Add(ack);
+                    items.Add(ack);
+                    actions.Add(acknowledge);
                 }
+                var back = new Button(() => Show(Page.Main)) { text = "BACK" };
+                back.AddToClassList("autopilot-menu-item");
+                results.Add(back);
+                items.Add(back);
+                actions.Add(() => Show(Page.Main));
+                index = 0;
+                Highlight();
             }
             search.RegisterValueChangedCallback(e => { handbookSearch = e.newValue; Refresh(); });
             Refresh();
@@ -1161,7 +1174,7 @@ namespace GoF2Remake.UI
             }
             var kb = GoF2Remake.Multiplayer.NetChat.Keys;
             var pad = Gamepad.current;
-            if (page == Page.Handbook && root.focusController?.focusedElement is TextField &&
+            if (page == Page.Handbook && (root.focusController?.focusedElement is VisualElement handbookFocus && (handbookFocus is TextField || handbookFocus.GetFirstAncestorOfType<TextField>() != null)) &&
                 (kb == null || !kb.escapeKey.wasPressedThisFrame)) return;
             if (page == Page.Options && options != null)
             {
