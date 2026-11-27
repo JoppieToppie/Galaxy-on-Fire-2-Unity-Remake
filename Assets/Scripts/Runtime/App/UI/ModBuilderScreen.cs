@@ -1004,6 +1004,8 @@ namespace GoF2Remake.UI
             Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
             Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
             Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
+            Option("rhinoFreightSpeedPercent", "Rhino speed (% of normal freighter speed)", 75, 10, 500);
+            Option("cormorantFreightSpeedPercent", "Cormorant speed (% of normal freighter speed)", 125, 10, 500);
             RefField(scroll, "Bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
             {
                 rules["rhinoShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
