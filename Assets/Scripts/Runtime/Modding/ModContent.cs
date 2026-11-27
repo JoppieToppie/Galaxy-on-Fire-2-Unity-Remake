@@ -168,6 +168,9 @@ namespace GoF2Remake.Modding
         static int originalShips = -1;
         static readonly Dictionary<string, int> shipIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<int, ShipDef> shipDefAt = new Dictionary<int, ShipDef>();
+        // Save a content key rather than a session-assigned numeric custom ship index.
+        public static string FreightShipKey(int ship) => shipDefAt.TryGetValue(ship, out var def) && !string.IsNullOrEmpty(def.key)
+            ? def.key : ship.ToString(System.Globalization.CultureInfo.InvariantCulture);
         static readonly Dictionary<int, string> placeholderShips = new Dictionary<int, string>();
         static readonly Dictionary<int, ShipDef> shipRenames = new Dictionary<int, ShipDef>();
 
