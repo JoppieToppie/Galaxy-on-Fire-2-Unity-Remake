@@ -68,6 +68,7 @@ namespace GoF2Remake.Multiplayer
                                 return "Race origin profile is invalid: " + problem;
                             if (!Write(path, json)) return "Could not persist your starting profile. Try again.";
                             login.account.worth = Worth(initial);
+                            login.account.originCompletedMissions = initial.graphQuestsDone ?? new List<string>();
                         }
                     }
                     else if (File.Exists(path))
@@ -77,6 +78,8 @@ namespace GoF2Remake.Multiplayer
                             !string.IsNullOrEmpty(prior.playerIdentityRace) &&
                             !string.Equals(prior.playerIdentityRace, raceKey, StringComparison.Ordinal))
                             return "Your starting profile has already been assigned a different race.";
+                        if (prior != null && prior.playSeconds <= 0f && prior.playerIdentityRace == raceKey)
+                            login.account.originCompletedMissions = prior.graphQuestsDone ?? new List<string>();
                     }
                 }
                 catch (Exception error)
