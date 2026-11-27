@@ -831,7 +831,7 @@ namespace GoF2Remake.Multiplayer
 
         void ReportFactionWarCasualty(NetProxyStatus before, NetProxyStatus after)
         {
-            if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700030 && Spec?.spec != null)
+            if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700031 && Spec?.spec != null)
                 NetState.Instance?.RecordPirateDefender(this);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))
                 NetState.Instance?.RecordFactionWarCasualty(this);
