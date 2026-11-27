@@ -968,6 +968,8 @@ namespace GoF2Remake.UI
             Heading(scroll, "Storage and station economy");
             var storageCapacity = Add(scroll, new IntegerField("Storage units per level") { value = settings.StorageCapacityPerLevel }, "mbv-field");
             var storageTypes = Add(scroll, new IntegerField("Distinct item types per station") { value = settings.StorageItemTypes }, "mbv-field");
+            var plotClaimPrice = Add(scroll, new IntegerField("New station plot claim price (CR)") { value = settings.StationPlotClaimPrice }, "mbv-field");
+            Note(scroll, "Paid from the builder’s personal credits when reserving a vacant orbit. Zero disables the fee.");
             var claimPrice = Add(scroll, new IntegerField("Public station claim price (CR)") { value = settings.StationClaimPrice }, "mbv-field");
             var renamePrice = Add(scroll, new IntegerField("Station rename price (CR)") { value = settings.StationRenamePrice }, "mbv-field");
             Note(scroll, "Capacity: 1–1,000,000; item types: 1–4,096; prices: 0–2,147,483,647. Lowering storage limits never deletes existing property.");
@@ -1230,6 +1232,7 @@ namespace GoF2Remake.UI
                 draft["jumpgatesEnabled"] = gates.value;
                 draft["storageCapacityPerLevel"] = storageCapacity.value;
                 draft["storageItemTypes"] = storageTypes.value;
+                draft["stationPlotClaimPrice"] = plotClaimPrice.value;
                 draft["stationClaimPrice"] = claimPrice.value;
                 draft["stationRenamePrice"] = renamePrice.value;
                 draft["siegeRespawnFactionOfficers"] = siegeOfficers.value;

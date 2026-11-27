@@ -1131,6 +1131,10 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             if (!IsStationModelPreset(look)) return "Choose an existing station model from the game catalogue.";
+            if (ProfileWritesBlocked || persistenceFaulted) return "Station persistence is temporarily unavailable.";
+            int plotClaimPrice = Modding.ModPlayerInfrastructure.Current.StationPlotClaimPrice;
+            if (plotClaimPrice > 0 && NetProfiles.CreditAmount(owner) < plotClaimPrice)
+                return $"Claiming a vacant station plot requires {plotClaimPrice:N0} credits in your personal balance.";
 
             var record = new PlayerStationRecord
             {
@@ -1156,7 +1160,9 @@ namespace GoF2Remake.Multiplayer
             var originalRegistry = registry;
             registry.stations.Add(record);
             indexedStationCount = -1;
-            if (!Save())
+            bool saved = plotClaimPrice == 0 ? Save() : CommitProfileTransaction(null,
+                new List<(string account, long delta)> { (owner, -(long)plotClaimPrice) }, null);
+            if (!saved)
             {
                 if (ReferenceEquals(registry, originalRegistry))
                 {
@@ -1168,7 +1174,8 @@ namespace GoF2Remake.Multiplayer
             }
             Apply(db);
             NetGuard.RefreshStations();
-            return $"Construction project {record.id} started for {name} in {system.name}. Deliver cargo within 5 km of the construction site or deposit materials from any operational station.";
+            if (plotClaimPrice > 0) NotifyProfileCreditChange(owner, -plotClaimPrice, "Station plot claim");
+            return $"Construction project {record.id} started for {name} in {system.name}. Plot claim: {plotClaimPrice:N0} credits. Deliver cargo within 5 km of the construction site or deposit materials from any operational station.";
         }
 
         internal static bool ValidPlacementRotation(Vector3Int? rotation) => !rotation.HasValue ||

@@ -160,7 +160,11 @@ namespace GoF2Remake.UI
                 if(source!=null) AddConstructionRotationPreview("newStationRotation",OrbitBuilder.StationPresetAssembly(db,source));
             }
             AddField("newStationName", "Station name", "");
-            if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")))
+            int plotClaimPrice = Modding.ModPlayerInfrastructure.Current.StationPlotClaimPrice;
+            AddInfo("Plot claim cost", $"{plotClaimPrice:N0} credits (personal balance; materials are separate)");
+            bool canAffordPlot = plotClaimPrice == 0 || Session.Credits >= plotClaimPrice;
+            if (!canAffordPlot) AddInfo("Insufficient credits", $"You need {plotClaimPrice - Session.Credits:N0} more credits to reserve this plot.");
+            if (systems.Count > 0 && !string.IsNullOrEmpty(Value("newStationModel")) && canAffordPlot)
                 AddAction("Start station project", () =>
                 {
                     if (!int.TryParse(Value("system"), out int systemId) || !systems.Any(system => system.Item1 == systemId.ToString()))
@@ -168,6 +172,8 @@ namespace GoF2Remake.UI
                     if (!int.TryParse(Value("buildOrbit"), out int orbit) || !Available(orbit) ||
                         db.Stations.Find(station => station != null && station.index == orbit)?.system != systemId)
                     { feedback.text = "Select a vacant orbit first."; feedbackTime = 8f; return; }
+                    if (plotClaimPrice > 0 && Session.Credits < plotClaimPrice)
+                    { feedback.text = "Insufficient credits for the station plot claim."; feedbackTime = 8f; return; }
                     SendStationName("start-orbit-rotated " + systemId + " " + orbit + " " + Value("newStationModel") + " " + ConstructionRotationArgs("newStationRotation"), Value("newStationName"));
                 });
         }

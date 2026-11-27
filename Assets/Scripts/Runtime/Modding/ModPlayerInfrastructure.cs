@@ -33,10 +33,12 @@ namespace GoF2Remake.Modding
         internal static readonly string[] TimedModules = { "storage", "refinery", "factory", "hangar", "drydock", "dockarm" };
         public const int DefaultStorageCapacityPerLevel = 2000;
         public const int DefaultStorageItemTypes = 64;
+        public const int DefaultStationPlotClaimPrice = 20_000_000;
         public const int DefaultStationClaimPrice = 25_000_000;
         public const int DefaultStationRenamePrice = 300_000;
         public int StorageCapacityPerLevel { get; private set; } = DefaultStorageCapacityPerLevel;
         public int StorageItemTypes { get; private set; } = DefaultStorageItemTypes;
+        public int StationPlotClaimPrice { get; private set; } = DefaultStationPlotClaimPrice;
         public int StationClaimPrice { get; private set; } = DefaultStationClaimPrice;
         public int StationRenamePrice { get; private set; } = DefaultStationRenamePrice;
         public bool SiegeRespawnFactionOfficers { get; private set; } = true;
@@ -211,6 +213,7 @@ namespace GoF2Remake.Modding
                 RefineryIntegrity = StructureNumber(settings, "refineryIntegrity", DefaultRefineryIntegrity, 1f, 10000000f),
                 StorageCapacityPerLevel = StructureInt(settings, "storageCapacityPerLevel", DefaultStorageCapacityPerLevel, 1, 1000000),
                 StorageItemTypes = StructureInt(settings, "storageItemTypes", DefaultStorageItemTypes, 1, 4096),
+                StationPlotClaimPrice = StructureInt(settings, "stationPlotClaimPrice", DefaultStationPlotClaimPrice, 0, int.MaxValue),
                 StationClaimPrice = StructureInt(settings, "stationClaimPrice", DefaultStationClaimPrice, 0, int.MaxValue),
                 StationRenamePrice = StructureInt(settings, "stationRenamePrice", DefaultStationRenamePrice, 0, int.MaxValue),
                 SiegeRespawnFactionOfficers = ReadToggle(settings, "siegeRespawnFactionOfficers"),
