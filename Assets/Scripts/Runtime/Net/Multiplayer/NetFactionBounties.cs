@@ -23,6 +23,8 @@ namespace GoF2Remake.Multiplayer
             public List<long> kills; // Legacy records did not distinguish PvP from PvE.
             public long wantedUntil;
             public long reward;
+            public long deathReduction;
+            public List<string> acceptedBy = new List<string>();
             public List<int> issuingSystems = new List<int>();
         }
 
@@ -32,6 +34,8 @@ namespace GoF2Remake.Multiplayer
             public string account;
             public List<long> kills = new List<long>();
             public bool pirate;
+            public bool reducedBounty;
+            public int killsSinceClaim;
         }
 
         [Serializable]
@@ -176,7 +180,7 @@ namespace GoF2Remake.Multiplayer
             {
                 bool pirate = piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
                 var issuers = new List<string>();
-                long reward = pirate ? Modding.ModPvpPiracy.MaximumNpcBounty : 0;
+                long reward = pirate ? PirateReward(piracy) : 0;
                 long factionReward = 0;
                 int system = PiracySystemAt(station)?.index ?? -1;
                 if (bountiesByAccount.TryGetValue(account, out var records))
@@ -184,9 +188,9 @@ namespace GoF2Remake.Multiplayer
                     {
                         if (record.wantedUntil <= now) continue;
                         bool npc = record.issuer.StartsWith("npc:", StringComparison.Ordinal);
-                        if (npc && !pirate && !record.issuingSystems.Contains(system)) continue;
-                        if (npc) reward = Math.Max(reward, NpcReward(record));
-                        else factionReward = Session.SaturatingAdd(factionReward, record.reward);
+                        if (npc && !record.issuingSystems.Contains(system)) continue;
+                        if (npc && !pirate) reward = Math.Max(reward, NpcReward(record));
+                        else if (!npc) factionReward = Session.SaturatingAdd(factionReward, record.reward);
                         string issuer = BountyIssuerName(record.issuer);
                         if (!string.IsNullOrEmpty(issuer)) issuers.Add(issuer);
                     }
@@ -260,6 +264,7 @@ namespace GoF2Remake.Multiplayer
                 foreach (var record in bountyFile.records)
                 {
                     record.issuingSystems ??= new List<int>();
+                    record.acceptedBy ??= new List<string>();
                     record.pvpKills ??= new List<long>();
                     record.pveKills ??= new List<long>();
                     if (record.kills == null || record.kills.Count == 0) continue;
@@ -331,8 +336,41 @@ namespace GoF2Remake.Multiplayer
         }
 
         static long NpcReward(BountyRecord record) =>
-            Math.Min((long)Modding.ModPvpPiracy.MaximumNpcBounty,
-                (long)(record.pveKills.Count / Math.Max(1, Modding.ModPvpPiracy.NpcKillsForBounty)) * Modding.ModPvpPiracy.NpcBountyIncrement);
+            Math.Max(0L, Math.Min((long)Modding.ModPvpPiracy.MaximumNpcBounty,
+                ((long)record.pveKills.Count + record.pvpKills.Count) / Math.Max(1, Modding.ModPvpPiracy.NpcKillsForBounty) * Modding.ModPvpPiracy.NpcBountyIncrement) - record.deathReduction);
+
+        static long PirateReward(PiracyRecord record) => record.reducedBounty
+            ? Modding.ModPvpPiracy.MaximumNpcBounty / 2L : Modding.ModPvpPiracy.MaximumNpcBounty;
+
+        static void CountPirateRecoveryKill(string account)
+        {
+            if (account == null || !piracyByAccount.TryGetValue(account, out var record) || !record.pirate || !record.reducedBounty) return;
+            if (++record.killsSinceClaim >= 10)
+            {
+                record.reducedBounty = false;
+                record.killsSinceClaim = 0;
+            }
+            bountyDirty = true;
+        }
+
+        internal static void ReduceWantedOnNonPlayerDeath(NetPlayer victim)
+        {
+            if (!PiracyEnabled || bountyFile == null || victim == null || victim.IsPirate || !NetProfiles.Controls(victim.OwnerClientId)) return;
+            var system = PiracySystemAt(victim.Station);
+            if (system != null && SecureForBounties(victim.Station, victim.OwnerClientId) &&
+                Standing.IsFriendWith(system.raceId, victim.Standing0, victim.Standing1, -1, victim.ModRaceStandings)) return;
+            string account = NetProfiles.AccountOf(victim.OwnerClientId);
+            if (account == null || !bountiesByAccount.TryGetValue(account, out var records)) return;
+            foreach (var record in records)
+            {
+                if (!record.issuer.StartsWith("npc:", StringComparison.Ordinal) || record.wantedUntil <= UnixNow) continue;
+                long reduction = Math.Min(10000L, NpcReward(record));
+                record.deathReduction += reduction;
+                if (NpcReward(record) == 0) record.wantedUntil = 0;
+                bountyDirty |= reduction > 0;
+            }
+            if (SaveBounties()) RefreshPiracyFlag(victim);
+        }
 
         static bool AddBountyKill(string account, string issuer, long now, bool pvp, int weight = 1, int station = -1)
         {
@@ -483,6 +521,8 @@ namespace GoF2Remake.Multiplayer
             if (count >= threshold)
             {
                 record.pirate = true;
+                record.reducedBounty = false;
+                record.killsSinceClaim = 0;
                 record.kills.Clear();
             }
             bountyDirty = true;
@@ -497,32 +537,36 @@ namespace GoF2Remake.Multiplayer
             long now = UnixNow;
             bool pirate = piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
             bountiesByAccount.TryGetValue(account, out var records);
-            var claimed = records == null ? new List<BountyRecord>() : new List<BountyRecord>(records);
-            long reward = pirate ? Modding.ModPvpPiracy.MaximumNpcBounty : 0;
+            var hunterAccount = NetProfiles.AccountOf(hunter.OwnerClientId);
+            var claimed = records == null ? new List<BountyRecord>() : records.FindAll(record =>
+                record.issuer.StartsWith("npc:", StringComparison.Ordinal) ||
+                (record.reward > 0 && record.wantedUntil > now && record.acceptedBy.Contains(hunterAccount) && BountyIssuerName(record.issuer) != null));
+            long reward = pirate ? PirateReward(piracy) : 0;
             long factionReward = 0;
             foreach (var record in claimed)
             {
                 if (record.wantedUntil <= now || BountyIssuerName(record.issuer) == null) continue;
-                if (record.issuer.StartsWith("npc:", StringComparison.Ordinal)) reward = Math.Max(reward, NpcReward(record));
+                if (record.issuer.StartsWith("npc:", StringComparison.Ordinal)) { if (!pirate) reward = Math.Max(reward, NpcReward(record)); }
                 else factionReward = Session.SaturatingAdd(factionReward, record.reward);
             }
             reward = Session.SaturatingAdd(reward, factionReward);
             if (reward <= 0 || !SaveBounties()) return false;
-            var hunterAccount = NetProfiles.AccountOf(hunter.OwnerClientId);
+            bool oldReduced = pirate && piracy.reducedBounty;
+            int oldKills = pirate ? piracy.killsSinceClaim : 0;
             foreach (var record in claimed) bountyFile.records.Remove(record);
-            if (pirate) piracy.pirate = false;
+            if (pirate) { piracy.reducedBounty = true; if (!oldReduced) piracy.killsSinceClaim = 0; }
             bountyDirty = true;
             if (!SaveBounties())
             {
                 bountyFile.records.AddRange(claimed);
-                if (pirate) piracy.pirate = true;
+                if (pirate) { piracy.reducedBounty = oldReduced; piracy.killsSinceClaim = oldKills; }
                 bountyDirty = false;
                 return false;
             }
             if (!NetProfiles.MoveCredits(hunter.OwnerClientId, hunterAccount, reward))
             {
                 bountyFile.records.AddRange(claimed);
-                if (pirate) piracy.pirate = true;
+                if (pirate) { piracy.reducedBounty = oldReduced; piracy.killsSinceClaim = oldKills; }
                 bountyDirty = true;
                 SaveBounties();
                 ReindexBounties();
@@ -540,14 +584,15 @@ namespace GoF2Remake.Multiplayer
             if (!PiracyEnabled || bountyFile == null || list == null || !NetProfiles.Controls(killer.OwnerClientId)) return;
             string account = NetProfiles.AccountOf(killer.OwnerClientId);
             string victimAccount = NetProfiles.AccountOf(victim.OwnerClientId);
-            if (account == victimAccount) return;
+            if (account == null || account == victimAccount) return;
+            CountPirateRecoveryKill(account);
             var victimFaction = Of(victimAccount);
             var killerFaction = Of(account);
             var siege = SiegeAt(victim.Station);
             if (!secure && (victim.IsPirate || HasPiracyExemption(killerFaction, victimFaction, account, victimAccount) ||
                 (siege != null && siege.started && victimFaction != null && killerFaction != null &&
                 ((siege.attacker == victimFaction.id && siege.defender == killerFaction.id) ||
-                 (siege.defender == victimFaction.id && siege.attacker == killerFaction.id))))) return;
+                 (siege.defender == victimFaction.id && siege.attacker == killerFaction.id))))) { SaveBounties(); return; }
 
             long now = UnixNow;
             bool becamePirate = TrackPiracyKill(account, now, secure, out int count, out int threshold, out int windowSeconds);
@@ -588,8 +633,10 @@ namespace GoF2Remake.Multiplayer
         {
             if (!PiracyEnabled || bountyFile == null || !NetProfiles.Controls(client)) return;
             string issuer = NpcBountyIssuer(race);
-            var killer = issuer == null ? null : NetSquad.Find(client);
+            var killer = NetSquad.Find(client);
             if (killer == null || NetArena.InMatch(client)) return;
+            CountPirateRecoveryKill(NetProfiles.AccountOf(client));
+            if (issuer == null) { SaveBounties(); return; }
             bool issued = AddBountyKill(NetProfiles.AccountOf(client), issuer, UnixNow, pvp: false, station: killer.Station);
             if (SaveBounties() && issued)
             {
@@ -697,6 +744,26 @@ namespace GoF2Remake.Multiplayer
             }
             if (total > shown) result.AppendLine().Append($"Showing {shown} of {total} active bounties.");
             return shown == 0 ? "There are no active faction bounties." : result.ToString();
+        }
+
+        static string AcceptFactionBounty(ulong client, string account, string arg)
+        {
+            if (!PiracyEnabled || bountyFile == null || !NetProfiles.Controls(client) || !SaveBounties())
+                return "Bounty contracts are unavailable.";
+            int split = arg.IndexOf(' ');
+            if (split <= 0) return "Usage: /faction acceptbounty TAG PILOT";
+            var issuer = ByTag(arg.Substring(0, split));
+            string target = NetProfiles.FindAccount(arg.Substring(split + 1).Trim());
+            if (issuer == null || target == null || target == account) return "Unknown faction or target.";
+            var record = FindBounty(target, "faction:" + issuer.id);
+            if (record == null || record.wantedUntil <= UnixNow || record.reward <= 0) return "No funded contract.";
+            if (record.acceptedBy.Contains(account)) return "Contract already accepted.";
+            record.acceptedBy.Add(account);
+            bountyDirty = true;
+            if (SaveBounties()) return $"Accepted bounty for {record.reward:N0} credits.";
+            record.acceptedBy.Remove(account);
+            bountyDirty = true;
+            return "Could not save contract.";
         }
 
         static string SetFactionBounty(ulong client, string account, string arg)
