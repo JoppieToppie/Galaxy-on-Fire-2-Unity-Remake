@@ -186,6 +186,7 @@ namespace GoF2Remake.Flight
             Hp.hull = 1;
             Target.hp = 1;
             emergencyMs = emergencyLength;
+            Hp.vulnerable = false;   // at once: a second hit before the next Update (a laser's tick) killed the saved ship
             EmergencyActive = true;
             // used up for good (the one mounted: a mod's emergency system based on 185 too, which a check of 185 kept for ever)
             int used = emergencyItem;
