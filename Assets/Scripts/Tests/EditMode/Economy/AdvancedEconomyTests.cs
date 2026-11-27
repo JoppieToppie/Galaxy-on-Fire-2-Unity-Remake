@@ -31,6 +31,21 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void AuthoritativeCreditDeltaMustSettleExactly()
+        {
+            Assert.IsTrue(NetProfiles.TryApplyCreditDelta(100, -100, out long empty));
+            Assert.AreEqual(0L, empty);
+            Assert.IsTrue(NetProfiles.TryApplyCreditDelta(100, 250, out long credited));
+            Assert.AreEqual(350L, credited);
+            Assert.IsFalse(NetProfiles.TryApplyCreditDelta(100, -101, out _));
+            Assert.IsFalse(NetProfiles.TryApplyCreditDelta(long.MaxValue, 1, out _));
+            Assert.IsFalse(NetProfiles.TryApplyCreditDelta(0, long.MinValue, out _));
+            Assert.IsFalse(NetProfiles.TryApplyCreditDelta(-1, 1, out _));
+            Assert.IsTrue(NetProfiles.TryApplyCreditDelta(long.MaxValue - 1, 1, out long max));
+            Assert.AreEqual(long.MaxValue, max);
+        }
+
+        [Test]
         public void EconomyJournalRejectsInvalidSnapshotBeforeSettlement()
         {
             Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot("{\"version\":1,\"rows\":[],\"shipments\":[]}"));
