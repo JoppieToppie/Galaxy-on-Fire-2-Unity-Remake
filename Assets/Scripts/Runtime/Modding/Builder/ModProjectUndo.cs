@@ -92,10 +92,39 @@ namespace GoF2Remake.Modding
         }
         void Write(string file, string text)
         {
-            string path = Path.Combine(Folder, file), tmp = path + ".tmp";
-            File.WriteAllText(tmp, text);
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(tmp, path);
+            string path = Path.Combine(Folder, file);
+            string tmp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                File.WriteAllText(tmp, text);
+                RetryFileOperation(() =>
+                {
+                    if (File.Exists(path)) File.Replace(tmp, path, null);
+                    else File.Move(tmp, path);
+                });
+            }
+            finally
+            {
+                // Never remove the destination on failure; only clean our own staging file.
+                try { File.Delete(tmp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+        }
+
+        static void RetryFileOperation(Action action)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try { action(); return; }
+                catch (IOException) when (attempt < 3)
+                {
+                    System.Threading.Thread.Sleep(25 * (attempt + 1));
+                }
+            }
+        }
+
+        static void DeleteSavedFile(string path)
+        {
+            RetryFileOperation(() => File.Delete(path));
         }
         /// <summary>Why 'id' can't be this project's new mod id (null = it can): the mod.json rules, and no other project
         /// or installed mod (but this project's own export) may have it.</summary>
