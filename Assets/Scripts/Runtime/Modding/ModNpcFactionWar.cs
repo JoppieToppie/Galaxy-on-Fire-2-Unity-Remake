@@ -24,6 +24,21 @@ namespace GoF2Remake.Modding
         public static bool DynamicFrontlines { get; private set; } = true;
         public static bool GateOnlyFrontlines { get; private set; }
 
+        public sealed class LootRule
+        {
+            public string item;
+            public int amount, chancePercent = 100, minReputation = -100, minPriorVictories;
+            public int reputationChanceBonusPercent, victoryChanceBonusPercent, victoryChanceCapPercent = 100;
+            public bool? scaleQuantity;
+
+            public bool Eligible(int reputation, int priorVictories) =>
+                reputation >= minReputation && priorVictories >= minPriorVictories;
+
+            public int Chance(int reputation, int priorVictories) =>
+                Mathf.Clamp(chancePercent + Mathf.Clamp(reputation, 0, 100) * reputationChanceBonusPercent / 100 +
+                    (int)System.Math.Min(victoryChanceCapPercent, (long)System.Math.Max(0, priorVictories) * victoryChanceBonusPercent), 0, 100);
+        }
+
         public sealed class RewardSettings
         {
             public long credits;
@@ -36,7 +51,7 @@ namespace GoF2Remake.Modding
                 (int)System.Math.Min(participationBonusCapPercent, (long)System.Math.Max(0, previousWins) * participationBonusPercent);
 
             public long Scale(long amount, int bonus) => amount * (100L + bonus) / 100L;
-            public List<NpcFactionWar.RewardItem> loot = new List<NpcFactionWar.RewardItem>();
+            public List<LootRule> loot = new List<LootRule>();
         }
 
         static RewardSettings defaultReward = new RewardSettings { credits = 100000 };
@@ -134,7 +149,7 @@ namespace GoF2Remake.Modding
                 participationBonusPercent = Mathf.Clamp(ModJson.Int(obj, "participationBonusPercent", fallback.participationBonusPercent, File), 0, 1000),
                 participationBonusCapPercent = Mathf.Clamp(ModJson.Int(obj, "participationBonusCapPercent", fallback.participationBonusCapPercent, File), 0, 1000),
                 scaleLoot = ModJson.Bool(obj, "scaleLoot", fallback.scaleLoot, File),
-                loot = new List<NpcFactionWar.RewardItem>(fallback.loot)
+                loot = new List<LootRule>(fallback.loot)
             };
             if (reward.distribution != "legacy" && reward.distribution != "split" && reward.distribution != "flat")
                 throw new ModJsonException($"{File}: distribution must be legacy, split or flat.");
@@ -151,10 +166,17 @@ namespace GoF2Remake.Modding
                     (!ModContent.TryResolveItem(key, out int item) &&
                      !ModContent.TryResolveItem(modId + ":" + key, out item)))
                     throw new ModJsonException($"{File}: unknown or invalid reward item {key}.");
-                reward.loot.Add(new NpcFactionWar.RewardItem
+                reward.loot.Add(new LootRule
                 {
                     item = ModContent.ItemKey(item) ?? item.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    amount = amount
+                    amount = amount,
+                    chancePercent = Mathf.Clamp(ModJson.Int(row, "chancePercent", 100, File), 0, 100),
+                    minReputation = Mathf.Clamp(ModJson.Int(row, "minReputation", -100, File), -100, 100),
+                    minPriorVictories = Mathf.Clamp(ModJson.Int(row, "minPriorVictories", 0, File), 0, int.MaxValue),
+                    reputationChanceBonusPercent = Mathf.Clamp(ModJson.Int(row, "reputationChanceBonusPercent", 0, File), 0, 100),
+                    victoryChanceBonusPercent = Mathf.Clamp(ModJson.Int(row, "victoryChanceBonusPercent", 0, File), 0, 100),
+                    victoryChanceCapPercent = Mathf.Clamp(ModJson.Int(row, "victoryChanceCapPercent", 100, File), 0, 100),
+                    scaleQuantity = ModJson.Get(row, "scaleQuantity") == null ? (bool?)null : ModJson.Bool(row, "scaleQuantity", false, File)
                 });
             }
             return reward;

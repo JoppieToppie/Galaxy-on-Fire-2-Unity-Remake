@@ -1206,6 +1206,25 @@ namespace GoF2Remake.UI
                     int amount = int.TryParse(entry["amount"]?.ToString(), out int count) ? count : 1;
                     Int(row, "Base quantity", amount, 1, 10000, value => { entry["amount"] = value; Attach(); });
                     Act(row, "×", () => { entry.Remove(); Attach(); ShowNpcFactionWarRules(); }, "mbv-step");
+                    foreach (var field in new[] {
+                        ("chancePercent", "Base drop chance (%)", 100, 0, 100),
+                        ("minReputation", "Minimum faction reputation", -100, -100, 100),
+                        ("minPriorVictories", "Minimum prior victories", 0, 0, int.MaxValue),
+                        ("reputationChanceBonusPercent", "Chance bonus at 100 reputation (points)", 0, 0, 100),
+                        ("victoryChanceBonusPercent", "Chance bonus per prior victory (points)", 0, 0, 100),
+                        ("victoryChanceCapPercent", "Prior victory chance bonus cap (points)", 100, 0, 100) })
+                    {
+                        int value = int.TryParse(entry[field.Item1]?.ToString(), out int configured) ? configured : field.Item3;
+                        Int(scroll, field.Item2, value, field.Item4, field.Item5, v => { entry[field.Item1] = v; Attach(); });
+                    }
+                    string quantityMode = entry["scaleQuantity"]?.Type == JTokenType.Boolean ? ((bool)entry["scaleQuantity"] ? "On" : "Off") : "Inherit";
+                    Act(scroll, "Quantity bonus: " + quantityMode, () =>
+                    {
+                        if (quantityMode == "Inherit") entry["scaleQuantity"] = true;
+                        else if (quantityMode == "On") entry["scaleQuantity"] = false;
+                        else entry.Remove("scaleQuantity");
+                        Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
                 }
                 if (loot.Count < 32)
                     Act(scroll, "+ Equipment", () => PickRef(RefKind.Item, "Select victory loot", entry =>

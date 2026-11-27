@@ -275,21 +275,48 @@ namespace GoF2Remake.Multiplayer
             }
             eligible.Sort(System.StringComparer.Ordinal);
             var pending = new List<NpcFactionWar.VictoryReward>();
+            var priorWins = new int[eligible.Count];
+            var reputations = new int[eligible.Count];
+            var lootByPilot = new List<NpcFactionWar.RewardItem>[eligible.Count];
             for (int i = 0; i < eligible.Count; i++)
             {
-                string account = eligible[i];
-                int previous = factionWar.RecordParticipation(account, winner);
-                roster.reputation.TryGetValue(account, out int reputation);
+                priorWins[i] = factionWar.RecordParticipation(eligible[i], winner);
+                roster.reputation.TryGetValue(eligible[i], out reputations[i]);
+                lootByPilot[i] = new List<NpcFactionWar.RewardItem>();
+            }
+            foreach (var item in settings.loot)
+            {
+                var qualified = new List<int>();
+                for (int i = 0; i < eligible.Count; i++)
+                {
+                    if (!item.Eligible(reputations[i], priorWins[i])) continue;
+                    int chance = item.Chance(reputations[i], priorWins[i]);
+                    if (chance == 100 || (chance > 0 && UnityEngine.Random.Range(0, 100) < chance)) qualified.Add(i);
+                }
+                // Randomize remainder recipients for scarce or gated drops, preserving legacy order for ordinary guaranteed loot.
+                if (settings.distribution == "split" && (item.chancePercent != 100 || item.minReputation != -100 || item.minPriorVictories != 0))
+                    for (int j = qualified.Count - 1; j > 0; j--)
+                    {
+                        int k = UnityEngine.Random.Range(0, j + 1);
+                        int temp = qualified[j]; qualified[j] = qualified[k]; qualified[k] = temp;
+                    }
+                for (int j = 0; j < qualified.Count; j++)
+                {
+                    int i = qualified[j];
+                    long amount = settings.distribution == "split" ? NpcFactionWar.CreditShare(item.amount, qualified.Count, j) : item.amount;
+                    if (item.scaleQuantity ?? settings.scaleLoot)
+                        amount = settings.Scale(amount, settings.BonusPercent(reputations[i], priorWins[i]));
+                    if (amount > 0) lootByPilot[i].Add(new NpcFactionWar.RewardItem { item = item.item, amount = (int)amount });
+                }
+            }
+            for (int i = 0; i < eligible.Count; i++)
+            {
+                int previous = priorWins[i];
+                int reputation = reputations[i];
                 int bonus = settings.BonusPercent(reputation, previous);
                 long credits = settings.Scale(settings.distribution == "flat" ? settings.credits :
                     NpcFactionWar.CreditShare(settings.credits, eligible.Count, i), bonus);
-                var loot = new List<NpcFactionWar.RewardItem>();
-                foreach (var item in settings.loot)
-                {
-                    long amount = settings.distribution == "split" ? NpcFactionWar.CreditShare(item.amount, eligible.Count, i) : item.amount;
-                    if (settings.scaleLoot) amount = settings.Scale(amount, bonus);
-                    if (amount > 0) loot.Add(new NpcFactionWar.RewardItem { item = item.item, amount = (int)amount });
-                }
+                var loot = lootByPilot[i];
                 if (credits == 0 && loot.Count == 0) continue;
                 pending.Add(new NpcFactionWar.VictoryReward
                 {
