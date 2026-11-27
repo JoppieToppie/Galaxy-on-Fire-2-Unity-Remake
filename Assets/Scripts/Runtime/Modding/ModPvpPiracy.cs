@@ -36,6 +36,29 @@ namespace GoF2Remake.Modding
             return Valid(DefaultEmergencyShip) ? DefaultEmergencyShip : -1;
         }
 
+        // Shared with the builder: reject malformed settings before replacing the file.
+        public static void Validate(JObject options)
+        {
+            var flag = ModJson.Get(options, "enabled");
+            if (flag != null && flag.Type != JTokenType.Boolean)
+                throw new ModJsonException($"{File}: enabled must be true or false.");
+            foreach (var key in new[] { "playerKillsForBounty", "npcKillsForBounty", "shipRecoverySeconds" })
+                if (ModJson.Get(options, key) is JToken value && value.Type != JTokenType.Integer)
+                    throw new ModJsonException($"{File}: {key} must be an integer.");
+            ModJson.Int(options, "playerKillsForBounty", 5, File);
+            ModJson.Int(options, "npcKillsForBounty", 100, File);
+            ModJson.Int(options, "shipRecoverySeconds", 1800, File);
+            var emergency = ModJson.Get(options, "emergencyShip");
+            if (emergency != null)
+            {
+                if (emergency.Type != JTokenType.Integer && emergency.Type != JTokenType.String)
+                    throw new ModJsonException($"{File}: emergencyShip must be a ship index or mod:id reference.");
+                string reference = emergency.ToString().Trim();
+                if (string.IsNullOrEmpty(reference) || (int.TryParse(reference, out int index) ? index < 0 : !reference.Contains(":")))
+                    throw new ModJsonException($"{File}: emergencyShip must be a non-negative ship index or mod:id reference.");
+            }
+        }
+
         internal static void Apply()
         {
             Enabled = false;
@@ -51,6 +74,7 @@ namespace GoF2Remake.Modding
                     var config = ModJson.Read(mod.Source, File);
                     if (config == null) continue;
                     if (!(config is JObject options)) throw new ModJsonException($"{File} must contain an object.");
+                    Validate(options);
                     var flag = ModJson.Get(options, "enabled");
                     if (flag != null && flag.Type != JTokenType.Boolean)
                         throw new ModJsonException($"{File}: enabled must be true or false.");
