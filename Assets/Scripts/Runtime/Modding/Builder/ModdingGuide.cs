@@ -37,6 +37,13 @@ namespace GoF2Remake.Modding
             ("events.md", "Every event graph node and command."),
             ("scripting.md", "Mod scripts (Lua, scripts/*.lua): the game table, events, the hook classes and the game's classes scripts can use."),
             ("voices.md", "Every voice clip with its speaker and English line, for voice-over."),
+            ("NATIVE_FEATURES.md", "Native gameplay settings, station infrastructure, construction, orbital structures, weapons, shields and per-hull cameras."),
+            ("SCANNER_DETECTION.md", "Scanner ranges, class signatures, passive stealth and NPC/turret sensor detection."),
+            ("PIP_LEADS.md", "Predictive targeting markers and scanner opt-in."),
+            ("SQUAD_FRIENDLY_FIRE.md", "Optional squad damage and multiplayer PvP rules."),
+            ("NpcFactionWar.md", "NPC faction battles, frontlines, territory and configuration."),
+            ("Piracy.md", "Multiplayer piracy, faction bounties, death penalties and ship recovery."),
+            ("JUMP_DRIVE_RULES.md", "Optional native jump drive rules, failure risk, availability and server authority."),
         };
 
         /// <summary>Tests: a folder to read the guide from instead.</summary>
@@ -67,12 +74,31 @@ namespace GoF2Remake.Modding
         /// <summary>Drops the loaded texts (tests; the next read loads them again).</summary>
         public static void Forget() { lock (gate) lines = null; }
 
+        /// <summary>Canonical repository-relative source used by both the editor and build bundler.
+        /// Specialist manuals live beside the main human guide, so they need no generated AI copy.</summary>
+        public static string RepositoryPath(string file)
+        {
+            switch (file)
+            {
+                case "guide.md": return Path.Combine("Modding", "README.md");
+                case "NATIVE_FEATURES.md":
+                case "SCANNER_DETECTION.md":
+                case "PIP_LEADS.md":
+                case "SQUAD_FRIENDLY_FIRE.md":
+                case "NpcFactionWar.md":
+                case "Piracy.md":
+                case "JUMP_DRIVE_RULES.md":
+                    return Path.Combine("Modding", file);
+                default: return Path.Combine(RepositoryFolder, file);
+            }
+        }
+
         static string Load(string file)
         {
-            string folder = FolderOverride ?? (Application.isEditor ? Path.GetFullPath(Path.Combine(Application.dataPath, "..", RepositoryFolder)) : null);
-            if (folder != null)
+            if (FolderOverride != null || Application.isEditor)
             {
-                string path = Path.Combine(folder, file);
+                string path = FolderOverride != null ? Path.Combine(FolderOverride, file)
+                    : Path.GetFullPath(Path.Combine(Application.dataPath, "..", RepositoryPath(file)));
                 return File.Exists(path) ? File.ReadAllText(path) : null;
             }
             return Resources.Load<TextAsset>(ResourcesFolder + "/" + Path.GetFileNameWithoutExtension(file))?.text;
