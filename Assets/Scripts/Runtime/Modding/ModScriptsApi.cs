@@ -28,6 +28,7 @@ using GoF2Remake.Data;
 using MoonSharp.Interpreter;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace GoF2Remake.Modding
 {
@@ -207,7 +208,7 @@ LIMITS
         }
 
         static readonly List<DefinedTutorial> definitions = new List<DefinedTutorial>();
-        static readonly List<(DefinedTutorial item, int scene)> definedPending = new List<(DefinedTutorial, int)>();
+        static readonly List<(DefinedTutorial item, SceneHandle scene)> definedPending = new List<(DefinedTutorial, SceneHandle)>();
         static readonly Dictionary<string, float> definedLast = new Dictionary<string, float>();
         static int definedRevision = -1, tutorialGeneration;
         static string DefinedKey(string mod, string id) => "__mod_tutorial/" + mod + "/" + id;
@@ -352,7 +353,7 @@ LIMITS
         static void ShowDefinedTutorials()
         {
             if (definedPending.Count == 0) return;
-            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            SceneHandle scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
             for (int i = 0; i < definedPending.Count; i++)
             {
                 var pending = definedPending[i];
@@ -387,7 +388,7 @@ LIMITS
         sealed class Tutorial
         {
             public string modId, id, title, text;
-            public int scene;
+            public SceneHandle scene;
             public bool repeatable;
             public Action shown;
         }
@@ -398,7 +399,7 @@ LIMITS
         {
             if (tutorials.Count == 0) return;
             if (!Settings.TutorialHints) { tutorials.Clear(); return; }
-            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            SceneHandle scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
             tutorials.RemoveAll(t => t.scene != scene);
             if (tutorials.Count == 0 || (GameHooks.TutorialPopupAcknowledged == null && GameHooks.TutorialPopup == null)) return;
             var t = tutorials[0];
@@ -598,13 +599,13 @@ LIMITS
                 }, "class");
                 script.Globals.MetaTable = meta;
 
-                Fn(g, "restrictMiningClass", a => OwnRule(GoF2Remake.World.SpaceHooks.RegisterMiningRestriction(
+                Fn(g, "restrictMiningClass", a => OwnRule(ModInteractionRules.RegisterMiningRestriction(
                     a.AsType(0, "game.restrictMiningClass", DataType.String).String,
                     a.AsType(1, "game.restrictMiningClass", DataType.String).String)));
-                Fn(g, "restrictDerelictBoardingClass", a => OwnRule(GoF2Remake.World.SpaceHooks.RegisterDerelictBoardingRestriction(
+                Fn(g, "restrictDerelictBoardingClass", a => OwnRule(ModInteractionRules.RegisterDerelictBoardingRestriction(
                     a.AsType(0, "game.restrictDerelictBoardingClass", DataType.String).String,
                     a.AsType(1, "game.restrictDerelictBoardingClass", DataType.String).String)));
-                Fn(g, "weightLoungeRace", a => OwnRule(GoF2Remake.World.SpaceHooks.RegisterLoungeWeight(
+                Fn(g, "weightLoungeRace", a => OwnRule(ModInteractionRules.RegisterLoungeWeight(
                     a.AsType(0, "game.weightLoungeRace", DataType.String).String,
                     a.AsType(1, "game.weightLoungeRace", DataType.String).String,
                     (float)a.AsType(2, "game.weightLoungeRace", DataType.Number).Number)));
@@ -821,6 +822,111 @@ LIMITS
                 undoById[id] = off;
                 return DynValue.NewNumber(id);
             }
+        }
+    }
+
+    // Shared native rules: GoF2.Game owns registration and GoF2.Space consumes them.
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+    public static class ModInteractionRules
+    {
+        // Opt-in rules registered by mod scripts, evaluated entirely in native code.
+        // The registering VM owns the returned removal action (game.off / script shutdown).
+        sealed class ClassRestriction
+        {
+            public string shipClass, message;
+        }
+        sealed class LoungeWeight
+        {
+            public string system, race;
+            public float chance;
+        }
+        static readonly List<ClassRestriction> miningRestrictions = new List<ClassRestriction>();
+        static readonly List<ClassRestriction> boardingRestrictions = new List<ClassRestriction>();
+        static readonly List<LoungeWeight> loungeWeights = new List<LoungeWeight>();
+        static System.Random loungeRandom = new System.Random();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetModInteractionRules()
+        {
+            miningRestrictions.Clear();
+            boardingRestrictions.Clear();
+            loungeWeights.Clear();
+            loungeRandom = new System.Random();
+        }
+
+        static Action RegisterRestriction(List<ClassRestriction> rules, string shipClass, string message)
+        {
+            if (string.IsNullOrWhiteSpace(shipClass) || string.IsNullOrWhiteSpace(message))
+                throw new ArgumentException("A ship class and refusal message are required.");
+            var rule = new ClassRestriction { shipClass = shipClass.Trim(), message = message };
+            rules.Add(rule);
+            return () => rules.Remove(rule);
+        }
+
+        public static Action RegisterMiningRestriction(string shipClass, string message) =>
+            RegisterRestriction(miningRestrictions, shipClass, message);
+
+        public static Action RegisterDerelictBoardingRestriction(string shipClass, string message) =>
+            RegisterRestriction(boardingRestrictions, shipClass, message);
+
+        static string ClassRefusal(List<ClassRestriction> rules, int shipIndex)
+        {
+            if (rules.Count == 0) return null;
+            string shipClass = Database.Shared?.Ship(shipIndex)?.shipClass;
+            if (string.IsNullOrEmpty(shipClass)) return null;
+            foreach (var rule in rules)
+                if (string.Equals(shipClass, rule.shipClass, StringComparison.OrdinalIgnoreCase)) return rule.message;
+            return null;
+        }
+
+        public static string MiningClassRefusal(int shipIndex) => ClassRefusal(miningRestrictions, shipIndex);
+
+        public static string DerelictBoardingClassRefusal(int shipIndex) => ClassRefusal(boardingRestrictions, shipIndex);
+
+        static string NormalizeLoungeSystem(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            var result = new System.Text.StringBuilder(name.Length);
+            foreach (char c in name)
+                if (char.IsLetterOrDigit(c)) result.Append(char.ToLowerInvariant(c));
+            return result.ToString();
+        }
+
+        public static Action RegisterLoungeWeight(string system, string race, float chance)
+        {
+            system = NormalizeLoungeSystem(system);
+            if (system.Length == 0 || string.IsNullOrWhiteSpace(race) || float.IsNaN(chance) ||
+                float.IsInfinity(chance) || chance < 0 || chance > 100)
+                throw new ArgumentException("A system name, race key and chance from 0 to 100 are required.");
+            var rule = new LoungeWeight { system = system, race = race.Trim(), chance = chance };
+            loungeWeights.Add(rule);
+            return () => loungeWeights.Remove(rule);
+        }
+
+        // A single draw for all registered weights. Remaining probability uses the original visitor race.
+        // Later registrations for the same system/race override earlier ones without affecting their removal handles.
+        public static int? WeightedLoungeRace(Database db, int stationIndex)
+        {
+            if (db == null || loungeWeights.Count == 0) return null;
+            var station = db.Stations.Find(s => s != null && s.index == stationIndex);
+            if (station == null) return null;
+            var system = db.Systems.Find(s => s != null && s.index == station.system);
+            if (system == null) return null;
+            string key = NormalizeLoungeSystem(system.name);
+            if (!loungeWeights.Exists(rule => rule.system == key && rule.chance > 0)) return null;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Keep lounge weighting separate from Unity's gameplay random stream.
+            double roll = loungeRandom.NextDouble() * 100.0;
+            for (int i = loungeWeights.Count - 1; i >= 0; i--)
+            {
+                var rule = loungeWeights[i];
+                if (rule.system != key || !seen.Add(rule.race)) continue;
+                var race = ModRaces.Get(rule.race);
+                if (race == null) continue;
+                if (roll < rule.chance) return race.race;
+                roll -= rule.chance;
+            }
+            return null;
         }
     }
 }

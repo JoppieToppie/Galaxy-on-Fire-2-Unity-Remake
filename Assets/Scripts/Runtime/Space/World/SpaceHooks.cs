@@ -148,107 +148,26 @@ namespace GoF2Remake.World
         /// before the prefab is selected; the default preserves the game's Midorian-with-Nivelian-face exception.</summary>
         public static Func<Agent, int, int> VisitorRace;
 
-        // Opt-in rules registered by mod scripts, evaluated entirely in native code.
-        // The registering VM owns the returned removal action (game.off / script shutdown).
-        sealed class ClassRestriction
-        {
-            public string shipClass, message;
-        }
-        sealed class LoungeWeight
-        {
-            public string system, race;
-            public float chance;
-        }
-        static readonly List<ClassRestriction> miningRestrictions = new List<ClassRestriction>();
-        static readonly List<ClassRestriction> boardingRestrictions = new List<ClassRestriction>();
-        static readonly List<LoungeWeight> loungeWeights = new List<LoungeWeight>();
-        static System.Random loungeRandom = new System.Random();
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetModInteractionRules()
-        {
-            miningRestrictions.Clear();
-            boardingRestrictions.Clear();
-            loungeWeights.Clear();
-            loungeRandom = new System.Random();
-        }
-
-        static Action RegisterRestriction(List<ClassRestriction> rules, string shipClass, string message)
-        {
-            if (string.IsNullOrWhiteSpace(shipClass) || string.IsNullOrWhiteSpace(message))
-                throw new ArgumentException("A ship class and refusal message are required.");
-            var rule = new ClassRestriction { shipClass = shipClass.Trim(), message = message };
-            rules.Add(rule);
-            return () => rules.Remove(rule);
-        }
-
+        // Native rule storage lives in GoF2.Game so Lua registration and flight checks share one registry.
         public static Action RegisterMiningRestriction(string shipClass, string message) =>
-            RegisterRestriction(miningRestrictions, shipClass, message);
+            Modding.ModInteractionRules.RegisterMiningRestriction(shipClass, message);
 
         public static Action RegisterDerelictBoardingRestriction(string shipClass, string message) =>
-            RegisterRestriction(boardingRestrictions, shipClass, message);
+            Modding.ModInteractionRules.RegisterDerelictBoardingRestriction(shipClass, message);
 
-        static string ClassRefusal(List<ClassRestriction> rules, int shipIndex)
-        {
-            if (rules.Count == 0) return null;
-            string shipClass = Database.Shared?.Ship(shipIndex)?.shipClass;
-            if (string.IsNullOrEmpty(shipClass)) return null;
-            foreach (var rule in rules)
-                if (string.Equals(shipClass, rule.shipClass, StringComparison.OrdinalIgnoreCase)) return rule.message;
-            return null;
-        }
+        public static Action RegisterLoungeWeight(string system, string race, float chance) =>
+            Modding.ModInteractionRules.RegisterLoungeWeight(system, race, chance);
 
-        public static string MiningClassRefusal(int shipIndex) => ClassRefusal(miningRestrictions, shipIndex);
+        public static string MiningClassRefusal(int shipIndex) =>
+            Modding.ModInteractionRules.MiningClassRefusal(shipIndex);
 
         public static string DerelictBoardingClassRefusal(int shipIndex, NpcShip target) =>
             target != null && target.IsFreighter && target.DockingType == ObjectDocking.Hackable
-                ? ClassRefusal(boardingRestrictions, shipIndex) : null;
+                ? Modding.ModInteractionRules.DerelictBoardingClassRefusal(shipIndex) : null;
 
-        static string NormalizeLoungeSystem(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "";
-            var result = new System.Text.StringBuilder(name.Length);
-            foreach (char c in name)
-                if (char.IsLetterOrDigit(c)) result.Append(char.ToLowerInvariant(c));
-            return result.ToString();
-        }
+        public static int? WeightedLoungeRace(Database db, int stationIndex) =>
+            Modding.ModInteractionRules.WeightedLoungeRace(db, stationIndex);
 
-        public static Action RegisterLoungeWeight(string system, string race, float chance)
-        {
-            system = NormalizeLoungeSystem(system);
-            if (system.Length == 0 || string.IsNullOrWhiteSpace(race) || float.IsNaN(chance) ||
-                float.IsInfinity(chance) || chance < 0 || chance > 100)
-                throw new ArgumentException("A system name, race key and chance from 0 to 100 are required.");
-            var rule = new LoungeWeight { system = system, race = race.Trim(), chance = chance };
-            loungeWeights.Add(rule);
-            return () => loungeWeights.Remove(rule);
-        }
-
-        // A single draw for all registered weights. Remaining probability uses the original visitor race.
-        // Later registrations for the same system/race override earlier ones without affecting their removal handles.
-        public static int? WeightedLoungeRace(Database db, int stationIndex)
-        {
-            if (db == null || loungeWeights.Count == 0) return null;
-            var station = db.Stations.Find(s => s != null && s.index == stationIndex);
-            if (station == null) return null;
-            var system = db.Systems.Find(s => s != null && s.index == station.system);
-            if (system == null) return null;
-            string key = NormalizeLoungeSystem(system.name);
-            if (!loungeWeights.Exists(rule => rule.system == key && rule.chance > 0)) return null;
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            // Keep lounge weighting separate from Unity's gameplay random stream.
-            double roll = loungeRandom.NextDouble() * 100.0;
-            for (int i = loungeWeights.Count - 1; i >= 0; i--)
-            {
-                var rule = loungeWeights[i];
-                if (rule.system != key || !seen.Add(rule.race)) continue;
-                var race = Modding.ModRaces.Get(rule.race);
-                if (race == null) continue;
-                if (roll < rule.chance) return race.race;
-                roll -= rule.chance;
-            }
-            return null;
-        }
         /// <summary>No other player is in that orbit (NetState.OrbitEmpty): this game builds its traffic.</summary>
         public static Func<int, bool> OrbitEmpty;
         /// <summary>A point out of the other players' sight (NetOrbit.OutOfSight), game units.</summary>
