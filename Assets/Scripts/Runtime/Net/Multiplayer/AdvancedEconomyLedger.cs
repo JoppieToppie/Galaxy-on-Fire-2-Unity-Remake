@@ -249,9 +249,9 @@ namespace GoF2Remake.Multiplayer
         // Only persisted, in-transit shipments are exposed; the amount is a manifest, not a grant.
         internal static string FreightManifest(int orbit)
         {
-            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return "";
+            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return null;
             Flush(true);
-            if (dirty) return "";
+            if (dirty) return null;
             var rows = new List<string>();
             foreach (var pair in shipments.OrderBy(p => p.Key, StringComparer.Ordinal))
             {
@@ -324,12 +324,12 @@ namespace GoF2Remake.Multiplayer
 
         internal static string FreightWreckManifest(int orbit)
         {
-            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return "";
+            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return null;
             long now = DateTime.UtcNow.Ticks;
             foreach (int tag in wrecks.Where(p => p.Value.Expires <= now).Select(p => p.Key).ToList())
             { wrecks.Remove(tag); dirty = true; }
             Flush(true);
-            if (dirty) return "";
+            if (dirty) return null;
             var rows = new List<string>();
             foreach (var pair in wrecks.Where(p => p.Value.Orbit == orbit).OrderBy(p => p.Key).Take(16))
             {
