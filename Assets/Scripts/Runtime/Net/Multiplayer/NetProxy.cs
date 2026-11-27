@@ -313,6 +313,8 @@ namespace GoF2Remake.Multiplayer
         {
             var m = ship.Model;
             var sp = ship.Spec;
+            if (Modding.ModAdvancedEconomy.IsFreightTag(sp.eventTag) && ship.Target != null)
+                ship.Target.CollectFreight = room => NetProfileClient.RequestFreightClaim(sp.eventTag, NetworkObjectId, room);
             var p = new ProxySpec
             {
                 model = ship.ModelPath ?? "",
@@ -834,7 +836,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer && Modding.ModAdvancedEconomy.IsFreightTag(EventTag) && before.life == Flying && after.life != Flying && after.hull == 0 &&
                 NetState.RunnerOf(Station)?.OwnerClientId == OwnerClientId && Spec?.spec?.freighter == true)
-                AdvancedEconomyLedger.LoseFreight(Station, EventTag);
+                AdvancedEconomyLedger.LoseFreight(Station, EventTag, Race, WorldPosition);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700031 && Spec?.spec != null)
                 NetState.Instance?.RecordPirateDefender(this);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))
@@ -1111,7 +1113,9 @@ namespace GoF2Remake.Multiplayer
             target.displayName = IsJunk ? Target.JunkName : Label.Length > 0 && team ? NetNews.Safe(Label) : null;
             // A steal candidate while it is disabled with cargo; a mission ship's cargo only for the mission's team (like its
             // crates, NetCrate).
-            bool stealable = !Modding.ModAdvancedEconomy.IsFreightTag(EventTag) && TargetLockRules.RemoteStealable(empDisabled, st.life == Flying, team, st.stealItem, st.stealAmount);
+            bool stealable = TargetLockRules.RemoteStealable(empDisabled, st.life == Flying, team, st.stealItem, st.stealAmount);
+            target.CollectFreight = Modding.ModAdvancedEconomy.IsFreightTag(EventTag)
+                ? room => NetProfileClient.RequestFreightClaim(EventTag, NetworkObjectId, room) : null;
             target.netStealItem = stealable ? st.stealItem : -1;
             target.netStealAmount = stealable ? st.stealAmount : 0;
             if (st.life != shownLife)
