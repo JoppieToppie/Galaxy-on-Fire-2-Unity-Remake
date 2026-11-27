@@ -365,11 +365,12 @@ namespace GoF2Remake.Events
         }
 
         /// <summary>Server: the offers of 'station' for a docking player (the missions they or their team aren't on).</summary>
-        internal static string Offers(int station, bool singlePlayer = false)
+        internal static string Offers(int station, bool singlePlayer = false, ulong? client = null)
         {
             var list = new List<string>();
             foreach (var m in EventRunner.MissionGraphs())
-                if (singlePlayer && PlayTested(m.name)) list.Add(Entry(m, station));   // the builder's play test: here for sure
+                if (client.HasValue && NetProfiles.OriginMissionBlocked(client.Value, m.name)) continue;
+                else if (singlePlayer && PlayTested(m.name)) list.Add(Entry(m, station));   // the builder's play test: here for sure
                 else
                 // Single player: the mods' and the Events folder's graphs for one pilot (the built-ins are multiplayer examples).
                 if ((m.stations.Count == 0 || m.stations.Contains(station)) && (!singlePlayer || (m.minPlayers <= 1 && !m.builtIn && Startable(m)))
@@ -408,6 +409,9 @@ namespace GoF2Remake.Events
                     if (q != null && q.IsSpawned && q != p && q.SquadId == p.SquadId) { team.Add(q.OwnerClientId); members.Add(q); }
             foreach (var q in members)
                 if (!q.InHangar || q.Station != station) { Refuse(X("mpMissionSquadHere", "The whole squad must be docked at this station to accept a mission.")); return; }
+            foreach (var member in members)
+                if (NetProfiles.OriginMissionBlocked(member.OwnerClientId, name))
+                { Refuse("A squad member already knows the information from this mission."); return; }
             if (team.Count < info.minPlayers || team.Count > info.maxPlayers)
             { Refuse(string.Format(X("mpEventMissionCount", "This mission takes {0} to {1} pilots."), info.minPlayers, info.maxPlayers)); return; }
             string requirements = RequirementsRefusal(new Offer { name = name, station = station });
