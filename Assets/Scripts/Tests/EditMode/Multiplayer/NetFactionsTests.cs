@@ -42,6 +42,18 @@ namespace GoF2Remake.Tests
         [TearDown]
         public void StopServer() => NetServerFixture.Stop();
 
+        [TestCase(3, 0, 3d, 0d, true)]
+        [TestCase(3, 1, 3d, 1.499d, true)]
+        [TestCase(3, 1, 1.5d, 1.5d, false)]
+        [TestCase(5, 1, 5d, 1.6d, false)]
+        [TestCase(5, 1, 1.6d, 5d, false)]
+        [TestCase(1, 1, 1d, 0d, false)]
+        [TestCase(0, 0, 0d, 0d, false)]
+        public void CaptureRewardsExcludeDoubleSidedDamage(int winning, int losing, double defenders, double attackers, bool eligible)
+        {
+            Assert.AreEqual(eligible, NpcFactionWar.QualifiesForCapture(winning, losing, defenders, attackers));
+        }
+
         [Test]
         public void VictoryCreditPoolIsConserved()
         {

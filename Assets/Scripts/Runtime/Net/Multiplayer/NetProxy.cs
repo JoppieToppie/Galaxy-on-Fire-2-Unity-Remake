@@ -63,6 +63,11 @@ namespace GoF2Remake.Multiplayer
         double lastScanPoseTime;
         NpcShip ship;
         Target junk;   // the owner's space junk (a Junk removal mission, or one taken over), instead of a ship
+        Target warDamageTarget;
+        // Server issues one receipt per checked remote player hit; the NPC owner reports the actual hull loss.
+        Dictionary<ulong, (ulong shooter, float expires)> pendingWarHits;
+        ulong nextWarHitId, applyingWarHitId;
+        float nextWarHitPrune;
         GameObject visual;
         Target target;
         byte shownLife = Flying;
@@ -288,6 +293,7 @@ namespace GoF2Remake.Multiplayer
                 orbit.Register(this, ship);
                 WriteSpec();
                 SendState();
+                HookWarDamage();
                 sender = new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
                 sender.Hook(ship.Guns);
                 HookGateImpacts(ship.Guns);
@@ -394,6 +400,7 @@ namespace GoF2Remake.Multiplayer
         public override void OnLostOwnership()
         {
             if (!IsSpawned) return;
+            UnhookWarDamage();
             if (ship != null && !ship.Gone) ship.Vanish();
             ship = null;
             junk = null;
@@ -411,6 +418,7 @@ namespace GoF2Remake.Multiplayer
 
         void BindTo(NpcShip rebuilt, Target rebuiltJunk)
         {
+            UnhookWarDamage();
             if (viewer)
             {
                 viewer = false;
@@ -441,6 +449,7 @@ namespace GoF2Remake.Multiplayer
             }
             ship = rebuilt;
             NetOrbit.Current?.Register(this, rebuilt);
+            HookWarDamage();
             lastAggressors = -1;   // written again from the new ship
             sender ??= new NetShotSender(SendShot, BlastUpRpc, () => ship != null ? ship.CurrentTarget : null, () => NetworkObjectId);
             sender.Hook(rebuilt.Guns);
@@ -467,6 +476,7 @@ namespace GoF2Remake.Multiplayer
             smoothing.Push(posePosition);
             var old = ship;
             var oldJunk = junk;
+            UnhookWarDamage();
             ship = null;
             junk = null;
             sender?.Unhook();
@@ -494,6 +504,8 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
+            UnhookWarDamage();
+            pendingWarHits?.Clear();
             status.OnValueChanged -= RecordOwnerBountyKill;
             status.OnValueChanged -= ReportFactionWarCasualty;
             NetPoses.Unregister(this);
@@ -631,6 +643,67 @@ namespace GoF2Remake.Multiplayer
                 Mathf.Max(0, item.Attr(9)), Mathf.Max(0, item.Attr(10)));
         }
 
+        // ---- fleet battle damage accounting --------------------------------------------------------------------------
+
+        void HookWarDamage()
+        {
+            UnhookWarDamage();
+            if (ship?.Target == null || !NpcFactionWar.IsWarTag(ship.Spec.eventTag)) return;
+            warDamageTarget = ship.Target;
+            warDamageTarget.HullDamageApplied += OnWarHullDamage;
+        }
+
+        void UnhookWarDamage()
+        {
+            if (warDamageTarget != null) warDamageTarget.HullDamageApplied -= OnWarHullDamage;
+            warDamageTarget = null;
+        }
+
+        void OnWarHullDamage(Target victim, double fraction, bool byNpc)
+        {
+            if (!IsSpawned || !IsOwner || (byNpc && applyingWarHitId == 0)) return;
+            // Local player damage is attributed to the NPC's owner. Remote player damage is applied as
+            // an NPC hit by DamageRpc, but carries a one-use server-issued receipt identifying the shooter.
+            WarHullDamageUpRpc(fraction, byNpc ? applyingWarHitId : 0);
+        }
+
+        ulong ReserveWarHit(ulong shooter)
+        {
+            if (!NpcFactionWar.IsWarTag(EventTag)) return 0;
+            pendingWarHits ??= new Dictionary<ulong, (ulong shooter, float expires)>();
+            float now = Time.unscaledTime;
+            if (now >= nextWarHitPrune || pendingWarHits.Count >= 4096)
+            {
+                nextWarHitPrune = now + 2f;
+                var expired = new List<ulong>();
+                foreach (var hit in pendingWarHits)
+                    if (hit.Value.expires < now) expired.Add(hit.Key);
+                foreach (ulong id in expired) pendingWarHits.Remove(id);
+            }
+            if (pendingWarHits.Count >= 4096) return 0;
+            ulong receipt = ++nextWarHitId;
+            pendingWarHits[receipt] = (shooter, now + 15f);
+            return receipt;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void WarHullDamageUpRpc(double fraction, ulong receipt, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                !(fraction > 0d && fraction <= 1d) || !NpcFactionWar.IsWarTag(EventTag)) return;
+            ulong shooter = OwnerClientId;
+            if (receipt != 0)
+            {
+                if (pendingWarHits == null || !pendingWarHits.TryGetValue(receipt, out var hit)) return;
+                pendingWarHits.Remove(receipt);
+                if (hit.expires < Time.unscaledTime) return;
+                shooter = hit.shooter;
+            }
+            else if (!NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
+            if (!NetGuard.InOrbit(shooter, Station)) return;
+            NetState.Instance?.RecordFactionWarDamage(this, shooter, fraction);
+        }
+
         // ---- shots and hits -------------------------------------------------------------------------------------------
 
         void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>
@@ -695,13 +768,14 @@ namespace GoF2Remake.Multiplayer
             if (byNpc && weaponItem >= 0 && (by == null || by.RunsOrbit != station.Value || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
             if (by == null || !by.CollisionModeCompliant) { by?.CheckReportedCollisionMode(); return; }
             if (!byNpc) NetState.Instance?.NoteHit(NetworkObjectId, shooter);
-            DamageRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
+            ulong warHit = byNpc ? 0 : ReserveWarHit(shooter);
+            DamageRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem, warHit);
         }
 
         /// <summary>The checked hit (DamageUpRpc): the owner's ship takes it, and turns on that player's squad (not on its own
         /// player: taken as an NPC's hit, so no standing change or kill credit for the owner).</summary>
         [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
-        void DamageRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor, int weaponItem)
+        void DamageRpc(float amount, Vector3 hitVector, bool byNpc, ulong shooter, float shieldFactor, int weaponItem, ulong warHit)
         {
             if (junk != null) { if (junk.Alive) junk.Damage(amount, true, hitVector); return; }   // counts for the mission (all junk)
             if (ship == null || ship.Target == null || !ship.Target.Alive) return;
@@ -722,7 +796,9 @@ namespace GoF2Remake.Multiplayer
             ship.Target.lastPlayerWeapon = weaponItem;   // its weapon (step 59: a convoy freighter the Liberator killed)
             var item = weaponItem >= 0 ? GoF2Remake.Data.Database.Shared.Item(weaponItem) : null;
             var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
-            ship.Target.Damage(amount, true, hitVector, shieldFactor, damageType);
+            applyingWarHitId = warHit;
+            try { ship.Target.Damage(amount, true, hitVector, shieldFactor, damageType); }
+            finally { applyingWarHitId = 0; }
             if (ship.Target.Alive) { ship.Target.killedByRemote = false; ship.Target.remoteKiller = ulong.MaxValue; }
             if (!ship.Target.Alive) { var s = St; s.killer = shooter; status.Value = s; }
             if (!ship.Target.Alive && NetOrbit.Current != null) KillCreditUpRpc(shooter, ship.Race, NetOrbit.Current.SystemRace, hostile);

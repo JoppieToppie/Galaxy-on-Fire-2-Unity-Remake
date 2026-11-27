@@ -24,6 +24,8 @@ namespace GoF2Remake.Multiplayer
             public float startedAt;
             public readonly Dictionary<string, int> againstDefenders = new Dictionary<string, int>();
             public readonly Dictionary<string, int> againstAttackers = new Dictionary<string, int>();
+            public readonly Dictionary<string, double> hullAgainstDefenders = new Dictionary<string, double>();
+            public readonly Dictionary<string, double> hullAgainstAttackers = new Dictionary<string, double>();
             public readonly Dictionary<string, int> attackerReputation = new Dictionary<string, int>();
             public readonly Dictionary<string, int> defenderReputation = new Dictionary<string, int>();
             public readonly Dictionary<int, ulong> ships = new Dictionary<int, ulong>();
@@ -223,7 +225,8 @@ namespace GoF2Remake.Multiplayer
 
         internal bool IsFactionWarShip(NetProxy ship, int race)
         {
-            if (!IsServer || !ModNpcFactionWar.Enabled || !fleetByOrbit.TryGetValue(ship.Station, out var roster) ||
+            if (!IsServer || !ModNpcFactionWar.Enabled || ship == null || ship.IsJunk || ship.IsWingman ||
+                !fleetByOrbit.TryGetValue(ship.Station, out var roster) ||
                 roster.creator == ulong.MaxValue || roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt) return false;
             var battle = roster.battle;
             int slot = battle.Slot(ship.EventTag);
@@ -244,6 +247,25 @@ namespace GoF2Remake.Multiplayer
             if (!sessionRewardKeys.TryGetValue(pilot, out string key))
                 sessionRewardKeys[pilot] = key = "session:" + System.Guid.NewGuid().ToString("N");
             return key;
+        }
+
+        // Only registered NPC fleet hulls can reach this ledger; NetPlayer PvP has no entry point.
+        // Accumulate actual hull lost per victim, in units of that victim's maximum hull.
+        internal void RecordFactionWarDamage(NetProxy ship, ulong shooter, double hullFraction)
+        {
+            if (factionWar == null || !(hullFraction > 0d && hullFraction <= 1d) ||
+                ship == null || !IsFactionWarShip(ship, ship.Race)) return;
+            var roster = fleetByOrbit[ship.Station];
+            if (roster.finished || roster.battle.expires < NpcFactionWar.Now) return;
+            int slot = roster.battle.Slot(ship.EventTag);
+            if ((roster.casualties & (1UL << slot)) != 0) return;
+            var pilot = NetSquad.Find(shooter);
+            if (pilot == null || !pilot.IsSpawned || !pilot.InSpace || pilot.Station != ship.Station) return;
+            string account = RewardAccount(pilot);
+            if (account == null) return;
+            var damage = slot < roster.battle.shipsPerSide ? roster.hullAgainstDefenders : roster.hullAgainstAttackers;
+            damage.TryGetValue(account, out double total);
+            damage[account] = total + hullFraction;
         }
 
         void RecordWarContribution(FleetRoster roster, NetProxy ship, ulong killer)
@@ -276,7 +298,10 @@ namespace GoF2Remake.Multiplayer
             foreach (var entry in winningContributions)
             {
                 losingContributions.TryGetValue(entry.Key, out int opposite);
-                if (entry.Value > opposite) eligible.Add(entry.Key);
+                roster.hullAgainstDefenders.TryGetValue(entry.Key, out double defenderDamage);
+                roster.hullAgainstAttackers.TryGetValue(entry.Key, out double attackerDamage);
+                if (NpcFactionWar.QualifiesForCapture(entry.Value, opposite, defenderDamage, attackerDamage))
+                    eligible.Add(entry.Key);
             }
             eligible.Sort(System.StringComparer.Ordinal);
             var pending = new List<NpcFactionWar.VictoryReward>();

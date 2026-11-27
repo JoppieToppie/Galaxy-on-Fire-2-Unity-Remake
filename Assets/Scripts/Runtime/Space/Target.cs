@@ -216,6 +216,17 @@ namespace GoF2Remake.Flight
 
         /// <summary>(target, damage, byNpc) after every hit, before the death check.</summary>
         public event Action<Target, int, bool> Damaged;
+        // Actual fraction of maximum hull removed by one applied hit, before death callbacks.
+        // Unlike Damaged's raw damage, this excludes shields, armor, resisted damage and overkill.
+        public event Action<Target, double, bool> HullDamageApplied;
+
+        double DamageHullFraction()
+        {
+            double fraction = hitpoints != null
+                ? (hitpoints.maxHull > 0 ? hitpoints.hull / (double)hitpoints.maxHull : 0d)
+                : (maxHp > 0f ? hp / (double)maxHp : 0d);
+            return Math.Max(0d, Math.Min(1d, fraction));
+        }
         public event Action<Target> Died;
 
         void OnEnable()
@@ -262,6 +273,7 @@ namespace GoF2Remake.Flight
             amount *= damageFactor;
             int dmg = Mathf.Max(0, (int)amount);
             lastHitVector = hitVector;
+            double hullBefore = HullDamageApplied != null ? DamageHullFraction() : 0d;
             bool dead;
             if (hitpoints != null)
             {
@@ -273,6 +285,11 @@ namespace GoF2Remake.Flight
             {
                 hp -= amount;
                 dead = hp <= 0f;
+            }
+            if (HullDamageApplied != null)
+            {
+                double lost = hullBefore - DamageHullFraction();
+                if (lost > 0d) HullDamageApplied(this, lost, byNpc);
             }
             Damaged?.Invoke(this, dmg, byNpc);
             if (dead && SaveFromDeath != null && SaveFromDeath()) dead = false;   // the player's emergency system
