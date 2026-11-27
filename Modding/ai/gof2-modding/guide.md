@@ -5,7 +5,9 @@
 A mod is a folder (or a `.zip`) of plain files: JSON for data, PNG for images. Most mods contain no code. A mod may also
 carry **scripts** (Lua, see [Scripts](#scripts)): those run inside the game only, without access to files, the network or
 other programs, so a mod you download can't harm your computer, and the game asks before it runs a mod's scripts.
-Players turn mods on and off in the main menu's **Mods** screen.
+Players turn mods on and off in the main menu's **Mods** screen. A mod can opt into duplicate secondary hardpoints by
+setting `"multipleSecondaryMounts": true` in its `mod.json`; it is off unless an active mod explicitly requests it,
+and the setting is included in the multiplayer mod signature.
 
 **Making a mod in the game:** main menu > **Mods** > **Mod Builder** (experimental) makes projects in this same format
 without writing any JSON: new ships from a `.glb` model or on one of the game's ship models (no 3D file needed), or
@@ -84,6 +86,7 @@ What mods can do so far:
 - **Add new items**: weapons, missiles, equipment and goods. Each new item is based on an existing one and takes its model,
   icon, sounds and behaviour, with its own name, description, stats, prices and availability.
 - **Change existing items**: rebalance prices, stats, tech levels and availability.
+- **Restrict blueprints in multiplayer**: set `"multiplayerBlueprintRestricted": true` in an `items.json` entry (new item or override) to restrict that item's blueprint. For a generated ship blueprint (the hidden deed item), set the same field on its `blueprints.json` entry. The blueprint entry's explicit setting takes precedence over the item's setting. This prevents ordinary blueprint discovery and production during multiplayer sessions; it does not affect solo play or NPC equipment, erase existing unlocks, suppress scripted story/medal unlock events, or block direct scripted item rewards. Manufacturing remains blocked while the restriction is active, even if a scripted event unlocks the blueprint. Omitting the field leaves the current setting unchanged (normally unrestricted); an explicit `false` clears an earlier mod's setting.
 - **Give weapons their own look and sound**: projectiles, muzzle flashes and impacts from your own sprites or 3D models,
   your own shot and explosion sounds.
 - **Add new ships**: your own 3D model (glTF / GLB) with its stats, weapon mounts, turrets, engine glows and textures, sold
@@ -159,6 +162,26 @@ description, author, views and downloads. To list yours, add one small file to
 [gof2r-mods](https://github.com/JoppieToppie/gof2r-mods) by pull request; its README explains it. The easiest way is to
 point the file at your own GitHub repository. Then every new release there, with a higher `version` in `mod.json`,
 reaches players as an update within the hour, with no further pull request.
+
+## Native feature reference
+
+Use **Mod Builder > Menu > Modding documentation** for the searchable offline reference. MCP assistants can call
+`read_guide` (with no arguments to list files) or read `gof2-guide://<file>` resources. These surfaces use the same
+canonical documents as the repository, including the specialist manuals below.
+
+| Guide | Coverage |
+|---|---|
+| [Native features](NATIVE_FEATURES.md) | Gameplay manifest, native item stats, station construction, external docks, orbital defenses, recipes, origins, wingmen, cameras and NPC AI |
+| [Scanner detection](SCANNER_DETECTION.md) | Scanner ranges, target signatures, passive stealth, NPC sensors and turret contact |
+| [Predictive targeting](PIP_LEADS.md) | Primary projectile and beam lead indicators |
+| [Squad friendly fire](SQUAD_FRIENDLY_FIRE.md) | Optional squadmate damage, PvP permissions |
+| [NPC faction warfare](NpcFactionWar.md) | Frontline eligibility, battles, timers, territory and configuration |
+| [Piracy and recovery](Piracy.md) | Bounties, death loss, recovery and Lua hooks |
+| [Jump drive rules](JUMP_DRIVE_RULES.md) | Fuel, misjumps, item availability and server authority |
+
+The native reference records a known overlapping item-attribute ID issue; consult it before using the affected
+per-axis equipment and scanner/weapon stats together. For an existing native feature, use its data contract rather
+than writing a global method patch.
 
 ## mod.json
 
@@ -1109,6 +1132,7 @@ How a ship is seen, for a new ship or an original through `override` (each one o
 ```json
 "camera": { "distance": 2400, "height": 900, "lookHeight": 900, "lookAhead": -1100 },
 "cockpit": [0, 90, 760],
+"cockpitModel": "models/bridge.glb",
 "smoke": [[39, 68, -64], [-62, 65, 10]],
 "explosionScale": 1.2
 ```
@@ -1119,8 +1143,13 @@ How a ship is seen, for a new ship or an original through `override` (each one o
   A field left out keeps the game's. Without a `camera`, a hull over 150 m across gets one fitted to its size. Free
   flight's EVERSPACE 2 camera uses `distance` and `height` only: it looks along the ship.
 - `cockpit`: where the cockpit view (F2, or holding the camera button) sits, a point like a hardpoint's `position_engine`
-  (x the pilot's left, y up, z the nose). Without it the game puts the seat on the bow from the hull's shape. Either way
-  the seat stays behind the frontmost gun, so its shots start in view.
+  (x the pilot's left, y up, z the nose). An explicit seat is used exactly, including large capital hulls. Without it the
+  automatic seat remains near the bow, constrained by gun placement where applicable.
+- `cockpitModel`: optional local GLB interior, authored in metres with the origin at the pilot's eye, +Z forward and +Y up
+  in the imported Unity frame. Visible only in first-person view; no collision, hardpoints or external ship geometry.
+  Empty string disables an earlier mod's interior. Import it under Camera and damage in Mod Builder.
+- `crosshairOffsetX` and `crosshairOffsetY`: third-person targeting offsets in metres, positive right and up, respectively.
+  Cockpit targeting is centred and independent of these offsets.
 - `smoke`: up to 4 points where the ship trails smoke and fire once it is below a third of its hull (NPC ships); without
   them it smokes from its middle. The smoke is shared between the points, so two points don't make twice as much.
 - `explosionScale`: how big the explosion is when the ship dies, as a multiple of a fighter's (1); 0.25 to 20. The NPC
@@ -2975,6 +3004,86 @@ look station`, `/camera chase`, `/fade out 1 ffffff`, `/letterbox on`, `/cutscen
 
 ## Scripts
 
+### Server onboarding pages (before permanent race selection)
+
+Add `tutorials/preIdentity.json` to an active mod. On a multiplayer server using permanent pilot identities, first-time pilots who have not chosen a race see these pages before the race picker. Pages from active mods are shown in mod load order. They are independent of Lua and the optional Tutorial Hints setting. Players can go back, continue, or disconnect; existing identities are not prompted again.
+
+```json
+{
+  "pages": [
+    {
+      "title": "Welcome to the server",
+      "layout": "cards",
+      "sections": [
+        {
+          "heading": "Permanent race",
+          "text": "Your race cannot be changed after confirmation.",
+          "style": "warning"
+        },
+        {
+          "heading": "Station access",
+          "text": "Station and jumpgate owners may set access policies.",
+          "style": "card"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Use `layout: "column"` (default) or `"cards"` (responsive wrapping cards), and section styles `"text"` (default), `"card"` or `"warning"`. Pages have a title and 1–24 sections, each with text and an optional heading. Up to 20 pages per mod; title/heading limit 120 characters, section text limit 2000 characters. Malformed files are logged and skipped. This is a local UI briefing, not a server-side proof of acknowledgement; do not treat it as authorization. Files in this folder are included in normal mod exports and Mod Builder history.
+
+### Declarative gameplay tutorials
+
+Add `tutorials/gameplay.json` to an active mod. These definitions are data, not Lua, and work without script approval.
+
+```json
+{
+  "tutorials": [
+    {
+      "id": "first_station",
+      "title": "Station facilities",
+      "text": "Visit the hangar to inspect your ship.",
+      "category": "navigation",
+      "trigger": "station",
+      "presentation": "popup",
+      "enabledByDefault": true,
+      "mandatory": false,
+      "repeatable": false,
+      "persistPending": true,
+      "cooldownSeconds": 0
+    }
+  ]
+}
+```
+
+- `trigger`: a discrete game event from the Lua event list, or omit for manual activation. Frame events are forbidden.
+- `presentation`: `popup` or non-blocking `hint` (existing message plate/toast). Multiplayer flight never opens a blocking popup; a pending popup waits for a station interface.
+- `enabledByDefault`: false disables automatic triggering. `mandatory`: true bypasses the optional Tutorial Hints preference, not interface safety. Manual activation also bypasses that preference.
+- `repeatable`: false by default; progress is stored separately from Lua data in the current save when acknowledged. `cooldownSeconds` limits repeatable automatic triggers in the current session.
+- `persistPending`: true retains a pending request across scene changes, until a save restore or mod change. False discards it on scene change.
+- `multiplayer`: optional boolean restricting the tutorial to multiplayer or single-player.
+- `requires`: optional array of tutorial IDs in the same mod which must already have been shown.
+- `category`: optional handbook grouping/search metadata. `handbook` (default true) controls article visibility; root `handbookTitle` sets the menu title (first eligible mod in load order).
+- `races`: optional array of permanent pilot identity race keys; `shipClasses`: optional array of exact ship class IDs. Both are case-insensitive and must match if provided. Eligibility is rechecked before showing and in the handbook.
+- Modal completion requires ACKNOWLEDGE; LATER dismisses without completion. Nonblocking hints can be acknowledged in their handbook article. The handbook is accessible from station and flight pause menus when eligible articles exist.
+- Maximum 256 definitions per mod, 20 pending declarative requests, title 120 characters and body 2000 characters. IDs are scoped to the mod.
+- Lua: `game.tutorialShow(id)` manually queues a definition; `game.tutorialSeen(id)` queries progress. The existing `game.tutorial(id, title, text, repeatable)` still works, but its modal cannot open in multiplayer flight.
+
+### Mod tutorial popups
+
+Scripts can call `game.tutorial(id, title, text[, repeatable])` from any gameplay event. For example:
+
+```lua
+game.on("station", function()
+    game.tutorial("station_intro", "Station management",
+        "Open the station management panel to manage your infrastructure.")
+end)
+```
+
+Tutorials use the existing station and flight confirmation windows. They respect the player's Tutorial Hints option (off by default), and are local to the player whose script calls the function. IDs are scoped to each mod; the default is once per save, recorded when the popup is acknowledged. Pass true as the fourth argument to allow another popup with that ID after it has opened. Trigger repeatable tutorials on discrete events rather than every frame. Pending duplicates are ignored. The shared queue holds up to 20 requests, waits for a free interface, and discards requests when their scene changes or a save is loaded. The title and body appear as plain dialog text; existing #KEY_ binding tokens are supported. Single-player flight pauses while a popup is open; multiplayer continues running, so prefer safe station events for multiplayer tutorials. No patch hooks are required.
+
+
 Everything above is data: the game reads it and does what it already knows how to do. A **script** is code of your own, for
 what the files and the mission graphs can't express: a bounty paid for every pirate you destroy, a price that follows the
 day's news, a HUD element, a new rule. Scripts are written in **Lua** (5.2), a small language many games use for mods; the
@@ -3057,6 +3166,7 @@ Every script has the global table `game`:
 | `game.saved` | a table kept in the player's save file, per mod |
 | `game.config`, `game.saveConfig()` | a table kept outside the saves: your mod's own settings |
 | `game.log(...)`, `print(...)` | a line in the Mod Builder's console and the game's log |
+| `game.tutorial(id, title, text, repeatable)` | queues a native local tutorial popup; returns true when queued, false when disabled, already seen or pending, or the queue is full. |
 | `game.message(text)` | a line on the player's screen (the flight HUD's message line, a notice in a station) |
 | `game.command(line)` | runs a chat / event command as the server does and returns its answer |
 | `game.addCommand(name, fn)` | a command of your own (see [Commands](#commands)) |
