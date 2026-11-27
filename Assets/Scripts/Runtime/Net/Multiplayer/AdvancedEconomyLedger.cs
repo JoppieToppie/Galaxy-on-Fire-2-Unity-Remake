@@ -49,6 +49,7 @@ namespace GoF2Remake.Multiplayer
             // The tag is a server-issued identity, never a cargo quantity supplied by an orbit client.
             public int FreightTag, Orbit = -1, TotalTicks;
             public bool Bulk;
+            public int Hull = 65535;
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         sealed class FreightWreck
@@ -169,7 +170,8 @@ namespace GoF2Remake.Multiplayer
                     throw new JsonException("Invalid physical freight identity or progress.");
                 result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
                     FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks,
-                    Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"] });
+                    Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"],
+                    Hull = row["hull"] == null ? 65535 : Math.Clamp((int)row["hull"], 1, 65535) });
             }
             return result;
         }
@@ -245,10 +247,21 @@ namespace GoF2Remake.Multiplayer
                 var keys = pair.Key.Split('|');
                 if (keys.Length != 3 || !ModContent.TryResolveItem(keys[2], out int item) ||
                     !ModWorld.TryResolveStation(keys[0], out int source) || !ModWorld.TryResolveStation(keys[1], out int destination)) continue;
-                rows.Add($"{ship.FreightTag},{item},{ship.Amount},{source},{destination},{(ship.Bulk ? 1 : 0)}");
+                rows.Add($"{ship.FreightTag},{item},{ship.Amount},{source},{destination},{(ship.Bulk ? 1 : 0)},{ship.Hull}");
                 if (rows.Count >= ModAdvancedEconomy.FreightPerOrbit) break;
             }
             return string.Join(";", rows);
+        }
+
+        internal static void RecordFreightHull(int orbit, int tag, int hull)
+        {
+            if (!Physical || hull <= 0 || NetPlayerStations.ProfileWritesBlocked) return;
+            var ship = shipments.Values.FirstOrDefault(s => s.FreightTag == tag && s.Orbit == orbit);
+            if (ship == null) return;
+            hull = Math.Clamp(hull, 1, 65535);
+            if (ship.Hull == hull) return;
+            ship.Hull = hull;
+            dirty = true;
         }
 
         // A destroyed physical ship cannot later deliver. The absolute ledger is written before
@@ -529,7 +542,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var pair in shipments)
                 cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
                     ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops, ["freightTag"] = pair.Value.FreightTag,
-                    ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks, ["bulk"] = pair.Value.Bulk });
+                    ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks, ["bulk"] = pair.Value.Bulk, ["hull"] = pair.Value.Hull });
             var debris = new JArray();
             foreach (var pair in wrecks)
             {
