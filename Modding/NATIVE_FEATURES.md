@@ -34,6 +34,8 @@ Example manifest fragment (add your own id/name/version):
 
 ## Native item attributes (items.json)
 
+> **Known attribute-number conflict in this branch:** `ModFlight` currently assigns 191–195 to pitch/yaw/roll turn-rate and pitch/yaw turn-acceleration item bonuses; `ItemStats` also assigns them to strictShipClass, fixedBeam, turretDefenseRole, scannerRange and scanLead respectively. Named stats resolve to the same raw IDs, so using the readable spelling does not isolate them. These features cannot safely be treated as independent item stats until the IDs and migration are reconciled. Prefer per-hull flight bonuses in ships.json in the meantime; verify mounted scanner/weapon effects on flight. This document does not change the IDs or existing mod data.
+
 Place these integer values inside an item entry's `stats` object. Raw attribute numbers in `attributes` are equivalent. Do not set an unrelated attribute just because its name resembles the mechanic. Distances normally use 20 game units per metre; milliseconds are not seconds. Original stat-list aliases are accepted by ItemStats.IdOf, but the readable names are recommended.
 
 | Stat | Attribute | Behavior |
@@ -177,6 +179,71 @@ Additional faction-war configuration in npc-faction-war.json: `pirateMoveMin` (6
 
 Additional piracy settings in piracy.json: `maximumNpcBounty` defaults to 300000 credits, `npcBountyIncrement` to 10000 credits (both positive integers, minimum 1); the actual default NPC threshold in ModPvpPiracy.Apply is 5, not the illustrative 100 in the example. Set 100 explicitly if that balance is desired.
 
+## Player identities and origins (raceOrigins.json)
+
+A root object configures the server-generated starting profile for a chosen permanent pilot race. Enable player identity through `playerInfrastructure.json` (`playerIdentityEnabled: true`), then opt into the origin file separately with `enabled: true`. No persistent racial stat buffs are implied. Stock races use their recognized race keys and custom races use stable mod:id keys. Void and Specters cannot be selected; a custom race is selectable only with a matching character portrait marked `playerPortrait: true` in characters.json. Give that character a race and portrait path. The server validates the choice; do not trust a client-created start profile.
+
+| Root key | Meaning |
+|---|---|
+| `enabled` | Boolean, false when omitted. |
+| `defaultStartingCredits` | Nonnegative integer up to 2147483647; omitted uses normal multiplayer starting credits. |
+| `origins` | Object keyed by a race reference. Last active enabled mod supplying that race wins; unconfigured races use the normal multiplayer start. |
+
+Each origin can contain the following:
+
+| Key | Meaning |
+|---|---|
+| `startingStation` | Numeric station index or string station key; a local key resolves in the defining mod. Omitted uses the server default. |
+| `startingShip` | Nonnegative integer ship index; must be a valid server hull. Omitted uses the default starting ship. Also serves as the race-specific emergency recovery hull when valid. |
+| `startingCredits` | Nonnegative integer; overrides the root default. |
+| `startingEquipment` | Array of numeric item indices and positive integer amounts, e.g. `[{"item":12,"amount":1}]`. Omitted keeps the normal loadout; an empty array clears it. IDs must resolve on the server. |
+| `startAsPirate` | Boolean, false by default; true requires enabled piracy.json. |
+| `discoverOwnModSystems` | Boolean, false by default; reveals initially hidden mod systems belonging to the selected race. |
+| `discoveredSystems` | Array of numeric system IDs or string keys; invalid/missing systems cause validation failure. Starting system and normally visible systems remain visible. |
+| `standing` | Object keyed by race, integer reputation -100..100. Terran/Vossk and Nivelian/Midorian are paired opposite values, so contradictory values are rejected. Mod races have independent reputations. |
+| `completedMissions` | Array of mission ID strings premarked as done. |
+
+```json
+{
+  "enabled": true,
+  "defaultStartingCredits": 10000,
+  "origins": {
+    "your_mod:frontier_race": {
+      "startingStation": "your_mod:frontier_station",
+      "startingShip": 10,
+      "startingCredits": 15000,
+      "startingEquipment": [{"item": 12, "amount": 1}],
+      "discoverOwnModSystems": true,
+      "standing": {"terran": 20}
+    }
+  }
+}
+```
+
+Use the root file and validate with MCP write_file or by importing the mod. Origins are for new identities/profiles, not retroactive edits to existing pilots. Use a fresh profile to test; confirm the server selects the correct station, equipment, discovered systems and portrait. Numeric hull/item indices in this schema are not interchangeable with arbitrary mod:id strings.
+
+## Wingman groups and contracts (wingmen.json)
+
+In addition to crew ships, radio and chance from the main guide, the root object accepts the following global rules:
+
+| Key | Default | Values |
+|---|---|---|
+| `multipleGroups` | false | Boolean, permits hiring more than one group. |
+| `minGroupSize` | 1 | Integer clamped 1..24. |
+| `maxGroupSize` | 3 | Integer clamped to minGroupSize..24. |
+| `maxTotal` | 3 | Integer clamped to maxGroupSize..48. With multipleGroups enabled and omitted maxTotal, the effective fallback is at least 12. |
+| `extendContracts` | false | Boolean, enables extending contracts. |
+| `extensionPricePercent` | 50 | Integer clamped 1..99 percent. |
+| `extensionSeconds` | 600 | Integer clamped 60..86400 seconds. |
+
+Rules follow active-mod order. These options do not create a custom crew by themselves: crew definitions still require valid ships. Use moderate group sizes and test contract expiry, extension and recruiting while a group already exists.
+
+## Native fighter AI and mod flight styles
+
+The native SMEP fighter AI is the gameplay/session option `smepFighterAi` (Settings.SmepFighterAi; default false), not an arbitrary manifest key. It enables the ES2 aim/flight model for eligible ordinary NPC fighters, independent of the global ES2 options. It excludes frigate, freighter, cruiser and carrier classes, freighter/capital specs, stationary objects, turrets and tagged event encounters. The native custom movement is disabled when the target is a protected mobile pilot; capital/freighter-class mobile players are not protected by that special case. Eligible ambient multiplayer fighters favor desktop targets, with mobile targets retained as a fallback. Ordered/mission targets and cloak/EMP restrictions retain their own rules. Test mobile and desktop players, mixed fleets, wingmen, pursuit and collision at different frame rates.
+
+Flight style priority is event > forced multiplayer session style > ship > campaign > enabled new-game option > player setting. Per-hull `flight.rules` override global flight.json values; per-axis zero rules fall back to shared legacy values. Use the main guide's Flight styles / Flight rules sections for the tunable field catalogue. Do not confuse player options with mod content fields or add a Lua patch to intercept every frame simply to enable a native option.
+
 ## Maintenance and verification
 
-Source references: ModManifest.Read, ModContent, ItemStats, CombatRadar, Gun, WeaponSystem, ModPlayerInfrastructure.Parse, ModShipView, ModNpcFactionWar.Apply and ModPvpPiracy.Apply. Keep their public data contracts and this reference in step. Do not expose implementation-only variables as mod fields. For any new exposed field, document its JSON location, type, default, bounds, units, effect, multi-mod precedence and multiplayer constraints, and add an example plus a validation test where useful.
+Source references: ModManifest.Read, ModContent, ItemStats, CombatRadar, Gun, WeaponSystem, ModPlayerInfrastructure.Parse, ModShipView, ModNpcFactionWar.Apply, ModPvpPiracy.Apply, PlayerIdentity.ValidateOrigins/CreateOriginProfile, ModWingmen.Apply, NpcShipDogfight and ModFlight. Keep their public data contracts and this reference in step. Do not expose implementation-only variables as mod fields. For any new exposed field, document its JSON location, type, default, bounds, units, effect, multi-mod precedence and multiplayer constraints, and add an example plus a validation test where useful.
