@@ -29,6 +29,8 @@ namespace GoF2Remake.Multiplayer
                 if (ModJson.Get(origin, "startingStation") is JToken station &&
                     station.Type != JTokenType.String && station.Type != JTokenType.Integer)
                     throw new ModJsonException($"{OriginsFile}: startingStation must be a station reference.");
+                if (ModJson.Get(origin, "startAsPirate") is JToken pirate && pirate.Type != JTokenType.Boolean)
+                    throw new ModJsonException($"{OriginsFile}: startAsPirate must be boolean.");
                 if (ModJson.Get(origin, "discoverOwnModSystems") is JToken own && own.Type != JTokenType.Boolean)
                     throw new ModJsonException($"{OriginsFile}: discoverOwnModSystems must be boolean.");
                 foreach (string field in new[] { "discoveredSystems", "completedMissions" })
@@ -80,8 +82,12 @@ namespace GoF2Remake.Multiplayer
                 throw new ModJsonException($"{OriginsFile}: unknown starting station {start}.");
             var dock = db.Stations.Find(x => x.index == station);
             if (dock == null) throw new ModJsonException($"{OriginsFile}: starting station is unavailable.");
+            bool startAsPirate = ModJson.Bool(selected, "startAsPirate", false, OriginsFile);
+            if (startAsPirate && !ModPvpPiracy.Enabled)
+                throw new ModJsonException($"{OriginsFile}: startAsPirate requires enabled piracy.json.");
             var save = new SaveData
             {
+                originStartAsPirate = startAsPirate,
                 campaign = (int)Campaign.GalaxyOnFire2, campaignMission = Story.LastIndex, freePlay = true,
                 difficulty = Session.DifficultyNormal, economy = (int)NetSession.Economy,
                 station = station, lastDockedStation = station, previousStation = -1,
