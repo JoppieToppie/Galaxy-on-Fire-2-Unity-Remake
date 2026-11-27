@@ -803,6 +803,9 @@ namespace GoF2Remake.World
         /// <summary>Level::createFighterTurrets: the turret on this ship (45 / 51), null = none.</summary>
         [System.NonSerialized] public NpcShip AttachedTurret;
 
+        float bountyEscapeCharge;
+        bool bountyEscapeAnnounced;
+
         void Update()
         {
             EngineVoices.Tick();   // once a frame for all ships: the three loudest loops of each engine event
@@ -864,6 +867,27 @@ namespace GoF2Remake.World
                     if (clip != null) ShotVoices.PlayAt(clip, transform.position, 0.8f);
                 }
                 return;
+            }
+            if (Spec.pirateEvent == SpawnSpec.EventBoss && Spec.sightingId >= 0 && Current == State.Fly && Target.Alive &&
+                Hp.hull <= Hp.maxHull * 0.25f)
+            {
+                if (!bountyEscapeAnnounced)
+                {
+                    bountyEscapeAnnounced = true;
+                    traffic.Warn("Wanted pirate is charging its jump drive!");
+                }
+                if (Hp.empDisabled) bountyEscapeCharge = 0f;
+                else bountyEscapeCharge += dtMs;
+                if (bountyEscapeCharge >= Modding.ModNpcFactionWar.PirateEscapeSeconds * 1000f)
+                {
+                    if (NetSession.Active || PirateReports.Escape(Database.Shared, PirateReports.Find(Spec.sightingId),
+                        Session.PirateSightings, st => st == traffic.StationIndex))
+                    {
+                        JumpOut();
+                        return;
+                    }
+                    bountyEscapeCharge = 0f;
+                }
             }
             if (Current == State.JumpingOut) { UpdateJumpOut(dtMs); return; }
             if (order != null && UpdateOrder(dtMs)) return;   // an event graph's order (NpcOrder)
