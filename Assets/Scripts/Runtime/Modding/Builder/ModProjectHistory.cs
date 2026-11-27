@@ -148,6 +148,11 @@ namespace GoF2Remake.Modding
                     if (h != null) d[rel] = h;
                 }
             }
+            foreach (string rel in new[] { ModPvpPiracy.File, GoF2Remake.Multiplayer.PlayerIdentity.OriginsFile })
+            {
+                string path = Full(rel);
+                if (File.Exists(path) && Hash(path) is string hash) d[rel] = hash;
+            }
             return d;
         }
 
