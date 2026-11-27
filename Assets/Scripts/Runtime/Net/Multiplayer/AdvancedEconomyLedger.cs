@@ -170,7 +170,7 @@ namespace GoF2Remake.Multiplayer
                     throw new JsonException("Invalid shipment balance.");
                 int hops = row["hops"] == null ? 0 : (int)row["hops"];
                 if (hops < 0 || hops > 96) throw new JsonException("Invalid shipment distance.");
-                int tag = row["freightTag"] == null ? 0 : (int)row["freightTag"];
+                int tag = row["freightTag"] == null ? 0 : ModAdvancedEconomy.MigrateFreightTag((int)row["freightTag"]);
                 int orbit = row["orbit"] == null ? -1 : (int)row["orbit"];
                 int totalTicks = row["totalTicks"] == null ? 0 : (int)row["totalTicks"];
                 if ((tag != 0 && (!ModAdvancedEconomy.IsFreightTag(tag) || result.Values.Any(s => s.FreightTag == tag))) ||
@@ -202,7 +202,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var token in rows)
             {
                 if (!(token is JObject row)) throw new JsonException("Invalid freight wreck.");
-                int tag = (int)row["tag"], orbit = (int)row["orbit"], amount = (int)row["amount"], race = (int)row["race"];
+                int tag = ModAdvancedEconomy.MigrateFreightTag((int)row["tag"]), orbit = (int)row["orbit"], amount = (int)row["amount"], race = (int)row["race"];
                 string item = (string)row["item"];
                 long expiry = (long)row["expires"];
                 var position = new Vector3((float)row["x"], (float)row["y"], (float)row["z"]);
@@ -234,7 +234,7 @@ namespace GoF2Remake.Multiplayer
         static int NewFreightTag()
         {
             int tag;
-            do { tag = UnityEngine.Random.Range(800000000, 900000000); }
+            do { tag = UnityEngine.Random.Range(ModAdvancedEconomy.FreightTagStart, ModAdvancedEconomy.FreightTagEnd); }
             while (shipments.Values.Any(s => s.FreightTag == tag) || wrecks.ContainsKey(tag));
             return tag;
         }
