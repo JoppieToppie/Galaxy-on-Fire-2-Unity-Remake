@@ -741,8 +741,21 @@ namespace GoF2Remake.Multiplayer
             var pilot = NetSquad.Find(client);
             if (!IsServer || !ProfilesOn || pilot == null || !NetGuard.DockedAt(client, pilot.Station) ||
                 !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
-            string json = JsonUtility.ToJson(NetFactions.PlayerWantedBoard(pilot.Station));
+            string json = JsonUtility.ToJson(NetFactions.PlayerWantedBoard(pilot.Station, NetProfiles.AccountOf(client)));
             PlayerWantedReplyRpc(json, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.Server)]
+        public void AcceptPlayerBountyRpc(string issuer, string pilotName, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!IsServer || !ProfilesOn || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request) ||
+                string.IsNullOrEmpty(issuer) || issuer.Length > 256 || string.IsNullOrEmpty(pilotName) || pilotName.Length > 128) return;
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || !NetGuard.DockedAt(client, pilot.Station)) return;
+            Notify(client, NetFactions.AcceptFactionBountyContract(client, issuer, pilotName));
+            PlayerWantedReplyRpc(JsonUtility.ToJson(NetFactions.PlayerWantedBoard(pilot.Station, NetProfiles.AccountOf(client))),
+                RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
