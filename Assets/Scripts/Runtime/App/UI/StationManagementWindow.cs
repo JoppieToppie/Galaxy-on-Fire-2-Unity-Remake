@@ -78,45 +78,11 @@ namespace GoF2Remake.UI
         const string WelcomeTutorialFile = "tutorials/preIdentity.json";
         Button tutorialButton, tutorialContinue;
         VisualElement tutorialOverlay;
-        List<(string heading, string text)> stationTutorial;
+        List<ModTutorialLayout.Page> stationTutorial;
         bool stationTutorialLoaded, stationTutorialSeen;
         string stationTutorialAccount;
 
-        static List<(string heading, string text)> ReadTutorial(string file)
-        {
-            var result = new List<(string heading, string text)>();
-            foreach (var mod in ModManager.Active)
-            {
-                if (mod.Broken) continue;
-                string path = mod.Source.Exists(file) ? file : "text/" + file;
-                if (!mod.Source.Exists(path)) continue;
-                try
-                {
-                    if (!(ModJson.Read(mod.Source, path) is JObject document) ||
-                        !(document["pages"] is JArray pages) || pages.Count == 0 || pages.Count > 20)
-                        throw new ModJsonException("Expected 1-20 tutorial pages.");
-                    var parsed = new List<(string heading, string text)>();
-                    foreach (var entry in pages)
-                    {
-                        if (!(entry is JObject page) || !(page["sections"] is JArray sections) ||
-                            sections.Count == 0 || sections.Count > 24)
-                            throw new ModJsonException("Each page requires 1-24 sections.");
-                        foreach (var section in sections)
-                        {
-                            if (!(section is JObject block) || block["text"]?.Type != JTokenType.String ||
-                                string.IsNullOrWhiteSpace((string)block["text"]) || ((string)block["text"]).Length > 2000 ||
-                                (block["heading"] != null && (block["heading"].Type != JTokenType.String ||
-                                    ((string)block["heading"]).Length > 120)))
-                                throw new ModJsonException("Invalid tutorial section.");
-                            parsed.Add(((string)block["heading"] ?? "", (string)block["text"]));
-                        }
-                    }
-                    result.AddRange(parsed);
-                }
-                catch (Exception e) { Debug.LogWarning("Mod " + mod.Id + " " + path + ": " + e.Message); }
-            }
-            return result;
-        }
+        static List<ModTutorialLayout.Page> ReadTutorial(string file) => ModTutorialLayout.ReadPages(file);
 
         bool TutorialEligible => open && !marketplaceOnly && selected != null && !selected.underConstruction &&
             selected.offeredForClaimUtc == 0 && NetPlayer.Local?.CanViewStationLedgerInUi(selected.id) == true;
@@ -140,7 +106,7 @@ namespace GoF2Remake.UI
             if (!stationTutorialSeen) ShowTutorial(stationTutorial, true);
         }
 
-        void ShowTutorial(List<(string heading, string text)> pages, bool station)
+        void ShowTutorial(List<ModTutorialLayout.Page> pages, bool station)
         {
             if (!open || tutorialOverlay != null || pages == null || pages.Count == 0) return;
             tutorialOverlay = new VisualElement { name = "modStationTutorial" };
@@ -150,59 +116,50 @@ namespace GoF2Remake.UI
             tutorialOverlay.style.backgroundColor = new Color(0.06f, 0.10f, 0.14f, 1f);
             tutorialOverlay.style.paddingLeft = tutorialOverlay.style.paddingRight = 24;
             tutorialOverlay.style.paddingTop = tutorialOverlay.style.paddingBottom = 16;
-            var title = new Label(station ? "YOUR STATION, YOUR RULES" : "SERVER BRIEFING") { enableRichText = false };
-            title.AddToClassList("player-station-title");
-            tutorialOverlay.Add(title);
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
-            scroll.style.flexGrow = 1;
-            scroll.style.flexBasis = 0;
-            scroll.style.minHeight = 0;
-            foreach (var page in pages)
-            {
-                if (!string.IsNullOrEmpty(page.heading))
-                {
-                    var heading = new Label(page.heading) { enableRichText = false };
-                    heading.style.fontSize = 20;
-                    heading.style.whiteSpace = WhiteSpace.Normal;
-                    heading.style.marginTop = 10;
-                    scroll.Add(heading);
-                }
-                var text = new Label(page.text) { enableRichText = false };
-                text.style.whiteSpace = WhiteSpace.Normal;
-                text.style.fontSize = 16;
-                text.style.marginBottom = 10;
-                scroll.Add(text);
-            }
-            tutorialOverlay.Add(scroll);
-            var footer = new VisualElement();
-            footer.style.flexDirection = FlexDirection.Row;
-            var up = new Button(() => scroll.scrollOffset = new Vector2(0, Mathf.Max(0, scroll.scrollOffset.y - scroll.resolvedStyle.height * .75f))) { text = "SCROLL UP" };
-            var down = new Button(() => scroll.scrollOffset = new Vector2(0, Mathf.Min(scroll.verticalScroller.highValue, scroll.scrollOffset.y + scroll.resolvedStyle.height * .75f))) { text = "SCROLL DOWN" };
-            tutorialContinue = new Button(() =>
-            {
-                if (station)
-                {
-                    stationTutorialSeen = true;
-                    if (!string.IsNullOrEmpty(stationTutorialAccount))
-                    {
-                        PlayerPrefs.SetInt("mod.stationTutorial." + stationTutorialAccount, 1);
-                        PlayerPrefs.Save();
-                    }
-                }
-                CloseTutorial();
-            }) { text = "CONTINUE" };
-            foreach (var button in new[] { up, down, tutorialContinue })
-            {
-                button.AddToClassList("player-station-action");
-                button.style.flexGrow = 1;
-                footer.Add(button);
-            }
-            tutorialOverlay.Add(footer);
-            tutorialOverlay.RegisterCallback<NavigationCancelEvent>(e => e.StopPropagation());
             panel.SetEnabled(false);
             overlay.Add(tutorialOverlay);
             UiFocus.SkipScrollBars(tutorialOverlay);
-            tutorialContinue.Focus();
+            if (inFlight)
+            {
+                StickScroll.Watch(tutorialOverlay);
+                tutorialOverlay.RegisterCallback<NavigationMoveEvent>(NavigateFlight, TrickleDown.TrickleDown);
+            }
+            tutorialOverlay.RegisterCallback<NavigationCancelEvent>(e => e.StopPropagation());
+            int index = 0;
+            void Draw()
+            {
+                tutorialOverlay.Clear();
+                ModTutorialLayout.DrawPage(tutorialOverlay, pages[index], index, pages.Count);
+                var footer = new VisualElement();
+                footer.style.flexDirection = FlexDirection.Row;
+                footer.style.flexShrink = 0;
+                var back = new Button(() => { if (index > 0) { index--; Draw(); } }) { text = "BACK" };
+                back.SetEnabled(index > 0);
+                tutorialContinue = new Button(() =>
+                {
+                    if (index + 1 < pages.Count) { index++; Draw(); return; }
+                    if (station)
+                    {
+                        stationTutorialSeen = true;
+                        if (!string.IsNullOrEmpty(stationTutorialAccount))
+                        {
+                            PlayerPrefs.SetInt("mod.stationTutorial." + stationTutorialAccount, 1);
+                            PlayerPrefs.Save();
+                        }
+                    }
+                    CloseTutorial();
+                }) { text = index + 1 < pages.Count ? "CONTINUE" : "FINISH" };
+                foreach (var button in new[] { back, tutorialContinue })
+                {
+                    button.AddToClassList("player-station-action");
+                    button.style.flexGrow = 1;
+                    button.style.minHeight = 44;
+                    footer.Add(button);
+                }
+                tutorialOverlay.Add(footer);
+                tutorialContinue.Focus();
+            }
+            Draw();
         }
 
         void CloseTutorial()

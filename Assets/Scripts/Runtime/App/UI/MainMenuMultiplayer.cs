@@ -362,46 +362,10 @@ namespace GoF2Remake.UI
 
         // These files are read from the active mod set before a pilot exists; no Lua approval or save state is needed.
         const string IdentityBriefingFile = "tutorials/preIdentity.json";
-        const string StagedIdentityBriefingFile = "text/tutorials/preIdentity.json";
 
         void BuildIdentityBriefing(ScrollView identityScroll)
         {
-            var pages = new List<(string mod, JObject page)>();
-            foreach (var mod in ModManager.Active)
-            {
-                if (mod.Broken) continue;
-                string file = mod.Source.Exists(IdentityBriefingFile) ? IdentityBriefingFile : StagedIdentityBriefingFile;
-                if (!mod.Source.Exists(file)) continue;
-                try
-                {
-                    if (!(ModJson.Read(mod.Source, file) is JObject document) ||
-                        !(document["pages"] is JArray list) || list.Count > 20)
-                        throw new ModJsonException("Expected a pages array with at most 20 entries.");
-                    if (singlePlayerIdentity != null && (bool?)document["singlePlayer"] != true) continue;
-                    var parsed = new List<(string mod, JObject page)>();
-                    foreach (var entry in list)
-                    {
-                        if (!(entry is JObject page) || !ValidBriefingText(page["title"], 120) ||
-                            !(page["sections"] is JArray sections) || sections.Count == 0 || sections.Count > 24)
-                            throw new ModJsonException("Each page needs a title and 1-24 sections.");
-                        foreach (var section in sections)
-                            if (!(section is JObject block) || !ValidBriefingText(block["text"], 2000) ||
-                                (block["heading"] != null && !ValidBriefingText(block["heading"], 120)) ||
-                                (block["style"] != null && (block["style"].Type != JTokenType.String ||
-                                    !new[] { "text", "card", "warning" }.Contains((string)block["style"]))))
-                                throw new ModJsonException("Each section needs text, an optional heading and a valid style.");
-                        if (page["layout"] != null && (page["layout"].Type != JTokenType.String ||
-                            !new[] { "column", "cards" }.Contains((string)page["layout"])))
-                            throw new ModJsonException("Page layout must be column or cards.");
-                        parsed.Add((mod.Name, page));
-                    }
-                    pages.AddRange(parsed);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogWarning("Mod " + mod.Id + " " + IdentityBriefingFile + ": " + e.Message);
-                }
-            }
+            var pages = ModTutorialLayout.ReadPages(IdentityBriefingFile, singlePlayerIdentity != null);
             if (pages.Count == 0) return;
             identityBriefingIndex = Mathf.Clamp(identityBriefingIndex, 0, pages.Count - 1);
             identityScroll.style.display = DisplayStyle.None;
@@ -417,65 +381,7 @@ namespace GoF2Remake.UI
             {
                 identityBriefing.Clear();
                 var entry = pages[identityBriefingIndex];
-                identityBriefing.Add(IdentityLabel(entry.mod + "  |  SERVER BRIEFING  |  " +
-                    (identityBriefingIndex + 1) + " / " + pages.Count, 16));
-                identityBriefing.Add(IdentityLabel((string)entry.page["title"], 32));
-                var body = new ScrollView(ScrollViewMode.Vertical);
-                body.style.flexGrow = 1;
-                body.style.flexBasis = 0;
-                body.style.minHeight = 0;
-                identityBriefing.Add(body);
-                // Keep long briefings readable without a mouse or touch screen.
-                var scrollControls = new VisualElement();
-                scrollControls.style.flexDirection = FlexDirection.Row;
-                scrollControls.style.flexShrink = 0;
-                identityBriefing.Add(scrollControls);
-                var up = new Button(() => body.scrollOffset = new Vector2(0, Mathf.Max(0, body.scrollOffset.y - body.resolvedStyle.height * 0.75f))) { text = "SCROLL UP" };
-                var down = new Button(() => body.scrollOffset = new Vector2(0, Mathf.Min(body.verticalScroller.highValue, body.scrollOffset.y + body.resolvedStyle.height * 0.75f))) { text = "SCROLL DOWN" };
-                foreach (var button in new[] { up, down })
-                {
-                    button.style.flexGrow = 1;
-                    button.style.minHeight = 36;
-                    button.AddToClassList("gof-button");
-                    scrollControls.Add(button);
-                }
-                var sections = new VisualElement();
-                bool cards = (string)entry.page["layout"] == "cards";
-                sections.style.flexDirection = cards ? FlexDirection.Row : FlexDirection.Column;
-                sections.style.flexWrap = cards ? Wrap.Wrap : Wrap.NoWrap;
-                body.Add(sections);
-                foreach (JObject block in (JArray)entry.page["sections"])
-                {
-                    string style = (string)block["style"] ?? "text";
-                    var panel = new VisualElement();
-                    panel.style.flexShrink = 0;
-                    panel.style.marginBottom = 10;
-                    panel.style.paddingLeft = panel.style.paddingRight = 14;
-                    panel.style.paddingTop = panel.style.paddingBottom = 12;
-                    if (cards)
-                    {
-                        panel.style.flexBasis = Length.Percent(46);
-                        panel.style.flexGrow = 1;
-                        panel.style.marginRight = 8;
-                    }
-                    if (style != "text") panel.AddToClassList(style == "warning" ? "identity-briefing-warning" : "identity-briefing-card");
-                    if (style != "text" && !Settings.OriginalUi)
-                        panel.style.backgroundColor = style == "warning" ? new Color(0.26f, 0.15f, 0.055f) : new Color(0.07f, 0.17f, 0.23f);
-                    if (block["heading"] != null) panel.Add(IdentityLabel((string)block["heading"], 23));
-                    panel.Add(IdentityLabel((string)block["text"], 18));
-                    sections.Add(panel);
-                }
-                if (cards)
-                    body.RegisterCallback<GeometryChangedEvent>(e =>
-                    {
-                        bool narrow = e.newRect.width < 700;
-                        sections.style.flexDirection = narrow ? FlexDirection.Column : FlexDirection.Row;
-                        foreach (var panel in sections.Children())
-                        {
-                            panel.style.flexBasis = narrow ? new StyleLength(StyleKeyword.Auto) : new StyleLength(Length.Percent(46));
-                            panel.style.flexGrow = narrow ? 0 : 1;
-                        }
-                    });
+                ModTutorialLayout.DrawPage(identityBriefing, entry, identityBriefingIndex, pages.Count);
                 var footer = new VisualElement();
                 footer.style.flexDirection = FlexDirection.Row;
                 footer.style.flexShrink = 0;
@@ -505,10 +411,6 @@ namespace GoF2Remake.UI
             }
             DrawPage();
         }
-
-        static bool ValidBriefingText(JToken token, int max) =>
-            token != null && token.Type == JTokenType.String &&
-            !string.IsNullOrWhiteSpace((string)token) && ((string)token).Length <= max;
 
         /// <summary>The name a public game is listed under: the Game name field, else "<pilot>'s universe".</summary>
         string SessionName()
@@ -1367,4 +1269,201 @@ namespace GoF2Remake.UI
             catch (System.Exception e) { GoF2Remake.Multiplayer.NetGame.AbortStart(e); return false; }
         }
     }
+    // Shared, data-driven tutorial presentation for pilot setup and station management.
+    // The hosts own navigation, eligibility and acknowledgement; this class only reads and renders pages.
+    internal static class ModTutorialLayout
+    {
+        internal sealed class Page
+        {
+            internal string ModName;
+            internal JObject Data;
+        }
+
+        static bool Text(JToken token, int max) => token != null && token.Type == JTokenType.String &&
+            !string.IsNullOrWhiteSpace((string)token) && ((string)token).Length <= max;
+
+        static bool Choice(JToken token, params string[] choices) =>
+            token == null || (token.Type == JTokenType.String && choices.Contains((string)token));
+
+        static bool Number(JToken token, int min, int max) => token == null ||
+            (token.Type == JTokenType.Integer && (double)token >= min && (double)token <= max);
+
+        internal static List<Page> ReadPages(string file, bool singlePlayerOnly = false)
+        {
+            var result = new List<Page>();
+            foreach (var mod in ModManager.Active)
+            {
+                if (mod.Broken) continue;
+                string path = mod.Source.Exists(file) ? file : "text/" + file;
+                if (!mod.Source.Exists(path)) continue;
+                try
+                {
+                    if (!(ModJson.Read(mod.Source, path) is JObject document) ||
+                        !(document["pages"] is JArray pages) || pages.Count > 20)
+                        throw new ModJsonException("Expected a pages array with at most 20 entries.");
+                    if (singlePlayerOnly && (bool?)document["singlePlayer"] != true) continue;
+                    var parsed = new List<Page>();
+                    foreach (var entry in pages)
+                    {
+                        if (!(entry is JObject page) || !Text(page["title"], 120) ||
+                            !(page["sections"] is JArray sections) || sections.Count < 1 || sections.Count > 24 ||
+                            !Choice(page["layout"], "column", "cards", "grid") ||
+                            !Number(page["columns"], 1, 3) || !Number(page["gap"], 0, 32) ||
+                            !Number(page["titleSize"], 20, 40))
+                            throw new ModJsonException("Invalid tutorial page title, sections or layout.");
+                        foreach (var section in sections)
+                        {
+                            if (!(section is JObject block) ||
+                                !Choice(block["style"], "text", "card", "warning", "info", "divider") ||
+                                ((string)block["style"] != "divider" && !Text(block["text"], 2000)) ||
+                                (block["text"] != null && !Text(block["text"], 2000)) ||
+                                (block["heading"] != null && !Text(block["heading"], 120)) ||
+                                !Number(block["headingSize"], 14, 32) || !Number(block["textSize"], 12, 26) ||
+                                !Choice(block["alignment"], "left", "center", "right") ||
+                                (block["fullWidth"] != null && block["fullWidth"].Type != JTokenType.Boolean))
+                                throw new ModJsonException("Invalid tutorial section.");
+                        }
+                        parsed.Add(new Page { ModName = mod.Name, Data = page });
+                    }
+                    result.AddRange(parsed);
+                }
+                catch (Exception e) { Debug.LogWarning("Mod " + mod.Id + " " + path + ": " + e.Message); }
+            }
+            return result;
+        }
+
+        static Label LabelFor(string text, int size, string alignment = "left")
+        {
+            var label = new Label(text) { enableRichText = false };
+            label.style.fontSize = size;
+            label.style.whiteSpace = WhiteSpace.Normal;
+            label.style.color = Color.white;
+            label.style.flexShrink = 0;
+            label.style.marginBottom = 6;
+            label.style.unityTextAlign = alignment == "center" ? TextAnchor.UpperCenter :
+                alignment == "right" ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
+            return label;
+        }
+
+        internal static void DrawPage(VisualElement host, Page entry, int index, int count)
+        {
+            if (!host.ClassListContains("mod-tutorial-keyboard"))
+            {
+                host.AddToClassList("mod-tutorial-keyboard");
+                host.RegisterCallback<KeyDownEvent>(e =>
+                {
+                    var view = host.Q<ScrollView>("modTutorialScroll");
+                    if (view == null) return;
+                    float step = view.contentViewport.layout.height * 0.85f;
+                    float max = Mathf.Max(0, view.contentContainer.layout.height - view.contentViewport.layout.height);
+                    float y = view.scrollOffset.y;
+                    switch (e.keyCode)
+                    {
+                        case KeyCode.PageUp: y -= step; break;
+                        case KeyCode.PageDown: y += step; break;
+                        case KeyCode.Home: y = 0; break;
+                        case KeyCode.End: y = max; break;
+                        default: return;
+                    }
+                    if (float.IsNaN(y) || float.IsNaN(max)) return;
+                    view.scrollOffset = new Vector2(0, Mathf.Clamp(y, 0, max));
+                    e.StopPropagation();
+                }, TrickleDown.TrickleDown);
+            }
+            var page = entry.Data;
+            var progress = LabelFor(entry.ModName + "  |  " + (index + 1) + " / " + count, 15);
+            host.Add(progress);
+            var title = LabelFor((string)page["title"], (int?)page["titleSize"] ?? 30);
+            title.AddToClassList("gof-semibold");
+            host.Add(title);
+
+            var body = new ScrollView(ScrollViewMode.Vertical)
+            {
+                name = "modTutorialScroll",
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Hidden
+            };
+            body.style.flexGrow = 1;
+            body.style.flexBasis = 0;
+            body.style.minHeight = 0;
+            body.style.minWidth = 0;
+            body.style.marginRight = 12;
+            body.AddManipulator(new DragScroll(body));
+            host.Add(body);
+            ScrollBars.Attach(body);
+            // Focused content stays visible; the game already handles right-stick scrolling.
+            body.RegisterCallback<FocusInEvent>(e =>
+            {
+                if (e.target is VisualElement target && body.contentContainer.Contains(target))
+                    body.ScrollTo(target);
+            });
+            var sections = new VisualElement();
+            sections.style.flexShrink = 0;
+            sections.style.flexDirection = FlexDirection.Row;
+            sections.style.flexWrap = Wrap.Wrap;
+            sections.style.alignItems = Align.Stretch;
+            body.Add(sections);
+
+            string layout = (string)page["layout"] ?? "column";
+            int wanted = layout == "column" ? 1 : (int?)page["columns"] ?? 2;
+            int gap = (int?)page["gap"] ?? 10;
+            var panels = new List<(VisualElement panel, bool full)>();
+            foreach (JObject block in (JArray)page["sections"])
+            {
+                string style = (string)block["style"] ?? "text";
+                string alignment = (string)block["alignment"] ?? "left";
+                var panel = new VisualElement();
+                panel.style.flexShrink = 0;
+                panel.style.flexGrow = 0;
+                panel.style.minWidth = 0;
+                panel.style.marginBottom = gap;
+                if (style == "divider")
+                {
+                    panel.style.height = 1;
+                    panel.style.backgroundColor = new Color(0.35f, 0.5f, 0.6f);
+                }
+                else
+                {
+                    panel.style.paddingLeft = panel.style.paddingRight = style == "text" ? 4 : 14;
+                    panel.style.paddingTop = panel.style.paddingBottom = style == "text" ? 4 : 12;
+                    if (style != "text")
+                    {
+                        panel.AddToClassList(style == "warning" ? "identity-briefing-warning" : "identity-briefing-card");
+                        if (!Settings.OriginalUi)
+                            panel.style.backgroundColor = style == "warning" ? new Color(0.26f, 0.15f, 0.055f) :
+                                style == "info" ? new Color(0.09f, 0.22f, 0.30f) : new Color(0.07f, 0.17f, 0.23f);
+                    }
+                    if (block["heading"] != null)
+                    {
+                        var heading = LabelFor((string)block["heading"], (int?)block["headingSize"] ?? 22, alignment);
+                        heading.AddToClassList("gof-semibold");
+                        panel.Add(heading);
+                    }
+                    panel.Add(LabelFor((string)block["text"], (int?)block["textSize"] ?? 18, alignment));
+                }
+                sections.Add(panel);
+                panels.Add((panel, style == "divider" || (bool?)block["fullWidth"] == true));
+            }
+            void Reflow(float width)
+            {
+                if (float.IsNaN(width) || width <= 0) return;
+                int columns = Mathf.Clamp(Mathf.FloorToInt((width + gap) / (280f + gap)), 1, wanted);
+                // Fixed widths keep grid cells aligned even on a partly filled last row.
+                float cell = Mathf.Max(1, (width - (columns - 1) * gap) / columns);
+                int column = 0;
+                foreach (var item in panels)
+                {
+                    bool full = item.full || columns == 1;
+                    // A full-width block starts a fresh row naturally under flex wrapping.
+                    item.panel.style.width = full ? width : cell;
+                    item.panel.style.marginRight = full || column == columns - 1 ? 0 : gap;
+                    column = full ? 0 : (column + 1) % columns;
+                }
+            }
+            // Give a safe single-column initial layout, then calculate columns from the actual viewport.
+            foreach (var item in panels) item.panel.style.width = Length.Percent(100);
+            sections.RegisterCallback<GeometryChangedEvent>(e => Reflow(e.newRect.width));
+        }
+    }
+
 }
