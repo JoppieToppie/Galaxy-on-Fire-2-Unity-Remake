@@ -12,12 +12,14 @@ namespace GoF2Remake.Multiplayer
     {
         readonly Dictionary<int, SortedSet<int>> edges = new Dictionary<int, SortedSet<int>>();
         readonly Dictionary<int, Dictionary<int, int>> parents = new Dictionary<int, Dictionary<int, int>>();
+        readonly Dictionary<int, Dictionary<int, int>> distances = new Dictionary<int, Dictionary<int, int>>();
 
         public void Add(int from, int to)
         {
             if (!edges.TryGetValue(from, out var set)) edges[from] = set = new SortedSet<int>();
             set.Add(to);
             parents.Clear();
+            distances.Clear();
         }
 
         public static AdvancedEconomyRoutes Build(Database db)
@@ -38,16 +40,17 @@ namespace GoF2Remake.Multiplayer
 
         public int Distance(int from, int to)
         {
-            var path = Path(from, to);
-            return path == null ? -1 : path.Count - 1;
+            if (from == to) return 0;
+            EnsurePaths(from);
+            return distances[from].TryGetValue(to, out int hops) ? hops : -1;
         }
 
-        public List<int> Path(int from, int to)
+        void EnsurePaths(int from)
         {
-            if (from == to) return new List<int> { from };
             if (!parents.TryGetValue(from, out var previous))
             {
                 parents[from] = previous = new Dictionary<int, int> { [from] = from };
+                var distance = distances[from] = new Dictionary<int, int> { [from] = 0 };
                 var queue = new Queue<int>();
                 queue.Enqueue(from);
                 while (queue.Count != 0)
@@ -58,10 +61,18 @@ namespace GoF2Remake.Multiplayer
                     {
                         if (previous.ContainsKey(there)) continue;
                         previous.Add(there, here);
+                        distance.Add(there, distance[here] + 1);
                         queue.Enqueue(there);
                     }
                 }
             }
+        }
+
+        public List<int> Path(int from, int to)
+        {
+            if (from == to) return new List<int> { from };
+            EnsurePaths(from);
+            var previous = parents[from];
             if (!previous.ContainsKey(to)) return null;
             var path = new List<int> { to };
             while (to != from) { to = previous[to]; path.Add(to); }

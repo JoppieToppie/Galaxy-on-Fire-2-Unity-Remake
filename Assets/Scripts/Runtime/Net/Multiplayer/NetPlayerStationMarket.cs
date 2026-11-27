@@ -209,6 +209,12 @@ namespace GoF2Remake.Multiplayer
 
         // NPC suppliers consume existing escrow, not a player account or faction treasury.
         // All project, stock and refund mutations are recorded in the same durable journal.
+        internal static int NpcConstructionRemaining(PlayerStationRecord project, int item)
+        {
+            var material = ProcurementMaterials(project)?.Find(x => x != null && x.item == item);
+            return material == null ? 0 : Math.Max(0, material.required - material.delivered);
+        }
+
         internal static int SupplyNpcConstruction(PlayerStationRecord record, PlayerStationBuyOrder order,
             int units, Action stageStock, Action rollbackStock)
         {

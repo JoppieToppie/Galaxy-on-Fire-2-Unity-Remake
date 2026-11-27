@@ -161,11 +161,10 @@ namespace GoF2Remake.Multiplayer
 
         // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
         // A disabled or removed route freezes its shipment; it never silently redirects cargo to another endpoint.
-        internal static Dictionary<(int station, int item), int> TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed)
+        internal static Dictionary<(int station, int item), int> TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed, AdvancedEconomyRoutes graph)
         {
             if (!ModAdvancedEconomy.RegionalTrade) return new Dictionary<(int station, int item), int>();
             Load();
-            var graph = AdvancedEconomyRoutes.Build(db);
             var routes = ModAdvancedEconomy.Routes.ToList();
             var keys = new HashSet<string>(routes.Select(RouteKey));
             // Restore previously dispatched automatic routes even if they no longer have
@@ -209,9 +208,9 @@ namespace GoF2Remake.Multiplayer
                     int best = -1, bestHops = int.MaxValue;
                     foreach (int source in sources)
                     {
-                        var path = graph.Path(Shop.SystemOf(db, source), destinationSystem);
-                        if (path == null || path.Count - 1 > ModAdvancedEconomy.MaxAutoHops || path.Count - 1 >= bestHops) continue;
-                        best = source; bestHops = path.Count - 1;
+                        int hops = graph.Distance(Shop.SystemOf(db, source), destinationSystem);
+                        if (hops < 0 || hops > ModAdvancedEconomy.MaxAutoHops || hops >= bestHops) continue;
+                        best = source; bestHops = hops;
                     }
                     if (best < 0) continue;
                     var route = new ModAdvancedEconomy.Route(best, deficit.station, deficit.item,

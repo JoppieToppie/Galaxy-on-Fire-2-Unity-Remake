@@ -107,7 +107,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!quotes.TryGetValue((station, item), out var q) ||
                 !TryPrice(station, item, true, out int buy) || !TryPrice(station, item, false, out int sell)) return "";
-            return $"Next unit: Buy {buy:N0} / Sell {sell:N0} cr • Target {q.target:N0} t • War {q.pressure}% • Import {q.hops} hops";
+            string supply = q.stock < q.target ? $"Shortage {q.target - q.stock:N0} t" : q.stock > q.target ? $"Surplus {q.stock - q.target:N0} t" : "Balanced";
+            return $"Next unit: Buy {buy:N0} / Sell {sell:N0} cr • Stock {q.stock:N0}/{q.target:N0} t • {supply} • War {q.pressure}% • Import {q.hops} hops";
         }
 
         public static bool RequestPricedTrade(int station, int item, int units, bool buy)
@@ -407,9 +408,11 @@ namespace GoF2Remake.Multiplayer
                         changed.Add(station);
                     }
                 }
-                var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed);
-                TickPlayerMarket(Participates, changed, incoming);
-                TickNpcConstruction(Participates, changed);
+                var graph = ModAdvancedEconomy.RegionalTrade ? AdvancedEconomyRoutes.Build(db) : null;
+                var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed, graph);
+                var autoGraph = ModAdvancedEconomy.AutomaticRoutes ? graph : null;
+                TickPlayerMarket(Participates, changed, incoming, autoGraph);
+                TickNpcConstruction(Participates, changed, autoGraph);
                 if (ModAdvancedEconomy.DynamicPricing)
                     foreach (int station in ModAdvancedEconomy.Stations)
                         if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
@@ -424,14 +427,12 @@ namespace GoF2Remake.Multiplayer
         }
 
         // Supply only from surplus, after ordinary NPC routes and procurement have run.
-        static void TickNpcConstruction(Func<int, bool> participates, HashSet<int> changed)
+        static void TickNpcConstruction(Func<int, bool> participates, HashSet<int> changed, AdvancedEconomyRoutes graph)
         {
             if (!ModAdvancedEconomy.NpcConstructionSupply || !NetProfiles.Enabled ||
                 NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
                 NetPlayerStations.Stations == null) return;
             int remaining = ModAdvancedEconomy.NpcConstructionUnits;
-            var graph = ModAdvancedEconomy.RegionalTrade && ModAdvancedEconomy.AutomaticRoutes
-                ? AdvancedEconomyRoutes.Build(db) : null;
             var sources = new List<int>(ModAdvancedEconomy.Stations);
             sources.Sort();
             var projects = new List<PlayerStationRecord>(NetPlayerStations.Stations);
@@ -447,14 +448,14 @@ namespace GoF2Remake.Multiplayer
                     foreach (int station in sources)
                     {
                         if (remaining <= 0 || NetPlayerStations.ProfileWritesBlocked) return;
-                        if (order.remaining <= 0 || !project.buyOrders.Contains(order)) break;
+                        if (order.remaining <= 0 || project.buyOrders == null || !project.buyOrders.Contains(order)) break;
                         if (!participates(station) || !ModAdvancedEconomy.At(station).TryGetValue(order.item, out var rule)) continue;
                         int system = Shop.SystemOf(db, station);
                         int distance = system == project.system ? 0 : graph?.Distance(system, project.system) ?? -1;
                         if (distance < 0 || distance > ModAdvancedEconomy.MaxAutoHops) continue;
                         var balance = AdvancedEconomyLedger.Get(station, rule);
                         int count = ModAdvancedEconomy.ConstructionSupplyAmount(balance.Amount, rule.Target,
-                            order.remaining, order.remaining, remaining);
+                            order.remaining, NetPlayerStations.NpcConstructionRemaining(project, order.item), remaining);
                         if (count == 0) continue;
                         int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
                         int pressure = ModAdvancedEconomy.Pressure(db, station);
@@ -475,7 +476,7 @@ namespace GoF2Remake.Multiplayer
         // Player listings supply local NPC demand only after the ordinary shipment pass.
         // This cannot touch personal storage, factories, ships, or construction escrow.
         static void TickPlayerMarket(Func<int, bool> participates, HashSet<int> changed,
-            IReadOnlyDictionary<(int station, int item), int> incoming)
+            IReadOnlyDictionary<(int station, int item), int> incoming, AdvancedEconomyRoutes graph)
         {
             if (!ModAdvancedEconomy.PlayerMarketTrade || !NetProfiles.Enabled ||
                 NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
@@ -484,8 +485,6 @@ namespace GoF2Remake.Multiplayer
             int remainingUnits = ModAdvancedEconomy.PlayerMarketUnits;
             if (budget <= 0 || remainingUnits <= 0) return;
             // Regional automatic routing also opts in to abstract cross-system procurement.
-            var graph = ModAdvancedEconomy.RegionalTrade && ModAdvancedEconomy.AutomaticRoutes
-                ? AdvancedEconomyRoutes.Build(db) : null;
             var markets = new List<PlayerStationRecord>(NetPlayerStations.Stations);
             markets.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
             foreach (int station in ModAdvancedEconomy.Stations)
