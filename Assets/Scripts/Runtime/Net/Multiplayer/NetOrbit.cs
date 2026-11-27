@@ -496,6 +496,7 @@ namespace GoF2Remake.Multiplayer
             UpdateGarrison();
             FollowRunner();
             RequestFactionBattle(state);
+            RequestFreight(state);
             UpdateDerelictStandIns();
             // This player's own NPCs: the orbit's traffic (the authority) or a freelance mission's (anyone).
             bool ownNpcs = Authority || (level.Traffic != null && level.Traffic.Ships.Count > 0) || level.FreelanceOrbit != null
@@ -509,6 +510,60 @@ namespace GoF2Remake.Multiplayer
             ScanShips(state);
             ScanJunk(state);
             ScanCrates(state);
+        }
+
+        float freightRequestAt;
+
+        void RequestFreight(NetState state)
+        {
+            var me = NetPlayer.Local;
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || !Authority || level.Traffic == null ||
+                me == null || NetState.RunnerOf(Station) != me || Time.unscaledTime < freightRequestAt) return;
+            freightRequestAt = Time.unscaledTime + 5f;
+            state.RequestFreightRpc(Station);
+        }
+
+        internal void ApplyFreightManifest(string manifest)
+        {
+            var traffic = level?.Traffic;
+            if (!Authority || traffic == null || level.Layout == null) return;
+            var active = new HashSet<int>();
+            int slot = 0;
+            foreach (string row in (manifest ?? "").Split(';'))
+            {
+                string[] fields = row.Split(',');
+                if (fields.Length != 5 || !int.TryParse(fields[0], out int tag) ||
+                    !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
+                    !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
+                    !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
+                    level.Database.Item(item) == null || !active.Add(tag)) continue;
+                int index = slot++;
+                // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
+                if (traffic.Ships.Exists(x => x != null && x.Spec.eventTag == tag && !x.Gone) ||
+                    NetProxy.All.Exists(x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
+                bool large = amount > Modding.ModAdvancedEconomy.CormorantCapacity;
+                int race = level.Layout.raceId;
+                int configured = large ? Modding.ModAdvancedEconomy.RhinoShip : Modding.ModAdvancedEconomy.CormorantShip;
+                int ship = configured >= 0 ? configured : Modding.ModRaces.Look(race) == 1 ? 13 : 15;
+                // Freighters fly straight. Keep them in parallel lanes outside the station's hull.
+                Vector3 offset = new Vector3((index % 2 == 0 ? 1f : -1f) * (1800f + 800f * index),
+                    350f + index * 100f, 2300f);
+                Vector3 at = traffic.StationPosition + offset;
+                var npc = traffic.SpawnShip(new SpawnSpec
+                {
+                    group = NpcGroup.Freighter, race = race, ship = ship, freighter = true,
+                    eventTag = tag, noLoot = true, lootItem = item, lootAmount = amount,
+                    position = GamePosition(at), scale = configured >= 0 || large ? 1f : 0.65f,
+                    hitpoints = NpcTables.Hull(1, ship), speed = large ? 0.75f : 1.25f,
+                    name = (large ? "Rhino" : "Cormorant") + " Freight (" + amount + " t)"
+                });
+                // Fly along the lane, not through the station; abstract gate travel remains server timed.
+                npc.transform.rotation = Quaternion.LookRotation(source == Station ? Vector3.forward : Vector3.back);
+            }
+            foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone &&
+                Modding.ModAdvancedEconomy.IsFreightTag(x.Spec.eventTag) && x.Target != null && x.Target.Alive))
+                if (!active.Contains(npc.Spec.eventTag)) npc.JumpOut();
+            traffic.ConnectPlayers();
         }
 
         float factionWarRequestAt;
