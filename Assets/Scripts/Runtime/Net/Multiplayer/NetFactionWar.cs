@@ -334,7 +334,7 @@ namespace GoF2Remake.Multiplayer
                 for (int j = 0; j < qualified.Count; j++)
                 {
                     int i = qualified[j];
-                    long amount = settings.distribution == "split" ? NpcFactionWar.CreditShare(item.amount, qualified.Count, j) : item.amount;
+                    long amount = settings.distribution == "split" ? NpcFactionWar.Campaign.CreditShare(item.amount, qualified.Count, j) : item.amount;
                     if (item.scaleQuantity ?? settings.scaleLoot)
                         amount = settings.Scale(amount, settings.BonusPercent(reputations[i], priorWins[i]));
                     if (amount > 0) lootByPilot[i].Add(new NpcFactionWar.RewardItem { item = item.item, amount = (int)amount });
@@ -346,7 +346,7 @@ namespace GoF2Remake.Multiplayer
                 int reputation = reputations[i];
                 int bonus = settings.BonusPercent(reputation, previous);
                 long credits = settings.Scale(settings.distribution == "flat" ? settings.credits :
-                    NpcFactionWar.CreditShare(settings.credits, eligible.Count, i), bonus);
+                    NpcFactionWar.Campaign.CreditShare(settings.credits, eligible.Count, i), bonus);
                 var loot = lootByPilot[i];
                 if (credits == 0 && loot.Count == 0) continue;
                 pending.Add(new NpcFactionWar.VictoryReward
