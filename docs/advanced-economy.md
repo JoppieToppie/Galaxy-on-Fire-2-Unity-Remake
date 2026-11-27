@@ -123,3 +123,7 @@ system on production servers. Offline simulation intentionally pauses.
 Enable `npcConstructionSupply` with dynamic pricing and saved inventory, and set `npcConstructionUnitsPerTick` (default 100). NPC stations supply only managed commodity surplus above target, after ordinary trade routes. Funded construction and module buy orders are consent to supply; the bid must cover the marginal source price including route distance. Supply is local unless regional automatic routing is active. The posted bid is consumed from existing escrow as an NPC credit sink. No player seller is credited. The same journal records stock, delivered materials, build funding and any refunds. Deliveries are abstract and immediate. No independent jumpgate construction contribution is supplied.
 
 All regional economy phases share one topology and shortest-path cache per tick. Hangar commodity details show stock relative to target, including the numerical shortage or surplus.
+
+## Restricted player-built gates
+
+Enable `restrictedGateRouting` alongside `regionalTrade` and `playerGateRouting` to let authorized gate managers explicitly allow anonymous abstract NPC commerce through restricted gates. The security tab and `/station jumpgate-npc <orbit> on|off` manage this consent. No player access rule is altered. Consent is tied to the current owner; reclaimed gates clear it. Scrapped, unbuilt, destroyed, EMP-disabled or unlinked gates remain unavailable. Unrestricted public routing continues to work independently.

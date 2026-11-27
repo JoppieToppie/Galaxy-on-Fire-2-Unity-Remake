@@ -215,11 +215,14 @@ namespace GoF2Remake.Multiplayer
             return WithBlacklistReason("Access denied: this jumpgate restricts your race.", rule?.reason);
         }
 
+        static bool JumpgateOperational(PlayerJumpgateRecord gate) =>
+            gate != null && !gate.scrapped && !gate.permanentlyDestroyed && !gate.building && !gate.explosionPending &&
+            (!gate.combatStateInitialized || gate.structuralIntegrity > 0f) && gate.destinationSystem >= 0 &&
+            gate.empShutdownUntilUtc <= DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
         static bool JumpgateAccessAllowed(PlayerJumpgateRecord gate, string account, string factionId)
         {
-            if (gate == null || gate.scrapped || gate.permanentlyDestroyed || gate.building || gate.explosionPending ||
-                (gate.combatStateInitialized && gate.structuralIntegrity <= 0f) || gate.destinationSystem < 0 ||
-                gate.empShutdownUntilUtc > DateTimeOffset.UtcNow.ToUnixTimeSeconds()) return false;
+            if (!JumpgateOperational(gate)) return false;
             // A faction owns the infrastructure, but individual members remain subject to the
             // blacklist. Only an individually owned gate's actual owner bypasses its blacklist.
             bool owner = gate.ownershipType == PlayerStationOwnershipType.Individual &&
@@ -505,10 +508,12 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetGame.IsServer || registry?.jumpgates == null) yield break;
             foreach (var gate in registry.jumpgates)
-                if (gate != null && gate.accessMode == PlayerJumpgateAccessMode.Everyone &&
-                    (gate.raceAccess == null || gate.raceAccess.Count == 0) &&
-                    (gate.blacklist == null || gate.blacklist.Count == 0) &&
-                    JumpgateAccessAllowed(gate, null, null))
+                if (JumpgateOperational(gate) &&
+                    ((gate.accessMode == PlayerJumpgateAccessMode.Everyone &&
+                      (gate.raceAccess == null || gate.raceAccess.Count == 0) &&
+                      (gate.blacklist == null || gate.blacklist.Count == 0) &&
+                      JumpgateAccessAllowed(gate, null, null)) ||
+                     (Modding.ModAdvancedEconomy.RestrictedGateRouting && gate.HasNpcEconomyConsent)))
                     yield return (gate.system, gate.destinationSystem);
         }
 
@@ -911,6 +916,24 @@ namespace GoF2Remake.Multiplayer
             return by != null && by.InHangar && current != null && current.system == gate.system;
         }
 
+        internal static string SetJumpgateNpcEconomyAccess(NetPlayer by, int orbitStationIndex, bool enabled)
+        {
+            var gate = FindJumpgate(orbitStationIndex);
+            if (!CanManageJumpgate(by, gate, out _) || !JumpgateManagementDocked(by, gate))
+                return "Only an authorized gate manager docked in its origin system may change NPC commerce access.";
+            if (enabled && (!Modding.ModAdvancedEconomy.PlayerGateRouting || !Modding.ModAdvancedEconomy.RestrictedGateRouting))
+                return "Restricted NPC gate routing is disabled by the server's mod configuration.";
+            string previous = gate.npcEconomyAccessOwner;
+            gate.npcEconomyAccessOwner = enabled ? gate.EconomyOwnerKey : null;
+            if (!Save())
+            {
+                gate.npcEconomyAccessOwner = previous;
+                return "NPC gate access could not be saved.";
+            }
+            return enabled ? "Abstract NPC commerce authorized; player access restrictions are unchanged."
+                : "Explicit NPC commerce permission removed. Public unrestricted routing may still apply.";
+        }
+
         internal static string SetJumpgateAccess(NetPlayer by, int orbitStationIndex, string mode)
         {
             var gate = FindJumpgate(orbitStationIndex);
@@ -1177,6 +1200,7 @@ namespace GoF2Remake.Multiplayer
             gate.ownerName = factionClaim ? faction.name : by.DisplayName;
             gate.accessFactionId = faction?.id;
             gate.accessMode = PlayerJumpgateAccessMode.Everyone;
+            gate.npcEconomyAccessOwner = null;
             gate.blacklist = new List<PlayerJumpgateBlockEntry>();
             gate.raceAccess = null;
             gate.raceAccessExemptions = null;

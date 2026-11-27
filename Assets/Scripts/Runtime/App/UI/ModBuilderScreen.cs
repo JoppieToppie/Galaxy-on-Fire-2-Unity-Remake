@@ -1001,6 +1001,7 @@ namespace GoF2Remake.UI
             Flag("regionalTrade", "Abstract regional trade");
             Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
             Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
+            Flag("restrictedGateRouting", "Use restricted gates only with explicit owner NPC permission");
             Flag("warPressure", "Frontline commodity demand");
             Flag("tradeDisruption", "War-related shipment losses");
             Flag("dynamicPricing", "Dynamic server prices (requires saved inventory and profiles)");

@@ -37,6 +37,7 @@ namespace GoF2Remake.Modding
         public static int TransportPerHop { get; private set; } = 5;
         public static int SellSpread { get; private set; } = 10;
         public static bool PlayerGateRouting { get; private set; }
+        public static bool RestrictedGateRouting { get; private set; }
         public static bool AutomaticRoutes { get; private set; }
         public static int AutoCapacity { get; private set; } = 100;
         public static int AutoWarLoss { get; private set; }
@@ -138,7 +139,7 @@ namespace GoF2Remake.Modding
             TickSeconds = 900;
             rules.Clear();
             routes.Clear();
-            RegionalTrade = WarPressure = TradeDisruption = PlayerGateRouting = AutomaticRoutes = false;
+            RegionalTrade = WarPressure = TradeDisruption = PlayerGateRouting = RestrictedGateRouting = AutomaticRoutes = false;
             FrontlinePressure = 50; BattlePressure = 100;
             DynamicPricing = TransportCosts = PlayerMarketTrade = NpcConstructionSupply = false;
             NpcConstructionUnits = 100;
@@ -176,6 +177,7 @@ namespace GoF2Remake.Modding
                     int freightPrice = Math.Clamp(ModJson.Int(o, "transportCostPerHopPercent", 5, File), 0, 100);
                     int spread = Math.Clamp(ModJson.Int(o, "sellSpreadPercent", 10, File), 1, 99);
                     bool playerGates = ModJson.Bool(o, "playerGateRouting", false, File);
+                    bool restrictedGates = ModJson.Bool(o, "restrictedGateRouting", false, File);
                     bool automatic = ModJson.Bool(o, "automaticRoutes", false, File);
                     int frontline = Math.Clamp(ModJson.Int(o, "frontlinePressurePercent", 50, File), 0, 100);
                     int battle = Math.Clamp(ModJson.Int(o, "battlePressurePercent", 100, File), 0, 100);
@@ -294,6 +296,7 @@ namespace GoF2Remake.Modding
                     if (trade)
                     {
                         PlayerGateRouting |= playerGates;
+                        RestrictedGateRouting |= playerGates && restrictedGates;
                         AutomaticRoutes |= automatic;
                         TicksPerHop = hopTicks;
                         if (automatic) { AutoCapacity = capacityAuto; AutoWarLoss = disruption ? lossAuto : 0; MaxAutoHops = maxHops; }

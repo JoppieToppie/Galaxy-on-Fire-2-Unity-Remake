@@ -69,6 +69,14 @@ namespace GoF2Remake.Multiplayer
         public string constructionIssuerProfile;
         public string accessFactionId;
         public PlayerJumpgateAccessMode accessMode = PlayerJumpgateAccessMode.Everyone;
+        // Consent belongs to the granting owner, never to a subsequent owner.
+        public string npcEconomyAccessOwner;
+        public bool npcEconomyAccess;
+        internal string EconomyOwnerKey => ownershipType == PlayerStationOwnershipType.Faction
+            ? (string.IsNullOrEmpty(ownerFactionId) ? null : "f:" + ownerFactionId)
+            : (string.IsNullOrEmpty(ownerProfile) ? null : "p:" + ownerProfile);
+        internal bool HasNpcEconomyConsent => !string.IsNullOrEmpty(EconomyOwnerKey) &&
+            string.Equals(npcEconomyAccessOwner, EconomyOwnerKey, StringComparison.Ordinal);
         public List<PlayerJumpgateBlockEntry> blacklist = new List<PlayerJumpgateBlockEntry>();
         public List<StationRaceAccessRule> raceAccess;
         public List<string> raceAccessExemptions;
@@ -93,6 +101,8 @@ namespace GoF2Remake.Multiplayer
         internal PlayerJumpgateRecord ToPublicRecord()
         {
             var visible = (PlayerJumpgateRecord)MemberwiseClone();
+            visible.npcEconomyAccess = HasNpcEconomyConsent;
+            visible.npcEconomyAccessOwner = null;
             visible.ownerProfile = null;
             visible.ownerFactionId = null;
             visible.accessFactionId = null;

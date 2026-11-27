@@ -112,6 +112,9 @@ namespace GoF2Remake.UI
                     AddChoice(modeKey, "Access policy", new List<(string, string)> { ("everyone", "Everyone"), ("faction", "Owning faction"), ("blacklist", "Blacklist"), ("owner", "Owner only") });
                     AddAction("Set gate access · orbit " + orbitId, () =>
                         Send("/station jumpgate-access " + orbitId + " " + Value(modeKey)));
+                    if (Modding.ModAdvancedEconomy.RestrictedGateRouting || gate.npcEconomyAccess)
+                        AddAction(gate.npcEconomyAccess ? "Revoke explicit NPC commerce permission" : "Authorize NPC commerce through restricted gate", () =>
+                            Send("/station jumpgate-npc " + orbitId + (gate.npcEconomyAccess ? " off" : " on")));
                     AddChoice(typeKey, "Blacklist entry type", new List<(string, string)> { ("player", "Pilot"), ("faction", "Faction") }, _ => drafts.Remove(targetKey));
                     AddAccountField(targetKey, "Blacklist target");
                     string reasonKey = "gateBlockReason_" + orbitId;

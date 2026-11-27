@@ -429,6 +429,17 @@ namespace GoF2Remake.Multiplayer
                 int model = words.Length == 4 ? int.Parse(words[3]) : 0;
                 return NetPlayerStations.ClaimScrappedJumpgate(by as NetPlayer, claimOrbit, words[1], claimDestinationId, model);
             }
+            const string jumpgateNpc = "jumpgate-npc ";
+            if (args.StartsWith(jumpgateNpc, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateNpc.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int npcOrbit) ||
+                    (!string.Equals(words[1], "on", StringComparison.OrdinalIgnoreCase) &&
+                     !string.Equals(words[1], "off", StringComparison.OrdinalIgnoreCase)))
+                    return "/station jumpgate-npc <orbit station index> on|off";
+                return NetPlayerStations.SetJumpgateNpcEconomyAccess(by as NetPlayer, npcOrbit,
+                    string.Equals(words[1], "on", StringComparison.OrdinalIgnoreCase));
+            }
             const string jumpgateAccess = "jumpgate-access ";
             if (args.StartsWith(jumpgateAccess, StringComparison.OrdinalIgnoreCase))
             {
