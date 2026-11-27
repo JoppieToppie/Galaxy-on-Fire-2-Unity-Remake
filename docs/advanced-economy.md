@@ -150,6 +150,13 @@ Enable physical freight in the Advanced Economy settings of the Mod Builder, or 
   "cormorantCapacity": 400,
   "freightPerOrbit": 4,
   "freightSalvagePercent": 25,
+  "tickIntervalSeconds": 900,
+  "freightDispatchSeconds": 60,
+  "freightTravelMinSeconds": 30,
+  "freightTravelMaxSeconds": 90,
+  "freightUnloadMinSeconds": 15,
+  "freightUnloadMaxSeconds": 30,
+  "freightWreckLifetimeSeconds": 300,
   "rhinoFreightSpeedPercent": 75,
   "cormorantFreightSpeedPercent": 125
 }
@@ -157,8 +164,14 @@ Enable physical freight in the Advanced Economy settings of the Mod Builder, or 
 
 Physical freight requires a persistent server profile and saved regional inventory. Existing installations retain abstract transport unless opted in. The default hulls are Rhino (51) and Cormorant (36); override the optional `rhinoShip` and `cormorantShip` fields with ship references. NPC freight capacities are independent of purchasable ship stats. A shipment carries a single commodity, with its quantity constrained by supplier surplus, destination deficit and route capacity. Shipments of up to the Cormorant capacity use the light hull; larger shipments use the bulk hull. Set route capacity and stock targets sufficiently high for bulk loads to occur.
 
-The persistent ledger reserves cargo from suppliers, records freight identity, hull fraction, current orbit, cargo remaining and progress, and credits only surviving deliveries. In occupied orbits a bounded number of freighters materialize via the existing NPC network runner, moving between station and gate/arrival lanes. Materialized legs wait for waypoint arrival and EMP recovery; other legs advance through the economy tick, including systems with no players. Some generic ambient freighters are replaced rather than adding traffic indefinitely. The flight is hybrid: exact gate traversal, docking and spatial position continuity are not simulated across every orbit.
+The persistent ledger reserves cargo from suppliers, records freight identity, hull fraction, current orbit, cargo remaining and progress, and credits only surviving deliveries. In occupied orbits a bounded number of freighters materialize via the existing NPC network runner, moving between station and gate/arrival lanes. Materialized legs advance on actual waypoint arrival and EMP recovery; unmaterialized legs advance on their own randomized travel countdown, including systems with no players. Some generic ambient freighters are replaced rather than adding traffic indefinitely. The flight is hybrid: exact gate traversal, docking and spatial position continuity are not simulated across every orbit.
 
-EMP-disabled freight can be tractor-stolen. Destroying a freighter cancels its delivery and creates a recoverable wreck with the configured fraction of remaining cargo. Wrecks expire after five minutes. Claims are limited by the ledger's cargo, the claimant's available hold capacity and tractor reach, and journalled with persistent profile changes. NPC combat remains orbit-runner simulated under the existing multiplayer model. Player-market procurement and construction orders remain abstract; escorts and per-faction fleet composition are not implemented by this option.
+EMP-disabled freight can be tractor-stolen. Destroying a freighter cancels its delivery and creates a recoverable wreck with the configured fraction of remaining cargo. Wrecks expire after the configured lifetime (five minutes by default). Claims are limited by the ledger's cargo, the claimant's available hold capacity and tractor reach, and journalled with persistent profile changes. NPC combat remains orbit-runner simulated under the existing multiplayer model. Player-market procurement and construction orders remain abstract; escorts and per-faction fleet composition are not implemented by this option.
+
+### Independent freight timing
+
+All intervals are configurable in Mod Builder. Station production, consumption, wartime demand and NPC market/construction procurement remain on `tickIntervalSeconds` (900 seconds by default). Freight dispatch checks run every `freightDispatchSeconds` (60 seconds). Each unmaterialized leg chooses an inclusive random delay between `freightTravelMinSeconds` and `freightTravelMaxSeconds` (30–90 seconds). A materialized leg instead advances when its ship reaches the waypoint, provided EMP is not active; speed percentages control the actual flight. At the destination, unloading counts down between `freightUnloadMinSeconds` and `freightUnloadMaxSeconds` (15–30 seconds) once an approach is complete; if no ship materializes it uses the abstract countdown directly. A full destination keeps the remaining cargo in transit until storage becomes available. Cargo salvage expires after `freightWreckLifetimeSeconds` (300 seconds).
+
+Freight timing options accept 1–86400 seconds, with each maximum clamped to at least its corresponding minimum. Station flow keeps its original 60–86400 second range. Travel/unloading progress is persisted as remaining active server seconds, not a wall-clock deadline; offline time does not advance shipments. Legacy snapshots migrate on the next freight pulse without re-debiting stock. The older `travelTicks` and `ticksPerHop` still govern non-physical regional trade, not the independent physical-freight clock.
 
 Suggested multiplayer validation: compare source/destination inventory before and after delivery, theft, destruction and simultaneous salvage attempts; restart during a shipment; transfer orbit ownership; verify both hulls, EMP delays, scaled station/gate approaches and ambient replacement limits.
