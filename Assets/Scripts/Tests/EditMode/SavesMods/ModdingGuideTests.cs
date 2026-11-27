@@ -48,9 +48,28 @@ namespace GoF2Remake.Tests
             ModdingGuide.FolderOverride = null;
             ModdingGuide.Forget();
             foreach (var (file, _) in ModdingGuide.Files)
-                Assert.IsTrue(ModdingGuide.Has(file), $"{ModdingGuide.RepositoryFolder}/{file} missing");
+                Assert.IsTrue(ModdingGuide.Has(file), $"{ModdingGuide.RepositoryPath(file)} missing");
             Assert.Greater(ModdingGuide.Headings("SKILL.md").Count, 5);
             Assert.IsNotNull(ModdingGuide.Section("guide.md", "Ships", out _));
+        }
+
+        [Test]
+        public void NativeDocumentationIsDiscoverableThroughMcp()
+        {
+            ModdingGuide.FolderOverride = null;
+            ModdingGuide.Forget();
+            Assert.AreEqual(Path.Combine("Modding", "README.md"), ModdingGuide.RepositoryPath("guide.md"));
+            Assert.AreEqual("NATIVE_FEATURES.md", ModdingGuide.Find("native_features"));
+            Assert.Greater(ModdingGuide.Search("stationBuildSeconds", "NATIVE_FEATURES.md").Count, 0);
+            StringAssert.Contains("stationBuildSeconds", RunReadGuide(new JObject
+            {
+                ["file"] = "NATIVE_FEATURES.md", ["section"] = "Player-built stations and gates"
+            }));
+            var list = (JArray)Dispatch(Rpc("resources/list"))["result"]["resources"];
+            CollectionAssert.IsSubsetOf(ModdingGuide.Files.Select(f => "gof2-guide://" + f.file).ToArray(),
+                list.Select(r => (string)r["uri"]).ToArray());
+            var read = Dispatch(Rpc("resources/read", new JObject { ["uri"] = "gof2-guide://NATIVE_FEATURES.md" }))["result"]["contents"][0];
+            StringAssert.Contains("raceOrigins.json", (string)read["text"]);
         }
 
         [Test]
