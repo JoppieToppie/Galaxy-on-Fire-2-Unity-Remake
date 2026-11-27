@@ -50,6 +50,8 @@ namespace GoF2Remake.Multiplayer
             public int FreightTag, Orbit = -1, TotalTicks;
             public bool Bulk;
             public int Hull = 65535;
+            // -1 is a legacy tick-based shipment. Nonnegative values are active server seconds.
+            public int RemainingSeconds = -1;
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         sealed class FreightWreck
@@ -172,12 +174,15 @@ namespace GoF2Remake.Multiplayer
                 if ((tag != 0 && (!ModAdvancedEconomy.IsFreightTag(tag) || result.Values.Any(s => s.FreightTag == tag))) ||
                     orbit < -1 || totalTicks < 0 || totalTicks > 96 || (totalTicks != 0 && totalTicks < ticks))
                     throw new JsonException("Invalid physical freight identity or progress.");
+                int remainingSeconds = row["remainingSeconds"] == null ? -1 : (int)row["remainingSeconds"];
+                if (remainingSeconds < -1 || remainingSeconds > ModAdvancedEconomy.MaxFreightSeconds)
+                    throw new JsonException("Invalid freight travel countdown.");
                 int hull = row["hull"] == null ? 65535 : (int)row["hull"];
                 if (hull < 1 || hull > 65535) throw new JsonException("Invalid freight hull fraction.");
                 result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
                     FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks,
                     Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"],
-                    Hull = hull });
+                    Hull = hull, RemainingSeconds = remainingSeconds });
             }
             return result;
         }
@@ -217,6 +222,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         static bool Physical => Active && ModAdvancedEconomy.PhysicalFreight && NetProfiles.Enabled && CanJournal;
+        internal static bool IndependentFreightClock => Physical;
 
         static int NewFreightTag()
         {
@@ -244,6 +250,75 @@ namespace GoF2Remake.Multiplayer
                 .Select(s => s.index).DefaultIfEmpty(-1).Min();
             if (systems.Count == 1 && ship.Ticks < ship.TotalTicks) orbit = route.Destination;
             if (ship.Orbit != orbit) { ship.Orbit = orbit; dirty = true; }
+        }
+
+        static int RandomSeconds(int min, int max) => UnityEngine.Random.Range(min, max + 1);
+        static int TravelSeconds() => RandomSeconds(ModAdvancedEconomy.FreightTravelMinSeconds, ModAdvancedEconomy.FreightTravelMaxSeconds);
+        static int UnloadSeconds() => RandomSeconds(ModAdvancedEconomy.FreightUnloadMinSeconds, ModAdvancedEconomy.FreightUnloadMaxSeconds);
+
+        // Preserve the last saved orbit when migrating older shipments; do not re-debit stock.
+        static void StartFreightClock(Database db, ModAdvancedEconomy.Route route, Shipment ship, IReadOnlyList<int> systems)
+        {
+            if (ship.RemainingSeconds >= 0) return;
+            if (ship.FreightTag == 0 || ship.Orbit < 0)
+            {
+                if (ship.Ticks == 0 && ship.FreightTag == 0)
+                {
+                    ship.FreightTag = NewFreightTag();
+                    ship.Bulk = ship.Amount > ModAdvancedEconomy.CormorantCapacity;
+                    ship.Orbit = route.Destination;
+                }
+                else UpdateFreight(db, route, ship, systems);
+            }
+            ship.TotalTicks = 0;
+            ship.RemainingSeconds = ship.Orbit == route.Destination ? UnloadSeconds() : TravelSeconds();
+            dirty = true;
+        }
+
+        // One server pulse, no offline catch-up. Physical approach time replaces abstract travel time.
+        internal static int FreightCountdown(int remaining, bool materialized, bool ready, bool unloading)
+        {
+            if (materialized && !ready) return remaining;
+            if (materialized && !unloading) return 0;
+            return Math.Max(0, remaining - 1);
+        }
+
+        static bool AdvanceFreight(Database db, ModAdvancedEconomy.Route route, Shipment ship,
+            IReadOnlyList<int> systems, AdvancedEconomyRoutes graph, Dictionary<(int orbit, int tag), NetProxy> proxies)
+        {
+            if (ship.RemainingSeconds < 0)
+            {
+                StartFreightClock(db, route, ship, systems);
+                return false;
+            }
+            bool unloading = ship.Orbit == route.Destination;
+            bool materialized = proxies.ContainsKey((ship.Orbit, ship.FreightTag));
+            bool ready = !materialized || FreightLegReady(db, ship, proxies);
+            int currentSystem = Shop.SystemOf(db, ship.Orbit);
+            int destinationSystem = Shop.SystemOf(db, route.Destination);
+            var remainingPath = graph.Path(currentSystem, destinationSystem);
+            if (!unloading && (currentSystem < 0 || remainingPath == null)) return false;
+            int next = FreightCountdown(ship.RemainingSeconds, materialized, ready, unloading);
+            if (next != ship.RemainingSeconds) { ship.RemainingSeconds = next; dirty = true; }
+            if (next > 0 || !ready) return false;
+            if (unloading) return true;
+
+            int orbit = route.Destination;
+            if (remainingPath.Count > 2)
+            {
+                int system = remainingPath[1];
+                orbit = db.Systems.Find(s => s.index == system)?.jumpgateStation ?? -1;
+                if (orbit < 0 || Shop.SystemOf(db, orbit) != system)
+                    orbit = db.Stations.Where(s => s.system == system && !Shop.UsesPlayerMarketplace(s.index))
+                        .Select(s => s.index).DefaultIfEmpty(-1).Min();
+                if (orbit < 0) return false;
+            }
+            ship.Orbit = orbit;
+            ship.Ticks = Math.Max(0, remainingPath.Count - 2); // fallback if physical freight is later disabled
+            ship.Hops = Math.Max(ship.Hops, Math.Min(96, systems.Count - 1));
+            ship.RemainingSeconds = orbit == route.Destination ? UnloadSeconds() : TravelSeconds();
+            dirty = true;
+            return false;
         }
 
         // Only persisted, in-transit shipments are exposed; the amount is a manifest, not a grant.
@@ -313,7 +388,7 @@ namespace GoF2Remake.Multiplayer
             shipments.Remove(pair.Key);
             if (hasWreck)
                 wrecks[tag] = new FreightWreck { Orbit = orbit, Item = keys[2], Amount = recoverable, Race = race,
-                    Position = position, Expires = DateTime.UtcNow.AddMinutes(5).Ticks };
+                    Position = position, Expires = DateTime.UtcNow.AddSeconds(ModAdvancedEconomy.FreightWreckLifetimeSeconds).Ticks };
             dirty = true;
             Flush(true);
             if (!dirty) return true;
@@ -423,11 +498,11 @@ namespace GoF2Remake.Multiplayer
 
         // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
         // A disabled or removed route freezes its shipment; it never silently redirects cargo to another endpoint.
-        internal static Dictionary<(int station, int item), int> TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed, AdvancedEconomyRoutes graph)
+        internal static Dictionary<(int station, int item), int> TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed, AdvancedEconomyRoutes graph, bool advance = true, bool dispatch = true)
         {
             if (!ModAdvancedEconomy.RegionalTrade) return new Dictionary<(int station, int item), int>();
             Load();
-            var routes = ModAdvancedEconomy.Routes.ToList();
+            var routes = ModAdvancedEconomy.Routes.Where(r => dispatch || shipments.ContainsKey(RouteKey(r))).ToList();
             var keys = new HashSet<string>(routes.Select(RouteKey));
             // Restore previously dispatched automatic routes even if they no longer have
             // a surplus. A disconnected route keeps its cargo until a path reopens.
@@ -443,6 +518,8 @@ namespace GoF2Remake.Multiplayer
                         ModAdvancedEconomy.AutoCapacity, 1, ModAdvancedEconomy.AutoWarLoss);
                     if (keys.Add(key)) routes.Add(route);
                 }
+                if (dispatch)
+                {
                 // Discover destinations with deficits and sources with surpluses, grouped
                 // by commodity. Only one automatically selected supplier per deficit per tick.
                 var suppliers = new Dictionary<int, List<int>>();
@@ -479,6 +556,7 @@ namespace GoF2Remake.Multiplayer
                         ModAdvancedEconomy.AutoCapacity, 1, ModAdvancedEconomy.AutoWarLoss);
                     if (keys.Add(RouteKey(route))) routes.Add(route);
                 }
+                }
             }
             var incoming = new Dictionary<(int station, int item), int>();
             foreach (var route in routes)
@@ -490,7 +568,8 @@ namespace GoF2Remake.Multiplayer
                 incoming[key] = (int)Math.Min(ModAdvancedEconomy.MaxStock, (long)total + shipment.Amount);
             }
             var systemPressure = new Dictionary<int, int>();
-            var freightProxies = PhysicalFreightProxies();
+            bool physical = Physical;
+            var freightProxies = advance && physical ? PhysicalFreightProxies() : null;
             foreach (var route in routes)
             {
                 if (!participates(route.Source) || !participates(route.Destination) ||
@@ -501,13 +580,6 @@ namespace GoF2Remake.Multiplayer
                     !to.TryGetValue(route.Item, out var destinationRule)) continue;
                 var path = graph.Path(Shop.SystemOf(db, route.Source), Shop.SystemOf(db, route.Destination));
                 if (path == null) continue;
-                int routePressure = Math.Max(pressure(route.Source), pressure(route.Destination));
-                foreach (int system in path)
-                {
-                    if (!systemPressure.TryGetValue(system, out int p))
-                        systemPressure[system] = p = ModAdvancedEconomy.SystemPressure(db, system);
-                    routePressure = Math.Max(routePressure, p);
-                }
                 var source = Get(route.Source, sourceRule);
                 var destination = Get(route.Destination, destinationRule);
                 string key = RouteKey(route);
@@ -515,16 +587,16 @@ namespace GoF2Remake.Multiplayer
                 incoming.TryGetValue(incomingKey, out int reserved);
                 if (shipments.TryGetValue(key, out var shipment))
                 {
-                    if (!FreightLegReady(db, shipment, freightProxies)) continue;
-                    if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
-                    if (shipment.Ticks > 0 || shipment.TotalTicks > 0) UpdateFreight(db, route, shipment, path);
-                    if (shipment.Ticks > 0) continue;
-                    // Give a newly reached destination one full tick of visibility before unloading.
-                    if (Physical && shipment.Orbit == route.Destination && shipment.TotalTicks > 0)
+                    if (!advance) continue;
+                    if (physical)
                     {
-                        shipment.TotalTicks = 0;
-                        dirty = true;
-                        continue;
+                        if (!AdvanceFreight(db, route, shipment, path, graph, freightProxies)) continue;
+                    }
+                    else
+                    {
+                        if (shipment.RemainingSeconds >= 0) { shipment.RemainingSeconds = -1; dirty = true; }
+                        if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
+                        if (shipment.Ticks > 0) continue;
                     }
                     int delivered = Math.Min(shipment.Amount, destinationRule.Maximum - destination.Amount);
                     if (delivered > 0)
@@ -544,9 +616,17 @@ namespace GoF2Remake.Multiplayer
                     // Full destination holds the undelivered cargo in transit; no goods are duplicated or discarded.
                     continue;
                 }
+                if (!dispatch) continue;
+                int routePressure = Math.Max(pressure(route.Source), pressure(route.Destination));
+                foreach (int system in path)
+                {
+                    if (!systemPressure.TryGetValue(system, out int p))
+                        systemPressure[system] = p = ModAdvancedEconomy.SystemPressure(db, system);
+                    routePressure = Math.Max(routePressure, p);
+                }
                 int send = ModAdvancedEconomy.DispatchAmount(source.Amount, sourceRule.Target,
                     destination.Amount + reserved, destinationRule.Target, route.Capacity);
-                if (Physical) send = ModAdvancedEconomy.FreightCapacity(send, ModAdvancedEconomy.RhinoCapacity, ModAdvancedEconomy.CormorantCapacity);
+                if (physical) send = ModAdvancedEconomy.FreightCapacity(send, ModAdvancedEconomy.RhinoCapacity, ModAdvancedEconomy.CormorantCapacity);
                 if (send <= 0) continue;
                 int resaleSent = Math.Min(send, source.Resale);
                 int survive = ModAdvancedEconomy.SurvivingCargo(send, route.WarLossPercent,
@@ -559,10 +639,12 @@ namespace GoF2Remake.Multiplayer
                     var dispatched = new Shipment { Amount = survive, Resale = resaleSurvives,
                         Ticks = Math.Min(96, Math.Max(route.TravelTicks, Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)),
                         Hops = Math.Min(96, path.Count - 1) };
-                    if (Physical)
+                    if (physical)
                     {
-                        dispatched.Ticks = Math.Max(dispatched.Ticks, Math.Max(2, path.Count));
-                        UpdateFreight(db, route, dispatched, path);
+                        dispatched.FreightTag = NewFreightTag();
+                        dispatched.Bulk = survive > ModAdvancedEconomy.CormorantCapacity;
+                        dispatched.Orbit = route.Source;
+                        dispatched.RemainingSeconds = TravelSeconds();
                     }
                     shipments[key] = dispatched;
                     incoming[incomingKey] = reserved + survive;
@@ -609,7 +691,8 @@ namespace GoF2Remake.Multiplayer
             foreach (var pair in shipments)
                 cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
                     ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops, ["freightTag"] = pair.Value.FreightTag,
-                    ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks, ["bulk"] = pair.Value.Bulk, ["hull"] = pair.Value.Hull });
+                    ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks, ["bulk"] = pair.Value.Bulk, ["hull"] = pair.Value.Hull,
+                    ["remainingSeconds"] = pair.Value.RemainingSeconds });
             var debris = new JArray();
             foreach (var pair in wrecks)
             {
