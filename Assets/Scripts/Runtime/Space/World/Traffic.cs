@@ -189,6 +189,7 @@ namespace GoF2Remake.World
         {
             var ship = Create(spec, adopted: true);
             ship.transform.rotation = rotation;
+            if (NpcFactionWar.IsWarTag(spec.eventTag)) ship.GetComponent<CapitalSubsystems>()?.BuildNow();
             var hp = ship.Hp;
             if (hp != null && hp.maxHull > 0)
             {
@@ -285,7 +286,7 @@ namespace GoF2Remake.World
             var spec = new SpawnSpec
             {
                 group = NpcGroup.Turret, race = NpcFactionWar.IsWarTag(host.Spec.eventTag) ? host.Race : myfft ? Standing.Pirate : 0, ship = -1, turretAssembly = "turret_002_static",
-                eventTag = NpcFactionWar.AuxiliaryTag(host.Spec.eventTag) == host.Spec.eventTag ? 0 : NpcFactionWar.AuxiliaryTag(host.Spec.eventTag),
+                eventTag = NpcFactionWar.IsWarTag(host.Spec.eventTag) ? NpcFactionWar.AuxiliaryTag(host.Spec.eventTag) : 0,
                 hitpoints = Mathf.Max(1, host.Hp.maxHull), noLoot = true, nameText = 1666, stationary = true,
                 alwaysEnemy = host.Spec.alwaysEnemy, alwaysFriend = host.Spec.alwaysFriend, position = host.Spec.position,
             };

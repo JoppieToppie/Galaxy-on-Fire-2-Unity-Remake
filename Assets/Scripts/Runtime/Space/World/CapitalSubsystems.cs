@@ -71,11 +71,19 @@ namespace GoF2Remake.World
             return c;
         }
 
+        // A multiplayer handover must build parts before NetOrbit matches old proxies to them.
+        internal void BuildNow()
+        {
+            if (built || host == null || dead || halted) return;
+            built = true;
+            Build();
+        }
+
         void Update()
         {
             if (halted && !dead) { UpdateEscape(Time.deltaTime * 1000f); return; }
             if (host == null || dead || halted) return;
-            if (!built) { built = true; Build(); }
+            BuildNow();
             float dtMs = Time.deltaTime * 1000f;
             sinceWarnMs += dtMs;
             bool hostile = host.alwaysEnemy || host.turnedEnemy;

@@ -104,6 +104,10 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(NpcFactionWar.IsAuxiliaryTag(tag));
             Assert.IsTrue(a.OwnsTag(tag));
             Assert.IsFalse(a.IsRosterTag(tag));
+            var campaign = NpcFactionWar.Campaign.Read("{\"active\":[{\"id\":1,\"orbit\":11,\"system\":0,\"defender\":0,\"attacker\":1,\"shipsPerSide\":100,\"expires\":1000,\"pausedSeconds\":-1}]}");
+            Assert.IsFalse(campaign.RecordCasualty(a, tag, 0, 100, out _));
+            Assert.IsTrue(campaign.TryGetStatus(0, 11, 100, out var status));
+            Assert.AreEqual(100, status.DefendersAlive);
             Assert.IsFalse(b.OwnsTag(tag));
             Assert.AreEqual(123, NpcFactionWar.AuxiliaryTag(123));
         }

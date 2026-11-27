@@ -462,6 +462,7 @@ namespace GoF2Remake.Data
             public bool RecordCasualty(Battle battle, int tag, int race, long now, out int winner)
             {
                 winner = -1;
+                if (!battle.IsRosterTag(tag)) return false;
                 if (!battles.TryGetValue(battle.system, out var active) || active.battle.id != battle.id ||
                     active.battle.expires < now) return false;
                 battle = active.battle;
