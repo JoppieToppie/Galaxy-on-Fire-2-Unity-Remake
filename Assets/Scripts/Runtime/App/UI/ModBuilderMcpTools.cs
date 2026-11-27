@@ -605,7 +605,7 @@ namespace GoF2Remake.UI
             if (write)
             {
                 string folder = rel.Split('/')[0];
-                if (!FileFolders.Contains(folder) && !string.Equals(rel, ModWingmen.File, StringComparison.OrdinalIgnoreCase)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
+                if (!FileFolders.Contains(folder) && !string.Equals(rel, ModWingmen.File, StringComparison.OrdinalIgnoreCase) && !string.Equals(rel, ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
                 if (!FileExtensions.Contains(ext)) { why = $"Not a file type a mod uses: {ext}"; return null; }
             }
             string full = Path.GetFullPath(Path.Combine(Project.Folder, rel));
@@ -685,6 +685,12 @@ namespace GoF2Remake.UI
             string ext = Path.GetExtension(full).ToLowerInvariant();
             if (ext == ".aem") { WriteAem(c, screen, rel, bytes); return; }   // the game's own model: kept as .glb
             if (ext == ".glb" && (bytes.Length < 4 || bytes[0] != 'g' || bytes[1] != 'l' || bytes[2] != 'T' || bytes[3] != 'F')) { c.Fail("Not a glTF binary (.glb)."); return; }
+            if (string.Equals(rel?.Trim(), ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase))
+            {
+                try { ModPvpPiracy.Validate(JObject.Parse(Encoding.UTF8.GetString(bytes))); }
+                catch (Exception error) when (error is JsonException || error is ModJsonException || error is FormatException || error is OverflowException)
+                { c.Fail(error.Message); return; }
+            }
             if (ext == ".json" || ext == ".gof2event")
             {
                 if (ext == ".json") try { JToken.Parse(Encoding.UTF8.GetString(bytes)); } catch (Exception e) { c.Fail("Not JSON: " + e.Message); return; }
