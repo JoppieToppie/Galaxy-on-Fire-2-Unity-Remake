@@ -738,6 +738,10 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   one that is force-suspended is dropped ("ran for too long"); an error is the mod's warning ("Script: file:(line,col):
   ..."), a console line (`ModScripts.Lines`) and a LogWarning, never a logged exception; a handler failing 5 times in a
   row is removed. A Lua coroutine a script makes itself has no budget.
+  **Cost** (2026-11-28, Discord: a mod's 12 idle `update` handlers gave 33-74 ms stalls): a new MoonSharp coroutine
+  allocates two 131072-entry stacks (~2.1 MB, 0.22 ms), so every handler / timer / patch call was GC garbage; `Vm.Call`
+  now reuses a finished one (`RecycleCoroutine`, up to 2 kept per state): 0.015 ms and ~840 B a call
+  (`HandlersReuseTheirCoroutinesInsteadOfAllocatingNewStacks`). Patches still box their arguments (`ModScriptsPatch`).
   **Multiplayer** (`NetMods`): a session's script mods run in every game. `BeginHost` leaves out the host's mods whose
   scripts the host hasn't allowed; a joining game with a session mod's scripts not allowed is stopped in
   `NetState.OnNetworkSpawn` before `ApplyFromServer` (`ScriptRefusal` -> `NetGame.RefuseJoin` the next frame: the

@@ -155,6 +155,23 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void HandlersReuseTheirCoroutinesInsteadOfAllocatingNewStacks()
+        {
+            // Discord, 2026-11-27: twelve idle update handlers stalled the game (each call made a ~2 MB coroutine)
+            Run(("scripts/main.lua", "n = 0 for i = 1, 12 do game.on('update', function(dt) n = n + 1 end) end "
+                + "game.on('spin', function() while true do end end) game.on('bad', function() error('boom') end) game.on('show', function() print(n) end)"));
+            ModScripts.Tick(0.016f);
+            ModScripts.Raise("spin");   // a stopped and a failed call aren't reused, the next calls still run
+            ModScripts.Raise("bad");
+            long before = System.GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 100; i++) ModScripts.Tick(0.016f);
+            long perFrame = (System.GC.GetAllocatedBytesForCurrentThread() - before) / 100;
+            ModScripts.Raise("show");
+            Assert.AreEqual("1212", Out(), "every handler ran every frame");
+            Assert.Less(perFrame, 100_000, "12 handlers a frame allocated " + perFrame + " bytes");
+        }
+
+        [Test]
         public void AFailingHandlerIsDroppedAfterFiveFailures()
         {
             Run(("scripts/main.lua", "game.on('bad', function() error('boom') end) game.on('bad', function() print('ok') end)"));
