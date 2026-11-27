@@ -20,17 +20,19 @@ namespace GoF2Remake.Modding
         public static int IntervalSeconds { get; private set; }
         public static int BattleSeconds { get; private set; }
         public static bool DynamicFrontlines { get; private set; } = true;
+        public static bool GateOnlyFrontlines { get; private set; }
 
         // Default protected hubs. Additional core systems can be listed by active mods.
         static readonly HashSet<int> DefaultCores = new HashSet<int> { 3, 6, 9, 15, 25, 26 };
         static readonly HashSet<int> ExtraCores = new HashSet<int>();
+        static readonly HashSet<int> UnprotectedDefaultCores = new HashSet<int>();
         static readonly HashSet<int> ExplicitFrontlines = new HashSet<int>();
         static readonly HashSet<int> ExcludedSystems = new HashSet<int>();
         public static bool IsExplicitFrontline(SystemData system) => system != null && ExplicitFrontlines.Contains(system.index);
         public static bool IsWarOrbit(int orbit) => orbit >= 0 && orbit < 100000;
         public static bool CanContest(SystemData system) => system != null && system.raceId >= 0 && system.raceId <= 3 &&
             system.securityLevel < 3 && !ExtraCores.Contains(system.index) && !ExcludedSystems.Contains(system.index) &&
-            (!DefaultCores.Contains(system.index) || IsExplicitFrontline(system));
+            (!DefaultCores.Contains(system.index) || UnprotectedDefaultCores.Contains(system.index) || IsExplicitFrontline(system));
 
         internal static void Apply()
         {
@@ -40,6 +42,8 @@ namespace GoF2Remake.Modding
             IntervalSeconds = 1200;
             BattleSeconds = 480;
             DynamicFrontlines = true;
+            GateOnlyFrontlines = false;
+            UnprotectedDefaultCores.Clear();
             ExtraCores.Clear();
             ExplicitFrontlines.Clear();
             ExcludedSystems.Clear();
@@ -60,13 +64,17 @@ namespace GoF2Remake.Modding
                     int interval = Mathf.Clamp(ModJson.Int(options, "intervalSeconds", IntervalSeconds, File), 60, 86400);
                     int duration = Mathf.Clamp(ModJson.Int(options, "battleSeconds", BattleSeconds, File), 60, 3600);
                     bool dynamicFrontlines = ModJson.Bool(options, "dynamicFrontlines", DynamicFrontlines, File);
+                    bool gateOnlyFrontlines = ModJson.Bool(options, "gateOnlyFrontlines", GateOnlyFrontlines, File);
+                    var unprotected = ReadSystems(options, "unprotectedDefaultCores", mod.Id);
                     var cores = ReadSystems(options, "coreSystems", mod.Id);
                     var frontlines = ReadSystems(options, "frontlineSystems", mod.Id);
                     var excluded = ReadSystems(options, "excludedSystems", mod.Id);
+                    UnprotectedDefaultCores.UnionWith(unprotected);
                     ExtraCores.UnionWith(cores);
                     ExplicitFrontlines.UnionWith(frontlines);
                     ExcludedSystems.UnionWith(excluded);
                     DynamicFrontlines = dynamicFrontlines;
+                    GateOnlyFrontlines = gateOnlyFrontlines;
                     Enabled |= enabled;
                     ShipsPerSide = ships;
                     IntervalSeconds = interval;
