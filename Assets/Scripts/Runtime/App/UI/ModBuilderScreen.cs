@@ -998,6 +998,9 @@ namespace GoF2Remake.UI
             Flag("simulateUnvisitedStations", "Simulate unvisited configured stations");
             Flag("stationProduction", "Station production");
             Flag("stationConsumption", "Station consumption");
+            Flag("regionalTrade", "Abstract regional trade");
+            Flag("warPressure", "Frontline commodity demand");
+            Flag("tradeDisruption", "War-related shipment losses");
             Int(scroll, "Tick interval (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
                 v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
             Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
@@ -1015,9 +1018,10 @@ namespace GoF2Remake.UI
                 Field("initialStock", "Initial stock", 100, 0);
                 Field("productionPerTick", "Production per tick", 0, 0);
                 Field("consumptionPerTick", "Consumption per tick", 0, 0);
+                Field("warDemandPerTick", "Extra demand at maximum war pressure", 0, 0);
                 Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
             }
-            Note(scroll, "Add station and commodity references in advanced-economy.json (stockRules); the existing rows can be edited here. Pricing and shipping will follow.");
+            Note(scroll, "Add station and commodity references in advanced-economy.json (stockRules); the existing rows can be edited here. Add directed tradeRoutes in the JSON file. Dynamic pricing will follow.");
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
         }

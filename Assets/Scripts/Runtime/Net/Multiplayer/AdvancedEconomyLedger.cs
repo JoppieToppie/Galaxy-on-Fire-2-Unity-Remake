@@ -41,6 +41,11 @@ namespace GoF2Remake.Multiplayer
 
         static readonly Dictionary<Key, Balance> balances = new Dictionary<Key, Balance>();
         static readonly Dictionary<(int station, int item), Balance> live = new Dictionary<(int, int), Balance>();
+        sealed class Shipment
+        {
+            public int Amount, Resale, Ticks;
+        }
+        static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         static bool loaded, dirty, readFailed;
         static float nextSave;
         static string path;
@@ -51,6 +56,7 @@ namespace GoF2Remake.Multiplayer
         {
             balances.Clear();
             live.Clear();
+            shipments.Clear();
             loaded = dirty = readFailed = false;
             path = null;
             nextSave = 0;
@@ -72,8 +78,11 @@ namespace GoF2Remake.Multiplayer
                 try
                 {
                     if (!File.Exists(candidate)) continue;
-                    var parsed = Read(File.ReadAllText(candidate));
+                    string json = File.ReadAllText(candidate);
+                    var parsed = Read(json);
+                    var cargo = ReadShipments(JObject.Parse(json));
                     foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
+                    foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
                     if (candidate != path)
                     {
                         Debug.LogWarning("Advanced economy: recovered the backup snapshot.");
@@ -116,6 +125,99 @@ namespace GoF2Remake.Multiplayer
             return result;
         }
 
+        static Dictionary<string, Shipment> ReadShipments(JObject root)
+        {
+            var result = new Dictionary<string, Shipment>();
+            if (root["shipments"] == null) return result; // old version-1 snapshots
+            if (!(root["shipments"] is JArray rows)) throw new JsonException("Invalid shipments.");
+            foreach (var token in rows)
+            {
+                if (!(token is JObject row) || row["key"]?.Type != JTokenType.String ||
+                    row["amount"]?.Type != JTokenType.Integer || row["resale"]?.Type != JTokenType.Integer ||
+                    row["ticks"]?.Type != JTokenType.Integer)
+                    throw new JsonException("Invalid shipment.");
+                string key = (string)row["key"];
+                long amount = (long)row["amount"], resale = (long)row["resale"], ticks = (long)row["ticks"];
+                if (string.IsNullOrEmpty(key) || amount < 1 || amount > ModAdvancedEconomy.MaxStock ||
+                    resale < 0 || resale > amount || ticks < 0 || ticks > 96 || result.ContainsKey(key))
+                    throw new JsonException("Invalid shipment balance.");
+                result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks });
+            }
+            return result;
+        }
+
+        static string RouteKey(ModAdvancedEconomy.Route route)
+        {
+            var a = StableKey(route.Source, route.Item);
+            var b = StableKey(route.Destination, route.Item);
+            return a.Station + "|" + b.Station + "|" + a.Item;
+        }
+
+        // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
+        // A disabled or removed route freezes its shipment; it never silently redirects cargo to another endpoint.
+        internal static void TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed)
+        {
+            if (!ModAdvancedEconomy.RegionalTrade) return;
+            Load();
+            var incoming = new Dictionary<(int station, int item), int>();
+            foreach (var route in ModAdvancedEconomy.Routes)
+            {
+                if (!participates(route.Source) || !participates(route.Destination)) continue;
+                if (!shipments.TryGetValue(RouteKey(route), out var shipment)) continue;
+                var key = (route.Destination, route.Item);
+                incoming.TryGetValue(key, out int total);
+                incoming[key] = (int)Math.Min(ModAdvancedEconomy.MaxStock, (long)total + shipment.Amount);
+            }
+            foreach (var route in ModAdvancedEconomy.Routes)
+            {
+                if (!participates(route.Source) || !participates(route.Destination) ||
+                    !ModAdvancedEconomy.Eligible(db, route.Item)) continue;
+                var from = ModAdvancedEconomy.At(route.Source);
+                var to = ModAdvancedEconomy.At(route.Destination);
+                if (from == null || to == null || !from.TryGetValue(route.Item, out var sourceRule) ||
+                    !to.TryGetValue(route.Item, out var destinationRule)) continue;
+                var source = Get(route.Source, sourceRule);
+                var destination = Get(route.Destination, destinationRule);
+                string key = RouteKey(route);
+                var incomingKey = (route.Destination, route.Item);
+                incoming.TryGetValue(incomingKey, out int reserved);
+                if (shipments.TryGetValue(key, out var shipment))
+                {
+                    if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
+                    if (shipment.Ticks > 0) continue;
+                    int delivered = Math.Min(shipment.Amount, destinationRule.Maximum - destination.Amount);
+                    if (delivered > 0)
+                    {
+                        int resale = Math.Min(delivered, shipment.Resale);
+                        Set(route.Destination, destinationRule, destination.Amount + delivered, destination.Resale + resale);
+                        shipment.Amount -= delivered;
+                        shipment.Resale -= resale;
+                        incoming[incomingKey] = Math.Max(0, reserved - delivered);
+                        changed.Add(route.Destination);
+                        dirty = true;
+                    }
+                    if (shipment.Amount == 0) { shipments.Remove(key); dirty = true; }
+                    // Full destination holds the undelivered cargo in transit; no goods are duplicated or discarded.
+                    continue;
+                }
+                int send = ModAdvancedEconomy.DispatchAmount(source.Amount, sourceRule.Target,
+                    destination.Amount + reserved, destinationRule.Target, route.Capacity);
+                if (send <= 0) continue;
+                int resaleSent = Math.Min(send, source.Resale);
+                int survive = ModAdvancedEconomy.SurvivingCargo(send, route.WarLossPercent,
+                    Math.Max(pressure(route.Source), pressure(route.Destination)));
+                Set(route.Source, sourceRule, source.Amount - send, source.Resale - resaleSent);
+                changed.Add(route.Source);
+                if (survive > 0)
+                {
+                    int resaleSurvives = Math.Min(resaleSent, survive);
+                    shipments[key] = new Shipment { Amount = survive, Resale = resaleSurvives, Ticks = route.TravelTicks };
+                    incoming[incomingKey] = reserved + survive;
+                    dirty = true;
+                }
+            }
+        }
+
         internal static Balance Get(int station, ModAdvancedEconomy.Rule rule)
         {
             Load();
@@ -140,14 +242,18 @@ namespace GoF2Remake.Multiplayer
 
         internal static void Flush(bool force = false)
         {
-            if (!loaded || !dirty || readFailed || path == null || !Active ||
-                !ModAdvancedEconomy.SaveInventory || (!force && Time.unscaledTime < nextSave)) return;
+            if (!loaded || !dirty || readFailed || path == null ||
+                (!force && (!Active || !ModAdvancedEconomy.SaveInventory || Time.unscaledTime < nextSave))) return;
             nextSave = Time.unscaledTime + 10f;
             var rows = new JArray();
             foreach (var pair in balances)
                 rows.Add(new JObject { ["station"] = pair.Key.Station, ["item"] = pair.Key.Item,
                     ["amount"] = pair.Value.Amount, ["resale"] = pair.Value.Resale });
-            var root = new JObject { ["version"] = 1, ["rows"] = rows };
+            var cargo = new JArray();
+            foreach (var pair in shipments)
+                cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
+                    ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks });
+            var root = new JObject { ["version"] = 1, ["rows"] = rows, ["shipments"] = cargo };
             if (NetProfiles.Write(path, root.ToString(Formatting.None))) dirty = false;
         }
     }

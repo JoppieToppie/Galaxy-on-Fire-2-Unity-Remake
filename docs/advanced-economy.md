@@ -45,7 +45,35 @@ override a duplicate station/item row; their inventory tick interval also wins.
 Disabled files contribute nothing. Emergency fuel at the three special stations is
 excluded. No configuration is automatically installed or activated.
 
-Next phases: category
-profiles and specialization, server-authoritative price quotes/transactions, demand and
-scarcity pricing, abstract shipments, and gate-based frontline war pressure. Do not
+## Optional trade routes and wartime demand
+
+Enable `regionalTrade` to process directed `tradeRoutes` (default false). Both
+endpoints must have a managed stock rule for the commodity. Each route links
+distinct NPC stations in the same system or directly connected by existing
+jumpgate links. The source exports surplus above target, capped by capacity
+and the destination's shortfall, including reserved incoming cargo.
+
+Example route (replace references with actual station and commodity IDs):
+```json
+{ "source": 1, "destination": 2, "item": 101, "capacity": 25, "travelTicks": 2, "warLossPercent": 20 }
+```
+
+A shipment has a finite quantity, is debited at departure, and arrives after
+the specified number of economy ticks. One shipment per route is allowed in
+transit. An overfilled destination holds cargo pending room. In-flight cargo
+is saved alongside balances. Disabling/removing a route freezes its in-flight
+cargo until the same route returns. With unvisited simulation off, both
+stations must have generated shops before the route operates.
+
+Enable `warPressure` for category-specific extra demand via each commodity
+row's `warDemandPerTick` (default 0). The existing NPC faction campaign
+classifies frontlines; normal systems have pressure 0, frontline stations 50
+and stations in active battles 100. Extra consumption scales with pressure.
+Enable `tradeDisruption` as well for deterministic losses on shipments
+according to `warLossPercent` and the higher endpoint's pressure.
+No physical convoy, no coordinate-proximity trade routes, no offline catch-up.
+
+Next phases: category profiles and specialization, server-authoritative price
+quotes/transactions, scarcity and logistics pricing, player-station integration
+and dynamic player-built gate routing. Do not
 activate the advanced economy for production servers until these are validated.

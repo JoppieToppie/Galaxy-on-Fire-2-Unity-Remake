@@ -87,6 +87,7 @@ namespace GoF2Remake.Multiplayer
         {
             stocks.Clear();
             nextEconomyTick = 0;
+            db = null;
             AdvancedEconomyLedger.Reset();
             pending.Clear();
             reservations.Clear();
@@ -262,6 +263,7 @@ namespace GoF2Remake.Multiplayer
             {
                 entry.rareTarget.Remove(rule.Item);
                 entry.items.RemoveAll(r => r.item == rule.Item);
+                entry.resale.Remove(rule.Item);
                 if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
                 var balance = AdvancedEconomyLedger.Get(station, rule);
                 SetEconomyRow(entry, rule.Item, balance.Amount);
@@ -296,28 +298,36 @@ namespace GoF2Remake.Multiplayer
             {
                 nextEconomyTick = Time.unscaledTime + ModAdvancedEconomy.TickSeconds;
                 if (db == null) db = Database.Load();
+                bool Participates(int station) => !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
+                    (ModAdvancedEconomy.SimulateUnvisitedStations || stocks.ContainsKey(station));
+                var pressures = new Dictionary<int, int>();
+                int Pressure(int station)
+                {
+                    if (!pressures.TryGetValue(station, out int p))
+                        pressures[station] = p = ModAdvancedEconomy.Pressure(db, station);
+                    return p;
+                }
+                var changed = new HashSet<int>();
                 foreach (int station in ModAdvancedEconomy.Stations)
                 {
-                    if (Shop.UsesPlayerMarketplace(station) || KaamoClub.StorageAt(station)) continue;
-                    stocks.TryGetValue(station, out var entry);
-                    if (entry == null && !ModAdvancedEconomy.SimulateUnvisitedStations) continue;
-                    bool changed = false;
+                    if (!Participates(station)) continue;
                     foreach (var rule in ModAdvancedEconomy.At(station).Values)
                     {
                         if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
                         var balance = AdvancedEconomyLedger.Get(station, rule);
-                        int next = rule.Advance(balance.Amount, ModAdvancedEconomy.Production, ModAdvancedEconomy.Consumption);
+                        int next = rule.Advance(balance.Amount, ModAdvancedEconomy.Production, ModAdvancedEconomy.Consumption, Pressure(station));
                         if (next == balance.Amount) continue;
                         AdvancedEconomyLedger.Set(station, rule, next, balance.Resale);
-                        if (entry != null)
-                        {
-                            SetEconomyRow(entry, rule.Item, balance.Amount);
-                            if (balance.Resale > 0) entry.resale[rule.Item] = balance.Resale;
-                        }
-                        changed = true;
+                        changed.Add(station);
                     }
-                    if (entry != null && changed) state.BroadcastStock(station);
                 }
+                AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed);
+                foreach (int station in changed)
+                    if (stocks.TryGetValue(station, out var entry))
+                    {
+                        CarryEconomy(station, entry);
+                        state.BroadcastStock(station);
+                    }
             }
             AdvancedEconomyLedger.Flush();
         }

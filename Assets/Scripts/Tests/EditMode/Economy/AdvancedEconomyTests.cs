@@ -7,6 +7,27 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void TradeUsesOnlySurplusAndDoesNotOversupplyTarget()
+        {
+            Assert.AreEqual(0, ModAdvancedEconomy.DispatchAmount(100, 100, 0, 100, 50));
+            Assert.AreEqual(20, ModAdvancedEconomy.DispatchAmount(200, 100, 80, 100, 50));
+            Assert.AreEqual(50, ModAdvancedEconomy.DispatchAmount(200, 100, 0, 100, 50));
+            Assert.AreEqual(0, ModAdvancedEconomy.DispatchAmount(200, 100, 120, 100, 50));
+        }
+
+        [Test]
+        public void WarPressureScalesDemandAndShipmentLoss()
+        {
+            var rule = new ModAdvancedEconomy.Rule(1, 100, 100, 200, 0, 0, 40);
+            Assert.AreEqual(100, rule.Advance(100, false, false, 0));
+            Assert.AreEqual(80, rule.Advance(100, false, false, 50));
+            Assert.AreEqual(60, rule.Advance(100, false, false, 100));
+            Assert.AreEqual(100, ModAdvancedEconomy.SurvivingCargo(100, 40, 0));
+            Assert.AreEqual(80, ModAdvancedEconomy.SurvivingCargo(100, 40, 50));
+            Assert.AreEqual(60, ModAdvancedEconomy.SurvivingCargo(100, 40, 100));
+        }
+
+        [Test]
         public void LedgerPreservesZeroAndClampsResale()
         {
             var balance = new AdvancedEconomyLedger.Balance(10, 8, 100);
