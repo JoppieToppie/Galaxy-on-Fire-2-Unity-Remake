@@ -112,12 +112,20 @@ namespace GoF2Remake.Data
         }
 
         [Serializable]
+        sealed class Participation
+        {
+            public string account;
+            public int race, count;
+        }
+
+        [Serializable]
         sealed class WarSave
         {
             public List<HeldOrbit> held = new List<HeldOrbit>();
             public long nextBattle;
             public List<BattleStatus> active;
             public List<VictoryReward> rewards;
+            public List<Participation> participation;
         }
 
         sealed class Engagement
@@ -140,7 +148,16 @@ namespace GoF2Remake.Data
             readonly Dictionary<string, int> held = new Dictionary<string, int>(StringComparer.Ordinal);
             readonly Dictionary<int, Engagement> battles = new Dictionary<int, Engagement>();
             readonly List<VictoryReward> rewards = new List<VictoryReward>();
+            readonly Dictionary<(string account, int race), int> participation = new Dictionary<(string account, int race), int>();
             int nextBattleId;
+
+            public int RecordParticipation(string account, int race)
+            {
+                var key = (account, race);
+                participation.TryGetValue(key, out int previous);
+                participation[key] = previous == int.MaxValue ? previous : previous + 1;
+                return previous;
+            }
 
             public void ReplaceOrbitRewards(int orbit, IEnumerable<VictoryReward> pending)
             {
@@ -186,6 +203,10 @@ namespace GoF2Remake.Data
                                 !string.IsNullOrEmpty(reward.account) && reward.account.StartsWith("profile:", StringComparison.Ordinal) &&
                                 !string.IsNullOrEmpty(reward.orbitKey) && Major(reward.race) && reward.credits >= 0)
                                 campaign.rewards.Add(reward);
+                    if (saved.participation != null)
+                        foreach (var entry in saved.participation)
+                            if (entry != null && entry.account != null && entry.account.StartsWith("profile:", StringComparison.Ordinal) && Major(entry.race) && entry.count > 0)
+                                campaign.participation[(entry.account, entry.race)] = entry.count;
                     // Active entries are sent to clients only, not written to the profile save.
                     if (saved.active != null)
                         foreach (var entry in saved.active)
@@ -210,6 +231,13 @@ namespace GoF2Remake.Data
                 foreach (var entry in held) saved.held.Add(new HeldOrbit { orbit = entry.Key, race = entry.Value });
                 // Never broadcast private reward entitlements in the public map snapshot.
                 if (!includeActive) saved.rewards = rewards.FindAll(r => r.account.StartsWith("profile:", StringComparison.Ordinal));
+                if (!includeActive)
+                {
+                    saved.participation = new List<Participation>();
+                    foreach (var entry in participation)
+                        if (entry.Key.account.StartsWith("profile:", StringComparison.Ordinal))
+                            saved.participation.Add(new Participation { account = entry.Key.account, race = entry.Key.race, count = entry.Value });
+                }
                 if (includeActive)
                 {
                     saved.active = new List<BattleStatus>(battles.Count);

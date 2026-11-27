@@ -43,7 +43,7 @@ These rules govern new engagements. Restart the session after changing rules so 
 
 ## Multiplayer capture rewards
 
-The server freezes a credit pool and a loot list when an attacking NPC faction captures an orbit. Credit pools are shared equally across eligible contributors, with remainder credits assigned in stable account order. Each eligible pilot receives the full configured equipment list, not a fraction of it. A pilot must have killed or recently hit a destroyed defender, and must have more such contributions against defenders than attackers. Unoccupied simulated casualties, spectators and repelled attacks do not create rewards. A pilot who leaves before the victory can still qualify if they contributed.
+The server freezes a credit pool and a loot list when an attacking NPC faction captures an orbit. By default (legacy), credit pools are shared equally across eligible contributors, with remainder credits assigned in stable account order, and each pilot receives the full configured equipment list. Set `distribution` to `split` to share both credits and each loot quantity, or `flat` to award the full credits and loot to every eligible pilot. A pilot must have killed or recently hit a destroyed defender, and must have more such contributions against defenders than attackers. Unoccupied simulated casualties, spectators and repelled attacks do not create rewards. A pilot who leaves before the victory can still qualify if they contributed.
 
 Claim by flying into the captured station's hangar after victory. A different station, simply loading a docked profile or a death respawn does not redeem the reward. The entitlement is retained until claimed or until the orbit changes hands again. Shares are never redistributed. Persistent profile servers save the private entitlements and atomically write the credits, cargo and reward receipt; reconnecting cannot pay twice. If cargo space is insufficient, make room and remain docked or dock again. Profile-less sessions use an in-memory entitlement and apply rewards to the docked player's cargo. Guests on a profile server are not eligible. Single-player territorial battles do not yet use this multiplayer reward path.
 
@@ -75,6 +75,10 @@ Configure rewards in **Menu > NPC faction warfare > Victory rewards** or in `npc
 ```
 
 IDs 0, 1, 2 and 3 are Terran, Vossk, Nivelian and Midorian respectively. Omitted faction values inherit defaults; an explicit empty loot array disables loot for that faction. Item references can be base-game numeric IDs or mod item keys. The built-in credit pool is 100,000 and the built-in loot list is empty; mods choose real items. The sample keys are illustrative.
+
+### Personal reward scaling
+
+Each default or faction reward can set `reputationBonusPercent` (bonus at +100 earned reputation, linearly interpolated from zero), `participationBonusPercent` (bonus per prior qualifying capture for that faction), `participationBonusCapPercent` (default 100), and `scaleLoot` (default false). Bonus percentages add, apply after distribution, and round down to whole credits/items. The two bonus rates default to zero; all percentage settings accept 0–1000. Positive bonuses increase the total paid even in split mode. Reputation is sampled at the player's last qualifying contribution using the existing replicated standing; prior qualifying captures count once per account and faction, regardless of claim, and persist on profile servers. Session-only counts are lost on restart. Existing profiles start at zero; historical captures are not reconstructed. Per-faction settings inherit omitted fields.
 
 ### First-time reward tutorial
 

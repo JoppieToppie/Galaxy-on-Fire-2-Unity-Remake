@@ -27,6 +27,15 @@ namespace GoF2Remake.Modding
         public sealed class RewardSettings
         {
             public long credits;
+            public string distribution = "legacy";
+            public int reputationBonusPercent, participationBonusPercent, participationBonusCapPercent = 100;
+            public bool scaleLoot;
+
+            public int BonusPercent(int reputation, int previousWins) =>
+                Mathf.Clamp(reputation, 0, 100) * reputationBonusPercent / 100 +
+                (int)System.Math.Min(participationBonusCapPercent, (long)System.Math.Max(0, previousWins) * participationBonusPercent);
+
+            public long Scale(long amount, int bonus) => amount * (100L + bonus) / 100L;
             public List<NpcFactionWar.RewardItem> loot = new List<NpcFactionWar.RewardItem>();
         }
 
@@ -120,8 +129,15 @@ namespace GoF2Remake.Modding
             var reward = new RewardSettings
             {
                 credits = Mathf.Clamp(ModJson.Int(obj, "credits", (int)fallback.credits, File), 0, int.MaxValue),
+                distribution = ModJson.Str(obj, "distribution", fallback.distribution).ToLowerInvariant(),
+                reputationBonusPercent = Mathf.Clamp(ModJson.Int(obj, "reputationBonusPercent", fallback.reputationBonusPercent, File), 0, 1000),
+                participationBonusPercent = Mathf.Clamp(ModJson.Int(obj, "participationBonusPercent", fallback.participationBonusPercent, File), 0, 1000),
+                participationBonusCapPercent = Mathf.Clamp(ModJson.Int(obj, "participationBonusCapPercent", fallback.participationBonusCapPercent, File), 0, 1000),
+                scaleLoot = ModJson.Bool(obj, "scaleLoot", fallback.scaleLoot, File),
                 loot = new List<NpcFactionWar.RewardItem>(fallback.loot)
             };
+            if (reward.distribution != "legacy" && reward.distribution != "split" && reward.distribution != "flat")
+                throw new ModJsonException($"{File}: distribution must be legacy, split or flat.");
             if (ModJson.Get(obj, "loot") == null) return reward;
             if (!(obj["loot"] is JArray entries) || entries.Count > 32)
                 throw new ModJsonException($"{File}: reward loot must be an array of at most 32 entries.");

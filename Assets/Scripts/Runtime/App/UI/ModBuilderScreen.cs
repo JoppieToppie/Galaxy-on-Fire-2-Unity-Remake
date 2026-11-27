@@ -1135,7 +1135,7 @@ namespace GoF2Remake.UI
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
             Heading(scroll, "Victory rewards");
-            Note(scroll, "The credit pool is split equally among eligible players when an orbit is captured. Each receives the faction loot only after docking at the captured station.");
+            Note(scroll, "Choose legacy (shared credits, full loot), split (both shared), or flat (both per player). Personal bonuses apply after distribution. Rewards are collected by docking at the captured station.");
             var rewards = rules["rewards"] as JObject ?? new JObject();
             RewardSection("default", "Default victory rewards");
             RewardSection("0", "Terran victory");
@@ -1157,7 +1157,25 @@ namespace GoF2Remake.UI
                     if (rules["rewards"] != rewards) rules["rewards"] = rewards;
                     MarkDirty();
                 }
-                Int(scroll, "Shared credit pool", credits, 0, int.MaxValue, value =>
+                string Mode() => section["distribution"]?.ToString() ?? fallback?["distribution"]?.ToString() ?? "legacy";
+                Act(scroll, "Distribution: " + Mode(), () =>
+                {
+                    section["distribution"] = Mode() == "legacy" ? "split" : Mode() == "split" ? "flat" : "legacy";
+                    Attach(); ShowNpcFactionWarRules();
+                }, "mbv-add");
+                foreach (var option in new[] { ("reputationBonusPercent", "Bonus at 100 reputation (%)", 0), ("participationBonusPercent", "Bonus per prior victory (%)", 0), ("participationBonusCapPercent", "Prior victory bonus cap (%)", 100) })
+                {
+                    int value = int.TryParse(section[option.Item1]?.ToString() ?? fallback?[option.Item1]?.ToString(), out int configured) ? configured : option.Item3;
+                    Int(scroll, option.Item2, value, 0, 1000, v => { section[option.Item1] = v; Attach(); });
+                }
+                bool scaleLoot = (bool?)(section["scaleLoot"] ?? fallback?["scaleLoot"]) ?? false;
+                FlagButton(Row(scroll), "Apply bonuses to equipment", scaleLoot, v => { section["scaleLoot"] = v; Attach(); }, ShowNpcFactionWarRules);
+                if (!isDefault) Act(scroll, "Inherit default distribution and bonuses", () =>
+                {
+                    foreach (string field in new[] { "distribution", "reputationBonusPercent", "participationBonusPercent", "participationBonusCapPercent", "scaleLoot" }) section.Remove(field);
+                    Attach(); ShowNpcFactionWarRules();
+                }, "mbv-add");
+                Int(scroll, "Base credit reward", credits, 0, int.MaxValue, value =>
                 {
                     section["credits"] = value;
                     Attach();
@@ -1186,7 +1204,7 @@ namespace GoF2Remake.UI
                     string reference = entry["item"]?.ToString();
                     Add(row, new Label(RefLabel(RefKind.Item, reference, "Unknown item")), "mbv-inline-label");
                     int amount = int.TryParse(entry["amount"]?.ToString(), out int count) ? count : 1;
-                    Int(row, "Quantity per player", amount, 1, 10000, value => { entry["amount"] = value; Attach(); });
+                    Int(row, "Base quantity", amount, 1, 10000, value => { entry["amount"] = value; Attach(); });
                     Act(row, "×", () => { entry.Remove(); Attach(); ShowNpcFactionWarRules(); }, "mbv-step");
                 }
                 if (loot.Count < 32)

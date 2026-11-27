@@ -24,6 +24,7 @@ namespace GoF2Remake.Multiplayer
             public float startedAt;
             public readonly Dictionary<string, int> againstDefenders = new Dictionary<string, int>();
             public readonly Dictionary<string, int> againstAttackers = new Dictionary<string, int>();
+            public readonly Dictionary<string, int> reputation = new Dictionary<string, int>();
             public readonly Dictionary<int, ulong> ships = new Dictionary<int, ulong>();
         }
 
@@ -259,6 +260,7 @@ namespace GoF2Remake.Multiplayer
                 if (account == null) continue;
                 scores.TryGetValue(account, out int score);
                 scores[account] = score + 1;
+                roster.reputation[account] = Standing.EarnedWith(roster.battle.attacker, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
             }
         }
 
@@ -275,12 +277,24 @@ namespace GoF2Remake.Multiplayer
             var pending = new List<NpcFactionWar.VictoryReward>();
             for (int i = 0; i < eligible.Count; i++)
             {
-                long credits = NpcFactionWar.CreditShare(settings.credits, eligible.Count, i);
-                if (credits == 0 && settings.loot.Count == 0) continue;
+                string account = eligible[i];
+                int previous = factionWar.RecordParticipation(account, winner);
+                roster.reputation.TryGetValue(account, out int reputation);
+                int bonus = settings.BonusPercent(reputation, previous);
+                long credits = settings.Scale(settings.distribution == "flat" ? settings.credits :
+                    NpcFactionWar.CreditShare(settings.credits, eligible.Count, i), bonus);
+                var loot = new List<NpcFactionWar.RewardItem>();
+                foreach (var item in settings.loot)
+                {
+                    long amount = settings.distribution == "split" ? NpcFactionWar.CreditShare(item.amount, eligible.Count, i) : item.amount;
+                    if (settings.scaleLoot) amount = settings.Scale(amount, bonus);
+                    if (amount > 0) loot.Add(new NpcFactionWar.RewardItem { item = item.item, amount = (int)amount });
+                }
+                if (credits == 0 && loot.Count == 0) continue;
                 pending.Add(new NpcFactionWar.VictoryReward
                 {
                     id = System.Guid.NewGuid().ToString("N"), account = eligible[i], race = winner,
-                    credits = credits, loot = new List<NpcFactionWar.RewardItem>(settings.loot)
+                    credits = credits, loot = loot
                 });
             }
             factionWar.ReplaceOrbitRewards(roster.battle.orbit, pending);
