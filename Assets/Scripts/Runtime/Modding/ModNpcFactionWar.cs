@@ -103,7 +103,7 @@ namespace GoF2Remake.Modding
                     PirateGuardCount = Mathf.Clamp(ModJson.Int(options, "pirateGuardCount", PirateGuardCount, File), 0, 24);
                     PirateCapitalShip = ModJson.Int(options, "pirateCapitalShip", PirateCapitalShip, File);
                     bool enabled = ModJson.Bool(options, "enabled", false, File);
-                    int ships = Mathf.Clamp(ModJson.Int(options, "shipsPerSide", ShipsPerSide, File), 4, 24);
+                    int ships = Mathf.Clamp(ModJson.Int(options, "shipsPerSide", ShipsPerSide, File), 4, 30);
                     int interval = Mathf.Clamp(ModJson.Int(options, "intervalSeconds", IntervalSeconds, File), 60, 86400);
                     int duration = Mathf.Clamp(ModJson.Int(options, "battleSeconds", BattleSeconds, File), 60, 3600);
                     int doubleSidedThreshold = Mathf.Clamp(ModJson.Int(options, "doubleSidedDamageThresholdPercent", DoubleSidedDamageThresholdPercent, File), 0, MaxDoubleSidedDamageThresholdPercent);
