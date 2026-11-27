@@ -911,7 +911,7 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Betty's slots (1 primary, 1 secondary, 3 equipment): Nirai Impulse EX 1 (0), Targe Shield (50), Telta
         /// Quickscan (81), IMT Extract 1.3 (86); all saleable, the secondary slot empty.</summary>
-        static List<ItemStack> StartEquipment() => new List<ItemStack>
+        internal static List<ItemStack> StartEquipment() => new List<ItemStack>
         {
             new ItemStack(0, 1), new ItemStack(50, 1), new ItemStack(81, 1), new ItemStack(86, 1),
         };
