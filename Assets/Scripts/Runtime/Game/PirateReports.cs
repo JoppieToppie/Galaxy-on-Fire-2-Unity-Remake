@@ -48,8 +48,7 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class PirateReports
     {
-        /// <summary>Sightings on the board at once: 3, one more per 8 ranks, at most 5.</summary>
-        static int Wanted => Mathf.Min(3 + Session.Rank / 8, 5);
+        public const int MaxOutposts = 4, MaxShipBounties = 5;
         /// <summary>Seconds of playing time a sighting stays reported.</summary>
         const float LifeMin = 40f * 60f, LifeMax = 90f * 60f;
         /// <summary>A board contract pays a quarter more than an unannounced event.</summary>
@@ -189,24 +188,28 @@ namespace GoF2Remake.Data
         {
             if (!Enabled || InSession) return;
             Relocate(db, Session.PirateSightings, st => st == Session.StationIndex, false);
-            Fill(db, Session.PirateSightings, Wanted, Session.Rank, Session.StationIndex, false, () => Session.NextPirateSightingId++);
+            Fill(db, Session.PirateSightings, Session.Rank, Session.StationIndex, false, () => Session.NextPirateSightingId++);
         }
 
-        static void Fill(Database db, List<PirateSighting> board, int want, int rank, int notAt, bool anyRank, Func<int> nextId, Func<int, bool> occupied = null)
+        static void Fill(Database db, List<PirateSighting> board, int rank, int notAt, bool anyRank, Func<int> nextId, Func<int, bool> occupied = null)
         {
             float now = Now;
             board.RemoveAll(s => !Active(s, now) || !db.Stations.Exists(x => x.index == s.station));   // (a mod's station gone)
-            if (board.Count >= want) return;
+            int outposts = board.FindAll(s => !s.boss).Count;
+            int ships = board.FindAll(s => s.boss).Count;
+            if (outposts >= MaxOutposts && ships >= MaxShipBounties) return;
             var candidates = Candidates(db, notAt, anyRank);
             if (occupied != null) candidates.RemoveAll(c => occupied(c.station));
-            while (board.Count < want && candidates.Count > 0)
+            while ((outposts < MaxOutposts || ships < MaxShipBounties) && candidates.Count > 0)
             {
                 int k = Random.Range(0, candidates.Count);
                 var (station, system) = candidates[k];
                 candidates.RemoveAt(k);
                 // One per system at a time, so a report always names one place to search.
                 if (board.Exists(s => s.system == system.index)) continue;
-                board.Add(Make(nextId(), station, system, now, rank));
+                bool boss = outposts >= MaxOutposts || (ships < MaxShipBounties && Random.value < 0.5f);
+                board.Add(Make(nextId(), station, system, now, rank, boss));
+                if (boss) ships++; else outposts++;
             }
         }
 
@@ -224,9 +227,8 @@ namespace GoF2Remake.Data
             return list;
         }
 
-        static PirateSighting Make(int id, int station, SystemData system, float now, int playerRank)
+        static PirateSighting Make(int id, int station, SystemData system, float now, int playerRank, bool boss)
         {
-            bool boss = Random.value < 0.5f;
             int rank = Mathf.Clamp(playerRank, 0, 20);
             int tier = RollTier(system.securityLevel, rank);
             return new PirateSighting
@@ -375,7 +377,7 @@ namespace GoF2Remake.Data
             int before = serverBoard.Count;
             bool changed = serverBoard.RemoveAll(s => !Active(s, Now)) > 0;
             changed |= Relocate(db, serverBoard, occupied ?? (_ => false), true);
-            Fill(db, serverBoard, 4, 10, -1, true, () => serverNextId++, occupied);   // rank 10's bounties: the session's pilots differ
+            Fill(db, serverBoard, 10, -1, true, () => serverNextId++, occupied);   // rank 10's bounties: the session's pilots differ
             if (changed || serverBoard.Count != before) publish(JsonUtility.ToJson(new Shared { items = serverBoard }));
         }
 
