@@ -9,6 +9,48 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void FreightFleetSelectionUsesCapacityAndRelativeWeights()
+        {
+            var light = new ModAdvancedEconomy.FreightHull(36, "36", 400, 2, 125);
+            var bulk = new ModAdvancedEconomy.FreightHull(51, "51", 2500, 1, 75);
+            var native = new ModAdvancedEconomy.FreightHull(15, "native", 2500, 3, 100);
+            var fleet = new[] { light, bulk, native };
+            Assert.AreSame(light, ModAdvancedEconomy.PickFreightHull(fleet, 200, 0));
+            Assert.AreSame(light, ModAdvancedEconomy.PickFreightHull(fleet, 200, 1));
+            Assert.AreSame(bulk, ModAdvancedEconomy.PickFreightHull(fleet, 200, 2));
+            Assert.AreSame(native, ModAdvancedEconomy.PickFreightHull(fleet, 200, 3));
+            Assert.AreSame(bulk, ModAdvancedEconomy.PickFreightHull(fleet, 1000, 0));
+            Assert.AreSame(native, ModAdvancedEconomy.PickFreightHull(fleet, 1000, 1));
+            Assert.AreSame(native, ModAdvancedEconomy.PickFreightHull(fleet, 9000, 3));
+            Assert.AreEqual(2500, ModAdvancedEconomy.PickFreightHull(fleet, 9000, 3).Capacity);
+        }
+
+        [Test]
+        public void NativeFreightersRespectRaceAndDoNotShareWarTags()
+        {
+            Assert.AreEqual(13, ModAdvancedEconomy.NativeFreighter(1));
+            Assert.AreEqual(15, ModAdvancedEconomy.NativeFreighter(0));
+            Assert.AreEqual(15, ModAdvancedEconomy.NativeFreighter(2));
+            Assert.AreEqual(15, ModAdvancedEconomy.NativeFreighter(3));
+            int migrated = ModAdvancedEconomy.MigrateFreightTag(800000123);
+            Assert.AreEqual(100000123, migrated);
+            Assert.IsTrue(ModAdvancedEconomy.IsFreightTag(migrated));
+            Assert.IsFalse(NpcFactionWar.IsWarTag(migrated));
+            Assert.AreEqual(migrated, ModAdvancedEconomy.MigrateFreightTag(migrated));
+        }
+
+        [Test]
+        public void FreightFleetIdentityIsOptionalForLegacyButValidatedWhenPresent()
+        {
+            const string start = "{\"version\":1,\"rows\":[],\"shipments\":[";
+            const string ship = "{\"key\":\"s|d|i\",\"amount\":100,\"resale\":0,\"ticks\":1,\"freightTag\":100000123,\"orbit\":1";
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + "}]}"));
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"fleetRace\":\"vossk\",\"fleetHull\":\"native\",\"fleetSpeed\":100}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"fleetRace\":\"vossk\"}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ship + ",\"fleetRace\":\"vossk\",\"fleetHull\":\"native\",\"fleetSpeed\":501}]}"));
+        }
+
+        [Test]
         public void FreightLoadsAreBoundedAndSalvageConservesCargo()
         {
             Assert.AreEqual(2500, ModAdvancedEconomy.FreightCapacity(5000, 2500, 400));
