@@ -998,7 +998,19 @@ namespace GoF2Remake.UI
             Flag("simulateUnvisitedStations", "Simulate unvisited configured stations");
             Flag("stationProduction", "Station production");
             Flag("stationConsumption", "Station consumption");
-            Flag("regionalTrade", "Abstract regional trade");
+            Flag("regionalTrade", "Regional trade");
+            Flag("physicalFreight", "Physical freight (requires regional trade and saved inventory)");
+            Option("rhinoCapacity", "Rhino freight capacity (t)", 2500, 1, ModAdvancedEconomy.MaxStock);
+            Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
+            Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
+            RefField(scroll, "Bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
+            {
+                rules["rhinoShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
+            }, "Rhino (default)");
+            RefField(scroll, "Light freighter hull", RefKind.Ship, rules["cormorantShip"]?.ToString(), value =>
+            {
+                rules["cormorantShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
+            }, "Cormorant (default)");
             Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
             Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
             Flag("restrictedGateRouting", "Use restricted gates only with explicit owner NPC permission");
