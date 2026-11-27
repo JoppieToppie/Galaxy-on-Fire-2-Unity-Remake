@@ -34,6 +34,8 @@ namespace GoF2Remake.Data
         public int khadorCronusGift = -1;
         public List<ItemStack> equipment, cargo;
         public bool deathLoaner;
+        // Creation-only intent: consumed before the server completes a new pilot identity.
+        public bool originStartAsPirate;
         public List<DeathRecovery> deathRecoveries;
         public string lastDeathPenaltyId;
         public List<StationStock> recentStations;
