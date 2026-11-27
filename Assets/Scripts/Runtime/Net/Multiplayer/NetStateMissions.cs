@@ -15,12 +15,32 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The session's Pirate activity board as published (JSON; empty = none).</summary>
         public string PirateBoardJson => pirateBoard.Value.ToString();
         /// <summary>Server: the board as everyone's games read it (cut short only past 4096 bytes: 5 reports take ~1 KB).</summary>
+        string PirateSavePath => NetProfiles.Enabled ? System.IO.Path.Combine(NetProfiles.Folder, "pirate-board.json") : null;
+        bool pirateSaveDirty;
+        void LoadPirateBoard()
+        {
+            PirateReports.ServerReset();
+            try
+            {
+                if (PirateSavePath != null && System.IO.File.Exists(PirateSavePath))
+                    PirateReports.ServerRestore(System.IO.File.ReadAllText(PirateSavePath));
+            }
+            catch (System.Exception e) { Debug.LogWarning("Pirate board load failed: " + e.Message); }
+            pirateBoard.Value = PirateReports.ServerBoardJson();
+        }
+
+        void FlushPirateBoard()
+        {
+            if (pirateSaveDirty && (PirateSavePath == null || NetProfiles.Write(PirateSavePath, PirateReports.ServerSnapshot())))
+                pirateSaveDirty = false;
+        }
+
         void SetPirateBoard(string json)
         {
             if (!IsServer) return;
             json ??= "";
             if (System.Text.Encoding.UTF8.GetByteCount(json) > 4000) return;
-            if (pirateBoard.Value.ToString() != json) pirateBoard.Value = json;
+            if (pirateBoard.Value.ToString() != json) { pirateBoard.Value = json; pirateSaveDirty = true; FlushPirateBoard(); }
         }
         /// <summary>The orbit's authority: report 'id' destroyed; 'killer' = the client whose kill it was (the sender itself
         /// for its own kill or an NPC's). Checked against the server's board and the sender's orbit. The bounty is paid here,
