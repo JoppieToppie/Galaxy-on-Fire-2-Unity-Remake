@@ -177,9 +177,8 @@ canonical documents as the repository, including the specialist manuals below.
 | [Piracy and recovery](Piracy.md) | Bounties, death loss, recovery and Lua hooks |
 | [Jump drive rules](JUMP_DRIVE_RULES.md) | Fuel, misjumps, item availability and server authority |
 
-The native reference records a known overlapping item-attribute ID issue; consult it before using the affected
-per-axis equipment and scanner/weapon stats together. For an existing native feature, use its data contract rather
-than writing a global method patch.
+The native reference includes the current unique item attribute IDs and migration guidance for older scripts using
+numeric IDs. For an existing native feature, use its data contract rather than writing a global method patch.
 
 ## mod.json
 
@@ -271,7 +270,7 @@ earlier). Only the fields you give change. Giving `name` or `description` rename
 | `alwaysSoldAt` | A station number that always stocks it, whatever its tech level (78 = Var Hastra, the starting station; -1 = none). |
 | `tractorColor` | A tractor beam's colour, `"#rrggbb"` or `[r, g, b]` (0-255): its beams are drawn in it (see [Multi-grab tractor beams](#multi-grab-tractor-beams)). |
 | `stats` | The item's numbers, see below. |
-| `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. For anything `stats` has no name for. |
+| `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. Accepted IDs are 0–99 (0–8 follow the item's fields); for remake attributes above 99, use their named `stats` entries. |
 | `defaultEconomy` | The same fields again, used when the player picked the Default Economy (the PC / Mac prices) for their game. |
 | `fx` | A weapon's own look and sound; or a weapon effect's id from `weaponfx.json`, or a game weapon's number for its whole look. See [Weapon effects](#weapon-effects). |
 | `icon` | Its own shop icon: a PNG in the mod, 180 x 88 like the originals (frame and background included; copy one from `Assets/Resources/GoF2Icons` to start from), or one of the game's: `"gof2:item_046"`. Without it the item shows its base item's icon. An `override` with `icon` gives an original item a new one. |
@@ -362,6 +361,12 @@ energy cells.
 | `hoverSpeed`, `hoverAcceleration` | 198 to 199 | Vertical thrust speed and acceleration bonuses (%) in free flight |
 | `reverseSpeed`, `reverseAcceleration` | 200 to 201 | Reverse thrust speed and acceleration bonuses (%) in free flight |
 | `forwardAcceleration` | 202 | Forward thrust acceleration bonus (%) in free flight |
+| `strictShipClass` | 203 | 1 applies equipment class allow-lists even to an unclassified hull. Requires the applicable class restrictions; not a standalone class list. |
+| `fixedBeam` | 204 | Nonzero disables beam target snapping; aim along the actual firing direction. |
+| `turretDefenseRole` | 205 | Per-mount defense role: 0 legacy, 1 offensive, 2 balanced, 3 dedicated. |
+| `scannerRange` | 206 | Maximum sensor range in game units; absent/0 keeps unlimited legacy detection. |
+| `scanLead` | 207 | Positive enables predictive primary weapon PIPs; default off. See PIP_LEADS.md. |
+| `structuralDamage` | 208 | A positive value permits damage to player-built structure integrity (nukes qualify independently); EMP effects apply independently of this weapon eligibility. |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. |
 | `damageType` | 190 | Optional explicit damage channel: `1` = energy, `2` = ballistic; unset / `0` keeps the original damage behaviour. This is not inferred from the weapon category. |

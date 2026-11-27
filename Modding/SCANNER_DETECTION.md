@@ -1,6 +1,6 @@
 # Scanner detection range
 
-Set a scanner item's `stats.scannerRange` (attribute 194) to a positive number of game units (20 units per metre). Missing or zero retains unlimited legacy detection. The range is measured from the observing ship, not the camera. For example, `"stats": { "scannerRange": 100000 }` gives a 5 km base range.
+Set a scanner item's `stats.scannerRange` (attribute 206) to a positive number of game units (20 units per metre). Missing or zero retains unlimited legacy detection. The range is measured from the observing ship, not the camera. For example, `"stats": { "scannerRange": 100000 }` gives a 5 km base range.
 
 In mod.json, optionally define target signatures by canonical ship class:
 

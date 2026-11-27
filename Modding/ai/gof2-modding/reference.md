@@ -452,6 +452,12 @@ remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only
 | 200 | reverseSpeed |  |
 | 201 | reverseAcceleration |  |
 | 202 | forwardAcceleration |  |
+| 203 | strictShipClass |  |
+| 204 | fixedBeam |  |
+| 205 | turretDefenseRole |  |
+| 206 | scannerRange |  |
+| 207 | scanLead |  |
+| 208 | structuralDamage |  |
 
 ## Blueprints
 

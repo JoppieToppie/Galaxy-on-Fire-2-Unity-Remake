@@ -7,6 +7,7 @@
 // without a cargo list, nothing when every entry is empty); the remake-only attribute numbers (ItemStats).
 
 using System.Collections.Generic;
+using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Modding;
@@ -17,6 +18,63 @@ namespace GoF2Remake.Tests
     public class ModScannerTests : SavesModsTest
     {
         static List<ItemStack> Hold => new List<ItemStack> { new ItemStack(0, 0), new ItemStack(105, 5), new ItemStack(106, 2) };
+
+        [Test]
+        public void RemakeItemStatsHaveDistinctRuntimeIds()
+        {
+            var collisions = ItemStats.Readable().Where(p => p.Value >= 100)
+                .GroupBy(p => p.Value).Where(g => g.Count() > 1)
+                .Select(g => g.Key + ": " + string.Join(", ", g.Select(p => p.Key))).ToArray();
+            Assert.IsEmpty(collisions, string.Join("; ", collisions));
+            Assert.AreEqual(189, ItemStats.IdOf("coreYield"));
+            Assert.AreEqual(191, ItemStats.IdOf("pitchTurnRate"));
+            Assert.AreEqual(192, ItemStats.IdOf("yawTurnRate"));
+            Assert.AreEqual(193, ItemStats.IdOf("rollTurnRate"));
+            Assert.AreEqual(194, ItemStats.IdOf("pitchTurnAcceleration"));
+            Assert.AreEqual(195, ItemStats.IdOf("yawTurnAcceleration"));
+            Assert.AreEqual(203, ItemStats.IdOf("strictShipClass"));
+            Assert.AreEqual(204, ItemStats.IdOf("fixedBeam"));
+            Assert.AreEqual(205, ItemStats.IdOf("turretDefenseRole"));
+            Assert.AreEqual(PointDefense.TurretRoleAttribute, ItemStats.IdOf("turretDefenseRole"));
+            Assert.AreEqual(206, ItemStats.IdOf("scannerRange"));
+            Assert.AreEqual(207, ItemStats.IdOf("scanLead"));
+            Assert.AreEqual(208, ItemStats.IdOf("structuralDamage"));
+        }
+
+        [Test]
+        public void NativeStatsAndFlightBonusesLoadIndependently()
+        {
+            WriteMod("native_stats", "t_native_stats", "1.0", "", ("items.json", @"[
+                { 'id': 'combined', 'base': 84, 'name': 'Combined', 'stats': {
+                    'strictShipClass': 1, 'fixedBeam': 1, 'turretDefenseRole': 3, 'scannerRange': 100000,
+                    'scanLead': 1, 'structuralDamage': 1, 'coreYield': 4,
+                    'pitchTurnRate': 11, 'yawTurnRate': 12, 'rollTurnRate': 13,
+                    'pitchTurnAcceleration': 14, 'yawTurnAcceleration': 15
+                }},
+                { 'id': 'structural', 'base': 84, 'name': 'Structural only', 'stats': { 'structuralDamage': 2 }},
+                { 'id': 'mining', 'base': 84, 'name': 'Mining only', 'stats': { 'coreYield': 4 }}
+            ]"));
+            ScanAndEnable("t_native_stats");
+            Assert.IsFalse(Installed("t_native_stats").Broken, AllMessages(Installed("t_native_stats")));
+            var db = Database.Load();
+            var combined = db.Item(ModContent.ItemIndexOf("t_native_stats:combined"));
+            Assert.AreEqual(1, combined.Attr(ItemStats.StrictShipClassAttr));
+            Assert.AreEqual(1, combined.Attr(ItemStats.FixedBeamAttr));
+            Assert.AreEqual(3, combined.Attr(PointDefense.TurretRoleAttribute));
+            Assert.AreEqual(100000, combined.Attr(CombatRadar.ScannerRangeAttr));
+            Assert.IsTrue(CombatRadar.ScannerHasLead(combined));
+            Assert.AreEqual(1, combined.Attr(ItemStats.StructuralDamageAttr));
+            Assert.AreEqual(4, combined.CoreYield);
+            Assert.AreEqual(11, combined.Attr(ModFlight.PitchTurnRate));
+            Assert.AreEqual(12, combined.Attr(ModFlight.YawTurnRate));
+            Assert.AreEqual(13, combined.Attr(ModFlight.RollTurnRate));
+            Assert.AreEqual(14, combined.Attr(ModFlight.PitchTurnAcceleration));
+            Assert.AreEqual(15, combined.Attr(ModFlight.YawTurnAcceleration));
+            var structural = db.Item(ModContent.ItemIndexOf("t_native_stats:structural"));
+            var mining = db.Item(ModContent.ItemIndexOf("t_native_stats:mining"));
+            Assert.AreEqual(1, structural.CoreYield, "structural damage must not modify mining yield");
+            Assert.AreEqual(0, mining.Attr(ItemStats.StructuralDamageAttr), "mining yield must not grant structural damage");
+        }
 
         [Test]
         public void TheScannerStatsHaveTheirNumbers()
@@ -39,6 +97,8 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(2, deep.Attr(31));
             Assert.AreEqual(100000, deep.Attr(CombatRadar.ScannerRangeAttr));
             Assert.AreEqual(1, deep.Attr(CombatRadar.ScanLeadAttr));
+            Assert.AreEqual(0, deep.Attr(ModFlight.PitchTurnAcceleration));
+            Assert.AreEqual(0, deep.Attr(ModFlight.YawTurnAcceleration));
         }
 
         [TestCase(100, 4999f, true)]
