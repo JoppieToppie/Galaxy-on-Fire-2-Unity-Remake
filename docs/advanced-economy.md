@@ -162,11 +162,34 @@ Enable physical freight in the Advanced Economy settings of the Mod Builder, or 
 }
 ```
 
-Physical freight requires a persistent server profile and saved regional inventory. Existing installations retain abstract transport unless opted in. The default hulls are Rhino (51) and Cormorant (36); override the optional `rhinoShip` and `cormorantShip` fields with ship references. NPC freight capacities are independent of purchasable ship stats. A shipment carries a single commodity, with its quantity constrained by supplier surplus, destination deficit and route capacity. Shipments of up to the Cormorant capacity use the light hull; larger shipments use the bulk hull. Set route capacity and stock targets sufficiently high for bulk loads to occur.
+Physical freight requires a persistent server profile and saved regional inventory. Existing installations retain abstract transport unless opted in. Default Terran traffic mixes native cargo freighters, Rhino (51) and Cormorant (36). Other races default to their native freight model, using the mod race's configured look where relevant. Override the optional `rhinoShip` and `cormorantShip` fields for the default Terran pool, or configure explicit per-race fleets below. NPC freight capacities are independent of purchasable ship stats. A shipment carries a single commodity, with its quantity constrained by supplier surplus, destination deficit, route capacity and the selected hull capacity. Set route capacity and stock targets sufficiently high for bulk loads to occur.
 
 The persistent ledger reserves cargo from suppliers, records freight identity, hull fraction, current orbit, cargo remaining and progress, and credits only surviving deliveries. In occupied orbits a bounded number of freighters materialize via the existing NPC network runner, moving between station and gate/arrival lanes. Materialized legs advance on actual waypoint arrival and EMP recovery; unmaterialized legs advance on their own randomized travel countdown, including systems with no players. Some generic ambient freighters are replaced rather than adding traffic indefinitely. The flight is hybrid: exact gate traversal, docking and spatial position continuity are not simulated across every orbit.
 
 EMP-disabled freight can be tractor-stolen. Destroying a freighter cancels its delivery and creates a recoverable wreck with the configured fraction of remaining cargo. Wrecks expire after the configured lifetime (five minutes by default). Claims are limited by the ledger's cargo, the claimant's available hold capacity and tractor reach, and journalled with persistent profile changes. NPC combat remains orbit-runner simulated under the existing multiplayer model. Player-market procurement and construction orders remain abstract; escorts and per-faction fleet composition are not implemented by this option.
+
+### Race-specific economy fleets
+
+Use Mod Builder → Advanced Economy → Economy traffic fleets by race, or add `freightFleets` rows to `advanced-economy.json`:
+
+```json
+{
+  "nativeFreighterCapacity": 2500,
+  "nativeFreighterSpeedPercent": 100,
+  "freightFleets": [
+    {"race":"terran","ship":"native","capacity":2500,"weight":3,"speedPercent":100},
+    {"race":"terran","ship":"51","capacity":2500,"weight":1,"speedPercent":75},
+    {"race":"terran","ship":"36","capacity":400,"weight":2,"speedPercent":125},
+    {"race":"vossk","ship":"native","capacity":3500,"weight":1,"speedPercent":90},
+    {"race":"nivelian","ship":"native","capacity":2500,"weight":1,"speedPercent":100},
+    {"race":"midorian","ship":"native","capacity":3000,"weight":1,"speedPercent":95}
+  ]
+}
+```
+
+Each configured race's rows replace its default pool. Race references accept base race names/numeric IDs or stable mod race keys; ship references accept a content reference or `native` for the original racial cargo ship (Vossk index 13; index 15 uses the corresponding racial cargo assembly for other races). Races without distinct native cargo models borrow the existing game look. Capacity is 1–100000 tonnes, speed is 10–500 percent of normal freighter speed, and relative weight is 1–1000. The server chooses among hulls that can fit the requested cargo using relative weights; if none can, it selects among the largest available hulls and caps the dispatch to that capacity. Smaller loads may use larger hulls. Increase the route capacity too if larger shipments are desired.
+
+The originating station's NPC faction controls the fleet; its race, chosen hull reference and speed remain with the shipment across system changes and restarts. Existing shipments without fleet fields select a hull without re-debiting or discarding their cargo. Removing a selected race or hull mod freezes that physical shipment rather than silently reassigning it. This config covers NPC racial factions, not player-owned factions.
 
 ### Independent freight timing
 
