@@ -226,7 +226,14 @@ namespace GoF2Remake.Modding
             catch (Exception e) { LoadError ??= $"{file}: {e.Message}"; }
         }
         /// <summary>Writes mod.json, ships.json, items.json, characters.json and builder.json (each through a .tmp file).</summary>
+        static readonly object saveLock = new object();
+
         public void Save()
+        {
+            lock (saveLock) SaveLocked();
+        }
+
+        void SaveLocked()
         {
             if (LoadError != null) { Debug.LogWarning($"Mod Builder: {Id} not saved: {LoadError}"); return; }
             Directory.CreateDirectory(Folder);
@@ -240,7 +247,7 @@ namespace GoF2Remake.Modding
             WriteList(ModWorld.StationsFile, Stations.Select(c => c.ToJson()));
             WriteList(InteriorsFile, Interiors.Select(c => c.ToJson()));
             WriteList(ModRaces.File, Races.Select(c => c.ToJson()));
-            if (File.Exists(Path.Combine(Folder, ModRaces.OldFile))) File.Delete(Path.Combine(Folder, ModRaces.OldFile));   // the old name, now races.json
+            if (File.Exists(Path.Combine(Folder, ModRaces.OldFile))) DeleteSavedFile(Path.Combine(Folder, ModRaces.OldFile));   // the old name, now races.json
             WriteList(ModBlueprints.File, Blueprints.Select(c => c.ToJson()));
             WriteList(ProjectKit.File, Kits.Select(c => c.ToJson()));
             WriteList(ModContent.WeaponEffectsFile, WeaponEffects.Select(c => c.ToJson()));
@@ -248,18 +255,18 @@ namespace GoF2Remake.Modding
             WriteList(ModNpcShips.File, NpcShips.Select(c => c.ToJson()));
             string campaign = Path.Combine(Folder, CampaignFile);
             if (Campaign != null) Write(CampaignFile, Campaign.ToJson().ToString(Formatting.Indented));
-            else if (File.Exists(campaign)) File.Delete(campaign);
+            else if (File.Exists(campaign)) DeleteSavedFile(campaign);
             string flight = Path.Combine(Folder, ModFlight.File);
             if (FlightRules.Count > 0) Write(ModFlight.File, FlightRules.ToString(Formatting.Indented));
-            else if (File.Exists(flight)) File.Delete(flight);
+            else if (File.Exists(flight)) DeleteSavedFile(flight);
             string infrastructure = Path.Combine(Folder, ModPlayerInfrastructure.FileName);
             if (PlayerInfrastructure.Count > 0) Write(ModPlayerInfrastructure.FileName, PlayerInfrastructure.ToString(Formatting.Indented));
-            else if (File.Exists(infrastructure)) File.Delete(infrastructure);
+            else if (File.Exists(infrastructure)) DeleteSavedFile(infrastructure);
             string factionWar = Path.Combine(Folder, ModNpcFactionWar.File);
             if (NpcFactionWarRules.Count > 0) Write(ModNpcFactionWar.File, NpcFactionWarRules.ToString(Formatting.Indented));
-            else if (File.Exists(factionWar)) File.Delete(factionWar);
+            else if (File.Exists(factionWar)) DeleteSavedFile(factionWar);
             string stagedFactionWar = Path.Combine(Folder, ModNpcFactionWar.StagedFile);
-            if (File.Exists(stagedFactionWar)) File.Delete(stagedFactionWar);
+            if (File.Exists(stagedFactionWar)) DeleteSavedFile(stagedFactionWar);
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
             Modified = DateTime.UtcNow;
