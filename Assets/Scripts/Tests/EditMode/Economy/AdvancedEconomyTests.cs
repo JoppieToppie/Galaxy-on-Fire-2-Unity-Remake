@@ -7,6 +7,20 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void BulkRoundTripCannotProfitFromItsOwnScarcity()
+        {
+            int buy = 0, sell = 0;
+            for (int stock = 100; stock > 0; stock--)
+                buy += ModAdvancedEconomy.TradeUnitPrice(100, stock, 100, 50, 2, 100, 30, 50, 5, 10, true);
+            for (int stock = 0; stock < 100; stock++)
+                sell += ModAdvancedEconomy.TradeUnitPrice(100, stock, 100, 50, 2, 100, 30, 50, 5, 10, false);
+            Assert.Less(sell, buy);
+            var quote = ModAdvancedEconomy.Quote(int.MaxValue, 100, 100, 0, 0, 100, 30, 50, 5, 10);
+            Assert.Greater(quote.sell, 0);
+            Assert.Less(quote.sell, quote.buy);
+        }
+
+        [Test]
         public void DynamicQuoteRespondsToScarcityWarAndFreight()
         {
             Assert.AreEqual((100, 90), ModAdvancedEconomy.Quote(100, 100, 100, 0, 0, 100, 30, 50, 5, 10));

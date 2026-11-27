@@ -64,7 +64,7 @@ namespace GoF2Remake.Multiplayer
 
         static readonly Dictionary<int, Entry> stocks = new Dictionary<int, Entry>();   // the host's
         static Database db;
-        static readonly Dictionary<(int station, int item), (int buy, int sell, int target, int pressure, int hops)> quotes =
+        static readonly Dictionary<(int station, int item), (int basis, int stock, int target, int pressure, int hops)> quotes =
             new Dictionary<(int, int), (int, int, int, int, int)>();
         static bool priceTradePending;
         internal static bool PriceTradePending => priceTradePending;
@@ -80,7 +80,26 @@ namespace GoF2Remake.Multiplayer
         {
             price = 0;
             if (!ManagedPricing(station, item) || !quotes.TryGetValue((station, item), out var q)) return false;
-            price = buy ? NetFactionsClient.BuyPrice(station, q.buy) : NetFactionsClient.SellPrice(station, q.sell);
+            int listPrice = UnitPrice(q.basis, q.stock, q.target, q.pressure, q.hops, buy);
+            price = buy ? NetFactionsClient.BuyPrice(station, listPrice) : NetFactionsClient.SellPrice(station, listPrice);
+            return true;
+        }
+
+        static int UnitPrice(int basis, int stock, int target, int pressure, int hops, bool buy) =>
+            ModAdvancedEconomy.TradeUnitPrice(basis, stock, target, pressure, hops,
+                ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
+                ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread, buy);
+
+        static bool TryTotal(int station, int item, int units, bool buy, out long total)
+        {
+            total = 0;
+            if (!ManagedPricing(station, item) || !quotes.TryGetValue((station, item), out var q) ||
+                units < 1 || units > 500 || (buy && units > q.stock)) return false;
+            for (int i = 0; i < units; i++)
+            {
+                int list = UnitPrice(q.basis, q.stock + (buy ? -i : i), q.target, q.pressure, q.hops, buy);
+                total += buy ? NetFactionsClient.BuyPrice(station, list) : NetFactionsClient.SellPrice(station, list);
+            }
             return true;
         }
 
@@ -88,16 +107,17 @@ namespace GoF2Remake.Multiplayer
         {
             if (!quotes.TryGetValue((station, item), out var q) ||
                 !TryPrice(station, item, true, out int buy) || !TryPrice(station, item, false, out int sell)) return "";
-            return $"Buy {buy:N0} / Sell {sell:N0} cr • Target {q.target:N0} t • War {q.pressure}% • Import {q.hops} hops";
+            return $"Next unit: Buy {buy:N0} / Sell {sell:N0} cr • Target {q.target:N0} t • War {q.pressure}% • Import {q.hops} hops";
         }
 
         public static bool RequestPricedTrade(int station, int item, int units, bool buy)
         {
-            if (!Ready || priceTradePending || units < 1 || !TryPrice(station, item, buy, out int quote)) return false;
+            units = Math.Min(500, units);
+            if (!Ready || priceTradePending || !TryTotal(station, item, units, buy, out long quote)) return false;
             int sequence = NetGame.IsServer && NetGame.PersistentHost ? 0 : NetProfileClient.UploadForStationStorage();
             if (sequence == 0 && !(NetGame.IsServer && NetGame.PersistentHost)) return false;
             priceTradePending = true;
-            NetState.Instance.EconomyTradeRpc(station, item, Math.Min(500, units), buy, quote, sequence);
+            NetState.Instance.EconomyTradeRpc(station, item, units, buy, quote, sequence);
             return true;
         }
 
@@ -257,10 +277,10 @@ namespace GoF2Remake.Multiplayer
                 foreach (string entry in parts[4].Split(','))
                 {
                     var fields = entry.Split(':');
-                    if (fields.Length == 6 && int.TryParse(fields[0], out int item) && int.TryParse(fields[1], out int buy) &&
-                        int.TryParse(fields[2], out int sell) && int.TryParse(fields[3], out int target) &&
+                    if (fields.Length == 6 && int.TryParse(fields[0], out int item) && int.TryParse(fields[1], out int basis) &&
+                        int.TryParse(fields[2], out int amount) && int.TryParse(fields[3], out int target) &&
                         int.TryParse(fields[4], out int pressure) && int.TryParse(fields[5], out int hops))
-                        quotes[(station, item)] = (buy, sell, target, pressure, hops);
+                        quotes[(station, item)] = (basis, amount, target, pressure, hops);
                 }
             clocks[station] = (Time.unscaledTime, reset, rare);
             stock.items.Clear();
@@ -550,7 +570,7 @@ namespace GoF2Remake.Multiplayer
             return (quote.buy, quote.sell, pressure);
         }
 
-        internal static string HostPricedTrade(ulong client, int station, int item, int units, bool buy, int expected,
+        internal static string HostPricedTrade(ulong client, int station, int item, int units, bool buy, long expected,
             int uploadSequence, out int delta, out long credits)
         {
             delta = 0; credits = 0;
@@ -567,16 +587,22 @@ namespace GoF2Remake.Multiplayer
                 return "This commodity cannot be traded.";
             var rule = ModAdvancedEconomy.At(station)[item];
             var balance = AdvancedEconomyLedger.Get(station, rule);
-            var quote = HostQuote(station, rule, balance);
-            int taxable = buy ? Math.Max(0, units - balance.Resale) : 0;
-            int unitPrice = NetFactions.EconomyPrice(client, station, buy ? quote.buy : quote.sell, buy, taxable,
-                out string faction, out long tax);
-            if (unitPrice != expected) return "The market price has changed. Review the new quote.";
+            int basis = Shop.PriceList(db, station, new[] { item })[0];
+            int pressure = ModAdvancedEconomy.Pressure(db, station);
             if (buy && (units > balance.Amount || units > NetProfiles.WreckSalvageCargoRoom(pilot, account)))
                 return "Not enough stock or cargo capacity.";
             if (!buy && (units > rule.Maximum - balance.Amount || units > NetProfiles.CargoAmount(account, item)))
                 return "Not enough cargo or station capacity.";
-            long total = unitPrice * (long)units;
+            long total = 0, tax = 0;
+            string faction = null;
+            for (int i = 0; i < units; i++)
+            {
+                int list = UnitPrice(basis, balance.Amount + (buy ? -i : i), rule.Target, pressure, balance.ImportHops, buy);
+                total += NetFactions.EconomyPrice(client, station, list, buy, buy && i >= balance.Resale ? 1 : 0,
+                    out string owner, out long unitTax);
+                if (unitTax > 0) { faction = owner; tax += unitTax; }
+            }
+            if (total != expected) return "The market price has changed. Review the new quote.";
             if (buy && NetProfiles.CreditAmount(account) < total) return "Not enough credits.";
             int old = balance.Amount, oldResale = balance.Resale;
             int moved = buy ? units : -units;
@@ -727,11 +753,12 @@ namespace GoF2Remake.Multiplayer
                     {
                         if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
                         var balance = AdvancedEconomyLedger.Get(station, rule);
-                        var q = HostQuote(station, rule, balance);
+                        int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
+                        int pressure = ModAdvancedEconomy.Pressure(db, station);
                         if (!first) sb.Append(',');
                         first = false;
-                        sb.Append(rule.Item).Append(':').Append(q.buy).Append(':').Append(q.sell).Append(':')
-                            .Append(rule.Target).Append(':').Append(q.pressure).Append(':').Append(balance.ImportHops);
+                        sb.Append(rule.Item).Append(':').Append(basis).Append(':').Append(balance.Amount).Append(':')
+                            .Append(rule.Target).Append(':').Append(pressure).Append(':').Append(balance.ImportHops);
                     }
             }
             return sb.ToString();

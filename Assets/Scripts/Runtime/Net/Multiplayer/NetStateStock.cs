@@ -46,7 +46,7 @@ namespace GoF2Remake.Multiplayer
             dirtyStock.Add(station);
         }
         [Rpc(SendTo.Server)]
-        public void EconomyTradeRpc(int station, int item, int units, bool buy, int quote, int sequence, RpcParams rpc = default)
+        public void EconomyTradeRpc(int station, int item, int units, bool buy, long quote, int sequence, RpcParams rpc = default)
         {
             ulong client = rpc.Receive.SenderClientId;
             int delta = 0; long credits = 0;

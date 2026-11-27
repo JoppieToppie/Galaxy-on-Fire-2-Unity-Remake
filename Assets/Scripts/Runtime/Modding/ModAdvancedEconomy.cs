@@ -90,8 +90,18 @@ namespace GoF2Remake.Modding
                 - Math.Min(1, Math.Max(0, ratio - 1)) * surplus / 100.0
                 + Math.Clamp(pressure, 0, 100) * war / 10000.0 + Math.Max(0, hops) * freight / 100.0;
             int buy = (int)Math.Clamp(Math.Round(basis * Math.Clamp(multiplier, 0.1, 20)), 1, int.MaxValue);
-            int sell = (int)Math.Clamp(Math.Floor(buy * (100 - Math.Clamp(spread, 1, 99)) / 100.0), 0, buy);
+            int sell = (int)Math.Clamp(Math.Floor((long)buy * (100 - Math.Clamp(spread, 1, 99)) / 100.0), 0, buy);
             return (buy, sell);
+        }
+
+        // Price the same stock boundary in both directions. A round trip crosses
+        // identical boundaries in reverse order, with the sell spread on every unit.
+        public static int TradeUnitPrice(int basis, int stock, int target, int pressure, int hops,
+            int scarcity, int surplus, int war, int freight, int spread, bool buy)
+        {
+            int boundary = buy ? Math.Max(0, stock - 1) : Math.Max(0, stock);
+            var quote = Quote(basis, boundary, target, pressure, hops, scarcity, surplus, war, freight, spread);
+            return buy ? quote.buy : quote.sell;
         }
 
         public static int DispatchAmount(int source, int sourceTarget, int destination, int destinationTarget, int capacity) =>

@@ -80,7 +80,9 @@ Enable `dynamicPricing` together with `saveInventory` on a persistent profile se
 Only explicitly managed commodity rows use the server-priced transaction path.
 The host uses the existing station-specific base price, then adds scarcity, war pressure
 and optional weighted import-hop costs, or applies a surplus discount. A configurable
-buy/sell spread prevents same-price round trips. Both the quote and the actual credit/cargo
+buy/sell spread and marginal per-unit pricing prevent profiting from an immediate bulk
+buy-and-resell solely by moving along the stock curve. Each batch quotes the sum of all
+unit prices rather than selling or buying the whole batch at the first unit's price. Both the quote and the actual credit/cargo
 transfer are checked on the server; changed quotes are rejected and refreshed. The existing
 station transaction journal contains the economy snapshot, player balances and faction VAT
 targets so interrupted transactions can be replayed without a second debit. Existing player
