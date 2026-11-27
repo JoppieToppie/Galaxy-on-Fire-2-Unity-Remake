@@ -557,6 +557,46 @@
     background-image: url("project://database/Assets/UI/Original/og_st_button_on.png");
 }
 
+/* Multiplayer and Chat copy station-menu-button from Game Options. In the Original
+   layout Game Options alone belongs in the footer; the network buttons stay in the header. */
+.ui-style-original .station-root #netButton,
+.ui-style-original .station-root #chatTab.station-menu-button {
+    position: absolute;
+    left: auto;
+    right: 0;
+    top: 0;
+    bottom: auto;
+    width: 134px;
+    height: 30px;
+    min-width: 0;
+    padding: 0 6px;
+    background-image: url("project://database/Assets/UI/Original/og_st_button.png");
+    -unity-slice-left: 4;
+}
+.ui-style-original .station-root #chatTab.station-menu-button {
+    right: 146px;
+    width: 100px;
+}
+.ui-style-original.lounge-open .station-root #netButton,
+.ui-style-original .lounge-open .station-root #netButton {
+    right: 200px;
+}
+.ui-style-original.lounge-open .station-root #chatTab.station-menu-button,
+.ui-style-original .lounge-open .station-root #chatTab.station-menu-button {
+    right: 346px;
+}
+.ui-style-original .station-root #netButton:focus,
+.ui-style-original .station-root #netButton:active,
+.ui-style-original .station-root #chatTab.station-menu-button:focus,
+.ui-style-original .station-root #chatTab.station-menu-button:active,
+.ui-style-original .can-hover .station-root #netButton:hover,
+.ui-style-original.can-hover .station-root #netButton:hover,
+.ui-style-original .can-hover .station-root #chatTab.station-menu-button:hover,
+.ui-style-original.can-hover .station-root #chatTab.station-menu-button:hover {
+    background-image: url("project://database/Assets/UI/Original/og_st_button_on.png");
+    color: #FFFFFF;
+}
+
 /* Original: the help "?" in the header's top-right corner (x 1862-1920). */
 .ui-style-original .station-lounge-help {
     position: absolute;
