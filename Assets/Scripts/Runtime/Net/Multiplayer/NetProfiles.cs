@@ -362,9 +362,33 @@ namespace GoF2Remake.Multiplayer
             if (!changed) return true;
             save.reputationRevision = revision;
             if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
-            InvalidateEconomyUploads(account);
             PublishReputation(pilot, save, notifyOwner: true, penalty: false);
             return true;
+        }
+
+        internal static void PreserveServerReputation(SaveData save, SaveData prior, bool history, bool pirate)
+        {
+            save.standing = prior?.standing != null && prior.standing.Length == 2 ? (int[])prior.standing.Clone() : new[] { 30, 0 };
+            var entries = prior?.modRaceStanding != null && prior.modRaceStanding.Count > 0 ? prior.modRaceStanding : prior?.factionStanding;
+            save.modRaceStanding = entries != null ? new List<string>(entries) : new List<string>();
+            save.factionStanding = null;
+            save.reputationRevision = prior?.reputationRevision;
+            if (history || pirate || SavedReputation(prior).ContainsKey(Flight.Standing.PiracyHistoryKey))
+                SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
+            if (pirate)
+                foreach (int race in Flight.Standing.ReputationRaces())
+                    SetSavedReputation(save, Flight.Standing.ReputationKey(race), -100);
+        }
+
+        internal static void RefreshServerReputation(NetPlayer pilot)
+        {
+            if (pilot == null || !Flight.Standing.Independent || IsHostClient(pilot.OwnerClientId)) return;
+            string account = AccountOf(pilot.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return;
+            var prior = ReadSave(account);
+            var save = new SaveData();
+            PreserveServerReputation(save, prior, NetFactions.HasPiracyHistory(account), NetFactions.IsPirateAccount(account));
+            PublishReputation(pilot, save, false);
         }
 
         internal static void PublishReputation(NetPlayer pilot, SaveData save, bool notifyOwner, bool penalty = false)
@@ -372,12 +396,13 @@ namespace GoF2Remake.Multiplayer
             if (pilot == null || save == null || !Flight.Standing.Independent) return;
             var standings = SavedReputation(save);
             var snapshot = new System.Text.StringBuilder();
-            // Explicit entries for all current races make legacy axes and custom defaults
-            // independent of the owner's network variables.
-            foreach (int race in Flight.Standing.ReputationRaces())
-                snapshot.Append(Flight.Standing.ReputationKey(race)).Append('=').Append(SavedStanding(save, race, standings)).Append(';');
+            var canonical = new Dictionary<string, int>(StringComparer.Ordinal);
             if (standings.TryGetValue(Flight.Standing.PiracyHistoryKey, out int marker) && marker > 0)
-                snapshot.Append(Flight.Standing.PiracyHistoryKey).Append("=1;");
+                canonical[Flight.Standing.PiracyHistoryKey] = 1;
+            foreach (int race in Flight.Standing.ReputationRaces())
+                canonical[Flight.Standing.ReputationKey(race)] = SavedStanding(save, race, standings);
+            pilot.SetServerReputation(canonical);
+            foreach (var entry in canonical) snapshot.Append(entry.Key).Append('=').Append(entry.Value).Append(';');
             if (notifyOwner) NetState.Instance?.SendReputationPenalty(pilot.OwnerClientId, snapshot.ToString(), save.reputationRevision ?? "", penalty);
         }
 

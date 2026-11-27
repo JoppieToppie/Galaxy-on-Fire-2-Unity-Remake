@@ -291,7 +291,7 @@ namespace GoF2Remake.Multiplayer
             int reward = Mathf.Clamp(m.reward, 0, MaxMissionPay);
             record = new MissionRecord
             {
-                reward = reward, wager = m.type == MissionType.Challenge ? reward : 0, amount = Mathf.Clamp(m.amount, 0, 1023),
+                reward = reward, wager = m.type == MissionType.Challenge ? reward : 0, amount = Mathf.Clamp(m.amount, 0, 1023), clientRace = m.clientRace,
             };
             record.members.Add(from.OwnerClientId);
             list.Add(record);
@@ -312,8 +312,14 @@ namespace GoF2Remake.Multiplayer
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Mission)) return;
             var from = NetSquad.Find(client);
-            if (from == null || from.SquadId == 0) return;
+            if (from == null) return;
             if (!ParseMission(json, out var m)) { NetRateLimit.Reject(client, "a malformed mission"); return; }
+            if (from.SquadId == 0)
+            {
+                if (Flight.Standing.Independent && NetProfiles.Controls(client) && isNew && from.Where == NetPlayer.Place.Hangar)
+                    Register(m, from);
+                return;
+            }
             long netId = m.netId;
             if (isNew)
             {
@@ -379,6 +385,17 @@ namespace GoF2Remake.Multiplayer
             }
             record.ended = true;
             record.endedAt = Time.unscaledTime;
+            if (Flight.Standing.Independent && result == NetMissions.Success)
+            {
+                void Award(NetPlayer p)
+                {
+                    if (p == null || NetProfiles.IsHostClient(p.OwnerClientId) || !record.members.Contains(p.OwnerClientId)) return;
+                    NetFactions.RecordReputationMove(p.OwnerClientId, record.clientRace,
+                        5 * NetProfiles.ReputationDifficultyMultiplier(NetProfiles.AccountOf(p.OwnerClientId)));
+                }
+                Award(from);
+                foreach (var p in MissionTeam(from, netId, record)) Award(p);
+            }
             foreach (var p in MissionTeam(from, netId, record))
                 MissionResultToRpc(netId, result, share, from.DisplayName, RpcTarget.Single(p.OwnerClientId, RpcTargetUse.Temp));
         }

@@ -194,7 +194,7 @@ namespace GoF2Remake.Multiplayer
             bool parsed = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _);
             // A missing or unreadable established profile must not be replaced by a fresh
             // client snapshot. Preserve both disk copies for recovery on advanced economy servers.
-            if (!coopHost && login.account != null && Modding.ModAdvancedEconomy.DynamicPricing &&
+            if (!coopHost && login.account != null && (Modding.ModAdvancedEconomy.DynamicPricing || Flight.Standing.Independent) &&
                 !parsed && (File.Exists(ProfilePath(login.account.id)) || File.Exists(ProfilePath(login.account.id) + ".bak")))
             {
                 NetGame.Kick(login.client, "Your saved profile could not be loaded. Contact the server administrator to recover it.");
@@ -220,6 +220,7 @@ namespace GoF2Remake.Multiplayer
                 login.acceptedUploadSequence = 0;
                 incoming.Remove(login.client);
             }
+            RefreshServerReputation(NetSquad.Find(login.client));
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
             NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home,
                 NeedsIdentity(login.account),
@@ -379,7 +380,7 @@ namespace GoF2Remake.Multiplayer
             // A stale upload must not resurrect the pre-death loadout, even if it was
             // assembled after receipt of the new economy revision.
             var prior = ReadSave(account.id);
-            if (!IsHostClient(client) && Modding.ModAdvancedEconomy.DynamicPricing && prior == null &&
+            if (!IsHostClient(client) && (Modding.ModAdvancedEconomy.DynamicPricing || Flight.Standing.Independent) && prior == null &&
                 (File.Exists(ProfilePath(account.id)) || File.Exists(ProfilePath(account.id) + ".bak")))
             {
                 Reject(login, "your established server profile is unavailable; administrator recovery is required");
@@ -398,9 +399,12 @@ namespace GoF2Remake.Multiplayer
                     !string.Equals(prior.reputationRevision, save.reputationRevision, StringComparison.Ordinal))
                 {
                     Reject(login, "your profile has not acknowledged the latest reputation change");
-                    RefreshProfile(client);
+                    if (pilot != null && pilot.Where == NetPlayer.Place.Hangar) RefreshProfile(client);
+                    else PublishReputation(pilot, prior, true);
                     return;
                 }
+                if (!IsHostClient(client))
+                    PreserveServerReputation(save, prior, NetFactions.HasPiracyHistory(account.id), NetFactions.IsPirateAccount(account.id));
                 if (SavedReputation(prior).ContainsKey(Flight.Standing.PiracyHistoryKey) || NetFactions.HasPiracyHistory(account.id))
                     SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
                 if (NetFactions.IsPirateAccount(account.id))
@@ -462,6 +466,7 @@ namespace GoF2Remake.Multiplayer
             account.lastSeen = Now();
             login.acceptedAt = now;
             SaveIndex();
+            if (Flight.Standing.Independent && !IsHostClient(client)) PublishReputation(pilot, save, true);
             if (!handing) NetState.Instance?.ClaimVictoryReward(pilot, save);
             if (handing)
             {

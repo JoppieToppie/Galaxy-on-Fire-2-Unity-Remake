@@ -130,6 +130,15 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> signature = new NetworkVariable<int>(-1, Read, Write);
         // Remake mods: the standings toward mods'races (NetModRaceStandings), and another player's read back
         readonly NetworkVariable<FixedString4096Bytes> modRaceStanding = new NetworkVariable<FixedString4096Bytes>(default, Read, Write);
+        readonly NetworkVariable<FixedString4096Bytes> serverRaceStanding = new NetworkVariable<FixedString4096Bytes>(default);
+        readonly Dictionary<string, int> serverRaceStandings = new Dictionary<string, int>(System.StringComparer.Ordinal);
+        internal void SetServerReputation(Dictionary<string, int> standings)
+        {
+            if (!IsServer || IsOwner) return;
+            serverRaceStandings.Clear();
+            foreach (var entry in standings) serverRaceStandings[entry.Key] = entry.Value;
+            serverRaceStanding.Value = NetModRaceStandings.Encode(standings);
+        }
         readonly Dictionary<string, int> modRaceStandings = new Dictionary<string, int>(System.StringComparer.Ordinal);
         readonly NetworkVariable<long> missionRun = new NetworkVariable<long>(0, Read, Write);   // NetMissions: the mission its level runs
         readonly NetworkVariable<long> missionHeld = new NetworkVariable<long>(0, Read, Write);  // the mission this player holds (netId)
@@ -202,7 +211,8 @@ namespace GoF2Remake.Multiplayer
         {
             get
             {
-                if (!Standing.Independent || !IsPirate) return IsOwner ? Session.ModRaceStanding : modRaceStandings;
+                if (!Standing.Independent || !IsPirate)
+                    return IsOwner ? Session.ModRaceStanding : Standing.Independent && serverRaceStandings.Count != 0 ? serverRaceStandings : modRaceStandings;
                 lockedRaceStandings.Clear();
                 lockedRaceStandings[Standing.PiracyHistoryKey] = 1;
                 foreach (int race in Standing.ReputationRaces()) lockedRaceStandings[Standing.ReputationKey(race)] = -100;
@@ -758,6 +768,7 @@ namespace GoF2Remake.Multiplayer
             {
                 string account = NetProfiles.AccountOf(OwnerClientId);
                 profileAccount.Value = account ?? "";
+                NetProfiles.RefreshServerReputation(this);
                 var faction = NetFactions.Of(account);
                 factionId.Value = faction?.id ?? "";
                 factionTag.Value = faction?.tag ?? "";
@@ -772,6 +783,8 @@ namespace GoF2Remake.Multiplayer
                 ship.Value = Session.ShipIndex;
                 pilot.Value = NetGame.Clean(NetGame.PlayerName);
                 NetModRaceStandings.Resend();
+                piratePilot.OnValueChanged += (_, v) => { if (v) Standing.EnforcePiracyLock(); };
+                if (IsPirate) Standing.EnforcePiracyLock();
                 sender = new NetShotSender(SendShot, BlastUpRpc, () => level != null && level.Weapons != null ? level.Weapons.LockTarget : null, () => NetworkObjectId);
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 admin.OnValueChanged += (_, on) => NetChat.Notice(on
@@ -808,6 +821,8 @@ namespace GoF2Remake.Multiplayer
             piratePilot.OnValueChanged += (_, v) => { ApplyName(); if (IsOwner && v) Standing.EnforcePiracyLock(); };
             if (IsOwner && IsPirate) Standing.EnforcePiracyLock();
             wantedPilot.OnValueChanged += (_, _) => ApplyName();
+            if (!IsServer) NetModRaceStandings.Decode(serverRaceStanding.Value, serverRaceStandings);
+            serverRaceStanding.OnValueChanged += (_, v) => { if (!IsServer) NetModRaceStandings.Decode(v, serverRaceStandings); };
             NetModRaceStandings.Decode(modRaceStanding.Value, modRaceStandings);
             modRaceStanding.OnValueChanged += (_, v) => NetModRaceStandings.Decode(v, modRaceStandings);
             Target.NetShips.Add(target);

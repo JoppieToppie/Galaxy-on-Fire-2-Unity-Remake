@@ -24,7 +24,13 @@ namespace GoF2Remake.Multiplayer
             if (!int.TryParse(words[1], out int amount)) return Usage("standing");
             amount = Mathf.Clamp(amount, -200, 200);
             if (!ParseStandingSide(words[0], out int race, out string modRace, out string error)) return error;
-            Send(t, Order.Standing, race, amount, set ? 1 : 0, by, $"standing {words[0]} {(set ? "set to " : "")}{amount}", modRace);
+            if (Standing.Independent && t is NetPlayer pilot && NetProfiles.Controls(pilot.OwnerClientId) && !NetProfiles.IsHostClient(pilot.OwnerClientId))
+            {
+                int sideRace = modRace != null ? Modding.ModRaces.Get(modRace).race : race;
+                if (!NetFactions.RecordReputationMove(pilot.OwnerClientId, sideRace, amount, set))
+                    return "Standing change was not applied (piracy lock or pending profile recovery).";
+            }
+            else Send(t, Order.Standing, race, amount, set ? 1 : 0, by, $"standing {words[0]} {(set ? "set to " : "")}{amount}", modRace);
             string side = modRace != null ? Modding.ModRaces.Name(Modding.ModRaces.Get(modRace).race) : Standing.RaceName(race);
             return set ? string.Format(X("mpAdmStandingSet", "{0}: standing toward {1} set to {2}."), t.DisplayName, side, Mathf.Clamp(amount, -100, 100))
                        : string.Format(X("mpAdmStanding", "{0}: standing toward {1} {2:+0;-0}."), t.DisplayName, side, amount);

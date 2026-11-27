@@ -420,7 +420,7 @@ namespace GoF2Remake.Multiplayer
         sealed class MissionRecord
         {
             public readonly HashSet<ulong> members = new HashSet<ulong>();
-            public int reward, wager, amount;
+            public int reward, wager, amount, clientRace;
             public bool ended;   // its result went out (two members delivering at once: the second is dropped)
             public float endedAt;
             public int MaxShare => (int)System.Math.Min(2L * reward + 50L, MaxMissionPay);   // the reward + a standing bonus of up to 100 %
