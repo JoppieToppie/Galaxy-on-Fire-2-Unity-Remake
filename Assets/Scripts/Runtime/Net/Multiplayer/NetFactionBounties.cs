@@ -249,6 +249,33 @@ namespace GoF2Remake.Multiplayer
             pilot.SetPiracyFlags(pirate, wanted);
         }
 
+        // Only called before a newly created identity is completed. Never on login or respawn.
+        // Replaying an interrupted creation is safe; this grants no bounty or kill history.
+        internal static bool GrantStartingPiracy(string account)
+        {
+            if (!PiracyEnabled || bountyFile == null || string.IsNullOrEmpty(account) ||
+                NetPlayerStations.ProfileWritesBlocked || !SaveBounties()) return false;
+            bool added = !piracyByAccount.TryGetValue(account, out var record);
+            if (added)
+            {
+                record = new PiracyRecord { account = account };
+                bountyFile.piracy.Add(record);
+                piracyByAccount.Add(account, record);
+            }
+            if (record.pirate) return true;
+            record.pirate = true;
+            bountyDirty = true;
+            if (SaveBounties()) return true;
+            record.pirate = false;
+            if (added)
+            {
+                bountyFile.piracy.Remove(record);
+                piracyByAccount.Remove(account);
+            }
+            bountyDirty = false;
+            return false;
+        }
+
         internal static int PiracyKillWeight(bool secure) => secure ? 2 : 1;
 
         static bool TrackPiracyKill(string account, long now, bool secure, out int count, out int threshold, out int windowSeconds)
