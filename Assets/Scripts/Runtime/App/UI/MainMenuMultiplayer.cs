@@ -85,6 +85,16 @@ namespace GoF2Remake.UI
 
         static void HighlightIdentityChoice(Button button, bool selected, bool focused = false)
         {
+            button.AddToClassList("identity-choice");
+            button.EnableInClassList("identity-choice--selected", selected);
+            button.EnableInClassList("identity-choice--focused", focused);
+            if (Settings.OriginalUi)
+            {
+                button.style.backgroundColor = StyleKeyword.Null;
+                button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = StyleKeyword.Null;
+                button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = StyleKeyword.Null;
+                return;
+            }
             var border = focused ? Color.white : selected ? new Color(0.52f, 0.87f, 1f) : new Color(0.20f, 0.34f, 0.44f);
             button.style.backgroundColor = selected ? new Color(0.12f, 0.29f, 0.39f) : new Color(0.045f, 0.10f, 0.15f);
             button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = border;
@@ -115,7 +125,7 @@ namespace GoF2Remake.UI
             identityOverlay = new VisualElement { name = "firstJoinIdentity" };
             identityOverlay.style.position = Position.Absolute;
             identityOverlay.style.left = identityOverlay.style.right = identityOverlay.style.top = identityOverlay.style.bottom = 0;
-            identityOverlay.style.backgroundColor = new Color(0.025f, 0.06f, 0.10f, 0.99f);
+            if (!Settings.OriginalUi) identityOverlay.style.backgroundColor = new Color(0.025f, 0.06f, 0.10f, 0.99f);
             identityOverlay.style.alignItems = Align.Center;
             identityOverlay.style.justifyContent = Justify.Center;
             root.Add(identityOverlay);
@@ -422,6 +432,7 @@ namespace GoF2Remake.UI
                 {
                     button.style.flexGrow = 1;
                     button.style.minHeight = 36;
+                    button.AddToClassList("gof-button");
                     scrollControls.Add(button);
                 }
                 var sections = new VisualElement();
@@ -443,7 +454,8 @@ namespace GoF2Remake.UI
                         panel.style.flexGrow = 1;
                         panel.style.marginRight = 8;
                     }
-                    if (style != "text")
+                    if (style != "text") panel.AddToClassList(style == "warning" ? "identity-briefing-warning" : "identity-briefing-card");
+                    if (style != "text" && !Settings.OriginalUi)
                         panel.style.backgroundColor = style == "warning" ? new Color(0.26f, 0.15f, 0.055f) : new Color(0.07f, 0.17f, 0.23f);
                     if (block["heading"] != null) panel.Add(IdentityLabel((string)block["heading"], 23));
                     panel.Add(IdentityLabel((string)block["text"], 18));
@@ -481,6 +493,7 @@ namespace GoF2Remake.UI
                     button.style.minHeight = 48;
                     button.style.flexGrow = 1;
                     button.style.whiteSpace = WhiteSpace.Normal;
+                    button.AddToClassList("gof-button");
                     footer.Add(button);
                 }
                 UiFocus.SkipScrollBars(identityBriefing);
