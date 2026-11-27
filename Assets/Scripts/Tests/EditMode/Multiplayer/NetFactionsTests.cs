@@ -54,6 +54,18 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(eligible, NpcFactionWar.QualifiesForCapture(winning, losing, defenders, attackers));
         }
 
+        [TestCase(50, 0.5d, 0.5d, false)]
+        [TestCase(50, 0.499d, 1d, true)]
+        [TestCase(200, 1.5d, 2d, true)]
+        [TestCase(200, 2d, 2d, false)]
+        [TestCase(0, 10d, 10d, true)]
+        public void CaptureRewardsRespectConfiguredDoubleSidedThreshold(int threshold, double defenders, double attackers, bool eligible)
+        {
+            Assert.AreEqual(eligible, NpcFactionWar.QualifiesForCapture(3, 1, defenders, attackers, threshold));
+            Assert.IsFalse(NpcFactionWar.QualifiesForCapture(1, 1, defenders, attackers, threshold),
+                "the normal contribution requirement remains");
+        }
+
         [Test]
         public void VictoryCreditPoolIsConserved()
         {

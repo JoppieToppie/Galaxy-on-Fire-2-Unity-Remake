@@ -300,7 +300,8 @@ namespace GoF2Remake.Multiplayer
                 losingContributions.TryGetValue(entry.Key, out int opposite);
                 roster.hullAgainstDefenders.TryGetValue(entry.Key, out double defenderDamage);
                 roster.hullAgainstAttackers.TryGetValue(entry.Key, out double attackerDamage);
-                if (NpcFactionWar.QualifiesForCapture(entry.Value, opposite, defenderDamage, attackerDamage))
+                if (NpcFactionWar.QualifiesForCapture(entry.Value, opposite, defenderDamage, attackerDamage,
+                    ModNpcFactionWar.DoubleSidedDamageThresholdPercent))
                     eligible.Add(entry.Key);
             }
             eligible.Sort(System.StringComparer.Ordinal);

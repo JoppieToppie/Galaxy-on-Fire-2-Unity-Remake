@@ -1150,6 +1150,10 @@ namespace GoF2Remake.UI
             Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
             Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
             Heading(scroll, "Victory rewards");
+            Int(scroll, "Double-sided damage threshold (%)", Number("doubleSidedDamageThresholdPercent", ModNpcFactionWar.DefaultDoubleSidedDamageThresholdPercent),
+                0, ModNpcFactionWar.MaxDoubleSidedDamageThresholdPercent,
+                v => { rules["doubleSidedDamageThresholdPercent"] = v; MarkDirty(); });
+            Note(scroll, "Disqualify a pilot who deals at least this much hull damage to each fleet. 100% is one ship's full hull; 0 disables this exclusion.");
             Note(scroll, "Choose legacy (shared credits, full loot), split (both shared), or flat (both per player). Personal bonuses apply after distribution. Rewards are collected by docking at the captured station.");
             var rewards = rules["rewards"] as JObject ?? new JObject();
             RewardSection("default", "Default victory rewards");

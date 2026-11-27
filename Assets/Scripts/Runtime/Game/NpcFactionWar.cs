@@ -69,13 +69,17 @@ namespace GoF2Remake.Data
         public static bool IsWarTag(int tag) => tag >= FirstTag && tag < FirstTag + SlotsPerBattle * LastBattleId;
 
         // Preserve the winning-side contribution requirement, but never reward a pilot who substantially
-        // damaged both fleets. The tiny tolerance only corrects floating-point summation at exactly 150%.
-        public const double DoubleSidedDamageThreshold = 1.5d;
+        // damaged both fleets. Zero disables only this exclusion; the normal participation rule remains.
         public static bool QualifiesForCapture(int winningContributions, int losingContributions,
-            double damageAgainstDefenders, double damageAgainstAttackers) =>
-            winningContributions > losingContributions &&
-            !(damageAgainstDefenders >= DoubleSidedDamageThreshold - 1e-9d &&
-              damageAgainstAttackers >= DoubleSidedDamageThreshold - 1e-9d);
+            double damageAgainstDefenders, double damageAgainstAttackers,
+            int thresholdPercent = ModNpcFactionWar.DefaultDoubleSidedDamageThresholdPercent)
+        {
+            double threshold = thresholdPercent / 100d;
+            // A tiny tolerance corrects summation at the exact configured threshold.
+            return winningContributions > losingContributions &&
+                (thresholdPercent <= 0 || !(damageAgainstDefenders >= threshold - 1e-9d &&
+                                            damageAgainstAttackers >= threshold - 1e-9d));
+        }
 
         public readonly struct Battle
         {

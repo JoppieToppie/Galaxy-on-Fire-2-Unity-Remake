@@ -21,6 +21,9 @@ namespace GoF2Remake.Modding
         public static int ShipsPerSide { get; private set; }
         public static int IntervalSeconds { get; private set; }
         public static int BattleSeconds { get; private set; }
+        public const int DefaultDoubleSidedDamageThresholdPercent = 150;
+        public const int MaxDoubleSidedDamageThresholdPercent = 10000;
+        public static int DoubleSidedDamageThresholdPercent { get; private set; } = DefaultDoubleSidedDamageThresholdPercent;
         public static bool DynamicFrontlines { get; private set; } = true;
         public static bool GateOnlyFrontlines { get; private set; }
 
@@ -80,6 +83,7 @@ namespace GoF2Remake.Modding
             ShipsPerSide = 12;
             IntervalSeconds = 1200;
             BattleSeconds = 480;
+            DoubleSidedDamageThresholdPercent = DefaultDoubleSidedDamageThresholdPercent;
             DynamicFrontlines = true;
             GateOnlyFrontlines = false;
             UnprotectedDefaultCores.Clear();
@@ -102,6 +106,7 @@ namespace GoF2Remake.Modding
                     int ships = Mathf.Clamp(ModJson.Int(options, "shipsPerSide", ShipsPerSide, File), 4, 24);
                     int interval = Mathf.Clamp(ModJson.Int(options, "intervalSeconds", IntervalSeconds, File), 60, 86400);
                     int duration = Mathf.Clamp(ModJson.Int(options, "battleSeconds", BattleSeconds, File), 60, 3600);
+                    int doubleSidedThreshold = Mathf.Clamp(ModJson.Int(options, "doubleSidedDamageThresholdPercent", DoubleSidedDamageThresholdPercent, File), 0, MaxDoubleSidedDamageThresholdPercent);
                     bool dynamicFrontlines = ModJson.Bool(options, "dynamicFrontlines", DynamicFrontlines, File);
                     bool gateOnlyFrontlines = ModJson.Bool(options, "gateOnlyFrontlines", GateOnlyFrontlines, File);
                     var unprotected = ReadSystems(options, "unprotectedDefaultCores", mod.Id);
@@ -119,6 +124,7 @@ namespace GoF2Remake.Modding
                     ShipsPerSide = ships;
                     IntervalSeconds = interval;
                     BattleSeconds = duration;
+                    DoubleSidedDamageThresholdPercent = doubleSidedThreshold;
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
             }
