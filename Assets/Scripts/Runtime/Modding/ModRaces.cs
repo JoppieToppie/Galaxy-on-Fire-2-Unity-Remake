@@ -281,7 +281,10 @@ namespace GoF2Remake.Modding
         {
             var d = Get(race);
             if (d == null) return 0;
-            return standings != null && standings.TryGetValue(d.key, out int v) ? v : d.start;
+            if (standings != null && standings.TryGetValue(d.key, out int v)) return v;
+            if (Flight.Standing.Independent && standings != null &&
+                standings.TryGetValue(Flight.Standing.PiracyHistoryKey, out int history) && history > 0) return -100;
+            return d.start;
         }
 
         public static void SetStanding(int race, int value)

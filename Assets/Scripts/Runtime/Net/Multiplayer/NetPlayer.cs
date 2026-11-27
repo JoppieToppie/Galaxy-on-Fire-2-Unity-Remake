@@ -197,7 +197,18 @@ namespace GoF2Remake.Multiplayer
         public int Standing1 => standing1.Value;
         public int Signature => Standing.Independent && IsPirate ? -1 : signature.Value;
         /// <summary>This player's standings toward mods'races (mod race key -> value): Standing.IsEnemyWith.</summary>
-        public IReadOnlyDictionary<string, int> ModRaceStandings => IsOwner ? Session.ModRaceStanding : modRaceStandings;
+        readonly Dictionary<string, int> lockedRaceStandings = new Dictionary<string, int>(System.StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, int> ModRaceStandings
+        {
+            get
+            {
+                if (!Standing.Independent || !IsPirate) return IsOwner ? Session.ModRaceStanding : modRaceStandings;
+                lockedRaceStandings.Clear();
+                lockedRaceStandings[Standing.PiracyHistoryKey] = 1;
+                foreach (int race in Standing.ReputationRaces()) lockedRaceStandings[Standing.ReputationKey(race)] = -100;
+                return lockedRaceStandings;
+            }
+        }
         public float CloakPercent => look.cloak;
         internal bool ScanVisible => visible.Value && Hull > 0f && CloakPercent < 25f && HasCurrentWreckClaimPose;
         /// <summary>The squad mission (FreelanceMission.netId) this player's level runs here, 0 = none.</summary>

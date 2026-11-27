@@ -24,7 +24,8 @@ namespace GoF2Remake.Multiplayer
             public float startedAt;
             public readonly Dictionary<string, int> againstDefenders = new Dictionary<string, int>();
             public readonly Dictionary<string, int> againstAttackers = new Dictionary<string, int>();
-            public readonly Dictionary<string, int> reputation = new Dictionary<string, int>();
+            public readonly Dictionary<string, int> attackerReputation = new Dictionary<string, int>();
+            public readonly Dictionary<string, int> defenderReputation = new Dictionary<string, int>();
             public readonly Dictionary<int, ulong> ships = new Dictionary<int, ulong>();
         }
 
@@ -260,7 +261,8 @@ namespace GoF2Remake.Multiplayer
                 if (account == null) continue;
                 scores.TryGetValue(account, out int score);
                 scores[account] = score + 1;
-                roster.reputation[account] = Standing.EarnedWith(roster.battle.attacker, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
+                roster.attackerReputation[account] = Standing.EarnedWith(roster.battle.attacker, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
+                roster.defenderReputation[account] = Standing.EarnedWith(roster.battle.defender, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
             }
         }
 
@@ -268,9 +270,12 @@ namespace GoF2Remake.Multiplayer
         {
             var settings = ModNpcFactionWar.RewardFor(winner);
             var eligible = new List<string>();
-            foreach (var entry in roster.againstDefenders)
+            var winningContributions = winner == roster.battle.attacker ? roster.againstDefenders : roster.againstAttackers;
+            var losingContributions = winner == roster.battle.attacker ? roster.againstAttackers : roster.againstDefenders;
+            var winningReputation = winner == roster.battle.attacker ? roster.attackerReputation : roster.defenderReputation;
+            foreach (var entry in winningContributions)
             {
-                roster.againstAttackers.TryGetValue(entry.Key, out int opposite);
+                losingContributions.TryGetValue(entry.Key, out int opposite);
                 if (entry.Value > opposite) eligible.Add(entry.Key);
             }
             eligible.Sort(System.StringComparer.Ordinal);
@@ -281,7 +286,7 @@ namespace GoF2Remake.Multiplayer
             for (int i = 0; i < eligible.Count; i++)
             {
                 priorWins[i] = factionWar.RecordParticipation(eligible[i], winner);
-                roster.reputation.TryGetValue(eligible[i], out reputations[i]);
+                winningReputation.TryGetValue(eligible[i], out reputations[i]);
                 lootByPilot[i] = new List<NpcFactionWar.RewardItem>();
             }
             foreach (var item in settings.loot)

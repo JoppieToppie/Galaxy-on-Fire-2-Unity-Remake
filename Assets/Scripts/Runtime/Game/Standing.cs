@@ -28,6 +28,7 @@ namespace GoF2Remake.Flight
         public static bool Independent => Modding.ModPvpPiracy.IndependentReputation;
         public static bool PiracyLocked => Independent && GameHooks.LocalPilotIsPirate?.Invoke() == true;
         public static bool CanGainFromKills(int race) => !PiracyLocked && RawToward(race) > -71;
+        public const string PiracyHistoryKey = "__piracy_reputation_history";
         public static string ReputationKey(int race) => Modding.ModRaces.Get(race)?.key ?? ("__base_standing_" + race);
         public static IEnumerable<int> ReputationRaces()
         {
@@ -39,13 +40,17 @@ namespace GoF2Remake.Flight
         public static void EnforcePiracyLock()
         {
             if (!Independent) return;
+            Modding.ModRaces.SetStandingKey(PiracyHistoryKey, 1);
             foreach (int race in ReputationRaces()) StoreIndependent(race, -100);
         }
         public static int EarnedWith(int race, int axis0, int axis1, IReadOnlyDictionary<string, int> standings)
         {
+            if (Independent && (race >= 0 && race < 4 || Modding.ModRaces.Is(race)) && standings != null)
+            {
+                if (standings.TryGetValue(ReputationKey(race), out int value)) return Mathf.Clamp(value, -100, 100);
+                if (standings.TryGetValue(PiracyHistoryKey, out int history) && history > 0) return -100;
+            }
             if (Modding.ModRaces.Is(race)) return Modding.ModRaces.StandingIn(race, standings);
-            if (Independent && race >= 0 && race < 4 && standings != null &&
-                standings.TryGetValue(ReputationKey(race), out int value)) return value;
             return race switch { 0 => axis0, 1 => -axis0, 2 => axis1, 3 => -axis1, _ => 0 };
         }
 
@@ -76,9 +81,12 @@ namespace GoF2Remake.Flight
         /// mod races null = this game's, Session.ModRaceStanding).</summary>
         public static int TowardWith(int race, int axis0, int axis1, int signature, IReadOnlyDictionary<string, int> modRaces = null)
         {
-            if (Modding.ModRaces.Is(race)) return Modding.ModRaces.StandingIn(race, modRaces ?? Session.ModRaceStanding);
-            if (signature >= 0 && race >= 0 && race <= 3) return race == signature ? 100 : race == EnemyRace[signature] ? -100 : 70;
-            return EarnedWith(race, axis0, axis1, modRaces);
+            var standings = modRaces ?? Session.ModRaceStanding;
+            int earned = EarnedWith(race, axis0, axis1, standings);
+            if (Modding.ModRaces.Is(race)) return earned;
+            if (Independent && earned <= -71) return earned;
+            if (signature >= 0 && signature < EnemyRace.Length && race >= 0 && race <= 3) return race == signature ? 100 : race == EnemyRace[signature] ? -100 : 70;
+            return earned;
         }
 
         /// <summary>IsEnemy / IsFriend with given axes, signature and mod race standings (multiplayer: another player's).</summary>
@@ -91,9 +99,9 @@ namespace GoF2Remake.Flight
 
         /// <summary>A mod race is the player's enemy: always if "hostile", else at -71 and below.</summary>
         static bool ModRaceEnemy(int race, IReadOnlyDictionary<string, int> modRaces) =>
-            Modding.ModRaces.Get(race) is var d && d != null && (d.hostile || Modding.ModRaces.StandingIn(race, modRaces) <= -71);
+            Modding.ModRaces.Get(race) is var d && d != null && (d.hostile || EarnedWith(race, 0, 0, modRaces) <= -71);
         static bool ModRaceFriend(int race, IReadOnlyDictionary<string, int> modRaces) =>
-            Modding.ModRaces.Get(race) is var d && d != null && !d.hostile && Modding.ModRaces.StandingIn(race, modRaces) >= 71;
+            Modding.ModRaces.Get(race) is var d && d != null && !d.hostile && EarnedWith(race, 0, 0, modRaces) >= 71;
 
         /// <summary>The standing axes themselves (the Status window, mission bonuses).</summary>
         public static int RawToward(int race) =>
