@@ -162,6 +162,7 @@ namespace GoF2Remake.World
         static readonly List<ClassRestriction> miningRestrictions = new List<ClassRestriction>();
         static readonly List<ClassRestriction> boardingRestrictions = new List<ClassRestriction>();
         static readonly List<LoungeWeight> loungeWeights = new List<LoungeWeight>();
+        static System.Random loungeRandom = new System.Random();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetModInteractionRules()
@@ -169,6 +170,7 @@ namespace GoF2Remake.World
             miningRestrictions.Clear();
             boardingRestrictions.Clear();
             loungeWeights.Clear();
+            loungeRandom = new System.Random();
         }
 
         static Action RegisterRestriction(List<ClassRestriction> rules, string shipClass, string message)
@@ -232,10 +234,10 @@ namespace GoF2Remake.World
             var system = db.Systems.Find(s => s != null && s.index == station.system);
             if (system == null) return null;
             string key = NormalizeLoungeSystem(system.name);
+            if (!loungeWeights.Exists(rule => rule.system == key && rule.chance > 0)) return null;
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            float roll = UnityEngine.Random.Range(0f, 100f);
-            // Random.Range(float,float) includes the upper bound; keep a 100% rule truly certain.
-            if (roll >= 100f) roll = 99.99999f;
+            // Keep lounge weighting separate from Unity's gameplay random stream.
+            double roll = loungeRandom.NextDouble() * 100.0;
             for (int i = loungeWeights.Count - 1; i >= 0; i--)
             {
                 var rule = loungeWeights[i];
