@@ -234,6 +234,7 @@ namespace GoF2Remake.Modding
         {
             for (int i = vms.Count - 1; i >= 0; i--) vms[i].Stop();
             vms.Clear();
+            tutorials.Clear();
             runningSignature = "";
         }
 
@@ -251,6 +252,7 @@ namespace GoF2Remake.Modding
         {
             Sync();
             ShowMessages();
+            ShowTutorials();
             if (vms.Count == 0) return;
             for (int i = 0; i < vms.Count; i++) vms[i].Tick(dt);
         }
@@ -269,6 +271,7 @@ namespace GoF2Remake.Modding
         /// "gameLoaded".</summary>
         public static void RestoreSaved(bool loaded)
         {
+            tutorials.Clear();
             if (vms.Count == 0) return;
             foreach (var vm in vms) vm.RestoreSaved();
             if (loaded) Raise("gameLoaded");

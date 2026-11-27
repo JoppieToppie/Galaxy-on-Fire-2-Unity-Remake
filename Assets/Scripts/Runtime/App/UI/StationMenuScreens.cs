@@ -236,6 +236,21 @@ namespace GoF2Remake.UI
             level.Launch();
         }
 
+        /// <summary>Show a mod tutorial without replacing an active station dialog or overlay.</summary>
+        public bool TryModTutorial(string title, string text)
+        {
+            if (root == null || root.panel == null || level == null || builderView != null
+                || ArrivalPending || UiBlocked || level.PlayerFlying || level.Inspect.Active || level.IntroPlaying
+                || DialogOpen || SystemMenuOpen || StarMap.IsOpen || MultiplayerWindow.IsOpenAny
+                || SquadView.PopupOpen || ChoicePopup.IsOpen || OptionInfo.IsOpen
+                || (infoWindow != null && infoWindow.IsOpen)
+                || (dryDock != null && dryDock.IsOpen) || (stationManagement != null && stationManagement.IsOpen)
+                || (lounge != null && lounge.ChatOpen)
+                || UiHooks.LatestDialogue?.IsOpen == true) return false;
+            ShowDialog(World.FlightHints.KeyTokens(title + "\n\n" + text), null, true);
+            return true;
+        }
+
         /// <summary>ChoiceWindow: yes / no, or a message with one button ('info').</summary>
         public void ShowDialog(string text, System.Action onYes, bool info = false)
         {

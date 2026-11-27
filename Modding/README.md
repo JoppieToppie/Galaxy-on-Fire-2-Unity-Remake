@@ -2982,6 +2982,20 @@ look station`, `/camera chase`, `/fade out 1 ffffff`, `/letterbox on`, `/cutscen
 
 ## Scripts
 
+### Mod tutorial popups
+
+Scripts can call `game.tutorial(id, title, text[, repeatable])` from any gameplay event. For example:
+
+```lua
+game.on("station", function()
+    game.tutorial("station_intro", "Station management",
+        "Open the station management panel to manage your infrastructure.")
+end)
+```
+
+Tutorials use the existing station and flight confirmation windows. They respect the player's Tutorial Hints option (off by default), and are local to the player whose script calls the function. IDs are scoped to each mod; the default is once per save, recorded when the popup opens. Pass true as the fourth argument to allow another popup with that ID after it has opened. Trigger repeatable tutorials on discrete events rather than every frame. Pending duplicates are ignored. The shared queue holds up to 20 requests, waits for a free interface, and discards requests when their scene changes or a save is loaded. The title and body appear as plain dialog text; existing #KEY_ binding tokens are supported. Single-player flight pauses while a popup is open; multiplayer continues running, so prefer safe station events for multiplayer tutorials. No patch hooks are required.
+
+
 Everything above is data: the game reads it and does what it already knows how to do. A **script** is code of your own, for
 what the files and the mission graphs can't express: a bounty paid for every pirate you destroy, a price that follows the
 day's news, a HUD element, a new rule. Scripts are written in **Lua** (5.2), a small language many games use for mods; the
@@ -3064,6 +3078,7 @@ Every script has the global table `game`:
 | `game.saved` | a table kept in the player's save file, per mod |
 | `game.config`, `game.saveConfig()` | a table kept outside the saves: your mod's own settings |
 | `game.log(...)`, `print(...)` | a line in the Mod Builder's console and the game's log |
+| `game.tutorial(id, title, text, repeatable)` | queues a native local tutorial popup; returns true when queued, false when disabled, already seen or pending, or the queue is full. |
 | `game.message(text)` | a line on the player's screen (the flight HUD's message line, a notice in a station) |
 | `game.command(line)` | runs a chat / event command as the server does and returns its answer |
 | `game.addCommand(name, fn)` | a command of your own (see [Commands](#commands)) |

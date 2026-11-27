@@ -178,6 +178,8 @@ namespace GoF2Remake.Data
         /// <summary>game.message: a line on screen wherever the player is (the flight HUD's message plate, else a station toast);
         /// false = nothing can show it now (the scene's interface isn't up yet: ModScripts tries again for a moment).</summary>
         public static Func<string, bool> Notice;
+        /// <summary>A local mod tutorial popup; false if the interface is not ready or another window is open.</summary>
+        public static Func<string, string, bool> TutorialPopup;
         /// <summary>game.command: a chat / event command line ("spawn pirate 3") run as the server runs it
         /// (NetCommands.RunOnServer); its answer, which says so when this game isn't the server.</summary>
         public static Func<string, string> RunCommand;

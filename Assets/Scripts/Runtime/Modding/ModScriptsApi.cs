@@ -61,6 +61,9 @@ THE GAME TABLE
   game.emit(event, ...)               an event for every script mod (this game)
   game.log(...) or print(...)         to this console and the game's log
   game.message(text)                  a line on the player's screen
+  game.tutorial(id, title, text, repeatable) -> queued
+                                      native tutorial popup; once per save by default
+                                      respects the Tutorial Hints setting
   game.command(line) -> answer        a chat / event command, as the server:
                                       game.command(""title @a Welcome for 5"")
   game.addCommand(name, fn)           a command of your own: fn(args, who)
@@ -188,6 +191,37 @@ LIMITS
   browser, never crash the game. Players are asked before a mod with
   scripts runs.";
 
+        sealed class Tutorial
+        {
+            public string modId, id, title, text;
+            public int scene;
+            public bool repeatable;
+            public Action shown;
+        }
+
+        static readonly List<Tutorial> tutorials = new List<Tutorial>();
+
+        static void ShowTutorials()
+        {
+            if (tutorials.Count == 0) return;
+            if (!Settings.TutorialHints) { tutorials.Clear(); return; }
+            int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            tutorials.RemoveAll(t => t.scene != scene);
+            if (tutorials.Count == 0 || GameHooks.TutorialPopup == null) return;
+            var t = tutorials[0];
+            try
+            {
+                if (!GameHooks.TutorialPopup(t.title, t.text)) return;
+                tutorials.RemoveAt(0);
+                t.shown?.Invoke();
+            }
+            catch (Exception e)
+            {
+                tutorials.Remove(t);
+                Debug.LogWarning("Mod tutorial " + t.modId + ":" + t.id + ": " + e.Message);
+            }
+        }
+
         sealed class Message { public string text; public float left; }
 
         /// <summary>game.message's lines waiting for an interface to show them (the oldest first, one a frame).</summary>
@@ -272,6 +306,26 @@ LIMITS
                     AddLine(mod, "[message] " + text, false);
                     if (messages.Count < 20) messages.Add(new Message { text = text, left = 3f });
                     return DynValue.Nil;
+                });
+                Fn(g, "tutorial", a =>
+                {
+                    string id = a.AsType(0, "game.tutorial", DataType.String).String.Trim();
+                    string title = a.AsType(1, "game.tutorial", DataType.String).String.Trim();
+                    string text = a.AsType(2, "game.tutorial", DataType.String).String.Trim();
+                    bool repeatable = a.Count > 3 && a[3].CastToBool();
+                    if (id.Length == 0 || id.Length > 128 || title.Length == 0 || title.Length > 120 || text.Length == 0 || text.Length > 2000)
+                        throw new ScriptRuntimeException("game.tutorial: id (1-128), title (1-120) and text (1-2000 characters) required");
+                    string key = "__tutorial_seen:" + id;
+                    if (!Settings.TutorialHints || (!repeatable && saved.Get(key).CastToBool())
+                        || tutorials.Count >= 20 || tutorials.Any(t => t.modId == mod.Id && t.id == id))
+                        return DynValue.False;
+                    tutorials.Add(new Tutorial
+                    {
+                        modId = mod.Id, id = id, title = title, text = text, repeatable = repeatable,
+                        scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle,
+                        shown = () => { if (!stopped && !repeatable) saved.Set(key, DynValue.True); }
+                    });
+                    return DynValue.True;
                 });
                 Fn(g, "command", a =>
                 {
