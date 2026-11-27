@@ -892,7 +892,21 @@ namespace GoF2Remake.World
             if (order != null && UpdateOrder(dtMs)) return;   // an event graph's order (NpcOrder)
             if (IsFreighter)
             {
-                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * slow.SpeedFactor * dtMs * M;   // remake mods: a type's "speed"
+                if (!Hp.empDisabled)
+                {
+                    float step = (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * slow.SpeedFactor * dtMs * M;
+                    if (Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag) && Spec.route?.points.Count > 0)
+                    {
+                        Vector3 end = ToUnity(Spec.route.points[0]);
+                        Vector3 delta = end - transform.position;
+                        if (delta.sqrMagnitude > 1f)
+                        {
+                            transform.rotation = Quaternion.LookRotation(delta.normalized, Vector3.up);
+                            transform.position = Vector3.MoveTowards(transform.position, end, step);
+                        }
+                    }
+                    else transform.position += transform.forward * step;
+                }
                 return;
             }
             reselectTimer += dtMs;
