@@ -414,7 +414,7 @@ namespace GoF2Remake.UI
 
         // MenuTouchWindow mode 2 (the station's Menu): 28 Start new game, 29 Load game, 30 Save game, 31 Options,
         // 43 About, 522 Back to Main Menu (the language, iPad only, is in Options; the original has no Back button).
-        enum SysPage { Main, Save, Load, Options, Debug }
+        enum SysPage { Main, Save, Load, Options, Debug, Handbook }
         SysPage sysPage;
         Button newGameButton, loadGameButton, optionsButton, aboutButton, optionsBack, debugButton;
         /// <summary>The Debug page's scroll list (remake-only cheats, CheatsCatalog).</summary>

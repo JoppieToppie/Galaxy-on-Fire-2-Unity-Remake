@@ -26,6 +26,9 @@ namespace GoF2Remake.UI
             return b;
         }
 
+        Button handbookButton;
+        VisualElement handbookPage;
+        readonly System.Collections.Generic.List<VisualElement> handbookItems = new System.Collections.Generic.List<VisualElement>();
         void BuildSystemExtras()
         {
             newGameButton = SystemButton(Localization.Get(28), 0, () => ShowDialog(Localization.Get(523), () =>
@@ -37,6 +40,7 @@ namespace GoF2Remake.UI
             loadGameButton = SystemButton(Localization.Get(29), 2, () => ShowSystemPage(SysPage.Load), systemMain);
             optionsButton = SystemButton(Localization.Get(31), 3, () => ShowSystemPage(SysPage.Options), systemMain);
             aboutButton = SystemButton(Localization.Get(43), 4, () => { ShowDialog(AboutText.Get(), null, true); AboutText.Hook(root.Q<Label>("dialogText")); }, systemMain);
+            handbookButton = SystemButton(ModScripts.HandbookTitle(), 4, () => ShowSystemPage(SysPage.Handbook), systemMain);
             // Modified: no New game and About in the station's menu (the main menu has them); Back at the panel's top right,
             // like the shop's Back (StationMenu.uss .system-menu-close), on the menu's own page only.
             newGameButton.style.display = DisplayStyle.None;
@@ -234,6 +238,9 @@ namespace GoF2Remake.UI
         void ShowSystemPage(SysPage page)
         {
             sysPage = page;
+            handbookPage?.RemoveFromHierarchy();
+            handbookPage = null;
+            if (handbookButton != null) { handbookButton.text = ModScripts.HandbookTitle(); handbookButton.style.display = ModScripts.HandbookArticles().Length > 0 ? DisplayStyle.Flex : DisplayStyle.None; }
             bool slots = page == SysPage.Save || page == SysPage.Load;
             systemMain.EnableInClassList("system-menu-page--shown", page == SysPage.Main);
             if (systemClose != null) systemClose.style.display = page == SysPage.Main ? StyleKeyword.Null : DisplayStyle.None;
@@ -245,10 +252,12 @@ namespace GoF2Remake.UI
             if (optionsView != null) { optionsView.Root.RemoveFromHierarchy(); optionsView = null; }
             if (menuPanel != null) menuPanel.style.display = page == SysPage.Options ? DisplayStyle.None : StyleKeyword.Null;
             if (page == SysPage.Options) BuildOptionsView();
+            if (page == SysPage.Handbook && menuPanel != null) BuildStationHandbook(menuPanel);
             int title = page == SysPage.Save ? 30 : page == SysPage.Load ? 29 : page == SysPage.Options ? 31 : 172;   // Menu
             var titleLabel = root.Q<Label>("systemMenuTitle");
             titleLabel.text = page == SysPage.Debug ? Localization.Extra("debugTitle", "Debug").UiCaps()
                                                     : Localization.Get(title).UiCaps();
+            if (page == SysPage.Handbook) titleLabel.text = ModScripts.HandbookTitle();
             // The Debug page is a window like Options (OptionsView): the amber accent under its title.
             if (debugAccent == null && titleLabel.parent != null)
             {
@@ -336,8 +345,43 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>The system menu's focusable items (its buttons, or the slot rows plus Back).</summary>
+        void BuildStationHandbook(VisualElement parent)
+        {
+            handbookPage = new VisualElement();
+            handbookPage.style.flexGrow = 1;
+            parent.Add(handbookPage);
+            var search = new TextField("Search");
+            handbookPage.Add(search);
+            var results = new ScrollView(ScrollViewMode.Vertical);
+            results.style.flexGrow = 1;
+            results.style.maxHeight = 480;
+            handbookPage.Add(results);
+            var back = SystemButton("BACK", -1, () => ShowSystemPage(SysPage.Main), handbookPage);
+            void Refresh(string value)
+            {
+                results.Clear();
+                handbookItems.Clear();
+                handbookItems.Add(search);
+                foreach (var article in ModScripts.HandbookArticles(value))
+                {
+                    var a = article;
+                    var label = new Label(a.title + (string.IsNullOrEmpty(a.category) ? "" : " | " + a.category));
+                    label.style.whiteSpace = WhiteSpace.Normal;
+                    results.Add(label);
+                    var text = new Label(World.FlightHints.KeyTokens(a.text));
+                    text.style.whiteSpace = WhiteSpace.Normal;
+                    results.Add(text);
+                    handbookItems.Add(SystemButton("ACKNOWLEDGE", -1, () => ModScripts.AcknowledgeHandbookArticle(a.mod, a.id), results));
+                }
+                handbookItems.Add(back);
+            }
+            search.RegisterValueChangedCallback(e => Refresh(e.newValue));
+            Refresh("");
+        }
+
         VisualElement[] SystemMenuItems()
         {
+            if (sysPage == SysPage.Handbook) return handbookItems.ToArray();
             if (sysPage == SysPage.Options && optionsView != null) return optionsView.NavItems().ToArray();
             if (DebugPage)
             {
@@ -350,8 +394,8 @@ namespace GoF2Remake.UI
             if (!SavePageOpen)
             {
                 var items = debugButton != null
-                    ? new VisualElement[] { newGameButton, saveGameButton, loadGameButton, optionsButton, aboutButton, debugButton, mainMenuButton, systemClose }
-                    : new VisualElement[] { newGameButton, saveGameButton, loadGameButton, optionsButton, aboutButton, mainMenuButton, systemClose };
+                    ? new VisualElement[] { newGameButton, saveGameButton, loadGameButton, optionsButton, aboutButton, handbookButton, debugButton, mainMenuButton, systemClose }
+                    : new VisualElement[] { newGameButton, saveGameButton, loadGameButton, optionsButton, aboutButton, handbookButton, mainMenuButton, systemClose };
                 return System.Array.FindAll(items, e => e != null && e.resolvedStyle.display != DisplayStyle.None);
             }
             var list = new System.Collections.Generic.List<VisualElement>(saveSlotList.contentContainer.Children()) { saveBack };

@@ -3038,11 +3038,13 @@ Add `tutorials/gameplay.json` to an active mod. These definitions are data, not 
 - `trigger`: a discrete game event from the Lua event list, or omit for manual activation. Frame events are forbidden.
 - `presentation`: `popup` or non-blocking `hint` (existing message plate/toast). Multiplayer flight never opens a blocking popup; a pending popup waits for a station interface.
 - `enabledByDefault`: false disables automatic triggering. `mandatory`: true bypasses the optional Tutorial Hints preference, not interface safety. Manual activation also bypasses that preference.
-- `repeatable`: false by default; progress is stored separately from Lua data in the current save when shown. `cooldownSeconds` limits repeatable automatic triggers in the current session.
+- `repeatable`: false by default; progress is stored separately from Lua data in the current save when acknowledged. `cooldownSeconds` limits repeatable automatic triggers in the current session.
 - `persistPending`: true retains a pending request across scene changes, until a save restore or mod change. False discards it on scene change.
 - `multiplayer`: optional boolean restricting the tutorial to multiplayer or single-player.
 - `requires`: optional array of tutorial IDs in the same mod which must already have been shown.
-- `category`: optional metadata for organizing definitions; not a rendered handbook.
+- `category`: optional handbook grouping/search metadata. `handbook` (default true) controls article visibility; root `handbookTitle` sets the menu title (first eligible mod in load order).
+- `races`: optional array of permanent pilot identity race keys; `shipClasses`: optional array of exact ship class IDs. Both are case-insensitive and must match if provided. Eligibility is rechecked before showing and in the handbook.
+- Modal completion requires ACKNOWLEDGE; LATER dismisses without completion. Nonblocking hints can be acknowledged in their handbook article. The handbook is accessible from station and flight pause menus when eligible articles exist.
 - Maximum 256 definitions per mod, 20 pending declarative requests, title 120 characters and body 2000 characters. IDs are scoped to the mod.
 - Lua: `game.tutorialShow(id)` manually queues a definition; `game.tutorialSeen(id)` queries progress. The existing `game.tutorial(id, title, text, repeatable)` still works, but its modal cannot open in multiplayer flight.
 
@@ -3057,7 +3059,7 @@ game.on("station", function()
 end)
 ```
 
-Tutorials use the existing station and flight confirmation windows. They respect the player's Tutorial Hints option (off by default), and are local to the player whose script calls the function. IDs are scoped to each mod; the default is once per save, recorded when the popup opens. Pass true as the fourth argument to allow another popup with that ID after it has opened. Trigger repeatable tutorials on discrete events rather than every frame. Pending duplicates are ignored. The shared queue holds up to 20 requests, waits for a free interface, and discards requests when their scene changes or a save is loaded. The title and body appear as plain dialog text; existing #KEY_ binding tokens are supported. Single-player flight pauses while a popup is open; multiplayer continues running, so prefer safe station events for multiplayer tutorials. No patch hooks are required.
+Tutorials use the existing station and flight confirmation windows. They respect the player's Tutorial Hints option (off by default), and are local to the player whose script calls the function. IDs are scoped to each mod; the default is once per save, recorded when the popup is acknowledged. Pass true as the fourth argument to allow another popup with that ID after it has opened. Trigger repeatable tutorials on discrete events rather than every frame. Pending duplicates are ignored. The shared queue holds up to 20 requests, waits for a free interface, and discards requests when their scene changes or a save is loaded. The title and body appear as plain dialog text; existing #KEY_ binding tokens are supported. Single-player flight pauses while a popup is open; multiplayer continues running, so prefer safe station events for multiplayer tutorials. No patch hooks are required.
 
 
 Everything above is data: the game reads it and does what it already knows how to do. A **script** is code of your own, for

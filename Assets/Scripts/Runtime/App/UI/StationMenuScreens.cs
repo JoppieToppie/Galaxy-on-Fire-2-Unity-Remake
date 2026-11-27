@@ -237,7 +237,7 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Show a mod tutorial without replacing an active station dialog or overlay.</summary>
-        public bool TryModTutorial(string title, string text)
+        public bool TryModTutorial(string title, string text, System.Action acknowledged = null)
         {
             if (root == null || root.panel == null || level == null || builderView != null
                 || ArrivalPending || UiBlocked || level.PlayerFlying || level.Inspect.Active || level.IntroPlaying
@@ -247,7 +247,7 @@ namespace GoF2Remake.UI
                 || (dryDock != null && dryDock.IsOpen) || (stationManagement != null && stationManagement.IsOpen)
                 || (lounge != null && lounge.ChatOpen)
                 || UiHooks.LatestDialogue?.IsOpen == true) return false;
-            ShowDialog(World.FlightHints.KeyTokens(title + "\n\n" + text), null, true);
+            ShowChoice(World.FlightHints.KeyTokens(title + "\n\n" + text), "ACKNOWLEDGE", "LATER", acknowledged, null, true);
             return true;
         }
 

@@ -198,7 +198,9 @@ LIMITS
         sealed class DefinedTutorial
         {
             public string mod, id, title, text, trigger, presentation, category;
-            public string[] requires;
+            public string[] requires, races, shipClasses;
+            public bool handbook;
+            public string handbookTitle;
             public bool enabled, mandatory, repeatable, persistPending;
             public bool? multiplayer;
             public float cooldown;
@@ -207,12 +209,13 @@ LIMITS
         static readonly List<DefinedTutorial> definitions = new List<DefinedTutorial>();
         static readonly List<(DefinedTutorial item, int scene)> definedPending = new List<(DefinedTutorial, int)>();
         static readonly Dictionary<string, float> definedLast = new Dictionary<string, float>();
-        static int definedRevision = -1;
+        static int definedRevision = -1, tutorialGeneration;
         static string DefinedKey(string mod, string id) => "__mod_tutorial/" + mod + "/" + id;
         static bool DefinedSeen(string mod, string id) => Session.ScriptData.ContainsKey(DefinedKey(mod, id));
 
         static void ClearDefinedTutorials()
         {
+            tutorialGeneration++;
             definitions.Clear();
             definedPending.Clear();
             definedLast.Clear();
@@ -222,6 +225,7 @@ LIMITS
         static void SyncDefinedTutorials()
         {
             if (definedRevision == ModManager.Revision) return;
+            tutorialGeneration++;
             definitions.Clear();
             definedPending.Clear();
             definedRevision = ModManager.Revision;
@@ -235,6 +239,8 @@ LIMITS
                         throw new FormatException("Expected a tutorials array (maximum 256).");
                     var ids = new HashSet<string>(StringComparer.Ordinal);
                     var parsed = new List<DefinedTutorial>();
+                    string handbookTitle = (string)root["handbookTitle"] ?? "Pilot Handbook";
+                    if (string.IsNullOrWhiteSpace(handbookTitle) || handbookTitle.Length > 120) throw new FormatException("Invalid handbook title.");
                     foreach (var entry in entries)
                     {
                         if (!(entry is JObject obj)) throw new FormatException("Tutorial must be an object.");
@@ -244,6 +250,10 @@ LIMITS
                             text = (string)obj["text"], trigger = (string)obj["trigger"],
                             presentation = (string)obj["presentation"] ?? "popup",
                             category = (string)obj["category"] ?? "",
+                            handbookTitle = handbookTitle,
+                            handbook = (bool?)obj["handbook"] ?? true,
+                            races = obj["races"] == null ? Array.Empty<string>() : obj["races"].ToObject<string[]>(),
+                            shipClasses = obj["shipClasses"] == null ? Array.Empty<string>() : obj["shipClasses"].ToObject<string[]>(),
                             enabled = (bool?)obj["enabledByDefault"] ?? true,
                             mandatory = (bool?)obj["mandatory"] ?? false,
                             repeatable = (bool?)obj["repeatable"] ?? false,
@@ -258,6 +268,7 @@ LIMITS
                             (t.presentation != "popup" && t.presentation != "hint") ||
                             t.trigger == "update" || t.trigger == "lateUpdate" ||
                             float.IsNaN(t.cooldown) || float.IsInfinity(t.cooldown) || t.cooldown < 0 ||
+                            !ValidTutorialFilter(t.races) || !ValidTutorialFilter(t.shipClasses) ||
                             t.requires == null || t.requires.Length > 64 ||
                             t.requires.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 128 || x.Contains("/")))
                             throw new FormatException("Invalid tutorial definition: " + t.id);
@@ -269,10 +280,56 @@ LIMITS
             }
         }
 
+        static bool ValidTutorialFilter(string[] values) => values != null && values.Length <= 64 &&
+            values.All(x => !string.IsNullOrWhiteSpace(x) && x.Length <= 128);
+
+        static bool EligibleTutorial(DefinedTutorial t)
+        {
+            if (t.multiplayer.HasValue && t.multiplayer.Value != NetSession.Active) return false;
+            if (t.races.Length > 0 && !t.races.Any(r => string.Equals(r, Session.PlayerIdentityRace, StringComparison.OrdinalIgnoreCase))) return false;
+            if (t.shipClasses.Length > 0)
+            {
+                var ship = Database.Shared?.Ship(Session.ShipIndex);
+                var cls = ShipClassRules.ClassOf(ship);
+                if (!t.shipClasses.Any(c => string.Equals(c, cls, StringComparison.OrdinalIgnoreCase))) return false;
+            }
+            return true;
+        }
+
+        public static (string title, string category, string text, string mod, string id)[] HandbookArticles(string search = "")
+        {
+            SyncDefinedTutorials();
+            search = search ?? "";
+            return definitions.Where(t => t.handbook && EligibleTutorial(t) &&
+                (t.title + " " + t.category + " " + t.text + " " + t.mod).IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                .OrderBy(t => t.category).ThenBy(t => t.title)
+                .Select(t => (t.title, t.category, t.text, t.mod, t.id)).ToArray();
+        }
+
+        public static string HandbookTitle()
+        {
+            SyncDefinedTutorials();
+            return definitions.FirstOrDefault(t => t.handbook && EligibleTutorial(t))?.handbookTitle ?? "Pilot Handbook";
+        }
+
+        public static void AcknowledgeHandbookArticle(string mod, string id)
+        {
+            SyncDefinedTutorials();
+            var t = definitions.FirstOrDefault(x => x.mod == mod && x.id == id && x.handbook && EligibleTutorial(x));
+            if (t != null) CompleteDefined(t);
+        }
+
+        static void CompleteDefined(DefinedTutorial t)
+        {
+            Session.ScriptData[DefinedKey(t.mod, t.id)] = "true";
+            definedLast[DefinedKey(t.mod, t.id)] = Time.realtimeSinceStartup;
+            definedPending.RemoveAll(p => p.item.mod == t.mod && p.item.id == t.id);
+        }
+
         static bool QueueDefined(DefinedTutorial t, bool manual = false)
         {
             if ((!manual && !t.enabled) || (!manual && !t.mandatory && !Settings.TutorialHints) ||
-                (t.multiplayer.HasValue && t.multiplayer.Value != NetSession.Active) ||
+                !EligibleTutorial(t) ||
                 (!manual && !t.repeatable && DefinedSeen(t.mod, t.id)) ||
                 t.requires.Any(id => !DefinedSeen(t.mod, id)) ||
                 definedPending.Count >= 20 || definedPending.Any(p => p.item.mod == t.mod && p.item.id == t.id))
@@ -300,16 +357,21 @@ LIMITS
                 var pending = definedPending[i];
                 var t = pending.item;
                 if ((!t.persistPending && pending.scene != scene) ||
-                    (t.multiplayer.HasValue && t.multiplayer.Value != NetSession.Active))
+                    !EligibleTutorial(t))
                 { definedPending.RemoveAt(i--); continue; }
                 try
                 {
+                    var save = Session.ScriptData;
+                    int generation = tutorialGeneration;
                     bool shown = t.presentation == "hint"
                         ? GameHooks.Notice != null && GameHooks.Notice(t.title + ": " + t.text)
-                        : GameHooks.TutorialPopup != null && GameHooks.TutorialPopup(t.title, t.text);
+                        : GameHooks.TutorialPopupAcknowledged != null && GameHooks.TutorialPopupAcknowledged(t.title, t.text, () =>
+                        {
+                            if (generation == tutorialGeneration && ReferenceEquals(save, Session.ScriptData)) CompleteDefined(t);
+                        });
                     if (!shown) continue;
                     definedPending.RemoveAt(i);
-                    Session.ScriptData[DefinedKey(t.mod, t.id)] = "true";
+                    // Nonblocking hints have no acknowledgement button. Read them in the handbook to complete.
                     definedLast[DefinedKey(t.mod, t.id)] = Time.realtimeSinceStartup;
                     return;
                 }
@@ -337,13 +399,25 @@ LIMITS
             if (!Settings.TutorialHints) { tutorials.Clear(); return; }
             int scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
             tutorials.RemoveAll(t => t.scene != scene);
-            if (tutorials.Count == 0 || GameHooks.TutorialPopup == null) return;
+            if (tutorials.Count == 0 || (GameHooks.TutorialPopupAcknowledged == null && GameHooks.TutorialPopup == null)) return;
             var t = tutorials[0];
             try
             {
-                if (!GameHooks.TutorialPopup(t.title, t.text)) return;
+                int generation = tutorialGeneration;
+                var save = Session.ScriptData;
+                if (GameHooks.TutorialPopupAcknowledged != null)
+                {
+                    if (!GameHooks.TutorialPopupAcknowledged(t.title, t.text, () =>
+                    {
+                        if (generation == tutorialGeneration && ReferenceEquals(save, Session.ScriptData)) t.shown?.Invoke();
+                    })) return;
+                }
+                else
+                {
+                    if (!GameHooks.TutorialPopup(t.title, t.text)) return;
+                    t.shown?.Invoke(); // compatibility for older hook providers
+                }
                 tutorials.RemoveAt(0);
-                t.shown?.Invoke();
             }
             catch (Exception e)
             {

@@ -413,7 +413,7 @@ namespace GoF2Remake.UI
         void OnKindMessage(string text, HudMessageKind kind) => miningView?.ShowMessage(text, 0, kind);
         void OnRadarMessage(string text, int colour, HudMessageKind kind) => miningView?.ShowMessage(text, colour, kind);
         /// <summary>Show a mod tutorial only when the normal flight interface is ready.</summary>
-        public bool TryModTutorial(string title, string text)
+        public bool TryModTutorial(string title, string text, System.Action acknowledged = null)
         {
             if (root == null || root.panel == null || level == null || pauseMenu == null || pauseMenu.IsOpen
                 || level.Leaving || !level.StartSequenceOver || level.Dialogue || level.Cutscene
@@ -423,7 +423,7 @@ namespace GoF2Remake.UI
                 || (health != null && health.Dead) || Time.timeScale <= 0f) return false;
             // A networked universe does not pause. Never seize flight controls for a tutorial.
             if (NetSession.Active) return false;
-            pauseMenu.Ask(level, GoF2Remake.World.FlightHints.KeyTokens(title + "\n\n" + text), null, null, null, null);
+            pauseMenu.Ask(level, GoF2Remake.World.FlightHints.KeyTokens(title + "\n\n" + text), "ACKNOWLEDGE", "LATER", acknowledged, null);
             return true;
         }
 

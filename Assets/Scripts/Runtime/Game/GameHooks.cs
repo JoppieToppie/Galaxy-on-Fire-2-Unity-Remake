@@ -180,6 +180,7 @@ namespace GoF2Remake.Data
         public static Func<string, bool> Notice;
         /// <summary>A local mod tutorial popup; false if the interface is not ready or another window is open.</summary>
         public static Func<string, string, bool> TutorialPopup;
+        public static Func<string, string, Action, bool> TutorialPopupAcknowledged;
         /// <summary>game.command: a chat / event command line ("spawn pirate 3") run as the server runs it
         /// (NetCommands.RunOnServer); its answer, which says so when this game isn't the server.</summary>
         public static Func<string, string> RunCommand;
