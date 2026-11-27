@@ -353,6 +353,8 @@ namespace GoF2Remake.Multiplayer
                 if (!IsHostClient(client)) RefreshProfile(client);
                 return;
             }
+            // The origin grant is a creation-only server intent, never accepted from an upload.
+            save.originStartAsPirate = false;
             // Recovery records belong to the server, not to the uploading client.
             save.deathRecoveries = prior?.deathRecoveries ?? new List<DeathRecovery>();
             save.lastDeathPenaltyId = prior?.lastDeathPenaltyId;
