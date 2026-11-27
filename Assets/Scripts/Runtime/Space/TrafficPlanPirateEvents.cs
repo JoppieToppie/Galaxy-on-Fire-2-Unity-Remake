@@ -137,20 +137,25 @@ namespace GoF2Remake.Flight
                 };
                 list.Add(outpost);
                 int baseGuards = (int)((Session.Difficulty - 0.5f) * 5f + 5f);
-                int guards = Mathf.Max(1, baseGuards + OutpostGuardsAdd[t]);
+                int guards = Modding.ModNpcFactionWar.PirateGuardCount > 0 ? Modding.ModNpcFactionWar.PirateGuardCount : Mathf.Clamp(baseGuards + OutpostGuardsAdd[t], 1, 24);
                 for (int g = 0; g < guards; g++)
                 {
+                    if (sighting != null && (sighting.guardLossMask & (1 << g)) != 0) continue;
                     float S() => Random.value < 0.5f ? -1f : 1f;
                     list.Add(new SpawnSpec
                     {
                         group = NpcGroup.Guard, race = Standing.Pirate, ship = Fighter(), asleep = true, guard = true, pirateEvent = SpawnSpec.EventGuard,
+                        sightingId = sightingId, eventTag = sightingId >= 0 ? 700000 + g + 1 : 0,
                         placedOn = outpost,   // OrbitScale: parked round the grown outpost, out of its hull
                         position = at + new Vector3(S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000),
                     });
                 }
                 for (int i = 0; i < OutpostTurretCount[t] && i < OutpostTurrets.Length; i++)
                 {
+                    if (sighting != null && (sighting.guardLossMask & (1 << (24 + i))) != 0) continue;
                     var turret = Turret(0, at + OutpostTurrets[i].pos, OutpostTurrets[i].rot);
+                    turret.sightingId = sightingId;
+                    turret.eventTag = sightingId >= 0 ? 700025 + i : 0;
                     turret.race = Standing.Pirate;
                     turret.alwaysEnemy = true;
                     turret.pirateEvent = SpawnSpec.EventTurret;
