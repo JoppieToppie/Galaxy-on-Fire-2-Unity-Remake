@@ -549,6 +549,19 @@ namespace GoF2Remake.Multiplayer
                 Vector3 offset = new Vector3((index % 2 == 0 ? 1f : -1f) * (1800f + 800f * index),
                     350f + index * 100f, 2300f);
                 Vector3 at = traffic.StationPosition + offset;
+                bool fromStation = source == Station;
+                bool toStation = destination == Station;
+                Vector3 gate = level.Layout.hasJumpgate ? OrbitLayout.ToUnity(level.Layout.Place(level.Layout.jumpgate)) :
+                    OrbitLayout.ToUnity(level.Layout.Place(level.Layout.hiddenJumpgate));
+                Vector3 direction = gate - traffic.StationPosition;
+                if (direction.sqrMagnitude < 10000f) direction = Vector3.forward * 10000f;
+                direction.Normalize();
+                Vector3 lateral = Vector3.Cross(Vector3.up, direction).normalized;
+                if (lateral.sqrMagnitude < 0.01f) lateral = Vector3.right;
+                Vector3 lane = lateral * offset.x + Vector3.up * offset.y;
+                if (fromStation) at = traffic.StationPosition + direction * 2200f + lane;
+                else if (toStation) at = gate + lane;
+                else at = gate - direction * 1800f + lane;
                 var npc = traffic.SpawnShip(new SpawnSpec
                 {
                     group = NpcGroup.Freighter, race = race, ship = ship, freighter = true,
@@ -558,11 +571,11 @@ namespace GoF2Remake.Multiplayer
                     name = (large ? "Rhino" : "Cormorant") + " Freight (" + amount + " t)"
                 });
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
-                npc.transform.rotation = Quaternion.LookRotation(source == Station ? Vector3.forward : Vector3.back);
+                npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
             }
             foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone &&
                 Modding.ModAdvancedEconomy.IsFreightTag(x.Spec.eventTag) && x.Target != null && x.Target.Alive))
-                if (!active.Contains(npc.Spec.eventTag)) npc.JumpOut();
+                if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
             traffic.ConnectPlayers();
         }
 
