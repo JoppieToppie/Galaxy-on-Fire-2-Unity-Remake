@@ -309,7 +309,7 @@ namespace GoF2Remake.Multiplayer
                 kaamoLevel.Value = (byte)NetRules.HostKaamoLevel;
                 flightModel.Value = (byte)(NetRules.HostFlight + 2);
                 NetFactions.OnStateSpawned();   // the claims, now that this object exists
-                PirateReports.ServerReset();   // the Pirate activity board starts empty (filled by the next sweep)
+                LoadPirateBoard();
                 sessionMods.Value = NetMods.SessionList;
                 coop.Value = NetGame.CoopSession;
                 economy.Value = NetSession.EconomyCode(NetSession.Economy);
@@ -502,7 +502,8 @@ namespace GoF2Remake.Multiplayer
             if ((pirateTimer -= SweepSeconds) <= 0f)
             {
                 pirateTimer = PirateSeconds;
-                PirateReports.ServerTick(Database.Shared, SetPirateBoard, WarOrbitOccupied);   // the Pirate activity board kept full
+                PirateReports.ServerTick(Database.Shared, SetPirateBoard, WarOrbitOccupied);
+                FlushPirateBoard();   // the Pirate activity board kept full
             }
             DissolveSingles();   // a squadmate who disconnected
             if ((pruneTimer -= SweepSeconds) <= 0f) { pruneTimer = PruneSeconds; Prune(); }
