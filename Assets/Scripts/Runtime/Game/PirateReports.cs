@@ -38,6 +38,7 @@ namespace GoF2Remake.Data
         public string name;               // a boss's name (empty for an outpost)
         public int bounty;
         public float nextMoveAt;
+        public int guardLossMask, turretLossMask;
         public bool established;          // persistent blockade, unlike ambient encounters
         public float reportedAt, expiresAt;   // Session.PlaySeconds
         public bool done;                 // destroyed: off the board at the next docking
@@ -57,6 +58,23 @@ namespace GoF2Remake.Data
         /// <summary>The board runs: the option on (in a session the session's rule).</summary>
         public static bool Enabled => Settings.PirateEvents;
 
+        public static bool RecordDefenderLoss(PirateSighting s, int slot)
+        {
+            if (s == null || s.done || !s.established || slot < 1 || slot > 30) return false;
+            int bit = 1 << (slot - 1);
+            if ((s.guardLossMask & bit) != 0) return false;
+            s.guardLossMask |= bit;
+            return true;
+        }
+
+        public static bool ServerDefenderLoss(int id, int slot, Func<int, bool> inOrbit, Action<string> publish)
+        {
+            var s = serverBoard.Find(x => x.id == id);
+            if (s == null || !inOrbit(s.station) || !RecordDefenderLoss(s, slot)) return false;
+            publish(ServerBoardJson());
+            return true;
+        }
+
         public static bool BlocksDocking(int station)
         {
             var s = At(station);
@@ -72,14 +90,14 @@ namespace GoF2Remake.Data
             foreach (var s in board)
             {
                 if (!s.boss || !Active(s, now)) continue;
-                if (s.nextMoveAt <= 0f) { s.nextMoveAt = now + Random.Range(600f, 1200f); changed = true; }
+                if (s.nextMoveAt <= 0f) { s.nextMoveAt = now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax); changed = true; }
                 if (s.nextMoveAt > now || occupied(s.station)) continue;
                 var origin = db.Systems.Find(x => x.index == s.system);
                 var candidates = Candidates(db, s.station, anyRank);
                 candidates.RemoveAll(c => occupied(c.station) ||
                     (c.system.index != s.system && (origin == null || !origin.jumpRoutesTo.Contains(c.system.index))) ||
                     board.Exists(other => other != s && Active(other, now) && other.system == c.system.index));
-                s.nextMoveAt = now + Random.Range(600f, 1200f);
+                s.nextMoveAt = now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax);
                 changed = true;
                 if (candidates.Count == 0) continue;
                 var destination = candidates[Random.Range(0, candidates.Count)];
@@ -188,7 +206,7 @@ namespace GoF2Remake.Data
             return new PirateSighting
             {
                 id = id, boss = boss, established = !boss, tier = tier, station = station, system = system.index,
-                nextMoveAt = boss ? now + Random.Range(600f, 1200f) : 0f,
+                nextMoveAt = boss ? now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax) : 0f,
                 bounty = Bounty(!boss, rank, tier, true),
                 name = boss ? BossName() : "", reportedAt = now, expiresAt = now + Random.Range(LifeMin, LifeMax),
             };
