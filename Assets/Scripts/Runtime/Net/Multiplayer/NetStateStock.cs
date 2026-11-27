@@ -19,10 +19,12 @@ namespace GoF2Remake.Multiplayer
             if (!Modding.ModAdvancedEconomy.PhysicalFreight || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request) ||
                 !NetGuard.InOrbit(client, orbit) || NetArena.IsArenaOrbit(orbit)) return;
             if (RunnerOf(orbit)?.OwnerClientId == client)
-                FreightManifestRpc(orbit, AdvancedEconomyLedger.FreightManifest(orbit),
-                    RpcTarget.Single(client, RpcTargetUse.Temp));
-            FreightWreckManifestRpc(orbit, AdvancedEconomyLedger.FreightWreckManifest(orbit),
-                RpcTarget.Single(client, RpcTargetUse.Temp));
+            {
+                var manifest = AdvancedEconomyLedger.FreightManifest(orbit);
+                if (manifest != null) FreightManifestRpc(orbit, manifest, RpcTarget.Single(client, RpcTargetUse.Temp));
+            }
+            var wrecks = AdvancedEconomyLedger.FreightWreckManifest(orbit);
+            if (wrecks != null) FreightWreckManifestRpc(orbit, wrecks, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
