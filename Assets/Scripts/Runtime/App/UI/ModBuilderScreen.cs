@@ -1002,6 +1002,8 @@ namespace GoF2Remake.UI
             Flag("physicalFreight", "Physical freight (requires regional trade and saved inventory)");
             Option("rhinoCapacity", "Rhino freight capacity (t)", 2500, 1, ModAdvancedEconomy.MaxStock);
             Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
+            Option("nativeFreighterCapacity", "Native racial freighter capacity (t)", Number("rhinoCapacity", 2500), 1, ModAdvancedEconomy.MaxStock);
+            Option("nativeFreighterSpeedPercent", "Native racial freighter speed (%)", 100, 10, 500);
             Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
             Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
             Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
@@ -1012,14 +1014,52 @@ namespace GoF2Remake.UI
             Option("freightWreckLifetimeSeconds", "Freight wreck lifetime (seconds)", 300, 1, ModAdvancedEconomy.MaxFreightSeconds);
             Option("rhinoFreightSpeedPercent", "Rhino speed (% of normal freighter speed)", 75, 10, 500);
             Option("cormorantFreightSpeedPercent", "Cormorant speed (% of normal freighter speed)", 125, 10, 500);
-            RefField(scroll, "Bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
+            RefField(scroll, "Default Terran bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
             {
                 rules["rhinoShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
             }, "Rhino (default)");
-            RefField(scroll, "Light freighter hull", RefKind.Ship, rules["cormorantShip"]?.ToString(), value =>
+            RefField(scroll, "Default Terran light freighter hull", RefKind.Ship, rules["cormorantShip"]?.ToString(), value =>
             {
                 rules["cormorantShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
             }, "Cormorant (default)");
+            Heading(scroll, "Economy traffic fleets by race");
+            Note(scroll, "A race with custom entries uses only those entries. Other races use their native freight model; Terrans additionally use the default light and bulk hulls. Use native for the racial cargo ship, or select any ship from the content picker.");
+            var fleets = rules["freightFleets"] as JArray ?? new JArray();
+            foreach (var entry in fleets.OfType<JObject>().ToList())
+            {
+                string race = entry["race"]?.ToString() ?? "terran";
+                string ship = entry["ship"]?.ToString() ?? "native";
+                Heading(scroll, race + " / " + (ship == "native" ? "Native racial freighter" : RefLabel(RefKind.Ship, ship, "Unknown hull")));
+                Text(scroll, "Race (game race name, number or mod_id:race_id)", race, 256,
+                    v => { entry["race"] = v.Trim(); MarkDirty(); });
+                RefField(scroll, "Economy hull", RefKind.Ship, ship == "native" ? null : ship, v =>
+                {
+                    entry["ship"] = string.IsNullOrEmpty(v) ? "native" : v;
+                    MarkDirty(); ShowAdvancedEconomyRules();
+                }, "Native racial freighter");
+                Act(scroll, "Use native racial freighter", () =>
+                {
+                    entry["ship"] = "native"; MarkDirty(); ShowAdvancedEconomyRules();
+                }, "mbv-step");
+                int FleetNumber(string key, int fallback) => int.TryParse(entry[key]?.ToString(), out int n) ? n : fallback;
+                Int(scroll, "Cargo capacity (t)", FleetNumber("capacity", Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500))), 1, ModAdvancedEconomy.MaxStock,
+                    v => { entry["capacity"] = v; MarkDirty(); });
+                Int(scroll, "Relative selection weight", FleetNumber("weight", 1), 1, 1000,
+                    v => { entry["weight"] = v; MarkDirty(); });
+                Int(scroll, "Flight speed (%)", FleetNumber("speedPercent", 100), 10, 500,
+                    v => { entry["speedPercent"] = v; MarkDirty(); });
+                Act(scroll, "Remove fleet entry", () =>
+                {
+                    entry.Remove(); MarkDirty(); ShowAdvancedEconomyRules();
+                }, "mbv-step");
+            }
+            Act(scroll, "+ Economy fleet hull", () =>
+            {
+                if (rules["freightFleets"] == null) rules["freightFleets"] = fleets;
+                fleets.Add(new JObject { ["race"] = "terran", ["ship"] = "native", ["capacity"] = Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500)),
+                    ["weight"] = 1, ["speedPercent"] = 100 });
+                MarkDirty(); ShowAdvancedEconomyRules();
+            }, "mbv-add");
             Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
             Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
             Flag("restrictedGateRouting", "Use restricted gates only with explicit owner NPC permission");
