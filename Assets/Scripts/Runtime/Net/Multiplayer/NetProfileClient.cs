@@ -33,7 +33,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (revision > economyRevision) economyRevision = revision;
         }
-        static int pendingWreckPickup;
+        static int pendingWreckPickup, lastFreightResult;
         static float wreckPickupSentAt;
         static int pendingJumpSequence;
         static Action<GameHooks.ModJumpResult?> pendingJump;
@@ -100,7 +100,7 @@ namespace GoF2Remake.Multiplayer
             uploadTimer = UploadSeconds;
             outSeq = 0;
             economyRevision = 0;
-            pendingWreckPickup = 0;
+            pendingWreckPickup = lastFreightResult = 0;
             pendingJumpSequence = 0;
             pendingJump = null;
             pendingJumpServer = null;
@@ -287,6 +287,28 @@ namespace GoF2Remake.Multiplayer
             pendingWreckPickup = sequence;
             wreckPickupSentAt = Time.realtimeSinceStartup;
             NetState.Instance.RequestWreckSalvageRpc(orbit, room, jumpgate, sequence);
+        }
+
+        internal static void RequestFreightClaim(int tag, ulong proxy, int room)
+        {
+            if (!Active || !Controller || Guest || room <= 0 || NetState.Instance == null ||
+                ModJumpPending() || WreckPickupPending()) return;
+            int sequence = NetGame.IsServer && NetGame.PersistentHost ? ++outSeq : UploadSnapshot(handover: false);
+            if (sequence == 0) return;
+            pendingWreckPickup = sequence;
+            wreckPickupSentAt = Time.realtimeSinceStartup;
+            NetState.Instance.RequestFreightClaimRpc(tag, proxy, room, sequence);
+        }
+
+        internal static void ApplyFreightClaim(int sequence, int item, int amount)
+        {
+            if (sequence <= lastFreightResult || sequence > outSeq) return;
+            lastFreightResult = sequence;
+            AcknowledgeWreckSalvage(sequence);
+            if (amount <= 0 || item < 0) return;
+            if (!(NetGame.IsServer && NetGame.PersistentHost)) Shop.AddToCargo(item, amount);
+            GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+            NetChat.Notice($"Recovered {amount:N0} t of {GameNames.Item(item)} from freight.");
         }
 
         static bool WreckPickupPending()
