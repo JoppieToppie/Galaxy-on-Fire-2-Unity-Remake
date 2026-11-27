@@ -508,7 +508,16 @@ namespace GoF2Remake.World
         /// ship; the capture takes from the ship's own list (StealFrom).</summary>
         public Crate CreateStealCrate()
         {
-            if (!HasCargo || Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag)) return null;
+            if (!HasCargo) return null;
+            if (Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag))
+            {
+                if (Target.CollectFreight == null) return null;
+                var freight = Crate.Spawn(transform.position, loot, Race, Crate.LookContainer);
+                freight.stolenFrom = this;
+                freight.pulled = true;
+                freight.CollectStationSalvage = room => { Target.CollectFreight?.Invoke(room); Destroy(freight.gameObject); };
+                return freight;
+            }
             string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
             var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Stolen cargo";
