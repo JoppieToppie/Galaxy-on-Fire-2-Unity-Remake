@@ -644,6 +644,8 @@ namespace GoF2Remake.Flight
             var c = Crate.Spawn(t.transform.position, new[] { new ItemStack(t.netStealItem, t.netStealAmount) }, t.race, Crate.LookContainer);
             c.name = "Stolen cargo";
             c.stolenFromRemote = t;
+            if (t.CollectFreight != null)
+                c.CollectStationSalvage = room => { t.CollectFreight?.Invoke(room); Destroy(c.gameObject); };
             c.fromFriend = t.friendToPlayer;
             c.pulled = true;
             return c;
