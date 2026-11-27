@@ -199,7 +199,12 @@ namespace GoF2Remake.Multiplayer
                 return owner != null && owner.LocalTarget != null && HostileToRemote(ship, owner.LocalTarget);
             }
             int r = ship.Race;
-            if (p.IsPirate && !ship.IsWingman) return r >= 0 && r != Standing.Pirate;
+            if (p.IsPirate && !ship.IsWingman)
+            {
+                if (r != Standing.Pirate) return r >= 0;
+                foreach (var id in ship.aggressors) if (NetSquad.SameClient(id, p)) return true;
+                return ship.turnedEnemy && p == NetPlayer.Local;
+            }
             if (ship.alwaysNeutral && !ship.turnedEnemy)
             {
                 foreach (var id in ship.aggressors) if (NetSquad.SameClient(id, p)) return true;

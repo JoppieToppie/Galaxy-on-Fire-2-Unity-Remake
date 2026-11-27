@@ -1051,7 +1051,7 @@ namespace GoF2Remake.Multiplayer
             target.friendToPlayer = !target.hostileToPlayer && Standing.IsFriend(st.race);
             if (NetPlayer.Local != null && NetPlayer.Local.IsPirate && !IsWingman)
             {
-                target.friendToPlayer = st.race == Standing.Pirate;
+                target.friendToPlayer = st.race == Standing.Pirate && !shotBySquad && !(mateOwner && st.Has(NetProxyStatus.Turned));
                 target.hostileToPlayer = st.race >= 0 && !target.friendToPlayer;
             }
             if (empDisabled && sparks == null) sparks = new EmpSparks(transform);

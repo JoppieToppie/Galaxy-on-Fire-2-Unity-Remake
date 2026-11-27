@@ -37,12 +37,120 @@ namespace GoF2Remake.Multiplayer
         {
             public List<BountyRecord> records = new List<BountyRecord>();
             public List<PiracyRecord> piracy = new List<PiracyRecord>();
+            public List<WantedSighting> sightings = new List<WantedSighting>();
+        }
+
+        const long SightingLifetime = 900;
+        [Serializable]
+        sealed class WantedSighting
+        {
+            public string account, reporter;
+            public int visitSystem = -1, station = -1;
+            public bool reported;
+            public long seenAt;
+        }
+        static readonly Dictionary<string, WantedSighting> sightingsByAccount = new Dictionary<string, WantedSighting>(StringComparer.Ordinal);
+
+        static bool WantedAccount(string account, long now) =>
+            (piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate) ||
+            (bountiesByAccount.TryGetValue(account, out var records) &&
+             records.Exists(record => record.wantedUntil > now && BountyIssuerName(record.issuer) != null));
+
+        internal static void ObserveWantedSystem(NetPlayer pilot)
+        {
+            if (!PiracyEnabled || bountyFile == null || pilot == null || !NetProfiles.Controls(pilot.OwnerClientId) ||
+                NetArena.InMatch(pilot.OwnerClientId)) return;
+            string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+            var system = PiracySystemAt(pilot.Station);
+            if (account == null || system == null) return;
+            if (!sightingsByAccount.TryGetValue(account, out var sighting))
+            {
+                if (!WantedAccount(account, UnixNow)) return;
+                sighting = new WantedSighting { account = account };
+                bountyFile.sightings.Add(sighting);
+                sightingsByAccount.Add(account, sighting);
+            }
+            if (sighting.visitSystem == system.index) return;
+            sighting.visitSystem = system.index;
+            sighting.reported = false;
+            bountyDirty = true;
+            SaveBounties();
+        }
+
+        internal static void TrackWantedSightings(IEnumerable<NetProxy> npcs)
+        {
+            if (!PiracyEnabled || bountyFile == null) return;
+            long now = UnixNow;
+            var candidates = new Dictionary<int, List<NetPlayer>>();
+            foreach (var pilot in NetPlayer.All)
+            {
+                if (pilot == null || !pilot.IsSpawned) continue;
+                ObserveWantedSystem(pilot);
+                if (!pilot.InSpace || !pilot.ScanVisible || !NetProfiles.Controls(pilot.OwnerClientId) ||
+                    NetArena.InMatch(pilot.OwnerClientId)) continue;
+                string account = NetProfiles.AccountOf(pilot.OwnerClientId);
+                if (account == null || !WantedAccount(account, now) ||
+                    !sightingsByAccount.TryGetValue(account, out var sighting) || sighting.reported) continue;
+                if (!candidates.TryGetValue(pilot.Station, out var group))
+                    candidates.Add(pilot.Station, group = new List<NetPlayer>());
+                group.Add(pilot);
+            }
+            if (candidates.Count == 0) return;
+            foreach (var npc in npcs)
+            {
+                if (npc == null || !npc.IsSpawned || npc.Race < 0 || npc.Race == Standing.Pirate ||
+                    npc.IsWingman || !npc.ScanVisible || !candidates.TryGetValue(npc.Station, out var group)) continue;
+                var spec = npc.Spec?.spec;
+                if (spec == null) continue;
+                float range = CombatRadar.NpcSensorRange(NetGame.Db, spec.ship,
+                    npc.BoundShip != null ? npc.BoundShip.detectRange : -1f, CombatRadar.DefaultNpcScannerRangeUnits);
+                if (range <= 0f) continue;
+                for (int i = group.Count - 1; i >= 0; i--)
+                {
+                    var pilot = group[i];
+                    if (!NpcReportsPilot(npc, pilot) || !CombatRadar.DetectsShipAtDistance(NetGame.Db,
+                        (npc.WorldPosition - pilot.Position).sqrMagnitude, range, pilot.ShipIndex, pilot.HasFittedStealthGenerator)) continue;
+                    var sighting = sightingsByAccount[NetProfiles.AccountOf(pilot.OwnerClientId)];
+                    sighting.reported = true;
+                    sighting.station = pilot.Station;
+                    sighting.seenAt = now;
+                    sighting.reporter = Standing.RaceName(npc.Race);
+                    bountyDirty = true;
+                    group.RemoveAt(i);
+                }
+                if (group.Count == 0) candidates.Remove(npc.Station);
+                if (candidates.Count == 0) break;
+            }
+            SaveBounties();
+        }
+
+        static bool NpcReportsPilot(NetProxy npc, NetPlayer pilot)
+        {
+            if (npc.Race == Standing.Pirate) return false;
+            var spec = npc.Spec?.spec;
+            if (spec == null || spec.alwaysFriend) return false;
+            if (pilot.IsPirate) return true;
+            foreach (ulong aggressor in npc.Aggressors)
+                if (NetSquad.SameClient(aggressor, pilot)) return true;
+            if (spec.alwaysNeutral && !npc.Status.Has(NetProxyStatus.Turned)) return false;
+            if (npc.Status.Has(NetProxyStatus.AlwaysHostile) || spec.alwaysEnemy) return true;
+            var system = PiracySystemAt(pilot.Station);
+            if (system != null && system.raceId == npc.Race)
+            {
+                int territory = spec.eventTag == NetOrbit.GarrisonTag || spec.eventTag == NetOrbit.SiegeDefenderTag
+                    ? NetFactionsClient.GarrisonRelation(pilot.Station, pilot.FactionTag)
+                    : NetFactionsClient.Relation(pilot.Station, pilot.FactionTag, pilot.TollStation);
+                if (territory != 0) return territory < 0;
+            }
+            if (Standing.IsEnemyWith(npc.Race, pilot.Standing0, pilot.Standing1, pilot.Signature, pilot.ModRaceStandings)) return true;
+            var owner = NetSquad.Find(npc.OwnerClientId);
+            return npc.Status.relation == NetProxy.Hostile && (owner == pilot || (owner != null && NetSquad.Same(owner, pilot)));
         }
 
         [Serializable]
         public sealed class PlayerWantedEntry
         {
-            public string name, issuers;
+            public string name, issuers, reporter;
             public bool pirate;
             public int station = -1;
             public long seenAt;
@@ -76,7 +184,15 @@ namespace GoF2Remake.Multiplayer
                 string name = NetProfiles.AccountName(account);
                 if (string.IsNullOrEmpty(name)) continue;
                 issuers.Sort(StringComparer.OrdinalIgnoreCase);
-                result.entries.Add(new PlayerWantedEntry { name = name, pirate = pirate, issuers = string.Join(", ", issuers) });
+                var entry = new PlayerWantedEntry { name = name, pirate = pirate, issuers = string.Join(", ", issuers) };
+                if (sightingsByAccount.TryGetValue(account, out var sighting) && sighting.seenAt > 0 &&
+                    now - sighting.seenAt < SightingLifetime && now >= sighting.seenAt)
+                {
+                    entry.station = sighting.station;
+                    entry.seenAt = sighting.seenAt;
+                    entry.reporter = sighting.reporter;
+                }
+                result.entries.Add(entry);
             }
             result.entries.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.name, b.name));
             return result;
@@ -100,9 +216,12 @@ namespace GoF2Remake.Multiplayer
 
         static void ReindexBounties()
         {
+            sightingsByAccount.Clear();
             piracyByAccount.Clear();
             bountiesByAccount.Clear();
             if (bountyFile == null) return;
+            foreach (var sighting in bountyFile.sightings)
+                if (!sightingsByAccount.ContainsKey(sighting.account)) sightingsByAccount.Add(sighting.account, sighting);
             foreach (var record in bountyFile.piracy)
                 if (!piracyByAccount.ContainsKey(record.account)) piracyByAccount.Add(record.account, record);
             foreach (var record in bountyFile.records) IndexBounty(record);
@@ -122,6 +241,8 @@ namespace GoF2Remake.Multiplayer
                     ? JsonUtility.FromJson<BountyFile>(File.ReadAllText(BountyPath))
                     : new BountyFile();
                 if (bountyFile?.records == null) throw new InvalidDataException("Missing bounty records.");
+                bountyFile.sightings ??= new List<WantedSighting>();
+                bountyFile.sightings.RemoveAll(x => x == null || string.IsNullOrEmpty(x.account));
                 bountyFile.piracy ??= new List<PiracyRecord>();
                 bountyFile.piracy.RemoveAll(r => r == null || string.IsNullOrEmpty(r.account));
                 foreach (var r in bountyFile.piracy) r.kills ??= new List<long>();

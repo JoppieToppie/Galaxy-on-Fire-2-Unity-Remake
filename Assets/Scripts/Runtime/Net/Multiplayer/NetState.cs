@@ -513,12 +513,13 @@ namespace GoF2Remake.Multiplayer
             RespawnEmptyAsteroidFields(owners);
             var stale = new List<NetworkObject>();
             owned.Clear();
+            var sightingNpcs = new List<NetProxy>();
             foreach (var obj in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
                 int station;
                 var proxy = obj.GetComponent<NetProxy>();
                 var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
-                if (proxy != null) station = proxy.Station;
+                if (proxy != null) { station = proxy.Station; sightingNpcs.Add(proxy); }
                 else if (crate != null && !crate.IsBountyDrop) station = crate.Station;
                 else continue;
                 owned.TryGetValue(obj.OwnerClientId, out var n);
@@ -537,6 +538,7 @@ namespace GoF2Remake.Multiplayer
                 float grace = proxy != null && proxy.IsWingman ? 5f : 20f;   // (a handover that didn't happen: never kept for ever)
                 if (!watched || Time.unscaledTime - since > grace) stale.Add(obj);
             }
+            NetFactions.TrackWantedSightings(sightingNpcs);
             foreach (var obj in stale) { staleSince.Remove(obj.NetworkObjectId); if (obj.IsSpawned) obj.Despawn(); }
         }
 

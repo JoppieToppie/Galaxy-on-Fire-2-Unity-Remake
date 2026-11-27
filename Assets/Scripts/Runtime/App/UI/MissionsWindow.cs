@@ -405,9 +405,12 @@ namespace GoF2Remake.UI
                 wantedStatus.text = player.pirate ? "Player pirate" : "Wanted player";
                 wantedBounty.text = string.IsNullOrEmpty(player.issuers) ? "Piracy notice" : "Bounty issuers: " + player.issuers;
                 var place = db.Stations.Find(s => s.index == player.station);
-                wantedText.text = "Last sighting:\\n" + (place == null ? T(3229) : place.name + " (" + place.systemName + ")");
+                long age = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - player.seenAt;
+                bool known = place != null && player.seenAt > 0 && age < 900;
+                wantedText.text = "Last sighting:\n" + (known ? place.name + " (" + place.systemName + ")\n" +
+                    Mathf.Max(0, (int)(age / 60)) + " min ago\nReported by: " + player.reporter : T(3229));
                 wantedScroll.scrollOffset = Vector2.zero;
-                Show(wantedMap, place != null);
+                Show(wantedMap, known);
                 return;
             }
             var w = wantedSelected >= 0 && wantedSelected < db.Wanted.Count ? db.Wanted[wantedSelected] : null;
@@ -531,7 +534,7 @@ namespace GoF2Remake.UI
             var player = SelectedPlayerWanted;
             if (player != null)
             {
-                if (player.station >= 0) ShowOnMap(player.station, wantedMap);
+                if (player.station >= 0 && player.seenAt > 0 && System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - player.seenAt < 900) ShowOnMap(player.station, wantedMap);
                 return;
             }
             var st = WantedBoard.State(level.Database, wantedSelected);

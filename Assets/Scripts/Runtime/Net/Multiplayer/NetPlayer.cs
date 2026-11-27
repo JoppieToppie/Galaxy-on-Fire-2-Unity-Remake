@@ -175,6 +175,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Whether the server selected this player as an orbit runner (separate from the orbit id: Void is -1).</summary>
         public bool RunsOrbitActive => runsOrbitActive.Value;
         public int ShipIndex => ship.Value;
+        internal bool HasFittedStealthGenerator => fittedStealthGenerator.Value;
+        void WantedSystemChanged(int previous, int current) => NetFactions.ObserveWantedSystem(this);
         /// <summary>Server: the ship this player flew before ShipIndex (a dealer trade-in puts it on the dealer's list,
         /// NetState.StockShipRpc: the trade may arrive before or after the new ship), -1 = none.</summary>
         public int PreviousShip { get; private set; } = -1;
@@ -727,6 +729,7 @@ namespace GoF2Remake.Multiplayer
             if (IsServer)
             {
                 station.OnValueChanged += OnStationValueChanged;
+                station.OnValueChanged += WantedSystemChanged;
                 place.OnValueChanged += OnPlaceValueChanged;
             }
             if (IsServer)
@@ -870,6 +873,7 @@ namespace GoF2Remake.Multiplayer
                 if ((HasRecordedDeath || InSpace && Hull == 0f) && NetState.Instance != null && !NetworkManager.ShutdownInProgress)
                     NetState.Instance.EnsureDeathPenalty(this, refresh: false);
                 station.OnValueChanged -= OnStationValueChanged;
+                station.OnValueChanged -= WantedSystemChanged;
                 place.OnValueChanged -= OnPlaceValueChanged;
             }
             // Host: a player going (disconnected: Netcode despawns the player object before OnClientDisconnectCallback) hands

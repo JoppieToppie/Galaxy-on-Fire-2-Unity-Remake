@@ -139,10 +139,16 @@ namespace GoF2Remake.Flight
             if (target == null) return false;
             if (rangeUnits <= 0f) return false;
             ConfigureSensors(database);
+            int index = target.netShipIndex >= 0 ? target.netShipIndex : target.isPlayer ? Session.ShipIndex : target.shipType;
+            return DetectsShipAtDistance(database, (target.transform.position - origin).sqrMagnitude, rangeUnits, index, target.passiveStealthGenerator);
+        }
+
+        public static bool DetectsShipAtDistance(Database database, float distanceSquared, float rangeUnits, int index, bool generator)
+        {
+            if (rangeUnits <= 0f) return false;
+            ConfigureSensors(database);
             int percent = 100;
             string cls = null;
-            int index = target.netShipIndex >= 0 ? target.netShipIndex : target.isPlayer ? Session.ShipIndex : target.shipType;
-            bool generator = target.passiveStealthGenerator;
             if (index >= 0 && database != null)
             {
                 cls = Modding.ShipClassRules.ClassOf(database.Ship(index));
@@ -151,7 +157,7 @@ namespace GoF2Remake.Flight
             }
             percent = EffectiveDetectionPercent(cls, percent, generator, generatorDetectionPercent);
             float reach = rangeUnits * M * (percent / 100f);
-            return (target.transform.position - origin).sqrMagnitude <= reach * reach;
+            return distanceSquared <= reach * reach;
         }
 
         public static bool DedicatedStealth(string cls) =>
