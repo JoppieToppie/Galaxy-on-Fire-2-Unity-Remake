@@ -309,9 +309,9 @@ namespace GoF2Remake.Multiplayer
             if (++inc.got < count) return;
             incoming.Remove(client);
             string json = Unpack(inc.parts);
-            if (json != null) Receive(client, json, seq);
+            if (json != null) Receive(client, json, seq, inc.economyRevision);
         }
-        static void Receive(ulong client, string json, int acceptedSequence = 0)
+        static void Receive(ulong client, string json, int acceptedSequence = 0, long uploadRevision = 0)
         {
             if (!logins.TryGetValue(client, out var login) || login.account == null) return;
             var account = login.account;
@@ -341,6 +341,11 @@ namespace GoF2Remake.Multiplayer
                 NetState.Instance?.EnsureDeathPenalty(pilot, refresh: false) != true)
             {
                 Reject(login, "your recorded death has not been settled");
+                return;
+            }
+            if (acceptedSequence != 0 && (uploadRevision != login.economyRevision || login.economyRevisionDirty || NetPlayerStations.ProfileWritesBlocked))
+            {
+                Reject(login, "your profile changed while the upload was being validated");
                 return;
             }
             // A stale upload must not resurrect the pre-death loadout, even if it was

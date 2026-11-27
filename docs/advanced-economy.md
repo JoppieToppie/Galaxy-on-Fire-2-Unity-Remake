@@ -102,15 +102,14 @@ A finance-authorized player-station manager must also opt their station in under
 Marketplace settings or /station npc-market <id> on|off.
 
 After NPC shipments and production/consumption, NPC stations with shortages can buy
-commodity escrow listings from opted-in player stations in the same system. Purchases are
+commodity escrow listings from opted-in player stations in the same system. With regionalTrade and automaticRoutes enabled, procurement can also reach markets over the directed public gate graph, within maxAutomaticHops. Imported stock records the route distance. Marketplace procurement is an immediate abstract delivery, not a delayed NPC shipment. Purchases are
 bounded by deficit after reserving incoming NPC shipments, per-tick global credit and unit budgets, and the destination's quoted
 price including marketplace taxes. Escrow, seller/faction proceeds, station taxes and NPC
 stock are journalled together. This is an abstract NPC credit source, not a transfer from
 a player treasury. No private storage, factory stock, ship listings or construction escrow
 is modified. NPC buyers are anonymous; enabling this specific market channel authorizes
 them independently of player-specific access rules. Player-to-player listings remain priced
-by their owners. Cross-system player-market procurement and NPC sales into construction
-orders are not included; player-built gates are already usable for NPC-to-NPC shipments.
+by their owners. NPC sales into construction orders are not included; player-built gates are already usable for NPC-to-NPC shipments.
 
 ## Verification
 

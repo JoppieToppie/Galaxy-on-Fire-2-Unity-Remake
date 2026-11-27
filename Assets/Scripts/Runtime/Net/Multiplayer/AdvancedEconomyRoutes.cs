@@ -36,6 +36,12 @@ namespace GoF2Remake.Multiplayer
             return graph;
         }
 
+        public int Distance(int from, int to)
+        {
+            var path = Path(from, to);
+            return path == null ? -1 : path.Count - 1;
+        }
+
         public List<int> Path(int from, int to)
         {
             if (from == to) return new List<int> { from };

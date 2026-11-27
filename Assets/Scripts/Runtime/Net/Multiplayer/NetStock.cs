@@ -433,6 +433,9 @@ namespace GoF2Remake.Multiplayer
             long budget = ModAdvancedEconomy.PlayerMarketBudget;
             int remainingUnits = ModAdvancedEconomy.PlayerMarketUnits;
             if (budget <= 0 || remainingUnits <= 0) return;
+            // Regional automatic routing also opts in to abstract cross-system procurement.
+            var graph = ModAdvancedEconomy.RegionalTrade && ModAdvancedEconomy.AutomaticRoutes
+                ? AdvancedEconomyRoutes.Build(db) : null;
             var markets = new List<PlayerStationRecord>(NetPlayerStations.Stations);
             markets.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
             foreach (int station in ModAdvancedEconomy.Stations)
@@ -447,8 +450,9 @@ namespace GoF2Remake.Multiplayer
                     if (balance.Amount + reserved >= rule.Target) continue;
                     foreach (var market in markets)
                     {
-                        if (market == null || market.system != system || !market.npcEconomyPurchases ||
-                            market.listings == null) continue;
+                        if (market == null || !market.npcEconomyPurchases || market.listings == null) continue;
+                        int distance = market.system == system ? 0 : graph?.Distance(market.system, system) ?? -1;
+                        if (distance < 0 || distance > ModAdvancedEconomy.MaxAutoHops) continue;
                         // Sort by ask price; the original escrow list is not reordered.
                         var listings = new List<PlayerStationListing>(market.listings);
                         listings.Sort((a, b) => (a?.unitPrice ?? long.MaxValue).CompareTo(b?.unitPrice ?? long.MaxValue));
@@ -463,7 +467,7 @@ namespace GoF2Remake.Multiplayer
                                 units =>
                                 {
                                     AdvancedEconomyLedger.Set(station, rule, old + units, resale + units);
-                                    balance.ImportHops = (int)Math.Round((long)old * hops / (double)(old + units));
+                                    balance.ImportHops = (int)Math.Round(((long)old * hops + (long)units * distance) / (double)(old + units));
                                 },
                                 () =>
                                 {
