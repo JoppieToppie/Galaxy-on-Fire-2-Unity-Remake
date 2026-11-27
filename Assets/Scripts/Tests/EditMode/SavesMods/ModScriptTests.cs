@@ -46,6 +46,56 @@ namespace GoF2Remake.Tests
         static string Errors() => string.Join("|", ModScripts.Lines.Where(l => l.error).Select(l => l.text));
 
         [Test]
+        public void TutorialPopupsWaitForUiAndAreOncePerSaveByDefault()
+        {
+            bool oldHints = Settings.TutorialHints;
+            var oldPopup = GameHooks.TutorialPopup;
+            try
+            {
+                Settings.TutorialHints = true;
+                bool ready = false;
+                int shown = 0;
+                GameHooks.TutorialPopup = (title, text) =>
+                {
+                    if (!ready) return false;
+                    Assert.AreEqual("Training", title);
+                    Assert.AreEqual("Read this", text);
+                    shown++;
+                    return true;
+                };
+                Run(("scripts/main.lua", "game.on('teach', function(repeatable) print(game.tutorial('intro', 'Training', 'Read this', repeatable)) end)"));
+                ModScripts.Raise("teach", false);
+                ModScripts.Raise("teach", false);
+                ModScripts.Tick(0f);
+                Assert.AreEqual(0, shown);
+                ready = true;
+                ModScripts.Tick(0f);
+                Assert.AreEqual(1, shown);
+                ModScripts.Raise("teach", false);
+                ModScripts.Tick(0f);
+                Assert.AreEqual(1, shown);
+                ModScripts.CaptureSaved();
+                ModScripts.RestoreSaved(false);
+                ModScripts.Raise("teach", false);
+                ModScripts.Tick(0f);
+                Assert.AreEqual(1, shown);
+                ModScripts.Raise("teach", true);
+                ModScripts.Tick(0f);
+                Assert.AreEqual(2, shown);
+                Settings.TutorialHints = false;
+                ModScripts.Raise("teach", true);
+                ModScripts.Tick(0f);
+                Assert.AreEqual(2, shown);
+                Assert.AreEqual("", Errors());
+            }
+            finally
+            {
+                GameHooks.TutorialPopup = oldPopup;
+                Settings.TutorialHints = oldHints;
+            }
+        }
+
+        [Test]
         public void TopLevelFilesRunMainFirstAndSubfoldersOnlyByRequire()
         {
             var mod = Run(("scripts/zeta.lua", "print('zeta')"), ("scripts/main.lua", "print('main')"), ("scripts/alpha.lua", "print('alpha')"),
