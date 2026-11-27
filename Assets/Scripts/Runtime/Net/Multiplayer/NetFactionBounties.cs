@@ -51,9 +51,9 @@ namespace GoF2Remake.Multiplayer
         [Serializable]
         sealed class PendingReputation
         {
-            public string id, account, issuer;
-            public int race, amount, forgiven;
-            public bool pirate, pardon;
+            public string id, account, issuer, kind;
+            public int race, amount, forgiven, systemRace;
+            public bool pirate, pardon, set, signature;
         }
 
         internal static bool IsPirateAccount(string account) =>
@@ -96,7 +96,12 @@ namespace GoF2Remake.Multiplayer
                 }
                 else
                 {
-                    if (!NetProfiles.ApplyReputationPenalty(account, pending.pirate, pending.amount, pending.id)) return false;
+                    if (pending.kind == "kill" || pending.kind == "move")
+                    {
+                        if (!NetProfiles.ApplyReputationEvent(account, pending.kind, pending.race, pending.systemRace,
+                            pending.amount, pending.set, pending.signature, pending.id)) return false;
+                    }
+                    else if (!NetProfiles.ApplyReputationPenalty(account, pending.pirate, pending.amount, pending.id)) return false;
                     int index = bountyFile.reputation.IndexOf(pending);
                     bountyFile.reputation.RemoveAt(index);
                     bountyDirty = true;
@@ -109,6 +114,39 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             return true;
+        }
+
+        static bool QueueReputationEvent(PendingReputation pending)
+        {
+            if (bountyFile == null || !SaveBounties()) return false;
+            bountyFile.reputation.Add(pending);
+            bountyDirty = true;
+            if (!SaveBounties()) return false; // retain the unsaved intent for retry
+            return ReplayPendingReputation(pending.account);
+        }
+
+        internal static bool RecordReputationMove(ulong client, int race, int amount, bool set = false)
+        {
+            if (!Standing.Independent || !PiracyEnabled || !NetProfiles.Controls(client) ||
+                !Standing.ReputationRace(race) || NetArena.InMatch(client)) return false;
+            string account = NetProfiles.AccountOf(client);
+            if (IsPirateAccount(account)) return false;
+            return QueueReputationEvent(new PendingReputation { id = Guid.NewGuid().ToString("N"),
+                kind = "move", account = account, race = race, amount = Mathf.Clamp(amount, -200, 200), set = set });
+        }
+
+        internal static void RecordNpcReputationKill(int race, int station, ulong client)
+        {
+            if (!Standing.Independent || !PiracyEnabled || !NetProfiles.Controls(client) ||
+                NetProfiles.IsHostClient(client) || NetArena.InMatch(client)) return;
+            string account = NetProfiles.AccountOf(client);
+            if (IsPirateAccount(account)) return;
+            var system = PiracySystemAt(station);
+            if (system == null || system.index == 25) return;
+            QueueReputationEvent(new PendingReputation { id = Guid.NewGuid().ToString("N"),
+                kind = "kill", account = account, race = race, systemRace = NpcFactionWar.OrbitOwner(system, station),
+                amount = NetProfiles.ReputationDifficultyMultiplier(account),
+                signature = NetProfiles.HasReputationSignature(account) });
         }
 
         static void ForgiveNpcHistory(BountyRecord record)

@@ -91,6 +91,9 @@ namespace GoF2Remake.Multiplayer
             GameHooks.CanResolveModJump = () => NetProfileClient.CanResolveModJump;
             GameHooks.ResolveModJump = NetProfileClient.RequestModJump;
             GameHooks.LocalPilotIsPirate = () => NetPlayer.Local != null && NetPlayer.Local.IsPirate;
+            GameHooks.ServerOwnsReputation = () => NetProfileClient.Active && NetProfileClient.Controller && !NetProfileClient.Guest &&
+                !(NetGame.PersistentHost && NetGame.LocalId == Unity.Netcode.NetworkManager.ServerClientId);
+            GameHooks.ReportReputationDelict = (race, amount) => NetState.Instance?.ReportReputationDelictRpc(race, amount);
             GameHooks.SharedPirateBoard = () => NetState.Instance != null ? NetState.Instance.PirateBoardJson : null;
             GameHooks.SessionRule = NetRules.TryGet;
             GameHooks.RuleChangedByHost = NetRules.HostChanged;

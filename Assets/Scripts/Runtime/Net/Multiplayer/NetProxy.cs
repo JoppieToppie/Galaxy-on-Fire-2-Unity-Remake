@@ -827,7 +827,7 @@ namespace GoF2Remake.Multiplayer
             if (ship != null && ship.Spec != null && ship.Spec.derelict) ship.DockingType = 0;
         }
 
-        bool bountyKillRecorded;
+        bool bountyKillRecorded, reputationKillRecorded;
 
         void ReportFactionWarCasualty(NetProxyStatus before, NetProxyStatus after)
         {
@@ -841,7 +841,17 @@ namespace GoF2Remake.Multiplayer
         {
             if (before.life == Flying && after.life != Flying && after.killer == OwnerClientId &&
                 NetGuard.InOrbit(OwnerClientId, Station))
+            {
+                if (after.hull == 0) RecordNpcReputationKill(Race, OwnerClientId);
                 RecordNpcBountyKill(after.race, OwnerClientId);
+            }
+        }
+
+        void RecordNpcReputationKill(int race, ulong killer)
+        {
+            if (reputationKillRecorded || IsJunk || IsWingman) return;
+            reputationKillRecorded = true;
+            NetFactions.RecordNpcReputationKill(race, Station, killer);
         }
 
         void RecordNpcBountyKill(int race, ulong killer)
@@ -869,6 +879,7 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             credited = true;
+            RecordNpcReputationKill(Race, shooter);
             RecordNpcBountyKill(Race, shooter);
             KillCreditRpc(Mathf.Clamp(race, -1, 15), Mathf.Clamp(systemRace, -1, 15), wasHostile, RpcTarget.Single(shooter, RpcTargetUse.Temp));
         }

@@ -325,6 +325,62 @@ namespace GoF2Remake.Multiplayer
             return Flight.Standing.EarnedWith(race, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings);
         }
 
+        internal static int ReputationDifficultyMultiplier(string account) =>
+            ReadSave(account)?.difficulty > 1.25f ? 2 : 1;
+
+        internal static bool HasReputationSignature(string account)
+        {
+            var equipment = ReadSave(account)?.equipment;
+            return equipment != null && equipment.Exists(e => e != null && e.item >= 189 && e.item <= 192);
+        }
+
+        internal static bool ApplyReputationEvent(string account, string kind, int race, int systemRace,
+            int amount, bool set, bool signature, string revision)
+        {
+            if (string.IsNullOrEmpty(account) || NetPlayerStations.ProfileWritesBlocked) return false;
+            var prior = ReadSave(account);
+            if (prior?.reputationRevision == revision) return true;
+            var pilot = ControllerForReputation(account);
+            bool host = pilot != null && IsHostClient(pilot.OwnerClientId);
+            var save = host ? JsonUtility.FromJson<SaveData>(SaveGame.ProfileJson()) : prior;
+            if (save == null) return false;
+            if (NetFactions.IsPirateAccount(account)) return true;
+            var standings = SavedReputation(save);
+            int Read(int side) => SavedStanding(save, side, standings);
+            bool changed = false;
+            void Store(int side, int value)
+            {
+                value = Mathf.Clamp(value, -100, 100);
+                if (Read(side) == value) return;
+                changed = true;
+                standings[Flight.Standing.ReputationKey(side)] = value;
+                SetSavedReputation(save, Flight.Standing.ReputationKey(side), value);
+            }
+            if (kind == "kill") Flight.Standing.IndependentKill(race, systemRace, signature, Mathf.Clamp(amount, 1, 2), Read, Store);
+            else if (kind == "move" && Flight.Standing.ReputationRace(race)) Store(race, set ? amount : Read(race) + amount);
+            else return false;
+            if (!changed) return true;
+            save.reputationRevision = revision;
+            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
+            InvalidateEconomyUploads(account);
+            PublishReputation(pilot, save, notifyOwner: true, penalty: false);
+            return true;
+        }
+
+        internal static void PublishReputation(NetPlayer pilot, SaveData save, bool notifyOwner, bool penalty = false)
+        {
+            if (pilot == null || save == null || !Flight.Standing.Independent) return;
+            var standings = SavedReputation(save);
+            var snapshot = new System.Text.StringBuilder();
+            // Explicit entries for all current races make legacy axes and custom defaults
+            // independent of the owner's network variables.
+            foreach (int race in Flight.Standing.ReputationRaces())
+                snapshot.Append(Flight.Standing.ReputationKey(race)).Append('=').Append(SavedStanding(save, race, standings)).Append(';');
+            if (standings.TryGetValue(Flight.Standing.PiracyHistoryKey, out int marker) && marker > 0)
+                snapshot.Append(Flight.Standing.PiracyHistoryKey).Append("=1;");
+            if (notifyOwner) NetState.Instance?.SendReputationPenalty(pilot.OwnerClientId, snapshot.ToString(), save.reputationRevision ?? "", penalty);
+        }
+
         internal static bool ApplyReputationPenalty(string account, bool pirate, int penalty, string revision)
         {
             if (account == null || NetPlayerStations.ProfileWritesBlocked) return false;
@@ -345,12 +401,7 @@ namespace GoF2Remake.Multiplayer
             save.reputationRevision = revision;
             if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false))) return false;
             InvalidateEconomyUploads(account);
-            if (host != null)
-            {
-                var snapshot = new System.Text.StringBuilder();
-                foreach (var kv in SavedReputation(save)) snapshot.Append(kv.Key).Append('=').Append(kv.Value).Append(';');
-                NetState.Instance?.SendReputationPenalty(host.OwnerClientId, snapshot.ToString(), revision);
-            }
+            PublishReputation(host, save, notifyOwner: true, penalty: true);
             return true;
         }
 

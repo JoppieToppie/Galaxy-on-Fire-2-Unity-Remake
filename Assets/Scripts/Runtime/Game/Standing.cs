@@ -28,6 +28,25 @@ namespace GoF2Remake.Flight
         public static bool Independent => Modding.ModPvpPiracy.IndependentReputation;
         public static bool PiracyLocked => Independent && GameHooks.LocalPilotIsPirate?.Invoke() == true;
         public static bool CanGainFromKills(int race) => !PiracyLocked && RawToward(race) > -71;
+        public static bool ReputationRace(int race) => race >= 0 && race < 4 || Modding.ModRaces.Get(race) is Modding.ModRaces.Def d && !d.hostile;
+        public static bool ServerManaged => Independent && GameHooks.ServerOwnsReputation?.Invoke() == true;
+
+        // Shared by single-player and the server's checked NPC-death path. The supplied
+        // read/write functions belong to the relevant profile, never another local pilot.
+        internal static void IndependentKill(int race, int systemRace, bool signature, int multiplier,
+            System.Func<int, int> read, System.Action<int, int> write)
+        {
+            if (ReputationRace(race))
+            {
+                write(race, Mathf.Clamp(read(race) - 5 * multiplier, -100, 100));
+                foreach (int ally in ReputationRaces())
+                    if (ally != race && RacesHostile(ally, race) && read(ally) > -71)
+                        write(ally, Mathf.Clamp(read(ally) + 5 * multiplier, -100, 100));
+            }
+            else if ((race == Pirate || Modding.ModRaces.Get(race)?.hostile == true) && !signature &&
+                     ReputationRace(systemRace) && RacesHostile(race, systemRace) && read(systemRace) > -71)
+                write(systemRace, Mathf.Clamp(read(systemRace) + multiplier, -100, 100));
+        }
         public const string PiracyHistoryKey = "__piracy_reputation_history";
         public static string ReputationKey(int race) => Modding.ModRaces.Get(race)?.key ?? ("__base_standing_" + race);
         public static IEnumerable<int> ReputationRaces()
@@ -116,7 +135,7 @@ namespace GoF2Remake.Flight
             if (race < 0 || race > 3 || Session.Standing == null) return;
             if (Independent)
             {
-                if (!PiracyLocked) StoreIndependent(race, set ? amount : RawToward(race) + amount);
+                if (!PiracyLocked && !ServerManaged) StoreIndependent(race, set ? amount : RawToward(race) + amount);
                 return;
             }
             int axis = race / 2, sign = race % 2 == 0 ? 1 : -1;   // 0 / 2 the axis's + end, 1 / 3 its - end
@@ -143,7 +162,12 @@ namespace GoF2Remake.Flight
         {
             if (Independent)
             {
-                if (PiracyLocked || !(race >= 0 && race < 4 || Modding.ModRaces.Is(race))) return;
+                if (PiracyLocked || !ReputationRace(race)) return;
+                if (ServerManaged)
+                {
+                    if (p > 0) GameHooks.ReportReputationDelict?.Invoke(race, p);
+                    return; // positive mission rewards are issued by the server's mission result
+                }
                 StoreIndependent(race, RawToward(race) - p * (Session.IsExtreme ? 2 : 1));
                 return;
             }
@@ -167,19 +191,8 @@ namespace GoF2Remake.Flight
             if (Independent)
             {
                 if (PiracyLocked) return;
-                bool ordinary = race >= 0 && race < 4 || Modding.ModRaces.Get(race) is Modding.ModRaces.Def d && !d.hostile;
-                int multiplier = Session.IsExtreme ? 2 : 1;
-                if (ordinary)
-                {
-                    ApplyDelict(race, 5);
-                    foreach (int ally in ReputationRaces())
-                        if (ally != race && RacesHostile(ally, race) && CanGainFromKills(ally))
-                            StoreIndependent(ally, RawToward(ally) + 5 * multiplier);
-                }
-                else if ((race == Pirate || Modding.ModRaces.Get(race)?.hostile == true) && SignatureRace < 0 &&
-                         (systemRace >= 0 && systemRace < 4 || Modding.ModRaces.Get(systemRace) is Modding.ModRaces.Def owner && !owner.hostile) &&
-                         RacesHostile(race, systemRace) && CanGainFromKills(systemRace))
-                    StoreIndependent(systemRace, RawToward(systemRace) + multiplier);
+                if (ServerManaged) return;
+                IndependentKill(race, systemRace, SignatureRace >= 0, Session.IsExtreme ? 2 : 1, RawToward, StoreIndependent);
                 return;
             }
             if (Modding.ModRaces.Get(race) is Modding.ModRaces.Def f)

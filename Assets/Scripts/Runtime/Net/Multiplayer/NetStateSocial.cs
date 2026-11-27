@@ -634,13 +634,13 @@ namespace GoF2Remake.Multiplayer
                 : (GameHooks.ModJumpResult?)null);
         }
 
-        internal void SendReputationPenalty(ulong client, string snapshot, string revision)
+        internal void SendReputationPenalty(ulong client, string snapshot, string revision, bool penalty = true)
         {
-            if (IsServer) ReputationPenaltyRpc(snapshot, revision, RpcTarget.Single(client, RpcTargetUse.Temp));
+            if (IsServer) ReputationPenaltyRpc(snapshot, revision, penalty, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void ReputationPenaltyRpc(string snapshot, string revision, RpcParams rpc = default)
+        void ReputationPenaltyRpc(string snapshot, string revision, bool penalty, RpcParams rpc = default)
         {
             if (!Flight.Standing.Independent) return;
             foreach (var entry in snapshot.Split(';'))
@@ -650,7 +650,21 @@ namespace GoF2Remake.Multiplayer
                     Modding.ModRaces.SetStandingKey(entry.Substring(0, eq), value);
             }
             Session.ReputationRevision = revision;
-            NetChat.Notice("Reputation reduced with all NPC factions.");
+            if (penalty) NetChat.Notice("Reputation reduced with all NPC factions.");
+        }
+
+        // This owner-simulated event can only reduce the sender's own reputation.
+        // It cannot grant standing or change another profile.
+        [Rpc(SendTo.Server)]
+        public void ReportReputationDelictRpc(int race, int amount, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (amount <= 0 || amount > 100 || !NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) ||
+                !NetProfiles.Controls(client)) return;
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || !pilot.InSpace || NetProfiles.IsHostClient(client)) return;
+            NetFactions.RecordReputationMove(client, race,
+                -amount * NetProfiles.ReputationDifficultyMultiplier(NetProfiles.AccountOf(client)));
         }
 
         float npcDiplomacyReplyDeadline;

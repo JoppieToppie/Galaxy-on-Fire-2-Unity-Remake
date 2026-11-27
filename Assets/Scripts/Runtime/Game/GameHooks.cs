@@ -22,6 +22,8 @@ namespace GoF2Remake.Data
 
         /// <summary>Why the squad can't take a mission now (the whole squad docked here), null = it can.</summary>
         public static Func<string> SquadAcceptRefusal;
+        public static Func<bool> ServerOwnsReputation;
+        public static Action<int, int> ReportReputationDelict;
         /// <summary>A mission was accepted: the squad gets it too.</summary>
         public static Action<FreelanceMission> MissionAccepted;
         /// <summary>The mission changed (Recovery's return trip): the squad's copies follow.</summary>
