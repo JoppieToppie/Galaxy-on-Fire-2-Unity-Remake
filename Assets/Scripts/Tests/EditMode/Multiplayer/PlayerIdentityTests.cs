@@ -24,6 +24,24 @@ namespace GoF2Remake.Tests
             Assert.Throws<ModJsonException>(() => PlayerIdentity.ValidateOrigins(options));
         }
 
+        [TestCase("{\"defaultStartingCredits\":-1}")]
+        [TestCase("{\"defaultStartingCredits\":\"25000\"}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingShip\":-1}}}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingCredits\":-1}}}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingEquipment\":{}}}}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingEquipment\":[{\"item\":50,\"amount\":0}]}}}")]
+        public void InvalidStarterAssetsAreRejected(string json)
+        {
+            Assert.Throws<ModJsonException>(() => PlayerIdentity.ValidateOrigins(JObject.Parse(json)));
+        }
+
+        [Test]
+        public void ValidStarterAssetsAreAccepted()
+        {
+            var options = JObject.Parse("{\"defaultStartingCredits\":25000,\"origins\":{\"terran\":{\"startingShip\":5,\"startingCredits\":0,\"startingEquipment\":[{\"item\":50,\"amount\":1}]}}}");
+            Assert.DoesNotThrow(() => PlayerIdentity.ValidateOrigins(options));
+        }
+
         [Test]
         public void EveryStockRaceHasAValidatedPortrait()
         {
