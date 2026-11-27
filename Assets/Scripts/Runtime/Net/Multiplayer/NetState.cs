@@ -502,7 +502,7 @@ namespace GoF2Remake.Multiplayer
             if ((pirateTimer -= SweepSeconds) <= 0f)
             {
                 pirateTimer = PirateSeconds;
-                PirateReports.ServerTick(Database.Shared, SetPirateBoard);   // the Pirate activity board kept full
+                PirateReports.ServerTick(Database.Shared, SetPirateBoard, WarOrbitOccupied);   // the Pirate activity board kept full
             }
             DissolveSingles();   // a squadmate who disconnected
             if ((pruneTimer -= SweepSeconds) <= 0f) { pruneTimer = PruneSeconds; Prune(); }
