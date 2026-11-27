@@ -216,7 +216,7 @@ namespace GoF2Remake.Modding
                     bool automatic = ModJson.Bool(o, "automaticRoutes", false, File);
                     int frontline = Math.Clamp(ModJson.Int(o, "frontlinePressurePercent", 50, File), 0, 100);
                     int battle = Math.Clamp(ModJson.Int(o, "battlePressurePercent", 100, File), 0, 100);
-                    int capacityAuto = Math.Clamp(ModJson.Int(o, "automaticRouteCapacity", 100, File), 1, MaxStock);
+                    int capacityAuto = Math.Clamp(ModJson.Int(o, "automaticRouteCapacity", physical ? largeFreight : 100, File), 1, MaxStock);
                     int lossAuto = Math.Clamp(ModJson.Int(o, "automaticRouteWarLossPercent", 0, File), 0, 100);
                     int hopTicks = Math.Clamp(ModJson.Int(o, "ticksPerHop", 1, File), 1, 12);
                     int maxHops = Math.Clamp(ModJson.Int(o, "maxAutomaticHops", 8, File), 1, 8);
