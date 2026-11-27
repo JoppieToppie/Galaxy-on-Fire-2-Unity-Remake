@@ -60,7 +60,7 @@ namespace GoF2Remake.Data
 
         public static bool RecordDefenderLoss(PirateSighting s, int slot)
         {
-            if (s == null || s.done || !s.established || slot < 1 || slot > 30) return false;
+            if (s == null || s.done || !s.established || slot < 1 || slot > 31) return false;
             int bit = 1 << (slot - 1);
             if ((s.guardLossMask & bit) != 0) return false;
             s.guardLossMask |= bit;
