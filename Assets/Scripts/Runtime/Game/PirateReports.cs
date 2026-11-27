@@ -75,6 +75,32 @@ namespace GoF2Remake.Data
             return true;
         }
 
+        public static bool Escape(Database db, PirateSighting s, List<PirateSighting> board, Func<int, bool> occupied)
+        {
+            if (s == null || !s.boss || !Active(s, Now)) return false;
+            var origin = db.Systems.Find(x => x.index == s.system);
+            var candidates = Candidates(db, s.station, true);
+            candidates.RemoveAll(c => occupied(c.station) ||
+                (c.system.index != s.system && (origin == null || !origin.jumpRoutesTo.Contains(c.system.index))) ||
+                board.Exists(other => other != s && Active(other, Now) && other.system == c.system.index));
+            if (candidates.Count == 0) return false;
+            var destination = candidates[Random.Range(0, candidates.Count)];
+            s.station = destination.station;
+            s.system = destination.system.index;
+            s.reportedAt = Now;
+            s.nextMoveAt = Now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax);
+            s.warned = false;
+            return true;
+        }
+
+        public static bool ServerEscape(Database db, int id, int station, Func<int, bool> occupied, Action<string> publish)
+        {
+            var s = serverBoard.Find(x => x.id == id && x.station == station);
+            if (!Escape(db, s, serverBoard, occupied)) return false;
+            publish(ServerBoardJson());
+            return true;
+        }
+
         public static bool BlocksDocking(int station)
         {
             var s = At(station);
