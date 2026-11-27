@@ -182,6 +182,7 @@ namespace GoF2Remake.Multiplayer
         {
             var result = new PlayerWantedSnapshot();
             if (!PiracyEnabled || bountyFile == null) return result;
+            bool pirateViewer = viewer != null && piracyByAccount.TryGetValue(viewer, out var viewerStatus) && viewerStatus.pirate;
             var accounts = new HashSet<string>(piracyByAccount.Keys, StringComparer.Ordinal);
             accounts.UnionWith(bountiesByAccount.Keys);
             long now = UnixNow;
@@ -190,7 +191,7 @@ namespace GoF2Remake.Multiplayer
                 bool pirate = piracyByAccount.TryGetValue(account, out var piracy) && piracy.pirate;
                 var issuers = new List<string>();
                 var contracts = new List<PlayerBountyContract>();
-                long reward = pirate ? PirateReward(piracy) : 0;
+                long reward = pirate && !pirateViewer ? PirateReward(piracy) : 0;
                 long factionReward = 0;
                 int system = PiracySystemAt(station)?.index ?? -1;
                 if (bountiesByAccount.TryGetValue(account, out var records))
@@ -200,7 +201,7 @@ namespace GoF2Remake.Multiplayer
                         bool npc = record.issuer.StartsWith("npc:", StringComparison.Ordinal);
                         if (npc && !record.issuingSystems.Contains(system)) continue;
                         if (!npc && (!FactionBountyStation(record.issuer, station) || record.reward <= 0)) continue;
-                        if (npc && !pirate) reward = Math.Max(reward, NpcReward(record));
+                        if (npc && (!pirate || pirateViewer)) reward = Math.Max(reward, NpcReward(record));
                         else if (!npc)
                         {
                             factionReward = Session.SaturatingAdd(factionReward, record.reward);
@@ -209,7 +210,8 @@ namespace GoF2Remake.Multiplayer
                         string issuer = BountyIssuerName(record.issuer);
                         if (!string.IsNullOrEmpty(issuer)) issuers.Add(issuer);
                     }
-                if (!pirate && issuers.Count == 0) continue;
+                if ((!pirate || pirateViewer) && issuers.Count == 0) continue;
+                if (pirateViewer && reward <= 0 && factionReward <= 0) continue;
                 string name = NetProfiles.AccountName(account);
                 if (string.IsNullOrEmpty(name)) continue;
                 issuers.Sort(StringComparer.OrdinalIgnoreCase);

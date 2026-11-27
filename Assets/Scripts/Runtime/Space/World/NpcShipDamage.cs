@@ -193,12 +193,16 @@ namespace GoF2Remake.World
             if (dmg > 0 && dogfight != null && Target.Alive) dogfight.Hit();   // remake option: GoF3's evasive roll (NpcShipDogfight)
             if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;   // remake mods: the player's hit breaks a mind control
             // Player::damage on a Most Wanted criminal (+0x3e): Level::attackWanted instead of the friendly-fire rules.
-            if (!byNpc && Spec.wantedIndex >= 0) { traffic.AttackWanted(this, dmg); return; }
+            if (!byNpc && Spec.wantedIndex >= 0)
+            {
+                traffic.AttackWanted(this, dmg);
+                if (!PirateFriendlyFire) return;
+            }
             // Player::damage 0xafd80: hitting a pirate in Loma arms and alarms them all and revokes the toll.
             if (!byNpc && Race == Standing.Pirate) traffic.LomaPirateHit();
             if (!byNpc && PirateFriendlyFire)
             {
-                if (dmg > 0 && !turnedEnemy)
+                if (dmg > 0 && !LocalPirateAggressor)
                 {
                     damageByPlayer += dmg;
                     if (damageByPlayer >= Hp.maxHull * Modding.ModPvpPiracy.PirateHullTolerance(Session.IsExtreme))
@@ -229,7 +233,8 @@ namespace GoF2Remake.World
         {
             if (PirateFriendlyFire)
             {
-                if (emp > 0 && !turnedEnemy)
+                if (Spec.wantedIndex >= 0) traffic.AttackWanted(this, 0);
+                if (emp > 0 && !LocalPirateAggressor)
                 {
                     empByPlayer += emp;
                     if (empByPlayer >= Hp.maxEmp * Modding.ModPvpPiracy.PirateEmpTolerance(Session.IsExtreme))
@@ -247,10 +252,14 @@ namespace GoF2Remake.World
         bool PirateFriendlyFire => Modding.ModPvpPiracy.Enabled && Race == Standing.Pirate &&
             !IsWingman && !alwaysFriend && !noFriendlyFire && GameHooks.LocalPilotIsPirate?.Invoke() == true;
 
+        bool LocalPirateAggressor => NetSession.Active ? aggressors.Contains(NetSession.LocalId) : turnedEnemy;
+
         void RetaliateAgainstLocalPirate()
         {
-            turnedEnemy = true;
+            // A local-only turned flag could attach hostility to an unrelated new orbit owner.
             if (NetSession.Active) aggressors.Add(NetSession.LocalId);
+            else turnedEnemy = true;
+            UpdateRelations();
             Wake();
         }
 

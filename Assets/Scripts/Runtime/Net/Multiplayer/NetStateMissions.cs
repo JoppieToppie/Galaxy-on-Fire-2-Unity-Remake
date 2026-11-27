@@ -134,7 +134,12 @@ namespace GoF2Remake.Multiplayer
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill)) return;
             int bounty = PirateReports.ServerDone(id, station => NetGuard.InOrbit(client, station), SetPirateBoard);
             if (bounty <= 0) return;
-            if (!NetworkManager.ConnectedClients.ContainsKey(killer)) killer = client;
+            if (!NetworkManager.ConnectedClients.ContainsKey(killer))
+            {
+                // Do not reassign an ineligible/disconnected hunter's reward to the orbit authority.
+                if (Modding.ModPvpPiracy.Enabled) return;
+                killer = client;
+            }
             var team = new List<ulong>();
             var who = NetPlayer.All.Find(p => p != null && p.IsSpawned && p.OwnerClientId == killer);
             // Resolve the report even when a pirate kills it, but do not pay that bounty.
