@@ -458,7 +458,7 @@ namespace GoF2Remake.Multiplayer
             {
                 // Story and event loaners are not the player's property.
                 if (save.hasParkedShip) return true;
-                int emergencyShip = Modding.ModPvpPiracy.EmergencyShip(NetGame.Db);
+                int emergencyShip = PlayerIdentity.EmergencyShip(NetGame.Db, save.playerIdentityRace);
                 int respawn = pilot.DeathRespawnDestination >= 0 ? pilot.DeathRespawnDestination :
                     NetFactions.DeathRespawnStation(pilot, save.lastDockedStation, pilot.DeathOrigin);
                 // Record the death before requiring a valid emergency hull or docking destination.
