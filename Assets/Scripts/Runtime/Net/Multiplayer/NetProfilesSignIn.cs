@@ -191,7 +191,16 @@ namespace GoF2Remake.Multiplayer
                 catch (Exception e) { Debug.LogError($"NetProfiles: profile {login.account.id} unreadable: {e.Message}"); }
             // A profile saved before the upgrade cap: cut back here too, so the game gets (and next uploads) the capped hull.
             SaveData saved = null;
-            int cut = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _) ? ClampMods(saved) : 0;
+            bool parsed = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _);
+            // A missing or unreadable established profile must not be replaced by a fresh
+            // client snapshot. Preserve both disk copies for recovery on advanced economy servers.
+            if (!coopHost && login.account != null && Modding.ModAdvancedEconomy.DynamicPricing &&
+                !parsed && (File.Exists(ProfilePath(login.account.id)) || File.Exists(ProfilePath(login.account.id) + ".bak")))
+            {
+                NetGame.Kick(login.client, "Your saved profile could not be loaded. Contact the server administrator to recover it.");
+                return;
+            }
+            int cut = parsed ? ClampMods(saved) : 0;
             int misfits = saved != null ? ClampClasses(saved) : 0;   // remake mods: gear the ship's class can't mount
             if (cut > 0 || misfits > 0)
             {
@@ -201,6 +210,15 @@ namespace GoF2Remake.Multiplayer
                     if (cut > 0) Debug.LogWarning($"Server: profile {login.account.id} ({login.account.name}): {cut} Kaamo upgrade level(s) past {Session.MaxModLevel} per mod removed.");
                     if (misfits > 0) Debug.LogWarning($"Server: profile {login.account.id} ({login.account.name}): {misfits} item(s) the ship's class can't mount moved to the hold.");
                 }
+            }
+            // Replacing a remote client's snapshot is itself an economy barrier. An upload
+            // assembled before a refresh or handover cannot be used for a later trade.
+            if (Modding.ModAdvancedEconomy.DynamicPricing && !IsHostClient(login.client))
+            {
+                login.economyRevision++;
+                login.economyRevisionDirty = true;
+                login.acceptedUploadSequence = 0;
+                incoming.Remove(login.client);
             }
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
             NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home,
@@ -361,6 +379,12 @@ namespace GoF2Remake.Multiplayer
             // A stale upload must not resurrect the pre-death loadout, even if it was
             // assembled after receipt of the new economy revision.
             var prior = ReadSave(account.id);
+            if (!IsHostClient(client) && Modding.ModAdvancedEconomy.DynamicPricing && prior == null &&
+                (File.Exists(ProfilePath(account.id)) || File.Exists(ProfilePath(account.id) + ".bak")))
+            {
+                Reject(login, "your established server profile is unavailable; administrator recovery is required");
+                return;
+            }
             if (!string.IsNullOrEmpty(prior?.lastDeathPenaltyId) &&
                 !string.Equals(prior.lastDeathPenaltyId, save.lastDeathPenaltyId, StringComparison.Ordinal))
             {
