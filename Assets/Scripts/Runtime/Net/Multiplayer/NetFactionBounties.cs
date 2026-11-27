@@ -645,7 +645,7 @@ namespace GoF2Remake.Multiplayer
 
             // Reputation is the existing NPC friendship rule. A temporary signature is not earned standing.
             for (int race = 0; race < 4; race++)
-                if (Standing.IsFriendWith(race, victim.Standing0, victim.Standing1, -1))
+                if (Standing.IsFriendWith(race, victim.Standing0, victim.Standing1, -1, victim.ModRaceStandings))
                     CountKill(NpcBountyIssuer(race));
             foreach (var race in Modding.ModRaces.All)
                 if (Standing.IsFriendWith(race.race, victim.Standing0, victim.Standing1, -1, victim.ModRaceStandings))
@@ -654,6 +654,7 @@ namespace GoF2Remake.Multiplayer
             if (SaveBounties())
             {
                 RefreshPiracyFlag(killer);
+                if (Standing.Independent && (secure || killer.IsPirate)) NetProfiles.ApplyReputationPenalty(killer, killer.IsPirate);
                 if (count > 0)
                     Modding.ModScripts.Raise("piracyKillRegistered", (double)killer.OwnerClientId, (double)victim.OwnerClientId,
                         victim.Station, count, threshold, windowSeconds);
@@ -709,7 +710,7 @@ namespace GoF2Remake.Multiplayer
             }
 
             bool host = NetProfiles.IsHostClient(client);
-            int standing = host ? Standing.RawToward(race) : Standing.TowardWith(race, pilot.Standing0, pilot.Standing1, -1, pilot.ModRaceStandings);
+            int standing = Standing.Independent && pilot.IsPirate ? -100 : host ? Standing.RawToward(race) : Standing.TowardWith(race, pilot.Standing0, pilot.Standing1, -1, pilot.ModRaceStandings);
             refusal = "Diplomats can reconcile hostile standing or pardon a pirate.";
             var wantedRecord = FindBounty(NetProfiles.AccountOf(client), issuer);
             if (standing > -71 && !pilot.IsPirate && !(wantedRecord != null && wantedRecord.wantedUntil > UnixNow)) return false;
@@ -756,6 +757,7 @@ namespace GoF2Remake.Multiplayer
             }
 
             ReindexBounties();
+            if (Standing.Independent) NetProfiles.PersistReputationPardon(pilot, race, piracy != null);
             RefreshPiracyFlag(pilot);
             if (piracy != null)
             {

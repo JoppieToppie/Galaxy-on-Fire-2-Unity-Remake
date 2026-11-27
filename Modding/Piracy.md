@@ -59,3 +59,7 @@ Both events fire on the server after saving. The IDs are session client IDs. The
 ### Reliable fatal-hull reporting and recovery enforcement
 
 A server-observed fatal hull transition is latched immediately and supplemented by a reliable owner death report. Delayed or reordered unreliable pose batches cannot replace a newer server pose. Death intent is journalled even if a valid emergency hull or respawn destination is temporarily unavailable. A replay recognizes the same penalty ID and a profile upload must acknowledge the latest server-owned death ID before it can replace the saved profile. Secure and arena exemptions remain in force. The server still depends on the owner's combat simulation; disconnects before any evidence arrives cannot be treated as a confirmed death.
+
+## Independent faction reputation (optional)
+
+Set `"independentReputation": true` in `piracy.json` alongside `"enabled": true`. The four base standings are independent and initially inherit the existing axes. The default secure PvP kill penalty is 5 toward every non-permanently-hostile NPC faction (`secureKillStandingPenalty`, 1–100). At -71 and below, enemy kill rewards no longer increase reputation. Pirate status locks all faction standings to -100, including against signatures; paying a diplomat lifts pirate status and restores only the represented faction. The base game is unchanged when the option is absent. Secure PvP penalties require the existing profile-based piracy system.

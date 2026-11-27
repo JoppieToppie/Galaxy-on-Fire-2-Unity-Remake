@@ -311,7 +311,7 @@ namespace GoF2Remake.Data
                     return T((Achievements.WingmenPayPlayer ? 782 : 779) + a.wingmen.Count).Replace("#C", C(a.costs)).Replace("#W", a.wingmen.Count > 0 ? a.wingmen[0] : "");
                 case AgentOffer.Diplomat:
                 {
-                    if (!Standing.IsEnemy(a.Side)) return T(883);
+                    if (!AgentGenerator.CanUseDiplomat(a.Side)) return T(883);
                     a.costs = AgentGenerator.DiplomatCosts(a.Side);
                     // remake mods: a mod race's diplomat (ModRaces)
                     if (a.modRace >= 0)
@@ -528,6 +528,8 @@ namespace GoF2Remake.Data
                     ConfirmText = T(885).Replace("#C", C(a.costs));
                     if (Modding.ModPvpPiracy.Enabled && NetProfileClient.Active && !NetProfileClient.Guest)
                         ConfirmText += "\nThis deal clears NPC kills with this faction and revokes pirate status.";
+                    if (Standing.Independent && Standing.PiracyLocked)
+                        ConfirmText += "\nOnly this faction restores your standing. Other factions remain at -100.";
                     return Outcome.Confirm;
                 case AgentOffer.SellShip:
                 {

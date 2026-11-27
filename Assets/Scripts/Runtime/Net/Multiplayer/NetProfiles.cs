@@ -278,6 +278,46 @@ namespace GoF2Remake.Multiplayer
             return true;
         }
 
+        internal static void ApplyReputationPenalty(NetPlayer pilot, bool pirate)
+        {
+            string account = AccountOf(pilot.OwnerClientId);
+            if (account == null) return;
+            var save = IsHostClient(pilot.OwnerClientId) ? null : ReadSave(account);
+            var snapshot = new System.Text.StringBuilder();
+            foreach (int race in Flight.Standing.ReputationRaces())
+            {
+                string key = Flight.Standing.ReputationKey(race);
+                int value = pirate ? -100 : Mathf.Max(-100, Flight.Standing.EarnedWith(race, pilot.Standing0, pilot.Standing1, pilot.ModRaceStandings) - Modding.ModPvpPiracy.SecureKillStandingPenalty);
+                if (save != null) SetSavedReputation(save, key, value);
+                snapshot.Append(key).Append('=').Append(value).Append(';');
+            }
+            if (save != null && !Write(ProfilePath(account), JsonUtility.ToJson(save, false)))
+                Debug.LogError("Could not persist secure-kill reputation penalty for " + account);
+            InvalidateEconomyUploads(account);
+            NetState.Instance?.SendReputationPenalty(pilot.OwnerClientId, snapshot.ToString());
+        }
+
+        static void SetSavedReputation(SaveData save, string key, int value)
+        {
+            save.modRaceStanding ??= new List<string>();
+            save.modRaceStanding.RemoveAll(entry => entry != null && entry.StartsWith(key + "|", StringComparison.Ordinal));
+            save.modRaceStanding.Add(key + "|" + value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        internal static void PersistReputationPardon(NetPlayer pilot, int race, bool wasPirate)
+        {
+            if (IsHostClient(pilot.OwnerClientId)) return;
+            string account = AccountOf(pilot.OwnerClientId);
+            var save = account == null ? null : ReadSave(account);
+            if (save == null) return;
+            if (wasPirate)
+                foreach (int other in Flight.Standing.ReputationRaces()) SetSavedReputation(save, Flight.Standing.ReputationKey(other), -100);
+            SetSavedReputation(save, Flight.Standing.ReputationKey(race), Modding.ModRaces.Is(race) ? 0 : -35);
+            if (!Write(ProfilePath(account), JsonUtility.ToJson(save, false)))
+                Debug.LogError("Could not persist diplomatic standing for " + account);
+            InvalidateEconomyUploads(account);
+        }
+
         static void ScheduleRecoveries(string account, List<DeathRecovery> recoveries)
         {
             if (string.IsNullOrEmpty(account)) return;

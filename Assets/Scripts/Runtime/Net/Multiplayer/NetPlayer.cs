@@ -195,7 +195,7 @@ namespace GoF2Remake.Multiplayer
 
         public int Standing0 => standing0.Value;
         public int Standing1 => standing1.Value;
-        public int Signature => signature.Value;
+        public int Signature => Standing.Independent && IsPirate ? -1 : signature.Value;
         /// <summary>This player's standings toward mods'races (mod race key -> value): Standing.IsEnemyWith.</summary>
         public IReadOnlyDictionary<string, int> ModRaceStandings => IsOwner ? Session.ModRaceStanding : modRaceStandings;
         public float CloakPercent => look.cloak;
@@ -794,7 +794,8 @@ namespace GoF2Remake.Multiplayer
             ApplyName();
             pilot.OnValueChanged += (_, _) => ApplyName();
             factionTag.OnValueChanged += (_, _) => ApplyName();
-            piratePilot.OnValueChanged += (_, _) => ApplyName();
+            piratePilot.OnValueChanged += (_, v) => { ApplyName(); if (IsOwner && v) Standing.EnforcePiracyLock(); };
+            if (IsOwner && IsPirate) Standing.EnforcePiracyLock();
             wantedPilot.OnValueChanged += (_, _) => ApplyName();
             NetModRaceStandings.Decode(modRaceStanding.Value, modRaceStandings);
             modRaceStanding.OnValueChanged += (_, v) => NetModRaceStandings.Decode(v, modRaceStandings);

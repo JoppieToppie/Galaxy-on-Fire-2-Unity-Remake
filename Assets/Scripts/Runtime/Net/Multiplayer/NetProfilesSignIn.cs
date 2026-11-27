@@ -368,6 +368,8 @@ namespace GoF2Remake.Multiplayer
                 if (!IsHostClient(client)) RefreshProfile(client);
                 return;
             }
+            if (Flight.Standing.Independent && pilot != null && pilot.IsPirate)
+                foreach (int race in Flight.Standing.ReputationRaces()) SetSavedReputation(save, Flight.Standing.ReputationKey(race), -100);
             // The origin grant is a creation-only server intent, never accepted from an upload.
             save.originStartAsPirate = false;
             // Recovery records belong to the server, not to the uploading client.

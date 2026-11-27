@@ -288,7 +288,15 @@ namespace GoF2Remake.Modding
         {
             var d = Get(race);
             if (d == null) return;
-            Session.ModRaceStanding[d.key] = Mathf.Clamp(value, -100, 100);
+            if (Flight.Standing.PiracyLocked) return;
+            SetStandingKey(d.key, value);
+        }
+
+        internal static void SetStandingKey(string key, int value)
+        {
+            value = Mathf.Clamp(value, -100, 100);
+            if (Session.ModRaceStanding.TryGetValue(key, out int prior) && prior == value) return;
+            Session.ModRaceStanding[key] = value;
             StandingRevision++;
         }
 

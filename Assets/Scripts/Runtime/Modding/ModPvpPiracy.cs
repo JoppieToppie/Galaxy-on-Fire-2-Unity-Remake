@@ -10,6 +10,8 @@ namespace GoF2Remake.Modding
     {
         public const string File = "piracy.json";
         public static bool Enabled { get; private set; }
+        public static bool IndependentReputation { get; private set; }
+        public static int SecureKillStandingPenalty { get; private set; } = 5;
 
         public static int PlayerKillsForBounty { get; private set; }
         public static int NpcKillsForBounty { get; private set; } = 5;
@@ -48,7 +50,9 @@ namespace GoF2Remake.Modding
             var flag = ModJson.Get(options, "enabled");
             if (flag != null && flag.Type != JTokenType.Boolean)
                 throw new ModJsonException($"{File}: enabled must be true or false.");
-            foreach (var key in new[] { "playerKillsForBounty", "npcKillsForBounty", "maximumNpcBounty", "npcBountyIncrement", "shipRecoverySeconds" })
+            if (ModJson.Get(options, "independentReputation") is JToken reputation && reputation.Type != JTokenType.Boolean)
+                throw new ModJsonException($"{File}: independentReputation must be true or false.");
+            foreach (var key in new[] { "secureKillStandingPenalty", "playerKillsForBounty", "npcKillsForBounty", "maximumNpcBounty", "npcBountyIncrement", "shipRecoverySeconds" })
                 if (ModJson.Get(options, key) is JToken value && value.Type != JTokenType.Integer)
                     throw new ModJsonException($"{File}: {key} must be an integer.");
             ModJson.Int(options, "playerKillsForBounty", 5, File);
@@ -68,6 +72,8 @@ namespace GoF2Remake.Modding
         internal static void Apply()
         {
             Enabled = false;
+            IndependentReputation = false;
+            SecureKillStandingPenalty = 5;
             PlayerKillsForBounty = 5;
             NpcKillsForBounty = 5;
             MaximumNpcBounty = 300000;
@@ -101,6 +107,8 @@ namespace GoF2Remake.Modding
                     }
                     EmergencyShipReference = reference;
                     Enabled |= flag != null && (bool)flag;
+                    IndependentReputation |= ModJson.Bool(options, "independentReputation", false, File);
+                    SecureKillStandingPenalty = Mathf.Clamp(ModJson.Int(options, "secureKillStandingPenalty", SecureKillStandingPenalty, File), 1, 100);
                     PlayerKillsForBounty = players;
                     NpcKillsForBounty = npcs;
                     MaximumNpcBounty = Mathf.Max(1, ModJson.Int(options, "maximumNpcBounty", MaximumNpcBounty, File));

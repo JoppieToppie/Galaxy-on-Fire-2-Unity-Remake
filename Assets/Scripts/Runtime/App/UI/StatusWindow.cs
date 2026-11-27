@@ -153,9 +153,26 @@ namespace GoF2Remake.UI
 
             // Reputation.
             Plate(left, T(576));
-            var rep = Row(left);
-            Reputation(Box(rep, false), 0, 1, StandingShown(0));
-            Reputation(Box(rep, true), 2, 3, StandingShown(1));
+            if (Standing.Independent)
+            {
+                var note = new Label(Standing.PiracyLocked
+                    ? "PIRATE: all standings locked at -100. Pay a diplomat to lift the lock."
+                    : "Hostile standings cannot recover through enemy kills; visit a diplomat.");
+                note.style.whiteSpace = WhiteSpace.Normal;
+                left.Add(note);
+                for (int race = 0; race < 4; race += 2)
+                {
+                    var pair = Row(left);
+                    IndependentRaceReputation(Box(pair, false), race);
+                    IndependentRaceReputation(Box(pair, true), race + 1);
+                }
+            }
+            else
+            {
+                var rep = Row(left);
+                Reputation(Box(rep, false), 0, 1, StandingShown(0));
+                Reputation(Box(rep, true), 2, 3, StandingShown(1));
+            }
             // Remake mods: the mods' races (ModRaces), two to a row, each with its own standing; not the always hostile
             // ones (like the game's pirates and the Void, which have no reputation box either).
             var races = new List<Modding.ModRaces.Def>();
@@ -530,17 +547,20 @@ namespace GoF2Remake.UI
         /// standing's glow (green a friend, blue neutral, red hostile, like GoF2Races/<race>_allied / _neutral / _enemy) with
         /// its name under it, and the race status bar lit from the centre toward the emblem while liked, away from it while
         /// disliked. The right end is left empty: a mod race has no rival race on its bar.</summary>
-        static void ModRaceReputation(VisualElement box, Modding.ModRaces.Def f)
+        static void ModRaceReputation(VisualElement box, Modding.ModRaces.Def f) => IndependentRaceReputation(box, f.race);
+
+        static void IndependentRaceReputation(VisualElement box, int race)
         {
-            float rate = Mathf.Clamp(Modding.ModRaces.Standing(f.race) / 100f, -1f, 1f);
+            int value = Standing.RawToward(race);
+            float rate = Mathf.Clamp(value / 100f, -1f, 1f);
             var bar = Resources.Load<Texture2D>("GoF2Races/race_status_bar");
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.AddToClassList("rep-row");
             row.AddToClassList("rep-row--bar");
             var side = new VisualElement { pickingMode = PickingMode.Ignore };
             side.AddToClassList("rep-side");
-            side.Add(RaceEmblem(f.race));
-            var name = new Label(Modding.ModRaces.Name(f.race)) { pickingMode = PickingMode.Ignore };
+            side.Add(race < 4 ? Emblem(race) : RaceEmblem(race));
+            var name = new Label(Standing.RaceName(race) + (Standing.Independent ? $" {value:+0;-0;0}" : "")) { pickingMode = PickingMode.Ignore };
             name.AddToClassList("rep-name");
             name.AddToClassList("rep-side-name");
             side.Add(name);
