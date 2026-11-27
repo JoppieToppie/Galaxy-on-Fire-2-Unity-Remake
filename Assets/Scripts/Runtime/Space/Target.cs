@@ -103,6 +103,7 @@ namespace GoF2Remake.Flight
         /// which this player's tractor beam may steal (CombatRadar); RemoteSteal(item, amount) takes it off the owner's ship.</summary>
         [NonSerialized] public int netStealItem = -1, netStealAmount;
         [NonSerialized] public Action<int, int> RemoteSteal;
+        [NonSerialized] public Action<int> CollectFreight;
         /// <summary>Multiplayer: a cargo steal candidate on another game's ship (KIPlayer+0x20 on the owner's side).</summary>
         public bool NetStealable => RemoteSteal != null && netStealItem >= 0 && netStealAmount > 0;
         /// <summary>Multiplayer: the killing hit came from another player (NetProxy): counts as the player's for a freelance
