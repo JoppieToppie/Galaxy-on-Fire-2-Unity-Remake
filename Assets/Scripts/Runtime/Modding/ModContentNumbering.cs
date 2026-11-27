@@ -176,8 +176,7 @@ namespace GoF2Remake.Modding
             var byShip = new SortedDictionary<int, ShipDef>();
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).ships)
-                    if (d.overrideRef != null && ModJson.Has(d.json, "cockpitModel")) return true;
-                    else if (d.overrideRef != null && ModJson.Has(d.json, "model") && TryResolveShip(d.overrideRef, out int t) && t < originalShips)
+                    if (d.overrideRef != null && ModJson.Has(d.json, "model") && TryResolveShip(d.overrideRef, out int t) && t < originalShips)
                     {
                         if (GameModels.Is(ModJson.Str(d.json, "model"))) byShip.Remove(t);   // the game's model: nothing to build
                         else byShip[t] = d;
@@ -223,7 +222,8 @@ namespace GoF2Remake.Modding
             if (originalShips < 0) return false;
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).ships)
-                    if (d.overrideRef != null && ModJson.Has(d.json, "model") && !GameModels.Is(ModJson.Str(d.json, "model"))
+                    if (d.overrideRef != null && ModJson.Has(d.json, "cockpitModel")) return true;
+                    else if (d.overrideRef != null && ModJson.Has(d.json, "model") && !GameModels.Is(ModJson.Str(d.json, "model"))
                         && TryResolveShip(d.overrideRef, out int t) && t < originalShips)
                         return true;
             return false;
