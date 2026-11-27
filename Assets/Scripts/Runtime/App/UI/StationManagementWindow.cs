@@ -125,11 +125,12 @@ namespace GoF2Remake.UI
                 tutorialOverlay.RegisterCallback<NavigationMoveEvent>(NavigateFlight, TrickleDown.TrickleDown);
             }
             tutorialOverlay.RegisterCallback<NavigationCancelEvent>(e => e.StopPropagation());
-            int index = 0;
+            int index = 0, visited = 0;
             void Draw()
             {
                 tutorialOverlay.Clear();
-                ModTutorialLayout.DrawPage(tutorialOverlay, pages[index], index, pages.Count);
+                ModTutorialLayout.DrawPage(tutorialOverlay, pages, index, visited,
+                    i => { index = i; Draw(); }, "player-station-action");
                 var footer = new VisualElement();
                 footer.style.flexDirection = FlexDirection.Row;
                 footer.style.flexShrink = 0;
@@ -137,7 +138,13 @@ namespace GoF2Remake.UI
                 back.SetEnabled(index > 0);
                 tutorialContinue = new Button(() =>
                 {
-                    if (index + 1 < pages.Count) { index++; Draw(); return; }
+                    if (index + 1 < pages.Count)
+                    {
+                        index++;
+                        visited = Mathf.Max(visited, index);
+                        Draw();
+                        return;
+                    }
                     if (station)
                     {
                         stationTutorialSeen = true;

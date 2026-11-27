@@ -3036,7 +3036,16 @@ Add `tutorials/preIdentity.json` to an active mod. On a multiplayer server using
 }
 ```
 
-Use `layout: "column"` (default) or `"cards"` (responsive wrapping cards), and section styles `"text"` (default), `"card"` or `"warning"`. Pages have a title and 1–24 sections, each with text and an optional heading. Up to 20 pages per mod; title/heading limit 120 characters, section text limit 2000 characters. Malformed files are logged and skipped. This is a local UI briefing, not a server-side proof of acknowledgement; do not treat it as authorization. Files in this folder are included in normal mod exports and Mod Builder history.
+The same renderer is used by `tutorials/stationManagement.json` (shown at eligible completed player stations; replay via the Tutorial button) and pre-identity onboarding. Both also accept the staged `text/tutorials/` paths. `singlePlayer: true` at the root enables pre-identity pages for single-player character creation. Pages retain their own title and layout; the final Continue/Finish action acknowledges the briefing. Natural scrolling is built in (wheel, mouse drag, touch, scrollbar, controller right stick and Page Up/Down/Home/End); the footer stays visible.
+
+Optional layout fields:
+- Root `navigation`: `"linear"` (default) or `"contents"` (topic navigation, a sidebar on wide windows and a horizontal strip on narrow windows). Previously visited pages can be revisited; new pages are reached with Continue.
+- Page `layout`: `"column"` (default), `"cards"` or `"grid"`. Cards/grids wrap responsively; `columns` is 1–3 (default 2) and `gap` is 0–32 UI units (default 10). `titleSize` is 20–40 (default 30).
+- Section `style`: `"text"` (default), `"card"`, `"warning"`, `"info"`, or `"divider"`. A divider needs no text and occupies a full row. Set `fullWidth: true` to span a row in a cards/grid layout.
+- Section `headingSize` (14–32, default 22), `textSize` (12–26, default 18), and `alignment` (`"left"`, `"center"`, `"right"`).
+- Section `image`: optional path to a texture within the same mod (for example `textures/tutorials/docking.png`); `imageHeight` is 64–480 UI units (default 180). The illustration is fitted without stretching; missing assets leave the text visible. Use modest image sizes.
+
+Pages have a title and 1–24 sections, each with text and an optional heading (except dividers). Up to 20 pages per mod; title/heading limit 120 characters, section text limit 2000 characters. Malformed files are logged and skipped. This is a local UI briefing, not a server-side proof of acknowledgement; do not treat it as authorization. Files in this folder are included in normal mod exports and Mod Builder history.
 
 ### Declarative gameplay tutorials
 

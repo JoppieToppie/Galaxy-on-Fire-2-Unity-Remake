@@ -377,11 +377,12 @@ namespace GoF2Remake.UI
             identityBriefing.style.paddingTop = identityBriefing.style.paddingBottom = 12;
             identityOverlay.Add(identityBriefing);
 
+            int visited = identityBriefingIndex;
             void DrawPage()
             {
                 identityBriefing.Clear();
-                var entry = pages[identityBriefingIndex];
-                ModTutorialLayout.DrawPage(identityBriefing, entry, identityBriefingIndex, pages.Count);
+                ModTutorialLayout.DrawPage(identityBriefing, pages, identityBriefingIndex, visited,
+                    i => { identityBriefingIndex = i; DrawPage(); }, "gof-button");
                 var footer = new VisualElement();
                 footer.style.flexDirection = FlexDirection.Row;
                 footer.style.flexShrink = 0;
@@ -390,7 +391,13 @@ namespace GoF2Remake.UI
                 back.SetEnabled(identityBriefingIndex > 0);
                 var next = new Button(() =>
                 {
-                    if (identityBriefingIndex + 1 < pages.Count) { identityBriefingIndex++; DrawPage(); return; }
+                    if (identityBriefingIndex + 1 < pages.Count)
+                    {
+                        identityBriefingIndex++;
+                        visited = Mathf.Max(visited, identityBriefingIndex);
+                        DrawPage();
+                        return;
+                    }
                     identityBriefingComplete = true;
                     identityBriefing.RemoveFromHierarchy();
                     identityBriefing = null;
@@ -1276,7 +1283,9 @@ namespace GoF2Remake.UI
         internal sealed class Page
         {
             internal string ModName;
+            internal ModInfo Mod;
             internal JObject Data;
+            internal bool Contents;
         }
 
         static bool Text(JToken token, int max) => token != null && token.Type == JTokenType.String &&
@@ -1299,7 +1308,8 @@ namespace GoF2Remake.UI
                 try
                 {
                     if (!(ModJson.Read(mod.Source, path) is JObject document) ||
-                        !(document["pages"] is JArray pages) || pages.Count > 20)
+                        !(document["pages"] is JArray pages) || pages.Count > 20 ||
+                        !Choice(document["navigation"], "linear", "contents"))
                         throw new ModJsonException("Expected a pages array with at most 20 entries.");
                     if (singlePlayerOnly && (bool?)document["singlePlayer"] != true) continue;
                     var parsed = new List<Page>();
@@ -1319,11 +1329,17 @@ namespace GoF2Remake.UI
                                 (block["text"] != null && !Text(block["text"], 2000)) ||
                                 (block["heading"] != null && !Text(block["heading"], 120)) ||
                                 !Number(block["headingSize"], 14, 32) || !Number(block["textSize"], 12, 26) ||
+                                !Number(block["imageHeight"], 64, 480) ||
+                                (block["image"] != null && !Text(block["image"], 240)) ||
                                 !Choice(block["alignment"], "left", "center", "right") ||
                                 (block["fullWidth"] != null && block["fullWidth"].Type != JTokenType.Boolean))
                                 throw new ModJsonException("Invalid tutorial section.");
                         }
-                        parsed.Add(new Page { ModName = mod.Name, Data = page });
+                        parsed.Add(new Page
+                        {
+                            ModName = mod.Name, Mod = mod, Data = page,
+                            Contents = (string)document["navigation"] == "contents"
+                        });
                     }
                     result.AddRange(parsed);
                 }
@@ -1345,7 +1361,8 @@ namespace GoF2Remake.UI
             return label;
         }
 
-        internal static void DrawPage(VisualElement host, Page entry, int index, int count)
+        internal static void DrawPage(VisualElement host, List<Page> pages, int index, int visited,
+            Action<int> selectPage, string buttonClass)
         {
             if (!host.ClassListContains("mod-tutorial-keyboard"))
             {
@@ -1370,12 +1387,71 @@ namespace GoF2Remake.UI
                     e.StopPropagation();
                 }, TrickleDown.TrickleDown);
             }
+            var entry = pages[index];
             var page = entry.Data;
-            var progress = LabelFor(entry.ModName + "  |  " + (index + 1) + " / " + count, 15);
+            var progress = LabelFor(entry.ModName + "  |  " + (index + 1) + " / " + pages.Count, 15);
             host.Add(progress);
             var title = LabelFor((string)page["title"], (int?)page["titleSize"] ?? 30);
             title.AddToClassList("gof-semibold");
             host.Add(title);
+
+            var workspace = new VisualElement();
+            workspace.style.flexGrow = 1;
+            workspace.style.flexBasis = 0;
+            workspace.style.minHeight = 0;
+            workspace.style.minWidth = 0;
+            workspace.style.flexDirection = FlexDirection.Column;
+            host.Add(workspace);
+
+            if (entry.Contents)
+            {
+                var contents = new ScrollView(ScrollViewMode.Horizontal)
+                {
+                    horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                    verticalScrollerVisibility = ScrollerVisibility.Hidden
+                };
+                contents.AddToClassList("gof-no-scroll-bar");
+                contents.AddManipulator(new DragScroll(contents));
+                contents.style.flexShrink = 0;
+                contents.style.height = 52;
+                contents.contentContainer.style.flexDirection = FlexDirection.Row;
+                workspace.Add(contents);
+                for (int i = 0; i < pages.Count; i++)
+                {
+                    int target = i;
+                    string caption = (string)pages[i].Data["title"];
+                    var button = new Button(() => selectPage(target))
+                    {
+                        text = (i + 1) + ". " + caption,
+                        tooltip = caption
+                    };
+                    button.AddToClassList(buttonClass);
+                    button.style.minHeight = 42;
+                    button.style.whiteSpace = WhiteSpace.Normal;
+                    button.style.flexShrink = 0;
+                    button.style.maxWidth = 212;
+                    button.style.marginBottom = 4;
+                    button.style.marginRight = 4;
+                    button.SetEnabled(i <= visited && i != index);
+                    if (i == index) button.style.backgroundColor = new Color(0.18f, 0.36f, 0.46f);
+                    contents.Add(button);
+                }
+                contents.RegisterCallback<FocusInEvent>(e =>
+                {
+                    if (!DragScroll.PointerActive && e.target is VisualElement target && contents.contentContainer.Contains(target))
+                        contents.ScrollTo(target);
+                });
+                workspace.RegisterCallback<GeometryChangedEvent>(e =>
+                {
+                    bool wide = e.newRect.width >= 760;
+                    workspace.style.flexDirection = wide ? FlexDirection.Row : FlexDirection.Column;
+                    contents.mode = wide ? ScrollViewMode.Vertical : ScrollViewMode.Horizontal;
+                    contents.style.width = wide ? new StyleLength(220) : new StyleLength(Length.Percent(100));
+                    contents.style.height = wide ? new StyleLength(StyleKeyword.Auto) : new StyleLength(52);
+                    contents.style.marginRight = wide ? 12 : 0;
+                    contents.contentContainer.style.flexDirection = wide ? FlexDirection.Column : FlexDirection.Row;
+                });
+            }
 
             var body = new ScrollView(ScrollViewMode.Vertical)
             {
@@ -1389,12 +1465,12 @@ namespace GoF2Remake.UI
             body.style.minWidth = 0;
             body.style.marginRight = 12;
             body.AddManipulator(new DragScroll(body));
-            host.Add(body);
+            workspace.Add(body);
             ScrollBars.Attach(body);
             // Focused content stays visible; the game already handles right-stick scrolling.
             body.RegisterCallback<FocusInEvent>(e =>
             {
-                if (e.target is VisualElement target && body.contentContainer.Contains(target))
+                if (!DragScroll.PointerActive && e.target is VisualElement target && body.contentContainer.Contains(target))
                     body.ScrollTo(target);
             });
             var sections = new VisualElement();
@@ -1438,6 +1514,28 @@ namespace GoF2Remake.UI
                         var heading = LabelFor((string)block["heading"], (int?)block["headingSize"] ?? 22, alignment);
                         heading.AddToClassList("gof-semibold");
                         panel.Add(heading);
+                    }
+                    if (block["image"] != null)
+                    {
+                        string path = (string)block["image"];
+                        // Use the mod's own asset source and the game's managed texture cache, never an external URL.
+                        if (entry.Mod.Source.Exists(path))
+                        {
+                            try
+                            {
+                                var texture = ModMaterials.Texture(entry.Mod, path, false);
+                                if (texture != null)
+                                {
+                                    var illustration = new Image { image = texture, scaleMode = ScaleMode.ScaleToFit };
+                                    illustration.style.height = (int?)block["imageHeight"] ?? 180;
+                                    illustration.style.flexShrink = 0;
+                                    illustration.style.marginBottom = 8;
+                                    panel.Add(illustration);
+                                }
+                            }
+                            catch (Exception e) { Debug.LogWarning("Mod " + entry.Mod.Id + " tutorial image " + path + ": " + e.Message); }
+                        }
+                        else Debug.LogWarning("Mod " + entry.Mod.Id + " tutorial image missing: " + path);
                     }
                     panel.Add(LabelFor((string)block["text"], (int?)block["textSize"] ?? 18, alignment));
                 }
