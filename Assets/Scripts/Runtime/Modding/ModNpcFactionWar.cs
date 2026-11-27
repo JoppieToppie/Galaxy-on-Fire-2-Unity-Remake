@@ -11,6 +11,11 @@ namespace GoF2Remake.Modding
     {
         public const string File = "npc-faction-war.json";
         public static bool Enabled { get; private set; }
+        public static int PirateMoveMin { get; private set; } = 600;
+        public static int PirateMoveMax { get; private set; } = 1200;
+        public static int PirateEscapeSeconds { get; private set; } = 12;
+        public static int PirateGuardCount { get; private set; } = 0;
+        public static int PirateCapitalShip { get; private set; } = -1;
         public static int ShipsPerSide { get; private set; }
         public static int IntervalSeconds { get; private set; }
         public static int BattleSeconds { get; private set; }
@@ -30,6 +35,7 @@ namespace GoF2Remake.Modding
         internal static void Apply()
         {
             Enabled = false;
+            PirateMoveMin = 600; PirateMoveMax = 1200; PirateEscapeSeconds = 12; PirateGuardCount = 0; PirateCapitalShip = -1;
             ShipsPerSide = 12;
             IntervalSeconds = 1200;
             BattleSeconds = 480;
@@ -44,6 +50,11 @@ namespace GoF2Remake.Modding
                     var value = ModJson.Read(mod.Source, File);
                     if (value == null) continue;
                     if (!(value is JObject options)) throw new ModJsonException($"{File} must contain an object.");
+                    PirateMoveMin = Mathf.Clamp(ModJson.Int(options, "pirateMoveMin", PirateMoveMin, File), 60, 3600);
+                    PirateMoveMax = Mathf.Clamp(ModJson.Int(options, "pirateMoveMax", PirateMoveMax, File), PirateMoveMin, 7200);
+                    PirateEscapeSeconds = Mathf.Clamp(ModJson.Int(options, "pirateEscapeSeconds", PirateEscapeSeconds, File), 3, 120);
+                    PirateGuardCount = Mathf.Clamp(ModJson.Int(options, "pirateGuardCount", PirateGuardCount, File), 0, 24);
+                    PirateCapitalShip = ModJson.Int(options, "pirateCapitalShip", PirateCapitalShip, File);
                     bool enabled = ModJson.Bool(options, "enabled", false, File);
                     int ships = Mathf.Clamp(ModJson.Int(options, "shipsPerSide", ShipsPerSide, File), 4, 24);
                     int interval = Mathf.Clamp(ModJson.Int(options, "intervalSeconds", IntervalSeconds, File), 60, 86400);
