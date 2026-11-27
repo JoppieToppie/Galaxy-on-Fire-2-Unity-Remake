@@ -12,6 +12,40 @@ namespace GoF2Remake.Tests
 {
     public class HitpointsTests
     {
+        [TestCase(100)]
+        [TestCase(1000)]
+        public void AppliedHullDamageReportsOnlyActualHullFraction(int maxHull)
+        {
+            var go = new UnityEngine.GameObject("fleet damage target");
+            try
+            {
+                var target = go.AddComponent<Target>();
+                target.customDeath = true;
+                target.hitpoints = new Hitpoints(maxHull, 40, 20);
+                double playerDamage = 0d, npcDamage = 0d;
+                target.HullDamageApplied += (_, fraction, byNpc) =>
+                {
+                    if (byNpc) npcDamage += fraction;
+                    else playerDamage += fraction;
+                };
+                target.Damage(40);
+                target.Damage(20);
+                Assert.AreEqual(0d, playerDamage, 1e-9d, "shields and armor are not hull");
+                target.Damage(maxHull / 4);
+                Assert.AreEqual(0.25d, playerDamage, 1e-9d);
+                target.Damage(maxHull / 4, true);
+                Assert.AreEqual(0.25d, npcDamage, 1e-9d);
+                target.Damage(maxHull * 10);
+                Assert.AreEqual(0.75d, playerDamage, 1e-9d, "only remaining hull counts, not overkill");
+                target.Damage(maxHull);
+                Assert.AreEqual(0.75d, playerDamage, 1e-9d, "dead targets cannot count twice");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
         [Test]
         public void NewPoolsAreFull()
         {
