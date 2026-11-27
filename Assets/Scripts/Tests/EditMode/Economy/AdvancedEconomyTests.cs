@@ -93,6 +93,20 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void GateConsentDoesNotPassToNewOwner()
+        {
+            var gate = new PlayerJumpgateRecord { ownerProfile = "old", npcEconomyAccessOwner = "p:old" };
+            Assert.IsTrue(gate.HasNpcEconomyConsent);
+            Assert.IsTrue(gate.ToPublicRecord().npcEconomyAccess);
+            Assert.IsNull(gate.ToPublicRecord().npcEconomyAccessOwner);
+            gate.ownerProfile = "new";
+            Assert.IsFalse(gate.HasNpcEconomyConsent);
+            gate.ownershipType = PlayerStationOwnershipType.Faction;
+            gate.ownerFactionId = "old";
+            Assert.IsFalse(gate.HasNpcEconomyConsent);
+        }
+
+        [Test]
         public void RouteDistanceRespectsDirectionAndInvalidation()
         {
             var graph = new AdvancedEconomyRoutes();

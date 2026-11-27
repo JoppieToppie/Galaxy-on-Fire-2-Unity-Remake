@@ -46,7 +46,7 @@ namespace GoF2Remake.Multiplayer
             dirtyStock.Add(station);
         }
         [Rpc(SendTo.Server)]
-        public void EconomyTradeRpc(int station, int item, int units, bool buy, long quote, int sequence, RpcParams rpc = default)
+        public void EconomyTradeRpc(int station, int item, int units, bool buy, long quote, int sequence, long request, RpcParams rpc = default)
         {
             ulong client = rpc.Receive.SenderClientId;
             int delta = 0; long credits = 0;
@@ -57,12 +57,12 @@ namespace GoF2Remake.Multiplayer
                 result = NetStock.HostPricedTrade(client, station, item, units, buy, quote, sequence, out delta, out credits);
                 dirtyStock.Add(station);
             }
-            EconomyTradeResultRpc(station, item, delta, credits, result, RpcTarget.Single(client, RpcTargetUse.Temp));
+            EconomyTradeResultRpc(station, item, delta, credits, result, request, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void EconomyTradeResultRpc(int station, int item, int delta, long credits, string result, RpcParams rpc = default) =>
-            NetStock.PriceTradeResult(station, item, delta, credits, result);
+        void EconomyTradeResultRpc(int station, int item, int delta, long credits, string result, long request, RpcParams rpc = default) =>
+            NetStock.PriceTradeResult(station, item, delta, credits, result, request);
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void ItemRefusedRpc(int station, int item, int price, int count, RpcParams rpc = default) => NetStock.ItemRefused(station, item, price, count);

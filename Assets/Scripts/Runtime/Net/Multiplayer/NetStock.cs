@@ -67,6 +67,8 @@ namespace GoF2Remake.Multiplayer
         static readonly Dictionary<(int station, int item), (int basis, int stock, int target, int pressure, int hops)> quotes =
             new Dictionary<(int, int), (int, int, int, int, int)>();
         static bool priceTradePending;
+        static long priceTradeSequence;
+        static int priceTradeStation, priceTradeItem;
         internal static bool PriceTradePending => priceTradePending;
 
         public static bool ManagedPricing(int station, int item) =>
@@ -118,13 +120,14 @@ namespace GoF2Remake.Multiplayer
             int sequence = NetGame.IsServer && NetGame.PersistentHost ? 0 : NetProfileClient.UploadForStationStorage();
             if (sequence == 0 && !(NetGame.IsServer && NetGame.PersistentHost)) return false;
             priceTradePending = true;
-            NetState.Instance.EconomyTradeRpc(station, item, units, buy, quote, sequence);
+            priceTradeStation = station; priceTradeItem = item;
+            NetState.Instance.EconomyTradeRpc(station, item, units, buy, quote, sequence, ++priceTradeSequence);
             return true;
         }
 
-        internal static void PriceTradeResult(int station, int item, int delta, long credits, string result)
+        internal static void PriceTradeResult(int station, int item, int delta, long credits, string result, long request)
         {
-            if (!priceTradePending) return;
+            if (!priceTradePending || request != priceTradeSequence || station != priceTradeStation || item != priceTradeItem) return;
             priceTradePending = false;
             if (!(NetGame.IsServer && NetGame.PersistentHost) && delta != 0)
             {
