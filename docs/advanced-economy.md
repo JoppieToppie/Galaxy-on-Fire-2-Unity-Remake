@@ -36,7 +36,7 @@ Production and consumption use explicit units per tick. Stock is updated from ex
 server stock transactions, and the ordinary stock broadcast carries changes to clients.
 With simulateUnvisitedStations enabled, all configured NPC stations run on one economy tick, even if nobody has visited them. Otherwise only generated shops participate. No vanilla dealer lists are generated for unvisited stations. Sales over a row's
 maximum follow the existing shop-cap behaviour: excess is accepted but not retained.
-The underlying vanilla credit transaction protocol has not yet been changed.
+Unmanaged rows retain the vanilla credit transaction protocol; managed rows can opt into the server-priced path described below.
 
 Mod Builder > Advanced economy edits toggles, interval, commodity rows, system profiles and routes. Station, system and commodity pickers use normal mod dependencies. Stock rules can use a system reference instead of a station reference to apply to each NPC station in the system. An explicit station rule overrides that mod's system default for the same commodity, irrespective of JSON order. The root file is
 included in multiplayer mod checks and export. Later active enabled configurations
@@ -103,7 +103,7 @@ Marketplace settings or /station npc-market <id> on|off.
 
 After NPC shipments and production/consumption, NPC stations with shortages can buy
 commodity escrow listings from opted-in player stations in the same system. Purchases are
-bounded by deficit, per-tick global credit and unit budgets, and the destination's quoted
+bounded by deficit after reserving incoming NPC shipments, per-tick global credit and unit budgets, and the destination's quoted
 price including marketplace taxes. Escrow, seller/faction proceeds, station taxes and NPC
 stock are journalled together. This is an abstract NPC credit source, not a transfer from
 a player treasury. No private storage, factory stock, ship listings or construction escrow

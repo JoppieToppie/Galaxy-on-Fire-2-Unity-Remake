@@ -407,8 +407,8 @@ namespace GoF2Remake.Multiplayer
                         changed.Add(station);
                     }
                 }
-                AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed);
-                TickPlayerMarket(Participates, changed);
+                var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed);
+                TickPlayerMarket(Participates, changed, incoming);
                 if (ModAdvancedEconomy.DynamicPricing)
                     foreach (int station in ModAdvancedEconomy.Stations)
                         if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
@@ -424,7 +424,8 @@ namespace GoF2Remake.Multiplayer
 
         // Player listings supply local NPC demand only after the ordinary shipment pass.
         // This cannot touch personal storage, factories, ships, or construction escrow.
-        static void TickPlayerMarket(Func<int, bool> participates, HashSet<int> changed)
+        static void TickPlayerMarket(Func<int, bool> participates, HashSet<int> changed,
+            IReadOnlyDictionary<(int station, int item), int> incoming)
         {
             if (!ModAdvancedEconomy.PlayerMarketTrade || !NetProfiles.Enabled ||
                 NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
@@ -442,7 +443,8 @@ namespace GoF2Remake.Multiplayer
                 {
                     if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
                     var balance = AdvancedEconomyLedger.Get(station, rule);
-                    if (balance.Amount >= rule.Target) continue;
+                    incoming.TryGetValue((station, rule.Item), out int reserved);
+                    if (balance.Amount + reserved >= rule.Target) continue;
                     foreach (var market in markets)
                     {
                         if (market == null || market.system != system || !market.npcEconomyPurchases ||
@@ -453,7 +455,7 @@ namespace GoF2Remake.Multiplayer
                         foreach (var listing in listings)
                         {
                             if (listing == null || listing.item != rule.Item) continue;
-                            int need = Math.Min(remainingUnits, rule.Target - balance.Amount);
+                            int need = Math.Min(remainingUnits, rule.Target - balance.Amount - reserved);
                             if (need <= 0) break;
                             int ceiling = HostQuote(station, rule, balance).buy;
                             int old = balance.Amount, resale = balance.Resale, hops = balance.ImportHops;

@@ -161,9 +161,9 @@ namespace GoF2Remake.Multiplayer
 
         // A route carries at most one finite shipment. Debits, cargo in transit and arrivals live in the same snapshot.
         // A disabled or removed route freezes its shipment; it never silently redirects cargo to another endpoint.
-        internal static void TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed)
+        internal static Dictionary<(int station, int item), int> TickTrade(Database db, Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed)
         {
-            if (!ModAdvancedEconomy.RegionalTrade) return;
+            if (!ModAdvancedEconomy.RegionalTrade) return new Dictionary<(int station, int item), int>();
             Load();
             var graph = AdvancedEconomyRoutes.Build(db);
             var routes = ModAdvancedEconomy.Routes.ToList();
@@ -289,6 +289,7 @@ namespace GoF2Remake.Multiplayer
                     dirty = true;
                 }
             }
+            return incoming;
         }
 
         internal static Balance Get(int station, ModAdvancedEconomy.Rule rule)
