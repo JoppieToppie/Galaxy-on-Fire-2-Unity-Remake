@@ -129,8 +129,8 @@ namespace GoF2Remake.World
         /// <summary>An NPC gun's area blast on one target (Gun.AreaDamage, the echo): the hull damage and EMP, no stray-fire
         /// rules (the blast is what the gun is for). The player takes no area damage (Gun.AreaDamage skips it).</summary>
         // The raid result is adjudicated on the server at departure, not by local combat damage.
-        bool IsSimulatedFreightAttack(Target hit) => Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) &&
-            hit != null && hit.GetComponent<NpcShip>() is NpcShip freight && Modding.ModAdvancedEconomy.IsFreightTag(freight.Spec.eventTag);
+        bool IsSimulatedFreightAttack(Target hit) => Spec != null && Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) &&
+            hit != null && hit.GetComponent<NpcShip>() is NpcShip freight && freight.Spec != null && Modding.ModAdvancedEconomy.IsFreightTag(freight.Spec.eventTag);
 
         public void HitByBlast(Gun gun, Target t, int dmg, int emp, Vector3 center)
         {
@@ -196,8 +196,8 @@ namespace GoF2Remake.World
         void OnDamaged(Target t, int dmg, bool byNpc)
         {
             if (dmg > 0 && dogfight != null && Target.Alive) dogfight.Hit();   // remake option: GoF3's evasive roll (NpcShipDogfight)
-            if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;
-            if (!byNpc && dmg > 0 && Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) && Order != null) Resume();   // remake mods: the player's hit breaks a mind control
+            if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;   // remake mods: the player's hit breaks a mind control
+            if (!byNpc && dmg > 0 && Spec != null && Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) && Order != null) Resume();
             // Player::damage on a Most Wanted criminal (+0x3e): Level::attackWanted instead of the friendly-fire rules.
             if (!byNpc && Spec.wantedIndex >= 0)
             {

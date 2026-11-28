@@ -546,6 +546,10 @@ namespace GoF2Remake.Multiplayer
                 int index = slot++;
                 int raidBase = 0, raidDead = 0;
                 if (fields.Length == 12) { int.TryParse(fields[10], out raidBase); int.TryParse(fields[11], out raidDead); }
+                // Retain surviving raiders while the corresponding freight proxy is still being adopted.
+                if (Modding.ModAdvancedEconomy.IsFreightRaidTag(raidBase) && raidBase % 4 == 0)
+                    for (int i = 0; i < Modding.ModAdvancedEconomy.FreightRaidSize; i++)
+                        if ((raidDead & (1 << i)) == 0) activeRaiders.Add(raidBase + i);
                 // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
                 string hullName = ship == 13 || ship == 15 ? "Freighter" : GameNames.Ship(ship);
                 string label = hullName + " Freight (" + amount + " t)";
@@ -627,7 +631,7 @@ namespace GoF2Remake.Multiplayer
                 if (traffic.Ships.Exists(x => x != null && !x.Gone && x.Spec.eventTag == tag) ||
                     System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
                 Vector3 at = freight.transform.position + new Vector3((i - 1) * 900f, 350f + i * 150f, -1200f);
-                var pirate = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Pirate,
+                var pirate = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = Standing.Pirate,
                     ship = NpcTables.RandomFighter(Standing.Pirate), eventTag = tag, alwaysEnemy = true, noLoot = true,
                     name = "Freight Raider", position = level.Layout.Unplace(GamePosition(at)) });
                 pirate.SetOrder(new NpcOrder { kind = NpcOrder.Kind.Attack, target = freight.Target });

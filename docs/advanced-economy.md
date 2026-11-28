@@ -198,3 +198,22 @@ All intervals are configurable in Mod Builder. Station production, consumption, 
 Freight timing options accept 1–86400 seconds, with each maximum clamped to at least its corresponding minimum. Station flow keeps its original 60–86400 second range. Travel/unloading progress is persisted as remaining active server seconds, not a wall-clock deadline; offline time does not advance shipments. Legacy snapshots migrate on the next freight pulse without re-debiting stock. The older `travelTicks` and `ticksPerHop` still govern non-physical regional trade, not the independent physical-freight clock.
 
 Suggested multiplayer validation: compare source/destination inventory before and after delivery, theft, destruction and simultaneous salvage attempts; restart during a shipment; transfer orbit ownership; verify both hulls, EMP delays, scaled station/gate approaches and ambient replacement limits.
+
+
+## Pirate raids on physical freight
+
+Physical freight uses the server's active pirate-sighting board (outposts and roaming bosses) as system-wide pirate presence. The board's pirate-events option must be enabled. Ordinary decorative pirate traffic is not a persistent presence signal. On entering a system with a sighting, or when one appears during transit, the server rolls one raid attempt per shipment per system visit. No successful-attack outcome is chosen until the shipment leaves that system or begins unloading at its final destination. Three tagged raiders materialize alongside the shipment in its occupied orbit; ordinary traffic, pirate contracts and faction battle fleets are not part of this encounter. A newly occupied raid gets up to 20 seconds of cumulative observation time before departure; leaving the orbit immediately removes the hold. The raiders' direct damage to economic freighters is simulated visually rather than applied, since the server settles the raid at departure. Actual unrelated combat damage and player cargo claims continue to use their existing immediate settlement paths.
+
+Optional keys in the same root `advanced-economy.json` (last active physical-freight configuration wins):
+
+| Key | Default | Meaning |
+| --- | ---: | --- |
+| `freightPirateRaids` | true | Enable raids when physical freight is active. |
+| `freightPirateAttemptPercent` | 80 | Attempt probability, 0–100. |
+| `freightPirateTheftPercent` | 40 | Unopposed theft probability, 0–100. Theft removes 40–100% of current cargo, minimum one unit. |
+| `freightPirateDestructionPercent` | 30 | Unopposed destruction probability, clamped to the remaining percentage after theft. |
+| `freightPirateKillRemainingPercent` | 25 | Percentage of successful-attack probability retained after each player-confirmed raider kill, 0–100. All three killed by players guarantees failure. |
+
+Remaining odds are attack failure; each player-confirmed kill multiplies both successful outcomes by the configured factor. Raid identity, defeated slots, player kills and observation progress survive ledger reloads. NPC kills remove their slot without giving a player-intervention bonus. The server rejects duplicate death reports and only accepts a kill from a pilot in the shipment's orbit using the existing proxy authority checks. An absent player does not freeze an encounter. An offscreen destroyed shipment disappears without a physical salvage crate; direct physical ship destruction retains the ordinary salvage rule. For each departure resolution, and actual physical destruction/tractor theft, COMMERCE news publishes after the corresponding economic save/commit. Disconnected routes, EMP-disabled freight and full destination inventories report a delay after 120 active freight pulses, and a recovery when the delay clears. News is not a separate durable transaction outbox; a crash after the economic save but before GalNet publication can lose a report.
+
+Verify a shipment with no reported pirates, a pirate-controlled sighting with no observers, an observing player who leaves without a kill, one/two/three player kills, a duplicate kill packet, multiple players, authority handover, restart with a raid pending, same-system shipment, partial theft and destination-full delays. Check that no cargo is created, a departed raid does not respawn, and both clients receive the same COMMERCE news. Matching server and client builds are required (freight manifest gains two fields). The new odds and snapshot EditMode tests do not substitute for those multiplayer tests.

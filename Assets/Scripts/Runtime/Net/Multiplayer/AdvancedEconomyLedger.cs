@@ -55,7 +55,9 @@ namespace GoF2Remake.Multiplayer
             public string FleetRace, FleetHull;
             public int FleetSpeed = 100;
             // Per-system raid state. No outcome is rolled until the cargo departs or unloads.
-            public int RaidSystem = -1, RaidBase, RaidDead, RaidPlayerKills;
+            public int RaidSystem = -1, RaidBase, RaidDead, RaidPlayerKills, RaidObservationSeconds;
+            // Persistent delay notification state; ordinary travel time is not a delay.
+            public int DelayReason, DelaySeconds;
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         static readonly List<(int station, string text)> freightNews = new List<(int, string)>();
@@ -191,14 +193,21 @@ namespace GoF2Remake.Multiplayer
                 if (hull < 1 || hull > 65535) throw new JsonException("Invalid freight hull fraction.");
                 int raidSystem = (int?)row["raidSystem"] ?? -1, raidBase = (int?)row["raidBase"] ?? 0;
                 int raidDead = (int?)row["raidDead"] ?? 0, raidKills = (int?)row["raidPlayerKills"] ?? 0;
-                if (raidSystem < -1 || raidDead < 0 || raidDead > 7 || raidKills < 0 || raidKills > 3 ||
+                int raidObserved = (int?)row["raidObservationSeconds"] ?? 0;
+                int delayReason = (int?)row["delayReason"] ?? 0, delaySeconds = (int?)row["delaySeconds"] ?? 0;
+                int deadCount = (raidDead & 1) + ((raidDead >> 1) & 1) + ((raidDead >> 2) & 1);
+                if (delayReason < 0 || delayReason > 3 || delaySeconds < 0 || delaySeconds > 120 || (delayReason == 0 && delaySeconds != 0))
+                    throw new JsonException("Invalid freight delay state.");
+                if (raidSystem < -1 || raidDead < 0 || raidDead > 7 || raidKills < 0 || raidKills > deadCount ||
+                    raidObserved < 0 || raidObserved > 20 || (raidBase == 0 && (raidDead != 0 || raidKills != 0 || raidObserved != 0)) ||
                     (raidBase != 0 && (raidSystem < 0 || !ModAdvancedEconomy.IsFreightRaidTag(raidBase) || raidBase % 4 != 0 ||
                     result.Values.Any(s => s.RaidBase == raidBase)))) throw new JsonException("Invalid freight raid state.");
                 result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
                     FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks,
                     Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"],
                     Hull = hull, RemainingSeconds = remainingSeconds, FleetRace = fleetRace, FleetHull = fleetHull, FleetSpeed = fleetSpeed,
-                    RaidSystem = raidSystem, RaidBase = raidBase, RaidDead = raidDead, RaidPlayerKills = raidKills });
+                    RaidSystem = raidSystem, RaidBase = raidBase, RaidDead = raidDead, RaidPlayerKills = raidKills, RaidObservationSeconds = raidObserved,
+                    DelayReason = delayReason, DelaySeconds = delaySeconds });
             }
             return result;
         }
@@ -333,10 +342,15 @@ namespace GoF2Remake.Multiplayer
 
         static void EnsureFreightRaid(Database db, Shipment ship)
         {
-            if (!Physical || !ModAdvancedEconomy.FreightPirateRaids) return;
+            if (!Physical) return;
+            if (!ModAdvancedEconomy.FreightPirateRaids)
+            {
+                if (ship.RaidBase != 0) { ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0; dirty = true; }
+                return;
+            }
             int system = db.Stations.Find(s => s.index == ship.Orbit)?.system ?? -1;
             if (system < 0 || ship.RaidSystem == system || !PirateReports.ServerHasPresence(system)) return;
-            ship.RaidSystem = system; ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = 0;
+            ship.RaidSystem = system; ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0;
             if (UnityEngine.Random.Range(0, 100) < ModAdvancedEconomy.FreightPirateAttemptPercent)
             {
                 int tag;
@@ -362,6 +376,27 @@ namespace GoF2Remake.Multiplayer
             Flush(true);
         }
 
+        static void ObserveFreightDelay(ModAdvancedEconomy.Route route, Shipment ship, int reason)
+        {
+            if (reason == 0)
+            {
+                if (ship.DelayReason == 0) return;
+                if (ship.DelaySeconds >= 120)
+                    freightNews.Add((route.Destination, $"Delayed freight bound for {NetNews.Place(route.Destination)} is moving again near {NetNews.Place(ship.Orbit)}."));
+                ship.DelayReason = ship.DelaySeconds = 0; dirty = true;
+                return;
+            }
+            if (ship.DelayReason != reason) { ship.DelayReason = reason; ship.DelaySeconds = 0; dirty = true; }
+            if (ship.DelaySeconds >= 120) return;
+            ship.DelaySeconds++; dirty = true;
+            if (ship.DelaySeconds == 120)
+            {
+                string cause = reason == 1 ? "disconnected trade route" : reason == 2 ? "disabled freighter" : "destination inventory full";
+                freightNews.Add((route.Destination, $"Shipment of {ship.Amount} t bound for {NetNews.Place(route.Destination)} delayed near {NetNews.Place(ship.Orbit)}: {cause}."));
+                Debug.Log($"[AdvancedEconomy] freight delayed: freight={ship.FreightTag}, reason={cause}");
+            }
+        }
+
         static void ResolveFreightRaid(ModAdvancedEconomy.Route route, Shipment ship)
         {
             if (ship.RaidBase == 0) return;
@@ -375,7 +410,7 @@ namespace GoF2Remake.Multiplayer
             string outcome = result == 2 ? $"destroyed; {original} t lost" : result == 1 ? $"raided; {original - ship.Amount} t stolen, {ship.Amount} t remaining" : "escaped a pirate attack";
             freightNews.Add((route.Destination, $"Freight bound for {NetNews.Place(route.Destination)} {outcome} near {NetNews.Place(orbit)}. Player pirate kills: {ship.RaidPlayerKills}."));
             Debug.Log($"[AdvancedEconomy] pirate raid resolved: freight={ship.FreightTag}, system={ship.RaidSystem}, outcome={result}, lost={original - ship.Amount}, playerKills={ship.RaidPlayerKills}");
-            ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = 0;
+            ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0;
             dirty = true;
         }
 
@@ -398,6 +433,14 @@ namespace GoF2Remake.Multiplayer
             if (!unloading && (remainingPath == null || remainingPath.Count == 0)) return false;
             int next = FreightCountdown(ship.RemainingSeconds, materialized, ready, unloading);
             if (next != ship.RemainingSeconds) { ship.RemainingSeconds = next; dirty = true; }
+            // An arriving pilot gets a brief opportunity to see the manifest and intervene even if
+            // the abstract leg is nearly over. Leaving the orbit removes this hold immediately.
+            bool observingRaid = ship.RaidBase != 0 && NetState.RunnerOf(ship.Orbit) != null && ship.RaidPlayerKills < ModAdvancedEconomy.FreightRaidSize;
+            if (observingRaid && ship.RaidObservationSeconds < 20)
+            {
+                ship.RaidObservationSeconds++; dirty = true;
+                return false;
+            }
             if (next > 0 || !ready) return false;
             if (unloading) return true;
 
@@ -704,7 +747,7 @@ namespace GoF2Remake.Multiplayer
                 var path = graph.Path(originStation.system, destinationStation.system);
                 if (path == null)
                 {
-                    if (physical && shipment != null) EnsureFreightRaid(db, shipment);
+                    if (physical && shipment != null) { EnsureFreightRaid(db, shipment); ObserveFreightDelay(route, shipment, 1); }
                     continue;
                 }
                 var source = Get(route.Source, sourceRule);
@@ -715,6 +758,9 @@ namespace GoF2Remake.Multiplayer
                 {
                     if (physical)
                     {
+                        int delay = freightProxies.TryGetValue((shipment.Orbit, shipment.FreightTag), out var freightProxy) && freightProxy.Status.Has(NetProxyStatus.EmpDisabled) ? 2 :
+                            shipment.Orbit == route.Destination && destination.Amount >= destinationRule.Maximum ? 3 : 0;
+                        ObserveFreightDelay(route, shipment, delay);
                         int beforeRaid = shipment.Amount;
                         bool arrived = AdvanceFreight(db, route, shipment, path, freightProxies);
                         // A same-system destination counts as departure from transit only when unloading can start.
@@ -839,7 +885,8 @@ namespace GoF2Remake.Multiplayer
                     ["remainingSeconds"] = pair.Value.RemainingSeconds, ["fleetRace"] = pair.Value.FleetRace,
                     ["fleetHull"] = pair.Value.FleetHull, ["fleetSpeed"] = pair.Value.FleetSpeed,
                     ["raidSystem"] = pair.Value.RaidSystem, ["raidBase"] = pair.Value.RaidBase,
-                    ["raidDead"] = pair.Value.RaidDead, ["raidPlayerKills"] = pair.Value.RaidPlayerKills });
+                    ["raidDead"] = pair.Value.RaidDead, ["raidPlayerKills"] = pair.Value.RaidPlayerKills,
+                    ["raidObservationSeconds"] = pair.Value.RaidObservationSeconds, ["delayReason"] = pair.Value.DelayReason, ["delaySeconds"] = pair.Value.DelaySeconds });
             var debris = new JArray();
             foreach (var pair in wrecks)
             {
