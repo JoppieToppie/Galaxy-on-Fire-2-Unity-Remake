@@ -702,7 +702,7 @@ namespace GoF2Remake.Multiplayer
                 if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
             // Remove only the same number of ordinary ambient freighters; mission and custom
             // traffic are untouched, and no decorative ships are removed without economic traffic.
-            int ordinary = Mathf.Max(0, active.Count - freightAmbientReplacements);
+            int ordinary = Modding.ModAdvancedEconomy.EconomyOnlyFreighters ? 0 : Mathf.Max(0, active.Count - freightAmbientReplacements);
             foreach (var npc in traffic.Ships)
             {
                 if (ordinary <= 0) break;
