@@ -6,6 +6,18 @@ namespace GoF2Remake.Tests
 {
     public class StationRacePolicyTests
     {
+        [TestCase(false, true, false, false, false)]
+        [TestCase(false, true, false, true, false)]
+        [TestCase(true, false, true, true, false)]
+        [TestCase(false, false, true, false, true)]
+        [TestCase(false, false, true, true, true)]
+        [TestCase(false, false, false, true, true)]
+        [TestCase(false, false, false, false, false)]
+        public void DockingFineFollowsCurrentOwner(bool ownFaction, bool friendly, bool enemy, bool attacked, bool expected)
+        {
+            Assert.AreEqual(expected, GoF2Remake.Flight.Standing.RequiresDockingFine(ownFaction, friendly, enemy, attacked));
+        }
+
         [TestCase(-1, "refinery")]
         [TestCase(-2, "drydock")]
         [TestCase(-3, null)]
