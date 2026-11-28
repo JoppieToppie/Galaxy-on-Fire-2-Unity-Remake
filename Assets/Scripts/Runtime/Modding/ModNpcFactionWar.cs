@@ -21,6 +21,10 @@ namespace GoF2Remake.Modding
         public static int ShipsPerSide { get; private set; }
         public static int IntervalSeconds { get; private set; }
         public static int BattleSeconds { get; private set; }
+        public static int FormationSeparationKm { get; private set; } = 48;
+        public static int FormationSpacingKm { get; private set; } = 4;
+        public static int FormationDistanceKm { get; private set; } = 85;
+        public static int FormationCapitalOffsetKm { get; private set; } = 24;
         public const int DefaultDoubleSidedDamageThresholdPercent = 150;
         public const int MaxDoubleSidedDamageThresholdPercent = 10000;
         public static int DoubleSidedDamageThresholdPercent { get; private set; } = DefaultDoubleSidedDamageThresholdPercent;
@@ -160,6 +164,7 @@ namespace GoF2Remake.Modding
             ShipsPerSide = 12;
             IntervalSeconds = 1200;
             BattleSeconds = 480;
+            FormationSeparationKm = 48; FormationSpacingKm = 4; FormationDistanceKm = 85; FormationCapitalOffsetKm = 24;
             DoubleSidedDamageThresholdPercent = DefaultDoubleSidedDamageThresholdPercent;
             DynamicFrontlines = true;
             GateOnlyFrontlines = false;
@@ -202,6 +207,10 @@ namespace GoF2Remake.Modding
                     ShipsPerSide = ships;
                     IntervalSeconds = interval;
                     BattleSeconds = duration;
+                    FormationSeparationKm = Mathf.Clamp(ModJson.Int(options, "formationSeparationKm", FormationSeparationKm, File), 20, 120);
+                    FormationSpacingKm = Mathf.Clamp(ModJson.Int(options, "formationSpacingKm", FormationSpacingKm, File), 2, 12);
+                    FormationDistanceKm = Mathf.Clamp(ModJson.Int(options, "formationDistanceKm", FormationDistanceKm, File), 40, 180);
+                    FormationCapitalOffsetKm = Mathf.Clamp(ModJson.Int(options, "formationCapitalOffsetKm", FormationCapitalOffsetKm, File), 12, 80);
                     DoubleSidedDamageThresholdPercent = doubleSidedThreshold;
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
