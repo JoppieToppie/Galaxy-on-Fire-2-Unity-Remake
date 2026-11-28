@@ -496,6 +496,7 @@ namespace GoF2Remake.UI
         void OnViewChanged()
         {
             if (root == null || level == null) return;
+            using var modUi = Modding.ModScripts.StationUiScope(root, "station", () => level.View.ToString().ToLowerInvariant());
             bool inLounge = level.View == StationView.Lounge;
             hangarButton.EnableInClassList("station-button--current", HangarOpen);
             loungeButton.EnableInClassList("station-button--current", inLounge);

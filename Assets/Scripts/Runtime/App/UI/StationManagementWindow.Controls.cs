@@ -354,7 +354,7 @@ namespace GoF2Remake.UI
 
         void AddField(string key, string label, string initial)
         {
-            var field = new TextField(label) { value = drafts.TryGetValue(key, out string draft) ? draft : initial ?? "" };
+            var field = new TextField(label) { name = "field-" + key, value = drafts.TryGetValue(key, out string draft) ? draft : initial ?? "" };
             if (key == "newStationName" || key == "renameStationName") field.maxLength = NetPlayerStations.StationNameMaxLength;
             else if (key == "stationAnnouncement" || key.IndexOf("Reason", StringComparison.OrdinalIgnoreCase) >= 0)
             { field.maxLength = 160; field.multiline = true; field.style.minHeight = 76; }

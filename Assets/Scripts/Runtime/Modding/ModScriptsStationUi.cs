@@ -27,11 +27,23 @@ namespace GoF2Remake.Modding
                 undo.Clear();
             }
 
+            internal bool InScope(VisualElement element)
+            {
+                if (element == null) return false;
+                if (screen != "station") return true;
+                for (var current = element; current != null && current != root; current = current.parent)
+                    if (current.name == "hangarWindow" || current.name == "playerStationOverlay") return false;
+                return true;
+            }
+
             internal VisualElement Find(string name)
             {
                 if (name == "$root") return root;
                 if (string.IsNullOrEmpty(name)) return null;
-                return root.name == name ? root : root.Q<VisualElement>(name);
+                if (root.name == name) return root;
+                foreach (var element in root.Query<VisualElement>(name).ToList())
+                    if (InScope(element)) return element;
+                return null;
             }
 
             internal void Change<T>(Func<T> get, Action<T> set, T value)
@@ -50,6 +62,7 @@ namespace GoF2Remake.Modding
                 finally
                 {
                     activeStationUi = old;
+                    buildingStationUi.Remove(root);
                     if (undo.Count != 0)
                     {
                         stationUiPasses[root] = this;
@@ -60,6 +73,7 @@ namespace GoF2Remake.Modding
         }
 
         static StationUiPass activeStationUi;
+        static readonly HashSet<VisualElement> buildingStationUi = new HashSet<VisualElement>();
         static readonly Dictionary<VisualElement, StationUiPass> stationUiPasses = new Dictionary<VisualElement, StationUiPass>();
 
         static void StationUiDetached(DetachFromPanelEvent evt)
@@ -83,7 +97,7 @@ namespace GoF2Remake.Modding
 
         internal static IDisposable StationUiScope(VisualElement root, string screen, Func<string> page)
         {
-            if (root == null) return null;
+            if (root == null || !buildingStationUi.Add(root)) return null;
             RestoreStationUi(root);
             return new StationUiPass(root, screen, page);
         }
@@ -103,13 +117,18 @@ namespace GoF2Remake.Modding
                     var pass = activeStationUi;
                     if (pass != null)
                         foreach (var element in pass.root.Query<VisualElement>().ToList())
-                            if (!string.IsNullOrEmpty(element.name)) result.Append(DynValue.NewString(element.name));
+                            if (!string.IsNullOrEmpty(element.name) && pass.InScope(element)) result.Append(DynValue.NewString(element.name));
                     return DynValue.NewTable(result);
                 });
                 Fn(api, "text", a =>
                 {
                     var pass = activeStationUi;
                     var element = Find(a);
+                    if (pass != null && element is TextField field)
+                    {
+                        pass.Change(() => field.label, v => field.label = v, Arg(a, 1));
+                        return DynValue.True;
+                    }
                     // Preserve the native key/controller glyph children.
                     var text = element?.Q<Label>(className: "glyph-button-label") as TextElement ?? element as TextElement;
                     if (pass == null || text == null) return DynValue.False;
@@ -153,6 +172,36 @@ namespace GoF2Remake.Modding
                         default: return DynValue.False;
                     }
                     return DynValue.True;
+                });
+                Fn(api, "color", a =>
+                {
+                    var pass = activeStationUi;
+                    var e = Find(a);
+                    if (pass == null || e == null || !ColorUtility.TryParseHtmlString(Arg(a, 2), out var parsed)) return DynValue.False;
+                    var color = new StyleColor(parsed);
+                    switch (Arg(a, 1))
+                    {
+                        case "text": pass.Change(() => e.style.color, v => e.style.color = v, color); break;
+                        case "background": pass.Change(() => e.style.backgroundColor, v => e.style.backgroundColor = v, color); break;
+                        default: return DynValue.False;
+                    }
+                    return DynValue.True;
+                });
+                Fn(api, "addPanel", a =>
+                {
+                    var pass = activeStationUi;
+                    if (pass == null) return DynValue.False;
+                    var parent = Find(a);
+                    string id = Arg(a, 1), direction = Arg(a, 2);
+                    if (parent == null || parent is TextElement || string.IsNullOrWhiteSpace(id) || id.Length > 80 ||
+                        (direction != "row" && direction != "column")) return DynValue.False;
+                    string name = "mod-ui-" + mod.Id + "-" + id;
+                    if (pass.Find(name) != null) return DynValue.False;
+                    var panel = new VisualElement { name = name };
+                    panel.style.flexDirection = direction == "row" ? FlexDirection.Row : FlexDirection.Column;
+                    parent.Add(panel);
+                    pass.undo.Add(() => panel.RemoveFromHierarchy());
+                    return DynValue.NewString(name);
                 });
                 Fn(api, "addLabel", a => AddStationUiControl(a, false));
                 Fn(api, "addButton", a => AddStationUiControl(a, true));

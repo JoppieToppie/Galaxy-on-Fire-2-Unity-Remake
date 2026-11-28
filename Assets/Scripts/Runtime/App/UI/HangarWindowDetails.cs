@@ -15,6 +15,7 @@ namespace GoF2Remake.UI
     {
         void ShowDetails()
         {
+            using var modUi = Modding.ModScripts.StationUiScope(window, PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage) ? "marketplace" : "hangar", () => tab.ToString().ToLowerInvariant());
             FillDetails();
             PlaceRowActions();
             ShowSecondaryDistribution();
