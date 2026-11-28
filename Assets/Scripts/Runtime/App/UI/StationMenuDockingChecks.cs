@@ -461,15 +461,17 @@ namespace GoF2Remake.UI
             if (loaded) return false;
             int st = level.Station.index;
             var sys = level.Database.Systems.Find(s => s.index == level.Station.system);
-            int race = sys != null ? sys.raceId : -1;
+            // NPC warfare can change the owner of this orbit without changing the system's original race.
+            int race = NpcFactionWar.OrbitOwner(sys, st);
             if (st == 100 || st == 101 || st == 108 || level.Station.system == 25 || race < 0 || race > 3 || PirateBases.StationHasBase(st)) return false;
             if (!Session.FreePlay && Session.CampaignMission == 0x30) return false;
-            // Remake, multiplayer (players' feedback 2026-10-22): a station the pilot's own faction holds never fines them;
-            // its fighters already count them as friends (NpcShip.TerritoryToLocal).
-            if (GoF2Remake.Multiplayer.NetFactionsClient.LocalHolds(st)) return false;
+            // The current friendly owner (or the pilot's own player faction) waives docking fines.
+            // Leave the attack record intact: a later neutral or hostile owner can still enforce it.
             bool enemy = GoF2Remake.Flight.Standing.IsEnemy(race);
             bool attacked = Session.AttackedStations.Contains(st);
-            if (!enemy && !attacked) return false;
+            if (!GoF2Remake.Flight.Standing.RequiresDockingFine(
+                GoF2Remake.Multiplayer.NetFactionsClient.LocalHolds(st),
+                GoF2Remake.Flight.Standing.IsFriend(race), enemy, attacked)) return false;
             int fine = enemy ? (int)(Mathf.Abs(GoF2Remake.Flight.Standing.Toward(race)) / 100f * 2800f) + Random.Range(0, 200) - 100
                              : Session.Rank * 150 + 1000;
             if (Session.IsExtreme) fine *= 10;

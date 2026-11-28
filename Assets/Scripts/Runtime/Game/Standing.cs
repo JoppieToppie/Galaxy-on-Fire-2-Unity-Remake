@@ -157,6 +157,10 @@ namespace GoF2Remake.Flight
         /// <summary>Standing::isFriend.</summary>
         public static bool IsFriend(int race) => Modding.ModRaces.Is(race) ? (!PiracyLocked && ModRaceFriend(race, Session.ModRaceStanding)) : race >= 0 && race <= 3 && Toward(race) >= 71;
 
+        /// <summary>Docking fines follow the current owner. Friendly owners waive both reputation and attack fines.</summary>
+        public static bool RequiresDockingFine(bool ownFaction, bool ownerFriendly, bool ownerEnemy, bool attacked) =>
+            !ownFaction && !ownerFriendly && (ownerEnemy || attacked);
+
         /// <summary>Standing::applyDelict: moves the race's axis away from it by p (x2 on Extreme).</summary>
         public static void ApplyDelict(int race, int p)
         {
