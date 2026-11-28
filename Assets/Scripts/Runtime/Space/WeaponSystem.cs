@@ -87,12 +87,13 @@ namespace GoF2Remake.Flight
                     long current = System.Math.Max(0, stack.amount);
                     long capacity = int.MaxValue - current;
                     if (capacity <= 0) continue;
-                    int amount = (int)System.Math.Min(capacity, share);
+                    int amount = (int)System.Math.Min(remaining, System.Math.Min(capacity, share));
                     if (amount <= 0) continue;
                     stack.amount = (int)(current + amount);
                     remaining -= amount;
                     added += amount;
                     changed = true;
+                    if (remaining == 0) break;
                 }
                 if (!changed) break;
             }

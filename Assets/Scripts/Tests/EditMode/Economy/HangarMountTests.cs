@@ -184,6 +184,31 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(9, pool.Amount);
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(5)]
+        public void SharedAmmoRestockDoesNotCreateExtraRounds(int rounds)
+        {
+            var pool = new SecondaryAmmoPool();
+            var stacks = new[] { new ItemStack(36, 0), new ItemStack(36, 0), new ItemStack(36, 0) };
+            foreach (var stack in stacks) pool.AddStack(stack);
+            Assert.AreEqual(rounds, pool.Add(rounds));
+            Assert.AreEqual(rounds, pool.Amount);
+        }
+
+        [Test]
+        public void SharedAmmoRestockHandlesSaturatedMounts()
+        {
+            var pool = new SecondaryAmmoPool();
+            var full = new ItemStack(36, int.MaxValue);
+            var other = new ItemStack(36, 0);
+            pool.AddStack(full);
+            pool.AddStack(other);
+            Assert.AreEqual(3, pool.Add(3));
+            Assert.AreEqual(int.MaxValue, full.amount);
+            Assert.AreEqual(3, other.amount);
+        }
+
         [Test]
         public void SeparatePoolsPreserveVanillaPerMountAmmunition()
         {
@@ -196,7 +221,7 @@ namespace GoF2Remake.Tests
 
             Assert.AreEqual(2, firstMount.Amount);
             Assert.AreEqual(3, secondMount.Amount);
-            Assert.AreEqual(4, firstMount.Add(2));
+            Assert.AreEqual(2, firstMount.Add(2));   // Add returns the rounds added
             Assert.AreEqual(4, first.amount);
             Assert.AreEqual(3, second.amount, "a vanilla independent mount is not changed by the other pool");
         }
