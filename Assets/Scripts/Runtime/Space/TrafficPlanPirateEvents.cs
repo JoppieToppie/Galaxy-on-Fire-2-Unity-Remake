@@ -60,12 +60,15 @@ namespace GoF2Remake.Flight
             {
                 var hold = NpcTables.RollLoot(db, true);
                 if (hold.Count == 0) continue;
-                rolls--;
+                bool added = false;
                 foreach (var s in hold)
                 {
                     if (s.item == lootItem || extra.FindIndex(x => x.item == s.item) is int found && found >= 0 && found < ownStacks) continue;
                     GoF2Remake.World.CapitalShips.Add(extra, s.item, s.amount);
+                    added = true;
                 }
+                // #384: a hold of only the crate's own kinds gave nothing, so it doesn't use up a roll (a tier 3 boss had no stash).
+                if (added) rolls--;
             }
         }
         static bool InStoryline(int station) => PirateEventRules.InStoryline(station);
