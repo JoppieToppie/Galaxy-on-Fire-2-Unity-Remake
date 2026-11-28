@@ -672,8 +672,9 @@ namespace GoF2Remake.UI
             // Graphics changes not applied: apply or discard first (MainMenuOptions.AskApplyOptions comes back here).
             if (openPanel == panels["optionsPanel"] && Settings.HasStaged) { AskApplyOptions(); return; }
             Play(buttonRelease);
-            if (openPanel == panels["gameOptionsPanel"]) { OpenPanel(pendingModCampaign?.economy != null ? "difficultyPanel" : "economyPanel"); return; }
-            if (openPanel == panels["economyPanel"]) { OpenPanel("difficultyPanel"); return; }
+            if (openPanel == panels["editCampaignPanel"]) { campaignSnapshot = null; OpenPanel("loadPanel"); return; }
+            if (openPanel == panels["remakeOptionsPanel"]) { OpenPanel("gameOptionsPanel"); return; }
+            if (openPanel == panels["gameOptionsPanel"]) { OpenPanel("difficultyPanel"); return; }
             if (openPanel == panels["difficultyPanel"]) { OpenPanel(pendingStartIndex >= 0 && panels.ContainsKey("debugPanel") ? "debugPanel" : "campaignPanel"); return; }
             if (coopSlotPick && openPanel == panels["loadPanel"]) { CloseCoopSlots(); return; }   // the co-op save picker: the co-op screen
             // The Mod Browser and the Mod Builder go back to the Mods hub.
@@ -727,7 +728,7 @@ namespace GoF2Remake.UI
         /// Remembered for the next new game (PlayerPrefs "newgame_kaamo").</summary>
         static bool KaamoFromStart
         {
-            get => PlayerPrefs.GetInt("newgame_kaamo", 0) == 1;
+            get => PlayerPrefs.GetInt("newgame_kaamo", 1) == 1;
             set { PlayerPrefs.SetInt("newgame_kaamo", value ? 1 : 0); PlayerPrefs.Save(); }
         }
 
@@ -946,6 +947,9 @@ namespace GoF2Remake.UI
             root.Q("dialogProgress")?.RemoveFromClassList("dialog-progress--shown");   // the updater's (MainMenuUpdate)
             dialog.RemoveFromClassList("dialog-backdrop--shown");
             dialogYes = dialogNo = null;
+            pendingSaveDeletion = null;
+            deleteHoldPointer = -1;
+            ++deleteHoldAttempt;
             dialogCheck = null;
             var back = dialogReturn;
             dialogReturn = null;

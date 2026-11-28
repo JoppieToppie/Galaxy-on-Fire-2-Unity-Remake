@@ -9,6 +9,21 @@ using UnityEngine;
 
 namespace GoF2Remake.Data
 {
+    [System.Flags]
+    public enum SavedGameRules
+    {
+        None = 0,
+        PirateEvents = 1,
+        CapitalShips = 2,
+        DerelictWrecks = 4,
+        CloakBay = 8,
+        BlueprintAutocomplete = 32,
+        KhadorSlipstream = 64,
+        Tutorials = 128,
+        RemakeContent = PirateEvents | CapitalShips | DerelictWrecks | KhadorSlipstream,
+        All = RemakeContent | CloakBay | BlueprintAutocomplete | Tutorials,
+    }
+
     public enum Campaign { GalaxyOnFire2, Valkyrie, Supernova }
 
     /// <summary>The item and ship tables a game uses (Database.Load): Android = the Android OBB's (the remake's data files),
@@ -35,7 +50,7 @@ namespace GoF2Remake.Data
         /// <summary>The economy's short name for the menus and the save slots.</summary>
         public static string EconomyName(Economy e) => e == Economy.Android
             ? Localization.Extra("economyAndroid", "Android economy")
-            : Localization.Extra("economyDefault", "Default economy");
+            : Localization.Extra("economyDefault", "Classic economy");
         /// <summary>Status::hardCoreMode 0xb9148: difficulty == 1.5. The economy, mining, standing and shop rules of Extreme
         /// only; the level-scaled formulas use DifficultyFactor.</summary>
         public static bool IsExtreme => Difficulty > 1.25f;
@@ -145,25 +160,28 @@ namespace GoF2Remake.Data
         /// list), up to MaxModLevel; the original's rule is one of each.</summary>
         public static void AddShipMod(int mod)
         {
-            if (mod >= 0 && (!ShipMods.Contains(mod) || (Settings.KaamoStacking && ModLevel(mod) < MaxModLevel))) ShipMods.Add(mod);
+            if (KaamoUpgradesEnabled && mod >= 0 && (!ShipMods.Contains(mod) || (Settings.KaamoStacking && ModLevel(mod) < MaxModLevel))) ShipMods.Add(mod);
         }
         /// <summary>Remake: the highest level of one Kaamo upgrade with stacking: Settings.KaamoMaxLevel (default 5; players'
         /// feedback 2026-10: uncapped, a Cronus reached 45 equipment slots), the session's in multiplayer, where a server with
         /// profiles cuts them back to it (NetProfiles.ClampMods). Levels fitted before a lower limit stay in single player.</summary>
         public static int MaxModLevel => Settings.KaamoMaxLevel;
+        public static bool KaamoUpgradesEnabled => KaamoUpgradeLimit != 0;
         public static bool HasMod(int mod) => ShipMods.Contains(mod);
         /// <summary>How many times the mod is fitted (its level; 0 = none).</summary>
         public static int ModLevel(int mod)
         {
+            if (!KaamoUpgradesEnabled) return 0;
             int n = 0;   // the List itself, not the IEnumerable overload: that boxed its enumerator (MaxLoad, every HUD frame)
             if (ShipMods != null) foreach (int m in ShipMods) if (m == mod) n++;
-            return n;
+            return NetSession.SessionGame ? n : Mathf.Min(n, KaamoUpgradeLimit);
         }
         public static int ModLevel(IEnumerable<int> mods, int mod)
         {
+            if (!KaamoUpgradesEnabled) return 0;
             int n = 0;
             if (mods != null) foreach (int m in mods) if (m == mod) n++;
-            return n;
+            return NetSession.SessionGame ? n : Mathf.Min(n, KaamoUpgradeLimit);
         }
 
         /// <summary>Status+0x114 (Reference/research/kaamo_club.md 2): the Kaamo Club, 0 not owned, 1 Mkkt Bkkt's call
@@ -171,6 +189,10 @@ namespace GoF2Remake.Data
         public static int KaamoState;
         /// <summary>Remake: the Kaamo Club VIP Card was bought (KaamoClub.VipDiscount; saved, carried into New Game+).</summary>
         public static bool KaamoVip;
+        public static SavedGameRules GameRules;
+        public static bool StackKaamoUpgrades;
+        public static int KaamoUpgradeLimit = SessionRules.DefaultKaamoLevel;
+        public static int KaamoVipRule = Settings.KaamoVipOff;
         /// <summary>Status+0xf4: the selected secondary weapon item (-1 = none), kept while it stays mounted.</summary>
         public static int SelectedSecondary = -1;
         /// <summary>Status+200: nukes detonated (medal 20).</summary>
@@ -621,6 +643,10 @@ namespace GoF2Remake.Data
             ShipMods = new List<int>();
             KaamoState = 0;
             KaamoVip = false;
+            GameRules = SavedGameRules.None;
+            StackKaamoUpgrades = false;
+            KaamoUpgradeLimit = SessionRules.DefaultKaamoLevel;
+            KaamoVipRule = Settings.KaamoVipOff;
             SelectedSecondary = -1;
             BombsDetonated = 0;
             PirateBaseDestroyed = new bool[4];

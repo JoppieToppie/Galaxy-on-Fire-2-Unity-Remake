@@ -45,7 +45,7 @@ namespace GoF2Remake.UI
                 var ship = db.Ship(save.ship);
                 subText = $"{st?.name} · {st?.systemName}  ·  {ship?.name}  ·  {Session.DifficultyName(save.difficulty)}, {Session.EconomyName(SaveGame.SaveEconomy(save))}"
                           + (save.hardcore ? "  ·  " + Localization.Extra("hardcoreTag", "HARDCORE").OgCase() : "")
-                          + (save.noMedals ? "  ·  " + Localization.Extra("noMedalsTag", "NO MEDALS").OgCase() : "");
+                          + (save.noMedals ? ", " + Localization.Extra("noMedalsTag", "No medals") : "");
             }
             else if (slot == SaveGame.AutoSaveSlot) subText = emptyAutoSaveHint;
             if (subText != null)
@@ -73,13 +73,13 @@ namespace GoF2Remake.UI
         public static void AttachHint(ScrollView list)
         {
             var parent = list.parent;
-            if (parent == null || parent.Q<Label>(className: "slot-delete-hint") != null) return;
-            var hint = new Label { pickingMode = PickingMode.Ignore };
+            if (parent == null || parent.Q<Label>("slotDeleteHint") != null) return;
+            var hint = new Label { name = "slotDeleteHint", pickingMode = PickingMode.Ignore };
             hint.AddToClassList("slot-delete-hint");
             parent.Insert(parent.IndexOf(list) + 1, hint);
             void Refresh() => hint.text = InputMode.Current == InputKind.Gamepad ? Localization.Extra("slotDeleteHintPad", "Hold X on a save to delete it")
                 : InputMode.Current == InputKind.Touch ? Localization.Extra("slotDeleteHintTouch", "Hold a save to delete it")
-                : Localization.Extra("slotDeleteHintKeys", "Hold Delete or click and hold a save to delete it");
+                : Localization.Extra("slotDeleteHintKeys", "To delete a save, hold the left mouse button over it or hold Delete.");
             Refresh();
             hint.schedule.Execute(Refresh).Every(500);
         }

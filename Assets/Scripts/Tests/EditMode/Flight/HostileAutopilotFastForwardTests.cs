@@ -41,7 +41,7 @@ namespace GoF2Remake.Tests
             finally { Object.DestroyImmediate(go); }
         }
         [Test]
-        public void HostileTimeSpeedupRemainsEditableInEitherFastForwardMode()
+        public void HostileTimeSpeedupStaysVisibleButIsDisabledInShipCruise()
         {
             using var prefs = new DataUiTestKit.PrefsSnapshot();
             var active = NetSession.ActiveProvider;
@@ -53,11 +53,12 @@ namespace GoF2Remake.Tests
                 Assert.IsTrue(row.enabled());
                 row.setBool(true);
                 Settings.FastForwardCruise = true;
-                Assert.IsTrue(row.enabled(), "Ship cruise only removes the effect, not access to the preference");
+                Assert.IsTrue(row.visible == null || row.visible());
+                Assert.IsFalse(row.enabled());
                 Assert.IsTrue(row.getBool(), "the choice survives mode changes");
-                row.setBool(false);
                 Settings.FastForwardCruise = false;
-                Assert.IsFalse(row.getBool());
+                Assert.IsTrue(row.enabled());
+                Assert.IsTrue(row.getBool());
                 NetSession.ActiveProvider = () => true;
                 Assert.IsFalse(row.enabled(), "multiplayer restrictions remain");
             }

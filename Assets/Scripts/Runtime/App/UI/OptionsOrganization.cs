@@ -16,30 +16,28 @@ namespace GoF2Remake.UI
             {
                 foreach (var id in ids) result.Add(id, (page, section, group));
             }
-            Add(OptionPage.Cosmetics, OptionSection.None, OptionGroup.None, "cosmeticExperience");
             Add(OptionPage.Cosmetics, OptionSection.SpecialFeatures, OptionGroup.None,
-                "launchCamera", "hangarFlights", "animatedDialogue", "autoAdvance");
+                "presentationPreset", "launchCamera", "hangarFlights", "animatedDialogue", "autoAdvance", "systemMapAnimationSpeed");
             Add(OptionPage.Cosmetics, OptionSection.Interface, OptionGroup.None,
-                "originalUi", "tutorialHints", "inputHints", "hintScale", "shopByCategory", "kaamoSpecialUiFeatures");
+                "originalUi", "inputHints", "hintScale", "shopByCategory", "kaamoSpecialUiFeatures", "autoJumpgate");
             Add(OptionPage.Cosmetics, OptionSection.Hud, OptionGroup.None,
-                "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "dyingCargoMarkers", "interstellarDistance", "systemMapAnimationSpeed");
+                "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "dyingCargoMarkers", "interstellarDistance");
             Add(OptionPage.Gameplay, OptionSection.Tools, OptionGroup.None,
                 "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
                 "speedrunPosition", "speedrunLiveSplit", "speedrunReset", "speedrunFolder", "saveFolder", "debugTools");
             // Storage commands are outside the gameplay profile and the rule-editing consent gate.
             Add(OptionPage.Gameplay, OptionSection.None, OptionGroup.None, "gameplayExperience");
-            Add(OptionPage.Gameplay, OptionSection.None, OptionGroup.None, "difficulty");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.World,
-                "pirateEvents", "capitalShips", "derelictWrecks", "stationScale");
+                "stationScale");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Progression,
-                "blueprintAutocomplete", "kaamoStacking", "kaamoMaxLevel", "kaamoVip", "kaamoKeepsEquipment", "cloakBay");
+                "kaamoKeepsEquipment");
             // (how you fly and aim first, then what weapons and cloaks do, then collisions, then the NPCs)
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Combat,
                 "flightStyle", "remakeFreeLook", "targetLock", "keepEnemyLock", "turretLeadAim", "bombArming",
                 "cloakLosesPursuers", "empBreaksCloak", "collisionDamage", "shipCollision",
                 "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Flight,
-                "fastForwardMode", "hostileAutopilotFastForward", "autoJumpgate", "khadorSlipstream");
+                "fastForwardMode", "hostileAutopilotFastForward");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Missions,
                 "informerRule", "playOnInConversations", "modShipTraffic");
             return result;

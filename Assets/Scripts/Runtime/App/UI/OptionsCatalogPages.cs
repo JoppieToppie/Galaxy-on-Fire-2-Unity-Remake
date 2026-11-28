@@ -220,12 +220,14 @@ namespace GoF2Remake.UI
             var vibranceIntensity = Slider("dynamicVibranceIntensity", OptionPage.Graphics, () => X("dynamicVibranceIntensity", "Dynamic Vibrance: intensity"), 0f, 1f,
                 () => Settings.DynamicVibranceIntensity, v => Settings.DynamicVibranceIntensity = v, Percent);
             vibranceIntensity.description = () => X("dynamicVibranceIntensityHelp", "How strongly the filter works on the picture. 50 % is NVIDIA's default.");
-            vibranceIntensity.visible = VibranceOn;
+            vibranceIntensity.visible = () => FrameGeneration.VibranceOffered;
+            vibranceIntensity.enabled = VibranceOn;
             list.Add(vibranceIntensity);
             var vibranceSaturation = Slider("dynamicVibranceSaturation", OptionPage.Graphics, () => X("dynamicVibranceSaturation", "Dynamic Vibrance: saturation"), 0f, 1f,
                 () => Settings.DynamicVibranceSaturation, v => Settings.DynamicVibranceSaturation = v, Percent);
             vibranceSaturation.description = () => X("dynamicVibranceSaturationHelp", "How much colour it adds. 25 % is NVIDIA's default.");
-            vibranceSaturation.visible = VibranceOn;
+            vibranceSaturation.visible = () => FrameGeneration.VibranceOffered;
+            vibranceSaturation.enabled = VibranceOn;
             list.Add(vibranceSaturation);
             // MSAA with a temporal upscaler on (STP, DLSS, FSR 2+, MetalFX Temporal): its anti-aliasing takes the place, so the row
             // is greyed out (a player's request: with DLAA it read as if it did something) and says why.
@@ -295,45 +297,45 @@ namespace GoF2Remake.UI
                 var paperWhite = Slider("hdrPaperWhite", OptionPage.Graphics, () => X("hdrPaperWhite", "HDR paper white"), 80f, 400f,
                     () => Settings.HdrPaperWhite, v => Settings.HdrPaperWhite = Mathf.Round(v / 10f) * 10f, Nits);
                 paperWhite.description = () => X("hdrPaperWhiteHelp", "How bright white is: the interface and the scene's overall brightness. Around 200 nits suits most rooms.");
-                paperWhite.visible = HdrOn;
+                paperWhite.enabled = HdrOn;
                 list.Add(paperWhite);
                 var detect = Toggle("hdrDetectLimits", OptionPage.Graphics, () => X("hdrDetectLimits", "HDR: use the display's limits"),
                     () => Settings.HdrDetectLimits, v => Settings.HdrDetectLimits = v);
                 detect.description = () => X("hdrDetectLimitsHelp", "The peak brightness and black level the display reports. Off: set them yourself below.");
-                detect.visible = HdrOn;
+                detect.enabled = HdrOn;
                 list.Add(detect);
                 var peak = Slider("hdrPeak", OptionPage.Graphics, () => X("hdrPeak", "HDR peak brightness"), 400f, 4000f,
                     () => Settings.HdrPeak, v => Settings.HdrPeak = Mathf.Round(v / 50f) * 50f, Nits);
                 peak.description = () => X("hdrPeakHelp", "The brightest your display gets. Too high clips the highlights; too low dulls them.");
-                peak.visible = () => HdrOn() && !Settings.HdrDetectLimits;
+                peak.enabled = () => HdrOn() && !Settings.HdrDetectLimits;
                 list.Add(peak);
                 var black = Slider("hdrBlack", OptionPage.Graphics, () => X("hdrBlack", "HDR black level"), 0f, 0.5f,
                     () => Settings.HdrBlack, v => Settings.HdrBlack = Mathf.Round(v * 200f) / 200f, v => $"{v:0.000} nits");
                 black.description = () => X("hdrBlackHelp", "The darkest your display gets. 0.005 suits OLED; raise it for an LCD's glowing black.");
-                black.visible = () => HdrOn() && !Settings.HdrDetectLimits;
+                black.enabled = () => HdrOn() && !Settings.HdrDetectLimits;
                 list.Add(black);
                 var tonemapping = Choice("hdrTonemapping", OptionPage.Graphics, () => X("hdrTonemapping", "HDR tonemapping"), true,
                     () => new[] { X("hdrTonemapNone", "None"), "Neutral", "ACES" },
                     () => Settings.HdrTonemapping, i => Settings.HdrTonemapping = i,
                     () => X("hdrTonemappingHelp", "How the picture's brightness is fitted to the display. Neutral keeps the game's colours; ACES is a filmic look with more contrast; None leaves the highlights as they are."));
-                tonemapping.visible = HdrOn;
+                tonemapping.enabled = HdrOn;
                 list.Add(tonemapping);
                 var aces = Choice("hdrAcesPreset", OptionPage.Graphics, () => X("hdrAcesPreset", "HDR ACES display"), true,
                     () => new[] { "1000 nits", "2000 nits", "4000 nits" },
                     () => Settings.HdrAcesPreset, i => Settings.HdrAcesPreset = i,
                     () => X("hdrAcesPresetHelp", "The display brightness ACES is made for: the one nearest your display's peak."));
-                aces.visible = () => HdrOn() && Settings.HdrTonemapping == 2;
+                aces.enabled = () => HdrOn() && Settings.HdrTonemapping == 2;
                 list.Add(aces);
                 var reduction = Choice("hdrRangeReduction", OptionPage.Graphics, () => X("hdrRangeReduction", "HDR range reduction"), true,
                     () => new[] { "BT.2390", "Reinhard" },
                     () => Settings.HdrRangeReduction, i => Settings.HdrRangeReduction = i,
                     () => X("hdrRangeReductionHelp", "How Neutral rolls off brightness past the display's peak. BT.2390 is the broadcast standard; Reinhard is softer."));
-                reduction.visible = () => HdrOn() && Settings.HdrTonemapping == 1;
+                reduction.enabled = () => HdrOn() && Settings.HdrTonemapping == 1;
                 list.Add(reduction);
                 var hue = Slider("hdrHueShift", OptionPage.Graphics, () => X("hdrHueShift", "HDR hue shift"), 0f, 1f,
                     () => Settings.HdrHueShift, v => Settings.HdrHueShift = v, Percent);
                 hue.description = () => X("hdrHueShiftHelp", "How far very bright colours may drift toward white. 0 % keeps every hue.");
-                hue.visible = () => HdrOn() && Settings.HdrTonemapping == 1;
+                hue.enabled = () => HdrOn() && Settings.HdrTonemapping == 1;
                 list.Add(hue);
                 // The calibration screen (UI.HdrCalibration): a test pattern to set the peak and paper white by eye.
                 list.Add(new OptionDef
@@ -354,7 +356,7 @@ namespace GoF2Remake.UI
             var bloomStrength = Slider("bloomStrength", OptionPage.Graphics, () => X("bloomStrength", "Bloom strength"), 0.25f, 2f,
                 () => Settings.BloomStrength, v => Settings.BloomStrength = v, Percent);
             bloomStrength.description = () => X("bloomStrengthHelp", "How strong the Remake glow is. The Original glow stays as it is.");
-            bloomStrength.visible = () => Settings.Bloom;
+            bloomStrength.enabled = () => Settings.Bloom;
             list.Add(bloomStrength);
             // Remake: the hangar ships' contact shadows (HangarShipShadow); fewer for slower devices.
             list.Add(Choice("hangarShadows", OptionPage.Graphics, () => X("hangarShadows", "Hangar ship shadows"), true,
@@ -559,7 +561,7 @@ namespace GoF2Remake.UI
                 },
                 () => Settings.FpsPosition, i => Settings.FpsPosition = i,
                 () => X("fpsPositionHelp", "Where the FPS counter sits."));
-            fpsPosition.visible = () => Settings.ShowFps;
+            fpsPosition.enabled = () => Settings.ShowFps;
             // Remake (2026-11-20, the user's request; docs/notes/options.md "Benchmark"): the benchmark run (UI.BenchmarkRunner);
             // main menu only: it flies a throwaway game.
             list.Add(new OptionDef
@@ -750,12 +752,6 @@ namespace GoF2Remake.UI
 
         static void AddGameplay(List<OptionDef> list)
         {
-            var autocomplete = Toggle("blueprintAutocomplete", OptionPage.Gameplay,
-                () => X("blueprintAutocomplete", "Blueprint autocomplete"),
-                () => Settings.BlueprintAutocomplete, v => Settings.BlueprintAutocomplete = v);
-            autocomplete.description = () => X("blueprintAutocompleteHelp",
-                "Allows paying credits to supply a blueprint's missing ingredients. Off by default. Blueprints that forbid autocomplete remain unavailable.");
-            list.Add(autocomplete);
             // Remake: free flight after EVERSPACE 2 (Settings.FlightStyle, FlightModel.StepFree) and (2026-11-11) Chorus's
             // (FlightModel.StepChorus); each switches the key layout too. Original = the original's flight and key layout,
             // untouched (FlightStyles' order: Original, Free, Chorus).
@@ -782,13 +778,14 @@ namespace GoF2Remake.UI
             // Remake (the user's request, 2026-11-04): Original / Cosmetic / Remake set the experience options at once
             // (Settings.ApplyExperience); the row shows the one they match, else Custom (picking Custom sets nothing). Every
             // row below reads off (or its first choice) = the original game.
-            list.Add(Choice("cosmeticExperience", OptionPage.Gameplay, () => X("cosmeticExperience", "Cosmetic Experience"), true,
-                ScopedExperienceNames, () => Settings.CurrentScopedExperience(true), i => Settings.ApplyScopedExperience(true, i),
-                () => X("cosmeticExperienceHelp", "Original or Remake presentation settings, independently of gameplay.")));
             list.Add(Choice("gameplayExperience", OptionPage.Gameplay, () => X("gameplayExperience", "Gameplay Experience"), true,
                 ScopedExperienceNames, () => Settings.CurrentScopedExperience(false), i => Settings.ApplyScopedExperience(false, i),
                 () => X("gameplayExperienceHelp", "Original or Remake gameplay settings, independently of cosmetics.")));
             // The original's fly-past camera, as a "skip" so that off is the original (Settings.LaunchCamera).
+            list.Add(Choice("presentationPreset", OptionPage.Gameplay, () => X("presentationPreset", "Presentation preset"), false,
+                () => new[] { X("presentationFast", "Fast"), X("presentationFancy", "Fancy") },
+                () => Settings.CurrentPresentationPreset, Settings.ApplyPresentationPreset,
+                () => X("presentationPresetHelp", "Sets camera sequences, dialogue and map animation speed.")));
             var skipLaunch = Toggle("launchCamera", OptionPage.Gameplay, () => X("skipLaunchCamera", "Skip launch and arrival camera"),
                 () => !Settings.LaunchCamera, v => Settings.LaunchCamera = !v);
             skipLaunch.description = () => X("skipLaunchCameraHelp", "Straight to the chase camera when you launch or arrive. Off: a camera watches your ship fly past, as in the original.");
@@ -801,8 +798,6 @@ namespace GoF2Remake.UI
                 () => X("stationScaleHelp", "Stations, jumpgates and other structures are bigger, and the orbit around them grows with them. Shown from the next orbit on. Single player only.")));
             list.Add(Toggle("hangarFlights", OptionPage.Gameplay, () => X("hangarFlights", "Hangar arrival and take-off"),
                 () => Settings.HangarFlights, v => Settings.HangarFlights = v));
-            list.Add(Toggle("tutorialHints", OptionPage.Gameplay, () => X("tutorialHints", "Tutorials"),
-                () => Settings.TutorialHints, v => Settings.TutorialHints = v));
             list.Add(Toggle("collisionDamage", OptionPage.Gameplay, () => X("collisionDamage", "Collision damage"),
                 () => Settings.CollisionDamage, v => Settings.CollisionDamage = v));
             var storyStep = Toggle("showStoryStep", OptionPage.Gameplay, () => X("showStoryStep", "Show story step"),
@@ -854,31 +849,7 @@ namespace GoF2Remake.UI
                 () => new[] { X("shipCollisionOriginal", "Original"), X("shipCollisionMixed", "Mixed"), X("shipCollisionExact", "Exact shape") },
                 () => SessionRules.CollisionOriginal - Settings.ShipCollision, i => Settings.ShipCollision = SessionRules.CollisionOriginal - i,   // the original first
                 () => X("shipCollisionHelp", "Exact: real shapes everywhere. Mixed: fighters use boxes, big ships keep real shapes. Original: boxes and spheres."))));
-            var pirateEvents = Toggle("pirateEvents", OptionPage.Gameplay, () => X("pirateEvents", "Pirate outposts and bosses"),
-                () => Settings.PirateEvents, v => Settings.PirateEvents = v);
-            pirateEvents.description = () => X("pirateEventsHelp", "Some orbits hold a pirate outpost or a pirate boss with a bounty.");
-            list.Add(SessionRule(pirateEvents));
-            var capitalShips = Toggle("capitalShips", OptionPage.Gameplay, () => X("capitalShips", "Capital ship enhancements"),
-                () => Settings.CapitalShips, v => Settings.CapitalShips = v);
-            capitalShips.description = () => X("capitalShipsHelp", "Capital ships get escorts and stronger turrets; carriers and Vossk battleships can be destroyed and docked at.");
-            list.Add(SessionRule(capitalShips));
             // Remake (players' wish, Discord 2026-10-18; TrafficPlan.Build): now and then a derelict freighter to hack.
-            var derelicts = Toggle("derelictWrecks", OptionPage.Gameplay, () => X("derelictWrecks", "Derelict freighters"),
-                () => Settings.DerelictWrecks, v => Settings.DerelictWrecks = v);
-            derelicts.description = () => X("derelictWrecksHelp", "Now and then a wrecked freighter drifts in an orbit: dock at it and hack it for its cargo. In unsafe systems pirates wait there.");
-            list.Add(SessionRule(derelicts));
-            var kaamoStacking = Toggle("kaamoStacking", OptionPage.Gameplay, () => X("kaamoStacking", "Stackable Kaamo Club upgrades"),
-                () => Settings.KaamoStacking, v => Settings.KaamoStacking = v);
-            kaamoStacking.description = () => string.Format(X("kaamoStackingHelp", "Kaamo Club upgrades can be fitted again, each level twice the price, up to level {0}."),
-                Settings.KaamoMaxLevel);
-            list.Add(SessionRule(kaamoStacking));
-            // Remake: the stacking's top level (Session.MaxModLevel), a session rule too (-kaamomaxlevel, /set kaamomaxlevel).
-            var kaamoLevel = Choice("kaamoMaxLevel", OptionPage.Gameplay, () => X("kaamoMaxLevel", "Kaamo Club upgrade limit"), false,
-                () => Enumerable.Range(SessionRules.MinKaamoLevel, SessionRules.MaxKaamoLevel - SessionRules.MinKaamoLevel + 1).Select(n => n.ToString()).ToArray(),
-                () => Settings.KaamoMaxLevel - SessionRules.MinKaamoLevel, i => Settings.KaamoMaxLevel = SessionRules.MinKaamoLevel + i,
-                () => X("kaamoMaxLevelHelp", "How many times each upgrade can be fitted to one ship."));
-            kaamoLevel.visible = () => Settings.KaamoStacking;
-            list.Add(SessionRule(kaamoLevel));
             var kaamoGear = Toggle("kaamoKeepsEquipment", OptionPage.Gameplay, () => X("kaamoKeepsEquipment", "Stored ships keep their equipment"),
                 () => Settings.KaamoKeepsEquipment, v => Settings.KaamoKeepsEquipment = v);
             kaamoGear.description = () => X("kaamoKeepsEquipmentHelp", "A ship parked in the Kaamo Club keeps its weapons and equipment.");
@@ -887,25 +858,12 @@ namespace GoF2Remake.UI
                 () => Settings.KaamoSpecialUiFeatures, v => Settings.KaamoSpecialUiFeatures = v);
             kaamoUi.description = () => X("kaamoSpecialUiFeaturesHelp", "Free search, sorting, a Ships tab and stored-ship markers for Kaamo Club owners. Independent of VIP membership.");
             list.Add(kaamoUi);
-            // The paid VIP membership discounts ship upgrades only; free UI tools have a separate cosmetic toggle.
-            list.Add(Choice("kaamoVip", OptionPage.Gameplay, () => X("kaamoVip", "Kaamo Club VIP Card"), false,
-                () => new[] { X("kaamoVipOff", "Off"), X("kaamoVipCard", "Buy at the club"), X("kaamoVipAlways", "Always on") },
-                () => (Settings.KaamoVipMode + 1) % 3, i => Settings.KaamoVipMode = (i + 2) % 3,   // Off (the original) first
-                () => X("kaamoVipOptionHelp", "The VIP Card gives 20% off ship upgrades by Kaamo mechanics. Ships and equipment are excluded. Buy at the club: membership costs 1,000,000 credits. Always on: no card needed. Off: no discount. Storage UI tools are a separate cosmetic option.")));
             // Remake (PR #282): the shop's and storage's item order (Hangar.ShopItems); off = the original's, by item number.
             var shopOrder = Toggle("shopByCategory", OptionPage.Gameplay, () => X("shopByCategory", "Sort the shop by category"),
                 () => Settings.ShopByCategory, v => Settings.ShopByCategory = v);
             shopOrder.description = () => X("shopByCategoryHelp", "The shop and storage list items by category, subtype and tech level; beam lasers and manual/automatic turrets stay together. Off: by item number, as in the original.");
             list.Add(shopOrder);
-            var cloakBay = Toggle("cloakBay", OptionPage.Gameplay, () => X("cloakBay", "Cloak bay on cloaking ships"),
-                () => Settings.CloakBay, v => Settings.CloakBay = v);
-            cloakBay.description = () => X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot.");
-            list.Add(SessionRule(cloakBay));
             // #28: the Informer mission's rule for other ships dying after the spy; off = the original's.
-            var informer = Toggle("informerRule", OptionPage.Gameplay, () => X("lenientInformer", "Lenient informer missions"),
-                () => !Settings.InformerOriginalRule, v => Settings.InformerOriginalRule = !v);
-            informer.description = () => X("lenientInformerHelp", "Once the spy is dead, other kills no longer fail the mission. Off: any kill before docking fails it, as in the original.");
-            list.Add(SessionRule(informer));
             // The remake's smarter lock; off = the original's (Settings.OriginalTargetLock).
             var smartLock = Toggle("targetLock", OptionPage.Gameplay, () => X("smartTargetLock", "Smart target lock"),
                 () => !Settings.OriginalTargetLock, v => Settings.OriginalTargetLock = !v);
@@ -918,7 +876,7 @@ namespace GoF2Remake.UI
             var keepEnemy = Toggle("keepEnemyLock", OptionPage.Gameplay, () => X("keepEnemyLock", "Keep enemy lock"),
                 () => Settings.KeepEnemyLock, v => Settings.KeepEnemyLock = v);
             keepEnemy.description = () => X("keepEnemyLockHelp", "While an enemy is locked, passing neutral or friendly ships can't take the lock.");
-            keepEnemy.visible = () => !Settings.OriginalTargetLock;
+            keepEnemy.enabled = () => !Settings.OriginalTargetLock;
             list.Add(keepEnemy);
             // Remake mods: NPC fighters in the mods' ships of their race (Modding.ModTraffic).
             list.Add(Choice("modShipTraffic", OptionPage.Gameplay, () => X("modShipTraffic", "Mod ships in traffic"), true,
@@ -943,17 +901,19 @@ namespace GoF2Remake.UI
                 () => Settings.HostileAutopilotFastForward, v => Settings.HostileAutopilotFastForward = v);
             hostileFastForward.description = () => X("hostileAutopilotFastForwardHelp",
                 "Allows time speedup on autopilot despite hostile radar contacts. Has no effect while Ship cruise is selected; its value is kept for Time speedup. Other restrictions still apply. Not available in multiplayer or co-op.");
-            hostileFastForward.enabled = () => !NetSession.Active;
+            hostileFastForward.enabled = () => !NetSession.Active && !Settings.FastForwardCruise;
             list.Add(hostileFastForward);
             // Remake (Discord, 2026-11-04; SystemJump.DockToStream): the autopilot takes the jumpgate toward a set destination
             // without the gate's "Travel to this station?".
+            var informer = Toggle("informerRule", OptionPage.Gameplay, () => X("lenientInformer", "Lenient informer missions"),
+                () => !Settings.InformerOriginalRule, v => Settings.InformerOriginalRule = !v);
+            informer.description = () => X("lenientInformerHelp", "Once the spy is dead, other kills no longer fail the mission.");
+            list.Add(SessionRule(informer));
             var autoJumpgate = Toggle("autoJumpgate", OptionPage.Gameplay, () => X("autoJumpgate", "Autopilot takes jumpgates"),
                 () => Settings.AutoJumpgate, v => Settings.AutoJumpgate = v);
             autoJumpgate.description = () => X("autoJumpgateHelp", "With a destination set, the autopilot flies through the jumpgate toward it without asking. Off: the gate asks first, as in the original.");
             list.Add(autoJumpgate);
             // Remake (Shop.SlipstreamOff): the base game's Khador Slipstream, the cruise drive that also flies between the systems.
-            list.Add(Toggle("khadorSlipstream", OptionPage.Gameplay, () => X("khadorSlipstream", "Khador Slipstream"),
-                () => Settings.KhadorSlipstream, v => Settings.KhadorSlipstream = v));
             // The key and controller button hints everywhere: the flight HUD, the menus' prompt bars, the station, the star map,
             // Inspect ship and Action Freeze (it was "Button hints in flight", though the menus' bars read it too).
             var inputHints = Toggle("inputHints", OptionPage.Gameplay, () => X("inputHints", "Button hints"),
@@ -1005,19 +965,6 @@ namespace GoF2Remake.UI
             if (!Application.isMobilePlatform)
                 list.Add(Toggle("discordPresence", OptionPage.Gameplay, () => X("discordPresence", "Show what I'm doing in Discord"),
                     () => Settings.DiscordPresence, v => Settings.DiscordPresence = v));
-            // Remake: the difficulty of the game in progress (the new game's panel sets it first; saved with the game). NPC
-            // hulls and guns, raiders and the Extreme rules follow from the next orbit or docking. Not in multiplayer: every
-            // session plays on Normal.
-            if (!Multiplayer.NetGame.Active)
-            {
-                float[] levels = { Session.DifficultyEasy, Session.DifficultyNormal, Session.DifficultyHard, Session.DifficultyExtreme };
-                var difficulty = Choice("difficulty", OptionPage.Gameplay, () => X("difficulty", "Difficulty"), true,
-                    () => levels.Select(Session.DifficultyName).ToArray(),
-                    () => Nearest(levels, Session.Difficulty), i => Session.Difficulty = levels[Mathf.Clamp(i, 0, levels.Length - 1)],
-                    () => X("difficultyHelp", "Takes effect from the next orbit or docking."));
-                difficulty.inGameOnly = true;
-                list.Add(difficulty);
-            }
             // Modified: the text language in a running game's menus too (the main menu has its own language buttons, which
             // this row stands in for; the same list, LanguageTables.Offered). Loading the table raises Localization.Changed,
             // which the station menu and the flight HUD re-label themselves on, so it applies without leaving the game.

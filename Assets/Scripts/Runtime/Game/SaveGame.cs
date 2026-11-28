@@ -10,6 +10,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace GoF2Remake.Data
@@ -24,6 +26,10 @@ namespace GoF2Remake.Data
         public float playSeconds;
         public int campaign;
         public float difficulty;
+        public int savedGameRules;   // 0 = older save, otherwise one plus the rule mask
+        public bool stackKaamoUpgrades;
+        public int kaamoUpgradeLimit;
+        public int kaamoVipRule;   // 0 = legacy save, 1 = purchasable, 2 = off
         public int campaignMission;
         public int station, previousStation, ship;
         public long credits;   // remake: 64-bit (Session.Credits); older saves' ints read the same
@@ -158,7 +164,7 @@ namespace GoF2Remake.Data
         // Remake (co-op campaign, NetCoop.PrepareHost): the hosting player's session game is its single-player game.
         static bool hostSaves;
         static float hostDifficulty;
-        static int hostEconomy;
+        static int hostEconomy, hostSavedGameRules;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => hostSaves = false;
@@ -175,6 +181,7 @@ namespace GoF2Remake.Data
             hostSaves = true;
             hostDifficulty = from != null ? from.difficulty : Session.DifficultyNormal;
             hostEconomy = (int)CoopCampaign.HostEconomy(from, newGame);
+            hostSavedGameRules = from?.savedGameRules ?? 1;
         }
 
         public static void EndHostSaves() => hostSaves = false;
@@ -193,6 +200,81 @@ namespace GoF2Remake.Data
         {
             try { return Exists(slot) ? JsonUtility.FromJson<SaveData>(File.ReadAllText(PathOf(slot))) : null; }
             catch (Exception e) { Debug.LogWarning($"SaveGame: slot {slot} unreadable: {e.Message}"); return null; }
+        }
+
+        public struct CampaignRules
+        {
+            public float Difficulty;
+            public SavedGameRules Rules;
+            public int UpgradeLimit;
+            public bool StackUpgrades;
+            public bool VipAvailable;
+        }
+
+        static CampaignRules ReadCampaignRules(SaveData save)
+        {
+            bool legacyKaamo = save.kaamoVipRule == 0 && save.kaamoUpgradeLimit == 0;
+            bool stackUpgrades = legacyKaamo ? Settings.LegacyKaamoStacking : save.stackKaamoUpgrades;
+            return new CampaignRules
+            {
+                Difficulty = save.difficulty,
+                Rules = save.savedGameRules == 0 ? Settings.LegacySaveRules() : (SavedGameRules)(save.savedGameRules - 1),
+                StackUpgrades = stackUpgrades,
+                UpgradeLimit = legacyKaamo ? (stackUpgrades ? Settings.LegacyKaamoLimit : 1)
+                    : Mathf.Clamp(save.kaamoUpgradeLimit, 0, SessionRules.MaxKaamoLevel),
+                VipAvailable = legacyKaamo ? save.kaamoVip || Settings.LegacyKaamoCardAvailable : save.kaamoVipRule == 1,
+            };
+        }
+
+        public static bool TryReadCampaignRules(int slot, out string snapshot, out CampaignRules rules)
+        {
+            snapshot = null;
+            rules = default;
+            if (slot < 0 || slot >= SlotCount || NetSession.SessionGame) return false;
+            try
+            {
+                snapshot = File.ReadAllText(PathOf(slot));
+                if (!TryParse(snapshot, Database.Load(), out var save, out _)) return false;
+                rules = ReadCampaignRules(save);
+                return true;
+            }
+            catch (Exception e) { Debug.LogWarning($"SaveGame: cannot read slot {slot}: {e.Message}"); return false; }
+        }
+
+        /// <summary>Patch the local slot while retaining purchase history and unrecognized save fields.</summary>
+        public static bool TryWriteCampaignRules(int slot, string snapshot, CampaignRules rules)
+        {
+            if (snapshot == null || !TryReadCampaignRules(slot, out var current, out var before) || current != snapshot
+                || (rules.Difficulty != Session.DifficultyEasy && rules.Difficulty != Session.DifficultyNormal
+                    && rules.Difficulty != Session.DifficultyHard && rules.Difficulty != Session.DifficultyExtreme)
+                || rules.UpgradeLimit < 0 || rules.UpgradeLimit > SessionRules.MaxKaamoLevel) return false;
+
+            const SavedGameRules editable = SavedGameRules.RemakeContent | SavedGameRules.BlueprintAutocomplete | SavedGameRules.CloakBay;
+            string path = PathOf(slot);
+            string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using var reader = new JsonTextReader(new StringReader(snapshot)) { DateParseHandling = DateParseHandling.None };
+                var json = JObject.Load(reader);
+                json["savedAtUtc"] = DateTime.UtcNow.ToString("o");
+                json["difficulty"] = rules.Difficulty;
+                json["savedGameRules"] = 1 + (int)((before.Rules & ~editable) | (rules.Rules & editable));
+                json["kaamoUpgradeLimit"] = rules.UpgradeLimit;
+                json["stackKaamoUpgrades"] = rules.UpgradeLimit == before.UpgradeLimit ? before.StackUpgrades : rules.UpgradeLimit > 1;
+                json["kaamoVipRule"] = rules.UpgradeLimit > 0 && rules.VipAvailable ? 1 : 2;
+                File.WriteAllText(temporary, json.ToString());
+                if (File.ReadAllText(path) != snapshot) return false;
+                File.Replace(temporary, path, path + ".rules.bak");
+            }
+            catch (Exception e) { Debug.LogWarning($"SaveGame: cannot update slot {slot}: {e.Message}"); return false; }
+            finally
+            {
+                try { File.Delete(temporary); }
+                catch (IOException e) { Debug.LogWarning($"SaveGame: cannot remove temporary file for slot {slot}: {e.Message}"); }
+                catch (UnauthorizedAccessException e) { Debug.LogWarning($"SaveGame: cannot remove temporary file for slot {slot}: {e.Message}"); }
+            }
+            SaveFolder.AfterLocalChange();
+            return true;
         }
 
         /// <summary>The most recently written slot (the main menu's Resume), -1 = none.</summary>
@@ -220,7 +302,7 @@ namespace GoF2Remake.Data
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
             var s = Capture();
-            if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; }   // the game's own, not the session's
+            if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; s.savedGameRules = hostSavedGameRules; }   // the game's own, not the session's
             Modding.ModSaves.Record(s, Database.Load());
             try
             {
@@ -392,6 +474,7 @@ namespace GoF2Remake.Data
             Apply(s);
             Modding.ModScripts.RestoreSaved(true);
             Session.Difficulty = Session.DifficultyNormal;
+            Session.GameRules = SavedGameRules.None;
             Session.Economy = NetSession.Economy;
             // The session's world, whatever index the profile was saved with; a co-op campaign's is the story's own (its
             // guests follow the leader's step, CoopCampaign).
@@ -426,6 +509,10 @@ namespace GoF2Remake.Data
                 playSeconds = Session.PlaySeconds,
                 campaign = (int)Session.Campaign,
                 difficulty = Session.Difficulty,
+                savedGameRules = 1 + (int)Session.GameRules,
+                stackKaamoUpgrades = Session.StackKaamoUpgrades,
+                kaamoUpgradeLimit = Session.KaamoUpgradeLimit,
+                kaamoVipRule = Settings.KaamoVipMode == Settings.KaamoVipCard ? 1 : 2,
                 economy = (int)Session.Economy,
                 storyAgentsAccepted = new List<int>(Session.StoryAgentsAccepted),
                 graphQuests = new List<GraphQuestState>(Session.GraphQuests),
@@ -617,6 +704,11 @@ namespace GoF2Remake.Data
             Session.PlaySeconds = s.playSeconds;
             Session.Campaign = (Campaign)s.campaign;
             Session.Difficulty = s.difficulty;
+            var campaignRules = ReadCampaignRules(s);
+            Session.GameRules = campaignRules.Rules & SavedGameRules.All;
+            Session.StackKaamoUpgrades = campaignRules.StackUpgrades;
+            Session.KaamoUpgradeLimit = campaignRules.UpgradeLimit;
+            Settings.KaamoVipMode = campaignRules.VipAvailable && Session.KaamoUpgradesEnabled ? Settings.KaamoVipCard : Settings.KaamoVipOff;
             Session.Economy = SaveEconomy(s);
             Session.CampaignMission = s.campaignMission;
             Session.StationIndex = s.station;

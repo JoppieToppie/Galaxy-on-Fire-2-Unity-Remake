@@ -44,7 +44,7 @@ Research: `Reference/research/kaamo_club.md` (states, the siege, docking convers
   `Status::resetGame` sets state 3 while it is bought) is the new game's toggle in the Game options panel after the
   economy (with Hardcore and Start game) (`MainMenu.KaamoFromStart`, PlayerPrefs `newgame_kaamo`): the club owned from
   the start, no siege, no purchase.
-- **VIP Card** (design proposal #295): 1,000,000 credits buys 20% off ship upgrades by mechanics at the owned Kaamo Club. Ships and equipment retain normal prices; non-members incur no inflated dealer prices. Existing purchased cards and New Game+ retain the same save flag. Off / Buy at the club / Always on remain Game Rules.
+- **VIP Card** (design proposal #295): 1,000,000 credits buys 20% off ship upgrades by mechanics at the owned Kaamo Club. Ships and equipment retain normal prices; non-members incur no inflated dealer prices. Existing purchased cards and New Game+ retain the same save flag. Off and Buy at the club are selected before starting a save. The card is unavailable when Kaamo Club Upgrades is Off.
 - **Kaamo special UI features** is free in Cosmetics > UI, defaults on, and is independent of membership.
 
 - Not wired in the original and left out: advert 189, the 478 hint (no shop to jump to), radio 3162 / 3163 (voiced, never sent).

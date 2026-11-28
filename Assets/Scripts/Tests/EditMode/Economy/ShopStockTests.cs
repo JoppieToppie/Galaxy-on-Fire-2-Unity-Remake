@@ -488,5 +488,39 @@ namespace GoF2Remake.Tests
             Assert.AreSame(Session.KaamoItems, stock.items);
             Assert.IsEmpty(stock.ships);
         }
+
+        [Test]
+        public void CachedKaamoLoungeKeepsOtherSellersWhenMechanicsAreToggled()
+        {
+            Session.CampaignMission = 162;
+            Session.KaamoState = 3;
+            var stock = Shop.EnterStation(Db, KaamoClub.Station);
+            var other = stock.agents.Find(a => a.offer != AgentOffer.SellMod);
+            int mechanicCount = stock.agents.FindAll(a => a.offer == AgentOffer.SellMod).Count;
+            Assert.IsNotNull(other);
+            Assert.Greater(mechanicCount, 0);
+
+            Session.KaamoUpgradeLimit = 0;
+            Assert.AreSame(stock, Shop.EnterStation(Db, KaamoClub.Station));
+            Assert.Contains(other, stock.agents);
+            Assert.IsFalse(stock.agents.Exists(a => a.offer == AgentOffer.SellMod));
+
+            Session.KaamoUpgradeLimit = 1;
+            Assert.AreSame(stock, Shop.EnterStation(Db, KaamoClub.Station));
+            Assert.Contains(other, stock.agents);
+            Assert.AreEqual(mechanicCount, stock.agents.FindAll(a => a.offer == AgentOffer.SellMod).Count);
+        }
+
+        [Test]
+        public void EmptyCachedKaamoLoungeRegeneratesEligibleVisitors()
+        {
+            Session.CampaignMission = 162;
+            Session.KaamoState = 3;
+            var stock = Shop.EnterStation(Db, KaamoClub.Station);
+            Assert.IsNotEmpty(stock.agents);
+            stock.agents.Clear();
+            Assert.AreSame(stock, Shop.EnterStation(Db, KaamoClub.Station));
+            Assert.IsNotEmpty(stock.agents);
+        }
     }
 }

@@ -22,8 +22,7 @@ namespace GoF2Remake.Data
             new Value("animatedDialogue", 0f, 1f),
             new Value("autoAdvanceDialogue", 1f, 1f),
             new Value("originalUi", 0f, 0f), // legacy UI is a manual Custom choice
-            new Value("tutorialHints", 0f, 0f), // the new-game screen can opt in
-            new Value("inputHints", 1f, 1f),
+            new Value("inputHints", 0f, 0f),
             new Value("hintScale", 100f, 100f),
             new Value("shopByCategory", 0f, 1f),
             new Value("kaamoSpecialUiFeatures", 0f, 1f),
@@ -34,7 +33,6 @@ namespace GoF2Remake.Data
             new Value("farShipMarkers", Settings.FarMarkerOriginal, Settings.FarMarkerOriginal),
             new Value("markerDistance", 0f, 1f),
             new Value("interstellarDistance", 1f, 1f),
-            new Value("systemMapAnimationSpeed", 1f, 1f),
             // Preserve the presentation policies introduced on main after the original PR.
             new Value("rebuiltPlanets", 0f, 1f),
             new Value("cameraShake", 1f, 0.3f),
@@ -43,16 +41,8 @@ namespace GoF2Remake.Data
 
         public static IReadOnlyList<Value> Gameplay { get; } = Array.AsReadOnly(new[]
         {
-            new Value("pirateEvents", 0f, 1f),
-            new Value("capitalShips", 0f, 1f),
-            new Value("derelictWrecks", 0f, 1f),
             new Value("stationScale", 1f, 1f),
-            new Value("kaamoStacking", 0f, 1f),
-            new Value("kaamoMaxLevel", SessionRules.DefaultKaamoLevel, SessionRules.DefaultKaamoLevel),
-            new Value("kaamoVip", Settings.KaamoVipOff, Settings.KaamoVipCard),
-            new Value("cloakBay", 0f, 1f),
             new Value("kaamoKeepsEquipment", 0f, 1f),
-            new Value("blueprintAutocomplete", 0f, 0f),
             new Value("cloakLosesPursuers", 0f, 1f),
             new Value("empBreaksCloak", 0f, 1f),
             new Value("bombArming", 0f, 1f),
@@ -68,9 +58,7 @@ namespace GoF2Remake.Data
             new Value("collisionDamage", 0f, 0f),
             new Value("flightStyle", FlightStyles.Original, FlightStyles.Original),
             new Value("fastForwardCruise", 0f, 0f),
-            new Value("khadorSlipstream", 0f, 1f),
             new Value("hostileAutopilotFastForward", 0f, 0f),
-            new Value("autoJumpgate", 1f, 1f),
             new Value("informerOriginalRule", 1f, 0f),
             new Value("playOnInConversations", 0f, 0f),
             new Value("modShipTraffic", 0f, 2f),

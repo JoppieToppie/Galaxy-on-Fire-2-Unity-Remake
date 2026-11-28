@@ -123,11 +123,14 @@ namespace GoF2Remake.UI
                 // The toggles into a left column, the cards in a right one that scrolls sideways; Start under both.
                 var body = new VisualElement();
                 body.AddToClassList("game-options-body");
-                var left = new VisualElement();
+                var left = new ScrollView(ScrollViewMode.Vertical);
+                left.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+                new DragScroll(left);
+                left.RegisterCallback<FocusInEvent>(ev => { if (ev.target is VisualElement row) left.ScrollTo(row); });
                 left.AddToClassList("game-options-left");
                 var anchor = panel.Q("gameOptionsStart");
                 anchor.parent.Insert(anchor.parent.IndexOf(anchor), body);
-                foreach (var name in new[] { "kaamoToggle", "hardcoreToggle", "medalsToggle", "tutorialToggle", "capitalToggle" })
+                foreach (var name in new[] { "kaamoToggle", "kaamoVipToggle", "kaamoStackingToggle", "medalsToggle", "economyToggle", "blueprintAutocompleteToggle", "cloakBayToggle" })
                     if (panel.Q(name) is VisualElement e) left.Add(e);
                 body.Add(left);
                 var right = new VisualElement();
@@ -184,7 +187,7 @@ namespace GoF2Remake.UI
             pendingModCampaign = null;
             pendingCampaign = Campaign.Supernova;
             pendingStartIndex = -1;
-            OpenPanel("difficultyPanel");
+            OpenDifficultyForNewGame();
         }
 
         void PickModCampaign(Modding.ModCampaigns.Def c)
@@ -193,7 +196,7 @@ namespace GoF2Remake.UI
             pendingModCampaign = c;
             pendingCampaign = Campaign.GalaxyOnFire2;
             pendingStartIndex = -1;
-            OpenPanel("difficultyPanel");
+            OpenDifficultyForNewGame();
         }
 
         void PickCampaign(Campaign c)
@@ -202,31 +205,74 @@ namespace GoF2Remake.UI
             pendingDlc = null;
             pendingCampaign = c;
             pendingStartIndex = -1;
+            OpenDifficultyForNewGame();
+        }
+
+        bool kaamoVipNext, tutorialsNext, autocompleteNext, cloakBayNext;
+        int kaamoStackLimitNext = 1;
+        SavedGameRules remakeRulesNext;
+
+        void RefreshKaamoRules()
+        {
+            root.Q<Label>("kaamoStackingDesc").text = kaamoStackLimitNext switch
+            {
+                0 => Localization.Extra("kaamoUpgradeRulesOffHelp", "Ship upgrades are disabled and upgrade dealers do not appear."),
+                1 => Localization.Extra("kaamoUpgradeRulesOriginalHelp", "Original rules. One upgrade of each type per ship."),
+                _ => string.Format(Localization.Extra("kaamoStackingHelp",
+                    "Kaamo Club upgrades can be fitted again, each level twice the price, up to level {0}."), kaamoStackLimitNext)
+            };
+            root.Q<Label>("kaamoVipDesc").text = Localization.Extra("kaamoVipOptionHelp",
+                "The VIP Card gives 20% off ship upgrades by Kaamo mechanics. Buy at the club for 1 million credits.");
+            root.Q<Button>("kaamoStackingToggle").EnableInClassList("choice-button--on", kaamoStackLimitNext != 1);
+            root.Q<Label>("kaamoStackingLabel").text = (Localization.Extra("kaamoUpgradeRules", "Kaamo Club upgrades") + ": " +
+                (kaamoStackLimitNext == 0 ? Localization.Extra("kaamoVipOff", "Off") : kaamoStackLimitNext.ToString())).UiCaps();
+            if (kaamoStackLimitNext == 0) kaamoVipNext = false;
+            var vip = root.Q<Button>("kaamoVipToggle");
+            vip.SetEnabled(kaamoStackLimitNext != 0);
+            vip.EnableInClassList("choice-button--unavailable", kaamoStackLimitNext == 0);
+            vip.EnableInClassList("choice-button--on", kaamoVipNext);
+            root.Q<Label>("kaamoVipLabel").text = (Localization.Extra("kaamoVip", "Kaamo Club VIP Card") + ": " +
+                (kaamoVipNext ? Localization.Extra("kaamoVipCard", "Buy at the club") : Localization.Extra("kaamoVipOff", "Off"))).UiCaps();
+        }
+
+        void OpenDifficultyForNewGame()
+        {
+            hardcoreNext = tutorialsNext = false;
+            RefreshHardcoreToggle();
+            RefreshTutorialToggle();
             OpenPanel("difficultyPanel");
         }
 
         void PickDifficulty(float difficulty)
         {
             pendingDifficulty = difficulty;
-            hardcoreNext = false;   // never carried over from an earlier new game: chosen each time
+            remakeRulesNext = SavedGameRules.None;
+            autocompleteNext = cloakBayNext = false;
+            kaamoStackLimitNext = 1;
+            kaamoVipNext = false;
             noMedalsNext = false;   // likewise
-            RefreshHardcoreToggle();
             RefreshMedalsToggle();
-            // Remake mods (#313): a campaign with its own economy ("economy" in campaign.json) doesn't ask for one.
-            if (pendingModCampaign?.economy is Economy fixedEconomy) { PickEconomy(fixedEconomy); return; }
-            OpenPanel("economyPanel");
+            pendingEconomy = pendingModCampaign?.economy ?? Economy.Default;
+            RefreshEconomyToggle();
+            RefreshSavedRuleToggles();
+            RefreshKaamoRules();
+            RefreshModOptions();   // remake mods: their new-game options
+            OpenPanel("gameOptionsPanel");
         }
 
-        /// <summary>The economy picked: then the game options (the Kaamo Club from the start, hardcore) and Start.</summary>
-        void PickEconomy(Economy economy)
+        void RefreshEconomyToggle()
         {
-            pendingEconomy = economy;
-            RefreshTutorialToggle();   // the option may have changed in Options meanwhile
-            RefreshCapitalToggle();
-            RefreshModOptions();   // remake mods: their new-game options
-            var desc = root.Q<Label>("gameOptionsStartDesc");
-            if (desc != null) desc.text = $"{Session.DifficultyName(pendingDifficulty)}  ·  {Session.EconomyName(economy)}";
-            OpenPanel("gameOptionsPanel");
+            bool android = pendingEconomy == Economy.Android;
+            var button = root.Q<Button>("economyToggle");
+            button.SetEnabled(pendingModCampaign?.economy == null);
+            button.EnableInClassList("choice-button--on", android);
+            string type = android ? "Android" : Localization.Extra("economyClassicType", "Classic");
+            root.Q<Label>("economyTypeLabel").text = (Localization.Extra("economyType", "Economy") + ": " + type).UiCaps();
+            root.Q<Label>("economyTypeDesc").text = android
+                ? Localization.Extra("economyAndroidDesc", "Android prices: dearer goods and gear, bigger blueprints, cheaper ships.")
+                : Localization.Extra("economyDefaultDesc", "PC / Mac / iPhone prices: cheaper goods and blueprints, dearer ships.");
+            root.Q<Label>("remakeOptionsStartDesc").text = Session.DifficultyName(pendingDifficulty)
+                + (hardcoreNext ? " / " + Localization.Extra("hardcoreTitle", "Hardcore") : "");
         }
 
         void RefreshHardcoreToggle()
@@ -250,7 +296,7 @@ namespace GoF2Remake.UI
         {
             var b = root.Q<Button>("medalsToggle");
             if (b == null) return;
-            b.EnableInClassList("choice-button--on", !noMedalsNext);
+            b.EnableInClassList("choice-button--on", noMedalsNext);
             var label = root.Q<Label>("medalsLabel");
             if (label != null)
                 label.text = $"{Localization.Extra("medalsTitle", "Medals")}: {(noMedalsNext ? Localization.Extra("off", "Off") : Localization.Extra("on", "On"))}".UiCaps();
@@ -299,14 +345,16 @@ namespace GoF2Remake.UI
             var b = root.Q<Button>("kaamoToggle");
             if (b == null) return;
             bool on = KaamoFromStart;
-            b.EnableInClassList("choice-button--on", on);
+            b.EnableInClassList("choice-button--on", !on);
             var label = root.Q<Label>("kaamoLabel");
             if (label != null)
-                label.text = $"{Localization.Get(78)}: {(on ? Localization.Extra("kaamoOwned", "Owned from the start") : Localization.Extra("kaamoNotOwned", "Win it in the game"))}".UiCaps();
+                label.text = $"{Localization.Get(78)}: {(on ? Localization.Extra("kaamoOwned", "Owned from the start") : Localization.Extra("kaamoNotOwned", "Buy it in-game"))}".UiCaps();
             var desc = root.Q<Label>("kaamoDesc");
             if (desc != null)
-                desc.text = Localization.Extra("kaamoDesc",
-                    "Own the Kaamo Club in Shima from the start: no siege, no 30 million.");
+                desc.text = on
+                    ? Localization.Extra("kaamoDesc", "Own the Kaamo Club in Shima from the start.")
+                    : string.Format(Localization.Extra("kaamoUnlockDesc",
+                        "Break the siege at Kaamo, then buy the club for 30 million credits and 50 t of {0}."), GameNames.Item(KaamoClub.BuskatItem));
         }
 
         /// <summary>Remake: the tutorial popups (Settings.TutorialHints, also in Options > Gameplay) as a game option before the
@@ -315,7 +363,7 @@ namespace GoF2Remake.UI
         {
             var b = root.Q<Button>("tutorialToggle");
             if (b == null) return;
-            bool on = Settings.TutorialHints;
+            bool on = tutorialsNext;
             b.EnableInClassList("choice-button--on", on);
             var label = root.Q<Label>("tutorialLabel");
             if (label != null)
@@ -328,28 +376,49 @@ namespace GoF2Remake.UI
 
         /// <summary>Remake (players' suggestion): the capital ship enhancements (Settings.CapitalShips, also in Options >
         /// Gameplay) as a game option before the start.</summary>
-        void RefreshCapitalToggle()
+        void RefreshSavedRuleToggles()
         {
-            var b = root.Q<Button>("capitalToggle");
-            if (b == null) return;
-            bool on = Settings.CapitalShips;
-            b.EnableInClassList("choice-button--on", on);
-            var label = root.Q<Label>("capitalLabel");
-            if (label != null)
-                label.text = $"{Localization.Extra("capitalTitle", "Capital ships")}: {(on ? Localization.Extra("capitalOn", "Enhanced") : Localization.Extra("capitalOff", "Original"))}".UiCaps();
-            var desc = root.Q<Label>("capitalDesc");
-            if (desc != null)
-                desc.text = Localization.Extra("capitalDesc",
-                    "Capital ships get escorts and stronger turrets; carriers and Vossk battleships can be destroyed and docked at.");
+            string X(string key, string fallback) => Localization.Extra(key, fallback);
+            void Refresh(string id, string title, string value, string description, bool enabled)
+            {
+                root.Q<Button>(id + "Toggle").EnableInClassList("choice-button--on", enabled);
+                root.Q<Label>(id + "Label").text = (title + ": " + value).UiCaps();
+                root.Q<Label>(id + "Desc").text = description;
+            }
+            string ToggleValue(bool on) => on ? X("on", "On") : X("off", "Off");
+            RefreshRemakeRule(SavedGameRules.PirateEvents, "pirateEvents", "Pirate outposts and bosses", "Some orbits hold a pirate outpost or a pirate boss with a bounty.");
+            RefreshRemakeRule(SavedGameRules.CapitalShips, "capitalShips", "Capital ship enhancements", "Capital ships get escorts and stronger turrets. Carriers and Vossk battleships can be destroyed and docked at.");
+            RefreshRemakeRule(SavedGameRules.DerelictWrecks, "derelictWrecks", "Derelict freighters", "Dock with derelict freighters and hack them for cargo.");
+            RefreshRemakeRule(SavedGameRules.KhadorSlipstream, "khadorSlipstream", "Khador Slipstream", "Khador offers the Slipstream blueprint on Thynome.");
+            Refresh("blueprintAutocomplete", X("blueprintAutocomplete", "Blueprint autocomplete"), ToggleValue(autocompleteNext),
+                X("blueprintAutocompleteHelp", "Pay credits to supply missing blueprint ingredients where autocomplete is allowed."), autocompleteNext);
+            Refresh("cloakBay", X("cloakBay", "Cloak bay"), ToggleValue(cloakBayNext),
+                X("cloakBayHelp", "On the Specter and Scimitar a mounted cloak takes no equipment slot."), cloakBayNext);
+        }
+
+        void RefreshRemakeRule(SavedGameRules rule, string id, string title, string help)
+        {
+            bool on = (remakeRulesNext & rule) != 0;
+            root.Q<Button>(id + "Toggle").EnableInClassList("choice-button--on", on);
+            root.Q<Label>(id + "Label").text = (Localization.Extra(id, title) + ": " +
+                (on ? Localization.Extra("on", "On") : Localization.Extra("off", "Off"))).UiCaps();
+            root.Q<Label>(id + "Desc").text = Localization.Extra(id + "Help", help);
         }
 
         void BeginGame(Economy economy)
         {
             Session.ResetNewGame();   // Status::resetGame: Phantom at Var Hastra (Mido)
+            Session.GameRules = remakeRulesNext;
+            Settings.TutorialHints = tutorialsNext;
+            Settings.BlueprintAutocomplete = autocompleteNext;
+            Settings.CloakBay = cloakBayNext;
             Session.Hardcore = hardcoreNext;   // remake: permadeath (a new RunId came with ResetNewGame)
             Session.NoMedals = noMedalsNext;   // remake: a game without medals (before the campaign start's add-on medals)
             Session.Campaign = pendingCampaign;
             Session.Difficulty = pendingDifficulty;
+            Session.StackKaamoUpgrades = kaamoStackLimitNext > 1;
+            Session.KaamoUpgradeLimit = kaamoStackLimitNext;
+            Settings.KaamoVipMode = kaamoVipNext ? Settings.KaamoVipCard : Settings.KaamoVipOff;
             Session.Economy = economy;   // before the Database: it loads that economy's tables
             if (KaamoFromStart) Session.KaamoState = 3;   // resetGame with the expansion bought: the club owned, its storage empty
             Modding.ModGameOptions.ApplyChoices();   // remake mods: the options picked in the Game options panel

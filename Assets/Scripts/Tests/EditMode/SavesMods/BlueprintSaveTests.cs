@@ -14,6 +14,108 @@ namespace GoF2Remake.Tests
     public class BlueprintSaveTests : SavesModsTest
     {
         [Test]
+        public void NewGameRulesRoundTripAndStayIndependentOfPresets()
+        {
+            const SavedGameRules rules = SavedGameRules.CapitalShips |
+                SavedGameRules.CloakBay | SavedGameRules.BlueprintAutocomplete | SavedGameRules.Tutorials;
+            Session.GameRules = rules;
+            Session.Difficulty = Session.DifficultyExtreme;
+            Session.StackKaamoUpgrades = true;
+            Session.KaamoUpgradeLimit = 3;
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
+            Assert.IsTrue(SaveGame.Save(5));
+            Session.ResetNewGame();
+            using (new DataUiTestKit.PrefsSnapshot())
+            {
+                Settings.ApplyScopedExperience(false, 1);
+                Assert.AreEqual(SavedGameRules.None, Session.GameRules);
+                Assert.IsTrue(SaveGame.Load(5));
+                Settings.ResetToDefaults();
+            }
+            Assert.AreEqual(rules, Session.GameRules);
+            Assert.AreEqual(Session.DifficultyExtreme, Session.Difficulty);
+            Assert.IsTrue(Session.StackKaamoUpgrades);
+            Assert.AreEqual(3, Session.KaamoUpgradeLimit);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+        }
+
+        [Test]
+        public void EditingCampaignRulesKeepsPurchasesAndRestoresTheirEffects()
+        {
+            Session.GameRules = SavedGameRules.Tutorials | SavedGameRules.CapitalShips;
+            Session.KaamoState = 3;
+            Session.KaamoVip = true;
+            Session.KaamoUpgradeLimit = 3;
+            Session.StackKaamoUpgrades = true;
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
+            Session.ShipMods.AddRange(new[] { 0, 0, 0 });
+            Assert.IsTrue(SaveGame.Save(5));
+            var path = SaveGame.SlotPath(5);
+            var json = File.ReadAllText(path).Insert(1, "\"futureField\":\"unchanged\",");
+            File.WriteAllText(path, json);
+
+            Assert.IsTrue(SaveGame.TryReadCampaignRules(5, out var snapshot, out var rules));
+            rules.Difficulty = Session.DifficultyHard;
+            rules.Rules = SavedGameRules.CloakBay | SavedGameRules.BlueprintAutocomplete;
+            rules.UpgradeLimit = 1;
+            rules.VipAvailable = false;
+            Assert.IsTrue(SaveGame.TryWriteCampaignRules(5, snapshot, rules));
+            Assert.AreEqual(json, File.ReadAllText(path + ".rules.bak"));
+            StringAssert.Contains("\"futureField\": \"unchanged\"", File.ReadAllText(path));
+            Assert.IsFalse(SaveGame.TryWriteCampaignRules(5, snapshot, rules));
+
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.AreEqual(Session.DifficultyHard, Session.Difficulty);
+            Assert.AreEqual(SavedGameRules.Tutorials | SavedGameRules.CloakBay | SavedGameRules.BlueprintAutocomplete, Session.GameRules);
+            Assert.AreEqual(1, Session.ModLevel(0));
+            Assert.AreEqual(1, Session.ModLevel(Session.ShipMods, 0));
+            Assert.AreEqual(3, Session.ShipMods.Count);
+            Assert.IsTrue(Session.KaamoVip);
+            Assert.IsFalse(KaamoClub.VipDiscount);
+
+            Assert.IsTrue(SaveGame.TryReadCampaignRules(5, out snapshot, out rules));
+            rules.UpgradeLimit = 0;
+            rules.VipAvailable = true;
+            Assert.IsTrue(SaveGame.TryWriteCampaignRules(5, snapshot, rules));
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.AreEqual(0, Session.ModLevel(0));
+            Assert.AreEqual(Settings.KaamoVipOff, Settings.KaamoVipMode);
+
+            Assert.IsTrue(SaveGame.TryReadCampaignRules(5, out snapshot, out rules));
+            rules.UpgradeLimit = 3;
+            rules.VipAvailable = true;
+            Assert.IsTrue(SaveGame.TryWriteCampaignRules(5, snapshot, rules));
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.AreEqual(3, Session.ModLevel(0));
+            Assert.IsTrue(KaamoClub.VipDiscount);
+        }
+
+        [Test]
+        public void OldSlotKeepsLegacyKaamoPreferencesOnItsFirstSave()
+        {
+            using var prefs = new DataUiTestKit.PrefsSnapshot();
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoStacking", 1);
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoMaxLevel", 7);
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoVip", 0);
+            DataUiTestKit.ClearSettingsCache();
+            Assert.IsTrue(SaveGame.Save(5));
+            var path = SaveGame.SlotPath(5);
+            File.WriteAllText(path, Regex.Replace(File.ReadAllText(path),
+                @"""(?:stackKaamoUpgrades|kaamoUpgradeLimit|kaamoVipRule)""\s*:\s*[^,]+,", ""));
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.IsTrue(Session.StackKaamoUpgrades);
+            Assert.AreEqual(7, Session.KaamoUpgradeLimit);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+            Assert.IsTrue(SaveGame.Save(5));
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoStacking", 0);
+            UnityEngine.PlayerPrefs.SetFloat(DataUiTestKit.SettingsPrefix + "kaamoVip", 2);
+            DataUiTestKit.ClearSettingsCache();
+            Assert.IsTrue(SaveGame.Load(5));
+            Assert.IsTrue(Session.StackKaamoUpgrades);
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+        }
+
+        [Test]
         public void ThePlayersShareIsSavedWithTheGame()
         {
             Blueprints.Invest(Db, 11, 155, 20, 70, true);

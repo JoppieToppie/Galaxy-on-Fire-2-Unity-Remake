@@ -68,25 +68,20 @@
                         <ui:Label name="hardLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
                         <ui:Label name="hardDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
-                    <ui:Button name="extremeButton" class="choice-button choice-button--danger">
+                    <ui:Button name="extremeButton" class="choice-button">
                         <ui:Label name="extremeLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
                         <ui:Label name="extremeDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
+                    <ui:Label name="difficultyAdditional" class="difficulty-additional gof-semibold" picking-mode="Ignore" />
+                    <ui:Button name="hardcoreToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="hardcoreLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="hardcoreDesc" class="choice-desc" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="tutorialToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="tutorialLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="tutorialDesc" class="choice-desc" picking-mode="Ignore" />
+                    </ui:Button>
                     <ui:Button name="difficultyBack" class="menu-button back-button gof-semibold" />
-                </ui:VisualElement>
-
-                <ui:VisualElement name="economyPanel" class="panel">
-                    <ui:Label name="economyTitle" class="panel-title gof-semibold" />
-                    <ui:VisualElement class="panel-accent" />
-                    <ui:Button name="economyDefaultButton" class="choice-button">
-                        <ui:Label name="economyDefaultLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="economyDefaultDesc" class="choice-desc" picking-mode="Ignore" />
-                    </ui:Button>
-                    <ui:Button name="economyAndroidButton" class="choice-button">
-                        <ui:Label name="economyAndroidLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="economyAndroidDesc" class="choice-desc" picking-mode="Ignore" />
-                    </ui:Button>
-                    <ui:Button name="economyBack" class="menu-button back-button gof-semibold" />
                 </ui:VisualElement>
 
                 <ui:VisualElement name="gameOptionsPanel" class="panel">
@@ -96,33 +91,69 @@
                         <ui:Label name="kaamoLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
                         <ui:Label name="kaamoDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
-                    <ui:Button name="hardcoreToggle" class="choice-button choice-button--toggle">
-                        <ui:Label name="hardcoreLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="hardcoreDesc" class="choice-desc" picking-mode="Ignore" />
+                    <ui:Button name="kaamoVipToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="kaamoVipLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="kaamoVipDesc" class="choice-desc" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="kaamoStackingToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="kaamoStackingLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="kaamoStackingDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
                     <ui:Button name="medalsToggle" class="choice-button choice-button--toggle">
                         <ui:Label name="medalsLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
                         <ui:Label name="medalsDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
-                    <ui:Button name="tutorialToggle" class="choice-button choice-button--toggle">
-                        <ui:Label name="tutorialLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="tutorialDesc" class="choice-desc" picking-mode="Ignore" />
+                    <ui:Button name="economyToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="economyTypeLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="economyTypeDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
-                    <ui:Button name="capitalToggle" class="choice-button choice-button--toggle">
-                        <ui:Label name="capitalLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="capitalDesc" class="choice-desc" picking-mode="Ignore" />
+                    <ui:Button name="blueprintAutocompleteToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="blueprintAutocompleteLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="blueprintAutocompleteDesc" class="choice-desc" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="cloakBayToggle" class="choice-button choice-button--toggle">
+                        <ui:Label name="cloakBayLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="cloakBayDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
                     <ui:Button name="gameOptionsStart" class="choice-button choice-button--start">
                         <ui:Label name="gameOptionsStartLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
-                        <ui:Label name="gameOptionsStartDesc" class="choice-desc" picking-mode="Ignore" />
                     </ui:Button>
                     <ui:Button name="gameOptionsBack" class="menu-button back-button gof-semibold" />
+                </ui:VisualElement>
+
+                <ui:VisualElement name="remakeOptionsPanel" class="panel">
+                    <ui:Label name="remakeOptionsTitle" class="panel-title gof-semibold" />
+                    <ui:VisualElement class="panel-accent" />
+                    <ui:ScrollView name="remakeOptionsScroll" class="remake-options-scroll">
+                        <ui:Button name="pirateEventsToggle" class="choice-button choice-button--toggle">
+                            <ui:Label name="pirateEventsLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                            <ui:Label name="pirateEventsDesc" class="choice-desc" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="capitalShipsToggle" class="choice-button choice-button--toggle">
+                            <ui:Label name="capitalShipsLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                            <ui:Label name="capitalShipsDesc" class="choice-desc" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="derelictWrecksToggle" class="choice-button choice-button--toggle">
+                            <ui:Label name="derelictWrecksLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                            <ui:Label name="derelictWrecksDesc" class="choice-desc" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="khadorSlipstreamToggle" class="choice-button choice-button--toggle">
+                            <ui:Label name="khadorSlipstreamLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                            <ui:Label name="khadorSlipstreamDesc" class="choice-desc" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:ScrollView>
+                    <ui:Button name="remakeOptionsStart" class="choice-button choice-button--start">
+                        <ui:Label name="remakeOptionsStartLabel" class="choice-title gof-semibold" picking-mode="Ignore" />
+                        <ui:Label name="remakeOptionsStartDesc" class="choice-desc" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="remakeOptionsBack" class="menu-button back-button gof-semibold" />
                 </ui:VisualElement>
 
                 <ui:VisualElement name="loadPanel" class="panel">
                     <ui:Label name="loadTitle" class="panel-title gof-semibold" />
                     <ui:VisualElement class="panel-accent" />
                     <ui:ScrollView name="slotList" class="slot-list" />
+                    <ui:Label name="campaignEditHint" class="slot-delete-hint" picking-mode="Ignore" />
                     <!-- Remake: Import / Export saves (SaveTransfer); the exports on the right in both rows; the delete hint (SaveSlotRow.AttachHint) goes above. -->
                     <ui:VisualElement name="saveTransferRow" class="mods-actions save-transfer-row">
                         <ui:Button name="importSavesButton" class="mods-action gof-semibold" />
@@ -135,6 +166,18 @@
                     </ui:VisualElement>
                     <ui:Label name="saveTransferNote" class="save-transfer-note" />
                     <ui:Button name="loadBack" class="menu-button back-button gof-semibold" />
+                </ui:VisualElement>
+
+                <ui:VisualElement name="editCampaignPanel" class="panel">
+                    <ui:Label name="campaignRulesTitle" class="panel-title gof-semibold" />
+                    <ui:ScrollView name="campaignRuleList" class="remake-options-scroll" />
+                    <ui:VisualElement class="campaign-rules-footer">
+                        <ui:VisualElement class="campaign-rules-actions">
+                            <ui:Button name="campaignRulesApply" class="menu-button gof-semibold" />
+                            <ui:Button name="campaignRulesCancel" class="menu-button gof-semibold" />
+                        </ui:VisualElement>
+                        <ui:Button name="campaignRulesDelete" class="menu-button campaign-rules-delete gof-semibold" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
                 <ui:VisualElement name="optionsPanel" class="panel">

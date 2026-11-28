@@ -12,7 +12,7 @@ namespace GoF2Remake.Tests
         public void EveryScopedPreferenceHasAnExplicitPresetValue(bool cosmetics)
         {
             var keys = cosmetics ? Settings.CosmeticsKeys.Concat(new[] { "rebuiltPlanets", "cameraShake", "remasteredEffects" }) : Settings.GameplayKeys;
-            var excluded = new[] { "cosmeticExperienceCustom", "gameplayExperienceCustom", "preciseShipCollision",
+            var excluded = new[] { "cosmeticExperienceCustom", "gameplayExperienceCustom", "preciseShipCollision", "autoJumpgate", "systemMapAnimationSpeed",
                 "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
                 "speedrunPosition", "speedrunLiveSplit" };
             CollectionAssert.AreEquivalent(keys.Except(excluded), ExperiencePresets.ForScope(cosmetics).Select(v => v.Key));
@@ -25,7 +25,8 @@ namespace GoF2Remake.Tests
             using (new SettingsScope<float>(() => Session.Difficulty, v => Session.Difficulty = v))
             {
                 Settings.ApplyScopedExperience(false, 1);
-                foreach (string id in new[] { "difficulty", "showStoryStep" })
+                Session.Difficulty = Session.DifficultyExtreme;
+                foreach (string id in new[] { "showStoryStep" })
                 {
                     var def = OptionsCatalog.All().First(v => v.id == id);
                     if (def.setIndex != null) def.setIndex(3);
@@ -57,11 +58,11 @@ namespace GoF2Remake.Tests
         {
             using (new DataUiTestKit.PrefsSnapshot())
             {
-                Settings.Es2Aiming = Settings.Es2NpcFlight = Settings.CollisionDamage = Settings.BlueprintAutocomplete = true;
+                Settings.Es2Aiming = Settings.Es2NpcFlight = Settings.CollisionDamage = true;
                 Settings.FastForwardCruise = true;
                 Settings.FlightStyle = FlightStyles.Free;
                 Settings.ApplyScopedExperience(false, choice);
-                Assert.IsFalse(Settings.Es2Aiming || Settings.Es2NpcFlight || Settings.CollisionDamage || Settings.BlueprintAutocomplete || Settings.FastForwardCruise);
+                Assert.IsFalse(Settings.Es2Aiming || Settings.Es2NpcFlight || Settings.CollisionDamage || Settings.FastForwardCruise);
                 Assert.AreEqual(FlightStyles.Original, Settings.FlightStyle);
                 Settings.Es2NpcFlight = true;
                 Assert.AreEqual(2, Settings.CurrentScopedExperience(false));
@@ -131,7 +132,7 @@ namespace GoF2Remake.Tests
                 else OptionsCatalog.ResetPage(OptionPage.Gameplay);
                 Assert.AreEqual(Session.DifficultyExtreme, Session.Difficulty);
                 Assert.AreEqual(1, Settings.CurrentScopedExperience(false));
-                Assert.IsTrue(Settings.PirateEvents);
+                Assert.IsFalse(Settings.PirateEvents);
                 Assert.IsFalse(Settings.ShowStoryStep);
                 Assert.IsFalse(Settings.SpeedrunTimer);
                 Assert.IsFalse(Settings.SpeedrunLiveSplit);

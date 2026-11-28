@@ -115,7 +115,7 @@ namespace GoF2Remake.Tests
         {
             using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
             {
-                Settings.KaamoVipMode = Settings.KaamoVipAlways;
+                Settings.KaamoVipMode = Settings.KaamoVipCard;
                 FreePlayAt(KaamoClub.Station);
                 Session.KaamoState = 3;
                 yield return Load("Station");

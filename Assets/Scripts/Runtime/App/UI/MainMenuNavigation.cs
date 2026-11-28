@@ -246,7 +246,7 @@ namespace GoF2Remake.UI
             var items = Focusables(scope);
             // The difficulty list starts on Normal (the original's first entry), Easy above it; the economy on the last one picked.
             var normal = scope.name == "difficultyPanel" ? scope.Q<Button>("normalButton")
-                : scope.name == "economyPanel" ? scope.Q<Button>(Session.Economy == Economy.Android ? "economyAndroidButton" : "economyDefaultButton")
+                : scope.name == "remakeOptionsPanel" ? scope.Q<Button>("remakeOptionsStart")
                 : scope.name == "gameOptionsPanel" ? scope.Q<Button>("gameOptionsStart") : null;
             // Not on a text field (the multiplayer panel's name is its first item): focused, it takes the keys, and on the
             // Xbox it can bring up the system keyboard, which then takes B (#20). The fields are one step away.

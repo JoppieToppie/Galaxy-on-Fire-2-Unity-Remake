@@ -32,7 +32,7 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(Settings.FreshInstall);
             Assert.AreEqual(1, Settings.CurrentScopedExperience(true));
             Assert.AreEqual(1, Settings.CurrentScopedExperience(false));
-            Assert.IsTrue(Settings.HangarFlights && Settings.KhadorSlipstream);
+            Assert.IsTrue(Settings.HangarFlights);
             Assert.IsFalse(Settings.FastForwardCruise || Settings.PlayOnInConversations || Settings.KeepEnemyLock);
             Assert.IsFalse(Settings.WelcomeShown);
             Settings.HangarFlights = false;
@@ -51,10 +51,10 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Settings.PirateEvents || Settings.KhadorSlipstream, "no new gameplay");
             Settings.ApplyExperience(Settings.ExperienceRemake);
             Assert.AreEqual(Settings.ExperienceRemake, Settings.CurrentExperience());
-            Assert.IsTrue(Settings.PirateEvents && Settings.CapitalShips && Settings.KhadorSlipstream && Settings.KaamoStacking);
-            Assert.IsFalse(Settings.OriginalTargetLock || Settings.InformerOriginalRule);
+            Assert.AreEqual(SavedGameRules.None, Session.GameRules);
+            Assert.IsFalse(Settings.OriginalTargetLock);
             Assert.AreEqual(SessionRules.CollisionMixed, Settings.ShipCollision);
-            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
+
             Settings.ApplyExperience(Settings.ExperienceCustom);
             Assert.AreEqual(Settings.ExperienceRemake, Settings.CurrentExperience(), "Custom sets nothing");
             Settings.ApplyExperience(Settings.ExperienceOriginal);
@@ -66,9 +66,9 @@ namespace GoF2Remake.Tests
         {
             NothingStored();
             Settings.ApplyExperience(Settings.ExperienceRemake);
-            Settings.CapitalShips = false;
+            Settings.EmpBreaksCloak = false;
             Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience());
-            Settings.CapitalShips = true;
+            Settings.EmpBreaksCloak = true;
             Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience(), "manual edits stay Custom until a named preset is selected");
             Settings.ApplyExperience(Settings.ExperienceOriginal);
             Settings.LaunchCamera = false;
@@ -76,26 +76,35 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void ThePlayersRowShowsTheMatchAndCustomOnlyReadsBack()
+        public void PresentationPresetsApplyOnlyTheirOptionsAndResetToFancy()
         {
-            NothingStored();
-            var row = OptionsCatalog.All().First(o => o.id == "cosmeticExperience");
-            var gameplay = OptionsCatalog.All().First(o => o.id == "gameplayExperience");
-            Assert.AreEqual(3, row.choices().Length, "Original, Remake, Custom");
-            Assert.AreEqual(2, row.getIndex(), "free Kaamo tools default on; the Original preset requires them off");
-            row.setIndex(1);
-            Assert.AreEqual(1, row.getIndex());
-            Assert.AreEqual(2, gameplay.getIndex(), "cosmetics do not activate a gameplay preset");
-            Assert.IsTrue(Settings.ShopByCategory);
-            gameplay.setIndex(1);
-            Assert.AreEqual(1, gameplay.getIndex());
-            Assert.AreEqual(1, row.getIndex(), "gameplay leaves cosmetics alone");
-            OptionsCatalog.All().First(o => o.id == "hangarFlights").setBool(false);
-            Assert.AreEqual(2, row.getIndex(), "like the graphics preset");
-            Assert.AreEqual(1, gameplay.getIndex());
-            row.setIndex(0);
-            Assert.IsFalse(Settings.ShopByCategory);
-            Assert.AreEqual(1, gameplay.getIndex());
+            Settings.InputHints = false;
+            Settings.ApplyPresentationPreset(0);
+            Assert.IsFalse(Settings.LaunchCamera || Settings.HangarFlights || Settings.AnimatedDialogue);
+            Assert.IsTrue(Settings.AutoAdvanceDialogue);
+            Assert.AreEqual(4, Settings.SystemMapAnimationSpeed);
+            Assert.AreEqual(0, Settings.CurrentPresentationPreset);
+            Settings.SystemMapAnimationSpeed = 2;
+            Assert.AreEqual(-1, Settings.CurrentPresentationPreset);
+            OptionsCatalog.ResetPage(OptionPage.Cosmetics);
+            Assert.IsTrue(Settings.LaunchCamera && Settings.HangarFlights && Settings.AnimatedDialogue && Settings.AutoAdvanceDialogue);
+            Assert.AreEqual(1, Settings.SystemMapAnimationSpeed);
+            Assert.AreEqual(1, Settings.CurrentPresentationPreset);
+            Assert.IsFalse(Settings.InputHints);
+        }
+
+        [Test]
+        public void GameplayExperienceLeavesQualityOfLifeSettingsAlone()
+        {
+            Assert.IsFalse(OptionsCatalog.All().Any(o => o.id == "cosmeticExperience"));
+            using var gate = new SettingsScope<bool>(() => Settings.AutoJumpgate, v => Settings.AutoJumpgate = v);
+            using var map = new SettingsScope<int>(() => Settings.SystemMapAnimationSpeed, v => Settings.SystemMapAnimationSpeed = v);
+            Settings.AutoJumpgate = false;
+            Settings.SystemMapAnimationSpeed = 2;
+            var gameplay = OptionsCatalog.All().Single(o => o.id == "gameplayExperience");
+            for (int i = 0; i < 3; i++) gameplay.setIndex(i);
+            Assert.IsFalse(Settings.AutoJumpgate);
+            Assert.AreEqual(2, Settings.SystemMapAnimationSpeed);
         }
 
         [Test]
@@ -141,7 +150,7 @@ namespace GoF2Remake.Tests
         [Test]
         public void AnOptionAddedLaterStaysTheOriginalsForACustomPlayer()
         {
-            MigratedBeforeTheOption(Settings.ExperienceRemake, () => Settings.CapitalShips = false);
+            MigratedBeforeTheOption(Settings.ExperienceRemake, () => Settings.EmpBreaksCloak = false);
             Settings.MigrateExperienceDefaults();
             Assert.IsFalse(Settings.BombArming);
             Assert.AreEqual(Settings.ExperienceCustom, Settings.CurrentExperience());
@@ -157,7 +166,7 @@ namespace GoF2Remake.Tests
             Settings.MigrateExperienceDefaults();
             Assert.IsFalse(Settings.FreshInstall);
             Assert.IsTrue(Settings.HangarFlights, "the old default kept");
-            Assert.IsTrue(Settings.KhadorSlipstream);
+            Assert.AreEqual(SavedGameRules.None, Session.GameRules);
             Assert.IsFalse(Settings.OriginalTargetLock, "the smart lock it had");
             Assert.AreEqual(SessionRules.CollisionMixed, Settings.ShipCollision);
             Assert.IsFalse(Settings.PirateEvents, "the player's own choice stays");
