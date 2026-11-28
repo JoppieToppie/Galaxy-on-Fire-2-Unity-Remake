@@ -408,7 +408,17 @@ namespace GoF2Remake.Flight
             foreach (var collider in hull.colliders)
             {
                 if (collider == null || !collider.enabled) continue;
-                var point = collider.ClosestPoint(from);
+                Vector3 point;
+                // Physics.ClosestPoint does not support non-convex MeshColliders. Turret lead
+                // can query these on ordinary ship hulls, so use their world AABB as a safe,
+                // inexpensive fallback instead of issuing an unsupported physics query.
+                var mesh = collider as MeshCollider;
+                if (mesh != null && !mesh.convex)
+                {
+                    var bounds = mesh.bounds;
+                    point = bounds.Contains(from) ? transform.position : bounds.ClosestPoint(from);
+                }
+                else point = collider.ClosestPoint(from);
                 float d = (point - from).sqrMagnitude;
                 if (d < bestD) { bestD = d; best = point; }
             }

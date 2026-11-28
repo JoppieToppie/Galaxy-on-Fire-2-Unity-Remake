@@ -49,21 +49,32 @@ namespace GoF2Remake.Flight
         public bool Step(Vector3 world, float dtMs)
         {
             if (!Settings.TurretLeadAim) return StepOriginal(world, dtMs);
-            var d = (world - gunNode.position).normalized;
-            var local = gunNode.InverseTransformDirection(d);
-            float yawError = Mathf.Atan2(local.x, local.z);
-            float pitchError = Mathf.Atan2(local.y, Mathf.Sqrt(local.x * local.x + local.z * local.z));
             LimitHit = false;
+
+            // Yaw belongs to the base pivot's frame, not the already-pitched gun frame.
+            // Apply yaw first, then measure pitch in the gun's updated frame; otherwise pitch
+            // contaminates yaw and the two axes fight each other on elevated/depressed targets.
+            var direction = (world - gunNode.position).normalized;
+            var yawLocal = yawNode.InverseTransformDirection(direction);
+            float yawError = Mathf.Atan2(yawLocal.x, yawLocal.z);
             Yaw += Mathf.Clamp(yawError, -yawRatePerMs * dtMs, yawRatePerMs * dtMs);
+            Apply();
+
+            direction = (world - gunNode.position).normalized;
+            var pitchLocal = gunNode.InverseTransformDirection(direction);
+            float pitchError = Mathf.Atan2(pitchLocal.y,
+                Mathf.Sqrt(pitchLocal.x * pitchLocal.x + pitchLocal.z * pitchLocal.z));
             Turn(0f, Mathf.Clamp(pitchError, -pitchRatePerMs * dtMs, pitchRatePerMs * dtMs));
             Apply();
 
-            // Check the updated pose. The old dot-product dead zone was roughly 2.9 degrees wide and used stale angles,
-            // so turrets could report alignment and fire after crossing that wide zone while still substantially off target.
-            local = gunNode.InverseTransformDirection((world - gunNode.position).normalized);
-            float remainingYaw = Mathf.Atan2(local.x, local.z);
-            float remainingPitch = Mathf.Atan2(local.y, Mathf.Sqrt(local.x * local.x + local.z * local.z));
-            return local.z > 0f && Mathf.Abs(remainingYaw) <= AlignmentToleranceRad &&
+            // Verify each axis in the frame in which that axis is actually controlled.
+            direction = (world - gunNode.position).normalized;
+            yawLocal = yawNode.InverseTransformDirection(direction);
+            pitchLocal = gunNode.InverseTransformDirection(direction);
+            float remainingYaw = Mathf.Atan2(yawLocal.x, yawLocal.z);
+            float remainingPitch = Mathf.Atan2(pitchLocal.y,
+                Mathf.Sqrt(pitchLocal.x * pitchLocal.x + pitchLocal.z * pitchLocal.z));
+            return yawLocal.z > 0f && Mathf.Abs(remainingYaw) <= AlignmentToleranceRad &&
                    Mathf.Abs(remainingPitch) <= AlignmentToleranceRad;
         }
 
