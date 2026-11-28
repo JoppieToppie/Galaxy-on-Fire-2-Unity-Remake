@@ -556,6 +556,12 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   replacement flight model as a hangar ship while the additive Station scene was unloading, capping its drive and hiding
   boost effects. Hangar models keep their context when carried under the orbit's station hull; other orbit ships retain
   flight effects. Tests `EngineStationContextTests` cover flight inputs, hangar previews and all five effect components.
+  **External docking** (PR merged 2026-11-19, `SpaceLevelExternalDocks`, `ExternalDockingRules`): a ship with
+  `"dockingRole": "external"`, a slotType 8 hardpoint and a station's `orbit.externalDocks` point attaches to the hull
+  outside, never a hangar. Every other ship the player can own lands in the hangar whatever its size: the PR also refused
+  hulls over 150 m (`PlayerHull.Big`) there, which stranded big mod ships outside (Discord 2026-11-21, the UNSC
+  Savannah); taken out 2026-11-28, the hangar shrinks them (`PlayerHull.FitHangar`). Not done: changing equipment while
+  externally docked.
 - **Base content** (`ModManager.BaseContent`, `BaseContentSource`, `Resources/GoF2Base`, 2026-11-01): what the remake adds to the
   game itself, so far the Khador Slipstream, its blueprint and Khador at Thynome. Why not rows in `items.json`: the original
   tables are numbered 0..232 back to back with the text blocks (`GameNames`: 233 reads a medal's name), the mods' numbers start

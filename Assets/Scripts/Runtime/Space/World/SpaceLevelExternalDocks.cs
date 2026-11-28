@@ -16,9 +16,10 @@ namespace GoF2Remake.World
         /// <summary>The ship's class / role allows external docking, regardless of legacy hull-size or ship-index guesses.</summary>
         bool ExternalDockClass => Modding.ExternalDockingRules.CanDockExternally(PlayerShipData);
 
-        /// <summary>Internal docking remains available to fighter / interceptor / bomber roles and legacy small hulls.</summary>
+        /// <summary>Hangar docking: every ship the player can own but an external-role one, big mod hulls included (Discord
+        /// 2026-11-21: the UNSC Savannah could no longer land after a 150 m limit came in with external docking).</summary>
         bool InternalDockEligible => Player != null && PlayerHull.PlayerShip
-                                     && Modding.ExternalDockingRules.CanDockInternally(PlayerShipData, PlayerHull.Big);
+                                     && Modding.ExternalDockingRules.CanDockInternally(PlayerShipData);
 
         /// <summary>External docking requires both the designated large-ship class role and an authored slotType 8 hardpoint.</summary>
         bool ExternalDockEligible

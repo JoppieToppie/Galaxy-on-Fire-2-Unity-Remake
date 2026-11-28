@@ -12,9 +12,9 @@ namespace GoF2Remake.Modding
         public static bool CanDockExternally(ShipData ship) =>
             string.Equals(ship?.dockingRole, "external", StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>Legacy hull size remains the physical limit for internal docking; external role never falls back to a hangar.</summary>
-        public static bool CanDockInternally(ShipData ship, bool largeHull) =>
-            !largeHull && !CanDockExternally(ship);
+        /// <summary>Any ship but an external-role one lands in a hangar, however big (the hangar shrinks a hull over 150 m:
+        /// PlayerHull.FitHangar); an external role never falls back to a hangar.</summary>
+        public static bool CanDockInternally(ShipData ship) => !CanDockExternally(ship);
 
         /// <summary>ModContent.ParseShips: accept only the documented per-ship docking roles.</summary>
         public static void CheckShip(JObject o, string where, ModInfo mod, string file)

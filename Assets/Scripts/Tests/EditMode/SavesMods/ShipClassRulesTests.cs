@@ -232,5 +232,17 @@ namespace GoF2Remake.Tests
             Assert.Throws<ModJsonException>(() => ShipClassRules.CheckItem(JObject.Parse("{ 'allowedClasses': { 'a': 1 } }"), "items.json", null, "items.json"));
             Assert.DoesNotThrow(() => ShipClassRules.CheckItem(JObject.Parse("{ 'allowedClasses': ['a'], 'excludedClasses': 'b' }"), "items.json", null, "items.json"));
         }
+
+        // ---- docking role ---------------------------------------------------------------------------------------------
+
+        [Test]
+        public void OnlyAnExternalRoleKeepsAShipOutOfTheHangar()
+        {
+            // no size limit: a big mod hull without a role lands in the hangar (Discord 2026-11-21, the UNSC Savannah)
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(new ShipData()));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(new ShipData { dockingRole = "internal" }));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(null));
+            Assert.IsFalse(ExternalDockingRules.CanDockInternally(new ShipData { dockingRole = "external" }));
+        }
     }
 }
