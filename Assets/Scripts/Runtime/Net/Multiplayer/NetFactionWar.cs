@@ -179,6 +179,9 @@ namespace GoF2Remake.Multiplayer
                     if (pilot != null && pilot.IsSpawned && pilot.InSpace && pilot.Station == battle.orbit)
                         EndFactionBattleRpc(battle.id, battle.orbit, battle.shipsPerSide,
                             RpcTarget.Single(pilot.OwnerClientId, RpcTargetUse.Temp));
+            // Completed or expired engagements release their live fleet to the occupied orbit.
+            // Only an empty orbit needs proxy cleanup for abstract simulation.
+            if (notify && WarOrbitOccupied(battle.orbit)) return;
             // Drop the old proxies when the orbit empties. A returning runner must only spawn the surviving slots.
             var remove = new List<NetworkObject>();
             foreach (var obj in NetworkManager.SpawnManager.SpawnedObjectsList)
@@ -227,7 +230,7 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer || !ModNpcFactionWar.Enabled || ship == null || ship.IsJunk || ship.IsWingman ||
                 ship.Spec?.spec == null || ship.Spec.spec.capitalPart || ship.Spec.spec.group == NpcGroup.Turret ||
                 !fleetByOrbit.TryGetValue(ship.Station, out var roster) ||
-                roster.creator == ulong.MaxValue || roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt) return false;
+                roster.finished || roster.creator == ulong.MaxValue || roster.creator != ship.Creator || ship.SpawnedAt < roster.startedAt) return false;
             var battle = roster.battle;
             int slot = battle.Slot(ship.EventTag);
             if (!battle.IsRosterTag(ship.EventTag) || race != (slot < battle.shipsPerSide ? battle.defender : battle.attacker))
@@ -355,7 +358,7 @@ namespace GoF2Remake.Multiplayer
                     credits = credits, loot = loot
                 });
             }
-            factionWar.ReplaceOrbitRewards(roster.battle.orbit, pending);
+            factionWar.AddOrbitRewards(roster.battle.orbit, pending);
         }
 
         void NotifyVictoryRewards(int orbit)
@@ -498,7 +501,7 @@ namespace GoF2Remake.Multiplayer
             roster.finished = true;
 
             bool captured = winner == battle.attacker;
-            if (captured) CreateVictoryRewards(roster, winner);
+            CreateVictoryRewards(roster, winner);
             factionWarDirty = true;
             FlushFactionWar();
             NetNews.Post(NetNews.Kind.War, captured
@@ -509,7 +512,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var pilot in NetPlayer.All)
                 if (pilot != null && pilot.IsSpawned && pilot.InSpace && pilot.Station == battle.orbit)
                     Notify(pilot.OwnerClientId, notice);
-            if (captured) NotifyVictoryRewards(battle.orbit);
+            NotifyVictoryRewards(battle.orbit);
             ModScripts.Raise("npcFactionBattleResolved", battle.orbit, battle.system, winner, captured);
         }
     }

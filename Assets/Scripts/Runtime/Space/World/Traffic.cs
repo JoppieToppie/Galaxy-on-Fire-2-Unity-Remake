@@ -588,7 +588,7 @@ namespace GoF2Remake.World
             foreach (var ship in Ships)
             {
                 if (ship == null || ship.Gone) continue;
-                if (battle.OwnsTag(ship.Spec.eventTag) || (ship.Spec.capitalHost != null && battle.OwnsTag(ship.Spec.capitalHost.eventTag))) ship.Vanish();
+                if (battle.OwnsTag(ship.Spec.eventTag)) ship.Spec.eventTag = 0;
             }
         }
 

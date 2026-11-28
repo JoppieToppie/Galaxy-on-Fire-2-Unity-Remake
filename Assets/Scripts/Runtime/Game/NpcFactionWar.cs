@@ -190,6 +190,13 @@ namespace GoF2Remake.Data
                 string key = Key(orbit);
                 rewards.RemoveAll(r => r.orbitKey == key);
                 dormantRewards.RemoveAll(r => r.orbitKey == key);
+                AddOrbitRewards(orbit, pending);
+            }
+
+            // Defensive wins must not erase previously earned, unclaimed rewards.
+            public void AddOrbitRewards(int orbit, IEnumerable<VictoryReward> pending)
+            {
+                string key = Key(orbit);
                 foreach (var reward in pending)
                 {
                     reward.orbitKey = key;
