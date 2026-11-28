@@ -274,6 +274,8 @@ namespace GoF2Remake.Multiplayer
             var result = new Dictionary<string, Shipment>();
             if (root["shipments"] == null) return result; // old version-1 snapshots
             if (!(root["shipments"] is JArray rows)) throw new JsonException("Invalid shipments.");
+            var freightTags = new HashSet<int>();
+            var raidTags = new HashSet<int>();
             foreach (var token in rows)
             {
                 if (!(token is JObject row) || row["key"]?.Type != JTokenType.String ||
@@ -290,7 +292,7 @@ namespace GoF2Remake.Multiplayer
                 int tag = row["freightTag"] == null ? 0 : ModAdvancedEconomy.MigrateFreightTag((int)row["freightTag"]);
                 int orbit = row["orbit"] == null ? -1 : (int)row["orbit"];
                 int totalTicks = row["totalTicks"] == null ? 0 : (int)row["totalTicks"];
-                if ((tag != 0 && (!ModAdvancedEconomy.IsFreightTag(tag) || result.Values.Any(s => s.FreightTag == tag))) ||
+                if ((tag != 0 && (!ModAdvancedEconomy.IsFreightTag(tag) || !freightTags.Add(tag))) ||
                     orbit < -1 || totalTicks < 0 || totalTicks > 96 || (totalTicks != 0 && totalTicks < ticks))
                     throw new JsonException("Invalid physical freight identity or progress.");
                 int remainingSeconds = row["remainingSeconds"] == null ? -1 : (int)row["remainingSeconds"];
@@ -313,7 +315,7 @@ namespace GoF2Remake.Multiplayer
                 if (raidSystem < -1 || raidDead < 0 || raidDead > 7 || raidKills < 0 || raidKills > deadCount ||
                     raidObserved < 0 || raidObserved > 20 || (raidBase == 0 && (raidDead != 0 || raidKills != 0 || raidObserved != 0)) ||
                     (raidBase != 0 && (raidSystem < 0 || !ModAdvancedEconomy.IsFreightRaidTag(raidBase) || raidBase % 4 != 0 ||
-                    result.Values.Any(s => s.RaidBase == raidBase)))) throw new JsonException("Invalid freight raid state.");
+                    !raidTags.Add(raidBase)))) throw new JsonException("Invalid freight raid state.");
                 var contributors = new List<string>();
                 if (row["raidContributors"] != null)
                 {
@@ -790,7 +792,8 @@ namespace GoF2Remake.Multiplayer
             var rows = new List<string>();
             var db = LocalActive ? Database.Shared : NetGame.Db;
             if (db == null) return null;
-            foreach (var pair in shipments.OrderBy(p => p.Key, StringComparer.Ordinal))
+            foreach (var pair in shipments.Where(p => p.Value.Orbit == orbit && p.Value.FreightTag != 0 && p.Value.Amount > 0)
+                .OrderBy(p => p.Key, StringComparer.Ordinal))
             {
                 var ship = pair.Value;
                 if (ship.Orbit != orbit || ship.FreightTag == 0 || ship.Amount <= 0) continue;
@@ -1012,11 +1015,8 @@ namespace GoF2Remake.Multiplayer
         {
             var result = new Dictionary<(int, int), NetProxy>();
             if (!Physical || LocalActive) return result;
-            var state = NetState.Instance;
-            if (state == null || state.NetworkManager == null || state.NetworkManager.SpawnManager == null) return result;
-            foreach (var obj in state.NetworkManager.SpawnManager.SpawnedObjectsList)
+            foreach (var proxy in NetProxy.FreightProxies)
             {
-                var proxy = obj.GetComponent<NetProxy>();
                 if (proxy == null || !proxy.IsSpawned || !proxy.FlyingNow || !ModAdvancedEconomy.IsFreightTag(proxy.EventTag) ||
                     NetState.RunnerOf(proxy.Station)?.OwnerClientId != proxy.OwnerClientId) continue;
                 result[(proxy.Station, proxy.EventTag)] = proxy;
