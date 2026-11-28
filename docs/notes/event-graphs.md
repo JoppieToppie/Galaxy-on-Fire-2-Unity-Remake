@@ -333,3 +333,36 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   they become Unity (cutscene / order places, pickups) they go through `OrbitScale.ToUnity`, and what scripts read back
   (`EventHost.ToGame`, `distance(...)`, `on near`) is unmapped with `OrbitScale.ToGame` / `UnplaceUnity`, so a graph
   written for the original layout works at any scale (the identity in multiplayer).
+- **Movie mode** (remake, 2026-11-28, the user: "many people want to make movies ... a timeline where you can move /
+  spawn / call anything based on time so can set up full scenes"; `UI.MovieMode`, `Events.MovieTimeline`; tests
+  `MovieTimelineTests`): the pause menu's Recording > "Movie mode" (single player in flight, not in a cutscene:
+  `MovieMode.Available`) closes the menu and holds the world (`Navigation.PauseMenuOpen`) under the photo tools' free
+  camera and Camera settings (a `PhotoTools` of its own; `PhotoSettings.Free` kept on, no orbit hint, given back on
+  leaving) and a timeline
+  panel along the bottom (FlightHud.uss `.movie-*`): lanes Camera keys / Shots & screen / Ships / Text & radio / Sound
+  & music / Other (`MovieTimeline.TrackOf`, by the command word), a ruler, a playhead (click / drag the lanes, `,` `.`
+  step 0.1 s, Shift 1 s, Home / End), diamond markers dragged to retime (0.05 s steps). **Cues** are any event command
+  line at a time (`/` and line breaks dropped): typed in the inspector (Test runs it at once through
+  `NetCommands.RunOnServer` and shows the answer; a tested spawn isn't the take's and stays) or started from the
+  Add cue buttons (spawn the player's hull `named ShipN at` 250 m where the camera looks, `npc ... goto` there,
+  `attack player`, a followed `camera` shot, fade, letterbox, title, radio as player, music, sound). **Camera keys**
+  (K; at the playhead an existing key is updated): the camera's pose in orbit game coordinates (`OrbitScale.ToGame`),
+  its Unity rotation with the roll and its field of view; a take flies a uniform Catmull-Rom path through them, the
+  rotation slerped, held before the first / after the last; an end key stands in for its missing neighbour (the path
+  eases out of it) and a "cut" key jumps at its time (the camera holds the key before it). View: Keys (V) previews the
+  path at the playhead while set up. **Set start**: the player's ship is put there before each take. **Play** (F5, the
+  controller's Start): `MovieTimeline.Script()` (`set autostop = 0`, the cues sorted with `wait`s between, ties in the
+  list's order, a wait to the length) checked (`EventRunner.Check`) and run as the global event "movie"
+  (`EventRunner.StartText`; refused while another global event runs, quests aren't global); the last take's ships
+  (its spawn batches, `EventRunner.BatchTagsOf`, `NpcShip.Vanish`) and objects (new "Debug ..." `Obstacle`s and their
+  markers) go first; the world runs, the HUD hides (`hud-cinematic`: radio, fades, titles and dialogue show), the
+  player flies; with camera keys the chase camera is off and `MovieMode.LateTick` (FlightHud's LateUpdate) places the
+  camera, a `camera` cue's shot (EventCutscene, order 5000) wins while it runs; without keys the chase camera and the
+  camera cues film. Esc / Start or the length stops it (`EventRunner.StopText`, quiet; the run's End sends cutscene
+  end / fade clear) and the world stands where it was, the free camera there. Recording is left to screen recorders
+  (OBS, Game Bar, ShadowPlay): nothing of the editor shows in a take. The timeline is kept for the run (static) and
+  saved / opened as JSON `<data>/Movies/<name>.gof2movie` (`MovieTimeline.Save` / `Load` / `List`; NEW / OPEN with
+  unsaved changes ask a second press; a movie made in another orbit warns: its places are that orbit's). Not done:
+  multiplayer takes (no world hold; `@a` would film everyone), the controller can't reach the panel's buttons,
+  hackable wrecks a take spawns aren't cleared, slow motion. Verified in Play mode (`MovieModeFlightTests`, and by hand
+  through eval: the panel, a take with letterbox and title and no HUD or editor on screen).

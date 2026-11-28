@@ -28,6 +28,8 @@ namespace GoF2Remake.UI
         ControlsFlight, ControlsInvert, ControlsMouse, ControlsController, ControlsTouch, ControlsVr,
         AccessSize, AccessVisibility, AccessPrivacy,
         BindFlight, BindWeapons, BindNavigation, BindEquipment, BindCamera, BindMultiplayer,
+        // (added later, kept at the end: the Graphics tab's screen recorder rows)
+        GraphicsRecording,
     }
     public enum OptionGroup { None, Debug, World, Progression, Combat, Flight, Custom, Mods, Missions }
 
@@ -260,6 +262,7 @@ namespace GoF2Remake.UI
             OptionSection.GraphicsWorld => X("sectionGraphicsWorld", "Skies and planets"),
             OptionSection.GraphicsCamera => X("sectionGraphicsCamera", "Camera"),
             OptionSection.GraphicsInterface => X("sectionInterface", "UI"),
+            OptionSection.GraphicsRecording => X("sectionGraphicsRecording", "Recording"),
             OptionSection.SoundVolume => X("sectionSoundVolume", "Volume"),
             OptionSection.SoundEffects => X("sectionSoundEffects", "Sound effects"),
             OptionSection.SoundMusic => X("sectionSoundMusic", "Battle music"),

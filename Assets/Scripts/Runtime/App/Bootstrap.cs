@@ -80,6 +80,7 @@ namespace GoF2Remake
             UI.DiscordPresence.Install();         // desktop: Discord Rich Presence
             Flight.Haptics.Install();             // controller rumble and phone vibration
             UI.FpsCounter.Install();              // the frame rate option (Settings.ShowFps)
+            UI.ScreenRecorder.Install();          // F9: the built-in screen recorder and its clips (Windows, Android)
             UI.StoryStepLabel.Install();          // the story step and station, bottom right (for bug screenshots)
             UI.SpeedrunOverlay.Install();         // the speedrun timer and its splits (Settings.SpeedrunTimer)
             Vr.VrMode.Start();                    // -vr / -vrsim: OpenXR and the VR rig per scene

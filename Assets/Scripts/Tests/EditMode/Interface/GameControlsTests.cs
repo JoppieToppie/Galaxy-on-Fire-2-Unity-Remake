@@ -56,12 +56,13 @@ namespace GoF2Remake.Tests
             "thrust", "strafe", "hover", "dampeners", "drift", "travelBoost", "freeLookHold",   // free flight (PR #87), Chorus's drift and travel boost (2026-11-11)
             "device1", "device2", "device3",   // the active devices (PlayerDevices)
             "headlights",   // EVERSPACE 2's headlights (Flight.Headlights)
+            "recordVideo",   // the built-in screen recorder (UI.ScreenRecorder)
         };
 
         [Test]
-        public void ThereAreFortySixFlightRows()
+        public void ThereAreFortySevenFlightRows()
         {
-            Assert.AreEqual(46, GameControls.Rows.Count);
+            Assert.AreEqual(47, GameControls.Rows.Count);
             CollectionAssert.AreEqual(RowIds, GameControls.Rows.Select(r => r.id).ToArray(), "in the options' order (the overrides are kept by action name)");
             foreach (var r in GameControls.Rows)
             {

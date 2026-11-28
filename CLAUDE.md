@@ -36,7 +36,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [speedrun.md](docs/notes/speedrun.md) | The speedrun timer, splits, routes, the runs folder (.lss), comparisons, the LiveSplit link |
 | [saves.md](docs/notes/saves.md) | Difficulty, save slots, original-game saves, deleting, export / import, save folder, Hardcore, New Game+ |
 | [options.md](docs/notes/options.md) | Text tables and languages, the story step label, every option, bloom, frame rate, graphics presets, texture quality, upscalers (XeSS), DLSS presets, frame generation (DLSS and FSR), Reflex, Anti-Lag 2, Image Scaling / Dynamic Vibrance, neural rendering, HDR, the Graphics tab's Apply and categories, the benchmark |
-| [platforms.md](docs/notes/platforms.md) | Discord, app icon, Android, iOS, UWP, Vulkan pre-transform, version, update check, hitch logger, issue reports |
+| [platforms.md](docs/notes/platforms.md) | Discord, app icon, Android, iOS, UWP, Vulkan pre-transform, version, update check, screen recorder and clips, hitch logger, issue reports |
 | [debug-tools.md](docs/notes/debug-tools.md) | The Debug panel and in-game Debug pages: missions, cheats, give items, spawn, presets, ships |
 | [multiplayer.md](docs/notes/multiplayer.md) | Session model, menu, Relay / Lobby, version check, players, PvP, leaving, rules, testing |
 | [multiplayer-sync.md](docs/notes/multiplayer-sync.md) | Orbit authority, NPCs and players, proxies, shots, crates, mining, hangars, shared stock |
@@ -45,7 +45,7 @@ This file holds only what every task needs. Everything about one area of the gam
 | [multiplayer-social.md](docs/notes/multiplayer-social.md) | Squads, squad bar missions, arena matches, trades, distress calls |
 | [multiplayer-coop.md](docs/notes/multiplayer-coop.md) | The co-op campaign: hosting, the leader's story, catch-up, crew wins, story orbit followers, holds, failures |
 | [chat-and-commands.md](docs/notes/chat-and-commands.md) | Chat, chat commands, admin tools, selectors |
-| [event-graphs.md](docs/notes/event-graphs.md) | Events, event graph files and nodes, quests, bar missions, cutscenes, ship orders, wormholes |
+| [event-graphs.md](docs/notes/event-graphs.md) | Events, event graph files and nodes, quests, bar missions, cutscenes, ship orders, wormholes, Movie mode (the timeline) |
 | [mods.md](docs/notes/mods.md) | Mod format, items, ships, numbers, saves, campaigns, options, flight styles, conditions, traffic, capital ships, NPC ships, mobile stations, ES2 docking, blueprints, scripts (Lua), browser, multiplayer |
 | [mods-models.md](docs/notes/mods-models.md) | Ship models, how a ship is seen, engine effects, exhaust styles, textures / skins, image formats, loading |
 | [mods-ship-kits.md](docs/notes/mods-ship-kits.md) | Ship kits, builds, colours, skins, hardpoint models, engine flames, lateral thrusters, liveries, decals, engine trails |

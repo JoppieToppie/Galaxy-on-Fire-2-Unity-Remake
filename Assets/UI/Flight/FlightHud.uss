@@ -1869,3 +1869,185 @@
 .hud-minimal .lock-plate--peek {
     visibility: visible;
 }
+
+/* Movie mode (MovieMode): the photo overlay with the timeline panel along the bottom. Hide UI (orbit-view--clean) takes it
+   away too; the message sits above the panel. */
+.orbit-view--clean .movie-panel {
+    display: none;
+}
+
+.movie-overlay .movie-message {
+    bottom: 330px;
+}
+
+.movie-panel {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 16px;
+    padding: 8px 12px;
+    background-color: var(--gof-panel);
+    border-width: 1px;
+    border-color: var(--gof-line);
+}
+
+.movie-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.movie-button {
+    height: 32px;
+    margin: 2px 3px;
+    padding: 0 10px;
+    font-size: var(--text-small);
+    color: var(--gof-text);
+    background-color: var(--gof-cyan-faint);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    border-radius: 2px;
+}
+
+.movie-button:hover {
+    border-color: var(--gof-cyan);
+}
+
+.movie-button:active {
+    color: var(--gof-amber);
+}
+
+.movie-button--primary {
+    background-color: var(--gof-amber-soft);
+    border-color: var(--gof-amber);
+}
+
+.movie-button--on {
+    border-color: var(--gof-amber);
+    color: var(--gof-amber);
+}
+
+.movie-label {
+    margin: 0 6px;
+    font-size: var(--text-small);
+    color: var(--gof-text-dim);
+}
+
+.movie-time {
+    min-width: 150px;
+    margin: 0 8px;
+    font-size: var(--text-small);
+    color: #FFFFFF;
+    -unity-text-align: middle-center;
+}
+
+.movie-field {
+    margin: 2px 4px;
+}
+
+.movie-field--short {
+    width: 90px;
+}
+
+.movie-field--name {
+    width: 170px;
+}
+
+.movie-field--command {
+    flex-grow: 1;
+    min-width: 360px;
+}
+
+.movie-toggle {
+    margin: 0 8px;
+    color: var(--gof-text);
+}
+
+.movie-tracks {
+    flex-direction: row;
+    margin: 4px 0;
+}
+
+.movie-track-names {
+    width: 150px;
+    padding-top: 20px;
+}
+
+.movie-track-name {
+    height: 24px;
+    font-size: 14px;
+    color: var(--gof-text-dim);
+    -unity-text-align: middle-left;
+}
+
+.movie-lanes {
+    flex-grow: 1;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.movie-ruler {
+    height: 20px;
+    border-bottom-width: 1px;
+    border-color: var(--gof-line);
+}
+
+.movie-tick {
+    position: absolute;
+    top: 0;
+    height: 20px;
+    padding-left: 3px;
+    font-size: 12px;
+    color: var(--gof-text-dim);
+    border-left-width: 1px;
+    border-color: var(--gof-line);
+}
+
+.movie-lane {
+    height: 24px;
+    border-bottom-width: 1px;
+    border-color: rgba(62, 200, 255, 0.08);
+}
+
+/* A diamond: a square turned 45 degrees, centred on its time. */
+.movie-marker {
+    position: absolute;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    rotate: 45deg;
+    background-color: var(--gof-cyan);
+    border-width: 1px;
+    border-color: rgb(0, 0, 0);
+}
+
+.movie-marker--key {
+    background-color: var(--gof-amber);
+}
+
+.movie-marker--cut {
+    background-color: var(--gof-amber);
+    border-width: 2px;
+    border-color: #FFFFFF;
+}
+
+.movie-marker--selected {
+    background-color: #FFFFFF;
+    scale: 1.35 1.35;
+}
+
+.movie-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background-color: rgb(255, 70, 70);
+}
+
+.movie-help {
+    font-size: 13px;
+    color: var(--gof-text-dim);
+    white-space: normal;
+}

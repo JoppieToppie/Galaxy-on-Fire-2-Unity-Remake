@@ -23,7 +23,9 @@ namespace GoF2Remake.UI
 {
     public partial class PauseMenu
     {
-        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug, Report, ReportBusy, ReportDone }
+        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug, Report, ReportBusy, ReportDone, Recording }
+
+        bool MovieAvailable => OpenMovie != null && MovieMode.Available(level);
 
         readonly VisualElement root, backdrop, panel;
         VisualElement body, pagePrompts;
@@ -49,6 +51,8 @@ namespace GoF2Remake.UI
         public Action InfoSound;
         /// <summary>59 Action Freeze (MenuTouchWindow button 0x13 -> state 0xd); set by FlightHud.</summary>
         public PhotoMode Photo;
+        /// <summary>Movie mode's entry (FlightHud's MovieMode.Enter).</summary>
+        public Action<SpaceLevel> OpenMovie;
         /// <summary>Modified: the hover sound (the mouse onto an entry, the keys moving the highlight); set by FlightHud.</summary>
         public Action HoverSound;
         /// <summary>Modified: the button sounds (true push, false release): a tab switched with Q / E, an entry taken with the
@@ -479,6 +483,9 @@ namespace GoF2Remake.UI
                     if (campaign != null && campaign.CanSkipCutscene) Item(T(395), () => { Close(); campaign.SkipCutscene(); });
                     // MGame::setCinematicMode: not while a cutscene holds the camera.
                     if (Photo != null && level != null && !level.Cutscene) Item(T(59), () => Show(Page.Photo));
+                    // Remake: Movie mode, the screen recorder and its clips under one entry (the user's request).
+                    if (MovieAvailable || ScreenRecorder.Supported)
+                        Item(Localization.Extra("sectionGraphicsRecording", "Recording").UiCaps(), () => Show(Page.Recording));
                     // Remake: a Mod Builder test flight goes back to the builder's hangar instead (Modding.ModBuilder).
                     if (Modding.ModBuilder.TestFlying)
                         Item(Localization.Extra("mbBackToBuilder", "Back to Mod Builder").UiCaps(), () => { Close(); Modding.ModBuilder.EndTestFlight(false); });
@@ -562,6 +569,24 @@ namespace GoF2Remake.UI
                     Item(T(135), () => Show(Page.Main));
                     InputGlyph.PadPrompt(items[items.Count - 1] as Button, PadButton.B);
                     index = 1;
+                    break;
+                case Page.Recording:
+                    // Remake: Movie mode (MovieMode, single player: the menu closes, the scene stays still for setting up),
+                    // the built-in screen recorder (ScreenRecorder: the menu closes and the game is recorded) and its clips.
+                    title.text = Localization.Extra("sectionGraphicsRecording", "Recording").UiCaps();
+                    // Start / Stop recording first (the user's request), then Movie mode, then the clips.
+                    if (ScreenRecorder.Supported)
+                    {
+                        if (ScreenRecorder.Recording)
+                            Item(Localization.Extra("pauseRecordStop", "Stop recording").UiCaps() + "  " + ClipLibrary.Duration(ScreenRecorder.Seconds),
+                                 () => { ScreenRecorder.Stop(); Show(Page.Recording); });
+                        else Item(Localization.Extra("pauseRecordStart", "Start recording").UiCaps(), () => { Close(); ScreenRecorder.Begin(); });
+                    }
+                    if (MovieAvailable)
+                        Item(Localization.Extra("movieMenu", "Movie mode").UiCaps(), () => { var l = level; Close(); OpenMovie(l); });
+                    if (ScreenRecorder.Supported)
+                        Item(Localization.Extra("recordedClips", "Recorded clips").UiCaps(), ScreenRecorder.ShowClips);
+                    BackItem(() => Show(Page.Main));
                     break;
                 case Page.Missions:
                     title.text = T(129);

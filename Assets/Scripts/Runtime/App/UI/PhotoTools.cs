@@ -345,6 +345,12 @@ namespace GoF2Remake.UI
             free.Begin(pos, rot, shipCentre != null ? shipCentre() : pos, freeRange, floorY);
         }
 
+        /// <summary>The free camera takes up again from the host's pose ('pose' given to Begin): Movie mode after a take.</summary>
+        public void RestartFree()
+        {
+            if (active && PhotoSettings.Free) StartFree();
+        }
+
         public void ToggleFree()
         {
             sound?.Invoke(false);
@@ -571,11 +577,12 @@ namespace GoF2Remake.UI
         public static Quaternion Rolled(Quaternion rot) => rot * Quaternion.AngleAxis(PhotoSettings.Roll, Vector3.forward);
 
         /// <summary>Every frame after the host placed its camera: the flight's lens (field of view, roll, near plane), the
-        /// effects, the ship shown or hidden, the frame guides.</summary>
-        public void LateTick()
+        /// effects, the ship shown or hidden, the frame guides. 'lens' false: the host sets the field of view itself (Movie
+        /// mode's camera keys and takes).</summary>
+        public void LateTick(bool lens = true)
         {
             if (!active || cam == null) return;
-            if (flightCamera)
+            if (flightCamera && lens)
             {
                 cam.fieldOfView = PhotoSettings.Fov;
                 cam.nearClipPlane = Free ? 0.2f : savedNear;

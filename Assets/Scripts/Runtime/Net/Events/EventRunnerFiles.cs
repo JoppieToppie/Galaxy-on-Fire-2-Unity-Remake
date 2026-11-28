@@ -194,6 +194,21 @@ namespace GoF2Remake.Events
             return Start(name, text, "Editor", null, new Dictionary<string, double>());
         }
 
+        /// <summary>The global run named 'name' is going (Movie mode's take).</summary>
+        public static bool IsRunning(string name) => Global != null && Global.running == name;
+
+        /// <summary>Ends the global run named 'name' without a notice (Movie mode's Stop; /event stop tells everyone).</summary>
+        public static void StopText(string name)
+        {
+            if (IsRunning(name)) Global.End();
+        }
+
+        /// <summary>Adds the spawn batch tags the global run named 'name' has made so far (Movie mode clears its ships).</summary>
+        public static void BatchTagsOf(string name, HashSet<int> into)
+        {
+            if (IsRunning(name)) into.UnionWith(Global.BatchTags);
+        }
+
         /// <summary>The event's settings (its "param" lines): name and default expression (the Editor, /event list).</summary>
         public static List<(string name, string value)> Settings(string text)
         {

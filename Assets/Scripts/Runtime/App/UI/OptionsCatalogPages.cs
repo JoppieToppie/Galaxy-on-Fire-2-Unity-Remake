@@ -572,6 +572,40 @@ namespace GoF2Remake.UI
                 action = () => BenchmarkPressed?.Invoke(),
             });
             list.Add(fpsPosition);
+            // Remake (2026-11-28, the user's request: "settings for the recording, like resolution, framerate etc."): the
+            // built-in screen recorder (ScreenRecorder), Windows and Android; the clips manager shows these rows too.
+            if (ScreenRecorder.Supported)
+            {
+                list.Add(Choice("recordResolution", OptionPage.Graphics, () => X("recordResolution", "Recording resolution"), false,
+                    () => System.Array.ConvertAll(Settings.RecordHeights, h => h == 0 ? X("recordScreen", "Screen") : h + "p"),
+                    () => Settings.RecordResolution, i => Settings.RecordResolution = i,
+                    () => X("recordResolutionHelp", "The clips' height; never more than the screen's. Higher is sharper and makes bigger files.")));
+                list.Add(Choice("recordFrameRate", OptionPage.Graphics, () => X("recordFrameRate", "Recording frame rate"), true,
+                    () => System.Array.ConvertAll(Settings.RecordFrameRates, f => f + " fps"),
+                    () => Settings.RecordFrameRate, i => Settings.RecordFrameRate = i,
+                    () => X("recordFrameRateHelp", "24 looks like film, 60 is the smoothest. A game running slower than this repeats frames.")));
+                list.Add(Choice("recordQuality", OptionPage.Graphics, () => X("recordQuality", "Recording quality"), false,
+                    () => new[] { X("recordQualityLow", "Low"), X("recordQualityMedium", "Medium"), X("recordQualityHigh", "High"), X("recordQualityVeryHigh", "Very high") },
+                    () => Settings.RecordQuality, i => Settings.RecordQuality = i,
+                    () => X("recordQualityHelp", "How much detail the video keeps in fast action; higher makes bigger files.")));
+                var recordSound = Toggle("recordSound", OptionPage.Graphics, () => X("recordSound", "Record game sound"), () => Settings.RecordSound, v => Settings.RecordSound = v);
+                recordSound.description = () => X("recordSoundHelp", "The game's sound, music and voices in the clip (not the microphone).");
+                list.Add(recordSound);
+                var recordInterface = Toggle("recordInterface", OptionPage.Graphics, () => X("recordInterface", "Record the interface"), () => Settings.RecordInterface, v => Settings.RecordInterface = v);
+                recordInterface.description = () => X("recordInterfaceHelp", "The HUD, menus, subtitles and screen effects in the clip. Off: the 3D picture only.");
+                list.Add(recordInterface);
+                list.Add(Choice("recordIndicator", OptionPage.Graphics, () => X("recordIndicator", "Recording indicator"), true,
+                    () => new[] { X("off", "Off"), X("recordIndicatorStart", "First seconds"), X("recordIndicatorAlways", "Always") },
+                    () => Settings.RecordIndicator, i => Settings.RecordIndicator = i,
+                    () => X("recordIndicatorHelp", "The red mark at the top right while recording. It is never in the video.")));
+                list.Add(new OptionDef
+                {
+                    id = "recordedClips", page = OptionPage.Graphics, kind = OptionKind.Button,
+                    label = () => X("recordedClips", "Recorded clips") + "…",
+                    description = () => X("recordedClipsHelp", "Play, share, rename or delete what you recorded."),
+                    action = ScreenRecorder.ShowClips,
+                });
+            }
             // Modified: the interface's own mouse cursor (GameCursor); desktop only, phones have none.
             if (!Application.isMobilePlatform)
             {
