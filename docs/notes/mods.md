@@ -325,6 +325,14 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   ship's own `engineFx` takes each mount's `outline` like an exhaust style (`EngineFx.CreateShaped`,
   `ModExhausts.OutlineOf`: the cards reach the nozzle's shape, the trails along its long side, centred on it); the GoF3
   capitals get GoF3's large engine on their nozzles, shaped to them (see Mobile stations).
+- **Big ships break asteroids** (PR #374, 2026-11-28): an NPC hull whose ships.json class is frigate / freighter / cruiser /
+  carrier (`ShipClassRules`) gets `World.AsteroidVolumeCollision`: every 30 frames it asks `AsteroidTargetGrid` (the
+  asteroids' spatial grid, registered in `Target.OnEnable` / `OrbitBuilder.SpawnField`) for the rocks in reach, and a rock
+  touching its `Obstacle` volumes dies (`Damage(9999)`, the usual death and crate). Unclassified hulls are unchanged.
+- **Several launchers of one secondary** (PR #376, 2026-11-28): mod.json `"multipleSecondaryMounts": true` (part of the
+  multiplayer signature) lets a ship mount the same secondary on more than one hardpoint (`Hangar.CanMount`); its rigs then
+  share one `SecondaryAmmoPool` over the mounted stacks (a restock is split evenly, so either can be unmounted with ammo).
+  Without such a mod each mount keeps its own stack, as before.
 - **Capital ship subsystems** (remake, 2026-10-24, the user's request: EVERSPACE 2's warships and its Dreadnought
   encounter; `World.CapitalSubsystems`, ships.json `"subsystems"` parsed by `ModContent.ApplySubsystems` into
   `Database.ShipSubsystems`, `Data.CapitalSubsystem`): Traffic.Create attaches it to a `modCapital` spec with

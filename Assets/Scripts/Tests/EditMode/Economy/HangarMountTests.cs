@@ -147,7 +147,7 @@ namespace GoF2Remake.Tests
 
             Assert.AreEqual(2, firstMount.Amount);
             Assert.AreEqual(3, secondMount.Amount);
-            Assert.AreEqual(4, firstMount.Add(2));
+            Assert.AreEqual(2, firstMount.Add(2));   // Add returns the rounds added
             Assert.AreEqual(4, first.amount);
             Assert.AreEqual(3, second.amount, "a vanilla independent mount is not changed by the other pool");
         }
