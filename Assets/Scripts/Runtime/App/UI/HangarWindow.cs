@@ -181,7 +181,7 @@ namespace GoF2Remake.UI
             tabShip = root.Q<Button>("tabShip");
             tabShop = root.Q<Button>("tabShop");
             tabBlueprints = root.Q<Button>("tabBlueprints");
-            tabStorage = new Button(() => { menu.PlayRelease(); SetTab(Tab.Storage); }) { text = "STORAGE", focusable = false };
+            tabStorage = new Button(() => { menu.PlayRelease(); SetTab(Tab.Storage); }) { name = "tabStorage", text = "STORAGE", focusable = false };
             foreach (string style in tabShop.GetClasses()) tabStorage.AddToClassList(style);
             tabStorage.style.display = DisplayStyle.None;
             tabBlueprints.parent.Insert(tabBlueprints.parent.IndexOf(tabBlueprints), tabStorage);

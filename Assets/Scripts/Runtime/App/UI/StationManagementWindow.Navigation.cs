@@ -89,7 +89,7 @@ namespace GoF2Remake.UI
             }
             void Tab(VisualElement row, string title, string key, bool active)
             {
-                var button = new Button(() => ChangeManagementPage(key)) { text = title };
+                var button = new Button(() => ChangeManagementPage(key)) { name = (row == primaryNav ? "managementGroup-" : "managementPage-") + key, text = title };
                 button.AddToClassList("player-station-action");
                 button.EnableInClassList("player-station-row--selected", active);
                 button.AddToClassList(row == primaryNav ? "player-station-primary-tab" : "player-station-secondary-tab");

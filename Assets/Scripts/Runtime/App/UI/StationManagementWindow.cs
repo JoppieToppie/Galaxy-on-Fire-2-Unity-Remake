@@ -234,9 +234,9 @@ namespace GoF2Remake.UI
             panel.RegisterCallback<PointerUpEvent>(_ => pressedAt = -10f, TrickleDown.TrickleDown);
             overlay.Add(panel);
 
-            var top = new VisualElement(); top.AddToClassList("player-station-header");
-            heading = new Label("PLAYER STATIONS") { enableRichText = false }; heading.AddToClassList("player-station-title"); top.Add(heading);
-            closeButton = new Button(Back) { text = "BACK" }; closeButton.AddToClassList("player-station-close");
+            var top = new VisualElement { name = "managementHeader" }; top.AddToClassList("player-station-header");
+            heading = new Label("PLAYER STATIONS") { name = "managementHeading", enableRichText = false }; heading.AddToClassList("player-station-title"); top.Add(heading);
+            closeButton = new Button(Back) { name = "managementBack", text = "BACK" }; closeButton.AddToClassList("player-station-close");
             closeButton.clicked += () => menu?.PlayRelease();
             closeButton.RegisterCallback<PointerDownEvent>(_ => menu?.PlayPush(), TrickleDown.TrickleDown);
             top.Add(closeButton);
@@ -246,18 +246,18 @@ namespace GoF2Remake.UI
             top.Add(tutorialButton); panel.Add(top);
 
             var shell = new VisualElement(); shell.AddToClassList("player-station-shell");
-            primaryNav = new VisualElement(); primaryNav.AddToClassList("player-station-primary-nav"); shell.Add(primaryNav);
+            primaryNav = new VisualElement { name = "managementPrimaryNav" }; primaryNav.AddToClassList("player-station-primary-nav"); shell.Add(primaryNav);
             var split = new VisualElement(); split.AddToClassList("player-station-content");
-            stationList = new ScrollView(ScrollViewMode.Vertical); stationList.AddToClassList("player-station-list");
+            stationList = new ScrollView(ScrollViewMode.Vertical) { name = "managementStationList" }; stationList.AddToClassList("player-station-list");
             split.Add(stationList);
-            body = new ScrollView(ScrollViewMode.Vertical); body.AddToClassList("player-station-body");
+            body = new ScrollView(ScrollViewMode.Vertical) { name = "managementBody" }; body.AddToClassList("player-station-body");
             var workspace = new VisualElement();
             workspace.AddToClassList("player-station-workspace");
             workspace.style.flexGrow = 1; workspace.style.flexBasis = 0; workspace.style.minWidth = 0; workspace.style.minHeight = 0;
-            pageBar = new VisualElement(); pageBar.style.flexDirection = FlexDirection.Row; pageBar.style.flexWrap = Wrap.Wrap;
+            pageBar = new VisualElement { name = "managementPageBar" }; pageBar.style.flexDirection = FlexDirection.Row; pageBar.style.flexWrap = Wrap.Wrap;
             pageBar.style.marginBottom = 8; pageBar.style.flexShrink = 0;
             workspace.Add(pageBar); workspace.Add(body); split.Add(workspace); shell.Add(split); panel.Add(shell);
-            feedback = new Label(); feedback.AddToClassList("player-station-feedback"); panel.Add(feedback);
+            feedback = new Label { name = "managementFeedback" }; feedback.AddToClassList("player-station-feedback"); panel.Add(feedback);
             panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
             panel.RegisterCallback<PointerCancelEvent>(_ => pressedAt = -10f, TrickleDown.TrickleDown);
             if (inFlight)
@@ -589,6 +589,7 @@ namespace GoF2Remake.UI
         void RebuildBody(Vector2? scrollPosition = null)
         {
             if (choicePickerKey != null || modelPickerKey != null) return;
+            using var modUi = Modding.ModScripts.StationUiScope(panel, marketplaceOnly ? "marketplace_listing" : "station_management", () => marketplaceOnly ? "listing" : managementPage);
             DestroyPlacementPreview();
             int revision = ++bodyRevision;
             var before = scrollPosition ?? body.scrollOffset;

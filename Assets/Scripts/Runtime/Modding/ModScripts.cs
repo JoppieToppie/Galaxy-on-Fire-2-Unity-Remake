@@ -234,6 +234,7 @@ namespace GoF2Remake.Modding
         {
             for (int i = vms.Count - 1; i >= 0; i--) vms[i].Stop();
             vms.Clear();
+            ResetStationUi();
             tutorials.Clear();
             ClearDefinedTutorials();
             runningSignature = "";

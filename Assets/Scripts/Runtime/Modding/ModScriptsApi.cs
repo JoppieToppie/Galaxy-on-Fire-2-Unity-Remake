@@ -72,6 +72,7 @@ THE GAME TABLE
                                       returns its answer; ""/name"" in the chat,
                                       an event graph's Command node, game.command
   game.multiplayer()                  ""none"", ""host"" or ""client""
+  game.stationUi                     native station UI editor (during stationUi event)
   game.scene()                        ""MainMenu"", ""Space"", ""Station""
   game.space() / game.station()       the flight level / the docked level, or nil
   game.player()                       the player's ship in flight, or nil
@@ -465,6 +466,7 @@ LIMITS
                 g["mod"] = info;
                 g["version"] = Application.version;
                 g["saved"] = saved;
+                BuildStationUiApi(g);
                 BuildMoreApi(g);   // ModScriptsMore.cs: sequences, any member, the mod's files, components, commands, messages
 
                 Fn(g, "on", a =>

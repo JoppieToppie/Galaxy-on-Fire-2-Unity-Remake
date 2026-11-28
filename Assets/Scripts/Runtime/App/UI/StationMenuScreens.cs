@@ -378,6 +378,7 @@ namespace GoF2Remake.UI
         public void RefreshTexts()
         {
             if (root == null) return;
+            using var modUi = Modding.ModScripts.StationUiScope(root, "station", () => level?.View.ToString().ToLowerInvariant() ?? "station");
             var st = level != null ? level.Station : null;
             string T(int id) => Localization.Get(id);
             RefreshStationTitle(st, st == null ? null : GameHooks.PlayerStationName?.Invoke(st.index));
@@ -458,7 +459,10 @@ namespace GoF2Remake.UI
         {
             if (stationManagementLabelVisible != (stationManagement?.CanOpen == true) ||
                 stationButtonLabelsOriginal != Settings.OriginalUi)
+            {
+                using var modUi = Modding.ModScripts.StationUiScope(root, "station", () => level?.View.ToString().ToLowerInvariant() ?? "station");
                 RefreshStationButtonTexts();
+            }
         }
 
         /// <summary>Interface style Original (OriginalStation.uss): the menu buttons numbered and in the table's case as the

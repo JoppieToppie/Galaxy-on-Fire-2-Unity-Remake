@@ -84,6 +84,7 @@ namespace GoF2Remake.UI
         void Rebuild()
         {
             if (!IsOpen) return;
+            using var modUi = Modding.ModScripts.StationUiScope(window, PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage) ? "marketplace" : "hangar", () => tab.ToString().ToLowerInvariant());
             UpdateVipTools();   // remake: the free Kaamo Ships tab and tools (a Ships tab without them falls back to the Store)
             tabShip.EnableInClassList("hangar-tab--active", tab == Tab.Ship);
             tabShop.EnableInClassList("hangar-tab--active", tab == Tab.Shop);
