@@ -6,7 +6,7 @@ using System;
 //                              the armor, the rest off the hull; hull < 1 = dead. Armor (attr 20) is just a second pool.
 //   Player::damageEmp 0xaf834  EMP points (NPCs only; the player has none, so EMP never affects it); at 0 the ship is
 //                              disabled and recovers linearly over the recovery time (Player::update)
-//   PlayerEgo::update          shield regen: every tick of >= 101 ms, + maxShield * 100 / attr19 (attr 19 = full
+//   PlayerEgo::update          shield regen (remake timing): every 100 ms, + maxShield * 100 / attr19 (attr 19 = full
 //                              recharge time), no delay after a hit; repair bot hull +1 per 600 / 420 ms, armor +2 per
 //                              1000 / 700 ms once the hull is full (Ketar / Ketar II)
 // Plain C#: Target (NPCs, asteroids) and the player's PlayerHealth own one.
@@ -34,7 +34,8 @@ namespace GoF2Remake.Flight
         /// <summary>Which layer took the last hit (the player's hit sound: 25 shield, 23 armor, 24 hull).</summary>
         public bool shieldHit, armorHit, hullHit;
 
-        float empTimer, shieldTickMs, hullTickMs, armorTickMs;
+        float empTimer;
+        double shieldTickMs, hullTickMs, armorTickMs;
         /// <summary>Time without incoming damage required before normal shield regeneration, in milliseconds.</summary>
         public int shieldRechargeDelayMs;
         public float ShieldRechargeRemainingMs { get; private set; }
@@ -181,8 +182,7 @@ namespace GoF2Remake.Flight
             if (emp > maxEmp || empRecoveryMs <= 0f) { emp = maxEmp; empDisabled = false; }
         }
 
-        /// <summary>PlayerEgo::update shield regen: a tick when >= 101 ms have passed (the remainder is dropped, like the
-        /// original), + maxShield / (attr19 / 100).</summary>
+        /// <summary>Every 100 ms of shield time restores the corresponding fraction of the advertised recharge, after the configured delay.</summary>
         public void RegenerateShield(float dtMs, int fullRechargeMs, float elapsedMs = -1f)
         {
             // Cooldown follows actual elapsed simulation time, not the heat-modified recharge rate.
@@ -195,9 +195,10 @@ namespace GoF2Remake.Flight
             }
             if (fullRechargeMs <= 0 || hull <= 0 || maxShield <= 0 || dtMs <= 0f) return;
             shieldTickMs += dtMs;
-            if (shieldTickMs < 101f) return;
-            shieldTickMs = 0f;
-            shield = System.Math.Min(shield + maxShield / (fullRechargeMs / 100f), maxShield);
+            int ticks = (int)(shieldTickMs / 100.0);
+            if (ticks == 0) return;
+            shieldTickMs -= ticks * 100.0;
+            shield = (float)Math.Min(maxShield, shield + ticks * (100.0 * maxShield / fullRechargeMs));
         }
 
         float hullRegenAcc;
@@ -217,11 +218,23 @@ namespace GoF2Remake.Flight
         /// <summary>PlayerEgo::update repair bot: hull +1 per 'hullMs'; once the hull is full armor +2 per 'armorMs'.</summary>
         public void Repair(float dtMs, float hullMs, float armorMs)
         {
-            if (hull <= 0) return;
+            if (hull <= 0 || hullMs <= 0 || armorMs <= 0) return;
             hullTickMs += dtMs;
             armorTickMs += dtMs;
-            if (hullTickMs >= hullMs) { hullTickMs = 0f; if (hull < maxHull) hull++; }
-            if (armorTickMs >= armorMs) { armorTickMs = 0f; if (hull >= maxHull && armor < maxArmor) armor = System.Math.Min(armor + 2, maxArmor); }
+            // The most overdue tick happened first. A simultaneous hull tick can unlock armor repair.
+            while (hullTickMs >= hullMs || armorTickMs >= armorMs)
+            {
+                if (hullTickMs >= hullMs && hullTickMs - hullMs >= armorTickMs - armorMs)
+                {
+                    hullTickMs -= hullMs;
+                    if (hull < maxHull) hull++;
+                }
+                else
+                {
+                    armorTickMs -= armorMs;
+                    if (hull >= maxHull && armor < maxArmor) armor = Math.Min(armor + 2, maxArmor);
+                }
+            }
         }
     }
 }
