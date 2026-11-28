@@ -212,8 +212,17 @@ namespace GoF2Remake.Flight
         public event Action<Target, int, bool> Damaged;
         public event Action<Target> Died;
 
-        void OnEnable() { if (!All.Contains(this)) All.Add(this); }
-        void OnDisable() => All.Remove(this);
+        void OnEnable()
+        {
+            if (!All.Contains(this)) All.Add(this);
+            if (isAsteroid) AsteroidTargetGrid.Register(this);
+        }
+
+        void OnDisable()
+        {
+            All.Remove(this);
+            if (isAsteroid) AsteroidTargetGrid.Unregister(this);
+        }
 
         /// <summary>Player::damage: 'byNpc' = an NPC gun fired it (friendGun); 'hitVector' = the bullet velocity;
         /// 'shieldFactor' = the weapon's x on the shield (remake, Flight.Gun.ShieldFactor; Hitpoints.Damage).</summary>
@@ -428,6 +437,7 @@ namespace GoF2Remake.Flight
         void Die(bool loot)
         {
             hp = 0f;
+            if (isAsteroid) AsteroidTargetGrid.Unregister(this);
             if (loot && isAsteroid && oreItem >= 0) DropAsteroidCrate();
             if (!customDeath)
             {
@@ -495,6 +505,7 @@ namespace GoF2Remake.Flight
             remoteKiller = ulong.MaxValue;
             crate = null;
             if (isActiveAndEnabled && !All.Contains(this)) All.Add(this);
+            if (isActiveAndEnabled && isAsteroid) AsteroidTargetGrid.Register(this);
         }
     }
 }
