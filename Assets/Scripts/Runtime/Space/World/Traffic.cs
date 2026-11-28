@@ -521,6 +521,10 @@ namespace GoF2Remake.World
             float spacing = Modding.ModNpcFactionWar.FormationSpacingKm * 1000f;
             float centre = Modding.ModNpcFactionWar.FormationDistanceKm * 1000f;
             int width = Mathf.CeilToInt(Mathf.Sqrt(battle.shipsPerSide));
+            // Deterministic combat pockets: both factions share the same grid, but each slot
+            // occupies its own offset. Re-entering an orbit never rerolls the roster geometry.
+            float cell = Mathf.Max(spacing * 2.5f, 2f * half / Mathf.Max(1, width));
+            var fighters = new List<NpcShip>();
             for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
             {
                 if (lostSlots?.Contains(slot) == true) continue;
@@ -528,25 +532,44 @@ namespace GoF2Remake.World
                 int race = defender ? battle.defender : battle.attacker;
                 int column = slot % battle.shipsPerSide;
                 int capital = defender ? battle.defenderHull : battle.attackerHull;
+                float sign = defender ? -1f : 1f;
                 if (column == 0 && capital > 0)
                 {
-                    var capitalPosition = new Vector3((defender ? -1 : 1) * (half + Modding.ModNpcFactionWar.FormationCapitalOffsetKm * 1000f + width * spacing * 0.5f), 7000f, centre);
+                    var capitalPosition = new Vector3(sign * (cell * width * 0.5f + Modding.ModNpcFactionWar.FormationCapitalOffsetKm * 1000f), 7000f, centre);
                     foreach (var spec in TrafficPlan.WarBattleship(db, race, capital, capitalPosition, battle.Tag(slot))) SpawnShip(spec);
                     continue;
                 }
-                float sign = defender ? -1f : 1f;
                 int row = column / width, wing = column % width;
-                float lateral = (wing - (width - 1) * 0.5f) * spacing;
-                float x = sign * (half + row * spacing);
-                float y = 7000f + ((row + wing) % 3 - 1) * spacing * 0.4f;
-                float z = centre + lateral;
-                var p = new Vector3(x, y, z);
+                float angle = ((column * 137 + battle.id % 360) % 360) * Mathf.Deg2Rad;
+                var pocket = new Vector3((row - (width - 1) * 0.5f) * cell,
+                    7000f + ((column % 3) - 1) * spacing * 0.6f,
+                    centre + (wing - (width - 1) * 0.5f) * cell);
+                var offset = new Vector3(Mathf.Cos(angle), 0.25f * Mathf.Sin(angle * 2f), Mathf.Sin(angle)) * (spacing * 0.5f);
+                var p = pocket + sign * offset;
+                var approach = pocket - sign * offset;
                 var route = new Route(true);
-                route.points.Add(new Vector3(-sign * half * 0.65f, y, z));
-                route.points.Add(new Vector3(-sign * half * 0.65f, y + spacing, z + sign * spacing * 2f));
+                route.points.Add(approach);
+                route.points.Add(pocket + new Vector3(-offset.z, spacing * 0.5f, offset.x) * sign);
                 route.points.Add(p);
-                SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = race, ship = NpcTables.RandomFighter(race),
+                var fighter = SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = race, ship = NpcTables.RandomFighter(race),
                     position = p, route = route, eventTag = battle.Tag(slot), noLoot = true });
+                if (fighter != null) fighters.Add(fighter);
+            }
+            // Face the nearest surviving opponent, not an empty slot left by abstract attrition.
+            // Do not force an attack order: existing scanner, hostility and target-selection rules remain authoritative.
+            foreach (var fighter in fighters)
+            {
+                NpcShip nearest = null;
+                float best = float.PositiveInfinity;
+                foreach (var other in fighters)
+                {
+                    if (other.Race == fighter.Race) continue;
+                    float distance = (other.transform.position - fighter.transform.position).sqrMagnitude;
+                    if (distance < best) { best = distance; nearest = other; }
+                }
+                if (nearest == null) continue;
+                var direction = nearest.transform.position - fighter.transform.position;
+                if (direction.sqrMagnitude > 0.001f) fighter.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
             }
             ConnectPlayers();
             Message?.Invoke($"{Standing.RaceName(battle.attacker)} and {Standing.RaceName(battle.defender)} fleets are fighting for this orbit.");
