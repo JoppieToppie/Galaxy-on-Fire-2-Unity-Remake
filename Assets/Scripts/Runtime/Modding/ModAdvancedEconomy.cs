@@ -14,6 +14,7 @@ namespace GoF2Remake.Modding
         public const int MaxStock = 100000;
         public static bool Enabled { get; private set; }
         public static bool SinglePlayerEnabled { get; private set; }
+        public static bool EconomyOnlyFreighters { get; private set; }
         public static bool PersistentInventory { get; private set; }
         public static bool SaveInventory { get; private set; }
         public static bool SimulateUnvisitedStations { get; private set; }
@@ -346,6 +347,7 @@ namespace GoF2Remake.Modding
 
         internal static void Apply(Database db)
         {
+            EconomyOnlyFreighters = false;
             SinglePlayerEnabled = Enabled = PersistentInventory = SaveInventory = SimulateUnvisitedStations = Production = Consumption = false;
             TickSeconds = 900;
             rules.Clear();
@@ -399,7 +401,12 @@ namespace GoF2Remake.Modding
         static void ApplyConfiguration(Database db, ModInfo mod, JObject o, bool validateOnly)
         {
             // A disabled config cannot contribute any settings or rows.
-            if (!ModJson.Bool(o, "enabled", false, File)) return;
+            if (!ModJson.Bool(o, "enabled", false, File))
+            {
+                if (!validateOnly && ModJson.Bool(o, "economyOnlyFreighters", false, File)) EconomyOnlyFreighters = true;
+                return;
+            }
+            bool economyOnlyFreighters = ModJson.Bool(o, "economyOnlyFreighters", true, File);
             bool inventory = ModJson.Bool(o, "persistentInventory", false, File);
             bool singlePlayer = ModJson.Bool(o, "singlePlayerEnabled", false, File);
             bool save = ModJson.Bool(o, "saveInventory", false, File);
@@ -612,6 +619,7 @@ namespace GoF2Remake.Modding
             // Publish only after the entire file has been validated.
             if (validateOnly) return;
             Enabled = true;
+            EconomyOnlyFreighters |= economyOnlyFreighters;
             if (!inventory) return;
             PersistentInventory = true;
             SinglePlayerEnabled |= singlePlayer;
