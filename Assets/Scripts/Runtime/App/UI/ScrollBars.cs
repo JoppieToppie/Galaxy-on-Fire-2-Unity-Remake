@@ -62,6 +62,10 @@ namespace GoF2Remake.UI
             bar.RegisterCallback<PointerCaptureOutEvent>(e => { if (e.pointerId == pointer) EndDrag(); });
             bar.RegisterCallback<PointerCancelEvent>(e => { if (e.pointerId == pointer) EndDrag(); });
             bar.RegisterCallback<DetachFromPanelEvent>(_ => EndDrag());
+            // The view taken out (the pause menu builds a new body per page): its bar goes with it, else it stayed in the
+            // parent at the old page's height (a scrollbar hanging out of the shorter page's panel). Back in, UpdateBar
+            // puts it back.
+            view.RegisterCallback<DetachFromPanelEvent>(_ => Remove());
             // The bar follows the view instead of a tick of its own: its size and place only change when the view is laid out,
             // its content grows or shrinks, or it is scrolled. A 60 Hz tick per view read the layout of every scroll view in
             // the document for ever, the flight HUD's included (ScrollBars.Watch is installed on it).
@@ -79,7 +83,7 @@ namespace GoF2Remake.UI
         /// <summary>Shown while the content overflows; the handle's size and place follow the scroll.</summary>
         void UpdateBar()
         {
-            if (view.parent == null) return;
+            if (view.parent == null) { Remove(); return; }
             if (bar.parent != view.parent) view.parent.Add(bar);   // the parent rebuilt its children, or the view moved
             var vr = view.layout;
             float content = view.contentContainer.layout.height, viewport = view.contentViewport.layout.height;
@@ -135,6 +139,12 @@ namespace GoF2Remake.UI
             if (e.pointerId != pointer) return;
             EndDrag();
             e.StopPropagation();
+        }
+
+        void Remove()
+        {
+            EndDrag();
+            bar.RemoveFromHierarchy();
         }
 
         void EndDrag()

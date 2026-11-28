@@ -103,7 +103,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   old values; `GameControls.ModalOpen`). **HUD size / opacity** (Options > Gameplay, `Settings.HudScalePercent` /
   `HudOpacityPercent`, `FlightHud.ApplyHudLook`). Shared pieces in Space/UI: `UiSounds` (focus move / click / back for
   panels without their own), `UiBusy` (the waiting arc), `UiFocus.SkipScrollBars`; `.gof-toast` for notices. Empty lists
-  say what to do (no "-BLANK-").
+  say what to do (no "-BLANK-"). **Scroll bars** (`ScrollBars`: every vertical scroll view's slim bar, in the view's
+  parent): a view taken out of the tree takes its bar with it (`DetachFromPanelEvent`; back in, `UpdateBar` puts it back):
+  the pause menu builds a new body per page, and the old page's bar stayed in the panel at its height, a scrollbar hanging
+  out of a shorter page (the Recording page, the Back to main menu question; 2026-11-28).
 - **Landscape only** (portrait disallowed in Player Settings). Supported from 1:1 to 32:9 and phones (see Scaling
   above), device safe-area insets are applied (`UI.SafeArea`: the notch / Dynamic Island, the home indicator, cutouts;
   see **iOS**). The phone test reads `UnityEngine.Device.Application.isMobilePlatform` (PR #108),

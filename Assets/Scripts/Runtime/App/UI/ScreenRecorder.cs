@@ -19,6 +19,10 @@
 //   mark     a red dot at the top right (Settings.RecordIndicator: off, the first 3 s, or all along), drawn onto the screen
 //            after the frame was taken, so it is never in the clip (the user's request); "Clip saved" after the stop on a
 //            panel of its own over every scene
+//   stop     with touch input a round stop button in the dot's place instead (the user's request: "with touchscreen on,
+//            have a stop button, that is not getting recorded"): drawn the same way, after the frame was taken; a tap
+//            lands on an invisible element at the same place on this panel, which is over every other, so the game
+//            under it gets nothing; it stops the recording (during a Movie mode take, the take: StopTapped)
 // A thumbnail (the frame half a second in) and the length go beside the clip (ClipLibrary.SaveInfo). The recording stops
 // with the game, and on a phone when the game goes to the background.
 
@@ -44,7 +48,8 @@ namespace GoF2Remake.UI
         VisualTreeAsset emptyTree;
         VisualElement root;
         Label toast;
-        Texture2D dot;
+        Texture2D dot, stopIcon;
+        VisualElement stopHit;   // the stop button's tap area (transparent: nothing of it is drawn into the frame)
         ClipsView clips;
 
         bool recording, markAllowed = true, thumbTaken, withInterface;
@@ -77,9 +82,12 @@ namespace GoF2Remake.UI
         public static float Seconds => Recording ? (float)(Time.realtimeSinceStartupAsDouble - instance.startTime) : 0f;
         /// <summary>A recording started or stopped (the pause menu's entry, Movie mode's button).</summary>
         public static event Action Changed;
+        /// <summary>The touch stop button was tapped: a Movie mode take ends its take (the recording with it); without a
+        /// handler the recording stops.</summary>
+        public static event Action StopTapped;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { instance = null; hearing = false; Changed = null; }
+        static void ResetStatics() { instance = null; hearing = false; Changed = null; StopTapped = null; }
 
         public static void Install()
         {
@@ -114,6 +122,7 @@ namespace GoF2Remake.UI
             if (runtimePanel != null) Destroy(runtimePanel);
             if (emptyTree != null) Destroy(emptyTree);
             if (dot != null) Destroy(dot);
+            if (stopIcon != null) Destroy(stopIcon);
             if (instance == this) instance = null;
         }
 
@@ -139,6 +148,11 @@ namespace GoF2Remake.UI
             t.fontSize = UiLayout.Type(18);
             t.color = Color.white;
             root.Add(toast);
+            stopHit = new VisualElement { pickingMode = PickingMode.Position };
+            stopHit.style.position = Position.Absolute;
+            stopHit.style.display = DisplayStyle.None;
+            stopHit.RegisterCallback<PointerDownEvent>(e => { e.StopPropagation(); TapStop(); });
+            root.Add(stopHit);
             clips = new ClipsView(root);
             UpdateToast();
         }
@@ -149,7 +163,61 @@ namespace GoF2Remake.UI
                 Toggle();
             if (recording) KeepListening();
             UpdateToast();
+            UpdateStopHit();
             clips?.Tick();
+        }
+
+        /// <summary>The touch stop button shows (recording, the input touch) instead of the dot.</summary>
+        bool StopShown => recording && InputMode.Current == InputKind.Touch;
+
+        /// <summary>The stop button's place in screen pixels (top-left origin): under the flight HUD's touch pause button and
+        /// as big (it sat on top of it first), else 96 px at 1080 lines at the top right inside the safe area (a phone's
+        /// camera cutout).</summary>
+        Rect StopRect()
+        {
+            float k = Screen.height / 1080f;
+            // In flight: right under the touch pause button, as big (FlightHud reports it every frame: AnchorBelow).
+            if (Time.frameCount - anchorFrame <= 2)
+                return new Rect(anchor.x, anchor.yMax + 16f * k, anchor.width, anchor.height);
+            float side = 96f * k;
+            var safe = Screen.safeArea;
+            float right = safe.xMax - 32f * k, top = (Screen.height - safe.yMax) + 88f * k;
+            return new Rect(right - side, top, side, side);
+        }
+
+        static Rect anchor;
+        static int anchorFrame = -10;
+
+        /// <summary>The flight HUD's touch pause button (screen pixels, top-left origin): the stop button goes under it.</summary>
+        public static void AnchorBelow(Rect screenRect)
+        {
+            anchor = screenRect;
+            anchorFrame = Time.frameCount;
+        }
+
+        /// <summary>The tap area follows the button (the panel's own units).</summary>
+        void UpdateStopHit()
+        {
+            if (stopHit == null) return;
+            bool show = StopShown && root?.panel != null;
+            stopHit.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!show) return;
+            var r = StopRect();
+            float pad = r.width * 0.25f;   // a little more than the drawn button, for a finger
+            var a = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(r.xMin - pad, r.yMin - pad));
+            var b = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(r.xMax + pad, r.yMax + pad));
+            stopHit.style.left = a.x;
+            stopHit.style.top = a.y;
+            stopHit.style.width = b.x - a.x;
+            stopHit.style.height = b.y - a.y;
+        }
+
+        void TapStop()
+        {
+            if (!recording) return;
+            UiSounds.Confirm();
+            if (StopTapped != null) StopTapped.Invoke();
+            else StopNow();
         }
 
         void UpdateToast()
@@ -180,6 +248,7 @@ namespace GoF2Remake.UI
         /// slowly; 22 px at 1080 lines, under the cargo readout at the top right.</summary>
         void DrawMark()
         {
+            if (StopShown) { DrawStop(); return; }
             if (!MarkShown) return;
             if (dot == null)
             {
@@ -204,6 +273,39 @@ namespace GoF2Remake.UI
             // (DrawTexture's colour is doubled: 0.5 is the texture as it is)
             Graphics.DrawTexture(new Rect(Screen.width - 40f * k - side, 96f * k, side, side), dot, new Rect(0, 0, 1, 1), 0, 0, 0, 0,
                                  new Color(0.5f, 0.5f, 0.5f, 0.5f * alpha));
+            GL.PopMatrix();
+            RenderTexture.active = active;
+        }
+
+        /// <summary>The touch stop button onto the back buffer, after this frame was taken: a dark round button with a light
+        /// ring and a red square.</summary>
+        void DrawStop()
+        {
+            if (stopIcon == null)
+            {
+                const int n = 128;
+                stopIcon = new Texture2D(n, n, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+                var px = new Color32[n * n];
+                float c = n / 2f;
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float dx = x + 0.5f - c, dy = y + 0.5f - c, d = Mathf.Sqrt(dx * dx + dy * dy);
+                        float edge = Mathf.Clamp01(c - 1f - d);                       // the disc's soft edge
+                        var col = new Color(0.04f, 0.06f, 0.09f, 0.72f * edge);
+                        if (d > c - 7f) col = new Color(1f, 1f, 1f, 0.85f * edge);    // the ring
+                        float sq = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+                        if (sq < 22f) col = Color.Lerp(new Color(0.95f, 0.18f, 0.18f, 1f), col, Mathf.Clamp01(sq - 21f));   // the stop square
+                        px[y * n + x] = col;
+                    }
+                stopIcon.SetPixels32(px);
+                stopIcon.Apply();
+            }
+            var active = RenderTexture.active;
+            RenderTexture.active = null;
+            GL.PushMatrix();
+            GL.LoadPixelMatrix(0, Screen.width, Screen.height, 0);
+            Graphics.DrawTexture(StopRect(), stopIcon, new Rect(0, 0, 1, 1), 0, 0, 0, 0, new Color(0.5f, 0.5f, 0.5f, 0.5f));
             GL.PopMatrix();
             RenderTexture.active = active;
         }

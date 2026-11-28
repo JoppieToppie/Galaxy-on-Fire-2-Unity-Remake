@@ -99,6 +99,17 @@ namespace GoF2Remake.UI
             float right = -1f;
             if (pause != null && pause.resolvedStyle.display == DisplayStyle.Flex && pause.worldBound.width > 0f)
                 right = Mathf.Max(40f, box.parent.worldBound.xMax - pause.worldBound.xMin + 19f);
+            // The screen recorder's touch stop button goes under this button (ScreenRecorder.AnchorBelow), not over it.
+            if (pause != null && pause.panel != null && pause.resolvedStyle.display == DisplayStyle.Flex && pause.worldBound.width > 0f)
+            {
+                var panelSize = pause.panel.visualTree.layout.size;
+                if (panelSize.x > 0f && panelSize.y > 0f)
+                {
+                    float sx = Screen.width / panelSize.x, sy = Screen.height / panelSize.y;
+                    var b = pause.worldBound;
+                    ScreenRecorder.AnchorBelow(new Rect(b.x * sx, b.y * sy, b.width * sx, b.height * sy));
+                }
+            }
             if (Mathf.Abs(right - readoutRight) < 0.5f) return;
             readoutRight = right;
             box.style.right = right < 0f ? new StyleLength(StyleKeyword.Null) : new StyleLength(right);

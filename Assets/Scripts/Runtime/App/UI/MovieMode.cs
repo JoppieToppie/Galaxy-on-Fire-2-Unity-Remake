@@ -442,6 +442,7 @@ namespace GoF2Remake.UI
             Hold(false);
             // Recorded from this frame on: the editor is already off the screen (no REC mark in a take).
             takeRecorded = recordTakes && !ScreenRecorder.Recording && ScreenRecorder.Begin(movie.name, false);
+            if (takeRecorded) ScreenRecorder.StopTapped += StopTake;   // the touch stop button ends the take
             string answer = EventRunner.StartText(RunName, script);
             if (!EventRunner.IsRunning(RunName)) { StopTake(); Say(answer); }
         }
@@ -452,7 +453,7 @@ namespace GoF2Remake.UI
             EventRunner.BatchTagsOf(RunName, takeTags);
             EventRunner.StopText(RunName);   // its cutscene, fade, music... end with it
             Playing = false;
-            if (takeRecorded) { takeRecorded = false; ScreenRecorder.Stop(); }
+            if (takeRecorded) { takeRecorded = false; ScreenRecorder.StopTapped -= StopTake; ScreenRecorder.Stop(); }
             Hold(true);
             if (objectsBefore != null)
                 foreach (var o in SpawnedObjects()) if (!objectsBefore.Contains(o)) takeObjects.Add(o);

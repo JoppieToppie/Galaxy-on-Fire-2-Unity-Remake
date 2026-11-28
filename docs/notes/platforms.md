@@ -284,6 +284,13 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   pulsing red dot under the cargo readout; Settings.RecordIndicator off / the first 3 s / always, always by default) is
   drawn onto the back buffer after the frame was taken (`Graphics.DrawTexture` at the end of the frame), so it shows on
   screen and never in the clip; checked: on the Game view's capture, not in the clip's frame of the same moment.
+  **Stop button** (touch input, the user's request: "with touchscreen on, have a stop button, that is not getting
+  recorded"): in the dot's place while recording, drawn the same way (a dark disc, a light ring, a red square); in
+  flight right under the touch pause button and as big (`FlightHudTouch` reports the button's screen rectangle each
+  frame, `ScreenRecorder.AnchorBelow`; first it sat on top of the pause button), elsewhere at the top right inside the
+  safe area. A tap lands on a transparent element of the recorder's panel at its place (over every other panel, so the
+  game under it gets nothing) and stops the recording; during a Movie mode take the take (`ScreenRecorder.StopTapped`).
+  Checked in the Editor with the input forced to touch: on screen under the pause button, not in the clip, a tap stops.
   **HDR** (`Bootstrap.HdrActive`): HDR10, the capture in half floats; the screen's copy holds PQ codes (the HDR10 swap
   chain), the cameras' colour is linear (BT.2020 nits after URP's HDR tonemapping, BT.709 relative to paper white
   without it: `_SceneNits`) and is PQ-coded in the shader; packed as BT.2020 10-bit with the code in the 16-bit
