@@ -1393,34 +1393,45 @@ namespace GoF2Remake.Multiplayer
 
         // The station/profile write-ahead journal includes the entire economy snapshot.
         // Recovery uses absolute targets and therefore cannot debit or credit stock twice.
-        internal static bool ValidateJournalSnapshot(string json)
+        // Validate and decode before applying any participant's durable balances.
+        // Keep the validated snapshot for the subsequent write rather than parsing it
+        // a second time. The journal still contains the complete absolute state.
+        internal static bool TryPrepareJournalSnapshot(string json, out Func<bool, bool> persist)
         {
-            try { var root = JObject.Parse(json); ReadRows(root); ValidateFreightIdentities(ReadShipments(root), ReadWrecks(root)); ReadRescueRewards(root); return true; }
+            persist = null;
+            try
+            {
+                var root = JObject.Parse(json);
+                var parsed = ReadRows(root);
+                var cargo = ReadShipments(root);
+                var debris = ReadWrecks(root);
+                var rewards = ReadRescueRewards(root);
+                ValidateFreightIdentities(cargo, debris);
+                persist = recover =>
+                {
+                    if (string.IsNullOrEmpty(NetProfiles.Folder)) return false;
+                    string target = Path.Combine(NetProfiles.Folder, "advanced-economy-stock.json");
+                    if (!NetProfiles.Write(target, json)) return false;
+                    if (recover && loaded)
+                    {
+                        balances.Clear(); live.Clear(); shipments.Clear(); wrecks.Clear(); rescueRewards.Clear();
+                        foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
+                        foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
+                        foreach (var pair in debris) wrecks.Add(pair.Key, pair.Value);
+                        foreach (var pair in rewards) rescueRewards.Add(pair.Key, pair.Value);
+                    }
+                    dirty = false;
+                    return true;
+                };
+                return true;
+            }
             catch (Exception e) { Debug.LogWarning($"Advanced economy: invalid journal snapshot ({e.Message})."); return false; }
         }
 
-        internal static bool PersistJournalSnapshot(string json, bool recover)
-        {
-            if (string.IsNullOrEmpty(NetProfiles.Folder)) return false;
-            var root = JObject.Parse(json);
-            var parsed = ReadRows(root);
-            var cargo = ReadShipments(root);
-            var debris = ReadWrecks(root);
-            var rewards = ReadRescueRewards(root);
-            ValidateFreightIdentities(cargo, debris);
-            string target = Path.Combine(NetProfiles.Folder, "advanced-economy-stock.json");
-            if (!NetProfiles.Write(target, json)) return false;
-            if (recover && loaded)
-            {
-                balances.Clear(); live.Clear(); shipments.Clear(); wrecks.Clear(); rescueRewards.Clear();
-                foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
-                foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
-                foreach (var pair in debris) wrecks.Add(pair.Key, pair.Value);
-                foreach (var pair in rewards) rescueRewards.Add(pair.Key, pair.Value);
-            }
-            dirty = false;
-            return true;
-        }
+        internal static bool ValidateJournalSnapshot(string json) => TryPrepareJournalSnapshot(json, out _);
+
+        internal static bool PersistJournalSnapshot(string json, bool recover) =>
+            TryPrepareJournalSnapshot(json, out var persist) && persist(recover);
 
         internal static void Flush(bool force = false)
         {
