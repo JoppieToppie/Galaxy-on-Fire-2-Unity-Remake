@@ -142,6 +142,21 @@ namespace GoF2Remake.Multiplayer
             if (NeedsDestinationCopy(incidentSystem, destinationSystem)) Post(Kind.Freight, text, destination);
         }
 
+        // A distress request belongs to the incident system, even if no pilot is currently there.
+        // Single-player freight history is station-scoped, so publish a copy to each station in that system.
+        internal static bool PostFreightDistress(Database db, int incident, int raidTag, string text)
+        {
+            int system = db?.Stations.Find(s => s.index == incident)?.system ?? -1;
+            if (system < 0) return false;
+            string key = "freight-distress-" + raidTag;
+            if (!LocalPublishingAllowed) return Post(Kind.Freight, text, incident, key, 86400f);
+            bool posted = false;
+            foreach (var station in db.Stations)
+                if (station.system == system)
+                    posted |= Post(Kind.Freight, text, station.index, key + "-" + station.index, 86400f);
+            return posted;
+        }
+
         static void Prune()
         {
             long now = UnixNow;
