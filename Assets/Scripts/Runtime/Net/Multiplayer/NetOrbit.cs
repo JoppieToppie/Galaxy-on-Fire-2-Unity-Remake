@@ -577,7 +577,12 @@ namespace GoF2Remake.Multiplayer
             ready = (ship.transform.position - end).sqrMagnitude < 500f * 500f;
         }
 
-        float freightRequestAt;
+        const float FreightInitialRequestSeconds = 0.25f, FreightRefreshSeconds = 5f;
+        static uint nextFreightEpoch;
+        uint freightEpoch;
+        int freightOrbit = -1;
+        bool freightAuthority, freightManifestReceived;
+        float freightRequestAt, freightWreckRequestAt;
         int freightAmbientReplacements;
 
         internal void FreightDistressRadio(string title, string text, int race)
@@ -593,10 +598,58 @@ namespace GoF2Remake.Multiplayer
         void RequestFreight(NetState state)
         {
             var me = NetPlayer.Local;
-            if (!Modding.ModAdvancedEconomy.PhysicalFreight || level.Traffic == null ||
-                me == null || !me.InSpace || me.Station != Station || Time.unscaledTime < freightRequestAt) return;
-            freightRequestAt = Time.unscaledTime + 5f;
-            state.RequestFreightRpc(Station);
+            int orbit = Station;
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || level.Traffic == null || orbit < 0 ||
+                NetArena.IsArenaOrbit(orbit) || me == null || !me.InSpace || me.Station != orbit)
+            {
+                freightOrbit = -1;
+                freightAuthority = freightManifestReceived = false;
+                return;
+            }
+            // Local authority can be provisional on arrival. Wait for the server's runner assignment.
+            bool confirmed = Authority && NetState.RunnerOf(orbit) == me;
+            if (freightOrbit != orbit || freightAuthority != confirmed)
+            {
+                freightOrbit = orbit;
+                freightAuthority = confirmed;
+                freightManifestReceived = false;
+                freightEpoch = unchecked(++nextFreightEpoch);
+                freightRequestAt = freightWreckRequestAt = 0f;
+            }
+            float now = Time.unscaledTime;
+            bool ships = confirmed && now >= freightRequestAt;
+            bool wrecks = now >= freightWreckRequestAt;
+            if (!ships && !wrecks) return;
+            bool initial = ships && !freightManifestReceived;
+            // Set deadlines before the RPC: the host may receive its reply synchronously.
+            if (ships) freightRequestAt = now + (initial ? FreightInitialRequestSeconds : FreightRefreshSeconds);
+            if (wrecks) freightWreckRequestAt = now + FreightRefreshSeconds;
+            state.RequestFreightRpc(orbit, freightEpoch, ships, wrecks, initial);
+        }
+
+        bool CurrentFreightEpoch(uint epoch)
+        {
+            var me = NetPlayer.Local;
+            return !localFreight && epoch == freightEpoch && freightOrbit >= 0 && freightOrbit == Station &&
+                Modding.ModAdvancedEconomy.PhysicalFreight && me != null && me.InSpace && me.Station == Station;
+        }
+
+        internal void ReceiveFreightManifest(uint epoch, bool initial, string manifest)
+        {
+            // Ignore replies from an earlier visit/runner assignment and the remaining initial
+            // retry replies once the first snapshot has been applied.
+            if (!CurrentFreightEpoch(epoch) || !freightAuthority || !Authority ||
+                NetState.RunnerOf(Station) != NetPlayer.Local || level.Traffic == null || level.Layout == null ||
+                manifest == null || initial == freightManifestReceived) return;
+            ApplyFreightManifest(manifest);
+            freightManifestReceived = true; // An empty string is a valid authoritative snapshot.
+            freightRequestAt = Time.unscaledTime + FreightRefreshSeconds;
+        }
+
+        internal void ReceiveFreightWreckManifest(uint epoch, string manifest)
+        {
+            if (CurrentFreightEpoch(epoch) && level.Layout != null && manifest != null)
+                ApplyFreightWreckManifest(manifest);
         }
 
         internal void ApplyFreightManifest(string manifest)
