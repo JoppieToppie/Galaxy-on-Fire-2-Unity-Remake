@@ -77,7 +77,7 @@ Enable automaticRoutes to discover suppliers for shortages, using shortest reach
 ## Dynamic pricing and freight
 
 Enable `dynamicPricing` together with `saveInventory` on a persistent profile server.
-Only explicitly managed commodity rows use the server-priced transaction path.
+Only explicitly managed commodity rows use the server-priced transaction path. NPC weapons, equipment, other commodities and all dealer hulls use the same configured price modifiers based on the station's aggregate managed commodity stock and target, stock-weighted import distance and war pressure. A station without managed rows uses balanced supply and zero import hops (war still applies). Single-player managed commodities use their own ledger and marginal unit boundary; other goods and ships use the aggregate market. Trade-ins and sales apply the sell spread; player-set marketplace listings, free story gifts and Kaamo storage are not repriced. Ordinary goods and hulls retain their existing purchase/stock protocols.
 The host uses the existing station-specific base price, then adds scarcity, war pressure
 and optional weighted import-hop costs, or applies a surplus discount. A configurable
 buy/sell spread and marginal per-unit pricing prevent profiting from an immediate bulk

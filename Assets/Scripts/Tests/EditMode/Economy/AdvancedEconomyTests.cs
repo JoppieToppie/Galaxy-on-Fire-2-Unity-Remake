@@ -8,6 +8,17 @@ namespace GoF2Remake.Tests
 {
     public class AdvancedEconomyTests
     {
+        [TestCase(50, 100, 0, 0, true, 1500)]
+        [TestCase(50, 100, 0, 0, false, 1350)]
+        [TestCase(200, 100, 0, 0, true, 700)]
+        [TestCase(100, 100, 100, 4, true, 1700)]
+        [TestCase(0, 0, 50, 0, true, 1250)]
+        [TestCase(0, 0, 0, 0, false, 900)]
+        public void OtherGoodsAndHullsUseRealMarketSupply(int amount, int target, int pressure, int hops, bool buy, int expected)
+        {
+            Assert.AreEqual(expected, ModAdvancedEconomy.MarketUnitPrice(1000, amount, target, pressure, hops, 100, 30, 50, 5, 10, buy));
+        }
+
         [Test]
         public void FreightDistressTitlesUseFactionThenDefaultThenLegacy()
         {
