@@ -123,6 +123,13 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   `ShopStockTests`, `StoryRulesTests`; Play mode `ModderRequestsFlightTests` (an npcships.json capital on the battleship's
   hull with three hardpoints: three turret parts, one destroyed alone, the rest gone with the hull, its escorts; a loaner
   swapped in flight and back; the beam's materials tinted). Not tested in multiplayer.
+- **Ship classes and docking:** `ExternalDockingRules` uses `ShipClassRules.IsLargeShipClass`: frigates, freighters,
+  cruisers and carriers dock externally, with authored ship hardpoints and station attachments; other or unclassified
+  ships use the hangar, regardless of hull size. The legacy `dockingRole` field does not override eligibility.
+  `AsteroidVolumeCollision` applies volume-based asteroid collision to classified large NPC ships.
+- **Duplicate secondary mounts:** `multipleSecondaryMounts` is opt-in through the active mod manifest. Matching
+  mounted secondaries share an ammunition pool; restocking distributes only the rounds actually purchased or supplied,
+  including when individual stacks are saturated. Mounts remain individually configurable in the hangar.
 - **Built-in equipment and a steady engine glow** (remake, a modder's requests, 2026-10-16): ships.json `integrated` (new
   ships and overrides; `ModContent.ApplyIntegrated`): `khadorDrive` true / false (`Database.IntegratedDrives`, defaults
   37 / 38 / 40, `Ship::hasJumpDriveIntegrated`; read by `GalaxyMap.HasIntegratedDrive` through `Database.Shared`) and
