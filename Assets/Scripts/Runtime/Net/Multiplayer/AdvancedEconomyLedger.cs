@@ -62,7 +62,7 @@ namespace GoF2Remake.Multiplayer
             public readonly HashSet<string> RaidThieves = new HashSet<string>(StringComparer.Ordinal);
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
-        static readonly List<(int station, string text)> freightNews = new List<(int, string)>();
+        static readonly List<(int station, int destination, string text)> freightNews = new List<(int, int, string)>();
         static readonly Dictionary<string, long> rescueRewards = new Dictionary<string, long>(StringComparer.Ordinal);
         static readonly Dictionary<int, HashSet<ulong>> distressSent = new Dictionary<int, HashSet<ulong>>();
         static readonly Dictionary<ulong, float> nextDistress = new Dictionary<ulong, float>();
@@ -539,7 +539,7 @@ namespace GoF2Remake.Multiplayer
             {
                 if (ship.DelayReason == 0) return;
                 if (ship.DelaySeconds >= 120)
-                    freightNews.Add((route.Destination, $"Delayed freight bound for {NetNews.Place(route.Destination)} is moving again near {NetNews.Place(ship.Orbit)}."));
+                    freightNews.Add((ship.Orbit, route.Destination, $"Delayed freight bound for {NetNews.Place(route.Destination)} is moving again near {NetNews.Place(ship.Orbit)}."));
                 ship.DelayReason = ship.DelaySeconds = 0; dirty = true;
                 return;
             }
@@ -549,7 +549,7 @@ namespace GoF2Remake.Multiplayer
             if (ship.DelaySeconds == 120)
             {
                 string cause = reason == 1 ? "disconnected trade route" : reason == 2 ? "disabled freighter" : "destination inventory full";
-                freightNews.Add((route.Destination, $"Shipment of {ship.Amount} t bound for {NetNews.Place(route.Destination)} delayed near {NetNews.Place(ship.Orbit)}: {cause}."));
+                freightNews.Add((ship.Orbit, route.Destination, $"Shipment of {ship.Amount} t bound for {NetNews.Place(route.Destination)} delayed near {NetNews.Place(ship.Orbit)}: {cause}."));
                 Debug.Log($"[AdvancedEconomy] freight delayed: freight={ship.FreightTag}, reason={cause}");
             }
         }
@@ -568,7 +568,7 @@ namespace GoF2Remake.Multiplayer
             if (result == 0 && ModAdvancedEconomy.FreightPirateRaids && ship.RaidPlayerKills > 0) QueueRescueReward(ship);
             ship.RaidContributors.Clear(); ship.RaidThieves.Clear();
             string outcome = result == 2 ? $"destroyed; {original} t lost" : result == 1 ? $"raided; {original - ship.Amount} t stolen, {ship.Amount} t remaining" : "escaped a pirate attack";
-            freightNews.Add((route.Destination, $"Freight bound for {NetNews.Place(route.Destination)} {outcome} near {NetNews.Place(orbit)}. Player pirate kills: {ship.RaidPlayerKills}."));
+            freightNews.Add((orbit, ship.Amount < original ? route.Destination : -1, $"Freight bound for {NetNews.Place(route.Destination)} {outcome} near {NetNews.Place(orbit)}. Player pirate kills: {ship.RaidPlayerKills}."));
             Debug.Log($"[AdvancedEconomy] pirate raid resolved: freight={ship.FreightTag}, system={ship.RaidSystem}, outcome={result}, lost={original - ship.Amount}, playerKills={ship.RaidPlayerKills}");
             ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0;
             dirty = true;
@@ -1104,7 +1104,7 @@ namespace GoF2Remake.Multiplayer
                 if (NetProfiles.Write(path, Snapshot())) dirty = false;
             }
             if (dirty) return;
-            foreach (var entry in freightNews) NetNews.Post(NetNews.Kind.Commerce, entry.text, entry.station);
+            foreach (var entry in freightNews) NetNews.PostFreight(entry.text, entry.station, entry.destination);
             freightNews.Clear();
             SettleRescueRewards();
             if (distressSent.Count > shipments.Count + 16)

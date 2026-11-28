@@ -15,6 +15,21 @@ namespace GoF2Remake.Tests
     public class NetNewsTests : SandboxTest
     {
         [Test]
+        public void FreightNewsRequiresMatchingValidSystem()
+        {
+            Assert.IsTrue(NetNews.VisibleInSystem(NetNews.Kind.Freight, 2, 2));
+            Assert.IsFalse(NetNews.VisibleInSystem(NetNews.Kind.Freight, 2, 3));
+            Assert.IsFalse(NetNews.VisibleInSystem(NetNews.Kind.Freight, -1, -1));
+            Assert.IsTrue(NetNews.VisibleInSystem(NetNews.Kind.Commerce, 2, 3));
+            Assert.IsTrue(NetNews.VisibleInSystem(NetNews.Kind.War, 2, 3));
+            Assert.IsTrue(NetNews.NeedsDestinationCopy(2, 3));
+            Assert.IsFalse(NetNews.NeedsDestinationCopy(2, 2));
+            Assert.IsFalse(NetNews.NeedsDestinationCopy(2, -1));
+            Assert.IsTrue(NetNews.IsLegacyFreight("Freight bound for Mido escaped a pirate attack near Nehébru. Player pirate kills: 2."));
+            Assert.IsFalse(NetNews.IsLegacyFreight("Market prices changed."));
+        }
+
+        [Test]
         public void SafeTextHasNoTags()
         {
             Assert.AreEqual("‹b›Bob‹/b›", NetNews.Safe("<b>Bob</b>"));

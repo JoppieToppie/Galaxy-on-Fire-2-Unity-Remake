@@ -256,3 +256,7 @@ Optional `freightDistressTitle` sets the global title; `freightDistressFactionTi
 ```
 
 Titles are literal plain text, single-line, 1–64 characters after trimming. They apply to both the radio speaker and chat notice heading, preserving capitalization. The owning freight race takes precedence over the global title; without either setting the original channel-specific labels remain unchanged. Later physical-freight configurations override only explicitly supplied titles. This changes the distress RPC signature; multiplayer hosts and clients must use matching builds.
+
+### Local shipment broadcasts
+
+Active distress radio/chat calls remain confined to the incident system. Delay and resumed-travel news reaches the incident and destination market systems; raid outcomes reach the incident system and also the destination if cargo was lost. Systems merely along the route and the already-debited origin receive no extra notice. If both affected locations share a system, publish only once. Freight reports use a separate history of up to 15 entries per system (subject to ordinary expiry), and system changes refresh the ticker with local history and sector news. Old global freight reports are removed on load because their recorded station was the destination rather than the incident. Other news categories retain existing scope.

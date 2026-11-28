@@ -30,7 +30,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class NetNews
     {
-        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement, StationBroadcast, FactionBroadcast, Commerce }
+        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement, StationBroadcast, FactionBroadcast, Commerce, Freight }
 
         public sealed class Item
         {
@@ -101,7 +101,7 @@ namespace GoF2Remake.Multiplayer
                     var saved = JsonUtility.FromJson<SavedList>(File.ReadAllText(path));
                     if (saved?.items != null)
                         foreach (var s in saved.items)
-                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.Commerce), station = s.station, text = s.text ?? "", actor = s.actor, authority = s.authority });
+                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.Freight), station = s.station, text = s.text ?? "", actor = s.actor, authority = s.authority });
                     if (saved?.officialCooldowns != null)
                         foreach (var c in saved.officialCooldowns)
                             if (c != null && !string.IsNullOrEmpty(c.authority) && c.until > UnixNow) officialCooldowns[c.authority] = c.until;
@@ -109,9 +109,37 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             catch (Exception e) { Debug.LogWarning($"Server: news.json unreadable ({e.Message}); starting without news."); serverItems.Clear(); }
+            // Legacy freight notices were global and recorded the destination only.
+            foreach (var it in serverItems) nextId = Math.Max(nextId, it.id);
+            serverItems.RemoveAll(i => i.kind == Kind.Commerce && IsLegacyFreight(i.text));
             Prune();
             foreach (var it in serverItems) nextId = Math.Max(nextId, it.id);
             foreach (var audit in officialAudit) if (audit != null) nextId = Math.Max(nextId, audit.id);
+        }
+
+        internal static bool IsLegacyFreight(string text) =>
+            !string.IsNullOrEmpty(text) && (text.StartsWith("Delayed freight bound for ", StringComparison.Ordinal) ||
+                text.StartsWith("Shipment of ", StringComparison.Ordinal) && text.Contains(" delayed near ") ||
+                text.StartsWith("Freight bound for ", StringComparison.Ordinal) && text.Contains("Player pirate kills:"));
+
+        internal static int FreightSystem(int station) =>
+            station < 0 ? -1 : NetGame.Db?.Stations.Find(s => s.index == station)?.system ?? -1;
+
+        internal static bool VisibleInSystem(Kind kind, int eventSystem, int viewerSystem) =>
+            kind != Kind.Freight || eventSystem >= 0 && eventSystem == viewerSystem;
+
+        internal static bool NeedsDestinationCopy(int incidentSystem, int destinationSystem) =>
+            destinationSystem >= 0 && destinationSystem != incidentSystem;
+
+        static bool VisibleAt(Item item, int station) =>
+            item.kind != Kind.Freight || VisibleInSystem(item.kind, FreightSystem(item.station), FreightSystem(station));
+
+        // The incident and destination market are affected; no transit-only systems.
+        internal static void PostFreight(string text, int incident, int destination)
+        {
+            int incidentSystem = FreightSystem(incident), destinationSystem = FreightSystem(destination);
+            if (incidentSystem >= 0) Post(Kind.Freight, text, incident);
+            if (NeedsDestinationCopy(incidentSystem, destinationSystem)) Post(Kind.Freight, text, destination);
         }
 
         static void Prune()
@@ -119,7 +147,21 @@ namespace GoF2Remake.Multiplayer
             long now = UnixNow;
             serverItems.RemoveAll(i => now - i.time > MaxAgeSeconds);
             serverItems.Sort((a, b) => a.time.CompareTo(b.time));
-            if (serverItems.Count > Keep) serverItems.RemoveRange(0, serverItems.Count - Keep);
+            var freightCounts = new Dictionary<int, int>();
+            int globalCount = 0;
+            for (int i = serverItems.Count - 1; i >= 0; i--)
+            {
+                var item = serverItems[i];
+                if (item.kind != Kind.Freight)
+                {
+                    if (++globalCount > Keep) serverItems.RemoveAt(i);
+                    continue;
+                }
+                int system = FreightSystem(item.station);
+                freightCounts.TryGetValue(system, out int count);
+                if (system < 0 || count >= SendOnJoin) serverItems.RemoveAt(i);
+                else freightCounts[system] = count + 1;
+            }
         }
 
         static bool Save()
@@ -171,7 +213,7 @@ namespace GoF2Remake.Multiplayer
         /// item per raid, per station...). False = not posted (no session, or throttled).</summary>
         public static bool Post(Kind kind, string text, int station = -1, string throttleKey = null, float throttleSeconds = 0f)
         {
-            if (!IsServer) return false;
+            if (!IsServer || kind == Kind.Freight && FreightSystem(station) < 0) return false;
             text = Clean(text);
             if (text.Length == 0) return false;
             long now = UnixNow;
@@ -184,7 +226,14 @@ namespace GoF2Remake.Multiplayer
             serverItems.Add(item);
             Prune();
             Save();
-            NetState.Instance.BroadcastNews(Pack(item));
+            if (kind == Kind.Freight)
+            {
+                string packed = Pack(item);
+                foreach (var pilot in NetPlayer.All)
+                    if (pilot != null && pilot.IsSpawned && VisibleAt(item, pilot.Station))
+                        NetState.Instance.SendNews(pilot.OwnerClientId, packed, false);
+            }
+            else NetState.Instance.BroadcastNews(Pack(item));
             Debug.Log($"Server: news [{kind}] {text}");
             return true;
         }
@@ -194,9 +243,22 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer) return;
             Prune();
-            int from = Math.Max(0, serverItems.Count - SendOnJoin);
-            NetState.Instance.SendNews(client, "", true);   // the list starts over
-            for (int i = from; i < serverItems.Count; i++) NetState.Instance.SendNews(client, Pack(serverItems[i]), false);
+            int station = -1;
+            foreach (var pilot in NetPlayer.All)
+                if (pilot != null && pilot.IsSpawned && pilot.OwnerClientId == client) { station = pilot.Station; break; }
+            var selected = new List<Item>();
+            int global = 0, local = 0;
+            for (int i = serverItems.Count - 1; i >= 0; i--)
+            {
+                var item = serverItems[i];
+                if (!VisibleAt(item, station)) continue;
+                if (item.kind == Kind.Freight) { if (local++ >= SendOnJoin) continue; }
+                else if (global++ >= SendOnJoin) continue;
+                selected.Add(item);
+            }
+            NetState.Instance.SendNews(client, "", true);
+            for (int i = selected.Count - 1; i >= 0; i--)
+                NetState.Instance.SendNews(client, Pack(selected[i]), false);
         }
 
         /// <summary>/news clear: the list emptied, for everyone.</summary>
@@ -270,7 +332,7 @@ namespace GoF2Remake.Multiplayer
             var p = (packed ?? "").Split(new[] { '|' }, 5);
             if (p.Length < 5 || !long.TryParse(p[0], out long id) || !int.TryParse(p[1], out int kind) || !int.TryParse(p[2], out int station)
                 || !long.TryParse(p[3], out long time)) return null;
-            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.Commerce), station = station, time = time, text = Clean(p[4]) };
+            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.Freight), station = station, time = time, text = Clean(p[4]) };
         }
 
         /// <summary>NetState: an item from the server ("" with 'reset' = the list starts over).</summary>
@@ -280,7 +342,12 @@ namespace GoF2Remake.Multiplayer
             var item = string.IsNullOrEmpty(packed) ? null : Unpack(packed);
             if (item != null && !items.Exists(i => i.id == item.id)) items.Add(item);
             items.Sort((a, b) => b.time.CompareTo(a.time));
-            if (items.Count > Keep) items.RemoveRange(Keep, items.Count - Keep);
+            int global = 0, local = 0;
+            for (int i = 0; i < items.Count;)
+            {
+                bool overflow = items[i].kind == Kind.Freight ? ++local > SendOnJoin : ++global > Keep;
+                if (overflow) items.RemoveAt(i); else i++;
+            }
             Changed?.Invoke();
         }
 
@@ -289,7 +356,7 @@ namespace GoF2Remake.Multiplayer
         static readonly (string label, string color)[] Kickers =
         {
             ("BREAKING", "#ff5a4f"), ("TERRITORY", "#f5a524"), ("WAR", "#ff7a1a"), ("ARENA", "#38bdf8"),
-            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"), ("STATION BROADCAST", "#e4ba78"), ("FACTION BROADCAST", "#c084fc"), ("COMMERCE", "#f5a524"),
+            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"), ("STATION BROADCAST", "#e4ba78"), ("FACTION BROADCAST", "#c084fc"), ("COMMERCE", "#f5a524"), ("LOCAL FREIGHT", "#f5a524"),
         };
 
         /// <summary>The session's news for the ticker (rich text, each item followed by NewsTicker.Separator), "" = none:
@@ -305,6 +372,7 @@ namespace GoF2Remake.Multiplayer
                 float ageMinutes = (now - it.time) / 60f;
                 if (ageMinutes > TickerHours * 60f || shown >= TickerItems) break;
                 if (it.kind == Kind.StationAnnouncement && it.station != dockedStation) continue;
+                if (!VisibleAt(it, dockedStation)) continue;
                 if (shown == 0) sb.Append("<b><color=#f5a524>GALNET</color></b> <color=#7f8a99>sector news</color>").Append(NewsTicker.Separator);
                 shown++;
                 var (label, color) = Kickers[(int)it.kind];

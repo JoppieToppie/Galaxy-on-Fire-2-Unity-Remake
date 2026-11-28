@@ -751,6 +751,12 @@ namespace GoF2Remake.Multiplayer
             }
         }
 
+        void FreightNewsSystemChanged(int previous, int current)
+        {
+            if (IsServer && NetNews.FreightSystem(previous) != NetNews.FreightSystem(current))
+                NetNews.SendAll(OwnerClientId);
+        }
+
         public override void OnNetworkSpawn()
         {
             DontDestroyOnLoad(gameObject);
@@ -762,6 +768,7 @@ namespace GoF2Remake.Multiplayer
             {
                 station.OnValueChanged += OnStationValueChanged;
                 station.OnValueChanged += WantedSystemChanged;
+                station.OnValueChanged += FreightNewsSystemChanged;
                 place.OnValueChanged += OnPlaceValueChanged;
             }
             if (IsServer)
@@ -912,6 +919,7 @@ namespace GoF2Remake.Multiplayer
                     NetState.Instance.EnsureDeathPenalty(this, refresh: false);
                 station.OnValueChanged -= OnStationValueChanged;
                 station.OnValueChanged -= WantedSystemChanged;
+                station.OnValueChanged -= FreightNewsSystemChanged;
                 place.OnValueChanged -= OnPlaceValueChanged;
             }
             // Host: a player going (disconnected: Netcode despawns the player object before OnClientDisconnectCallback) hands
