@@ -9,6 +9,19 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void FreightDistressTemplatesSelectFactionAndExpandOnlyOnce()
+        {
+            var defaults = new[] { "Default {orbit}" };
+            var faction = new[] { "First {orbit}", "Second {orbit}" };
+            Assert.AreEqual("Default {orbit}", ModAdvancedEconomy.SelectDistressMessage(defaults, null, 200000004));
+            Assert.AreEqual("Second {orbit}", ModAdvancedEconomy.SelectDistressMessage(defaults, faction, 200000004));
+            Assert.AreEqual("Second {amount}", ModAdvancedEconomy.FormatDistressMessage(
+                "Second {orbit}", new Dictionary<string, string> { ["orbit"] = "{amount}", ["amount"] = "400" }));
+            Assert.AreEqual("400 t", ModAdvancedEconomy.FormatDistressMessage("{amount} t{rewardText}",
+                new Dictionary<string, string> { ["amount"] = "400", ["rewardText"] = "" }));
+        }
+
+        [Test]
         public void FreightRescueRewardsRespectDistributionAndUniqueAccounts()
         {
             var accounts = new[] { "b", "a", "a" };

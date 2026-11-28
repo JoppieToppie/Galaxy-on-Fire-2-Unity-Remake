@@ -34,6 +34,50 @@ namespace GoF2Remake.Modding
         public static int FreightPirateDestructionPercent { get; private set; } = 30;
         public static int FreightPirateKillRemainingPercent { get; private set; } = 25;
         public static bool FreightDistressCalls { get; private set; } = true;
+        const string DefaultDistress = "Mayday! Pirates attacking us near {orbit}. Carrying {amount} t of {commodity} to {destination}. {impact}{rewardText}";
+        static string[] distressMessages = new[] { DefaultDistress };
+        static readonly Dictionary<int, string[]> factionDistress = new Dictionary<int, string[]>();
+        static readonly System.Text.RegularExpressions.Regex distressToken =
+            new System.Text.RegularExpressions.Regex(@"\{([A-Za-z]+)\}");
+        static readonly HashSet<string> distressFields = new HashSet<string>(StringComparer.Ordinal)
+        { "faction", "orbit", "system", "origin", "destination", "commodity", "amount", "shortageWithout", "shortageWith", "impact", "reward", "rewardMode", "rewardText" };
+
+        static string[] ReadDistressMessages(JToken token)
+        {
+            if (!(token is JArray list) || list.Count == 0 || list.Count > 32)
+                throw new ModJsonException(File + ": distress messages require 1–32 strings");
+            var result = new List<string>();
+            foreach (var entry in list)
+            {
+                if (entry.Type != JTokenType.String || string.IsNullOrWhiteSpace((string)entry) || ((string)entry).Length > 512)
+                    throw new ModJsonException(File + ": distress message must contain 1–512 characters");
+                string value = (string)entry;
+                foreach (System.Text.RegularExpressions.Match match in distressToken.Matches(value))
+                    if (!distressFields.Contains(match.Groups[1].Value))
+                        throw new ModJsonException(File + ": unknown distress field " + match.Value);
+                if (distressToken.Replace(value, "").IndexOfAny(new[] { '{', '}' }) >= 0)
+                    throw new ModJsonException(File + ": malformed distress field");
+                result.Add(value);
+            }
+            return result.ToArray();
+        }
+
+        public static string SelectDistressMessage(string[] defaults, string[] faction, int raidTag)
+        {
+            var choices = faction != null && faction.Length > 0 ? faction :
+                defaults != null && defaults.Length > 0 ? defaults : new[] { DefaultDistress };
+            return choices[(int)((uint)raidTag / 4u % (uint)choices.Length)];
+        }
+
+        public static string FormatDistressMessage(string template, IReadOnlyDictionary<string, string> fields)
+            => distressToken.Replace(template, match => fields.TryGetValue(match.Groups[1].Value, out string value) ? value : match.Value);
+
+        public static string FreightDistressMessage(int race, int raidTag, IReadOnlyDictionary<string, string> fields)
+        {
+            factionDistress.TryGetValue(race, out var choices);
+            return FormatDistressMessage(SelectDistressMessage(distressMessages, choices, raidTag), fields);
+        }
+
         public static int FreightRescueReward { get; private set; } = 20000;
         public static string FreightRescueRewardMode { get; private set; } = "split";
         public static string NormalizeFreightRewardMode(string mode) => mode == "flat" || mode == "single" || mode == "weighted" ? mode : "split";
@@ -249,6 +293,7 @@ namespace GoF2Remake.Modding
             RhinoFreightSpeedPercent = 75; CormorantFreightSpeedPercent = 125;
             FreightPirateRaids = true; FreightPirateAttemptPercent = 80; FreightPirateTheftPercent = 40;
             FreightPirateDestructionPercent = 30; FreightPirateKillRemainingPercent = 25;
+            distressMessages = new[] { DefaultDistress }; factionDistress.Clear();
             FreightDistressCalls = true; FreightRescueReward = 20000; FreightRescueRewardMode = "split";
             FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
             FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
@@ -299,6 +344,19 @@ namespace GoF2Remake.Modding
             int raidTheft = Math.Clamp(ModJson.Int(o, "freightPirateTheftPercent", 40, File), 0, 100);
             int raidDestroy = Math.Clamp(ModJson.Int(o, "freightPirateDestructionPercent", 30, File), 0, 100 - raidTheft);
             bool distress = ModJson.Bool(o, "freightDistressCalls", true, File);
+            var parsedDistress = o["freightDistressMessages"] == null ? null : ReadDistressMessages(o["freightDistressMessages"]);
+            var parsedFactionDistress = new Dictionary<int, string[]>();
+            if (o["freightDistressFactionMessages"] != null)
+            {
+                if (!(o["freightDistressFactionMessages"] is JObject factionMessages))
+                    throw new ModJsonException(File + ": freightDistressFactionMessages must be an object");
+                foreach (var property in factionMessages.Properties())
+                {
+                    if (!ModRaces.TryResolve(property.Name, mod, out int race) || parsedFactionDistress.ContainsKey(race))
+                        throw new ModJsonException(File + ": unknown or duplicate freight distress faction " + property.Name);
+                    parsedFactionDistress.Add(race, ReadDistressMessages(property.Value));
+                }
+            }
             int rescueReward = Math.Clamp(ModJson.Int(o, "freightRescueReward", 20000, File), 0, 1000000000);
             string rewardMode = NormalizeFreightRewardMode(ModJson.Str(o, "freightRescueRewardMode"));
             int raidKill = Math.Clamp(ModJson.Int(o, "freightPirateKillRemainingPercent", 25, File), 0, 100);
@@ -488,6 +546,8 @@ namespace GoF2Remake.Modding
                 FreightPirateRaids = pirateRaids; FreightPirateAttemptPercent = raidAttempt;
                 FreightPirateTheftPercent = raidTheft; FreightPirateDestructionPercent = raidDestroy;
                 FreightPirateKillRemainingPercent = raidKill;
+                if (parsedDistress != null) distressMessages = parsedDistress;
+                foreach (var pair in parsedFactionDistress) factionDistress[pair.Key] = pair.Value;
                 FreightDistressCalls = distress; FreightRescueReward = rescueReward; FreightRescueRewardMode = rewardMode;
                 FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
                 FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;

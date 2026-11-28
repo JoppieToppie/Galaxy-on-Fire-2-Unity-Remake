@@ -448,19 +448,31 @@ namespace GoF2Remake.Multiplayer
             if (recipients.Count == 0) return;
             var rule = ModAdvancedEconomy.At(route.Destination);
             string commodity = GameNames.Item(route.Item);
+            int shortageWithout = 0, shortageWith = 0;
             string impact = $"Losing this cargo will remove {ship.Amount} t from expected imports.";
             if (rule != null && rule.TryGetValue(route.Item, out var row))
             {
                 int stock = Get(route.Destination, row).Amount;
                 int lostRelief = FreightLossShortfall(stock, row.Target, ship.Amount);
                 int deficit = Math.Max(0, row.Target - stock);
+                shortageWithout = deficit; shortageWith = deficit - lostRelief;
                 if (lostRelief > 0)
                     impact = $"Without us, {destination.systemName}\\u2019s destination market remains {deficit} t below target instead of {deficit - lostRelief} t; scarcity may raise prices.";
                 else impact = $"Loss would cut expected imports by {ship.Amount} t; the destination currently has no additional target shortfall from this shipment alone.";
             }
             string reward = ModAdvancedEconomy.FreightRescueReward <= 0 ? "" :
                 $" Rescue reward: {ModAdvancedEconomy.FreightRescueReward:N0} credits ({ModAdvancedEconomy.FreightRescueRewardMode}).";
-            string message = $"Mayday! Pirates attacking us near {NetNews.Place(ship.Orbit)}. Carrying {ship.Amount} t of {commodity} to {NetNews.Place(route.Destination)}. {impact}{reward}";
+            int race = ModRaces.TryResolve(ship.FleetRace, null, out int owner) ? owner : OriginRace(db, route.Source);
+            string message = ModAdvancedEconomy.FreightDistressMessage(race, ship.RaidBase, new Dictionary<string, string>
+            {
+                ["faction"] = GameNames.Race(race), ["orbit"] = NetNews.Place(ship.Orbit),
+                ["system"] = station.systemName ?? "", ["origin"] = NetNews.Place(route.Source),
+                ["destination"] = NetNews.Place(route.Destination), ["commodity"] = commodity,
+                ["amount"] = ship.Amount.ToString(), ["shortageWithout"] = shortageWithout.ToString(),
+                ["shortageWith"] = shortageWith.ToString(), ["impact"] = impact,
+                ["reward"] = ModAdvancedEconomy.FreightRescueReward.ToString("N0"),
+                ["rewardMode"] = ModAdvancedEconomy.FreightRescueRewardMode, ["rewardText"] = reward
+            });
             foreach (ulong client in recipients)
             {
                 NetState.Instance.SendFreightDistress(client, message);

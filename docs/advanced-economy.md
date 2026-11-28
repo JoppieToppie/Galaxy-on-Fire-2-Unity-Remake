@@ -225,3 +225,18 @@ Active pirate raids broadcast a named orbit, destination, cargo commodity and am
 Additional physical freight configuration keys: `freightDistressCalls` (true), `freightRescueReward` (20000 credits, 0 disables), `freightRescueRewardMode` (split). Modes: `split` shares a fixed pool equally among distinct credited player accounts, `flat` gives the full amount to every contributor, `single` gives the whole pool to the highest kill count, `weighted` shares proportionally to kills. Ties and indivisible credits use account ID ordering. At least one confirmed raid pirate kill and a failed pirate attack (no simulated cargo loss) are required. The reward is paid once per rescued raid, not once per kill, including offline contributors. Actual destroyed or robbed shipments do not receive a reward for a successful pirate attack. Credit payment and removal of the pending reward are journalled together; pending payments survive restart. This uses the same absolute profile target settlement as station trades and requires persistent multiplayer profiles. Test remote credit display, offline payment, reconnect and interrupted journal recovery in addition to the EditMode allocation and validation tests.
 
 A player who actually steals cargo from that shipment during its active raid is excluded from the rescue payout, even if that player kills pirates as well. The exclusion is persisted and committed with the theft transaction; other genuine defenders remain eligible.
+
+### Custom freight distress messages
+
+Set `freightDistressMessages` to an array of default variants and `freightDistressFactionMessages` to an object keyed by NPC race reference (e.g. `terran`, `vossk`, or `mod_id:race_id`), each containing an array of variants. Example:
+
+```json
+{
+  "freightDistressMessages": ["Mayday near {orbit}! {impact}{rewardText}"],
+  "freightDistressFactionMessages": {
+    "vossk": ["Warriors! Protect our {amount} t of {commodity} near {orbit}! {impact}{rewardText}"]
+  }
+}
+```
+
+Available fields: `{faction}`, `{orbit}`, `{system}`, `{origin}`, `{destination}`, `{commodity}`, `{amount}`, `{shortageWithout}`, `{shortageWith}`, `{impact}`, `{reward}`, `{rewardMode}`, `{rewardText}`. The two shortage values are zero when no destination rule exists; use impact for the explanatory fallback. Reward text includes a leading space and is empty when rewards are disabled. The persisted fleet race selects the override (origin race for legacy freight); the raid tag selects a stable variant. Missing overrides fall back to defaults, then the original message. Each list permits 1–32 nonblank templates of up to 512 characters; unknown or malformed fields and duplicate/unknown races are rejected by the shared configuration validator. Later active physical-freight configurations replace explicitly supplied defaults and per-race lists. Dialogue does not alter actual reward or raid mechanics.
