@@ -35,6 +35,29 @@ namespace GoF2Remake.Modding
         public static int FreightPirateKillRemainingPercent { get; private set; } = 25;
         public static bool FreightDistressCalls { get; private set; } = true;
         const string DefaultDistress = "Mayday! Pirates attacking us near {orbit}. Carrying {amount} t of {commodity} to {destination}. {impact}{rewardText}";
+        static string distressTitle;
+        static readonly Dictionary<int, string> factionDistressTitles = new Dictionary<int, string>();
+
+        static string ReadDistressTitle(JToken token)
+        {
+            if (token.Type != JTokenType.String || string.IsNullOrWhiteSpace((string)token))
+                throw new ModJsonException(File + ": distress title must be a nonblank string");
+            string title = ((string)token).Trim();
+            if (title.Length > 64 || title.IndexOfAny(new[] { '\r', '\n', '<', '>' }) >= 0)
+                throw new ModJsonException(File + ": distress title must be at most 64 characters, single-line and plain text");
+            return title;
+        }
+
+        public static string SelectDistressTitle(string defaultTitle, string factionTitle)
+            => string.IsNullOrEmpty(factionTitle) ? defaultTitle ?? "" : factionTitle;
+
+        // Empty means preserve the original channel-specific labels.
+        public static string FreightDistressTitle(int race)
+        {
+            factionDistressTitles.TryGetValue(race, out string title);
+            return SelectDistressTitle(distressTitle, title);
+        }
+
         static string[] distressMessages = new[] { DefaultDistress };
         static readonly Dictionary<int, string[]> factionDistress = new Dictionary<int, string[]>();
         static readonly System.Text.RegularExpressions.Regex distressToken =
@@ -294,6 +317,7 @@ namespace GoF2Remake.Modding
             FreightPirateRaids = true; FreightPirateAttemptPercent = 80; FreightPirateTheftPercent = 40;
             FreightPirateDestructionPercent = 30; FreightPirateKillRemainingPercent = 25;
             distressMessages = new[] { DefaultDistress }; factionDistress.Clear();
+            distressTitle = null; factionDistressTitles.Clear();
             FreightDistressCalls = true; FreightRescueReward = 20000; FreightRescueRewardMode = "split";
             FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
             FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
@@ -344,6 +368,19 @@ namespace GoF2Remake.Modding
             int raidTheft = Math.Clamp(ModJson.Int(o, "freightPirateTheftPercent", 40, File), 0, 100);
             int raidDestroy = Math.Clamp(ModJson.Int(o, "freightPirateDestructionPercent", 30, File), 0, 100 - raidTheft);
             bool distress = ModJson.Bool(o, "freightDistressCalls", true, File);
+            string parsedTitle = o["freightDistressTitle"] == null ? null : ReadDistressTitle(o["freightDistressTitle"]);
+            var parsedFactionTitles = new Dictionary<int, string>();
+            if (o["freightDistressFactionTitles"] != null)
+            {
+                if (!(o["freightDistressFactionTitles"] is JObject titles))
+                    throw new ModJsonException(File + ": freightDistressFactionTitles must be an object");
+                foreach (var property in titles.Properties())
+                {
+                    if (!ModRaces.TryResolve(property.Name, mod, out int race) || parsedFactionTitles.ContainsKey(race))
+                        throw new ModJsonException(File + ": unknown or duplicate freight distress title faction " + property.Name);
+                    parsedFactionTitles.Add(race, ReadDistressTitle(property.Value));
+                }
+            }
             var parsedDistress = o["freightDistressMessages"] == null ? null : ReadDistressMessages(o["freightDistressMessages"]);
             var parsedFactionDistress = new Dictionary<int, string[]>();
             if (o["freightDistressFactionMessages"] != null)
@@ -546,6 +583,8 @@ namespace GoF2Remake.Modding
                 FreightPirateRaids = pirateRaids; FreightPirateAttemptPercent = raidAttempt;
                 FreightPirateTheftPercent = raidTheft; FreightPirateDestructionPercent = raidDestroy;
                 FreightPirateKillRemainingPercent = raidKill;
+                if (parsedTitle != null) distressTitle = parsedTitle;
+                foreach (var pair in parsedFactionTitles) factionDistressTitles[pair.Key] = pair.Value;
                 if (parsedDistress != null) distressMessages = parsedDistress;
                 foreach (var pair in parsedFactionDistress) factionDistress[pair.Key] = pair.Value;
                 FreightDistressCalls = distress; FreightRescueReward = rescueReward; FreightRescueRewardMode = rewardMode;

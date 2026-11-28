@@ -9,6 +9,14 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void FreightDistressTitlesUseFactionThenDefaultThenLegacy()
+        {
+            Assert.AreEqual("Vossk command", ModAdvancedEconomy.SelectDistressTitle("Mayday", "Vossk command"));
+            Assert.AreEqual("Mayday", ModAdvancedEconomy.SelectDistressTitle("Mayday", null));
+            Assert.AreEqual("", ModAdvancedEconomy.SelectDistressTitle(null, null));
+        }
+
+        [Test]
         public void FreightDistressTemplatesSelectFactionAndExpandOnlyOnce()
         {
             var defaults = new[] { "Default {orbit}" };

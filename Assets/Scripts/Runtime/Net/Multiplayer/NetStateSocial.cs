@@ -557,15 +557,15 @@ namespace GoF2Remake.Multiplayer
             if (IsServer && !string.IsNullOrEmpty(text)) FactionLineRpc(from, text, own, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         /// <summary>Server: a notice in one player's chat.</summary>
-        internal void SendFreightDistress(ulong client, string text)
+        internal void SendFreightDistress(ulong client, string title, string text)
         {
-            if (IsServer && !string.IsNullOrEmpty(text)) FreightDistressRpc(text, RpcTarget.Single(client, RpcTargetUse.Temp));
+            if (IsServer && !string.IsNullOrEmpty(text)) FreightDistressRpc(title, text, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void FreightDistressRpc(string text, RpcParams rpc = default)
+        void FreightDistressRpc(string title, string text, RpcParams rpc = default)
         {
-            NetChat.Notice("[FREIGHT DISTRESS] " + text);
-            NetOrbit.Current?.FreightDistressRadio(text);
+            NetChat.Notice("[" + (string.IsNullOrEmpty(title) ? "FREIGHT DISTRESS" : title) + "] " + text);
+            NetOrbit.Current?.FreightDistressRadio(title, text);
         }
 
         internal void Notify(ulong client, string text)

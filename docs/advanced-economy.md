@@ -240,3 +240,19 @@ Set `freightDistressMessages` to an array of default variants and `freightDistre
 ```
 
 Available fields: `{faction}`, `{orbit}`, `{system}`, `{origin}`, `{destination}`, `{commodity}`, `{amount}`, `{shortageWithout}`, `{shortageWith}`, `{impact}`, `{reward}`, `{rewardMode}`, `{rewardText}`. The two shortage values are zero when no destination rule exists; use impact for the explanatory fallback. Reward text includes a leading space and is empty when rewards are disabled. The persisted fleet race selects the override (origin race for legacy freight); the raid tag selects a stable variant. Missing overrides fall back to defaults, then the original message. Each list permits 1–32 nonblank templates of up to 512 characters; unknown or malformed fields and duplicate/unknown races are rejected by the shared configuration validator. Later active physical-freight configurations replace explicitly supplied defaults and per-race lists. Dialogue does not alter actual reward or raid mechanics.
+
+#### Transmission titles
+
+Optional `freightDistressTitle` sets the global title; `freightDistressFactionTitles` maps NPC race references to individual titles. For example:
+
+```json
+{
+  "freightDistressTitle": "Emergency transmission",
+  "freightDistressFactionTitles": {
+    "vossk": "Vossk fleet command",
+    "terran": "Terran emergency channel"
+  }
+}
+```
+
+Titles are literal plain text, single-line, 1–64 characters after trimming. They apply to both the radio speaker and chat notice heading, preserving capitalization. The owning freight race takes precedence over the global title; without either setting the original channel-specific labels remain unchanged. Later physical-freight configurations override only explicitly supplied titles. This changes the distress RPC signature; multiplayer hosts and clients must use matching builds.

@@ -473,9 +473,10 @@ namespace GoF2Remake.Multiplayer
                 ["reward"] = ModAdvancedEconomy.FreightRescueReward.ToString("N0"),
                 ["rewardMode"] = ModAdvancedEconomy.FreightRescueRewardMode, ["rewardText"] = reward
             });
+            string title = ModAdvancedEconomy.FreightDistressTitle(race);
             foreach (ulong client in recipients)
             {
-                NetState.Instance.SendFreightDistress(client, message);
+                NetState.Instance.SendFreightDistress(client, title, message);
                 sent.Add(client); nextDistress[client] = Time.unscaledTime + 15f;
             }
         }
