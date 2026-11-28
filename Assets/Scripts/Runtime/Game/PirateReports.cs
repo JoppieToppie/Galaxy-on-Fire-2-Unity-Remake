@@ -366,6 +366,16 @@ namespace GoF2Remake.Data
 
         public static bool ServerHasPresence(int system) => Enabled && serverBoard.Exists(s => s.system == system && Active(s, Now));
 
+        // Mobile pirate bosses threaten only their current orbit; fixed outposts threaten the entire system.
+        static bool HasFreightRaidPresence(List<PirateSighting> board, int system, int orbit, float now) =>
+            board.Exists(s => s.system == system && Active(s, now) && (!s.boss || s.station == orbit));
+
+        public static bool HasFreightRaidPresence(int system, int orbit) =>
+            Enabled && HasFreightRaidPresence(Session.PirateSightings, system, orbit, Now);
+
+        public static bool ServerHasFreightRaidPresence(int system, int orbit) =>
+            Enabled && HasFreightRaidPresence(serverBoard, system, orbit, Now);
+
         public static string ServerBoardJson() => JsonUtility.ToJson(new Shared { items = serverBoard });
 
         /// <summary>Server, every few seconds: the board kept full and published when it changed. 'publish' writes NetState.</summary>

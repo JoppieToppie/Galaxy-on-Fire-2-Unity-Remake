@@ -38,6 +38,33 @@ namespace GoF2Remake.Tests
             new PirateSighting { id = id, station = station, system = system, boss = boss, tier = tier, name = boss ? "Red Vex" : "",
                                  bounty = 10000 + id, reportedAt = PirateReports.Now, expiresAt = PirateReports.Now + life };
 
+        [Test]
+        public void FreightRaidPresenceFollowsBossOrbitButOutpostsCoverSystem()
+        {
+            var boss = Sighting(500, 21, 4, boss: true);
+            Session.PirateSightings.Clear();
+            Session.PirateSightings.Add(boss);
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 21));
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(4, 22));
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(5, 21));
+            boss.station = 22;
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(4, 21));
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 22));
+            boss.done = true;
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(4, 22));
+            var outpost = Sighting(501, 21, 4);
+            Session.PirateSightings.Add(outpost);
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 21));
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 22));
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(5, 22));
+            PirateReports.ServerRestore("{\"items\":[{\"id\":1,\"station\":21,\"system\":4,\"boss\":true,\"expiresAt\":3000}]}");
+            Assert.IsTrue(PirateReports.ServerHasFreightRaidPresence(4, 21));
+            Assert.IsFalse(PirateReports.ServerHasFreightRaidPresence(4, 22));
+            PirateReports.ServerRestore("{\"items\":[{\"id\":2,\"station\":21,\"system\":4,\"established\":true}]}");
+            Assert.IsTrue(PirateReports.ServerHasFreightRaidPresence(4, 22));
+            Assert.IsFalse(PirateReports.ServerHasFreightRaidPresence(5, 22));
+        }
+
         // ---- bounties and tiers -------------------------------------------------------------------------------
 
         [TestCase(true, 0, 3, false, 10000)]
