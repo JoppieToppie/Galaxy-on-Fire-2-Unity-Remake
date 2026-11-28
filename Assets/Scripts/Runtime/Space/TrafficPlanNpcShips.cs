@@ -276,6 +276,7 @@ namespace GoF2Remake.Flight
             bool replaced = false;
             foreach (var t in ModNpcShips.ModTypes())
             {
+                if (ModAdvancedEconomy.EconomyOnlyFreighters && t.kind == ModNpcShips.Freighter) continue;
                 var s = t.spawn;
                 if (s == null || s.chance <= 0f || !NpcSpawnHolds(t, station, system, sysRace)) continue;
                 if (s.replaceGame && !gameCapital) continue;
