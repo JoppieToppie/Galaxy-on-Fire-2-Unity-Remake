@@ -162,7 +162,7 @@ simulates an orbit's traffic) and `ship_combat.md` (+ `Reference/tools/combat/co
   whole race turns and the station remembers it (next visit ≥ 7 hostile local fighters, "He's back!"). Radio texts show
   as HUD messages.
 - **Damage** (`Player::damage`): shield → armor → hull, no reduction (armor is a second pool). Player: hull =
-  `ships.json armor`, shield attr 18 (regen: full in attr 19 ms, ≥ 101 ms ticks, no delay), armor attr 20, repair bots;
+  `ships.json armor`, shield attr 18 (regen: full in attr 19 ms, 100 ms ticks keeping the remainder (#381), no delay), armor attr 20, repair bots;
   invulnerable during the launch / arrival camera and jump scenes; a non-hostile NPC's stray hit does 20 %; touching an
   asteroid destroys it and costs 20. Hit feedback: camera shake 1000 ms, sounds 25 / 23 / 24 by layer, red shield icon
   500 ms, blue / red hit arcs 300 ms. Hull / shield / armor persist between levels; docking repairs (assumed) and
