@@ -56,8 +56,8 @@ namespace GoF2Remake.Multiplayer
             if (text == null || text.Length > NetChat.MaxLength * 4) { NetRateLimit.Reject(client, "an overlong chat line"); return; }
             // Station announcements and broadcasts have a longer body than an ordinary chat line.
             string commandText = text.TrimStart();
-            bool stationNews = commandText.StartsWith("/station announce ", StringComparison.OrdinalIgnoreCase) ||
-                commandText.StartsWith("/station broadcast ", StringComparison.OrdinalIgnoreCase);
+            bool stationNews = commandText.StartsWith("/station announce ", System.StringComparison.OrdinalIgnoreCase) ||
+                commandText.StartsWith("/station broadcast ", System.StringComparison.OrdinalIgnoreCase);
             text = NetChat.Clean(text, stationNews ? NetChat.MaxCommandLength : NetChat.MaxLength);
             if (text.Length == 0 || NetProfiles.IdentityPending(client)) return;
             var sender = NetSquad.Find(client);
