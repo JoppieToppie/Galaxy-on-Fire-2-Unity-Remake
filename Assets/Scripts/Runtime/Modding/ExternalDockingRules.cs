@@ -11,9 +11,11 @@ namespace GoF2Remake.Modding
         /// <summary>Only the four canonical large classes may dock externally, including when a legacy role field is absent.</summary>
         public static bool CanDockExternally(ShipData ship) => ShipClassRules.IsLargeShipClass(ship);
 
-        /// <summary>Noncapital roles remain internal only. Legacy hull geometry remains a physical safety limit.</summary>
-        public static bool CanDockInternally(ShipData ship, bool largeHull) =>
-            !largeHull && !CanDockExternally(ship);
+        /// <summary>Noncapital roles remain internal only. Oversized internal hulls are fitted to the hangar by PlayerHull.FitHangar.</summary>
+        public static bool CanDockInternally(ShipData ship) => !CanDockExternally(ship);
+
+        /// <summary>Compatibility overload: hull size no longer prevents an internal-role ship from landing.</summary>
+        public static bool CanDockInternally(ShipData ship, bool largeHull) => CanDockInternally(ship);
 
         /// <summary>ModContent.ParseShips: accept only the documented per-ship docking roles.</summary>
         public static void CheckShip(JObject o, string where, ModInfo mod, string file)

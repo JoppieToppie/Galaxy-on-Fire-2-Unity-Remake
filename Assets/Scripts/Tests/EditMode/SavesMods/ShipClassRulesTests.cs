@@ -299,13 +299,18 @@ namespace GoF2Remake.Tests
                     id == ShipClassRules.Cruiser || id == ShipClassRules.Carrier;
                 Assert.AreEqual(large, ExternalDockingRules.CanDockExternally(ship), id);
                 Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship, false), id);
+                Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship, true), id);
+                Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship), id);
                 Assert.AreEqual(large, ModShipView.FreeLookTargeting(ship, !large), id);
                 if (large) Assert.GreaterOrEqual(ModShipView.OrbitDistance(ship), 50000f, id);
             }
             var vanilla = new ShipData { dockingRole = "external" };
             Assert.IsFalse(ExternalDockingRules.CanDockExternally(vanilla));
             Assert.IsTrue(ExternalDockingRules.CanDockInternally(vanilla, false));
-            Assert.IsFalse(ExternalDockingRules.CanDockInternally(vanilla, true));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(vanilla, true));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(null));
+            Assert.IsFalse(ExternalDockingRules.CanDockInternally(new ShipData { shipClass = ShipClassRules.Cruiser }));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(new ShipData { dockingRole = "internal" }));
             Assert.IsTrue(ModShipView.FreeLookTargeting(vanilla, true));
             Assert.IsFalse(ModShipView.FreeLookTargeting(vanilla, false));
         }
