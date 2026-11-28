@@ -12,6 +12,10 @@ MCP entry kind: `advancedEconomy`. It is a singleton JSON object, with no entry 
 
 Use get_entries to inspect the current value first. Runtime reference validation uses the builder database; a newly added reference should be loaded before it is used in an economy edit. Disabled configurations stay inactive.
 
+## Physical freight dispatch rules
+
+The Freight tab exposes `freightMinimumShipment` (50 t), `freightMinimumUtilizationPercent` (25%), `freightEmergencyDispatch` (true), and `freightCriticalStockPercent` (15%). These defaults apply to existing configurations on reload. Set 1 t and 0% to restore unrestricted physical dispatch. The host considers all racial and custom hulls and their actual cargo capacities; fleet weights apply only among qualifying hulls. The threshold cannot exceed the route capacity, destination target or hull capacity. Emergency checks use destination stock plus already reserved inbound cargo. Existing shipments are not re-dispatched or cancelled.
+
 ## Save recovery
 
 A normal project save stages serialized files in memory, skips byte-identical data, probes changed destinations for sharing failures, writes a journal beside (not inside) the project folder, then atomically replaces individual files. If an operation fails, the builder restores prior contents and reports the affected path. A journal named `<project-folder>.save-recovery.json` remains if recovery cannot complete. Do not delete it blindly. Close other programs holding the reported files, then retry. If recovery reports a third-party change, retain both the journal and the external file and resolve manually before saving. Separate direct asset imports are atomic individually rather than part of the serialized-project transaction.

@@ -1033,9 +1033,9 @@ namespace GoF2Remake.UI
                 v => { economyTab = v; ShowAdvancedEconomyRules(); });
             var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
             var rules = Project.AdvancedEconomyRules;
-            bool Bool(string key) => rules[key]?.Type == JTokenType.Boolean && (bool)rules[key];
+            bool Bool(string key, bool fallback = false) => rules[key]?.Type == JTokenType.Boolean ? (bool)rules[key] : fallback;
             int Number(string key, int fallback) => int.TryParse(rules[key]?.ToString(), out int n) ? n : fallback;
-            void Flag(string key, string label) => FlagButton(Row(scroll), label, Bool(key),
+            void Flag(string key, string label, bool fallback = false) => FlagButton(Row(scroll), label, Bool(key, fallback),
                 v => rules[key] = v, ShowAdvancedEconomyRules);
             void Option(string key, string label, int fallback, int min, int max) => Int(scroll, label, Number(key, fallback), min, max, v => { rules[key] = v; MarkDirty(); });
             if (economyTab == 0)
@@ -1057,6 +1057,13 @@ namespace GoF2Remake.UI
                 Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
                 Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
                 Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Heading(scroll, "Freight dispatch rules");
+                Option("freightMinimumShipment", "Minimum shipment (t)", ModAdvancedEconomy.DefaultFreightMinimumShipment, 1, ModAdvancedEconomy.MaxStock);
+                Option("freightMinimumUtilizationPercent", "Minimum hull utilization (%)", ModAdvancedEconomy.DefaultFreightMinimumUtilization, 0, 100);
+                Flag("freightEmergencyDispatch", "Allow smaller emergency shipments", true);
+                if (Bool("freightEmergencyDispatch", true))
+                    Option("freightCriticalStockPercent", "Critical destination stock (% of target)", ModAdvancedEconomy.DefaultFreightCriticalStock, 0, 100);
+                Note(scroll, "Applies to native racial and custom freight hulls. The minimum cannot exceed the route capacity, destination target or hull capacity. Emergency checks include cargo already inbound. Set 1 t and 0% to restore unrestricted dispatch.");
                 Option("freightTravelMinSeconds", "Abstract jump minimum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
                 Option("freightTravelMaxSeconds", "Abstract jump maximum (seconds)", 90, 1, ModAdvancedEconomy.MaxFreightSeconds);
                 Option("freightUnloadMinSeconds", "Unloading minimum (seconds)", 15, 1, ModAdvancedEconomy.MaxFreightSeconds);

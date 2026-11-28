@@ -974,9 +974,14 @@ namespace GoF2Remake.Multiplayer
                 if (physical)
                 {
                     fleetRace = OriginRace(db, route.Source);
-                    fleetHull = ModAdvancedEconomy.PickFreightHull(ModAdvancedEconomy.FreightFleet(fleetRace), send,
-                        UnityEngine.Random.Range(0, int.MaxValue));
-                    if (fleetHull == null || db.Ship(fleetHull.Ship) == null) continue;
+                    var available = ModAdvancedEconomy.FreightFleet(fleetRace).Where(hull => db.Ship(hull.Ship) != null).ToArray();
+                    bool emergency = ModAdvancedEconomy.FreightEmergencyDispatch &&
+                        ModAdvancedEconomy.FreightStockCritical(destination.Amount, reserved, destinationRule.Target,
+                            ModAdvancedEconomy.FreightCriticalStock);
+                    fleetHull = ModAdvancedEconomy.PickDispatchHull(available, send, route.Capacity, destinationRule.Target,
+                        ModAdvancedEconomy.FreightMinimumShipment, ModAdvancedEconomy.FreightMinimumUtilization,
+                        emergency, UnityEngine.Random.Range(0, int.MaxValue));
+                    if (fleetHull == null) continue;
                     send = Math.Min(send, fleetHull.Capacity);
                 }
                 int resaleSent = Math.Min(send, source.Resale);

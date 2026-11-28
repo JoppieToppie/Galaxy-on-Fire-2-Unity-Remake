@@ -28,6 +28,11 @@ namespace GoF2Remake.Modding
         public static int CormorantFreightSpeedPercent { get; private set; } = 125;
         public const int MaxFreightSeconds = 86400;
         public static int FreightDispatchSeconds { get; private set; } = 60;
+        public const int DefaultFreightMinimumShipment = 50, DefaultFreightMinimumUtilization = 25, DefaultFreightCriticalStock = 15;
+        public static int FreightMinimumShipment { get; private set; } = DefaultFreightMinimumShipment;
+        public static int FreightMinimumUtilization { get; private set; } = DefaultFreightMinimumUtilization;
+        public static bool FreightEmergencyDispatch { get; private set; } = true;
+        public static int FreightCriticalStock { get; private set; } = DefaultFreightCriticalStock;
         public static bool FreightPirateRaids { get; private set; } = true;
         public static int FreightPirateAttemptPercent { get; private set; } = 80;
         public static int FreightPirateTheftPercent { get; private set; } = 40;
@@ -172,6 +177,45 @@ namespace GoF2Remake.Modding
             foreach (var h in fleet)
                 if (h.Capacity >= needed && (choice -= h.Weight) < 0) return h;
             return null;
+        }
+
+        // Cap the threshold to what the route, destination target and hull can ever carry.
+        // Otherwise a small commodity target or route cap could permanently block deliveries.
+        public static int FreightDispatchMinimum(int hullCapacity, int routeCapacity, int destinationTarget,
+            int minimumShipment, int utilizationPercent)
+        {
+            int possible = Math.Max(0, Math.Min(hullCapacity, Math.Min(routeCapacity, destinationTarget)));
+            int utilization = (int)(((long)Math.Max(0, hullCapacity) * Math.Clamp(utilizationPercent, 0, 100) + 99) / 100);
+            return Math.Min(possible, Math.Max(1, Math.Max(minimumShipment, utilization)));
+        }
+
+        public static bool FreightStockCritical(int stock, int incoming, int target, int criticalPercent) =>
+            target > 0 && ((long)Math.Max(0, stock) + Math.Max(0, incoming)) * 100 <=
+                (long)target * Math.Clamp(criticalPercent, 0, 100);
+
+        // Apply the threshold to each hull's actual load, then use the existing weighted
+        // selection among qualifying hulls. Only bypass thresholds for a genuine emergency.
+        public static FreightHull PickDispatchHull(IReadOnlyList<FreightHull> fleet, int requested, int routeCapacity,
+            int destinationTarget, int minimumShipment, int utilizationPercent, bool emergency, int roll)
+        {
+            if (fleet == null || requested <= 0 || routeCapacity <= 0 || destinationTarget <= 0) return null;
+            requested = Math.Min(requested, Math.Min(routeCapacity, destinationTarget));
+            var eligible = new List<FreightHull>();
+            foreach (var hull in fleet)
+                if (Math.Min(requested, hull.Capacity) >= FreightDispatchMinimum(hull.Capacity, routeCapacity,
+                    destinationTarget, minimumShipment, utilizationPercent))
+                    eligible.Add(hull);
+            if (eligible.Count > 0) return PickFreightHull(eligible, requested, roll);
+            if (!emergency || fleet.Count == 0) return null;
+
+            // For undersized emergencies choose the smallest hull that fits.
+            int smallestFit = int.MaxValue;
+            foreach (var hull in fleet)
+                if (hull.Capacity >= requested) smallestFit = Math.Min(smallestFit, hull.Capacity);
+            if (smallestFit == int.MaxValue) return PickFreightHull(fleet, requested, roll);
+            foreach (var hull in fleet)
+                if (hull.Capacity == smallestFit) eligible.Add(hull);
+            return PickFreightHull(eligible, requested, roll);
         }
 
         public static int RhinoShip { get; private set; } = 51;
@@ -320,6 +364,8 @@ namespace GoF2Remake.Modding
             distressTitle = null; factionDistressTitles.Clear();
             FreightDistressCalls = true; FreightRescueReward = 20000; FreightRescueRewardMode = "split";
             FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
+            FreightMinimumShipment = DefaultFreightMinimumShipment; FreightMinimumUtilization = DefaultFreightMinimumUtilization;
+            FreightEmergencyDispatch = true; FreightCriticalStock = DefaultFreightCriticalStock;
             FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
             foreach (var mod in ModManager.Active)
             {
@@ -398,6 +444,10 @@ namespace GoF2Remake.Modding
             string rewardMode = NormalizeFreightRewardMode(ModJson.Str(o, "freightRescueRewardMode"));
             int raidKill = Math.Clamp(ModJson.Int(o, "freightPirateKillRemainingPercent", 25, File), 0, 100);
             int dispatchSeconds = Math.Clamp(ModJson.Int(o, "freightDispatchSeconds", 60, File), 1, MaxFreightSeconds);
+            int minimumShipment = Math.Clamp(ModJson.Int(o, "freightMinimumShipment", DefaultFreightMinimumShipment, File), 1, MaxStock);
+            int minimumUtilization = Math.Clamp(ModJson.Int(o, "freightMinimumUtilizationPercent", DefaultFreightMinimumUtilization, File), 0, 100);
+            bool emergencyDispatch = ModJson.Bool(o, "freightEmergencyDispatch", true, File);
+            int criticalStock = Math.Clamp(ModJson.Int(o, "freightCriticalStockPercent", DefaultFreightCriticalStock, File), 0, 100);
             var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
                 ModJson.Int(o, "freightTravelMaxSeconds", 90, File));
             var unloadSeconds = FreightInterval(ModJson.Int(o, "freightUnloadMinSeconds", 15, File),
@@ -580,6 +630,8 @@ namespace GoF2Remake.Modding
                 FreightPerOrbit = freightLimit; FreightSalvagePercent = freightSalvage; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
                 RhinoFreightSpeedPercent = rhinoSpeed; CormorantFreightSpeedPercent = cormorantSpeed;
                 FreightDispatchSeconds = dispatchSeconds;
+                FreightMinimumShipment = minimumShipment; FreightMinimumUtilization = minimumUtilization;
+                FreightEmergencyDispatch = emergencyDispatch; FreightCriticalStock = criticalStock;
                 FreightPirateRaids = pirateRaids; FreightPirateAttemptPercent = raidAttempt;
                 FreightPirateTheftPercent = raidTheft; FreightPirateDestructionPercent = raidDestroy;
                 FreightPirateKillRemainingPercent = raidKill;

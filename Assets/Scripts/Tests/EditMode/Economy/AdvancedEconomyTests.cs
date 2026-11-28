@@ -108,6 +108,27 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PhysicalDispatchThresholdsApplyToNativeAndCustomHulls()
+        {
+            var light = new ModAdvancedEconomy.FreightHull(36, "36", 400, 1, 125);
+            var native = new ModAdvancedEconomy.FreightHull(15, "native", 2500, 1, 100);
+            var fleet = new[] { light, native };
+            Assert.IsNull(ModAdvancedEconomy.PickDispatchHull(fleet, 5, 400, 500, 50, 25, false, 0));
+            Assert.IsNull(ModAdvancedEconomy.PickDispatchHull(fleet, 99, 400, 500, 50, 25, false, 0));
+            Assert.AreSame(light, ModAdvancedEconomy.PickDispatchHull(fleet, 100, 400, 500, 50, 25, false, 1));
+            Assert.AreSame(light, ModAdvancedEconomy.PickDispatchHull(fleet, 500, 1000, 1000, 50, 25, false, 0));
+            Assert.AreSame(native, ModAdvancedEconomy.PickDispatchHull(fleet, 625, 1000, 1000, 50, 25, false, 0));
+            Assert.IsNull(ModAdvancedEconomy.PickDispatchHull(new[] { native }, 399, 400, 500, 50, 25, false, 0));
+            Assert.AreSame(native, ModAdvancedEconomy.PickDispatchHull(new[] { native }, 400, 400, 500, 50, 25, false, 0));
+            Assert.AreSame(native, ModAdvancedEconomy.PickDispatchHull(new[] { native }, 30, 400, 30, 50, 25, false, 0));
+            Assert.AreSame(light, ModAdvancedEconomy.PickDispatchHull(fleet, 5, 400, 500, 50, 25, true, 1));
+            Assert.AreSame(native, ModAdvancedEconomy.PickDispatchHull(new[] { native }, 5, 400, 500, 50, 25, true, 0));
+            Assert.AreSame(native, ModAdvancedEconomy.PickDispatchHull(new[] { native }, 5, 400, 500, 1, 0, false, 0));
+            Assert.IsTrue(ModAdvancedEconomy.FreightStockCritical(10, 5, 100, 15));
+            Assert.IsFalse(ModAdvancedEconomy.FreightStockCritical(10, 6, 100, 15));
+        }
+
+        [Test]
         public void NativeFreightersRespectRaceAndDoNotShareWarTags()
         {
             Assert.AreEqual(13, ModAdvancedEconomy.NativeFreighter(1));
