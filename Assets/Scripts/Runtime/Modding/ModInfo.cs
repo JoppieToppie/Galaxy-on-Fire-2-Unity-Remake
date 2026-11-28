@@ -66,7 +66,7 @@ namespace GoF2Remake.Modding
                 if (netHash != null || Source == null || Manifest == null) return netHash ?? "";
                 using var sha = SHA256.Create();
                 void Add(string s) { var b = Encoding.UTF8.GetBytes(s); sha.TransformBlock(b, 0, b.Length, null, 0); }
-                Add($"{Manifest.id}\n{Manifest.version}\n{string.Join(",", Manifest.dependencies)}\n");
+                Add($"{Manifest.id}\n{Manifest.version}\n{Manifest.multipleSecondaryMounts}\n{string.Join(",", Manifest.dependencies)}\n");
                 foreach (var d in Manifest.dependencyVersions) Add($"{d.Key}>={d.Value}\n");
                 var ignore = new List<string>(Manifest.multiplayerIgnore ?? new List<string>());
                 ignore.Sort(StringComparer.Ordinal);

@@ -75,7 +75,8 @@ namespace GoF2Remake.Tests
             var m = Read(Q(@"{
                 'id': 'my_mod', 'name': 'My Mod', 'version': '2.1', 'author': 'Me', 'website': 'https://example.org',
                 'description': 'What it adds.', 'preview': 'art/cover.jpg', 'credits': 'Model: someone',
-                'dependencies': ['base_pack', 'ship_pack>=1.2', ' spaced >= 3 ']
+                'dependencies': ['base_pack', 'ship_pack>=1.2', ' spaced >= 3 '],
+                'multipleSecondaryMounts': true
             }"));
             Assert.AreEqual("my_mod", m.id);
             Assert.AreEqual("My Mod", m.Name);
@@ -89,6 +90,7 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("1.2", m.dependencyVersions["ship_pack"]);
             Assert.AreEqual("3", m.dependencyVersions["spaced"]);
             Assert.IsFalse(m.dependencyVersions.ContainsKey("base_pack"));
+            Assert.IsTrue(m.multipleSecondaryMounts, "the mod explicitly opted in");
         }
 
         [Test]
@@ -101,6 +103,24 @@ namespace GoF2Remake.Tests
             Assert.AreEqual("", m.Description);
             Assert.AreEqual("", m.Credits);
             Assert.AreEqual(0, m.dependencies.Count);
+            Assert.IsFalse(m.multipleSecondaryMounts, "the default is disabled");
+        }
+
+        [Test]
+        public void InvalidMultipleSecondaryMountsFlagIsRejected()
+        {
+            StringAssert.Contains("\"multipleSecondaryMounts\" must be true or false",
+                Error(Q("{ 'id': 'bad_flag', 'multipleSecondaryMounts': 'yes' }")));
+        }
+
+        [Test]
+        public void MultipleSecondaryMountsOnlyActivatesWhenAnActiveModOptsIn()
+        {
+            var off = new ModInfo(new ModManifest { id = "off" }, null);
+            var on = new ModInfo(new ModManifest { id = "on", multipleSecondaryMounts = true }, null);
+            Assert.IsFalse(ModContent.HasMultipleSecondaryMounts(new[] { off }));
+            Assert.IsTrue(ModContent.HasMultipleSecondaryMounts(new[] { off, on }));
+            Assert.IsFalse(ModContent.HasMultipleSecondaryMounts(null));
         }
 
         [Test]

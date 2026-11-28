@@ -31,6 +31,75 @@ using UnityEngine.InputSystem;
 
 namespace GoF2Remake.Flight
 {
+    /// <summary>Runtime view of a secondary item's ammunition across mounted hardpoints carrying that item.
+    /// The underlying ItemStack amounts remain the save-game source of truth.</summary>
+    public sealed class SecondaryAmmoPool
+    {
+        readonly List<ItemStack> stacks = new List<ItemStack>();
+
+        public int Amount
+        {
+            get
+            {
+                long n = 0;
+                foreach (var stack in stacks) if (stack != null) n += System.Math.Max(0, stack.amount);
+                return n >= int.MaxValue ? int.MaxValue : (int)n;
+            }
+        }
+
+        public bool HasAmmo => Amount > 0;
+
+        public void AddStack(ItemStack stack)
+        {
+            if (stack != null && !stacks.Contains(stack)) stacks.Add(stack);
+        }
+
+        /// <summary>Consumes one round from the first non-empty saved stack; any mount can spend from the aggregate.</summary>
+        public int ConsumeOne()
+        {
+            foreach (var stack in stacks)
+                if (stack != null && stack.amount > 0) { stack.amount--; return 1; }
+            return 0;
+        }
+
+        /// <summary>
+        /// Adds rounds across all mounted stacks, keeping the per-hardpoint amounts balanced. This matters when either
+        /// launcher is later demounted: its own saved stack leaves with it, while the remaining launcher keeps ammunition.
+        /// Amounts remain in the existing ItemStacks, so no additional save data is needed.
+        /// </summary>
+        public int Add(int rounds)
+        {
+            if (rounds <= 0 || stacks.Count == 0) return 0;
+            long remaining = rounds;
+            int added = 0;
+            while (remaining > 0)
+            {
+                int available = 0;
+                foreach (var stack in stacks)
+                    if (stack != null && stack.amount < int.MaxValue) available++;
+                if (available == 0) break;
+
+                long share = (remaining + available - 1) / available;
+                bool changed = false;
+                foreach (var stack in stacks)
+                {
+                    if (stack == null) continue;
+                    long current = System.Math.Max(0, stack.amount);
+                    long capacity = int.MaxValue - current;
+                    if (capacity <= 0) continue;
+                    int amount = (int)System.Math.Min(capacity, share);
+                    if (amount <= 0) continue;
+                    stack.amount = (int)(current + amount);
+                    remaining -= amount;
+                    added += amount;
+                    changed = true;
+                }
+                if (!changed) break;
+            }
+            return added;
+        }
+    }
+
     [RequireComponent(typeof(ShipController))]
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public class WeaponSystem : MonoBehaviour
@@ -57,8 +126,8 @@ namespace GoF2Remake.Flight
             /// <summary>The loop is ending after a release (LoopRelease): ms left of its fade-out, or -1 while it plays out.</summary>
             public bool releasing;
             public float fadeLeft, fadeTotal;
-            /// <summary>Secondaries: the mounted stack this gun draws its ammo from (Gun+0xf4).</summary>
-            public ItemStack stack;
+            /// <summary>Secondaries: the mounted ammo pool; same-item mounts share it when a mod opts in.</summary>
+            public SecondaryAmmoPool ammo;
             /// <summary>Remake mods: the kit hardpoint's sound for this weapon (Modding.ModShipSounds), null = the weapon's own.</summary>
             public GoF2Remake.Modding.ModShipSounds.WeaponSound modSound;
         }
@@ -103,6 +172,9 @@ namespace GoF2Remake.Flight
         }
 
         Database db;
+        // The mod setting is sampled when rigs are built. Ammo reporting must use the same mode as pool construction,
+        // even if the active-mod list changes before this WeaponSystem is rebuilt.
+        bool multipleSecondaryMountsEnabled;
         const float LiberatorTurnRadPerMs = 0.0015f;
         Rig liberator;
         Transform liberatorAnchor;
@@ -130,9 +202,7 @@ namespace GoF2Remake.Flight
             get
             {
                 if (SelectedSecondary < 0) return -1;
-                int n = 0;
-                foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.stack != null) n += Mathf.Max(0, r.stack.amount);
-                return n;
+                return AmmoOf(SelectedSecondary);
             }
         }
         public string SecondaryName => SelectedSecondary >= 0 ? UI.ItemInfo.ItemName(SelectedSecondary) : "";
@@ -149,7 +219,12 @@ namespace GoF2Remake.Flight
         public int AmmoOf(int item)
         {
             int n = 0;
-            foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex == item && r.stack != null) n += Mathf.Max(0, r.stack.amount);
+            foreach (var r in rigs)
+            {
+                if (!r.gun.isSecondary || r.gun.itemIndex != item || r.ammo == null) continue;
+                if (multipleSecondaryMountsEnabled) return r.ammo.Amount;
+                n += r.ammo.Amount;   // vanilla: each hardpoint retains its own ammo stack
+            }
             return n;
         }
         /// <summary>Remake (2026-11-02, the restock device after EVERSPACE 2's Secondaries Restock): 'rounds' more for the selected
@@ -158,7 +233,7 @@ namespace GoF2Remake.Flight
         {
             if (SelectedSecondary < 0 || rounds <= 0) return 0;
             foreach (var r in rigs)
-                if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.stack != null) { r.stack.amount = Mathf.Max(0, r.stack.amount) + rounds; return rounds; }
+                if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.ammo != null) return r.ammo.Add(rounds);
             return 0;
         }
 
@@ -200,7 +275,7 @@ namespace GoF2Remake.Flight
             {
                 float best = -1f;
                 foreach (var r in rigs)
-                    if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.stack != null && r.stack.amount > 0)
+                    if (r.gun.isSecondary && r.gun.itemIndex == SelectedSecondary && r.ammo != null && r.ammo.HasAmmo)
                         best = Mathf.Max(best, r.gun.ReloadRate);
                 return best < 0f ? 1f : best;
             }
@@ -287,6 +362,7 @@ namespace GoF2Remake.Flight
         public void Setup(Database db, int shipIndex, IList<ItemStack> equipment)
         {
             this.db = db;
+            multipleSecondaryMountsEnabled = GoF2Remake.Modding.ModContent.MultipleSecondaryMountsEnabled;
             fxRoot = new GameObject("Player weapon fx").transform;
             var primaryMounts = db.MountsOf(shipIndex, 0);
             var secondaryMounts = db.MountsOf(shipIndex, 1);
@@ -309,6 +385,9 @@ namespace GoF2Remake.Flight
             // Remake mods (ModHardpoints): a mount showing a kit's weapon model fires from that model's muzzle.
             var primaryItems = Modding.ModHardpoints.WeaponItems(db, equipment, false);
             var secondaryItems = Modding.ModHardpoints.WeaponItems(db, equipment, true);
+            // One item can occupy several secondary hardpoints. When opted in, those rigs draw from one aggregate pool.
+            // Its rounds stay in the saved ItemStack amounts, so docking and save/load need no extra persistence.
+            var secondaryAmmo = new Dictionary<int, SecondaryAmmoPool>();
             // In slot order, like the original's walk over Ship+0x6c (the secondaries' selection order too).
             var guns = new List<(int e, int slot)>();
             for (int n = 0; n < primaryOrder.Count; n++) if (primaryOrder[n] >= 0) guns.Add((primaryOrder[n], n));
@@ -351,7 +430,18 @@ namespace GoF2Remake.Flight
                                                                               GameNames.Item(g.itemIndex)));
                 gun.Guided = item.Attr(15) == 1;
                 var rig = BuildRig(gun);
-                if (secondary) rig.stack = equipment[e];
+                if (secondary)
+                {
+                    SecondaryAmmoPool ammoPool;
+                    if (multipleSecondaryMountsEnabled)
+                    {
+                        if (!secondaryAmmo.TryGetValue(item.index, out ammoPool))
+                            secondaryAmmo[item.index] = ammoPool = new SecondaryAmmoPool();
+                    }
+                    else ammoPool = new SecondaryAmmoPool();   // vanilla: a separate pool for each mount
+                    ammoPool.AddStack(equipment[e]);
+                    rig.ammo = ammoPool;
+                }
                 rigs.Add(rig);
             }
             // MGame::OnInitialize: keep the saved selection while that item is mounted, else the first secondary slot.
@@ -437,7 +527,7 @@ namespace GoF2Remake.Flight
             if (SelectedSecondary < 0) return false;
             foreach (var r in rigs)
             {
-                if (!r.gun.isSecondary || r.gun.itemIndex != SelectedSecondary || r.stack == null || r.stack.amount <= 0) continue;
+                if (!r.gun.isSecondary || r.gun.itemIndex != SelectedSecondary || r.ammo == null || !r.ammo.HasAmmo) continue;
                 if (r.gun.kind == Gun.Kind.Sentry && !SentryGun.CanDeploy) return false;   // Level+0x6c > 2: refused, no cost
                 if (Cheats.NoSecondaryCooldown) r.gun.reloadAcc = r.gun.WaitMs + 1f;   // remake debug: reloaded at once
                 int b = Fire(r.gun);
@@ -448,7 +538,7 @@ namespace GoF2Remake.Flight
                     SentryGun.Deploy(db, r.gun.itemIndex, r.gun.bullets[b].position, transform.rotation, FindAnyObjectByType<World.Traffic>());
                     r.gun.bullets[b].timer = -1e9f;
                 }
-                if (!Cheats.InfiniteAmmo) r.stack.amount--;
+                if (!Cheats.InfiniteAmmo) r.ammo.ConsumeOne();
                 PlayShot(r);
                 r.visuals.OnShot();
                 AfterShot();
