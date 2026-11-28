@@ -103,6 +103,7 @@ Shader "GoF2/SpaceSky"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             #include "Assets/Shaders/SpaceSkyCore.hlsl"
+            #include "Assets/Shaders/GoF2Deband.hlsl"
 
             struct Attributes { float4 positionOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
             struct Varyings { float4 positionCS : SV_POSITION; float3 world : TEXCOORD0; UNITY_VERTEX_OUTPUT_STEREO };
@@ -121,7 +122,7 @@ Shader "GoF2/SpaceSky"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 half3 c = _WarpLevel > 0.001 ? Warp(normalize(i.world), normalize(_WarpAxis), _WarpLevel, _WarpKhador) : Sky(i.world);
-                return half4(c * _Exposure, 1);
+                return half4(GoF2Deband(c, i.positionCS.xy) * _Exposure, 1);   // (HDR: the RGB565 steps dithered)
             }
             ENDHLSL
         }

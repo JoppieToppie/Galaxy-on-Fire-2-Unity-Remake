@@ -80,6 +80,10 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   .patch.json files from GitHub into `Library/GoF2PatchHistory` (what they published; offline it uses what is there). The
   tag defaults to the builds' version date. From an eval: `PatchPublisherWindow.StartAll(tag or null)`, then poll `.Busy` /
   `.LastResult`.
+- **BuildRequests** (no menu item; builds asked for from the CLI, 2026-11-28): write `Library/GoF2BuildRequest.json`
+  (`profile`, `output`, `env` as `NAME=VALUE`) and the Editor builds once it is idle, the result in
+  `Library/GoF2BuildResult.txt`. Use it instead of an `eval` queuing `EditorApplication.delayCall`: a code reload after
+  the eval dropped such a build without a word. The active build target must already be the profile's.
 - **NetcodeBuildFolderGuard** (no menu item, before every build): Netcode's build step deletes
   `Assets/netcode-build-assets-temp` from the disk alone, so a build right after another (no refresh between) failed to
   write its script order and the player threw IndexOutOfRangeException in GhostBehaviourTypeManager at startup

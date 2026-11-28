@@ -45,10 +45,9 @@ namespace GoF2Remake.UI
             {
                 int slot = i;
                 var save = SaveGame.Preview(i);
-                var row = SaveSlotRow.Build(db, i, save, Localization.Extra("autosaveHint", "Saved automatically when you dock"), DeleteSlot);
+                var row = SaveSlotRow.Build(db, i, save, Localization.Extra("autosaveHint", "Saved automatically when you dock"));
                 row.clicked += () =>
                 {
-                    if (SaveSlotRow.HoldUsed(row)) return;
                     if (save == null) { Play(buttonPush); return; }
                     if (slotChosen) return;
                     // Modified: a save chosen to load sounds and flashes like the menu buttons (their click sound; the pressed
@@ -59,10 +58,112 @@ namespace GoF2Remake.UI
                     row.schedule.Execute(() => row.RemoveFromClassList("slot-row--chosen")).ExecuteLater(SlotFlashMs);
                     row.schedule.Execute(() => { slotChosen = false; if (coopSlotPick) PickCoopSlot(slot); else LoadSlot(slot); }).ExecuteLater(SlotFlashMs * 2);
                 };
+                row.RegisterCallback<PointerUpEvent>(ev =>
+                {
+                    if (ev.button != 1 || save == null || coopSlotPick || slotChosen
+                        || openPanel != panels["loadPanel"] || dialog.ClassListContains("dialog-backdrop--shown")) return;
+                    ev.StopPropagation();
+                    EditCampaignRules(slot);
+                });
                 HookFocusSound(row);
                 list.Add(row);
             }
-            SaveSlotRow.AttachHint(list);
+            var editHint = root.Q<Label>("campaignEditHint");
+            editHint.text = X("editCampaignHint", "Right-click a save to edit its settings.");
+            editHint.style.display = !coopSlotPick && InputMode.Current == InputKind.KeyboardMouse ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        int editingCampaignSlot;
+        string campaignSnapshot;
+        SaveGame.CampaignRules campaignEdit;
+
+        static string CampaignEditorTitle => X("editCampaignSettings", "Edit save settings");
+
+        void EditCampaignRules(int slot)
+        {
+            if (!SaveGame.TryReadCampaignRules(slot, out campaignSnapshot, out campaignEdit))
+            {
+                CampaignEditFailed();
+                return;
+            }
+            editingCampaignSlot = slot;
+            BuildCampaignEditor();
+            OpenPanel("editCampaignPanel");
+        }
+
+        void CampaignEditFailed() => ShowNotice(CampaignEditorTitle,
+            X("editCampaignFailed", "The save could not be updated. Reopen it and try again."));
+
+        void ApplyCampaignEdit()
+        {
+            if (!SaveGame.TryWriteCampaignRules(editingCampaignSlot, campaignSnapshot, campaignEdit))
+            {
+                CampaignEditFailed();
+                return;
+            }
+            BuildSlots();
+            Back();
+        }
+
+        void BuildCampaignEditor()
+        {
+            root.Q<Label>("campaignRulesTitle").text = CampaignEditorTitle.UiCaps();
+            root.Q<Button>("campaignRulesDelete").text = DeleteSaveLabel.UiCaps();
+            root.Q<Button>("campaignRulesApply").text = OptionsCatalog.ApplyLabel.UiCaps();
+            root.Q<Button>("campaignRulesCancel").text = X("kbCancel", "Cancel").UiCaps();
+            var list = root.Q<ScrollView>("campaignRuleList");
+            list.Clear();
+            string off = X("kaamoVipOff", "Off");
+            string on = X("on", "On");
+            var vip = new ChoiceRow(false) { LabelText = X("kaamoVip", "Kaamo Club VIP Card") };
+            var vipValues = new[] { off, X("kaamoVipCard", "Buy at the club") };
+            void RefreshVip()
+            {
+                vip.SetEnabled(campaignEdit.UpgradeLimit > 0);
+                vip.SetWithoutNotify(vipValues, campaignEdit.UpgradeLimit > 0 && campaignEdit.VipAvailable ? 1 : 0);
+            }
+            void Add(ChoiceRow row)
+            {
+                HookFocusSound(row);
+                row.RegisterCallback<FocusInEvent>(_ => list.ScrollTo(row));
+                list.Add(row);
+            }
+            void Choice(string title, string[] values, int index, Action<int> change)
+            {
+                var row = new ChoiceRow(false) { LabelText = title };
+                row.SetWithoutNotify(values, index);
+                row.Changed += change;
+                Add(row);
+            }
+            void Toggle(string title, SavedGameRules rule)
+            {
+                Choice(title, new[] { off, on }, (campaignEdit.Rules & rule) != 0 ? 1 : 0, i =>
+                {
+                    if (i == 0) campaignEdit.Rules &= ~rule;
+                    else campaignEdit.Rules |= rule;
+                });
+            }
+            float[] difficulties = { Session.DifficultyEasy, Session.DifficultyNormal, Session.DifficultyHard, Session.DifficultyExtreme };
+            Choice(X("difficulty", "Difficulty"), Array.ConvertAll(difficulties, Session.DifficultyName),
+                Array.IndexOf(difficulties, campaignEdit.Difficulty), i => campaignEdit.Difficulty = difficulties[i]);
+            vip.Changed += i => campaignEdit.VipAvailable = i == 1;
+            RefreshVip();
+            Add(vip);
+            string[] limits = campaignEdit.UpgradeLimit > 5
+                ? new[] { off, "1", "2", "3", "4", "5", campaignEdit.UpgradeLimit.ToString() }
+                : new[] { off, "1", "2", "3", "4", "5" };
+            int legacyLimit = campaignEdit.UpgradeLimit;
+            Choice(X("kaamoUpgradeRules", "Kaamo Club upgrades"), limits, Math.Min(6, legacyLimit), i =>
+            {
+                campaignEdit.UpgradeLimit = i == 6 ? legacyLimit : i;
+                RefreshVip();
+            });
+            Toggle(X("blueprintAutocomplete", "Blueprint autocomplete"), SavedGameRules.BlueprintAutocomplete);
+            Toggle(X("cloakBay", "Cloak bay"), SavedGameRules.CloakBay);
+            Toggle(X("pirateEvents", "Pirate outposts and bosses"), SavedGameRules.PirateEvents);
+            Toggle(X("capitalShips", "Capital ship enhancements"), SavedGameRules.CapitalShips);
+            Toggle(X("derelictWrecks", "Derelict freighters"), SavedGameRules.DerelictWrecks);
+            Toggle(X("khadorSlipstream", "Khador Slipstream"), SavedGameRules.KhadorSlipstream);
         }
 
         /// <summary>The Load panel as itself, or as the co-op host's save picker (coopSlotPick, OpenCoopSlots): its own title,
@@ -78,19 +179,74 @@ namespace GoF2Remake.UI
             Show("saveTransferNote", !coopSlotPick && !SaveTransfer.HasFileDialog && !SavesPicker);
         }
 
-        /// <summary>Remake: a slot held down (SaveSlotRow): deleted, the list rebuilt with the same row selected.</summary>
-        void DeleteSlot(int slot)
+        static string DeleteSaveLabel => X("modsDelete", "Delete");
+        Action pendingSaveDeletion;
+        int deleteHoldPointer = -1;
+        int deleteHoldAttempt;
+
+        void AskDeleteCampaignSave()
         {
-            if (!SaveGame.Delete(slot)) return;
-            Play(buttonRelease);
-            root.schedule.Execute(() =>
+            int slot = editingCampaignSlot;
+            string snapshot = campaignSnapshot;
+            pendingSaveDeletion = () =>
             {
+                if (!SaveGame.TryReadCampaignRules(slot, out var current, out _) || current != snapshot || !SaveGame.Delete(slot))
+                {
+                    ShowNotice(DeleteSaveLabel, X("deleteSaveFailed", "The save could not be deleted. Reopen it and try again."));
+                    return;
+                }
                 BuildSlots();
-                var list = root.Q<ScrollView>("slotList");
-                if (slot < list.contentContainer.childCount) Select(list.contentContainer.ElementAt(slot));
                 resumeButton.EnableInClassList("menu-button--gone", SaveGame.MostRecentSlot() < 0);
                 UpdateColumnFit();
+                Back();
+            };
+            ShowDialog(DeleteSaveLabel, X("deleteSaveHoldHint", "Press and hold DELETE to confirm."), pendingSaveDeletion);
+            dialogCheck = () => false;
+            dialogRelabelled = true;
+            InputGlyph.SetText(root.Q<Button>("dialogYes"), DeleteSaveLabel.UiCaps());
+            InputGlyph.SetText(root.Q<Button>("dialogNo"), X("kbCancel", "Cancel").UiCaps());
+        }
+
+        void RegisterDeleteHold(Button button)
+        {
+            button.RegisterCallback<PointerDownEvent>(ev =>
+            {
+                if (ev.button != 0 || deleteHoldPointer >= 0 || pendingSaveDeletion == null || dialogYes != pendingSaveDeletion) return;
+                deleteHoldPointer = ev.pointerId;
+                StartCoroutine(HoldDeleteConfirmation(pendingSaveDeletion, ++deleteHoldAttempt));
+            }, TrickleDown.TrickleDown);
+            void EndHold(int pointerId) { if (deleteHoldPointer == pointerId) deleteHoldPointer = -1; }
+            button.RegisterCallback<PointerMoveEvent>(ev =>
+            {
+                if (!button.ContainsPoint(ev.localPosition)) EndHold(ev.pointerId);
             });
+            button.RegisterCallback<PointerUpEvent>(ev => EndHold(ev.pointerId), TrickleDown.TrickleDown);
+            button.RegisterCallback<PointerCancelEvent>(ev => EndHold(ev.pointerId));
+            button.RegisterCallback<PointerCaptureOutEvent>(ev => EndHold(ev.pointerId));
+        }
+
+        IEnumerator HoldDeleteConfirmation(Action delete, int attempt)
+        {
+            var bar = root.Q("dialogProgress");
+            var fill = root.Q("dialogProgressFill");
+            float start = Time.unscaledTime;
+            bar.AddToClassList("dialog-progress--shown");
+            while (attempt == deleteHoldAttempt && dialogYes == delete && deleteHoldPointer >= 0 && Application.isFocused)
+            {
+                float progress = (Time.unscaledTime - start) / SaveSlotRow.HoldSeconds;
+                fill.style.width = Length.Percent(Mathf.Min(1f, progress) * 100f);
+                if (progress >= 1f)
+                {
+                    deleteHoldPointer = -1;
+                    dialogCheck = null;
+                    ConfirmDialog();
+                    yield break;
+                }
+                yield return null;
+            }
+            if (attempt != deleteHoldAttempt) yield break;
+            deleteHoldPointer = -1;
+            if (dialogYes == delete) bar.RemoveFromClassList("dialog-progress--shown");
         }
 
         /// <summary>Android: Export / Import saves go through the system's document picker (ModImportActivity), as the
@@ -232,7 +388,7 @@ namespace GoF2Remake.UI
             int slot = OriginalSaveTransfer.FreeSlot();
             if (slot < 0)
             {
-                ShowNotice(OriginalImportTitle, Localization.Extra("originalImportNoSlot", "No empty save slot: hold a save in the list to delete it."));
+                ShowNotice(OriginalImportTitle, Localization.Extra("originalImportNoSlot", "No empty save slot. Right-click a save and choose Delete to free a slot."));
                 return;
             }
             string notes = imported.notes.Count > 0 ? "\n(" + string.Join("; ", imported.notes) + ")" : "";

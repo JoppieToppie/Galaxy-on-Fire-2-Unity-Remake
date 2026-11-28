@@ -4,15 +4,24 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
 
 ## UI and platforms
 
+- **Dev remote** (remake, 2026-11-27, the user: "a way you can communicate easier with the game, so you dont have to use
+  screenshots"; `UI.DevRemote`): the launch argument `-remote <token>` (4+ characters) starts a plain HTTP server on
+  127.0.0.1:47631, every request with `?token=` or a Bearer header; without the argument nothing listens. Android:
+  `adb shell "am start -n com.joppietoppie.gof2remake/com.unity3d.player.GoF2GameActivity -e unity '-remote <token>'"`
+  (the inner quotes: the phone's shell splits the string again, and `am` then rejects the token as an option), then
+  `adb forward tcp:47631 tcp:47631` (works over Wireless debugging too). GET `/status` (scene, fps, screen Hz,
+  targetFrameRate, memory, version), `/buttons` (`McpInput.Buttons`: shown Buttons only, not clickable panels such
+  as the new game's economy cards), `/click?text=&index=` (`McpInput.Click`), `/get?key=` / `/set?key=&value=`
+  (`Settings.Raw` / `SetRaw`: any option by its PlayerPrefs key, past the Graphics tab's staging; a sky style or other
+  load-time option shows after the next scene load), `/log?n=` (the last 500 log lines, errors with three stack lines).
+  Text with spaces: `curl -G --data-urlencode "text=START GAME"` (a raw space breaks the request line: no answer).
+  Commands run on the main thread from `Update` (5 s wait).
+
 - The station creates its Debug menu entry even while locked and refreshes visibility when returning to the system
   menu. Enabling/disabling Debug through Options therefore works without reloading the station. The confirmation
   and multiplayer access checks are retained.
   Enabling Debug uses its own confirmation. Opening an already-enabled Debug page in the main menu, station or
   flight never asks to expand Game Rules, grants rule-editing consent or changes the experience profile.
-
-- **Game Rules access** (issue #311): Expand/Custom has its own app-session consent. Debug tools belongs to the
-  always-visible Tools section and uses a separate Enable/Cancel confirmation when enabled. Debug entry points
-  never grant or request Game Rules consent.
 
 - **Debug sizing** (remake): the main menu's Debug panel is 88 % of the screen high with the mission list and the cheats
   (a ScrollView following the focus) filling it; the pause menu's Debug page scrolls its rows (`.debug-scroll`, as tall

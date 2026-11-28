@@ -21,6 +21,11 @@ namespace GoF2Remake.Tests
             foreach (var row in rows)
             {
                 Assert.IsTrue(OptionsCatalog.HasExplicitOrganization(row.id), row.id + " needs an explicit layout decision");
+                if (row.id == "cosmeticExperience" || row.id == "gameplayExperience")
+                {
+                    Assert.AreEqual(OptionSection.None, row.section, row.id);
+                    continue;
+                }
                 Assert.AreNotEqual(OptionSection.None, row.section, row.id);
                 if (row.page == OptionPage.Cosmetics) Assert.AreEqual(OptionGroup.None, row.group, row.id);
                 if (row.page == OptionPage.Gameplay && row.section != OptionSection.Tools && row.section != OptionSection.Mods)
@@ -44,7 +49,6 @@ namespace GoF2Remake.Tests
 
         [TestCase("launchCamera", OptionSection.SpecialFeatures)]
         [TestCase("originalUi", OptionSection.Interface)]
-        [TestCase("tutorialHints", OptionSection.Interface)]
         [TestCase("hudMode", OptionSection.Hud)]
         [TestCase("dyingCargoMarkers", OptionSection.Hud)]
         [TestCase("showStoryStep", OptionSection.Tools)]
@@ -71,16 +75,15 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(OptionGroup.Progression, row.group, row.id);
             foreach (var row in all.Where(o => o.id == "hostileAutopilotFastForward"))
                 Assert.AreEqual(OptionGroup.Flight, row.group, row.id);
-            foreach (var id in new[] { "autoJumpgate", "fastForwardMode" })
+            foreach (var id in new[] { "fastForwardMode" })
                 Assert.AreEqual(OptionGroup.Flight, all.Single(o => o.id == id).group, id);
             Assert.AreEqual(OptionGroup.World, all.Single(o => o.id == "stationScale").group);
             Assert.IsFalse(all.Any(o => o.page == OptionPage.Gameplay && o.section == OptionSection.Convenience));
             Assert.IsFalse(all.Any(o => o.group == OptionGroup.Custom && !o.id.StartsWith("mod:")),
                 "Custom-only policy is independent of a built-in option's functional location");
             var rules = all.Where(o => o.section == OptionSection.GameRules).ToArray();
-            Assert.AreEqual("gameplayExperience", rules[0].id);
+            Assert.AreEqual("gameplayExperience", all.First(o => o.page == OptionPage.Gameplay).id);
             Assert.IsFalse(rules.Any(o => o.id == "debugTools"));
-            Assert.AreEqual(OptionGroup.None, all.Single(o => o.id == "difficulty").group);
             Assert.AreEqual(OptionGroup.Missions, all.Single(o => o.id == "modShipTraffic").group);
             Assert.IsFalse(all.Any(o => o.section == OptionSection.Mods));
         }
@@ -130,7 +133,7 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void SubgroupHeadingsShowAndCustomAsksNothing()
+        public void GameplayRulesAreFlatAndCustomAsksNothing()
         {
             bool confirmed = GameRulesAccess.Confirmed;
             try
@@ -140,17 +143,15 @@ namespace GoF2Remake.Tests
                 bool pirates = Settings.PirateEvents;
                 Action accept = null;
                 var block = new OptionSectionBlock(new VisualElement(), OptionSection.GameRules, a => accept = a, false);
-                var preset = new OptionDef { id = "gameplayExperience" };
-                var presetRow = new VisualElement();
-                block.Add(preset, presetRow);
                 var ruleRow = new VisualElement();
                 block.Add(new OptionDef { id = "pirateEvents", group = OptionGroup.World }, ruleRow);
-                Assert.AreSame(block.Preset, presetRow.parent);
+                Assert.AreEqual(1, block.Body.parent.childCount);
                 Assert.IsTrue(block.Body.Contains(ruleRow));
-                Assert.AreEqual(1, block.Body.Query<Label>(className: "options-group-title").ToList().Count);
+                Assert.AreSame(block.Body, ruleRow.parent);
+                Assert.AreEqual(0, block.Body.Query<Label>(className: "options-group-title").ToList().Count);
                 Assert.AreNotEqual(DisplayStyle.None, block.Body.style.display.value, "the rules show without a gate (2026-11-20)");
                 Assert.AreEqual(1, Settings.CurrentScopedExperience(false));
-                preset.customRulesRequested();
+                OptionsCatalog.All().Single(o => o.id == "gameplayExperience").setIndex(2);
                 Assert.IsNull(accept, "no consent is asked");
                 Assert.AreEqual(2, Settings.CurrentScopedExperience(false));
                 Assert.AreEqual(pirates, Settings.PirateEvents, "picking Custom applies no rule");
@@ -176,7 +177,7 @@ namespace GoF2Remake.Tests
         public void EmptySubgroupHeadingFollowsItsRowsVisibility()
         {
             bool visible = false;
-            var block = new OptionSectionBlock(new VisualElement(), OptionSection.GameRules, _ => { }, false);
+            var block = new OptionSectionBlock(new VisualElement(), OptionSection.Tools, _ => { }, false);
             block.Add(new OptionDef { id = "debugTools", group = OptionGroup.Debug, visible = () => visible }, new VisualElement());
             var header = block.Body.Q<Label>(className: "options-group-title");
             Assert.AreEqual(DisplayStyle.None, header.style.display.value);

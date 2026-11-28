@@ -115,7 +115,8 @@ against the FEV's LGCY data, see "Sound").
   the Khador Drive entry while docked).
 - **Hacking** (`HackingGame` plain C#, `HackingView`): the 2x3 tile board, the left / right 2x2 blocks turn clockwise, scrambled
   2 x kind rounds and never solvable in `kind` moves (kind 1 at 91, else 4); won 1500 ms after solving. Keys A / D (Q / E, arrows),
-  pad LB / RB, taps on the halves. Hidden-blueprint wrecks (`TrafficPlan` table: stations 123 / 129 / 132-134) unlock their
+  pad LB / RB, taps on the halves or on the round turn buttons in the frame's side bulges (Hud::init / Hud::draw, images
+  0x1f57 / 0x1f58 pressed, at +-476 iPad-large px from the centre, measured on an iPad screenshot; #387). Hidden-blueprint wrecks (`TrafficPlan` table: stations 123 / 129 / 132-134) unlock their
   blueprint (radio 3156+k, `Session.HiddenBlueprintsFound`). Each is its race's freighter (`Level::createMission`:
   createShip(DAT_00253754[k], ship 13 / 15), `PlayerFixedObject::setDeadButSelectable`): the race's freighter wreck held at its
   end pose (`SpawnSpec.deadButSelectable`, `NpcShip.ShowWreckAtEnd`, invulnerable, `ModelPath` "wreck:N" for the proxies),

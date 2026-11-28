@@ -251,6 +251,8 @@ namespace GoF2Remake.Data
             (Ipad3, "hack_button", 127, 607, 62, 62, 0, false), (Ipad3, "hack_button_on", 1285, 61, 291, 291, 0, false),
             (Ipad3, "hack_blocked", 57, 607, 68, 67, 0, false), (Ipad3, "hack_bar", 315, 1, 770, 58, 0, false),
             (Ipad3, "hack_frame_top", 717, 61, 566, 416, 0, false), (Ipad3, "hack_frame_bottom", 315, 61, 400, 400, 0, false),
+            // Hud::init: the touch turn buttons in the hacking frame's side bulges (0x1f57 idle, 0x1f58 pressed; #387).
+            (Ipad3, "hack_side_button", 573, 679, 109, 109, 0, false), (Ipad3, "hack_side_button_on", 531, 463, 109, 109, 0, false),
             // Radar::draw with a plasma collector: the crosshair while a plasma spark is in range (0x1f5d).
             (Ipad3, "plasma_crosshair", 1285, 354, 214, 214, 0, false),       // 0x1f5d the collector's crosshair, plasma in range
             (Ipad3, "plasma_crosshair_idle", 315, 463, 214, 214, 0, false),  // 0x1f5e the collector's crosshair otherwise

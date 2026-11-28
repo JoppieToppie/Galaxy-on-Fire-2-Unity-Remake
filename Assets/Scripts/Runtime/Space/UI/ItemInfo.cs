@@ -131,7 +131,21 @@ namespace GoF2Remake.UI
                         break;
                     case 19: case 26: case 36: case 37: case 43: rows.Add((LoadingTime, $"{v} ms")); break;
                     case 21: rows.Add((T(140), $"{v} %")); break;
-                    case 22: case 25: case 28: case 46: case 54: case 56: rows.Add((T(157), $"{v} %")); break;
+                    case 54 when it.categoryId == 37:
+                        rows.Add((T(157), $"{v} %"));
+                        // RepairBeam heals 30 hull points per second per target at 100% efficiency.
+                        rows.Add((Localization.Extra("statHullRepair", "Hull repair per second"),
+                            (30f * v / 100f).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)));
+                        break;
+                    case 54 when it.categoryId == 41:
+                        rows.Add((T(157), $"{v} %"));
+                        // Each active target supplies the same shield and takes the same damage per second.
+                        string drainRate = (v / 10f).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+                        rows.Add((Localization.Extra("statShieldPerSecond", "Shield per second"), drainRate));
+                        rows.Add((T(188), drainRate));
+                        break;
+                    case 22: case 25: case 28: rows.Add((T(157), v > 0 ? Signed(v) + " %" : $"{v} %")); break;
+                    case 46: case 54: case 56: rows.Add((T(157), $"{v} %")); break;
                     case 24: case 29: rows.Add((T(141), $"{v} ms")); break;
                     case 27: rows.Add((T(152), $"{v} ms")); break;
                     case 32: if (it.Attr(100) != 1) rows.Add((T(164), $"{v} %")); break;   // a mining beam has no drill handling
@@ -287,7 +301,7 @@ namespace GoF2Remake.UI
             }
             Slots(265, s.slots.primary, current?.slots.primary ?? 0, "");
             Slots(266, s.slots.secondary, current?.slots.secondary ?? 0, "");
-            Slots(267, s.slots.turret, current?.slots.turret ?? 0, "");
+            rows.Add((T(267), s.slots.turret.ToString(), Cmp(s.slots.turret, current?.slots.turret ?? 0)));
             Slots(269, equipment, current != null ? current.slots.equipment + CurLv(2) : 0, Plus(2));
             rows.Add((T(164), handling + Plus(3), current == null ? 2 : Cmp(handling, Mathf.RoundToInt(current.handling) + 20 * CurLv(3))));
             rows.Add((T(132), Credits(price), 2));
@@ -334,7 +348,7 @@ namespace GoF2Remake.UI
         {
             into.Clear();
             var sorted = new List<int>();
-            if (mods != null) foreach (int m in mods) if (m >= 0 && !sorted.Contains(m)) sorted.Add(m);
+            if (Session.KaamoUpgradesEnabled && mods != null) foreach (int m in mods) if (m >= 0 && !sorted.Contains(m)) sorted.Add(m);
             sorted.Sort();
             into.style.display = sorted.Count > 0 ? UnityEngine.UIElements.DisplayStyle.Flex : UnityEngine.UIElements.DisplayStyle.None;
             foreach (int m in sorted)

@@ -75,8 +75,18 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   adapters (0.0.0.0). A port in use is caught before the fade (`NetGame.CanHost`: UDP bind test), the panel says so and
   puts the next free port in the field. The address field takes a join code (6 letters / digits, `NetGame.IsJoinCode`)
   or "host" / "host:port" (a name is looked up, `NetGame.ParseAddress`); the status line under the cards gives the last
-  session's end reason. The host card's settings (text, addresses / port, name, password / player limit, the Debug / Combat /
-  World / Mods switches two to a row) sit in `mpHostScroll` between the mode tabs and Host: at 16:9 they fit; when they
+  session's end reason.
+  **Session settings** (2026-11-28, the user: one button for every setting of a hosted session, the card keeping the
+  important ones; `MainMenuSessionSettings`, `mpSettingsPanel`): a button over Host opens a window with the Debug and Mods
+  switches and the co-op rows (moved off the card) and a row for each server setting a player host had only as /set
+  (`NetServerSettings.HostWindow`: the gameplay rules, Kaamo limit, flight model, ship collision, then a persistent
+  world's earn limit, claims, sieges and toll), two to a line, on / off and the modes as segments, numbers and the toll
+  as fields (checked as /set checks them: `ChooseForHost`; a problem shows in the window's note). The choices are kept
+  (PlayerPrefs `mp_set_<key>`, Reset clears them) and win when hosting (`NetGame.StartHost`: the rules from
+  `NetRules.FromOptions`, then a persistent world's saved settings, which the rules used to overwrite, then
+  `ApplyHostChoices`); untouched rows show what hosting starts with (`HostValue`). Controller: the neighbour on screen
+  (`NavigateSessionSettings`). The host card's settings (text, addresses / port, name, password / player limit, the Combat /
+  World switches, the Session settings button) sit in `mpHostScroll` between the mode tabs and Host: at 16:9 they fit; when they
   don't (three or more adapters, short screens) they scroll by wheel / touch / focus with an amber "More options" hint
   under them (`MainMenu.SetupHostMore`; the scroll bars are hidden everywhere). Before, the four switch rows squeezed the
   local network's address list and port field flat. Touch presses don't take the focus in the menu, except in a text field (the on-screen keyboard
@@ -194,7 +204,10 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   upgrades, stored ships keep their equipment, the cloak bay, EMP breaks cloaks, smarter NPC targeting, the ship
   collision mode. `Settings`' getters return the session's value while a session runs (the
   host's `NetRules.Host`, a client NetState's); a player host takes its own options at hosting and changing one while
-  hosting applies to everyone at once (`NetRules.HostChanged`); a dedicated server starts at the defaults, each flag
+  hosting applies to everyone at once (`NetRules.HostChanged`). The rules a game keeps in its save since #383
+  (`NetRules.SaveRules`: pirate events, capital ships, derelicts, cloak bay, Kaamo stacking and its level) come from the
+  co-op campaign's save, else the server defaults (`NetRules.FromOptions`; `/set` changes them): the session start resets
+  the game, so `Session`'s would all be off. A dedicated server starts at the defaults, each flag
   (`-cloakhides`, `-capitalships`, `-informeroriginal`, `-nopirateevents`, `-nokaamostacking`, `-nokaamoequipment`,
   `-nocloakbay`, `-noempcloak`, `-smarttargeting`, `-es2aiming`, `-es2flight`, `-derelicts`) turns
   one the other way (the ship collision mode is `-shipcollision exact|mixed|original`, two bits set as one setting,

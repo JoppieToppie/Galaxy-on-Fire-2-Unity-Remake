@@ -237,7 +237,8 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(4, Session.ModLevel(1), "a raised limit sells the next level");
                 Settings.KaamoMaxLevel = 2;
                 Session.AddShipMod(1);
-                Assert.AreEqual(4, Session.ModLevel(1), "levels above a lowered limit stay, none is added");
+                Assert.AreEqual(2, Session.ModLevel(1), "only levels within the cap take effect");
+                Assert.AreEqual(4, Session.ShipMods.Count);
             }
         }
 
@@ -245,14 +246,18 @@ namespace GoF2Remake.Tests
         public void ModLevelsFittedBeforeTheCapStay()
         {
             using (new SettingsScope<bool>(() => Settings.KaamoStacking, v => Settings.KaamoStacking = v))
+            using (new SettingsScope<int>(() => Session.KaamoUpgradeLimit, v => Session.KaamoUpgradeLimit = v))
             {
                 Settings.KaamoStacking = true;
+                Settings.KaamoMaxLevel = 5;
                 Session.ShipMods = Enumerable.Repeat(0, 12).ToList();
                 Session.AddShipMod(0);
-                Assert.AreEqual(12, Session.ModLevel(0));
+                Assert.AreEqual(5, Session.ModLevel(0));
                 Settings.KaamoStacking = false;
+                Session.KaamoUpgradeLimit = 1;
                 Session.AddShipMod(0);
-                Assert.AreEqual(12, Session.ModLevel(0), "levels already fitted stay when stacking is turned off");
+                Assert.AreEqual(1, Session.ModLevel(0));
+                Assert.AreEqual(12, Session.ShipMods.Count);
             }
         }
 
@@ -298,7 +303,7 @@ namespace GoF2Remake.Tests
         [TestCase(true, 2, 108, 1001)]
         [TestCase(true, 0, 107, 1001)]
         [TestCase(true, 0, 108, 801)]
-        [TestCase(false, 1, 108, 801)]
+        [TestCase(false, 1, 108, 1001)]
         public void UpgradeDiscountRequiresMembershipModeAndKaamo(bool bought, int mode, int station, int expected)
         {
             using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
@@ -317,7 +322,8 @@ namespace GoF2Remake.Tests
         {
             using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
             {
-                Settings.KaamoVipMode = Settings.KaamoVipAlways;
+                Settings.KaamoVipMode = Settings.KaamoVipCard;
+                Session.KaamoVip = true;
                 Session.KaamoState = 3;
                 Assert.AreEqual(expected, KaamoClub.UpgradePrice(regular, KaamoClub.Station));
             }
@@ -328,7 +334,8 @@ namespace GoF2Remake.Tests
         {
             using (new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v))
             {
-                Settings.KaamoVipMode = Settings.KaamoVipAlways;
+                Settings.KaamoVipMode = Settings.KaamoVipCard;
+                Session.KaamoVip = true;
                 Session.KaamoState = 3;
                 Session.Credits = 2000000;
                 var chat = new LoungeChat(Db, new Agent { offer = offer, sellShip = 55, sellItem = 0, sellQuantity = 1, sellPrice = 123456 }, KaamoClub.Station, null);
@@ -362,10 +369,28 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void ZeroUpgradeLimitDisablesBonusesAndVip()
+        {
+            using var limit = new SettingsScope<int>(() => Session.KaamoUpgradeLimit, v => Session.KaamoUpgradeLimit = v);
+            using var vip = new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v);
+            Session.KaamoUpgradeLimit = 0;
+            Session.KaamoState = 3;
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
+            Session.ShipMods.Add(0);
+            Session.AddShipMod(1);
+            Assert.AreEqual(0, Session.ModLevel(0));
+            Assert.IsFalse(Session.ShipMods.Contains(1));
+            Assert.IsFalse(KaamoClub.VipForSale);
+            Session.KaamoVip = true;
+            Assert.IsFalse(KaamoClub.VipDiscount);
+        }
+
+        [Test]
         public void VipDiscountPreservesLargeCreditAmounts()
         {
             using var mode = new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v);
-            Settings.KaamoVipMode = Settings.KaamoVipAlways;
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
+            Session.KaamoVip = true;
             Session.KaamoState = 3;
             Assert.AreEqual(7378697629483820646L, KaamoClub.UpgradePrice(long.MaxValue, KaamoClub.Station));
             Assert.AreEqual(long.MaxValue, KaamoClub.UpgradePrice(long.MaxValue, 78));

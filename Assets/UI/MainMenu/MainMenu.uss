@@ -1370,6 +1370,44 @@
     margin-top: var(--space-m);
 }
 
+/* The host card's Session settings button over Host, and its window (MainMenu.OpenSessionSettings): every setting of the
+   hosted session the card doesn't show, two to a row like the card's switches. */
+.mp-settings-button {
+    margin-bottom: 8px;
+}
+
+.mp-settings-panel {
+    max-width: 1100px;
+    height: 84%;
+    max-height: 84%;
+}
+
+.mp-settings-note {
+    flex-shrink: 0;
+    margin: 0 0 var(--space-m) 0;
+    color: var(--gof-text-dim);
+}
+
+.mp-settings-grid .mp-debug-row {
+    width: 49%;
+}
+
+.mp-settings-grid .debug-filter {
+    margin: 0;
+}
+
+.mp-settings-actions {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-m);
+}
+
+.mp-settings-actions .back-button {
+    margin-top: 0;
+}
+
 .mp-host-scroll .mp-card-fill {
     flex-grow: 0;
     min-height: 0;
@@ -1824,12 +1862,26 @@
 
 /* The game options panel holds four toggles (the Kaamo Club, Hardcore, Tutorials, Capital ships) and Start: tighter so it
    fits the panel's 80 % height. */
-#gameOptionsPanel .choice-button--toggle {
+#difficultyPanel .choice-button {
+    margin-top: var(--space-s);
+    margin-bottom: 0;
+}
+
+.difficulty-additional {
+    margin-top: var(--space-m);
+    color: var(--gof-text-dim);
+    font-size: var(--text-small);
+}
+
+#difficultyPanel .choice-button--toggle,
+#gameOptionsPanel .choice-button--toggle,
+#remakeOptionsPanel .choice-button--toggle {
     margin-top: var(--space-s);
     margin-bottom: 0;
     padding: 12px 20px;
 }
 
+#difficultyPanel .choice-desc,
 #gameOptionsPanel .choice-desc {
     margin-top: 3px;
     font-size: var(--text-small);
@@ -1841,6 +1893,16 @@
 
 .choice-button--on .choice-title {
     color: var(--gof-amber);
+}
+
+.choice-button--unavailable {
+    background-color: #25282B;
+    border-color: #545A60;
+}
+
+.choice-button--unavailable .choice-title,
+.choice-button--unavailable .choice-desc {
+    color: #A2A8AE;
 }
 
 .choice-title {
@@ -2421,12 +2483,52 @@
     -unity-text-align: middle-center;
 }
 
+#gameOptionsPanel,
+#remakeOptionsPanel, #editCampaignPanel {
+    height: 80%;
+}
+
+.campaign-rules-footer {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.campaign-rules-actions {
+    flex-direction: row;
+}
+
+.campaign-rules-footer .menu-button,
+.can-hover .campaign-rules-footer .menu-button:hover,
+.campaign-rules-footer .menu-button:focus {
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: var(--text-body);
+    -unity-text-align: middle-center;
+}
+
+.campaign-rules-delete {
+    color: #ff7272;
+}
+
+#campaignRuleList .choice-row:disabled {
+    opacity: 0.45;
+}
+
+.remake-options-scroll {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
 .game-options-body {
     flex-direction: row;
-    flex-shrink: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
 }
 
 .game-options-left {
+    min-height: 0;
     flex-grow: 1;
     flex-shrink: 1;
     flex-basis: 0;

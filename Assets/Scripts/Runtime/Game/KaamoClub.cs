@@ -109,15 +109,14 @@ namespace GoF2Remake.Data
         public static bool VipFeatures => Settings.KaamoSpecialUiFeatures && Owned;
 
         /// <summary>Membership benefits retain the existing Off / Buy / Always setting and purchased save flag.</summary>
-        public static bool VipDiscount => Owned && (Settings.KaamoVipMode == Settings.KaamoVipAlways
-            || (Settings.KaamoVipMode == Settings.KaamoVipCard && Session.KaamoVip));
+        public static bool VipDiscount => Owned && Session.KaamoUpgradesEnabled && Settings.KaamoVipMode == Settings.KaamoVipCard && Session.KaamoVip;
 
         /// <summary>Only a mechanic's ship upgrade at Kaamo qualifies. Round the payable amount up to a credit.</summary>
         public static long UpgradePrice(long price, int station) => station == Station && VipDiscount && price > 0
             ? price / 5 * 4 + (price % 5 * 4 + 4) / 5 : price;
 
         /// <summary>The Store tab offers the card: the club owned, the option at "bought at the club", not bought yet.</summary>
-        public static bool VipForSale => Owned && Settings.KaamoVipMode == Settings.KaamoVipCard && !Session.KaamoVip;
+        public static bool VipForSale => Owned && Session.KaamoUpgradesEnabled && Settings.KaamoVipMode == Settings.KaamoVipCard && !Session.KaamoVip;
 
         /// <summary>The card bought: VipPrice off the credits. False when there aren't enough or it is no longer for sale.</summary>
         public static bool BuyVip()

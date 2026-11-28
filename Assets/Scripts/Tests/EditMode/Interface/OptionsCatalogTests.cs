@@ -26,7 +26,7 @@ namespace GoF2Remake.Tests
         /// (Session), the Debug tools (Cheats), the tilt steering choice (calibrates the device when turned on), buttons,
         /// and the text language (Settings.ResetToDefaults keeps it: a Defaults button should not put a player back into a
         /// language they can't read).</summary>
-        static readonly HashSet<string> NotSettings = new HashSet<string> { "difficulty", "debugTools", "steering", "language", "cosmeticExperience", "gameplayExperience" };
+        static readonly HashSet<string> NotSettings = new HashSet<string> { "difficulty", "debugTools", "steering", "language", "presentationPreset", "gameplayExperience" };
 
         DataUiTestKit.PrefsSnapshot prefs;
         DataUiTestKit.TextLanguage english;
@@ -61,7 +61,7 @@ namespace GoF2Remake.Tests
                 Assert.AreEqual(OptionSection.Hud, all.First(o => o.id == id).section, id);
             foreach (var id in new[] { "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunCompare" })
                 Assert.AreEqual(OptionSection.Tools, all.First(o => o.id == id).section, id);
-            foreach (var id in new[] { "kaamoKeepsEquipment", "autoJumpgate" })
+            foreach (var id in new[] { "kaamoKeepsEquipment" })
             {
                 var row = all.First(o => o.id == id);
                 Assert.AreEqual(OptionPage.Gameplay, row.page, id);
@@ -72,11 +72,12 @@ namespace GoF2Remake.Tests
             {
                 bool cosmetic = row.id == "systemMapAnimationSpeed";
                 Assert.AreEqual(cosmetic ? OptionPage.Cosmetics : OptionPage.Gameplay, row.page);
-                Assert.AreEqual(cosmetic ? OptionSection.Hud : OptionSection.GameRules, row.section);
+                Assert.AreEqual(cosmetic ? OptionSection.SpecialFeatures : OptionSection.GameRules, row.section);
             }
             Assert.AreEqual(OptionPage.Accessibility, all.First(o => o.id == "discordPresence").page);
             var rules = all.Where(o => o.section == OptionSection.GameRules).ToList();
-            Assert.AreEqual("gameplayExperience", rules[0].id);
+            Assert.IsFalse(all.Any(o => o.id == "cosmeticExperience"));
+            Assert.AreEqual("gameplayExperience", all.First(o => o.page == OptionPage.Gameplay).id);
             Assert.IsFalse(rules.Any(o => o.id == "debugTools"));
         }
 
@@ -93,8 +94,7 @@ namespace GoF2Remake.Tests
                 for (int i = 0; i < 5; i++) view.StepTab(1);
                 Assert.IsFalse(view.RulesPromptOpen);
                 Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "gameplayExperience"));
-                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "difficulty"));
-                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "pirateEvents"), "a rule row, without opening anything");
+                Assert.IsTrue(view.NavItems().Any(v => view.RowOf(v)?.def.id == "empBreaksCloak"), "a rule row, without opening anything");
                 Assert.IsFalse(view.NavItems().OfType<UnityEngine.UIElements.Button>().Any(b => b.ClassListContains("options-section-gate")));
                 Assert.IsFalse(GameRulesAccess.Confirmed, "the Debug pages' own consent is not given by looking");
                 Assert.AreEqual(debug, Cheats.Unlocked);
@@ -165,7 +165,8 @@ namespace GoF2Remake.Tests
                         Assert.IsNotNull(o.getIndex, o.id); Assert.IsNotNull(o.setIndex, o.id);
                         var c = o.choices();
                         Assert.Greater(c.Length, 0, o.id);
-                        Assert.That(o.getIndex(), Is.InRange(0, c.Length - 1), o.id + " index");
+                        // The presentation preset is -1 ("—") when the settings are neither Fast nor Fancy (#383).
+                        Assert.That(o.getIndex(), Is.InRange(o.id == "presentationPreset" ? -1 : 0, c.Length - 1), o.id + " index");
                         foreach (var s in c) Assert.IsFalse(string.IsNullOrWhiteSpace(s), o.id + " choice text");
                         break;
                     case OptionKind.Button:
@@ -280,27 +281,28 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void TheDifficultyRowChangesTheGameInProgress()
+        public void InformerRuleFollowsGameplayPresets()
         {
-            var d = OptionsCatalog.All().FirstOrDefault(o => o.id == "difficulty");
-            Assert.IsNotNull(d, "not in a multiplayer session: the Difficulty row");
-            Assert.IsTrue(d.inGameOnly, "only in a running game's menus");
-            Assert.AreEqual(OptionPage.Gameplay, d.page);
-            Assert.AreEqual(4, d.choices().Length, "Easy, Normal, Hard, Extreme (texts 518-520, 25)");
-            float[] levels = { 0f, 0.5f, 1f, 1.5f };   // options+0x2c: Easy 0, Normal 0.5, Hard 1, Extreme 1.5
-            for (int i = 0; i < 4; i++)
-            {
-                d.setIndex(i);
-                Assert.AreEqual(levels[i], Session.Difficulty, 1e-6f, "choice " + i);
-                Assert.AreEqual(i, d.getIndex());
-            }
+            var row = OptionsCatalog.All().Single(o => o.id == "informerRule");
+            Assert.AreEqual(OptionPage.Gameplay, row.page);
+            Settings.ApplyScopedExperience(false, 1);
+            Assert.IsTrue(row.getBool());
+            Settings.ApplyScopedExperience(false, 0);
+            Assert.IsFalse(row.getBool());
         }
 
         [Test]
+        public void SaveRulesAreAbsentFromTheGeneralOptions()
+        {
+            var all = OptionsCatalog.All();
+            foreach (string id in new[] { "difficulty", "kaamoStacking", "kaamoVip", "pirateEvents", "capitalShips", "derelictWrecks", "khadorSlipstream", "cloakBay", "blueprintAutocomplete", "tutorialHints" })
+                Assert.IsFalse(all.Any(o => o.id == id), id);
+        }
+        [Test]
         public void SessionRuleRowsShowInSinglePlayer()
         {
-            foreach (var id in new[] { "cloakLosesPursuers", "empBreaksCloak", "pirateEvents", "capitalShips", "kaamoStacking",
-                                       "kaamoKeepsEquipment", "cloakBay", "informerRule" })
+            foreach (var id in new[] { "cloakLosesPursuers", "empBreaksCloak",
+                                       "kaamoKeepsEquipment" })
             {
                 var o = OptionsCatalog.All().FirstOrDefault(x => x.id == id);
                 Assert.IsNotNull(o, id);
@@ -530,19 +532,19 @@ namespace GoF2Remake.Tests
                 Settings.ApplyScopedExperience(false, 1);
                 if (alreadyCustom) Settings.KaamoVipMode = Settings.KaamoVipOff;
                 int vip = Settings.KaamoVipMode;
-                bool pirates = Settings.PirateEvents;
+                bool pirates = Settings.EmpBreaksCloak;
                 var view = new OptionsView(() => { }, false);
                 for (int i = 0; i < 5; i++) view.StepTab(1);
                 var field = view.NavItems().Single(e => view.RowOf(e)?.def.id == "gameplayExperience");
                 var choice = (ChoiceRow)field;
-                Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "kaamoVip"), "the rules show before Custom is picked");
+                Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "empBreaksCloak"), "the rules show before Custom is picked");
                 choice.Step(1);
                 Assert.IsFalse(view.RulesPromptOpen, "no consent prompt any more");
                 Assert.AreEqual(2, view.RowOf(field).def.getIndex(), "Custom is explicitly Custom");
                 Assert.AreEqual(2, ((ChoiceRow)field).Index, "the visible selection is Custom");
-                Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "kaamoVip"));
+                Assert.IsTrue(view.NavItems().Any(e => view.RowOf(e)?.def.id == "empBreaksCloak"));
                 Assert.AreEqual(vip, Settings.KaamoVipMode);
-                Assert.AreEqual(pirates, Settings.PirateEvents);
+                Assert.AreEqual(pirates, Settings.EmpBreaksCloak);
             }
             finally { if (confirmed) GameRulesAccess.Accept(); else GameRulesAccess.Reset(); }
         }
@@ -584,9 +586,9 @@ namespace GoF2Remake.Tests
             }
             else
             {
-                bool original = Settings.PirateEvents;
-                Settings.PirateEvents = !original;
-                Settings.PirateEvents = original;
+                bool original = Settings.EmpBreaksCloak;
+                Settings.EmpBreaksCloak = !original;
+                Settings.EmpBreaksCloak = original;
             }
             Assert.AreEqual(2, Settings.CurrentScopedExperience(cosmetics), "matching values cannot reactivate a preset");
             DataUiTestKit.ClearSettingsCache();
@@ -678,33 +680,32 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(row.getBool());
             Settings.Reset(Settings.CosmeticsKeys);
             Assert.IsTrue(row.getBool());
-            Assert.AreEqual(OptionSection.GameRules, OptionsCatalog.All().Single(o => o.id == "kaamoVip").section);
         }
 
         [Test]
-        public void GameplayPresetsOptIntoVipOnlyForRemake()
+        public void GameplayPresetsAndResetPreserveSaveRules()
         {
+            using var vip = new SettingsScope<int>(() => Settings.KaamoVipMode, v => Settings.KaamoVipMode = v);
+            using var stack = new SettingsScope<bool>(() => Settings.KaamoStacking, v => Settings.KaamoStacking = v);
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
+            Settings.KaamoStacking = true;
             var gameplay = OptionsCatalog.All().Single(o => o.id == "gameplayExperience");
-            gameplay.setIndex(1);
+            for (int i = 0; i < 3; i++) gameplay.setIndex(i);
+            OptionsCatalog.ResetPage(OptionPage.Gameplay);
+            Settings.ResetToDefaults();
             Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode);
-            bool pirates = Settings.PirateEvents;
-            gameplay.setIndex(2);
-            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode, "Custom preserves VIP too");
-            Assert.AreEqual(pirates, Settings.PirateEvents, "Custom preserves other rules");
-            gameplay.setIndex(0);
-            Assert.AreEqual(Settings.KaamoVipOff, Settings.KaamoVipMode);
+            Assert.IsTrue(Settings.KaamoStacking);
         }
-
         [Test]
         public void CosmeticPresetsControlKaamoToolsAndStyleWithoutChangingVip()
         {
-            Settings.KaamoVipMode = Settings.KaamoVipAlways;
+            Settings.KaamoVipMode = Settings.KaamoVipCard;
             Settings.OriginalUi = true;
             Settings.ApplyScopedExperience(true, 0);
             Assert.IsFalse(Settings.KaamoSpecialUiFeatures);
             Assert.AreEqual(0, Settings.CurrentScopedExperience(true));
             Assert.IsFalse(Settings.OriginalUi, "legacy style requires a manual Custom override");
-            Assert.AreEqual(Settings.KaamoVipAlways, Settings.KaamoVipMode, "cosmetics cannot change paid benefits");
+            Assert.AreEqual(Settings.KaamoVipCard, Settings.KaamoVipMode, "cosmetics cannot change paid benefits");
             Settings.KaamoSpecialUiFeatures = true;
             Assert.AreEqual(2, Settings.CurrentScopedExperience(true), "an override is Custom");
             Settings.ApplyScopedExperience(true, 2);

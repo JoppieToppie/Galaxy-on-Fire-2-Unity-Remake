@@ -92,11 +92,29 @@ namespace GoF2Remake.Tests
         [Test]
         public void ThePlayersOwnOptionsAsRules()
         {
-            int m = NetRules.FromOptions();
+            // Free roam: the options, but the rules a save keeps start at the server's defaults (the session start has just
+            // reset the game, so Session's would all be off).
+            int m = NetRules.FromOptions(null, out int level);
             Assert.AreEqual(Settings.CloakLosesPursuers, (m & NetRules.CloakLosesPursuers) != 0);
-            Assert.AreEqual(Settings.PirateEvents, (m & NetRules.PirateEvents) != 0);
-            Assert.AreEqual(Settings.CapitalShips, (m & NetRules.CapitalShips) != 0);
-            Assert.AreEqual(Settings.KaamoStacking, (m & NetRules.KaamoStacking) != 0);
+            Assert.AreEqual(NetRules.Defaults & NetRules.SaveRules, m & NetRules.SaveRules);
+            Assert.AreEqual(SessionRules.DefaultKaamoLevel, level);
+        }
+
+        [Test]
+        public void ACoopHostsSaveGivesTheSavesRules()
+        {
+            var save = new SaveData
+            {
+                savedGameRules = 1 + (int)(SavedGameRules.CapitalShips | SavedGameRules.DerelictWrecks),
+                stackKaamoUpgrades = true, kaamoUpgradeLimit = 8, kaamoVipRule = 2,
+            };
+            int m = NetRules.FromOptions(save, out int level);
+            Assert.AreEqual(NetRules.CapitalShips | NetRules.DerelictWrecks | NetRules.KaamoStacking, m & NetRules.SaveRules);
+            Assert.AreEqual(8, level);
+            save.stackKaamoUpgrades = false; save.kaamoUpgradeLimit = 1;
+            m = NetRules.FromOptions(save, out level);
+            Assert.AreEqual(0, m & NetRules.KaamoStacking);
+            Assert.AreEqual(SessionRules.DefaultKaamoLevel, level);
         }
 
         [Test]
@@ -151,6 +169,40 @@ namespace GoF2Remake.Tests
             NetRules.HostFlight = savedFlight;
             ResetStatics(typeof(NetServerSettings));
             ResetStatics(typeof(NetProfiles));
+        }
+
+        [Test]
+        public void TheSessionSettingsWindowsChoicesReachTheHostedSession()
+        {
+            // The main menu's Session settings window keeps its choices in PlayerPrefs (the player's own: put back after).
+            var keys = NetServerSettings.HostWindow.Select(s => "mp_set_" + s.key).ToList();
+            var before = keys.ToDictionary(k => k, k => UnityEngine.PlayerPrefs.HasKey(k) ? UnityEngine.PlayerPrefs.GetString(k) : null);
+            BeginSettings();
+            try
+            {
+                var window = NetServerSettings.HostWindow;
+                Assert.IsFalse(window.Exists(s => s.key == "password" || s.key == "maxplayers" || s.key == "freepvp"), "the Host card's own");
+                Assert.IsTrue(window.Exists(s => s.key == "capitalships") && window.Exists(s => s.key == NetRules.FlightKey), "every rule");
+                var capital = window.Find(s => s.key == "capitalships");
+                var claims = window.Find(s => s.key == "maxclaims");
+                NetServerSettings.ClearHostChoices();
+                Assert.IsNull(NetServerSettings.ChooseForHost(capital, "on"));
+                Assert.IsNull(NetServerSettings.ChooseForHost(claims, "500"));   // clamped to 0..100, as /set does
+                Assert.IsNotNull(NetServerSettings.ChooseForHost(claims, "many"), "not a number");
+                Assert.AreEqual("100", NetServerSettings.HostChoice(claims));
+                NetRules.Host = 0;   // what StartHost has set before it applies the choices
+                NetServerSettings.ApplyHostChoices();
+                Assert.AreNotEqual(0, NetRules.Host & NetRules.CapitalShips);
+                Assert.AreEqual(100, NetFactions.MaxClaims);
+                NetServerSettings.ClearHostChoices();
+                Assert.IsNull(NetServerSettings.HostChoice(capital));
+            }
+            finally
+            {
+                EndSettings();
+                foreach (var kv in before)
+                    if (kv.Value == null) UnityEngine.PlayerPrefs.DeleteKey(kv.Key); else UnityEngine.PlayerPrefs.SetString(kv.Key, kv.Value);
+            }
         }
 
         internal static void ResetStatics(System.Type t)

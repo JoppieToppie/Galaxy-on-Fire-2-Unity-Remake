@@ -57,6 +57,12 @@ Research: `Reference/research/space_level_setup.md`, `space_backdrop.md` (+ `spa
   bright directions' least spread axis, and how flat they lie; main colour, coverage; the patch's heading / elevation).
   `GoF2SkyLayers.Toward`: a layer centred on a cube-frame direction w: heading atan2(w.x, w.y), elevation asin(w.z) / (pi / 2).
   Tests `GoF2SkyLayersTests`.
+  **A start that hangs** (#371, 2026-11-27: EVERSPACE 2 style crashed a Realme RMX3370, Adreno 6xx class, Android 13, and
+  every start after hung at the loading screen, the option out of reach; on an S24 Ultra, Adreno 750, it draws fine at
+  60 fps): `Settings.GuardStartup` (Bootstrap, players only) marks each start (`startupPending`) and the main menu clears
+  the mark after 180 frames (`Settings.StartupReached`); a start that finds the mark still set, with Skies not Original
+  or Nebula clouds on, puts Skies back to Original and Nebula clouds off and logs a warning. Test
+  `NebulaCloudsTests.AStartThatNeverReachedTheMenuPutsTheSkiesBack`. The crash itself not reproduced (no Adreno 6xx here).
 - **Enhanced skies' layers and stars** (remake, 2026-11-14, the user's request to rebuild GoF2's skies "the same way Chorus
   does"; "Skies" Enhanced and Combined, `Settings.EnhancedSkies`): `OrbitBuilder.Enhance`
   puts `Resources/GoF2SkyHd` on the game's own layers of a sky (not a mod's images, not a Chorus sky): its stars_00X /

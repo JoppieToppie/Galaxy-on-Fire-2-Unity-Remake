@@ -134,6 +134,20 @@ namespace GoF2Remake.Multiplayer
         {
             var s = All.Find(x => string.Equals(x.key, (key ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
             if (s == null) return Localization.Extra("mpSetUnknown", "Unknown setting. /settings lists them.");
+            if (Check(s, ref value) is string problem) return problem;
+            s.apply(value);
+            Remember(s.key, value);
+            Debug.Log($"Server: {by} set {s.key} to {(s.kind == Kind.Password ? (value == "-" ? "none" : "(hidden)") : s.get())}.");
+            string answer = string.Format(Localization.Extra("mpSetDone", "{0} is {1} now."), s.label, s.kind == Kind.Password ? s.get() : s.get());
+            if (s.note != null) answer += " (" + s.note + ")";
+            if (fromCommandLine.Contains(s.key)) answer += " " + string.Format(Localization.Extra("mpSetCli", "The launcher's command line sets it too ({0}): change it there as well, or the next start puts that back."), s.option);
+            return answer;
+        }
+
+        /// <summary>'value' made the setting's own form (a number clamped, on / off, the toll's, a mode's name); the problem
+        /// for the player when it isn't one, else null.</summary>
+        static string Check(Setting s, ref string value)
+        {
             value = (value ?? "").Trim();
             switch (s.kind)
             {
@@ -167,13 +181,59 @@ namespace GoF2Remake.Multiplayer
                     }
                     break;
             }
-            s.apply(value);
-            Remember(s.key, value);
-            Debug.Log($"Server: {by} set {s.key} to {(s.kind == Kind.Password ? (value == "-" ? "none" : "(hidden)") : s.get())}.");
-            string answer = string.Format(Localization.Extra("mpSetDone", "{0} is {1} now."), s.label, s.kind == Kind.Password ? s.get() : s.get());
-            if (s.note != null) answer += " (" + s.note + ")";
-            if (fromCommandLine.Contains(s.key)) answer += " " + string.Format(Localization.Extra("mpSetCli", "The launcher's command line sets it too ({0}): change it there as well, or the next start puts that back."), s.option);
-            return answer;
+            return null;
+        }
+
+        // ---- a player host's choices (the main menu's Session settings window) ------------------------------------------
+
+        /// <summary>The settings the Session settings window lists: all but the Host card's own (name, password, player
+        /// limit, Combat) and the Debug switch (the window's own row, MainMenu).</summary>
+        public static List<Setting> HostWindow => All.FindAll(s => s.key != "name" && s.key != "password" && s.key != "maxplayers"
+                                                                  && s.key != "allowdebug" && s.key != "freepvp");
+
+        const string HostChoicePrefix = "mp_set_";
+
+        /// <summary>What the player chose for the setting in the window (PlayerPrefs "mp_set_<key>"), null = left alone.</summary>
+        public static string HostChoice(Setting s) => PlayerPrefs.HasKey(HostChoicePrefix + s.key) ? PlayerPrefs.GetString(HostChoicePrefix + s.key) : null;
+
+        /// <summary>The window: keeps the choice for the next hosting (checked as /set checks it); the problem, else null.</summary>
+        public static string ChooseForHost(Setting s, string value)
+        {
+            if (Check(s, ref value) is string problem) return problem;
+            PlayerPrefs.SetString(HostChoicePrefix + s.key, value);
+            return null;
+        }
+
+        /// <summary>The window's Reset: every choice back to its start value.</summary>
+        public static void ClearHostChoices()
+        {
+            foreach (var s in HostWindow) PlayerPrefs.DeleteKey(HostChoicePrefix + s.key);
+        }
+
+        /// <summary>The window's shown value: the choice, else what hosting starts with (the rules from the player's options
+        /// and the server defaults, NetRules.FromOptions; the other settings' own defaults).</summary>
+        public static string HostValue(Setting s)
+        {
+            if (HostChoice(s) is string chosen) return chosen;
+            if (!NetGame.Active)
+            {
+                NetRules.Host = NetRules.FromOptions(null, out int level);   // StartHost sets them again
+                NetRules.HostKaamoLevel = level;
+                NetRules.HostFlight = SessionRules.DefaultFlight;
+            }
+            return s.get();
+        }
+
+        /// <summary>NetGame.StartHost (a player host), after its rules and a persistent world's saved settings: the window's
+        /// choices win, as the Host card's do.</summary>
+        public static void ApplyHostChoices()
+        {
+            foreach (var s in HostWindow)
+            {
+                if (!(HostChoice(s) is string v)) continue;
+                try { s.apply(v); }
+                catch (Exception) { Debug.LogWarning($"NetGame: the session setting {s.key} = \"{v}\" isn't valid; skipped."); }
+            }
         }
 
         static void Remember(string key, string value)

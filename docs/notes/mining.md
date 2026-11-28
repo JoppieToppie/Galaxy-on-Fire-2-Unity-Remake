@@ -127,7 +127,9 @@ logic (plain C#); `MiningView` draws the lock ring, ore plate, HUD messages and 
   Action Freeze's photo tools opened straight (`PauseMenu.OpenInspect`: Back closes the pause menu, back to the docked
   menu); `ObjectDocking.CameraHeld` (set by `PhotoMode`) keeps the docking's look-at off the photo camera, the pause
   menu's own Action Freeze while docked too. Keys: up / down, Enter / A, 1-9, Esc / B undock (the guns blocked on the way
-  out as before). The game waits under it (`Navigation.OpenMenu(force)`; multiplayer runs on). VR keeps the old flow
+  out as before). The game waits under it (`Navigation.OpenMenu(force)`; multiplayer runs on). The list is its content's
+  height up to ~6 buttons (#366: a ScrollView in the auto-height panel was only its scroller's 40 px, the first button
+  alone; on a phone Undock was out of sight and the paused game looked frozen after step 135's delivery). VR keeps the old flow
   (the resupply window at once, the plant's one menu). Other dock types (story transfers, hacking, pads) are unchanged.
 - **Space Waste sorting at the Mining Plant** (`WasteProcessing`, remake-only, 2026-11-02; players' suggestion on Discord):
   the plant menu's entry sorts the Space Waste (99) in the hold for a fee, a gamble. Every ton is sorted on its own

@@ -957,12 +957,14 @@
     width: 247px;
     height: 39px;
     margin-top: 1px;
-    justify-content: center;
 }
 
+/* At y 13 of the plate (Hud::draw: bar y = icon y + 14, the plate at icon y + 1): the 14 px bar in the middle of the
+   plate's 18 px gap (rows 11-28). Was centred by flex at 12.5: the hull bar sat visibly high. */
 .status-bar {
     width: 248px;
     height: 14px;
+    margin-top: 13px;
 }
 
 .status-fill {

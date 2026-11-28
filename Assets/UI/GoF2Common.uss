@@ -1450,6 +1450,10 @@
     display: flex;
 }
 
+.option-item.option-item--preset {
+    margin-bottom: var(--space-l);
+}
+
 .option-row {
     margin: 2px 0;
     padding: 2px 8px;
@@ -1465,7 +1469,7 @@
 }
 
 /* A row that doesn't apply now (OptionDef.enabled: MSAA under a temporal upscaler): greyed out, no hover. */
-.option-row.unity-disabled {
+.option-item--unavailable {
     opacity: 0.4;
 }
 

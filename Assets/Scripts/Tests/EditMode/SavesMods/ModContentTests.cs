@@ -323,7 +323,7 @@ namespace GoF2Remake.Tests
             ScanAndEnable("plasma_arsenal");
             var m = Installed("plasma_arsenal");
             Assert.IsFalse(m.Broken, AllMessages(m));
-            Assert.AreEqual("1.0", m.Version);
+            Assert.AreEqual("1.1", m.Version);
             var db = Database.Load();
             var lance = db.Item(ModContent.ItemIndexOf("plasma_arsenal:plasma_lance"));
             var hornet = db.Item(ModContent.ItemIndexOf("plasma_arsenal:hornet_swarm"));
