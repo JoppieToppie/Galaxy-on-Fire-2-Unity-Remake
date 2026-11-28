@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Toepassen en opnieuw testen",
   "benchmarkApplied": "Toegepast.",
   "benchmarkFastEnough": "Elke scène liep sneller dan de {0} Hz van het beeldscherm: niets te veranderen.",
-  "benchmarkNoSuggest": "Geen van de gecontroleerde opties zou de framerate hier verhogen."
+  "benchmarkNoSuggest": "Geen van de gecontroleerde opties zou de framerate hier verhogen.",
+  "mpSessionSettings": "Sessie-instellingen",
+  "mpSessionNote": "Bewaard voor de volgende keer dat je host. In een lopende sessie wijzigen admins ze met /set.",
+  "mpSessionNoteCoop": "In een co-opcampagne komen de regels die je niet wijzigt uit de gehoste opslag.",
+  "mpSessionReset": "Standaardwaarden herstellen",
+  "mpSessionRulesHeader": "Spelregels",
+  "mpSessionWorldHeader": "Blijvende wereld: profielen en facties",
+  "mpSessionInformer": "Informantenmissies: oorspronkelijke regel",
+  "mpSessionFlight": "Vliegmodel",
+  "mpFlightPlayer": "Dat van elke speler",
+  "mpSessionMaxEarn": "Waarde die een profiel per minuut mag winnen",
+  "mpSessionClaimCost": "Kosten van opeisen",
+  "mpSessionMaxClaims": "Stations per factie",
+  "mpSessionClaimDays": "Dagen voordat een onbezochte claim vervalt",
+  "mpSessionSiegeCost": "Kosten van een belegering",
+  "mpSessionToll": "Tol bij factiestations (credits of %)",
+  "es2Aiming": "EVERSPACE 2-mikken van NPC's",
+  "es2NpcFlight": "EVERSPACE 2-vliegen van NPC's"
 }

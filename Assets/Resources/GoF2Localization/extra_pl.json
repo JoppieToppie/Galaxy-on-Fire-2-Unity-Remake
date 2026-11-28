@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Zastosuj i powtórz test",
   "benchmarkApplied": "Zastosowano.",
   "benchmarkFastEnough": "Każda scena działała szybciej niż {0} Hz ekranu: nie ma czego zmieniać.",
-  "benchmarkNoSuggest": "Żadna ze sprawdzonych opcji nie podniosłaby tu liczby klatek."
+  "benchmarkNoSuggest": "Żadna ze sprawdzonych opcji nie podniosłaby tu liczby klatek.",
+  "mpSessionSettings": "Ustawienia sesji",
+  "mpSessionNote": "Zapamiętane na następne hostowanie. W trwającej sesji admini zmieniają je poleceniem /set.",
+  "mpSessionNoteCoop": "W kampanii kooperacyjnej zasady, których nie zmienisz, pochodzą z hostowanego zapisu.",
+  "mpSessionReset": "Przywróć domyślne",
+  "mpSessionRulesHeader": "Zasady gry",
+  "mpSessionWorldHeader": "Trwały świat: profile i frakcje",
+  "mpSessionInformer": "Misje informatora: oryginalna zasada",
+  "mpSessionFlight": "Model lotu",
+  "mpFlightPlayer": "Własny każdego gracza",
+  "mpSessionMaxEarn": "Wartość, jaką profil może zyskać na minutę",
+  "mpSessionClaimCost": "Koszt przejęcia",
+  "mpSessionMaxClaims": "Stacje na frakcję",
+  "mpSessionClaimDays": "Dni do wygaśnięcia nieodwiedzanego przejęcia",
+  "mpSessionSiegeCost": "Koszt oblężenia",
+  "mpSessionToll": "Opłata na stacjach frakcji (kredyty lub %)",
+  "es2Aiming": "Celowanie NPC w stylu EVERSPACE 2",
+  "es2NpcFlight": "Lot NPC w stylu EVERSPACE 2"
 }

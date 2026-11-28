@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Appliquer et relancer le test",
   "benchmarkApplied": "Appliqué.",
   "benchmarkFastEnough": "Chaque scène a tourné plus vite que les {0} Hz de l'écran : rien à changer.",
-  "benchmarkNoSuggest": "Aucune des options vérifiées n'augmenterait ici les images par seconde."
+  "benchmarkNoSuggest": "Aucune des options vérifiées n'augmenterait ici les images par seconde.",
+  "mpSessionSettings": "Paramètres de la session",
+  "mpSessionNote": "Conservés pour la prochaine fois que vous hébergez. Dans une session en cours, les admins les changent avec /set.",
+  "mpSessionNoteCoop": "Dans une campagne coop, les règles que vous laissez inchangées viennent de la sauvegarde hébergée.",
+  "mpSessionReset": "Rétablir les valeurs par défaut",
+  "mpSessionRulesHeader": "Règles de jeu",
+  "mpSessionWorldHeader": "Monde persistant : profils et factions",
+  "mpSessionInformer": "Missions d'informateur : règle d'origine",
+  "mpSessionFlight": "Modèle de vol",
+  "mpFlightPlayer": "Celui de chaque joueur",
+  "mpSessionMaxEarn": "Valeur qu'un profil peut gagner par minute",
+  "mpSessionClaimCost": "Coût d'une revendication",
+  "mpSessionMaxClaims": "Stations par faction",
+  "mpSessionClaimDays": "Jours avant qu'une revendication non visitée expire",
+  "mpSessionSiegeCost": "Coût d'un siège",
+  "mpSessionToll": "Péage aux stations de faction (crédits ou %)",
+  "es2Aiming": "Visée des PNJ façon EVERSPACE 2",
+  "es2NpcFlight": "Vol des PNJ façon EVERSPACE 2"
 }

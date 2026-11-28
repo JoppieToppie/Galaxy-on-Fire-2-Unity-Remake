@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Applica e ripeti la prova",
   "benchmarkApplied": "Applicato.",
   "benchmarkFastEnough": "Ogni scena è andata più veloce dei {0} Hz dello schermo: niente da cambiare.",
-  "benchmarkNoSuggest": "Nessuna delle opzioni controllate aumenterebbe qui i fotogrammi."
+  "benchmarkNoSuggest": "Nessuna delle opzioni controllate aumenterebbe qui i fotogrammi.",
+  "mpSessionSettings": "Impostazioni della sessione",
+  "mpSessionNote": "Conservate per la prossima volta che ospiti. In una sessione in corso, gli admin le cambiano con /set.",
+  "mpSessionNoteCoop": "In una campagna co-op, le regole che non cambi vengono dal salvataggio ospitato.",
+  "mpSessionReset": "Ripristina predefiniti",
+  "mpSessionRulesHeader": "Regole di gioco",
+  "mpSessionWorldHeader": "Mondo persistente: profili e fazioni",
+  "mpSessionInformer": "Missioni da informatore: regola originale",
+  "mpSessionFlight": "Modello di volo",
+  "mpFlightPlayer": "Quello di ogni giocatore",
+  "mpSessionMaxEarn": "Valore che un profilo può guadagnare al minuto",
+  "mpSessionClaimCost": "Costo di una rivendicazione",
+  "mpSessionMaxClaims": "Stazioni per fazione",
+  "mpSessionClaimDays": "Giorni prima che una rivendicazione non visitata decada",
+  "mpSessionSiegeCost": "Costo di un assedio",
+  "mpSessionToll": "Pedaggio alle stazioni di fazione (crediti o %)",
+  "es2Aiming": "Mira dei PNG stile EVERSPACE 2",
+  "es2NpcFlight": "Volo dei PNG stile EVERSPACE 2"
 }

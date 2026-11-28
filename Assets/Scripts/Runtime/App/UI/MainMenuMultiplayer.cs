@@ -1,6 +1,7 @@
 // MainMenuMultiplayer.cs
-// Part of MainMenu: the Multiplayer panel: the server browser, the host card (mode, password, player limit, Debug /
-// Combat / World / Mods switches, addresses), the pilot name prompt and the fade into hosting or joining.
+// Part of MainMenu: the Multiplayer panel: the server browser, the host card (mode, password, player limit, Combat /
+// World switches, addresses, the Session settings window's button: MainMenuSessionSettings), the pilot name prompt and the
+// fade into hosting or joining.
 
 using System;
 using System.Collections;
@@ -144,6 +145,7 @@ namespace GoF2Remake.UI
             Bind("mpModeLocal", () => SetHostMode(HostMode.Local));
             ApplyHostMode();
             SetupHostHelp();
+            SetupSessionSettings();   // the Session settings window (MainMenuSessionSettings)
             Bind("mpHost", () => WithName(() =>
             {
                 if (GoF2Remake.Multiplayer.NetGame.HostWantsCoop) AskCoopCampaign();   // which campaign the crew plays

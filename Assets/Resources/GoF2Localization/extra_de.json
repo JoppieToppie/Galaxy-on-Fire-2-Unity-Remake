@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Anwenden und erneut testen",
   "benchmarkApplied": "Angewendet.",
   "benchmarkFastEnough": "Jede Szene lief schneller als die {0} Hz des Bildschirms: nichts zu ändern.",
-  "benchmarkNoSuggest": "Keine der geprüften Optionen würde die Bildrate hier erhöhen."
+  "benchmarkNoSuggest": "Keine der geprüften Optionen würde die Bildrate hier erhöhen.",
+  "mpSessionSettings": "Sitzungseinstellungen",
+  "mpSessionNote": "Bleibt für das nächste Hosten gespeichert. In einer laufenden Sitzung ändern Admins sie mit /set.",
+  "mpSessionNoteCoop": "In einer Koop-Kampagne kommen die Regeln, die du nicht änderst, aus dem gehosteten Spielstand.",
+  "mpSessionReset": "Auf Standard zurücksetzen",
+  "mpSessionRulesHeader": "Spielregeln",
+  "mpSessionWorldHeader": "Dauerhafte Welt: Profile und Fraktionen",
+  "mpSessionInformer": "Informanten-Missionen: Originalregel",
+  "mpSessionFlight": "Flugmodell",
+  "mpFlightPlayer": "Jeder Spieler selbst",
+  "mpSessionMaxEarn": "Wert, den ein Profil pro Minute gewinnen darf",
+  "mpSessionClaimCost": "Kosten eines Anspruchs",
+  "mpSessionMaxClaims": "Stationen pro Fraktion",
+  "mpSessionClaimDays": "Tage, bis ein unbesuchter Anspruch verfällt",
+  "mpSessionSiegeCost": "Kosten einer Belagerung",
+  "mpSessionToll": "Maut an Fraktionsstationen (Credits oder %)",
+  "es2Aiming": "EVERSPACE-2-Zielen der NPCs",
+  "es2NpcFlight": "EVERSPACE-2-Flug der NPCs"
 }

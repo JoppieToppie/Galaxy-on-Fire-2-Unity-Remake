@@ -674,6 +674,7 @@ namespace GoF2Remake.UI
             Play(buttonRelease);
             if (openPanel == panels["editCampaignPanel"]) { campaignSnapshot = null; OpenPanel("loadPanel"); return; }
             if (openPanel == panels["remakeOptionsPanel"]) { OpenPanel("gameOptionsPanel"); return; }
+            if (openPanel == panels["mpSettingsPanel"]) { OpenPanel("multiplayerPanel"); openPanel.schedule.Execute(() => root.Q<Button>("mpSettings")?.Focus()).ExecuteLater(60); return; }
             if (openPanel == panels["gameOptionsPanel"]) { OpenPanel("difficultyPanel"); return; }
             if (openPanel == panels["difficultyPanel"]) { OpenPanel(pendingStartIndex >= 0 && panels.ContainsKey("debugPanel") ? "debugPanel" : "campaignPanel"); return; }
             if (coopSlotPick && openPanel == panels["loadPanel"]) { CloseCoopSlots(); return; }   // the co-op save picker: the co-op screen

@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "적용하고 다시 측정",
   "benchmarkApplied": "적용했습니다.",
   "benchmarkFastEnough": "모든 장면이 디스플레이의 {0} Hz보다 빠르게 실행되었습니다. 바꿀 것이 없습니다.",
-  "benchmarkNoSuggest": "확인한 옵션 중 여기서 프레임 속도를 높일 수 있는 것이 없습니다."
+  "benchmarkNoSuggest": "확인한 옵션 중 여기서 프레임 속도를 높일 수 있는 것이 없습니다.",
+  "mpSessionSettings": "세션 설정",
+  "mpSessionNote": "다음에 호스트할 때를 위해 저장됩니다. 진행 중인 세션에서는 관리자가 /set으로 바꿉니다.",
+  "mpSessionNoteCoop": "협동 캠페인에서는 바꾸지 않은 규칙이 호스트하는 저장 파일에서 옵니다.",
+  "mpSessionReset": "기본값으로 재설정",
+  "mpSessionRulesHeader": "게임 규칙",
+  "mpSessionWorldHeader": "영구 월드: 프로필과 세력",
+  "mpSessionInformer": "정보원 미션: 원작 규칙",
+  "mpSessionFlight": "비행 모델",
+  "mpFlightPlayer": "각 플레이어 설정",
+  "mpSessionMaxEarn": "프로필이 분당 얻을 수 있는 가치",
+  "mpSessionClaimCost": "점령 비용",
+  "mpSessionMaxClaims": "세력당 정거장 수",
+  "mpSessionClaimDays": "방문하지 않은 점령이 만료되기까지의 일수",
+  "mpSessionSiegeCost": "포위 비용",
+  "mpSessionToll": "세력 정거장 통행료 (크레딧 또는 %)",
+  "es2Aiming": "EVERSPACE 2식 NPC 조준",
+  "es2NpcFlight": "EVERSPACE 2식 NPC 비행"
 }

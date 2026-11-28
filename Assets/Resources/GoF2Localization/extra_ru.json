@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Применить и повторить тест",
   "benchmarkApplied": "Применено.",
   "benchmarkFastEnough": "Каждая сцена шла быстрее {0} Гц экрана: менять нечего.",
-  "benchmarkNoSuggest": "Ни одна из проверенных настроек не повысит здесь частоту кадров."
+  "benchmarkNoSuggest": "Ни одна из проверенных настроек не повысит здесь частоту кадров.",
+  "mpSessionSettings": "Настройки сессии",
+  "mpSessionNote": "Сохраняются до следующего создания игры. В идущей сессии админы меняют их командой /set.",
+  "mpSessionNoteCoop": "В кооперативной кампании правила, которые вы не меняли, берутся из сохранения, по которому идёт игра.",
+  "mpSessionReset": "Сбросить по умолчанию",
+  "mpSessionRulesHeader": "Правила игры",
+  "mpSessionWorldHeader": "Постоянный мир: профили и фракции",
+  "mpSessionInformer": "Миссии информатора: правило оригинала",
+  "mpSessionFlight": "Модель полёта",
+  "mpFlightPlayer": "У каждого игрока своя",
+  "mpSessionMaxEarn": "Сколько ценности профиль может набрать в минуту",
+  "mpSessionClaimCost": "Стоимость захвата",
+  "mpSessionMaxClaims": "Станций на фракцию",
+  "mpSessionClaimDays": "Дней до потери непосещаемой станции",
+  "mpSessionSiegeCost": "Стоимость осады",
+  "mpSessionToll": "Пошлина на станциях фракций (кредиты или %)",
+  "es2Aiming": "Прицеливание NPC как в EVERSPACE 2",
+  "es2NpcFlight": "Полёт NPC как в EVERSPACE 2"
 }

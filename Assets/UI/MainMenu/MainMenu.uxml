@@ -269,6 +269,36 @@
                                 <ui:TextField name="mpMaxPlayers" class="debug-filter mp-max-players" />
                             </ui:VisualElement>
                             <ui:VisualElement class="mp-switch-grid">
+                            <ui:VisualElement name="mpPvpRow" class="mp-debug-row">
+                                <ui:Label name="mpPvpLabel" class="mp-label mp-debug-label gof-semibold" />
+                                <ui:VisualElement class="choice-segments mp-debug-segments">
+                                    <ui:Button name="mpPvpOff" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpPvpOn" class="choice-segment choice-segment--last gof-semibold" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="mpWorldRow" class="mp-debug-row">
+                                <ui:Label name="mpWorldLabel" class="mp-label mp-debug-label gof-semibold" />
+                                <ui:VisualElement class="choice-segments mp-debug-segments">
+                                    <ui:Button name="mpWorldFresh" class="choice-segment gof-semibold" />
+                                    <ui:Button name="mpWorldPersistent" class="choice-segment choice-segment--last gof-semibold" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            </ui:VisualElement>
+                            </ui:ScrollView>
+                            <ui:Label name="mpHostMore" class="mp-host-more gof-semibold" />
+                            <ui:Button name="mpSettings" class="mp-action mp-settings-button gof-semibold" />
+                            <ui:Button name="mpHost" class="mp-action mp-host-button gof-semibold" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Label name="mpStatus" class="mp-status" />
+                    <ui:Button name="multiplayerBack" class="menu-button back-button gof-semibold" />
+                </ui:VisualElement>
+                <ui:VisualElement name="mpSettingsPanel" class="panel panel--wide mp-settings-panel">
+                    <ui:Label name="mpSettingsTitle" class="panel-title gof-semibold" />
+                    <ui:VisualElement class="panel-accent" />
+                    <ui:Label name="mpSettingsNote" class="mp-card-text mp-settings-note" />
+                    <ui:ScrollView name="mpSettingsScroll" class="remake-options-scroll">
+                        <ui:VisualElement name="mpSettingsGrid" class="mp-switch-grid mp-settings-grid">
                             <ui:VisualElement name="mpCoopStrengthRow" class="mp-debug-row mp-debug-row--wide">
                                 <ui:Label name="mpCoopStrengthLabel" class="mp-label mp-debug-label gof-semibold" />
                                 <ui:VisualElement class="choice-segments mp-debug-segments">
@@ -305,20 +335,6 @@
                                     <ui:Button name="mpDebugOn" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:VisualElement name="mpPvpRow" class="mp-debug-row">
-                                <ui:Label name="mpPvpLabel" class="mp-label mp-debug-label gof-semibold" />
-                                <ui:VisualElement class="choice-segments mp-debug-segments">
-                                    <ui:Button name="mpPvpOff" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpPvpOn" class="choice-segment choice-segment--last gof-semibold" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                            <ui:VisualElement name="mpWorldRow" class="mp-debug-row">
-                                <ui:Label name="mpWorldLabel" class="mp-label mp-debug-label gof-semibold" />
-                                <ui:VisualElement class="choice-segments mp-debug-segments">
-                                    <ui:Button name="mpWorldFresh" class="choice-segment gof-semibold" />
-                                    <ui:Button name="mpWorldPersistent" class="choice-segment choice-segment--last gof-semibold" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
                             <ui:VisualElement class="mp-debug-row">
                                 <ui:Label name="mpModsLabel" class="mp-label mp-debug-label gof-semibold" />
                                 <ui:VisualElement class="choice-segments mp-debug-segments">
@@ -326,14 +342,12 @@
                                     <ui:Button name="mpModsOn" class="choice-segment choice-segment--last gof-semibold" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            </ui:VisualElement>
-                            </ui:ScrollView>
-                            <ui:Label name="mpHostMore" class="mp-host-more gof-semibold" />
-                            <ui:Button name="mpHost" class="mp-action mp-host-button gof-semibold" />
                         </ui:VisualElement>
+                    </ui:ScrollView>
+                    <ui:VisualElement class="mp-settings-actions">
+                        <ui:Button name="mpSettingsBack" class="menu-button back-button gof-semibold" />
+                        <ui:Button name="mpSettingsReset" class="mp-action mp-settings-reset gof-semibold" />
                     </ui:VisualElement>
-                    <ui:Label name="mpStatus" class="mp-status" />
-                    <ui:Button name="multiplayerBack" class="menu-button back-button gof-semibold" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

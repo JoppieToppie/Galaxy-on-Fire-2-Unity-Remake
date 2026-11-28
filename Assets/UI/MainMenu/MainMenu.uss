@@ -1370,6 +1370,44 @@
     margin-top: var(--space-m);
 }
 
+/* The host card's Session settings button over Host, and its window (MainMenu.OpenSessionSettings): every setting of the
+   hosted session the card doesn't show, two to a row like the card's switches. */
+.mp-settings-button {
+    margin-bottom: 8px;
+}
+
+.mp-settings-panel {
+    max-width: 1100px;
+    height: 84%;
+    max-height: 84%;
+}
+
+.mp-settings-note {
+    flex-shrink: 0;
+    margin: 0 0 var(--space-m) 0;
+    color: var(--gof-text-dim);
+}
+
+.mp-settings-grid .mp-debug-row {
+    width: 49%;
+}
+
+.mp-settings-grid .debug-filter {
+    margin: 0;
+}
+
+.mp-settings-actions {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-m);
+}
+
+.mp-settings-actions .back-button {
+    margin-top: 0;
+}
+
 .mp-host-scroll .mp-card-fill {
     flex-grow: 0;
     min-height: 0;

@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "应用并重新测试",
   "benchmarkApplied": "已应用。",
   "benchmarkFastEnough": "每个场景都快于显示器的 {0} Hz：无需更改。",
-  "benchmarkNoSuggest": "已检查的选项中没有能在这里提高帧率的。"
+  "benchmarkNoSuggest": "已检查的选项中没有能在这里提高帧率的。",
+  "mpSessionSettings": "会话设置",
+  "mpSessionNote": "保存到你下次主持时使用。会话进行中，管理员用 /set 修改。",
+  "mpSessionNoteCoop": "在合作战役中，你未修改的规则来自所主持的存档。",
+  "mpSessionReset": "恢复默认",
+  "mpSessionRulesHeader": "游戏规则",
+  "mpSessionWorldHeader": "持久世界：档案与阵营",
+  "mpSessionInformer": "线人任务：原版规则",
+  "mpSessionFlight": "飞行模式",
+  "mpFlightPlayer": "由每位玩家自选",
+  "mpSessionMaxEarn": "档案每分钟可增加的价值",
+  "mpSessionClaimCost": "占领费用",
+  "mpSessionMaxClaims": "每个阵营的空间站数",
+  "mpSessionClaimDays": "未访问的占领失效前的天数",
+  "mpSessionSiegeCost": "围攻费用",
+  "mpSessionToll": "阵营空间站通行费（信用分或 %）",
+  "es2Aiming": "EVERSPACE 2 式 NPC 瞄准",
+  "es2NpcFlight": "EVERSPACE 2 式 NPC 飞行"
 }

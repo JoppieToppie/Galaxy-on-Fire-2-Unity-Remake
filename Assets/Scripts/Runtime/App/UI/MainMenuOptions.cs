@@ -194,7 +194,7 @@ namespace GoF2Remake.UI
             Set("aboutButton", T(43));
             Set("exitButton", T(33));
             Set("debugButton", Localization.Extra("debugButton", "Debug").UiCaps());
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack" }) Set(n, (Settings.OriginalUi ? "" : "‹  ") + T(170));   // Original: the arrow is the button's own pointed end
+            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "optionsBack", "aboutBack", "multiplayerBack", "mpSettingsBack" }) Set(n, (Settings.OriginalUi ? "" : "‹  ") + T(170));   // Original: the arrow is the button's own pointed end
             string mp = Localization.Extra("multiplayer", "Multiplayer").UiCaps();
             Set("multiplayerButton", mp);
             Set("coopButton", Localization.Extra("coopTitle", "Co-op campaign").UiCaps());
@@ -242,6 +242,7 @@ namespace GoF2Remake.UI
             if (mpAddress != null) mpAddress.textEdition.placeholder = "ABC123  /  192.168.1.20";
             Set("mpJoin", Localization.Extra("mpJoin", "Join").UiCaps());
             ApplyPanelMode();   // the Co-op campaign screen's own title and texts
+            ApplySessionTexts();   // the Session settings button and window
 
             Set("campaignTitle", T(103));
             Set("debugTitle", Localization.Extra("debugTitle", "Debug").UiCaps());

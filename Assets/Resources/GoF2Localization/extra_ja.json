@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "適用して再計測",
   "benchmarkApplied": "適用しました。",
   "benchmarkFastEnough": "すべてのシーンがディスプレイの {0} Hz より速く動作しました。変更は不要です。",
-  "benchmarkNoSuggest": "確認した設定の中に、ここでフレームレートを上げられるものはありません。"
+  "benchmarkNoSuggest": "確認した設定の中に、ここでフレームレートを上げられるものはありません。",
+  "mpSessionSettings": "セッション設定",
+  "mpSessionNote": "次回ホストするときのために保存されます。進行中のセッションでは管理者が /set で変更します。",
+  "mpSessionNoteCoop": "協力キャンペーンでは、変更しなかったルールはホストするセーブデータのものになります。",
+  "mpSessionReset": "初期設定に戻す",
+  "mpSessionRulesHeader": "ゲームルール",
+  "mpSessionWorldHeader": "永続ワールド：プロフィールと勢力",
+  "mpSessionInformer": "情報屋ミッション：原作のルール",
+  "mpSessionFlight": "飛行モデル",
+  "mpFlightPlayer": "各プレイヤーの設定",
+  "mpSessionMaxEarn": "プロフィールが1分間に増やせる価値",
+  "mpSessionClaimCost": "占有の費用",
+  "mpSessionMaxClaims": "勢力ごとのステーション数",
+  "mpSessionClaimDays": "訪れない占有が失効するまでの日数",
+  "mpSessionSiegeCost": "包囲の費用",
+  "mpSessionToll": "勢力ステーションの通行料（クレジットまたは %）",
+  "es2Aiming": "EVERSPACE 2 式のNPC照準",
+  "es2NpcFlight": "EVERSPACE 2 式のNPC飛行"
 }

@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "تطبيق وإعادة الاختبار",
   "benchmarkApplied": "تم التطبيق.",
   "benchmarkFastEnough": "كل المشاهد عملت أسرع من معدل الشاشة {0} هرتز: لا شيء يحتاج إلى تغيير.",
-  "benchmarkNoSuggest": "لا خيار من الخيارات المفحوصة سيرفع معدل الإطارات هنا."
+  "benchmarkNoSuggest": "لا خيار من الخيارات المفحوصة سيرفع معدل الإطارات هنا.",
+  "mpSessionSettings": "إعدادات الجلسة",
+  "mpSessionNote": "تُحفظ لاستضافتك التالية. في جلسة جارية يغيّرها المشرفون بالأمر /set.",
+  "mpSessionNoteCoop": "في حملة تعاونية، القواعد التي لا تغيّرها تأتي من الحفظ المستضاف.",
+  "mpSessionReset": "إعادة إلى الافتراضي",
+  "mpSessionRulesHeader": "قواعد اللعب",
+  "mpSessionWorldHeader": "عالم دائم: الملفات الشخصية والفصائل",
+  "mpSessionInformer": "مهام المُخبر: القاعدة الأصلية",
+  "mpSessionFlight": "نموذج الطيران",
+  "mpFlightPlayer": "الخاص بكل لاعب",
+  "mpSessionMaxEarn": "القيمة التي يمكن للملف كسبها في الدقيقة",
+  "mpSessionClaimCost": "تكلفة المطالبة",
+  "mpSessionMaxClaims": "المحطات لكل فصيل",
+  "mpSessionClaimDays": "الأيام قبل سقوط مطالبة لم تُزر",
+  "mpSessionSiegeCost": "تكلفة الحصار",
+  "mpSessionToll": "رسوم العبور في محطات الفصائل (كريديت أو %)",
+  "es2Aiming": "تصويب السفن على طريقة EVERSPACE 2",
+  "es2NpcFlight": "طيران السفن على طريقة EVERSPACE 2"
 }

@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "लागू करें और फिर चलाएँ",
   "benchmarkApplied": "लागू किया गया।",
   "benchmarkFastEnough": "हर दृश्य डिस्प्ले के {0} Hz से तेज़ चला: कुछ बदलने की ज़रूरत नहीं।",
-  "benchmarkNoSuggest": "जाँचे गए विकल्पों में से कोई भी यहाँ फ़्रेम दर नहीं बढ़ाएगा।"
+  "benchmarkNoSuggest": "जाँचे गए विकल्पों में से कोई भी यहाँ फ़्रेम दर नहीं बढ़ाएगा।",
+  "mpSessionSettings": "सेशन सेटिंग्स",
+  "mpSessionNote": "अगली बार होस्ट करने के लिए सहेजी जाती हैं। चल रहे सेशन में एडमिन इन्हें /set से बदलते हैं।",
+  "mpSessionNoteCoop": "को-ऑप कैंपेन में, जो नियम आप नहीं बदलते वे होस्ट की गई सेव से आते हैं।",
+  "mpSessionReset": "डिफ़ॉल्ट पर रीसेट करें",
+  "mpSessionRulesHeader": "गेमप्ले नियम",
+  "mpSessionWorldHeader": "स्थायी दुनिया: प्रोफ़ाइल और गुट",
+  "mpSessionInformer": "मुखबिर मिशन: मूल नियम",
+  "mpSessionFlight": "उड़ान मॉडल",
+  "mpFlightPlayer": "हर खिलाड़ी का अपना",
+  "mpSessionMaxEarn": "प्रोफ़ाइल प्रति मिनट कितना मूल्य बढ़ा सकती है",
+  "mpSessionClaimCost": "क्लेम की कीमत",
+  "mpSessionMaxClaims": "प्रति गुट स्टेशन",
+  "mpSessionClaimDays": "बिना गए क्लेम खत्म होने से पहले के दिन",
+  "mpSessionSiegeCost": "घेराबंदी की कीमत",
+  "mpSessionToll": "गुट स्टेशनों पर टोल (क्रेडिट या %)",
+  "es2Aiming": "EVERSPACE 2 जैसा NPC निशाना",
+  "es2NpcFlight": "EVERSPACE 2 जैसी NPC उड़ान"
 }

@@ -117,7 +117,7 @@ namespace GoF2Remake.UI
             updateRow = root.Q("updateRow");
             updateButton = Bind("updateButton", UpdatePressed);   // in place where it can (MainMenuUpdate), else the release page
 
-            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "gameOptionsPanel", "remakeOptionsPanel", "loadPanel", "editCampaignPanel", "optionsPanel", "aboutPanel", "multiplayerPanel" })
+            foreach (var n in new[] { "campaignPanel", "difficultyPanel", "gameOptionsPanel", "remakeOptionsPanel", "loadPanel", "editCampaignPanel", "optionsPanel", "aboutPanel", "multiplayerPanel", "mpSettingsPanel" })
             {
                 panels[n] = root.Q(n);
                 panels[n].usageHints = UsageHints.DynamicTransform;
@@ -141,7 +141,7 @@ namespace GoF2Remake.UI
                 sv.verticalScrollerVisibility = ScrollerVisibility.Hidden;
                 sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             }
-            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "campaignRulesCancel", "optionsBack", "aboutBack", "multiplayerBack" })
+            foreach (var n in new[] { "campaignBack", "difficultyBack", "gameOptionsBack", "remakeOptionsBack", "loadBack", "campaignRulesCancel", "optionsBack", "aboutBack", "multiplayerBack", "mpSettingsBack" })
             {
                 var b = root.Q<Button>(n);
                 b.clicked += Back;   // Back() plays the release sound itself (also used by Esc)

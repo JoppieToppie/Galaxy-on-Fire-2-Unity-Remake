@@ -171,6 +171,40 @@ namespace GoF2Remake.Tests
             ResetStatics(typeof(NetProfiles));
         }
 
+        [Test]
+        public void TheSessionSettingsWindowsChoicesReachTheHostedSession()
+        {
+            // The main menu's Session settings window keeps its choices in PlayerPrefs (the player's own: put back after).
+            var keys = NetServerSettings.HostWindow.Select(s => "mp_set_" + s.key).ToList();
+            var before = keys.ToDictionary(k => k, k => UnityEngine.PlayerPrefs.HasKey(k) ? UnityEngine.PlayerPrefs.GetString(k) : null);
+            BeginSettings();
+            try
+            {
+                var window = NetServerSettings.HostWindow;
+                Assert.IsFalse(window.Exists(s => s.key == "password" || s.key == "maxplayers" || s.key == "freepvp"), "the Host card's own");
+                Assert.IsTrue(window.Exists(s => s.key == "capitalships") && window.Exists(s => s.key == NetRules.FlightKey), "every rule");
+                var capital = window.Find(s => s.key == "capitalships");
+                var claims = window.Find(s => s.key == "maxclaims");
+                NetServerSettings.ClearHostChoices();
+                Assert.IsNull(NetServerSettings.ChooseForHost(capital, "on"));
+                Assert.IsNull(NetServerSettings.ChooseForHost(claims, "500"));   // clamped to 0..100, as /set does
+                Assert.IsNotNull(NetServerSettings.ChooseForHost(claims, "many"), "not a number");
+                Assert.AreEqual("100", NetServerSettings.HostChoice(claims));
+                NetRules.Host = 0;   // what StartHost has set before it applies the choices
+                NetServerSettings.ApplyHostChoices();
+                Assert.AreNotEqual(0, NetRules.Host & NetRules.CapitalShips);
+                Assert.AreEqual(100, NetFactions.MaxClaims);
+                NetServerSettings.ClearHostChoices();
+                Assert.IsNull(NetServerSettings.HostChoice(capital));
+            }
+            finally
+            {
+                EndSettings();
+                foreach (var kv in before)
+                    if (kv.Value == null) UnityEngine.PlayerPrefs.DeleteKey(kv.Key); else UnityEngine.PlayerPrefs.SetString(kv.Key, kv.Value);
+            }
+        }
+
         internal static void ResetStatics(System.Type t)
         {
             var m = t.GetMethod("ResetStatics", BindingFlags.NonPublic | BindingFlags.Static);

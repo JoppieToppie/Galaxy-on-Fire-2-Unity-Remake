@@ -3872,5 +3872,22 @@
   "benchmarkApplyRerun": "Aplicar y repetir la prueba",
   "benchmarkApplied": "Aplicado.",
   "benchmarkFastEnough": "Todas las escenas fueron más rápidas que los {0} Hz de la pantalla: no hay nada que cambiar.",
-  "benchmarkNoSuggest": "Ninguna de las opciones comprobadas subiría aquí los fotogramas."
+  "benchmarkNoSuggest": "Ninguna de las opciones comprobadas subiría aquí los fotogramas.",
+  "mpSessionSettings": "Ajustes de la sesión",
+  "mpSessionNote": "Se guardan para la próxima vez que alojes. En una sesión en curso, los admins los cambian con /set.",
+  "mpSessionNoteCoop": "En una campaña cooperativa, las reglas que no cambies vienen de la partida alojada.",
+  "mpSessionReset": "Restablecer valores",
+  "mpSessionRulesHeader": "Reglas de juego",
+  "mpSessionWorldHeader": "Mundo persistente: perfiles y facciones",
+  "mpSessionInformer": "Misiones de informante: regla original",
+  "mpSessionFlight": "Modelo de vuelo",
+  "mpFlightPlayer": "El de cada jugador",
+  "mpSessionMaxEarn": "Valor que un perfil puede ganar por minuto",
+  "mpSessionClaimCost": "Coste de reclamar",
+  "mpSessionMaxClaims": "Estaciones por facción",
+  "mpSessionClaimDays": "Días hasta que caduca una reclamación sin visitar",
+  "mpSessionSiegeCost": "Coste de un asedio",
+  "mpSessionToll": "Peaje en estaciones de facción (créditos o %)",
+  "es2Aiming": "Puntería de NPC al estilo EVERSPACE 2",
+  "es2NpcFlight": "Vuelo de NPC al estilo EVERSPACE 2"
 }
