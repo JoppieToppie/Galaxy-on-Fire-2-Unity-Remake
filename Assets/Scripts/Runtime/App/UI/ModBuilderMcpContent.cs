@@ -140,7 +140,7 @@ namespace GoF2Remake.UI
             string full = ProjectPath(glbRel, true, out string why);
             if (full == null) { c.Fail(why); return; }
             Directory.CreateDirectory(Path.GetDirectoryName(full));
-            File.WriteAllBytes(full, AemImport.ToGlb(model, Path.GetFileNameWithoutExtension(rel)));
+            ModProject.SafeWriteBytes(full, AemImport.ToGlb(model, Path.GetFileNameWithoutExtension(rel)));
             screen.ExternalFilesChanged("converted " + rel);
             c.Wait(() => !screen.ReloadBusy, () => c.Json(new JObject
             {

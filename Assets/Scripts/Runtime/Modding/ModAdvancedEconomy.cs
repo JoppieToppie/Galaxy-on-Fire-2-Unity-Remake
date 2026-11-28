@@ -235,235 +235,248 @@ namespace GoF2Remake.Modding
                     var token = ModJson.Read(mod.Source, File);
                     if (token == null) continue;
                     if (!(token is JObject o)) throw new ModJsonException(File + ": expected an object");
-                    // A disabled config cannot contribute any settings or rows.
-                    if (!ModJson.Bool(o, "enabled", false, File)) continue;
-                    bool inventory = ModJson.Bool(o, "persistentInventory", false, File);
-                    bool save = ModJson.Bool(o, "saveInventory", false, File);
-                    bool unvisited = ModJson.Bool(o, "simulateUnvisitedStations", false, File);
-                    bool production = ModJson.Bool(o, "stationProduction", false, File);
-                    bool consumption = ModJson.Bool(o, "stationConsumption", false, File);
-                    bool trade = ModJson.Bool(o, "regionalTrade", false, File);
-                    bool physical = ModJson.Bool(o, "physicalFreight", false, File);
-                    int smallFreight = Math.Clamp(ModJson.Int(o, "cormorantCapacity", 400, File), 1, MaxStock);
-                    int largeFreight = Math.Clamp(ModJson.Int(o, "rhinoCapacity", 2500, File), smallFreight, MaxStock);
-                    int freightLimit = Math.Clamp(ModJson.Int(o, "freightPerOrbit", 4, File), 1, 16);
-                    int freightSalvage = Math.Clamp(ModJson.Int(o, "freightSalvagePercent", 25, File), 0, 100);
-                    int rhinoSpeed = Math.Clamp(ModJson.Int(o, "rhinoFreightSpeedPercent", 75, File), 10, 500);
-                    int cormorantSpeed = Math.Clamp(ModJson.Int(o, "cormorantFreightSpeedPercent", 125, File), 10, 500);
-                    int dispatchSeconds = Math.Clamp(ModJson.Int(o, "freightDispatchSeconds", 60, File), 1, MaxFreightSeconds);
-                    var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
-                        ModJson.Int(o, "freightTravelMaxSeconds", 90, File));
-                    var unloadSeconds = FreightInterval(ModJson.Int(o, "freightUnloadMinSeconds", 15, File),
-                        ModJson.Int(o, "freightUnloadMaxSeconds", 30, File));
-                    int wreckSeconds = Math.Clamp(ModJson.Int(o, "freightWreckLifetimeSeconds", 300, File), 1, MaxFreightSeconds);
-                    int ResolveFreighter(string key, int fallback)
-                    {
-                        string value = ModJson.Str(o, key);
-                        if (string.IsNullOrEmpty(value)) return fallback;
-                        if (value == "-1") return -1;
-                        if ((!ModContent.TryResolveShip(value, out int ship) && !ModContent.TryResolveShip(mod.Id + ":" + value, out ship)) || db.Ship(ship) == null)
-                            throw new ModJsonException(File + ": unknown freight hull " + value);
-                        return ship;
-                    }
-                    int rhinoShip = physical ? ResolveFreighter("rhinoShip", 51) : 51;
-                    int cormorantShip = physical ? ResolveFreighter("cormorantShip", 36) : 36;
-                    int nativeCapacity = Math.Clamp(ModJson.Int(o, "nativeFreighterCapacity", largeFreight, File), 1, MaxStock);
-                    int nativeSpeed = Math.Clamp(ModJson.Int(o, "nativeFreighterSpeedPercent", 100, File), 10, 500);
-                    var parsedFleets = new Dictionary<int, List<FreightHull>>();
-                    if (physical && ModJson.Get(o, "freightFleets") is JToken fleetToken)
-                    {
-                        if (!(fleetToken is JArray fleetRows) || fleetRows.Count > 1024)
-                            throw new ModJsonException(File + ": freightFleets must be an array of at most 1024 rows");
-                        foreach (var entry in fleetRows)
-                        {
-                            if (!(entry is JObject row)) throw new ModJsonException(File + ": freight fleet row must be an object");
-                            string raceRef = ModJson.Str(row, "race"), shipRef = ModJson.Str(row, "ship");
-                            if (!ModRaces.TryResolve(raceRef, mod, out int race))
-                                throw new ModJsonException(File + ": unknown freight race " + raceRef);
-                            int ship;
-                            if (string.Equals(shipRef, "native", StringComparison.OrdinalIgnoreCase))
-                            { ship = NativeFreighter(race); shipRef = "native"; }
-                            else
-                            {
-                                if (string.IsNullOrEmpty(shipRef) ||
-                                    (!ModContent.TryResolveShip(shipRef, out ship) && !ModContent.TryResolveShip(mod.Id + ":" + shipRef, out ship)) ||
-                                    db.Ship(ship) == null)
-                                    throw new ModJsonException(File + ": unknown freight hull " + shipRef);
-                                shipRef = ModContent.FreightShipKey(ship);
-                            }
-                            var hull = new FreightHull(ship, shipRef, ModJson.Int(row, "capacity", nativeCapacity, File),
-                                ModJson.Int(row, "weight", 1, File), ModJson.Int(row, "speedPercent", 100, File));
-                            if (!parsedFleets.TryGetValue(race, out var fleet)) parsedFleets[race] = fleet = new List<FreightHull>();
-                            if (fleet.Count >= 64) throw new ModJsonException(File + ": at most 64 freight hull entries per race");
-                            fleet.Add(hull);
-                        }
-                    }
-                    bool war = ModJson.Bool(o, "warPressure", false, File);
-                    bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
-                    bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
-                    bool freight = ModJson.Bool(o, "transportCosts", false, File);
-                    bool market = ModJson.Bool(o, "playerMarketTrade", false, File);
-                    bool construction = ModJson.Bool(o, "npcConstructionSupply", false, File);
-                    int constructionUnits = Math.Clamp(ModJson.Int(o, "npcConstructionUnitsPerTick", 100, File), 1, MaxStock);
-                    int marketBudget = Math.Clamp(ModJson.Int(o, "playerMarketBudgetPerTick", 0, File), 0, 1000000000);
-                    int marketUnits = Math.Clamp(ModJson.Int(o, "playerMarketUnitsPerTick", 100, File), 1, MaxStock);
-                    int scarcity = Math.Clamp(ModJson.Int(o, "scarcityMarkupPercent", 100, File), 0, 500);
-                    int surplus = Math.Clamp(ModJson.Int(o, "surplusDiscountPercent", 30, File), 0, 90);
-                    int warPrice = Math.Clamp(ModJson.Int(o, "warMarkupPercent", 50, File), 0, 500);
-                    int freightPrice = Math.Clamp(ModJson.Int(o, "transportCostPerHopPercent", 5, File), 0, 100);
-                    int spread = Math.Clamp(ModJson.Int(o, "sellSpreadPercent", 10, File), 1, 99);
-                    bool playerGates = ModJson.Bool(o, "playerGateRouting", false, File);
-                    bool restrictedGates = ModJson.Bool(o, "restrictedGateRouting", false, File);
-                    bool automatic = ModJson.Bool(o, "automaticRoutes", false, File);
-                    int frontline = Math.Clamp(ModJson.Int(o, "frontlinePressurePercent", 50, File), 0, 100);
-                    int battle = Math.Clamp(ModJson.Int(o, "battlePressurePercent", 100, File), 0, 100);
-                    int capacityAuto = Math.Clamp(ModJson.Int(o, "automaticRouteCapacity", physical ? largeFreight : 100, File), 1, MaxStock);
-                    int lossAuto = Math.Clamp(ModJson.Int(o, "automaticRouteWarLossPercent", 0, File), 0, 100);
-                    int hopTicks = Math.Clamp(ModJson.Int(o, "ticksPerHop", 1, File), 1, 12);
-                    int maxHops = Math.Clamp(ModJson.Int(o, "maxAutomaticHops", 8, File), 1, 8);
-                    int interval = Math.Clamp(ModJson.Int(o, "tickIntervalSeconds", 900, File), 60, 86400);
-                    var parsed = new Dictionary<(int station, int item), Rule>();
-                    var systemDefaults = new Dictionary<(int station, int item), Rule>();
-                    if (ModJson.Get(o, "stockRules") is JToken entries)
-                    {
-                        if (!(entries is JArray list)) throw new ModJsonException(File + ": stockRules must be an array");
-                        foreach (var entry in list)
-                        {
-                            if (!(entry is JObject row)) throw new ModJsonException(File + ": stockRules entries must be objects");
-                            string st = ModJson.Str(row, "station"), sys = ModJson.Str(row, "system"), it = ModJson.Str(row, "item");
-                            if (string.IsNullOrEmpty(st) == string.IsNullOrEmpty(sys))
-                                throw new ModJsonException(File + ": a stock rule requires exactly one station or system");
-                            var stations = new List<int>();
-                            if (!string.IsNullOrEmpty(st))
-                            {
-                                if (!ModWorld.TryResolveStation(st, out int station) &&
-                                    !ModWorld.TryResolveStation(mod.Id + ":" + st, out station))
-                                    throw new ModJsonException(File + ": unknown station " + st);
-                                if (!db.Stations.Exists(s => s.index == station))
-                                    throw new ModJsonException(File + ": unknown station " + st);
-                                stations.Add(station);
-                            }
-                            else
-                            {
-                                if (!ModWorld.TryResolveSystem(sys, out int system) &&
-                                    !ModWorld.TryResolveSystem(mod.Id + ":" + sys, out system))
-                                    throw new ModJsonException(File + ": unknown system " + sys);
-                                foreach (var station in db.Stations)
-                                    if (station.system == system) stations.Add(station.index);
-                            }
-                            if (!ModContent.TryResolveItem(it, out int item) &&
-                                !ModContent.TryResolveItem(mod.Id + ":" + it, out item))
-                                throw new ModJsonException(File + ": unknown item " + it);
-                            if (db.Item(item)?.TypeId != 4)
-                                throw new ModJsonException(File + ": stockRules require a commodity");
-                            int target = ModJson.Int(row, "targetStock", 100, File);
-                            int maximum = ModJson.Int(row, "maximumStock", target, File);
-                            int initial = ModJson.Int(row, "initialStock", target, File);
-                            int made = ModJson.Int(row, "productionPerTick", 0, File);
-                            int used = ModJson.Int(row, "consumptionPerTick", 0, File);
-                            int demand = ModJson.Int(row, "warDemandPerTick", 0, File);
-                            if (target < 1 || maximum < target || maximum > MaxStock || initial < 0 || initial > maximum ||
-                                made < 0 || made > MaxStock || used < 0 || used > MaxStock || demand < 0 || demand > MaxStock)
-                                throw new ModJsonException(File + ": invalid stock limits or flow for " + st + "/" + it);
-                            foreach (int station in stations)
-                            {
-                                // System-wide profiles leave emergency fuel at special stations under vanilla rules.
-                                if ((station == 10 || station == 100 || station == 101) && item == GalaxyMap.EnergyCellItem)
-                                {
-                                    if (st != null) throw new ModJsonException(File + ": emergency energy cells cannot be managed here");
-                                    continue;
-                                }
-                                var rule = new Rule(item, initial, target, maximum,
-                                    production ? made : 0, consumption ? used : 0, war ? demand : 0);
-                                (st != null ? parsed : systemDefaults)[(station, item)] = rule;
-                            }
-                        }
-                    }
-                    foreach (var pair in systemDefaults)
-                        if (!parsed.ContainsKey(pair.Key)) parsed.Add(pair.Key, pair.Value);
-                    var parsedRoutes = new Dictionary<(int source, int destination, int item), Route>();
-                    if (trade && ModJson.Get(o, "tradeRoutes") is JToken routeEntries)
-                    {
-                        if (!(routeEntries is JArray list)) throw new ModJsonException(File + ": tradeRoutes must be an array");
-                        foreach (var entry in list)
-                        {
-                            if (!(entry is JObject row)) throw new ModJsonException(File + ": tradeRoutes entries must be objects");
-                            string from = ModJson.Str(row, "source"), to = ModJson.Str(row, "destination"), it = ModJson.Str(row, "item");
-                            if ((!ModWorld.TryResolveStation(from, out int source) && !ModWorld.TryResolveStation(mod.Id + ":" + from, out source)) ||
-                                (!ModWorld.TryResolveStation(to, out int destination) && !ModWorld.TryResolveStation(mod.Id + ":" + to, out destination)) ||
-                                (!ModContent.TryResolveItem(it, out int item) && !ModContent.TryResolveItem(mod.Id + ":" + it, out item)))
-                                throw new ModJsonException(File + ": unknown trade route reference");
-                            var a = db.Stations.Find(s => s.index == source);
-                            var b = db.Stations.Find(s => s.index == destination);
-                            if (source == destination || a == null || b == null || db.Item(item)?.TypeId != 4)
-                                throw new ModJsonException(File + ": trade route requires distinct stations and a commodity");
-                            int capacity = ModJson.Int(row, "capacity", 100, File);
-                            int ticks = ModJson.Int(row, "travelTicks", 1, File);
-                            int loss = ModJson.Int(row, "warLossPercent", 0, File);
-                            if (capacity < 1 || capacity > MaxStock || ticks < 1 || ticks > 96 || loss < 0 || loss > 100)
-                                throw new ModJsonException(File + ": invalid trade route capacity, travel time or loss");
-                            parsedRoutes[(source, destination, item)] = new Route(source, destination, item, capacity, ticks,
-                                disruption ? loss : 0);
-                        }
-                    }
-                    // Publish only after the entire file has been validated.
-                    Enabled = true;
-                    if (!inventory) continue;
-                    PersistentInventory = true;
-                    SaveInventory |= save;
-                    if (pricing && save)
-                    {
-                        DynamicPricing = true;
-                        ScarcityMarkup = scarcity; SurplusDiscount = surplus; WarMarkup = warPrice;
-                        SellSpread = spread; TransportCosts = freight; TransportPerHop = freightPrice;
-                    }
-                    else if (pricing) Debug.LogWarning($"[{mod.Id}] {File}: dynamic pricing requires saveInventory; disabled.");
-                    if (market && pricing && save) { PlayerMarketTrade = true; PlayerMarketBudget = marketBudget; PlayerMarketUnits = marketUnits; }
-                    else if (market) Debug.LogWarning($"[{mod.Id}] {File}: player market trade requires dynamic pricing and saved inventory; disabled.");
-                    if (construction && pricing && save) { NpcConstructionSupply = true; NpcConstructionUnits = constructionUnits; }
-                    else if (construction) Debug.LogWarning($"[{mod.Id}] {File}: NPC construction supply requires dynamic pricing and saved inventory; disabled.");
-                    SimulateUnvisitedStations |= unvisited;
-                    Production |= production;
-                    Consumption |= consumption;
-                    RegionalTrade |= trade;
-                    if (physical && trade && save)
-                    {
-                        PhysicalFreight = true; RhinoCapacity = largeFreight; CormorantCapacity = smallFreight;
-                        FreightPerOrbit = freightLimit; FreightSalvagePercent = freightSalvage; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
-                        RhinoFreightSpeedPercent = rhinoSpeed; CormorantFreightSpeedPercent = cormorantSpeed;
-                        FreightDispatchSeconds = dispatchSeconds;
-                        FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
-                        FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;
-                        FreightWreckLifetimeSeconds = wreckSeconds;
-                        NativeFreighterCapacity = nativeCapacity; NativeFreighterSpeedPercent = nativeSpeed;
-                        foreach (var fleet in parsedFleets) freightFleets[fleet.Key] = fleet.Value;
-                    }
-                    else if (physical) Debug.LogWarning($"[{mod.Id}] {File}: physical freight requires regional trade and saved inventory; disabled.");
-                    WarPressure |= war;
-                    TradeDisruption |= disruption;
-                    if (war) { FrontlinePressure = frontline; BattlePressure = battle; }
-                    if (trade)
-                    {
-                        PlayerGateRouting |= playerGates;
-                        RestrictedGateRouting |= playerGates && restrictedGates;
-                        AutomaticRoutes |= automatic;
-                        TicksPerHop = hopTicks;
-                        if (automatic) { AutoCapacity = capacityAuto; AutoWarLoss = disruption ? lossAuto : 0; MaxAutoHops = maxHops; }
-                    }
-                    foreach (var pair in parsedRoutes) routes[pair.Key] = pair.Value;
-                    TickSeconds = interval;
-                    foreach (var pair in parsed)
-                    {
-                        if (!rules.TryGetValue(pair.Key.station, out var rows))
-                            rules[pair.Key.station] = rows = new Dictionary<int, Rule>();
-                        rows[pair.Key.item] = pair.Value;
-                    }
+                    ApplyConfiguration(db, mod, o, false);
                 }
                 catch (ModJsonException e) { Debug.LogWarning($"[{mod.Id}] {e.Message}"); }
             }
             foreach (var route in routes.Values)
                 if (At(route.Source)?.ContainsKey(route.Item) != true || At(route.Destination)?.ContainsKey(route.Item) != true)
                     Debug.LogWarning($"{File}: route {route.Source} -> {route.Destination}, item {route.Item}, requires managed stock at both endpoints; ignored until configured.");
+        }
+
+        // The exact same parser is used by the builder and runtime; validation never publishes settings.
+        public static void ValidateConfiguration(Database db, ModInfo mod, JObject rules)
+        {
+            if (db == null || mod == null) throw new ModJsonException(File + ": the builder database is not ready");
+            ApplyConfiguration(db, mod, rules, true);
+        }
+
+        static void ApplyConfiguration(Database db, ModInfo mod, JObject o, bool validateOnly)
+        {
+        // A disabled config cannot contribute any settings or rows.
+        if (!ModJson.Bool(o, "enabled", false, File)) return;
+        bool inventory = ModJson.Bool(o, "persistentInventory", false, File);
+        bool save = ModJson.Bool(o, "saveInventory", false, File);
+        bool unvisited = ModJson.Bool(o, "simulateUnvisitedStations", false, File);
+        bool production = ModJson.Bool(o, "stationProduction", false, File);
+        bool consumption = ModJson.Bool(o, "stationConsumption", false, File);
+        bool trade = ModJson.Bool(o, "regionalTrade", false, File);
+        bool physical = ModJson.Bool(o, "physicalFreight", false, File);
+        int smallFreight = Math.Clamp(ModJson.Int(o, "cormorantCapacity", 400, File), 1, MaxStock);
+        int largeFreight = Math.Clamp(ModJson.Int(o, "rhinoCapacity", 2500, File), smallFreight, MaxStock);
+        int freightLimit = Math.Clamp(ModJson.Int(o, "freightPerOrbit", 4, File), 1, 16);
+        int freightSalvage = Math.Clamp(ModJson.Int(o, "freightSalvagePercent", 25, File), 0, 100);
+        int rhinoSpeed = Math.Clamp(ModJson.Int(o, "rhinoFreightSpeedPercent", 75, File), 10, 500);
+        int cormorantSpeed = Math.Clamp(ModJson.Int(o, "cormorantFreightSpeedPercent", 125, File), 10, 500);
+        int dispatchSeconds = Math.Clamp(ModJson.Int(o, "freightDispatchSeconds", 60, File), 1, MaxFreightSeconds);
+        var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
+            ModJson.Int(o, "freightTravelMaxSeconds", 90, File));
+        var unloadSeconds = FreightInterval(ModJson.Int(o, "freightUnloadMinSeconds", 15, File),
+            ModJson.Int(o, "freightUnloadMaxSeconds", 30, File));
+        int wreckSeconds = Math.Clamp(ModJson.Int(o, "freightWreckLifetimeSeconds", 300, File), 1, MaxFreightSeconds);
+        int ResolveFreighter(string key, int fallback)
+        {
+            string value = ModJson.Str(o, key);
+            if (string.IsNullOrEmpty(value)) return fallback;
+            if (value == "-1") return -1;
+            if ((!ModContent.TryResolveShip(value, out int ship) && !ModContent.TryResolveShip(mod.Id + ":" + value, out ship)) || db.Ship(ship) == null)
+                throw new ModJsonException(File + ": unknown freight hull " + value);
+            return ship;
+        }
+        int rhinoShip = physical ? ResolveFreighter("rhinoShip", 51) : 51;
+        int cormorantShip = physical ? ResolveFreighter("cormorantShip", 36) : 36;
+        int nativeCapacity = Math.Clamp(ModJson.Int(o, "nativeFreighterCapacity", largeFreight, File), 1, MaxStock);
+        int nativeSpeed = Math.Clamp(ModJson.Int(o, "nativeFreighterSpeedPercent", 100, File), 10, 500);
+        var parsedFleets = new Dictionary<int, List<FreightHull>>();
+        if (physical && ModJson.Get(o, "freightFleets") is JToken fleetToken)
+        {
+            if (!(fleetToken is JArray fleetRows) || fleetRows.Count > 1024)
+                throw new ModJsonException(File + ": freightFleets must be an array of at most 1024 rows");
+            foreach (var entry in fleetRows)
+            {
+                if (!(entry is JObject row)) throw new ModJsonException(File + ": freight fleet row must be an object");
+                string raceRef = ModJson.Str(row, "race"), shipRef = ModJson.Str(row, "ship");
+                if (!ModRaces.TryResolve(raceRef, mod, out int race))
+                    throw new ModJsonException(File + ": unknown freight race " + raceRef);
+                int ship;
+                if (string.Equals(shipRef, "native", StringComparison.OrdinalIgnoreCase))
+                { ship = NativeFreighter(race); shipRef = "native"; }
+                else
+                {
+                    if (string.IsNullOrEmpty(shipRef) ||
+                        (!ModContent.TryResolveShip(shipRef, out ship) && !ModContent.TryResolveShip(mod.Id + ":" + shipRef, out ship)) ||
+                        db.Ship(ship) == null)
+                        throw new ModJsonException(File + ": unknown freight hull " + shipRef);
+                    shipRef = ModContent.FreightShipKey(ship);
+                }
+                var hull = new FreightHull(ship, shipRef, ModJson.Int(row, "capacity", nativeCapacity, File),
+                    ModJson.Int(row, "weight", 1, File), ModJson.Int(row, "speedPercent", 100, File));
+                if (!parsedFleets.TryGetValue(race, out var fleet)) parsedFleets[race] = fleet = new List<FreightHull>();
+                if (fleet.Count >= 64) throw new ModJsonException(File + ": at most 64 freight hull entries per race");
+                fleet.Add(hull);
+            }
+        }
+        bool war = ModJson.Bool(o, "warPressure", false, File);
+        bool disruption = ModJson.Bool(o, "tradeDisruption", false, File);
+        bool pricing = ModJson.Bool(o, "dynamicPricing", false, File);
+        bool freight = ModJson.Bool(o, "transportCosts", false, File);
+        bool market = ModJson.Bool(o, "playerMarketTrade", false, File);
+        bool construction = ModJson.Bool(o, "npcConstructionSupply", false, File);
+        int constructionUnits = Math.Clamp(ModJson.Int(o, "npcConstructionUnitsPerTick", 100, File), 1, MaxStock);
+        int marketBudget = Math.Clamp(ModJson.Int(o, "playerMarketBudgetPerTick", 0, File), 0, 1000000000);
+        int marketUnits = Math.Clamp(ModJson.Int(o, "playerMarketUnitsPerTick", 100, File), 1, MaxStock);
+        int scarcity = Math.Clamp(ModJson.Int(o, "scarcityMarkupPercent", 100, File), 0, 500);
+        int surplus = Math.Clamp(ModJson.Int(o, "surplusDiscountPercent", 30, File), 0, 90);
+        int warPrice = Math.Clamp(ModJson.Int(o, "warMarkupPercent", 50, File), 0, 500);
+        int freightPrice = Math.Clamp(ModJson.Int(o, "transportCostPerHopPercent", 5, File), 0, 100);
+        int spread = Math.Clamp(ModJson.Int(o, "sellSpreadPercent", 10, File), 1, 99);
+        bool playerGates = ModJson.Bool(o, "playerGateRouting", false, File);
+        bool restrictedGates = ModJson.Bool(o, "restrictedGateRouting", false, File);
+        bool automatic = ModJson.Bool(o, "automaticRoutes", false, File);
+        int frontline = Math.Clamp(ModJson.Int(o, "frontlinePressurePercent", 50, File), 0, 100);
+        int battle = Math.Clamp(ModJson.Int(o, "battlePressurePercent", 100, File), 0, 100);
+        int capacityAuto = Math.Clamp(ModJson.Int(o, "automaticRouteCapacity", physical ? largeFreight : 100, File), 1, MaxStock);
+        int lossAuto = Math.Clamp(ModJson.Int(o, "automaticRouteWarLossPercent", 0, File), 0, 100);
+        int hopTicks = Math.Clamp(ModJson.Int(o, "ticksPerHop", 1, File), 1, 12);
+        int maxHops = Math.Clamp(ModJson.Int(o, "maxAutomaticHops", 8, File), 1, 8);
+        int interval = Math.Clamp(ModJson.Int(o, "tickIntervalSeconds", 900, File), 60, 86400);
+        var parsed = new Dictionary<(int station, int item), Rule>();
+        var systemDefaults = new Dictionary<(int station, int item), Rule>();
+        if (ModJson.Get(o, "stockRules") is JToken entries)
+        {
+            if (!(entries is JArray list)) throw new ModJsonException(File + ": stockRules must be an array");
+            foreach (var entry in list)
+            {
+                if (!(entry is JObject row)) throw new ModJsonException(File + ": stockRules entries must be objects");
+                string st = ModJson.Str(row, "station"), sys = ModJson.Str(row, "system"), it = ModJson.Str(row, "item");
+                if (string.IsNullOrEmpty(st) == string.IsNullOrEmpty(sys))
+                    throw new ModJsonException(File + ": a stock rule requires exactly one station or system");
+                var stations = new List<int>();
+                if (!string.IsNullOrEmpty(st))
+                {
+                    if (!ModWorld.TryResolveStation(st, out int station) &&
+                        !ModWorld.TryResolveStation(mod.Id + ":" + st, out station))
+                        throw new ModJsonException(File + ": unknown station " + st);
+                    if (!db.Stations.Exists(s => s.index == station))
+                        throw new ModJsonException(File + ": unknown station " + st);
+                    stations.Add(station);
+                }
+                else
+                {
+                    if (!ModWorld.TryResolveSystem(sys, out int system) &&
+                        !ModWorld.TryResolveSystem(mod.Id + ":" + sys, out system))
+                        throw new ModJsonException(File + ": unknown system " + sys);
+                    foreach (var station in db.Stations)
+                        if (station.system == system) stations.Add(station.index);
+                }
+                if (!ModContent.TryResolveItem(it, out int item) &&
+                    !ModContent.TryResolveItem(mod.Id + ":" + it, out item))
+                    throw new ModJsonException(File + ": unknown item " + it);
+                if (db.Item(item)?.TypeId != 4)
+                    throw new ModJsonException(File + ": stockRules require a commodity");
+                int target = ModJson.Int(row, "targetStock", 100, File);
+                int maximum = ModJson.Int(row, "maximumStock", target, File);
+                int initial = ModJson.Int(row, "initialStock", target, File);
+                int made = ModJson.Int(row, "productionPerTick", 0, File);
+                int used = ModJson.Int(row, "consumptionPerTick", 0, File);
+                int demand = ModJson.Int(row, "warDemandPerTick", 0, File);
+                if (target < 1 || maximum < target || maximum > MaxStock || initial < 0 || initial > maximum ||
+                    made < 0 || made > MaxStock || used < 0 || used > MaxStock || demand < 0 || demand > MaxStock)
+                    throw new ModJsonException(File + ": invalid stock limits or flow for " + st + "/" + it);
+                foreach (int station in stations)
+                {
+                    // System-wide profiles leave emergency fuel at special stations under vanilla rules.
+                    if ((station == 10 || station == 100 || station == 101) && item == GalaxyMap.EnergyCellItem)
+                    {
+                        if (st != null) throw new ModJsonException(File + ": emergency energy cells cannot be managed here");
+                        continue;
+                    }
+                    var rule = new Rule(item, initial, target, maximum,
+                        production ? made : 0, consumption ? used : 0, war ? demand : 0);
+                    (st != null ? parsed : systemDefaults)[(station, item)] = rule;
+                }
+            }
+        }
+        foreach (var pair in systemDefaults)
+            if (!parsed.ContainsKey(pair.Key)) parsed.Add(pair.Key, pair.Value);
+        var parsedRoutes = new Dictionary<(int source, int destination, int item), Route>();
+        if (trade && ModJson.Get(o, "tradeRoutes") is JToken routeEntries)
+        {
+            if (!(routeEntries is JArray list)) throw new ModJsonException(File + ": tradeRoutes must be an array");
+            foreach (var entry in list)
+            {
+                if (!(entry is JObject row)) throw new ModJsonException(File + ": tradeRoutes entries must be objects");
+                string from = ModJson.Str(row, "source"), to = ModJson.Str(row, "destination"), it = ModJson.Str(row, "item");
+                if ((!ModWorld.TryResolveStation(from, out int source) && !ModWorld.TryResolveStation(mod.Id + ":" + from, out source)) ||
+                    (!ModWorld.TryResolveStation(to, out int destination) && !ModWorld.TryResolveStation(mod.Id + ":" + to, out destination)) ||
+                    (!ModContent.TryResolveItem(it, out int item) && !ModContent.TryResolveItem(mod.Id + ":" + it, out item)))
+                    throw new ModJsonException(File + ": unknown trade route reference");
+                var a = db.Stations.Find(s => s.index == source);
+                var b = db.Stations.Find(s => s.index == destination);
+                if (source == destination || a == null || b == null || db.Item(item)?.TypeId != 4)
+                    throw new ModJsonException(File + ": trade route requires distinct stations and a commodity");
+                int capacity = ModJson.Int(row, "capacity", 100, File);
+                int ticks = ModJson.Int(row, "travelTicks", 1, File);
+                int loss = ModJson.Int(row, "warLossPercent", 0, File);
+                if (capacity < 1 || capacity > MaxStock || ticks < 1 || ticks > 96 || loss < 0 || loss > 100)
+                    throw new ModJsonException(File + ": invalid trade route capacity, travel time or loss");
+                parsedRoutes[(source, destination, item)] = new Route(source, destination, item, capacity, ticks,
+                    disruption ? loss : 0);
+            }
+        }
+        // Publish only after the entire file has been validated.
+        if (validateOnly) return;
+        Enabled = true;
+        if (!inventory) return;
+        PersistentInventory = true;
+        SaveInventory |= save;
+        if (pricing && save)
+        {
+            DynamicPricing = true;
+            ScarcityMarkup = scarcity; SurplusDiscount = surplus; WarMarkup = warPrice;
+            SellSpread = spread; TransportCosts = freight; TransportPerHop = freightPrice;
+        }
+        else if (pricing) Debug.LogWarning($"[{mod.Id}] {File}: dynamic pricing requires saveInventory; disabled.");
+        if (market && pricing && save) { PlayerMarketTrade = true; PlayerMarketBudget = marketBudget; PlayerMarketUnits = marketUnits; }
+        else if (market) Debug.LogWarning($"[{mod.Id}] {File}: player market trade requires dynamic pricing and saved inventory; disabled.");
+        if (construction && pricing && save) { NpcConstructionSupply = true; NpcConstructionUnits = constructionUnits; }
+        else if (construction) Debug.LogWarning($"[{mod.Id}] {File}: NPC construction supply requires dynamic pricing and saved inventory; disabled.");
+        SimulateUnvisitedStations |= unvisited;
+        Production |= production;
+        Consumption |= consumption;
+        RegionalTrade |= trade;
+        if (physical && trade && save)
+        {
+            PhysicalFreight = true; RhinoCapacity = largeFreight; CormorantCapacity = smallFreight;
+            FreightPerOrbit = freightLimit; FreightSalvagePercent = freightSalvage; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
+            RhinoFreightSpeedPercent = rhinoSpeed; CormorantFreightSpeedPercent = cormorantSpeed;
+            FreightDispatchSeconds = dispatchSeconds;
+            FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
+            FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;
+            FreightWreckLifetimeSeconds = wreckSeconds;
+            NativeFreighterCapacity = nativeCapacity; NativeFreighterSpeedPercent = nativeSpeed;
+            foreach (var fleet in parsedFleets) freightFleets[fleet.Key] = fleet.Value;
+        }
+        else if (physical) Debug.LogWarning($"[{mod.Id}] {File}: physical freight requires regional trade and saved inventory; disabled.");
+        WarPressure |= war;
+        TradeDisruption |= disruption;
+        if (war) { FrontlinePressure = frontline; BattlePressure = battle; }
+        if (trade)
+        {
+            PlayerGateRouting |= playerGates;
+            RestrictedGateRouting |= playerGates && restrictedGates;
+            AutomaticRoutes |= automatic;
+            TicksPerHop = hopTicks;
+            if (automatic) { AutoCapacity = capacityAuto; AutoWarLoss = disruption ? lossAuto : 0; MaxAutoHops = maxHops; }
+        }
+        foreach (var pair in parsedRoutes) routes[pair.Key] = pair.Value;
+        TickSeconds = interval;
+        foreach (var pair in parsed)
+        {
+            if (!rules.TryGetValue(pair.Key.station, out var rows))
+                rules[pair.Key.station] = rows = new Dictionary<int, Rule>();
+            rows[pair.Key.item] = pair.Value;
+        }
         }
 
         public static int Pressure(Database db, int station)

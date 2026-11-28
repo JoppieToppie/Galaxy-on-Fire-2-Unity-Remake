@@ -193,7 +193,8 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>The game reads the project again (validate).</summary>
-        internal void ExternalReload() { SaveNow(); RequestReload(false); }
+        internal bool ExternalReload() { if (!TrySaveNow()) return false; RequestReload(false); return true; }
+        internal void ExternalShowAdvancedEconomy() => ShowAdvancedEconomyRules();
 
         internal bool ExternalUndo(bool redo)
         {
