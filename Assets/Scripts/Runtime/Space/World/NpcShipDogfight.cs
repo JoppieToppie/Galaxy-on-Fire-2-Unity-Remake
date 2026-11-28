@@ -49,7 +49,8 @@ namespace GoF2Remake.World
             var customTraffic = (hull as CustomShipData)?.traffic;
             string ai = mode == SessionRules.DogfightAll ? "gof3" : mode == SessionRules.DogfightEs2All ? "es2"
                       : mode == SessionRules.DogfightOriginalMode ? null : customTraffic?.ai;
-            bool smepEligible = Settings.SmepFighterAi && !SmepAiRules.ExcludedNpcClass(ShipClassRules.ClassOf(hull))
+            bool smepRequested = SmepAiRules.RequestedForSession(Settings.SmepFighterAi, customTraffic?.ai, Application.isMobilePlatform, customTraffic?.mobileAi == true);
+            bool smepEligible = smepRequested && !SmepAiRules.ExcludedNpcClass(ShipClassRules.ClassOf(hull))
                                 && !spec.freighter && spec.fixedObject == null && spec.turretAssembly == null
                                 && spec.capital == 0 && !spec.capitalPart && !spec.modCapital && !spec.stationary
                                 && !spec.structure && !spec.stationPort && !spec.eventWreck && spec.eventTag == 0

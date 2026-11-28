@@ -1,5 +1,5 @@
 // NpcShipSmep.cs
-// NpcShip, part: the optional session-wide SMEP fighter flight mode.
+// NpcShip, part: optional session-wide or per-hull SMEP fighter flight mode.
 // Eligible NPCs use authoritative 6DOF translation, with native ES2 flight reserved for controller fallback.
 // ES2 aim and combat assist, acceleration-aware lead and native collision avoidance remain integrated.
 // Mobile small-ship targets use conventional flight; large player hulls have platform parity.
@@ -17,6 +17,20 @@ namespace GoF2Remake.World
     /// <summary>Pure SMEP policy shared by runtime and regression tests.</summary>
     public static class SmepAiRules
     {
+        /// <summary>Explicit per-hull opt-in; independent of the global dogfight preset.</summary>
+        public static bool RequestedByMod(string ai)
+            => string.Equals(ai, "smep", System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Mobile builds require explicit hull opt-in for the per-hull setting.</summary>
+        public static bool EnabledOnPlatform(bool mobilePlatform, bool mobileOptIn) => !mobilePlatform || mobileOptIn;
+
+        /// <summary>The session-wide opt-in retains its existing behavior. A mod hull may independently opt in.</summary>
+        public static bool RequestedForSession(bool sessionEnabled, string ai, bool mobilePlatform, bool mobileOptIn)
+            => sessionEnabled || (RequestedByMod(ai) && EnabledOnPlatform(mobilePlatform, mobileOptIn));
+
+        /// <summary>Protected mobile targets use fallback regardless of the hull opt-in.</summary>
+        public static bool EnabledForTarget(bool mobileTarget, bool mobileOptIn) => !mobileTarget;
+
         /// <summary>Excluded NPC hull classes; the target's class is never consulted.</summary>
         public static bool ExcludedNpcClass(string shipClass)
             => string.Equals(shipClass, ShipClassRules.Frigate, System.StringComparison.OrdinalIgnoreCase)
