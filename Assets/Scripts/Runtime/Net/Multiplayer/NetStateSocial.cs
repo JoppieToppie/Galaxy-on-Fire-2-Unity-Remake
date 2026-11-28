@@ -54,7 +54,11 @@ namespace GoF2Remake.Multiplayer
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Chat)) return;
             if (text == null || text.Length > NetChat.MaxLength * 4) { NetRateLimit.Reject(client, "an overlong chat line"); return; }
-            text = NetChat.Clean(text);
+            // Station announcements and broadcasts have a longer body than an ordinary chat line.
+            string commandText = text.TrimStart();
+            bool stationNews = commandText.StartsWith("/station announce ", StringComparison.OrdinalIgnoreCase) ||
+                commandText.StartsWith("/station broadcast ", StringComparison.OrdinalIgnoreCase);
+            text = NetChat.Clean(text, stationNews ? NetChat.MaxCommandLength : NetChat.MaxLength);
             if (text.Length == 0 || NetProfiles.IdentityPending(client)) return;
             var sender = NetSquad.Find(client);
             if (sender == null) return;

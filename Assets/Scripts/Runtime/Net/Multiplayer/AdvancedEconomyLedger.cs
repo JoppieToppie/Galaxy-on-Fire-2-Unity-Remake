@@ -627,7 +627,7 @@ namespace GoF2Remake.Multiplayer
             string title = ModAdvancedEconomy.FreightDistressTitle(race);
             // Publish even when nobody is in the system. The news is a dated report, not a live status indicator.
             if (!ship.RaidDistressPosted && NetNews.PostFreightDistress(db, ship.Orbit, ship.RaidBase,
-                "Distress call received from " + GameNames.Race(race) + " freight near " + NetNews.Place(ship.Orbit) + ": " + message))
+                NetNews.FreightDistressPrefix + GameNames.Race(race) + " freight near " + NetNews.Place(ship.Orbit) + ": " + message))
             {
                 ship.RaidDistressPosted = true;
                 dirty = true;
