@@ -8,6 +8,66 @@ namespace GoF2Remake.Tests
 {
     public class NpcSmepAiTests : NpcTestBase
     {
+namespace GoF2Remake.Tests
+{
+    public class NpcSmepAiTests : NpcTestBase
+    {
+        [TestCase("smep", true)]
+        [TestCase("SMEP", true)]
+        [TestCase("gof3", false)]
+        [TestCase("es2", false)]
+        [TestCase(null, false)]
+        public void ModRequestTakesPrecedenceIndependentOfGlobalPreset(string requestedAi, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.RequestedByMod(requestedAi));
+        }
+
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, true)]
+        public void MobilePlatformRequiresAnExplicitModOptIn(bool mobilePlatform, bool mobileOptIn, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.EnabledOnPlatform(mobilePlatform, mobileOptIn));
+        }
+
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        public void ProtectedMobileTargetsAlwaysUseFallback(bool mobileTarget, bool mobileOptIn, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.EnabledForTarget(mobileTarget, mobileOptIn));
+        }
+
+        [Test]
+        public void MobileOptInDoesNotOverrideMobileTargetFallback()
+        {
+            // Mobile AI opt-in controls the build, not the target's controller.
+            Assert.IsTrue(SmepAiRules.EnabledOnPlatform(true, true));
+            Assert.IsFalse(SmepAiRules.EnabledForTarget(true, true));
+            Assert.IsFalse(SmepAiRules.UseCustomFlight(true, true, false, true, false));
+        }
+
+        [Test]
+        public void ExistingModsDoNotOptIntoMobileSmepByDefault()
+        {
+            Assert.IsFalse(new GoF2Remake.Data.CustomTraffic().mobileAi);
+            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{}").mobileAi);
+            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{\"ai\":\"smep\"}").mobileAi);
+        }
+
+        [TestCase(true, null, true, false, true)]
+        [TestCase(true, "gof3", false, false, true)]
+        [TestCase(false, "smep", false, false, true)]
+        [TestCase(false, "smep", true, false, false)]
+        [TestCase(false, "smep", true, true, true)]
+        [TestCase(false, "es2", false, true, false)]
+        public void SessionAndHullOptInsRemainIndependent(bool session, string ai, bool mobile, bool optIn, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.RequestedForSession(session, ai, mobile, optIn));
+        }
+
         [TestCase(true, false, false, true, true)]
         [TestCase(true, false, false, false, false)]
         [TestCase(false, true, true, false, true)]

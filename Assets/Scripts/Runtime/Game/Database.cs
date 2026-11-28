@@ -592,7 +592,7 @@ namespace GoF2Remake.Data
         /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
         /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
         public string role;
-        /// <summary>This hull's dogfight style when the session uses "Mod hulls' own". SMEP 6DOF is a session-wide option.</summary>
+        /// <summary>This hull's dogfight style when the session uses "Mod hulls' own". "smep" opts into native SMEP 6DOF independently; the session-wide SMEP setting remains available. A hull-only opt-in on mobile builds requires mobileAi.</summary>
         public string ai;
         /// <summary>Remake: with "ai": "smep", explicitly allow SMEP on mobile builds; off by default. A pilot on a phone or tablet is never fought SMEP's way (SmepAiRules.EnabledForTarget).</summary>
         public bool mobileAi;
