@@ -21,7 +21,7 @@ namespace GoF2Remake.Multiplayer
         public enum Kind
         {
             ProxySpawn, CrateSpawn, Despawn, Adopt, Asteroid, Request, Chat, Command, Invite, Squad, Mission, Trade, Reserve,
-            Hangar, Hit, Shot, Fx, Claim, Kill, Siege, PlayerTrade, Pose, Count
+            Hangar, Hit, Shot, Fx, Claim, Kill, Siege, PlayerTrade, Pose, FreightRequest, Count
         }
 
         /// <summary>Per kind: the burst a client may send at once, the refill per second, and how much a dropped one counts
@@ -50,6 +50,7 @@ namespace GoF2Remake.Multiplayer
             (3f, 0.05f, 1f),    // Siege: the Kaamo siege's win
             (30f, 5f, 1f),      // PlayerTrade: a trade between players (offers, accepts, payments)
             (120f, 60f, 0.05f), // Pose: the pose stream's batches (NetPoses: up to 20 a second, a busy orbit's split in a few)
+            (8f, 5f, 1f),       // FreightRequest: initial ship manifest retries at 4/s, plus occasional salvage
         };
 
         /// <summary>Weighted drops within a minute that get a client kicked.</summary>

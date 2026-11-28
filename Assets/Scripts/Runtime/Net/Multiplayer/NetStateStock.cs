@@ -13,30 +13,34 @@ namespace GoF2Remake.Multiplayer
     public partial class NetState
     {
         [Rpc(SendTo.Server)]
-        internal void RequestFreightRpc(int orbit, RpcParams rpc = default)
+        internal void RequestFreightRpc(int orbit, uint epoch, bool ships, bool wrecks, bool initial, RpcParams rpc = default)
         {
             ulong client = rpc.Receive.SenderClientId;
-            if (!Modding.ModAdvancedEconomy.PhysicalFreight || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request) ||
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || !NetRateLimit.Allow(client, NetRateLimit.Kind.FreightRequest) ||
                 !NetGuard.InOrbit(client, orbit) || NetArena.IsArenaOrbit(orbit)) return;
-            if (RunnerOf(orbit)?.OwnerClientId == client)
+            if (ships && RunnerOf(orbit)?.OwnerClientId == client)
             {
                 var manifest = AdvancedEconomyLedger.FreightManifest(orbit);
-                if (manifest != null) FreightManifestRpc(orbit, manifest, RpcTarget.Single(client, RpcTargetUse.Temp));
+                if (manifest != null) FreightManifestRpc(orbit, epoch, initial, manifest, RpcTarget.Single(client, RpcTargetUse.Temp));
             }
-            var wrecks = AdvancedEconomyLedger.FreightWreckManifest(orbit);
-            if (wrecks != null) FreightWreckManifestRpc(orbit, wrecks, RpcTarget.Single(client, RpcTargetUse.Temp));
+            // Salvage remains visible to every player; do not rebuild it for every initial ship retry.
+            if (wrecks)
+            {
+                var manifest = AdvancedEconomyLedger.FreightWreckManifest(orbit);
+                if (manifest != null) FreightWreckManifestRpc(orbit, epoch, manifest, RpcTarget.Single(client, RpcTargetUse.Temp));
+            }
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void FreightManifestRpc(int orbit, string manifest, RpcParams rpc = default)
+        void FreightManifestRpc(int orbit, uint epoch, bool initial, string manifest, RpcParams rpc = default)
         {
-            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ApplyFreightManifest(manifest);
+            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ReceiveFreightManifest(epoch, initial, manifest);
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void FreightWreckManifestRpc(int orbit, string manifest, RpcParams rpc = default)
+        void FreightWreckManifestRpc(int orbit, uint epoch, string manifest, RpcParams rpc = default)
         {
-            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ApplyFreightWreckManifest(manifest);
+            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ReceiveFreightWreckManifest(epoch, manifest);
         }
 
         [Rpc(SendTo.Server)]
