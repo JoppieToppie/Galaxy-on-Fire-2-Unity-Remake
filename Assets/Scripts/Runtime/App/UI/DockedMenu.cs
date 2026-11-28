@@ -39,6 +39,7 @@ namespace GoF2Remake.UI
         static readonly Color Idle = new Color(0.05f, 0.12f, 0.18f, 0.9f);
         static readonly Color Marked = new Color(0.16f, 0.36f, 0.5f, 0.95f);
         static readonly Color Amber = new Color(1f, 0.74f, 0.25f, 1f);
+        const float MaxListHeight = 6 * 52f + 26f;   // a button is 46 + 2 x 3 margin; half of a seventh shows there are more
 
         public bool IsOpen { get; private set; }
 
@@ -70,8 +71,11 @@ namespace GoF2Remake.UI
             // A long list (a mod's object with many options) scrolls, like the autopilot menu.
             var scroll = new ScrollView { focusable = false };
             scroll.style.flexShrink = 1;
-            scroll.style.maxHeight = Length.Percent(100);
             column = scroll.contentContainer;
+            // #366: a ScrollView in an auto-height panel is only its scroller's height (its viewport's flex-basis is 0): the
+            // list showed its first button alone, and on touch Undock was out of sight under the paused game. The content's
+            // height, up to about six buttons.
+            column.RegisterCallback<GeometryChangedEvent>(_ => scroll.style.height = Mathf.Min(column.layout.height, MaxListHeight));
             panel.Add(scroll);
             root.Add(panel);
         }
