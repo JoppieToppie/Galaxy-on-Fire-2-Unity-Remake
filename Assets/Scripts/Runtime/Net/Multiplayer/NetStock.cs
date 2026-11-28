@@ -519,12 +519,17 @@ namespace GoF2Remake.Multiplayer
                 if (economyDue && !local)
                 {
                     var autoGraph = ModAdvancedEconomy.AutomaticRoutes ? graph : null;
-                    TickPlayerMarket(Participates, changed, incoming, autoGraph);
-                    TickNpcConstruction(Participates, changed, autoGraph);
+                    TickPlayerMarket(Participates, Pressure, changed, incoming, autoGraph);
+                    TickNpcConstruction(Participates, Pressure, changed, autoGraph);
                 }
-                if (economyDue && ModAdvancedEconomy.DynamicPricing)
-                    foreach (int station in ModAdvancedEconomy.Stations)
-                        if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
+                // Price-only refreshes are needed for open shops; undocked shops
+                // get a fresh quote on their next request. Actual stock mutations
+                // still update every affected generated shop below.
+                if (economyDue && !local && ModAdvancedEconomy.DynamicPricing)
+                    foreach (var player in NetPlayer.All)
+                        if (player != null && player.IsSpawned && player.InHangar &&
+                            stocks.ContainsKey(player.Station) && ModAdvancedEconomy.At(player.Station) != null && Participates(player.Station))
+                            changed.Add(player.Station);
                 foreach (int station in changed)
                     if (local)
                     {
@@ -546,7 +551,7 @@ namespace GoF2Remake.Multiplayer
         }
 
         // Supply only from surplus, after ordinary NPC routes and procurement have run.
-        static void TickNpcConstruction(Func<int, bool> participates, HashSet<int> changed, AdvancedEconomyRoutes graph)
+        static void TickNpcConstruction(Func<int, bool> participates, Func<int, int> pressureAt, HashSet<int> changed, AdvancedEconomyRoutes graph)
         {
             if (!ModAdvancedEconomy.NpcConstructionSupply || !NetProfiles.Enabled ||
                 NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
@@ -577,7 +582,7 @@ namespace GoF2Remake.Multiplayer
                             order.remaining, NetPlayerStations.NpcConstructionRemaining(project, order.item), remaining);
                         if (count == 0) continue;
                         int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
-                        int pressure = ModAdvancedEconomy.Pressure(db, station);
+                        int pressure = pressureAt(station);
                         // Require the bid to cover the most expensive marginal unit, including delivery distance.
                         while (count > 0 && order.unitPrice < UnitPrice(basis, balance.Amount - count + 1,
                             rule.Target, pressure, balance.ImportHops + distance, true)) count--;
@@ -594,7 +599,7 @@ namespace GoF2Remake.Multiplayer
 
         // Player listings supply local NPC demand only after the ordinary shipment pass.
         // This cannot touch personal storage, factories, ships, or construction escrow.
-        static void TickPlayerMarket(Func<int, bool> participates, HashSet<int> changed,
+        static void TickPlayerMarket(Func<int, bool> participates, Func<int, int> pressureAt, HashSet<int> changed,
             IReadOnlyDictionary<(int station, int item), int> incoming, AdvancedEconomyRoutes graph)
         {
             if (!ModAdvancedEconomy.PlayerMarketTrade || !NetProfiles.Enabled ||
@@ -620,6 +625,8 @@ namespace GoF2Remake.Multiplayer
                     var balance = AdvancedEconomyLedger.Get(station, rule);
                     incoming.TryGetValue((station, rule.Item), out int reserved);
                     if (balance.Amount + reserved >= rule.Target) continue;
+                    int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
+                    int pressure = pressureAt(station);
                     foreach (var market in markets)
                     {
                         if (market == null || !market.npcEconomyPurchases || market.listings == null) continue;
@@ -644,7 +651,7 @@ namespace GoF2Remake.Multiplayer
                             if (listing.amount <= 0) continue;
                             int need = Math.Min(remainingUnits, rule.Target - balance.Amount - reserved);
                             if (need <= 0) break;
-                            int ceiling = HostQuote(station, rule, balance).buy;
+                            int ceiling = HostQuote(basis, pressure, rule, balance).buy;
                             int old = balance.Amount, resale = balance.Resale, hops = balance.ImportHops;
                             int count = NetPlayerStations.PurchaseForNpcEconomy(market, listing, need, ceiling, budget,
                                 units =>
@@ -749,10 +756,8 @@ namespace GoF2Remake.Multiplayer
             !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
             ModAdvancedEconomy.At(station)?.ContainsKey(item) == true;
 
-        static (int buy, int sell, int pressure) HostQuote(int station, ModAdvancedEconomy.Rule rule, AdvancedEconomyLedger.Balance balance)
+        static (int buy, int sell, int pressure) HostQuote(int basis, int pressure, ModAdvancedEconomy.Rule rule, AdvancedEconomyLedger.Balance balance)
         {
-            int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
-            int pressure = ModAdvancedEconomy.Pressure(db, station);
             var quote = ModAdvancedEconomy.Quote(basis, balance.Amount, rule.Target, pressure, balance.ImportHops,
                 ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
                 ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread);
