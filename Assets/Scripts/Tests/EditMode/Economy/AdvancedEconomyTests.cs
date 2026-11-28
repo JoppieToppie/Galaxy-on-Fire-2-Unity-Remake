@@ -9,6 +9,22 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void PirateRaidSuccessShrinksExponentiallyWithPlayerKills()
+        {
+            int[] successes = new int[4];
+            for (int kills = 0; kills < 4; kills++)
+                for (int roll = 0; roll < 10000; roll++)
+                    if (ModAdvancedEconomy.FreightRaidOutcome(roll, 40, 30, 25, kills) != 0) successes[kills]++;
+            CollectionAssert.AreEqual(new[] { 7000, 1750, 438, 0 }, successes);
+            Assert.AreEqual(2, ModAdvancedEconomy.FreightRaidOutcome(0, 40, 30, 25, 0));
+            Assert.AreEqual(1, ModAdvancedEconomy.FreightRaidOutcome(3000, 40, 30, 25, 0));
+            Assert.AreEqual(0, ModAdvancedEconomy.FreightRaidOutcome(7000, 40, 30, 25, 0));
+            Assert.IsTrue(ModAdvancedEconomy.IsFreightRaidTag(ModAdvancedEconomy.FreightRaidTagStart));
+            Assert.IsFalse(ModAdvancedEconomy.IsFreightRaidTag(ModAdvancedEconomy.FreightRaidTagStart + 3));
+            Assert.IsFalse(ModAdvancedEconomy.IsFreightTag(ModAdvancedEconomy.FreightRaidTagStart));
+        }
+
+        [Test]
         public void FreightFleetSelectionUsesCapacityAndRelativeWeights()
         {
             var light = new ModAdvancedEconomy.FreightHull(36, "36", 400, 2, 125);

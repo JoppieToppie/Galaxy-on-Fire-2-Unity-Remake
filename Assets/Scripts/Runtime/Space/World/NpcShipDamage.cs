@@ -128,9 +128,13 @@ namespace GoF2Remake.World
 
         /// <summary>An NPC gun's area blast on one target (Gun.AreaDamage, the echo): the hull damage and EMP, no stray-fire
         /// rules (the blast is what the gun is for). The player takes no area damage (Gun.AreaDamage skips it).</summary>
+        // The raid result is adjudicated on the server at departure, not by local combat damage.
+        bool IsSimulatedFreightAttack(Target hit) => Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) &&
+            hit != null && hit.GetComponent<NpcShip>() is NpcShip freight && Modding.ModAdvancedEconomy.IsFreightTag(freight.Spec.eventTag);
+
         public void HitByBlast(Gun gun, Target t, int dmg, int emp, Vector3 center)
         {
-            if (t == null) return;
+            if (t == null || IsSimulatedFreightAttack(t)) return;
             if (dmg > 0)
             {
                 t.lastNpcWeapon = gun.itemIndex;
@@ -151,6 +155,7 @@ namespace GoF2Remake.World
         /// EMP (attr 10, Gun::setIndex) lands too (NPC against NPC: the player has no EMP pool).</summary>
         void GunHit(Gun g, GunRig r, int bullet, Target hit, Vector3 point)
         {
+            if (IsSimulatedFreightAttack(hit)) { r.ShowImpact(point); return; }
             float dmg = g.damage;
             if (wingDevice != null) dmg *= wingDevice.DamageFactor;   // remake mods: a wingman's Charged Shots
             bool wasAlive = hit.Alive;
@@ -191,7 +196,8 @@ namespace GoF2Remake.World
         void OnDamaged(Target t, int dmg, bool byNpc)
         {
             if (dmg > 0 && dogfight != null && Target.Alive) dogfight.Hit();   // remake option: GoF3's evasive roll (NpcShipDogfight)
-            if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;   // remake mods: the player's hit breaks a mind control
+            if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;
+            if (!byNpc && dmg > 0 && Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) && Order != null) Resume();   // remake mods: the player's hit breaks a mind control
             // Player::damage on a Most Wanted criminal (+0x3e): Level::attackWanted instead of the friendly-fire rules.
             if (!byNpc && Spec.wantedIndex >= 0)
             {

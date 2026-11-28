@@ -30,7 +30,7 @@ namespace GoF2Remake.Multiplayer
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class NetNews
     {
-        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement, StationBroadcast, FactionBroadcast }
+        public enum Kind { Breaking, Territory, War, Arena, Defense, Faction, Galnet, Pilot, StationAnnouncement, StationBroadcast, FactionBroadcast, Commerce }
 
         public sealed class Item
         {
@@ -101,7 +101,7 @@ namespace GoF2Remake.Multiplayer
                     var saved = JsonUtility.FromJson<SavedList>(File.ReadAllText(path));
                     if (saved?.items != null)
                         foreach (var s in saved.items)
-                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.FactionBroadcast), station = s.station, text = s.text ?? "", actor = s.actor, authority = s.authority });
+                            serverItems.Add(new Item { id = s.id, time = s.time, kind = (Kind)Mathf.Clamp(s.kind, 0, (int)Kind.Commerce), station = s.station, text = s.text ?? "", actor = s.actor, authority = s.authority });
                     if (saved?.officialCooldowns != null)
                         foreach (var c in saved.officialCooldowns)
                             if (c != null && !string.IsNullOrEmpty(c.authority) && c.until > UnixNow) officialCooldowns[c.authority] = c.until;
@@ -270,7 +270,7 @@ namespace GoF2Remake.Multiplayer
             var p = (packed ?? "").Split(new[] { '|' }, 5);
             if (p.Length < 5 || !long.TryParse(p[0], out long id) || !int.TryParse(p[1], out int kind) || !int.TryParse(p[2], out int station)
                 || !long.TryParse(p[3], out long time)) return null;
-            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.FactionBroadcast), station = station, time = time, text = Clean(p[4]) };
+            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.Commerce), station = station, time = time, text = Clean(p[4]) };
         }
 
         /// <summary>NetState: an item from the server ("" with 'reset' = the list starts over).</summary>
@@ -289,7 +289,7 @@ namespace GoF2Remake.Multiplayer
         static readonly (string label, string color)[] Kickers =
         {
             ("BREAKING", "#ff5a4f"), ("TERRITORY", "#f5a524"), ("WAR", "#ff7a1a"), ("ARENA", "#38bdf8"),
-            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"), ("STATION BROADCAST", "#e4ba78"), ("FACTION BROADCAST", "#c084fc"),
+            ("DEFENCE", "#4ade80"), ("FACTIONS", "#c084fc"), ("GALNET", "#e2e8f0"), ("PILOTS", "#94a3b8"), ("STATION ANNOUNCEMENT", "#67e8f9"), ("STATION BROADCAST", "#e4ba78"), ("FACTION BROADCAST", "#c084fc"), ("COMMERCE", "#f5a524"),
         };
 
         /// <summary>The session's news for the ticker (rich text, each item followed by NewsTicker.Separator), "" = none:

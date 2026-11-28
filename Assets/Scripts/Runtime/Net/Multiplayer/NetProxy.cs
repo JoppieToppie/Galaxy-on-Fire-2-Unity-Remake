@@ -919,6 +919,10 @@ namespace GoF2Remake.Multiplayer
                 else if (after.life == Flying && after.hull > 0)
                     AdvancedEconomyLedger.RecordFreightHull(Station, EventTag, after.hull);
             }
+            if (IsServer && before.life == Flying && after.life != Flying && after.hull == 0 &&
+                Modding.ModAdvancedEconomy.IsFreightRaidTag(EventTag) && Race == Standing.Pirate &&
+                NetState.RunnerOf(Station)?.OwnerClientId == OwnerClientId)
+                AdvancedEconomyLedger.RecordFreightRaidDeath(Station, EventTag, after.killer);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && EventTag > 700000 && EventTag <= 700031 && Spec?.spec != null)
                 NetState.Instance?.RecordPirateDefender(this);
             if (before.life == Flying && after.life != Flying && after.hull == 0 && NpcFactionWar.IsWarTag(EventTag))

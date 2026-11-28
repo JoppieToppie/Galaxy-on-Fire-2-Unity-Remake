@@ -28,6 +28,24 @@ namespace GoF2Remake.Modding
         public static int CormorantFreightSpeedPercent { get; private set; } = 125;
         public const int MaxFreightSeconds = 86400;
         public static int FreightDispatchSeconds { get; private set; } = 60;
+        public static bool FreightPirateRaids { get; private set; } = true;
+        public static int FreightPirateAttemptPercent { get; private set; } = 80;
+        public static int FreightPirateTheftPercent { get; private set; } = 40;
+        public static int FreightPirateDestructionPercent { get; private set; } = 30;
+        public static int FreightPirateKillRemainingPercent { get; private set; } = 25;
+        // Dedicated raid identity range, separate from cargo, pirate-sighting and war tags.
+        public const int FreightRaidTagStart = 200000000, FreightRaidTagEnd = 300000000, FreightRaidSize = 3;
+        public static bool IsFreightRaidTag(int tag) => tag >= FreightRaidTagStart && tag < FreightRaidTagEnd && tag % 4 < FreightRaidSize;
+        public static int FreightRaidBase(int tag) => tag - tag % 4;
+        public static int FreightRaidOutcome(int roll, int theft, int destruction, int remainingPercent, int kills)
+        {
+            theft = Math.Clamp(theft, 0, 100);
+            destruction = Math.Clamp(destruction, 0, 100 - theft);
+            if (kills >= FreightRaidSize) return 0;
+            double factor = Math.Pow(Math.Clamp(remainingPercent, 0, 100) / 100.0, Math.Max(0, kills));
+            double chance = Math.Clamp(roll, 0, 9999) / 100.0;
+            return chance < destruction * factor ? 2 : chance < (destruction + theft) * factor ? 1 : 0;
+        }
         public static int FreightTravelMinSeconds { get; private set; } = 30;
         public static int FreightTravelMaxSeconds { get; private set; } = 90;
         public static int FreightUnloadMinSeconds { get; private set; } = 15;
@@ -225,6 +243,8 @@ namespace GoF2Remake.Modding
             PhysicalFreight = false; RhinoCapacity = 2500; CormorantCapacity = 400;
             FreightPerOrbit = 4; FreightSalvagePercent = 25; RhinoShip = 51; CormorantShip = 36;
             RhinoFreightSpeedPercent = 75; CormorantFreightSpeedPercent = 125;
+            FreightPirateRaids = true; FreightPirateAttemptPercent = 80; FreightPirateTheftPercent = 40;
+            FreightPirateDestructionPercent = 30; FreightPirateKillRemainingPercent = 25;
             FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
             FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
             foreach (var mod in ModManager.Active)
@@ -269,6 +289,11 @@ namespace GoF2Remake.Modding
             int freightSalvage = Math.Clamp(ModJson.Int(o, "freightSalvagePercent", 25, File), 0, 100);
             int rhinoSpeed = Math.Clamp(ModJson.Int(o, "rhinoFreightSpeedPercent", 75, File), 10, 500);
             int cormorantSpeed = Math.Clamp(ModJson.Int(o, "cormorantFreightSpeedPercent", 125, File), 10, 500);
+            bool pirateRaids = ModJson.Bool(o, "freightPirateRaids", true, File);
+            int raidAttempt = Math.Clamp(ModJson.Int(o, "freightPirateAttemptPercent", 80, File), 0, 100);
+            int raidTheft = Math.Clamp(ModJson.Int(o, "freightPirateTheftPercent", 40, File), 0, 100);
+            int raidDestroy = Math.Clamp(ModJson.Int(o, "freightPirateDestructionPercent", 30, File), 0, 100 - raidTheft);
+            int raidKill = Math.Clamp(ModJson.Int(o, "freightPirateKillRemainingPercent", 25, File), 0, 100);
             int dispatchSeconds = Math.Clamp(ModJson.Int(o, "freightDispatchSeconds", 60, File), 1, MaxFreightSeconds);
             var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
                 ModJson.Int(o, "freightTravelMaxSeconds", 90, File));
@@ -452,6 +477,9 @@ namespace GoF2Remake.Modding
                 FreightPerOrbit = freightLimit; FreightSalvagePercent = freightSalvage; RhinoShip = rhinoShip; CormorantShip = cormorantShip;
                 RhinoFreightSpeedPercent = rhinoSpeed; CormorantFreightSpeedPercent = cormorantSpeed;
                 FreightDispatchSeconds = dispatchSeconds;
+                FreightPirateRaids = pirateRaids; FreightPirateAttemptPercent = raidAttempt;
+                FreightPirateTheftPercent = raidTheft; FreightPirateDestructionPercent = raidDestroy;
+                FreightPirateKillRemainingPercent = raidKill;
                 FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
                 FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;
                 FreightWreckLifetimeSeconds = wreckSeconds;

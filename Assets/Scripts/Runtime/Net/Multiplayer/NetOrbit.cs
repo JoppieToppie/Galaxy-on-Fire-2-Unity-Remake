@@ -529,11 +529,12 @@ namespace GoF2Remake.Multiplayer
             var traffic = level?.Traffic;
             if (!Authority || traffic == null || level.Layout == null) return;
             var active = new HashSet<int>();
+            var activeRaiders = new HashSet<int>();
             int slot = 0;
             foreach (string row in (manifest ?? "").Split(';'))
             {
                 string[] fields = row.Split(',');
-                if (fields.Length != 10 || !int.TryParse(fields[0], out int tag) ||
+                if ((fields.Length != 10 && fields.Length != 12) || !int.TryParse(fields[0], out int tag) ||
                     !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
                     !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
                     !int.TryParse(fields[7], out int race) || !int.TryParse(fields[8], out int ship) ||
@@ -543,6 +544,8 @@ namespace GoF2Remake.Multiplayer
                     !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
                     level.Database.Item(item) == null || !active.Add(tag)) continue;
                 int index = slot++;
+                int raidBase = 0, raidDead = 0;
+                if (fields.Length == 12) { int.TryParse(fields[10], out raidBase); int.TryParse(fields[11], out raidDead); }
                 // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
                 string hullName = ship == 13 || ship == 15 ? "Freighter" : GameNames.Ship(ship);
                 string label = hullName + " Freight (" + amount + " t)";
@@ -555,6 +558,7 @@ namespace GoF2Remake.Multiplayer
                         existing.SetLoot(new List<ItemStack> { new ItemStack(item, amount) });
                         existing.Target.displayName = existing.Spec.name = label;
                     }
+                    if (existing.Target != null && existing.Target.Alive) ApplyFreightRaid(traffic, existing, raidBase, raidDead, activeRaiders);
                     continue;
                 }
                 if (System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
@@ -590,7 +594,10 @@ namespace GoF2Remake.Multiplayer
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
                 npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
                 npc.Target.hp = npc.Hp.hull = Mathf.Clamp(Mathf.RoundToInt(npc.Hp.maxHull * (hull / 65535f)), 1, npc.Hp.maxHull);
+                ApplyFreightRaid(traffic, npc, raidBase, raidDead, activeRaiders);
             }
+            foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone && Modding.ModAdvancedEconomy.IsFreightRaidTag(x.Spec.eventTag)))
+                if (!activeRaiders.Contains(npc.Spec.eventTag) && npc.Target != null && npc.Target.Alive && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
             foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone &&
                 Modding.ModAdvancedEconomy.IsFreightTag(x.Spec.eventTag) && x.Target != null && x.Target.Alive))
                 if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
@@ -607,6 +614,24 @@ namespace GoF2Remake.Multiplayer
                 ordinary--;
             }
             traffic.ConnectPlayers();
+        }
+
+        void ApplyFreightRaid(Traffic traffic, NpcShip freight, int raidBase, int dead, HashSet<int> active)
+        {
+            if (!Modding.ModAdvancedEconomy.IsFreightRaidTag(raidBase) || raidBase % 4 != 0) return;
+            for (int i = 0; i < Modding.ModAdvancedEconomy.FreightRaidSize; i++)
+            {
+                int tag = raidBase + i;
+                if ((dead & (1 << i)) != 0) continue;
+                active.Add(tag);
+                if (traffic.Ships.Exists(x => x != null && !x.Gone && x.Spec.eventTag == tag) ||
+                    System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
+                Vector3 at = freight.transform.position + new Vector3((i - 1) * 900f, 350f + i * 150f, -1200f);
+                var pirate = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Raider, race = Standing.Pirate,
+                    ship = NpcTables.RandomFighter(Standing.Pirate), eventTag = tag, alwaysEnemy = true, noLoot = true,
+                    name = "Freight Raider", position = level.Layout.Unplace(GamePosition(at)) });
+                pirate.SetOrder(new NpcOrder { kind = NpcOrder.Kind.Attack, target = freight.Target });
+            }
         }
 
         readonly Dictionary<int, Crate> freightWrecks = new Dictionary<int, Crate>();

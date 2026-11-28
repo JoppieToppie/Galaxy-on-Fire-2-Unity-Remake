@@ -364,6 +364,8 @@ namespace GoF2Remake.Data
             }
         }
 
+        public static bool ServerHasPresence(int system) => Enabled && serverBoard.Exists(s => s.system == system && Active(s, Now));
+
         public static string ServerBoardJson() => JsonUtility.ToJson(new Shared { items = serverBoard });
 
         /// <summary>Server, every few seconds: the board kept full and published when it changed. 'publish' writes NetState.</summary>
