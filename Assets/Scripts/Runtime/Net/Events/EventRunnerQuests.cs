@@ -14,6 +14,11 @@ namespace GoF2Remake.Events
 {
     public static partial class EventRunner
     {
+        // The quest list is a filtered view of AllGraphs. Reuse it while AllGraphs returns the same
+        // source list; a mod or event-file invalidation replaces that list and rebuilds this view.
+        static List<MissionInfo> questGraphSource;
+        static List<MissionInfo> questGraphCache;
+
         /// <summary>Every event graph's details (its Start node's Mission settings), read again when the mods change or
         /// the Events folders' files do (looked at every 30 s).</summary>
         internal static List<MissionInfo> AllGraphs()
@@ -58,8 +63,18 @@ namespace GoF2Remake.Events
             return MissionGraphs().Exists(m => m.name == name);
         }
 
-        /// <summary>Single player: every quest graph (its Start node's kind Quest).</summary>
-        internal static List<MissionInfo> QuestGraphs() => AllGraphs().FindAll(m => m.IsQuest && !m.builtIn);
+        /// <summary>Single player: every quest graph (its Start node's kind Quest). The filtered list is reused until
+        /// AllGraphs replaces its source after a mod / event-file change; CheckQuestStarts asks once a second.</summary>
+        internal static List<MissionInfo> QuestGraphs()
+        {
+            var source = AllGraphs();
+            if (!ReferenceEquals(source, questGraphSource))
+            {
+                questGraphSource = source;
+                questGraphCache = source.FindAll(m => m.IsQuest && !m.builtIn);
+            }
+            return questGraphCache;
+        }
 
         /// <summary>Server: the mission event 'name' runs for 'team' (taken at 'station' by 'by'); the answer when it can't.</summary>
         internal static string StartMission(string name, HashSet<ulong> team, int station, IPilot by, GraphQuestState record = null)

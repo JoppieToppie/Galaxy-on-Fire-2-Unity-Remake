@@ -37,6 +37,24 @@ namespace GoF2Remake.Tests
         static JObject Quest(params JObject[] steps) => new JObject { ["format"] = "gof2quest", ["title"] = "T", ["kind"] = "quest", ["steps"] = new JArray(steps) };
 
         [Test]
+        public void QuestGraphFilterIsCachedUntilAllGraphsIsInvalidated()
+        {
+            var questGraphs = typeof(EventRunner).GetMethod("QuestGraphs", BindingFlags.NonPublic | BindingFlags.Static);
+            var expire = typeof(EventRunner).GetMethod("ExpireGraphCheck", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.NotNull(questGraphs);
+            Assert.NotNull(expire);
+
+            expire.Invoke(null, new object[] { true });
+            var first = questGraphs.Invoke(null, null);
+            var second = questGraphs.Invoke(null, null);
+            Assert.AreSame(first, second, "the filtered quest list should be reused while AllGraphs is unchanged");
+
+            expire.Invoke(null, new object[] { true });
+            var refreshed = questGraphs.Invoke(null, null);
+            Assert.AreNotSame(first, refreshed, "forgetting AllGraphs must invalidate the filtered quest list");
+        }
+
+        [Test]
         public void EveryStepTypeCompilesAndRuns()
         {
             foreach (var t in QuestSteps.Types)
