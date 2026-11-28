@@ -397,13 +397,16 @@ namespace GoF2Remake.Multiplayer
             CoopSession = HostWantsCoop;
             // The co-op campaign's game: a new one, or the host's save slot (refused: Status says why).
             if (CoopSession && !NetCoop.PrepareHost(CoopNewCampaign, CoopSlot)) { Shutdown(); return false; }
-            SetUpHostedWorld();
             if (!Dedicated)
             {
-                NetRules.Host = NetRules.FromOptions();   // a player host's own Gameplay options (a server: Boot)
-                NetRules.HostKaamoLevel = Settings.LocalKaamoLevel();
+                // A player host's own Gameplay options, the co-op save's game rules (a server: Boot); before the hosted world's
+                // saved settings, which used to be overwritten by them.
+                NetRules.Host = NetRules.FromOptions(CoopSession ? NetCoop.HostSlotSave : null, out int kaamoLevel);
+                NetRules.HostKaamoLevel = kaamoLevel;
                 NetRules.HostFlight = SessionRules.DefaultFlight;   // each player's own flight model; an admin's /flightmodel changes it
             }
+            SetUpHostedWorld();
+            if (!Dedicated) NetServerSettings.ApplyHostChoices();   // the main menu's Session settings window wins
             NetMods.BeginHost();   // the host's mods when modded content is allowed, else none
             if (CoopSession && !NetCoop.LoadHostSave()) { Shutdown(); return false; }   // its items under the session's mods
             Seed = Environment.TickCount & 0x7fffffff;
