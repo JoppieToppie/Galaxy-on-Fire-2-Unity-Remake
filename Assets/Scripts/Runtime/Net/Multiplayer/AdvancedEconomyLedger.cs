@@ -574,7 +574,7 @@ namespace GoF2Remake.Multiplayer
 
         static void SendDistress(Database db, ModAdvancedEconomy.Route route, Shipment ship)
         {
-            if (!ModAdvancedEconomy.FreightDistressCalls || ship.RaidBase == 0 || (!LocalActive && NetState.Instance == null) || ship.RaidPlayerKills >= ModAdvancedEconomy.FreightRaidSize) return;
+            if (!ModAdvancedEconomy.FreightDistressCalls || ship.RaidBase == 0 || (!LocalActive && NetState.Instance == null) || !UseAbstractFreightRaidOutcome(false, ship.RaidDead)) return;
             var station = db.Stations.Find(s => s.index == ship.Orbit);
             var destination = db.Stations.Find(s => s.index == route.Destination);
             if (station == null || destination == null) return;
