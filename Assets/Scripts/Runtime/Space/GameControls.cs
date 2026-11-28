@@ -66,7 +66,7 @@ namespace GoF2Remake.Flight
             HudToggle, MultiplayerWindow, DistressCall,
             Thrust, StrafeAxis, Hover, Dampeners, FreeLookHold, Drift, TravelBoost,
             Device1, Device2, Device3,
-            Headlights;
+            Headlights, RecordVideo;
 
         static string X(string key, string english) => Localization.Extra(key, english);
 
@@ -169,6 +169,9 @@ namespace GoF2Remake.Flight
             Device3 = Button("device3", () => X("ctlDevice3", "Device 3"), "<Keyboard>/6", null, null);
             // Remake: the headlights on / off (EVERSPACE 2's; Flight.Headlights), the same key in both layouts.
             Headlights = Button("headlights", () => X("ctlHeadlights", "Headlights on / off"), "<Keyboard>/l", null, null);
+            // Remake (2026-11-28): the built-in screen recorder's start / stop (UI.ScreenRecorder), any scene; F9 like the
+            // overlays' record keys. Added last: the saved overrides are by action and binding index.
+            RecordVideo = Button("recordVideo", () => X("ctlRecordVideo", "Record video (start / stop)"), "<Keyboard>/f9", null, null);
 
             bool Free() => FlightStyles.IsFree(loadedStyle);
             bool Es2() => loadedStyle == FlightStyles.Free;

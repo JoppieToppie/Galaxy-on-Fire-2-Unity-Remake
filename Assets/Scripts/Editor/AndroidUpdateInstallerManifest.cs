@@ -14,6 +14,7 @@ namespace GoF2Remake.EditorTools
     {
         const string Permission = "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />";
         const string Provider = "com.joppietoppie.gof2remake.UpdateApkProvider";
+        const string ClipProvider = "com.joppietoppie.gof2remake.ClipProvider";
 
         public int callbackOrder => 1;
 
@@ -33,12 +34,14 @@ namespace GoF2Remake.EditorTools
                 if (app < 0) { Debug.LogWarning("AndroidUpdateInstallerManifest: no <application> in the manifest"); return; }
                 text = text.Insert(app, Permission + "\n  ");
             }
-            if (!text.Contains("\"" + Provider + "\""))
+            // The update's APK, and the screen recorder's clips for the video player and the share sheet (ClipProvider).
+            foreach (var (provider, suffix) in new[] { (Provider, ".gof2update"), (ClipProvider, ".gof2clips") })
             {
+                if (text.Contains("\"" + provider + "\"")) continue;
                 int end = text.IndexOf("</application>", System.StringComparison.Ordinal);
                 if (end < 0) { Debug.LogWarning("AndroidUpdateInstallerManifest: no </application> in the manifest"); return; }
-                text = text.Insert(end, "    <provider android:name=\"" + Provider + "\"\n"
-                                      + "              android:authorities=\"${applicationId}.gof2update\"\n"
+                text = text.Insert(end, "    <provider android:name=\"" + provider + "\"\n"
+                                      + "              android:authorities=\"${applicationId}" + suffix + "\"\n"
                                       + "              android:exported=\"false\"\n"
                                       + "              android:grantUriPermissions=\"true\" />\n  ");
             }

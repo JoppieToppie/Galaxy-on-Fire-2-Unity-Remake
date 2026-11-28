@@ -1105,6 +1105,41 @@ namespace GoF2Remake.Data
         public static bool MuteInBackground { get => GetBool("muteInBackground", false); set => SetBool("muteInBackground", value); }
         /// <summary>Remake: the frame rate on screen (FpsCounter, placed by FpsPosition).</summary>
         public static bool ShowFps { get => GetBool("showFps", false); set => SetBool("showFps", value); }
+
+        // Remake (2026-11-28, the user's request): the built-in screen recorder's settings (UI.ScreenRecorder, Options >
+        // Graphics "Recording"; docs/notes/platforms.md "Screen recorder"). Phones start lighter (720p, 30 fps).
+        /// <summary>The clip's height: RecordHeights[i] lines, 0 = the screen's own (never above the screen's).</summary>
+        public static readonly int[] RecordHeights = { 0, 2160, 1440, 1080, 720, 480 };
+        public static int RecordResolution
+        {
+            get => Mathf.Clamp(Mathf.RoundToInt(Get("recordResolution", Application.isMobilePlatform ? 4 : 3)), 0, RecordHeights.Length - 1);
+            set => Set("recordResolution", Mathf.Clamp(value, 0, RecordHeights.Length - 1));
+        }
+        public static readonly int[] RecordFrameRates = { 24, 30, 60 };
+        public static int RecordFrameRate
+        {
+            get => Mathf.Clamp(Mathf.RoundToInt(Get("recordFrameRate", Application.isMobilePlatform ? 1 : 2)), 0, RecordFrameRates.Length - 1);
+            set => Set("recordFrameRate", Mathf.Clamp(value, 0, RecordFrameRates.Length - 1));
+        }
+        /// <summary>Low / Medium / High / Very high: the bits per pixel per frame of RecordBitsPerPixel.</summary>
+        public static readonly float[] RecordBitsPerPixel = { 0.05f, 0.09f, 0.14f, 0.22f };
+        public static int RecordQuality
+        {
+            get => Mathf.Clamp(Mathf.RoundToInt(Get("recordQuality", 2)), 0, RecordBitsPerPixel.Length - 1);
+            set => Set("recordQuality", Mathf.Clamp(value, 0, RecordBitsPerPixel.Length - 1));
+        }
+        /// <summary>The game's sound in the clip.</summary>
+        public static bool RecordSound { get => GetBool("recordSound", true); set => SetBool("recordSound", value); }
+        /// <summary>The HUD and menus in the clip (the user's request: "choose include the ui or not"); off: the 3D picture only.</summary>
+        public static bool RecordInterface { get => GetBool("recordInterface", true); set => SetBool("recordInterface", value); }
+        public const int RecordIndicatorOff = 0, RecordIndicatorStart = 1, RecordIndicatorAlways = 2;
+        /// <summary>The red REC mark on screen: off, its first seconds only, or all along. Never in the clip (drawn after
+        /// the frame is taken).</summary>
+        public static int RecordIndicator
+        {
+            get => Mathf.Clamp(Mathf.RoundToInt(Get("recordIndicator", RecordIndicatorAlways)), 0, 2);
+            set => Set("recordIndicator", Mathf.Clamp(value, 0, 2));
+        }
         /// <summary>Modified: the mouse cursor drawn in the interface's style (GameCursor) instead of the system's.</summary>
         public static bool GameCursor { get => GetBool("gameCursor", true); set => SetBool("gameCursor", value); }
         /// <summary>Remake: the game mouse cursor's size in percent (Options > Accessibility "Cursor size", GameCursor).</summary>
@@ -1243,6 +1278,7 @@ namespace GoF2Remake.Data
             "hdr", "hdrPaperWhite", "hdrDetectLimits", "hdrPeak", "hdrBlack", "hdrTonemapping", "hdrAcesPreset", "hdrRangeReduction", "hdrHueShift",
             "msaa", "postAa", "textureQuality", "brightness", "bloom", "bloomStyle", "bloomStrength", "hangarShadows", "lods", "hangarDof", "hangarRobots", "barRobots", "lensFlare", "liveSkies", "skyStyle", "nebulaClouds", "npcPlayerEngines", "rebuiltPlanets", "hdResources", "remasteredEffects", "fov",
             "cameraShake", "originalChaseCamera", "es2FreeFlightCamera", "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor",
+            "recordResolution", "recordFrameRate", "recordQuality", "recordSound", "recordInterface", "recordIndicator",
         };
         public static readonly string[] ControlsKeys =
         {

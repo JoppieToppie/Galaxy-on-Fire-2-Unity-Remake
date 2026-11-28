@@ -108,6 +108,9 @@ namespace GoF2Remake.UI
             (OptionSection.GraphicsInterface, new[] { "uiWidth", "uiMargin", "screenCutout", "showFps", "fpsPosition", "gameCursor" }),
             // (the main menu's: the HD resources and add-on packs)
             (OptionSection.GraphicsPacks, new[] { "addPack", "hdResourcesWindow", "hdResources" }),
+            // (the built-in screen recorder's: last, as its section was added last)
+            (OptionSection.GraphicsRecording, new[] { "recordResolution", "recordFrameRate", "recordQuality", "recordSound", "recordInterface",
+                                                      "recordIndicator", "recordedClips" }),
         };
 
         /// <summary>The rows above the categories, in this order: the preset and the benchmark (the user: under Interface
@@ -195,7 +198,7 @@ namespace GoF2Remake.UI
                                                        "bind_drill" }),
                 (OptionSection.BindEquipment, new[] { "bind_wingmen", "bind_cloak", "bind_timeExtender", "bind_device1", "bind_device2", "bind_device3",
                                                       "bind_headlights" }),
-                (OptionSection.BindCamera, new[] { "bind_camera", "bind_cockpitView", "bind_freeLookHold", "bind_hudToggle", "bind_screenshot" }),
+                (OptionSection.BindCamera, new[] { "bind_camera", "bind_cockpitView", "bind_freeLookHold", "bind_hudToggle", "bind_screenshot", "bind_recordVideo" }),
                 (OptionSection.BindMultiplayer, new[] { "bind_chat", "bind_chatSend", "bind_chatChannel", "bind_multiplayerWindow", "bind_distressCall" }),
             }),
         };

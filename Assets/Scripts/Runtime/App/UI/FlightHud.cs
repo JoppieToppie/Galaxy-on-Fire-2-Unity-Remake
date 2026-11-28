@@ -86,6 +86,7 @@ namespace GoF2Remake.UI
         DialogueView storyDialogue;
         LensFlareView lensFlare;
         PauseMenu pauseMenu;
+        MovieMode movie;
         bool voicePausedByMenu;
         GoF2Remake.World.FreelanceOrbit freelance;
         AudioSource voiceSource;
@@ -211,6 +212,7 @@ namespace GoF2Remake.UI
         {
             builderSpace?.Dispose();
             builderSpace = null;
+            movie?.Exit();
             pauseMenu?.Close();   // the scene is going: sounds and time back to normal
             UnityEngine.Cursor.lockState = CursorLockMode.None;   // the captured mouse (mouse steering) is released
             UnityEngine.Cursor.visible = InputMode.CursorShown;
@@ -324,6 +326,7 @@ namespace GoF2Remake.UI
                 voiceSource.ignoreListenerPause = true;
             }
             storyDialogue = new DialogueView(root, voiceSource) { ButtonSound = PlayButton };
+            movie?.Exit();
             pauseMenu?.Close();   // a UI reload rebuilds it: don't leave the game paused
             pauseMenu = new PauseMenu(root, BackToMenu);
             ButtonSounds(root);   // Modified: every button and toggle of the HUD's menus (was the pause menu's and the autopilot menu's)
@@ -335,6 +338,8 @@ namespace GoF2Remake.UI
             pauseMenu.SortingSound = PlaySortingSound;
             pauseMenu.LotSound = PlayLotTone;
             pauseMenu.Photo = new PhotoMode(root, this) { ButtonSound = PlayButton };
+            movie = new MovieMode(root, this) { ButtonSound = PlayButton };   // remake: Movie mode, from the pause menu
+            pauseMenu.OpenMovie = l => movie.Enter(l);
             radioBox = root.Q("radio");
             screenFade = root.Q("screenFade");
             radioPortrait = root.Q("radioPortrait");
@@ -569,7 +574,8 @@ namespace GoF2Remake.UI
             UpdateMouseSteering();
             // StarSystem::render2D, under the HUD; Action Freeze can switch it for the photo (PhotoSettings.Flare).
             lensFlare?.Update(level != null ? level.Backdrop : null,
-                              StarMap.IsOpen || !PhotoSettings.FlareShown(pauseMenu != null && pauseMenu.Photo != null && pauseMenu.Photo.Active));
+                              StarMap.IsOpen || !PhotoSettings.FlareShown((pauseMenu != null && pauseMenu.Photo != null && pauseMenu.Photo.Active)
+                                                                          || (movie != null && movie.Active)));
 
             bool mapOpen = StarMap.IsOpen;
             root.EnableInClassList("hud-map", mapOpen);
@@ -582,8 +588,10 @@ namespace GoF2Remake.UI
             // under it (#137: a mission's reward line was drawn over the counter).
             root.EnableInClassList("hud-fps", Settings.ShowFps && Settings.FpsPosition == Settings.FpsTop);
             ApplyHudLook();
-            UpdateFactionConflictHud(mapOpen || (pauseMenu != null && pauseMenu.IsOpen) || hudMode == Settings.HudOff);
+            UpdateFactionConflictHud(mapOpen || (pauseMenu != null && pauseMenu.IsOpen) || hudMode == Settings.HudOff || (movie != null && movie.Active));
             if (mapOpen) return;   // the map has its own input
+            // Movie mode: setting up a scene has the frame; during a take the game goes on (the player flies, no HUD).
+            if (movie != null && movie.Active && movie.Tick()) return;
 
             // MGame::OnUpdate: DialogueWindow::update runs only while the player lives; a conversation open at the death waits.
             if (storyDialogue != null) storyDialogue.Paused = health != null && health.Dead;
@@ -857,7 +865,8 @@ namespace GoF2Remake.UI
             if (lockFf != lastLockFastForward) { lastLockFastForward = lockFf; BuildHints(InputMode.Current); }
             lockPlate.pickingMode = shipLocked && InputMode.Current == InputKind.Touch ? PickingMode.Position : PickingMode.Ignore;
             float hudShown = level != null ? level.HudShown : 1f;
-            root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic) || hudShown <= 0f);   // jumps: no HUD
+            root.EnableInClassList("hud-cinematic", (nav != null && nav.Jumping) || (jump != null && jump.Cinematic) || hudShown <= 0f
+                                                    || (movie != null && movie.Playing));   // jumps, Movie mode's takes: no HUD
             if (hudShown < 1f != hudFading || hudFading) { hudFading = hudShown < 1f; safeArea.style.opacity = hudFading ? hudShown : StyleKeyword.Null; }
             // The Khador Drive's charge bar, shared with the cloak's "Cloak charging" (317, Hud::draw 0x1933f6).
             var cloak = level != null && level.Cloak != null ? level.Cloak.Rules : null;
@@ -1007,6 +1016,7 @@ namespace GoF2Remake.UI
         // After Update: the views clear and set the shared plate in turn there.
         void LateUpdate()
         {
+            movie?.LateTick();   // Movie mode's camera keys during a take
             if (lockPlate == null) return;
             if (lockPlateText == null) lockPlateText = lockPlate.Q<Label>("lockOre");
             bool shown = Settings.HudMode == Settings.HudMinimal && lockPlate.ClassListContains("lock-plate--shown");

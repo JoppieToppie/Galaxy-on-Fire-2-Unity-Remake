@@ -217,7 +217,8 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
   `Assets/Settings/PhotoModeShaders.asset` keeps their shaders in builds, URP strips unused post-processing variants; it
   holds every override the panel uses: depth of field, colour adjustments, vignette, film grain, bloom, white balance,
   chromatic aberration, lens distortion). The hangar hands the free pose, roll and lens to `HangarInspect`
-  (`SetFreePose`, `RollDeg`, `FovDeg`), which keeps them through the blend back. Not in the Customize screen. **Tilt
+  (`SetFreePose`, `RollDeg`, `FovDeg`), which keeps them through the blend back. Not in the Customize screen. **Movie
+  mode** (the pause menu's Recording page): the same tools with a timeline, see event-graphs.md "Movie mode". **Tilt
   steering** (`TiltSteering`, `MGame::handleAccelerometer`; Controls: 490 Touch / 491 Accelerometer when the device has
   one, 492 Steering Calibration (493, calibrates on first use), the tilt sensitivity 0..1): yaw clamp(Y·2.5)², pitch
   3·max(x' − cal1, Z − cal2) squared, no dead zone; in tilt mode the flight model's pitch ramps use 1.45 / 1.25 × the

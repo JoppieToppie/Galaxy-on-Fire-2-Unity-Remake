@@ -435,6 +435,7 @@ namespace GoF2Remake.Events
             float scoreboardTimer, scoreboardResend;
             readonly Dictionary<string, double> vars = new Dictionary<string, double>();
             readonly Dictionary<int, Batch> batches = new Dictionary<int, Batch>();
+            public IEnumerable<int> BatchTags => batches.Keys;
             // The players' results: event ships destroyed, seconds alive in space since the fight began, out (destroyed once).
             readonly Dictionary<ulong, int> kills = new Dictionary<ulong, int>();
             readonly Dictionary<ulong, float> alive = new Dictionary<ulong, float>();

@@ -259,6 +259,74 @@ Notes moved from `CLAUDE.md` (its index lists every notes file). Code comments c
     the files in and the folder hashed identical to the new build (123 files, none left over), which starts. Not
     covered: the 2026.11.15 player's own button against GitHub (the release's files have to be there for it), Linux,
     Android, UWP. A shell standing in `_update` keeps the script from removing that (then empty) folder.
+- **Screen recorder** (remake, 2026-11-28, the user's requests: "build in a screen recorder with a simple clips manager",
+  "should also work on phone", "settings like resolution, framerate", "rec should not be shown in the recording, also
+  you should be able to choose include the ui or not", "when hdr is on, it should also record in hdr", "linux should
+  also work"; `ScreenRecorder`, `RecorderEncoder`, `RecorderScenePass`, `RecorderAudioTap`, `FfmpegEncoder`,
+  `ClipLibrary`, `ClipsView`; tests `ClipLibraryTests`, `RecorderYuvTests`, `ScreenRecorderTests`): F9
+  (`GameControls.RecordVideo`, rebindable, any scene, not while typing), the pause menu's Recording page (Start / Stop
+  recording, Movie mode, Recorded clips; Start: the menu closes and the game is recorded) or Movie mode's "Record
+  takes" (each take a clip named after the movie, no
+  mark) record the game with its sound to an MP4. Windows (player and Editor), Android and Linux; elsewhere
+  `Supported` is false and none of it shows. **One pipeline**: at the end of each frame due (Settings.RecordFrameRates
+  24 / 30 / 60 on a fixed clock of real time; a late frame skips its slot) the picture is the back buffer
+  (`ScreenCapture.CaptureScreenshotIntoRenderTexture`: HUD and menus in it) or, with "Record the interface" off, the
+  cameras' colour after the post-processing and before the screen-space UI (`RecorderScenePass`, enqueued on every game
+  camera at `AfterRenderingPostProcessing`, a render-graph blit into the recorder's texture; a camera drawing straight
+  to the back buffer has nothing to copy and the screen is taken instead: letterbox, fades, titles and subtitles are
+  interface too), packed on the GPU into planar 4:2:0 at the clip's size (`Resources/GoF2Recorder/RecorderYuv.shader`
+  pass 0: one target w x 1.5 h, the Y plane then U then V, limited range, written by the target's uv so the image's top
+  row comes out first on every API; `_Flip` for the back buffer's copy on a `graphicsUVStartsAtTop` API, `_Linear` for
+  the cameras' linear colour) and read back without a stall (`AsyncGPUReadback`, three in flight at most). Its pass 1
+  makes the thumbnail. `Graphics.Blit` didn't bind `_MainTex` for this URP shader (every frame the default grey, the
+  first clip pink), so it is set on the material, the pass named (pass -1 runs both); the blits put
+  `RenderTexture.active` back (left on the recorder's target, the screen flickered while recording). **The mark** (a
+  pulsing red dot under the cargo readout; Settings.RecordIndicator off / the first 3 s / always, always by default) is
+  drawn onto the back buffer after the frame was taken (`Graphics.DrawTexture` at the end of the frame), so it shows on
+  screen and never in the clip; checked: on the Game view's capture, not in the clip's frame of the same moment.
+  **HDR** (`Bootstrap.HdrActive`): HDR10, the capture in half floats; the screen's copy holds PQ codes (the HDR10 swap
+  chain), the cameras' colour is linear (BT.2020 nits after URP's HDR tonemapping, BT.709 relative to paper white
+  without it: `_SceneNits`) and is PQ-coded in the shader; packed as BT.2020 10-bit with the code in the 16-bit
+  sample's high bits (`_Hdr` 1, an R16 target); peak (the display's `maxToneMapLuminance`, else the option's) and
+  paper white as MaxCLL / MaxFALL. Where the encoder can't, SDR from the HDR picture (`_Hdr` 2: PQ decoded, BT.709
+  relative to paper white, a shoulder over 80 %, sRGB). **Encoders**: Windows `gof2_recorder.dll` (`Native/Recorder`,
+  CMake + MSVC like XeSS; Media Foundation's sink writer: H.264 + AAC, or HEVC Main 10 from P010 (U and V interleaved
+  there) with BT.2020 / PQ / the light levels; a hardware encoder when there is one; one worker thread owns every MF
+  object, a 512 MB queue drops frames, never sound. The Editor never unloads it: to put a rebuild in place, rename the
+  loaded DLL aside (Windows allows that) and copy the new one in; the Editor uses it from its next start), Android
+  `ClipEncoder.java` (MediaCodec H.264 from `getInputImage`'s planes by their strides, or HEVC Main 10 from P010 where
+  an encoder takes `COLOR_FormatYUVP010`, Android 13+; AAC; MediaMuxer started once both tracks' formats are known;
+  the frame as a direct ByteBuffer over the readback, JNI ids looked up on the main thread, the audio thread attached
+  once), Linux the system's ffmpeg (`FfmpegEncoder`: on the PATH or `$GOF2_FFMPEG`; raw frames into its standard input
+  at a constant rate, a writer thread filling a skipped slot with the frame before; libx264 / libopenh264 / mpeg4, HDR10
+  by libx265 with its HDR10 parameters; the sound into a raw float file and muxed in (AAC) by a second ffmpeg at the
+  stop; Windows takes it too with `$GOF2_RECORDER=ffmpeg`, chosen per recording, which is how it is tested here). No
+  screen-capture consent, no microphone permission: the game hands over what it draws and its own mix. **Sound**:
+  `RecorderAudioTap` on the scene's AudioListener (put back on whichever listener a new scene has) gives the final mix
+  on the audio thread; its clock is the samples written, a gap of over 0.2 s by `AudioSettings.dspTime` (the listener
+  paused, a scene loading) filled with silence so it stays with the picture; 44.1 / 48 kHz only (else the picture
+  alone); a mix at another rate (a phone's own: the project leaves it to the device, the S24 mixes at 24 kHz, so its
+  first clip had no sound) is resampled to 48 kHz (`ScreenRecorder.Resample`, linear, seamless across blocks).
+  **Settings** (Options > Graphics "Recording", the last section, and the clips manager's top; in
+  `Settings.GraphicsKeys`): resolution (Screen, 2160p..480p, never above the screen, the screen's shape, multiples of
+  8: `ClipLibrary.Size`), frame rate, quality (Low..Very high: 0.05..0.22 bit per pixel per frame, 1.5..120 Mbit/s,
+  `BitrateKbps`), game sound, the interface, the mark, "Recorded clips". Phones start at 720p 30. **Clips**: desktop the
+  Videos library's "Galaxy on Fire 2", Android and tests `<data>/Clips`; a thumbnail (320 wide, half a second in, SDR
+  even from HDR) and the length in `<data>/ClipThumbs`. **The clips manager** (`ClipsView`, on the recorder's own panel
+  over every scene, `GameControls.ModalOpen` while open; the pause menu's Recording page, the Options row, Movie mode):
+  newest first with thumbnail, length, size, date; Play (Windows `explorer.exe`, Android the system player, Linux
+  the desktop's), Show in folder / Open folder (desktop), Share and Save to gallery (Android: `ClipProvider`,
+  `content://<package>.gof2clips/<name>`, registered by `AndroidUpdateInstallerManifest`; the gallery copy needs Android
+  10), Rename (F2), Delete (a second press within 4 s; for good). The clip being recorded isn't listed. Recording stops
+  with the game and when a phone puts it in the background; stopping waits for the encoder to finish (a moment).
+  **Verified** on Windows (Editor): the encoder alone (synthetic clips: orientation, colours, sound, BT.709 tags; HDR10:
+  HEVC Main 10, yuv420p10le, bt2020nc / smpte2084 and the light-level side data, by ffprobe), flights recorded at 60 fps
+  with sound in step, with and without the interface, the mark on screen and not in the clip, the ffmpeg path (a play
+  mode test), the shader's packing (SDR, HDR10, SDR from HDR) on the GPU. On the S24 Ultra (a beta build, F9 by adb on the main
+  menu, HDR on): HEVC Main 10 HDR10 (yuv420p10le, PQ) through the P010 path, AAC 48 kHz stereo from the 24 kHz mix,
+  picture and sound the same length, the thumbnail. **Not verified**: the HDR picture from a desktop HDR screen (the
+  Editor has none here), Linux on Linux (its ffmpeg path ran on Windows), the clips manager's Share / Save to gallery. Not done: iOS
+  (AVAssetWriter, needs a Mac), a replay buffer, the microphone.
 - **Hitch logger** (`HitchLogger`, development builds only; in the Editor with PlayerPrefs `debug_hitchlog` = 1): frames
   over 33 ms on the real clock to `persistentDataPath/hitches.log` (scene, seconds since its load, campaign step /
   station, tags load / GC / focus, a summary per scene) and `GraphicsSettings.logWhenShaderIsCompiled` on, so logcat
