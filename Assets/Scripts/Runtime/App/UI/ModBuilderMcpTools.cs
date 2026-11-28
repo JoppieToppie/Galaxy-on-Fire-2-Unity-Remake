@@ -362,7 +362,7 @@ namespace GoF2Remake.UI
                 result = o;
             }
             else if (kind == "campaign") result = state["campaign"];
-            else if (kind == "manifest" || kind == InfrastructureKind) result = state[kind];
+            else if (kind == "manifest" || kind == InfrastructureKind) result = state[kind] as JObject ?? new JObject();
             else result = new JArray(((JArray)state[kind]).OfType<JObject>().Where(e => ids.Count == 0 || ids.Contains(Ident(e))));
             string path = Str(a, "path");
             if (!string.IsNullOrEmpty(path))
@@ -514,7 +514,7 @@ namespace GoF2Remake.UI
                         break;
                     case "manifest":
                     case InfrastructureKind:
-                        target = state[kind];
+                        target = state[kind] as JObject ?? new JObject();
                         put = v => state[kind] = v;
                         break;
                     default:
@@ -584,7 +584,7 @@ namespace GoF2Remake.UI
                 {
                     if (kind == "missions") ((JObject)st["quests"]).Remove(id);
                     else if (kind == "campaign") st["campaign"] = JValue.CreateNull();
-                    else if (kind == InfrastructureKind) st[kind] = new JObject();
+                    else if (kind == InfrastructureKind) st[kind] = JValue.CreateNull();
                     else ((JArray)st[kind]).OfType<JObject>().First(e => Ident(e) == id).Remove();
                     return null;
                 }, "removed " + what);
@@ -717,7 +717,7 @@ namespace GoF2Remake.UI
                 if (ext == ".json") try { JToken.Parse(Encoding.UTF8.GetString(bytes)); } catch (Exception e) { c.Fail("Not JSON: " + e.Message); return; }
             }
             Directory.CreateDirectory(Path.GetDirectoryName(full));
-            File.WriteAllBytes(full, bytes);
+            ModProject.SafeWriteBytes(full, bytes);
             screen.ExternalFilesChanged("wrote " + rel);
             c.Wait(() => !screen.ReloadBusy, () =>
             {

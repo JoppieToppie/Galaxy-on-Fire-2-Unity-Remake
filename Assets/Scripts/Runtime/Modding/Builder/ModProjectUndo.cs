@@ -40,10 +40,10 @@ namespace GoF2Remake.Modding
                 ["gameOptions"] = new JArray(GameOptions.Select(c => c.ToJson())),
                 ["npcShips"] = new JArray(NpcShips.Select(c => c.ToJson())),
                 ["campaign"] = Campaign != null ? (JToken)Campaign.ToJson() : JValue.CreateNull(),
-                ["flightRules"] = FlightRules.DeepClone(),
-                ["playerInfrastructure"] = PlayerInfrastructure.DeepClone(),
-                ["npcFactionWar"] = NpcFactionWarRules.DeepClone(),
-                ["advancedEconomy"] = AdvancedEconomyRules.DeepClone(),
+                ["flightRules"] = CaptureConfiguration(ModFlight.File, FlightRules),
+                ["playerInfrastructure"] = CaptureConfiguration(ModPlayerInfrastructure.FileName, PlayerInfrastructure),
+                ["npcFactionWar"] = CaptureConfiguration(ModNpcFactionWar.File, NpcFactionWarRules),
+                ["advancedEconomy"] = CaptureConfiguration(ModAdvancedEconomy.File, AdvancedEconomyRules),
                 ["quests"] = quests,
                 ["builder"] = b,
             };
@@ -73,11 +73,10 @@ namespace GoF2Remake.Modding
             GameOptions.Clear(); GameOptions.AddRange(Objects(state, "gameOptions").Select(o => new ProjectGameOption(o)));
             NpcShips.Clear(); NpcShips.AddRange(Objects(state, "npcShips").Select(o => new ProjectNpcShip(o)));
             Campaign = state["campaign"] is JObject c ? new ProjectCampaign((JObject)c.DeepClone()) : null;
-            FlightRules = state["flightRules"] is JObject fr ? (JObject)fr.DeepClone() : new JObject();
-            PlayerInfrastructure = state["playerInfrastructure"] is JObject infrastructure
-                ? (JObject)infrastructure.DeepClone() : new JObject();
-            NpcFactionWarRules = state["npcFactionWar"] is JObject war ? (JObject)war.DeepClone() : new JObject();
-            AdvancedEconomyRules = state["advancedEconomy"] is JObject economy ? (JObject)economy.DeepClone() : new JObject();
+            FlightRules = RestoreConfiguration(ModFlight.File, state["flightRules"]);
+            PlayerInfrastructure = RestoreConfiguration(ModPlayerInfrastructure.FileName, state["playerInfrastructure"]);
+            NpcFactionWarRules = RestoreConfiguration(ModNpcFactionWar.File, state["npcFactionWar"]);
+            AdvancedEconomyRules = RestoreConfiguration(ModAdvancedEconomy.File, state["advancedEconomy"]);
             Quests.Clear();
             if (state["quests"] is JObject qs)
                 foreach (var prop in qs.Properties()) if (prop.Value is JObject qo) Quests.Add(new ProjectQuest(prop.Name, (JObject)qo.DeepClone()));
@@ -94,21 +93,36 @@ namespace GoF2Remake.Modding
         }
         void Write(string file, string text)
         {
-            string path = Path.Combine(Folder, file);
-            string tmp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
+            TrySaveFile(file, () => SafeWriteBytes(Path.Combine(Folder, file), new System.Text.UTF8Encoding(false).GetBytes(text)));
+        }
+
+        public static void SafeWriteBytes(string path, byte[] bytes)
+        {
+            lock (saveLock)
             {
-                File.WriteAllText(tmp, text);
-                RetryFileOperation(() =>
+                if (File.Exists(path))
                 {
-                    if (File.Exists(path)) File.Replace(tmp, path, null);
-                    else File.Move(tmp, path);
-                });
-            }
-            finally
-            {
-                // Never remove the destination on failure; only clean our own staging file.
-                try { File.Delete(tmp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                    try
+                    {
+                        if (new FileInfo(path).Length == bytes.LongLength && File.ReadAllBytes(path).SequenceEqual(bytes)) return;
+                    }
+                    catch (IOException) { }
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                string tmp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    File.WriteAllBytes(tmp, bytes);
+                    RetryFileOperation(() =>
+                    {
+                        if (File.Exists(path)) File.Replace(tmp, path, null);
+                        else File.Move(tmp, path);
+                    });
+                }
+                finally
+                {
+                    try { File.Delete(tmp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                }
             }
         }
 
@@ -124,9 +138,9 @@ namespace GoF2Remake.Modding
             }
         }
 
-        static void DeleteSavedFile(string path)
+        void DeleteSavedFile(string path)
         {
-            RetryFileOperation(() => File.Delete(path));
+            TrySaveFile(path, () => RetryFileOperation(() => File.Delete(path)));
         }
         /// <summary>Why 'id' can't be this project's new mod id (null = it can): the mod.json rules, and no other project
         /// or installed mod (but this project's own export) may have it.</summary>

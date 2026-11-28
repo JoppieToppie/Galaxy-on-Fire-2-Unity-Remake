@@ -170,13 +170,13 @@ namespace GoF2Remake.UI
         internal string ExternalEdit(Func<JObject, string> edit, string what)
         {
             if (Project == null) return "No project is open.";
-            SaveNow();
+            if (!TrySaveNow()) return "Could not save or refresh the project. See the builder status for details.";
             var state = Project.CaptureState();
             string error = edit(state);
             if (error != null) return error;
             var restore = BeforeUndo();
             Project.RestoreState(state);
-            Project.Save();
+            if (!TrySaveNow()) return "Could not save the edit. The builder retains the pending changes; see its status for details.";
             ModBuilder.History?.Commit();
             restore?.Invoke();
             RequestReload(false);
@@ -199,7 +199,7 @@ namespace GoF2Remake.UI
         {
             var h = ModBuilder.History;
             if (h == null || Project == null) return false;
-            SaveNow();
+            if (!TrySaveNow()) return false;
             var restore = BeforeUndo();
             if (!(redo ? h.Redo() : h.Undo())) return false;
             restore?.Invoke();

@@ -177,31 +177,7 @@ namespace GoF2Remake.Modding
                     try { p.Campaign = new ProjectCampaign(JObject.Parse(File.ReadAllText(campaign))); }
                     catch (Exception e) { p.LoadError ??= $"{CampaignFile}: {e.Message}"; }
                 }
-                string flight = Path.Combine(folder, ModFlight.File);
-                if (File.Exists(flight))
-                {
-                    try { p.FlightRules = JObject.Parse(File.ReadAllText(flight)); }
-                    catch (Exception e) { p.LoadError ??= $"{ModFlight.File}: {e.Message}"; }
-                }
-                string infrastructure = Path.Combine(folder, ModPlayerInfrastructure.FileName);
-                if (File.Exists(infrastructure))
-                {
-                    try { p.PlayerInfrastructure = JObject.Parse(File.ReadAllText(infrastructure)); }
-                    catch (Exception e) { p.LoadError ??= $"{ModPlayerInfrastructure.FileName}: {e.Message}"; }
-                }
-                string factionWar = Path.Combine(folder, ModNpcFactionWar.File);
-                if (!File.Exists(factionWar)) factionWar = Path.Combine(folder, ModNpcFactionWar.StagedFile);
-                if (File.Exists(factionWar))
-                {
-                    try { p.NpcFactionWarRules = JObject.Parse(File.ReadAllText(factionWar)); }
-                    catch (Exception e) { p.LoadError ??= $"{ModNpcFactionWar.File}: {e.Message}"; }
-                }
-                string economy = Path.Combine(folder, ModAdvancedEconomy.File);
-                if (File.Exists(economy))
-                {
-                    try { p.AdvancedEconomyRules = JObject.Parse(File.ReadAllText(economy)); }
-                    catch (Exception e) { p.LoadError ??= $"{ModAdvancedEconomy.File}: {e.Message}"; }
-                }
+                p.LoadProtectedConfigurations();
                 string events = Path.Combine(folder, ProjectQuest.Folder);
                 if (Directory.Exists(events))
                     foreach (var f in Directory.GetFiles(events, "*." + ProjectQuest.Extension).Concat(Directory.GetFiles(events, "*." + ProjectQuest.LegacyExtension))
@@ -234,9 +210,153 @@ namespace GoF2Remake.Modding
         /// <summary>Writes mod.json, ships.json, items.json, characters.json and builder.json (each through a .tmp file).</summary>
         static readonly object saveLock = new object();
 
+        // Separate the last saved values from the mutable editor objects.
+        readonly Dictionary<string, JObject> configBaseline = new Dictionary<string, JObject>();
+        readonly HashSet<string> configRemovals = new HashSet<string>();
+        readonly HashSet<string> configCreates = new HashSet<string>();
+        readonly List<string> saveFailures = new List<string>();
+        bool collectingSaveFailures;
+
+        IEnumerable<(string file, Func<JObject> get, Action<JObject> set)> ProtectedConfigurations()
+        {
+            yield return (ModFlight.File, () => FlightRules, value => FlightRules = value);
+            yield return (ModPlayerInfrastructure.FileName, () => PlayerInfrastructure, value => PlayerInfrastructure = value);
+            yield return (ModNpcFactionWar.File, () => NpcFactionWarRules, value => NpcFactionWarRules = value);
+            yield return (ModAdvancedEconomy.File, () => AdvancedEconomyRules, value => AdvancedEconomyRules = value);
+        }
+
+        string ConfigurationPath(string file)
+        {
+            string path = Path.Combine(Folder, file);
+            if (file == ModNpcFactionWar.File && !File.Exists(path))
+            {
+                string staged = Path.Combine(Folder, ModNpcFactionWar.StagedFile);
+                if (File.Exists(staged)) return staged;
+            }
+            return path;
+        }
+
+        JObject ReadConfiguration(string file)
+        {
+            try { return JObject.Parse(File.ReadAllText(ConfigurationPath(file))); }
+            catch (FileNotFoundException) { return null; }
+            catch (DirectoryNotFoundException) { return null; }
+            catch (JsonException e) { throw new IOException(file + ": invalid external JSON: " + e.Message, e); }
+        }
+
+        void LoadProtectedConfigurations()
+        {
+            foreach (var config in ProtectedConfigurations())
+            {
+                try
+                {
+                    var disk = ReadConfiguration(config.file);
+                    configBaseline[config.file] = disk;
+                    config.set(disk == null ? new JObject() : (JObject)disk.DeepClone());
+                }
+                catch (Exception e) { LoadError ??= config.file + ": " + e.Message; }
+            }
+        }
+
+        public void RefreshProtectedConfigurations()
+        {
+            lock (saveLock)
+            {
+                var pending = new List<Action>();
+                foreach (var config in ProtectedConfigurations())
+                {
+                    configBaseline.TryGetValue(config.file, out var baseline);
+                    var disk = ReadConfiguration(config.file);
+                    var local = config.get();
+                    bool dirty = configRemovals.Contains(config.file) || configCreates.Contains(config.file) ||
+                        !JToken.DeepEquals(local, baseline ?? new JObject());
+                    if (JToken.DeepEquals(disk, baseline)) continue;
+                    if (dirty && !JToken.DeepEquals(disk, configRemovals.Contains(config.file) ? null : local))
+                        throw new IOException(config.file + ": external changes conflict with unsaved builder edits. Neither version was overwritten.");
+                    pending.Add(() =>
+                    {
+                        configBaseline[config.file] = disk;
+                        configRemovals.Remove(config.file);
+                        configCreates.Remove(config.file);
+                        var current = config.get();
+                        current.RemoveAll();
+                        if (disk != null)
+                            foreach (var prop in disk.Properties()) current.Add(prop.Name, prop.Value.DeepClone());
+                    });
+                }
+                foreach (var update in pending) update();
+            }
+        }
+
+        JToken CaptureConfiguration(string file, JObject value)
+        {
+            configBaseline.TryGetValue(file, out var baseline);
+            return configRemovals.Contains(file) || (baseline == null && !configCreates.Contains(file) && !value.HasValues)
+                ? JValue.CreateNull() : value.DeepClone();
+        }
+
+        JObject RestoreConfiguration(string file, JToken value)
+        {
+            configBaseline.TryGetValue(file, out var baseline);
+            configRemovals.Remove(file);
+            configCreates.Remove(file);
+            if (value is JObject obj)
+            {
+                if (baseline == null) configCreates.Add(file);
+                return (JObject)obj.DeepClone();
+            }
+            if (baseline != null) configRemovals.Add(file);
+            return new JObject();
+        }
+
+        void SaveProtectedConfigurations()
+        {
+            foreach (var config in ProtectedConfigurations())
+            {
+                string file = config.file;
+                var local = config.get();
+                configBaseline.TryGetValue(file, out var baseline);
+                bool remove = configRemovals.Contains(file);
+                if (!remove && !configCreates.Contains(file) && JToken.DeepEquals(local, baseline ?? new JObject())) continue;
+                TrySaveFile(file, () =>
+                {
+                    if (!JToken.DeepEquals(ReadConfiguration(file), baseline))
+                        throw new IOException("configuration changed during save");
+                    string path = ConfigurationPath(file);
+                    if (remove)
+                    {
+                        if (file == ModNpcFactionWar.File)
+                            RetryFileOperation(() => File.Delete(Path.Combine(Folder, ModNpcFactionWar.StagedFile)));
+                        RetryFileOperation(() => File.Delete(Path.Combine(Folder, file)));
+                    }
+                    else SafeWriteBytes(path, new System.Text.UTF8Encoding(false).GetBytes(local.ToString(Formatting.Indented)));
+                    configBaseline[file] = remove ? null : (JObject)local.DeepClone();
+                    configRemovals.Remove(file);
+                    configCreates.Remove(file);
+                });
+            }
+        }
+
+        void TrySaveFile(string file, Action action)
+        {
+            try { action(); }
+            catch (Exception e) when (collectingSaveFailures && (e is IOException || e is UnauthorizedAccessException))
+            { saveFailures.Add(file + ": " + e.Message); }
+        }
+
         public void Save()
         {
-            lock (saveLock) SaveLocked();
+            lock (saveLock)
+            {
+                if (LoadError != null) throw new IOException("Project not saved: " + LoadError);
+                RefreshProtectedConfigurations();
+                saveFailures.Clear();
+                collectingSaveFailures = true;
+                try { SaveLocked(); }
+                finally { collectingSaveFailures = false; }
+                if (saveFailures.Count > 0)
+                    throw new IOException("Some files could not be saved (successful files retained): " + string.Join("; ", saveFailures));
+            }
         }
 
         void SaveLocked()
@@ -262,20 +382,7 @@ namespace GoF2Remake.Modding
             string campaign = Path.Combine(Folder, CampaignFile);
             if (Campaign != null) Write(CampaignFile, Campaign.ToJson().ToString(Formatting.Indented));
             else if (File.Exists(campaign)) DeleteSavedFile(campaign);
-            string flight = Path.Combine(Folder, ModFlight.File);
-            if (FlightRules.Count > 0) Write(ModFlight.File, FlightRules.ToString(Formatting.Indented));
-            else if (File.Exists(flight)) DeleteSavedFile(flight);
-            string infrastructure = Path.Combine(Folder, ModPlayerInfrastructure.FileName);
-            if (PlayerInfrastructure.Count > 0) Write(ModPlayerInfrastructure.FileName, PlayerInfrastructure.ToString(Formatting.Indented));
-            else if (File.Exists(infrastructure)) DeleteSavedFile(infrastructure);
-            string factionWar = Path.Combine(Folder, ModNpcFactionWar.File);
-            if (NpcFactionWarRules.Count > 0) Write(ModNpcFactionWar.File, NpcFactionWarRules.ToString(Formatting.Indented));
-            else if (File.Exists(factionWar)) DeleteSavedFile(factionWar);
-            string stagedFactionWar = Path.Combine(Folder, ModNpcFactionWar.StagedFile);
-            if (File.Exists(stagedFactionWar)) DeleteSavedFile(stagedFactionWar);
-            string economy = Path.Combine(Folder, ModAdvancedEconomy.File);
-            if (AdvancedEconomyRules.Count > 0) Write(ModAdvancedEconomy.File, AdvancedEconomyRules.ToString(Formatting.Indented));
-            else if (File.Exists(economy)) DeleteSavedFile(economy);
+            SaveProtectedConfigurations();
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
             Modified = DateTime.UtcNow;
