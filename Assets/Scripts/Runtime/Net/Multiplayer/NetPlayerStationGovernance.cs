@@ -420,7 +420,8 @@ namespace GoF2Remake.Multiplayer
             var record = Find(id);
             if (!CanPublishStationAnnouncement(pilot, record)) return "Only station owners and authorized senior administrators may publish while docked here.";
             message = (message ?? "").Trim();
-            if (message.Length == 0 || message.Length > 160) return "Write an announcement of 1–160 characters.";
+            if (message.Length == 0 || message.Length > NetNews.StationAnnouncementLimit)
+                return $"Write an announcement of 1–{NetNews.StationAnnouncementLimit} characters.";
             string text = NetNews.Safe("[" + record.name + "] " + message);
             return NetNews.Post(NetNews.Kind.StationAnnouncement, text, record.stationIndex, "station-announcement:" + record.id, 60f)
                 ? "Announcement published to this station's news."

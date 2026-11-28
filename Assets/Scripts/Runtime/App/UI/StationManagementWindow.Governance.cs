@@ -256,7 +256,7 @@ namespace GoF2Remake.UI
             const string key = "stationBroadcast";
             var composer = new VisualElement();
             composer.AddToClassList("player-station-composer");
-            var field = new TextField("Announcement") { maxLength = NetNews.OfficialMessageLimit, multiline = true, value = drafts.TryGetValue(key, out var draft) ? draft : "" };
+            var field = new TextField("Announcement") { maxLength = NetNews.StationAnnouncementLimit, multiline = true, value = drafts.TryGetValue(key, out var draft) ? draft : "" };
             field.AddToClassList("player-station-field");
             field.style.minHeight = 80;
             composer.Add(field);
@@ -291,7 +291,7 @@ namespace GoF2Remake.UI
             void UpdateComposer()
             {
                 string message = field.value ?? "";
-                counter.text = $"{message.Length} / {NetNews.OfficialMessageLimit} characters";
+                counter.text = $"{message.Length} / {NetNews.StationAnnouncementLimit} characters";
                 preview.text = selected?.name + ": " + message;
                 long remaining = Math.Max(0L, (managementCatalogue?.stationBroadcastReadyUtc ?? 0L) - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 cooldown.text = remaining > 0 ? $"Station cooldown: {remaining / 60:00}:{remaining % 60:00}" : "Station broadcast available";

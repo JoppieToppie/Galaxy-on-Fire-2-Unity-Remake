@@ -120,6 +120,32 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void DistressNewsKeepsLongTextInLocalHistoryAndNetworkPackets()
+        {
+            string text = NetNews.FreightDistressPrefix + new string('x', 600) + " Rescue reward: 20,000 credits.";
+            Assert.IsTrue(NetNews.PostFreightDistress(Database.Shared, 78, 200000004, text));
+            StringAssert.Contains(text, NetNews.Ticker(78));
+            Assert.AreEqual(text, NetNews.Unpack($"1|{(int)NetNews.Kind.Freight}|78|1|{text}").text);
+            string oversized = NetNews.FreightDistressPrefix + new string('x', 1100);
+            Assert.AreEqual(NetNews.FreightDistressTextLimit, NetNews.Unpack($"2|{(int)NetNews.Kind.Freight}|78|1|{oversized}").text.Length);
+        }
+
+        [Test]
+        public void StationNewsKeepsFullMessageAndAttribution()
+        {
+            string name = new string('s', NetPlayerStations.StationNameMaxLength);
+            string message = new string('x', NetNews.StationAnnouncementLimit);
+            string announcement = "[" + name + "] " + message;
+            string broadcast = name + ": " + message;
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.StationAnnouncement, announcement, 78));
+            StringAssert.Contains(announcement, NetNews.Ticker(78));
+            Assert.AreEqual(announcement, NetNews.Unpack($"1|{(int)NetNews.Kind.StationAnnouncement}|78|1|{announcement}").text);
+            Assert.AreEqual(broadcast, NetNews.Unpack($"2|{(int)NetNews.Kind.StationBroadcast}|78|1|{broadcast}").text);
+            foreach (var kind in new[] { NetNews.Kind.Galnet, NetNews.Kind.Freight, NetNews.Kind.FactionBroadcast })
+                Assert.AreEqual(NetNews.MaxTextLength, NetNews.Unpack($"3|{(int)kind}|78|1|{broadcast}").text.Length);
+        }
+
+        [Test]
         public void LocalNewsPersistsThrottleAndMigratesFreight()
         {
             long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();

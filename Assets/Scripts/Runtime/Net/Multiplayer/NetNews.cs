@@ -47,7 +47,10 @@ namespace GoF2Remake.Multiplayer
         const float TickerHours = 24f, FreshMinutes = 15f;
         public const int MinDefenseKills = 3;
         public const int MaxTextLength = 200;
-        public const int OfficialMessageLimit = 140;
+        public const int FreightDistressTextLimit = 1024;
+        public const int StationAnnouncementLimit = 200;
+        public const int OfficialMessageLimit = 140; // faction broadcasts
+        internal const string FreightDistressPrefix = "Distress call received from ";
         public const int OfficialCooldownSeconds = 300;
 
         [Serializable] class SavedItem { public long id, time; public int kind, station; public string text = "", actor, authority; }
@@ -201,10 +204,11 @@ namespace GoF2Remake.Multiplayer
             if (!IsServer || PathOf == null || string.IsNullOrEmpty(authority) || string.IsNullOrEmpty(actor)) return "Official broadcasts require a persistent controlled profile.";
             if (kind != Kind.StationBroadcast && kind != Kind.FactionBroadcast) return "Invalid broadcast authority.";
             message = (message ?? "").Trim();
-            if (message.Length == 0 || message.Length > OfficialMessageLimit) return $"Write a broadcast of 1–{OfficialMessageLimit} characters.";
+            int limit = kind == Kind.StationBroadcast ? StationAnnouncementLimit : OfficialMessageLimit;
+            if (message.Length == 0 || message.Length > limit) return $"Write a broadcast of 1–{limit} characters.";
             long now = UnixNow, previous = OfficialReadyUtc(authority);
             if (previous > now) return $"Broadcast cooldown: {previous - now} seconds remaining for this authority.";
-            string content = Clean(Safe(name + ": " + message));
+            string content = Clean(kind, Safe(name + ": " + message));
             var item = new Item { id = ++nextId, time = now, kind = kind, station = station, text = content, actor = actor, authority = authority };
             var previousItems = new List<Item>(serverItems);
             officialCooldowns[authority] = now + OfficialCooldownSeconds;
@@ -231,7 +235,7 @@ namespace GoF2Remake.Multiplayer
             if ((int)kind < 0 || (int)kind > (int)Kind.Freight) return false;
             if (!IsServer) return LocalPublishingAllowed && PostLocal(kind, text, station, throttleKey, throttleSeconds);
             if (kind == Kind.Freight && FreightSystem(station) < 0) return false;
-            text = Clean(Safe(text));
+            text = Clean(kind, Safe(text));
             if (text.Length == 0) return false;
             long now = UnixNow;
             if (throttleKey != null)
@@ -294,11 +298,18 @@ namespace GoF2Remake.Multiplayer
             foreach (ulong c in NetGame.ClientIds) NetState.Instance.SendNews(c, "", true);
         }
 
-        /// <summary>One line, no tags, at most MaxTextLength.</summary>
-        static string Clean(string text)
+        /// <summary>One line with a type-specific cap, including room for station attribution.</summary>
+        static string Clean(Kind kind, string text)
         {
             text = (text ?? "").Replace('\n', ' ').Replace('\r', ' ').Replace('|', '/').Trim();
-            return text.Length > MaxTextLength ? text.Substring(0, MaxTextLength) : text;
+            int limit = MaxTextLength;
+            if (kind == Kind.Freight && text.StartsWith(FreightDistressPrefix, StringComparison.Ordinal))
+                limit = FreightDistressTextLimit;
+            else if (kind == Kind.StationAnnouncement)
+                limit = StationAnnouncementLimit + NetPlayerStations.StationNameMaxLength + 3; // [name] + space
+            else if (kind == Kind.StationBroadcast)
+                limit = StationAnnouncementLimit + NetPlayerStations.StationNameMaxLength + 2; // name + colon + space
+            return text.Length > limit ? text.Substring(0, limit) : text;
         }
 
         /// <summary>A player's own text (names, faction names, an admin's item) for the rich-text ticker: no tags.</summary>
@@ -351,12 +362,13 @@ namespace GoF2Remake.Multiplayer
 
         static string Pack(Item i) => $"{i.id}|{(int)i.kind}|{i.station}|{i.time}|{i.text}";
 
-        static Item Unpack(string packed)
+        internal static Item Unpack(string packed)
         {
             var p = (packed ?? "").Split(new[] { '|' }, 5);
             if (p.Length < 5 || !long.TryParse(p[0], out long id) || !int.TryParse(p[1], out int kind) || !int.TryParse(p[2], out int station)
                 || !long.TryParse(p[3], out long time)) return null;
-            return new Item { id = id, kind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.Freight), station = station, time = time, text = Clean(p[4]) };
+            var newsKind = (Kind)Mathf.Clamp(kind, 0, (int)Kind.Freight);
+            return new Item { id = id, kind = newsKind, station = station, time = time, text = Clean(newsKind, p[4]) };
         }
 
         /// <summary>NetState: an item from the server ("" with 'reset' = the list starts over).</summary>
@@ -466,7 +478,7 @@ namespace GoF2Remake.Multiplayer
             // Local station-scoped news belongs to the specific destination, not neighbouring orbits.
             if (StationScoped(kind) && (station < 0 || Database.Shared?.Stations.Find(s => s.index == station) == null))
                 return false;
-            text = Clean(Safe(text));
+            text = Clean(kind, Safe(text));
             if (text.Length == 0) return false;
             var list = ReadLocalNews();
             long now = UnixNow;
