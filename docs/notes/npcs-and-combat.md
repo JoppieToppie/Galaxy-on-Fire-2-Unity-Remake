@@ -586,6 +586,14 @@ battle spawns in 156 ms with its hulls.
   (`PassBy` at the 135 deg EQS point) within 100 / 150 m; the drone jumps as the fighters, the swarm runs away below half
   its hull every 25 s instead (its weak-point respawns left out) by `ChorusDogfight.Kind` (`KindOf`). Tests
   `ChorusDogfightTests`.
+- **SMEP fighters** (PR #379, 2026-11-28, for mods; ships.json `traffic.ai` "smep", `NpcShipSmep`, `SmepAiRules`,
+  tests `NpcSmepAiTests`): a mod fighter (not a freighter, capital, structure or frigate / cruiser / carrier class) flies
+  in all directions with its hull's top speed and acceleration (`SmepAiRules.StepVelocity`): orbits its target at
+  1000 m (wider after close passes), backs off inside 300 m, short dodge bursts, a path test along its real velocity,
+  ES2's aim and fight scheduling with an acceleration-aware lead, and a second shot as soon as its guns are ready (up
+  to 4000 m, within 12 deg); it prefers desktop players among hostile remote pilots. Never against a pilot on a phone
+  or tablet (`NetPlayer` sends `mobilePlatform` / `mobileTouchControls` to `Target`), and on mobile builds only with
+  `traffic.mobileAi`. Pushed out of the player's hull boxes by `Physics.ComputePenetration` (`SeparateSmepNpcFromPlayer`).
 - **A ship type's own drops** (remake 2026-11-04, for mods; ships.json `traffic.loot` [ { item, chance, min, max } ] and
   `lootDrops`, `CustomTraffic.loot` / `CustomLoot`, `NpcShip.AddOwnLoot` at Setup and Revive): after EVERSPACE 2's
   loot_npcs.csv (a blueprint, its drop count, then item / chance / amount range triples): each entry by its chance, at most
