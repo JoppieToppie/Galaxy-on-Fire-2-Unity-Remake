@@ -95,6 +95,8 @@ namespace GoF2Remake.Tests
             const string raid = ",\"raidSystem\":1,\"raidBase\":200000000,\"raidDead\":3,\"raidPlayerKills\":1";
             Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid.Replace("raidSystem", "raidOrbit") + "}]}"));
             Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ",\"raidOrbit\":2}]}"));
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid + ",\"raidDistressPosted\":true}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ",\"raidDistressPosted\":true}]}"));
             Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid + ",\"raidObservationSeconds\":20,\"delayReason\":2,\"delaySeconds\":120}]}"));
             Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid + ",\"raidObservationSeconds\":21}]}"));
             Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ",\"raidSystem\":1,\"raidBase\":200000000,\"raidDead\":1,\"raidPlayerKills\":2}]}"));

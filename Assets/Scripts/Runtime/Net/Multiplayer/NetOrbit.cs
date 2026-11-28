@@ -580,7 +580,15 @@ namespace GoF2Remake.Multiplayer
         float freightRequestAt;
         int freightAmbientReplacements;
 
-        internal void FreightDistressRadio(string title, string text) => level?.Traffic?.Say(new Traffic.Chatter { text = text, speaker = string.IsNullOrEmpty(title) ? "Freight distress" : title, portrait = new int[0] });
+        internal void FreightDistressRadio(string title, string text, int race)
+        {
+            if (level?.Traffic == null) return;
+            // The existing portrait generator also respects custom races' configured appearance.
+            bool male = Standing.Look(race) != 0 || Random.value < 0.5f;
+            level.Traffic.Say(new Traffic.Chatter { text = text,
+                speaker = string.IsNullOrEmpty(title) ? "Freight distress" : title,
+                portrait = AgentGenerator.CreatePortrait(male, race) });
+        }
 
         void RequestFreight(NetState state)
         {
