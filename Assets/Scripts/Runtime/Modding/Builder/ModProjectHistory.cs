@@ -82,12 +82,20 @@ namespace GoF2Remake.Modding
 
         bool Step(List<State> from, List<State> to)
         {
+            project.RefreshProtectedConfigurations();
             Commit();
             if (from.Count == 0) return false;
             var target = from[from.Count - 1];
+            var previous = current;
+            try { Apply(target); }
+            catch
+            {
+                // Do not consume the history step if its save failed.
+                project.RestoreState(previous.json);
+                throw;
+            }
             from.RemoveAt(from.Count - 1);
-            to.Add(current);
-            Apply(target);
+            to.Add(previous);
             current = target;
             return true;
         }
@@ -110,7 +118,7 @@ namespace GoF2Remake.Modding
                 string src = Path.Combine(store, kv.Value), dst = Full(kv.Key);
                 if (!File.Exists(src)) { Debug.LogWarning($"Mod Builder: undo has no copy of {kv.Key}"); continue; }
                 Directory.CreateDirectory(Path.GetDirectoryName(dst));
-                File.Copy(src, dst, true);
+                ModProject.SafeWriteBytes(dst, File.ReadAllBytes(src));
                 hashes.Remove(dst);
             }
             // Folders left empty (a skin's own textures/<model>/).
@@ -144,6 +152,7 @@ namespace GoF2Remake.Modding
                 {
                     if (f.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)) continue;
                     string rel = f.Substring(project.Folder.Length).TrimStart('/', '\\').Replace('\\', '/');
+                    if (string.Equals(rel, ModNpcFactionWar.StagedFile, StringComparison.OrdinalIgnoreCase)) continue; // managed as configuration JSON
                     string h = Hash(f);
                     if (h != null) d[rel] = h;
                 }

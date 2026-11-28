@@ -93,7 +93,10 @@ namespace GoF2Remake.Modding
         }
         void Write(string file, string text)
         {
-            TrySaveFile(file, () => SafeWriteBytes(Path.Combine(Folder, file), new System.Text.UTF8Encoding(false).GetBytes(text)));
+            string path = Path.Combine(Folder, file);
+            byte[] bytes = new System.Text.UTF8Encoding(false).GetBytes(text);
+            if (collectingSaveFailures) QueueSaveFile(path, bytes);
+            else SafeWriteBytes(path, bytes);
         }
 
         public static void SafeWriteBytes(string path, byte[] bytes)
@@ -140,7 +143,8 @@ namespace GoF2Remake.Modding
 
         void DeleteSavedFile(string path)
         {
-            TrySaveFile(path, () => RetryFileOperation(() => File.Delete(path)));
+            if (collectingSaveFailures) QueueSaveFile(path, null);
+            else RetryFileOperation(() => File.Delete(path));
         }
         /// <summary>Why 'id' can't be this project's new mod id (null = it can): the mod.json rules, and no other project
         /// or installed mod (but this project's own export) may have it.</summary>

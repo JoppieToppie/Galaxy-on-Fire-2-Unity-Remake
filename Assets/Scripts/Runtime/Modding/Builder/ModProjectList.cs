@@ -139,6 +139,7 @@ namespace GoF2Remake.Modding
         {
             try
             {
+                lock (saveLock) RecoverPendingSave(folder);
                 var p = new ModProject { Folder = folder };
                 p.manifest = JObject.Parse(File.ReadAllText(Path.Combine(folder, ModManifest.FileName)));
                 p.Id = Str(p.manifest, "id") ?? Path.GetFileName(folder);
@@ -216,6 +217,9 @@ namespace GoF2Remake.Modding
         readonly HashSet<string> configCreates = new HashSet<string>();
         readonly List<string> saveFailures = new List<string>();
         bool collectingSaveFailures;
+        readonly Dictionary<string, byte[]> savePlan = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        readonly List<Action> saveCompleted = new List<Action>();
+        public int ConfigurationRevision { get; private set; }
 
         IEnumerable<(string file, Func<JObject> get, Action<JObject> set)> ProtectedConfigurations()
         {
@@ -285,6 +289,7 @@ namespace GoF2Remake.Modding
                     });
                 }
                 foreach (var update in pending) update();
+                if (pending.Count > 0) ConfigurationRevision++;
             }
         }
 
@@ -326,13 +331,16 @@ namespace GoF2Remake.Modding
                     if (remove)
                     {
                         if (file == ModNpcFactionWar.File)
-                            RetryFileOperation(() => File.Delete(Path.Combine(Folder, ModNpcFactionWar.StagedFile)));
-                        RetryFileOperation(() => File.Delete(Path.Combine(Folder, file)));
+                            QueueSaveFile(Path.Combine(Folder, ModNpcFactionWar.StagedFile), null);
+                        QueueSaveFile(Path.Combine(Folder, file), null);
                     }
-                    else SafeWriteBytes(path, new System.Text.UTF8Encoding(false).GetBytes(local.ToString(Formatting.Indented)));
-                    configBaseline[file] = remove ? null : (JObject)local.DeepClone();
-                    configRemovals.Remove(file);
-                    configCreates.Remove(file);
+                    else QueueSaveFile(path, new System.Text.UTF8Encoding(false).GetBytes(local.ToString(Formatting.Indented)));
+                    saveCompleted.Add(() =>
+                    {
+                        configBaseline[file] = remove ? null : (JObject)local.DeepClone();
+                        configRemovals.Remove(file);
+                        configCreates.Remove(file);
+                    });
                 });
             }
         }
@@ -349,13 +357,27 @@ namespace GoF2Remake.Modding
             lock (saveLock)
             {
                 if (LoadError != null) throw new IOException("Project not saved: " + LoadError);
+                RecoverPendingSave(Folder);
                 RefreshProtectedConfigurations();
                 saveFailures.Clear();
+                savePlan.Clear();
+                saveCompleted.Clear();
                 collectingSaveFailures = true;
-                try { SaveLocked(); }
-                finally { collectingSaveFailures = false; }
-                if (saveFailures.Count > 0)
-                    throw new IOException("Some files could not be saved (successful files retained): " + string.Join("; ", saveFailures));
+                try
+                {
+                    SaveLocked();
+                    if (saveFailures.Count > 0)
+                        throw new IOException("Could not prepare project save: " + string.Join("; ", saveFailures));
+                    CommitSavePlan();
+                    foreach (var complete in saveCompleted) complete();
+                    Modified = DateTime.UtcNow;
+                }
+                finally
+                {
+                    collectingSaveFailures = false;
+                    savePlan.Clear();
+                    saveCompleted.Clear();
+                }
             }
         }
 
@@ -385,7 +407,114 @@ namespace GoF2Remake.Modding
             SaveProtectedConfigurations();
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
-            Modified = DateTime.UtcNow;
+        }
+
+        // Journal is outside the exported project. A crash or failed rollback leaves it in place,
+        // with both byte versions, so the next save/load can recover without guessing.
+        static string SaveJournal(string folder) => Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + ".save-recovery.json";
+
+        static byte[] ReadSaveBytes(string path)
+        {
+            try { return File.ReadAllBytes(path); }
+            catch (FileNotFoundException) { return null; }
+            catch (DirectoryNotFoundException) { return null; }
+        }
+
+        static bool SameSaveBytes(byte[] a, byte[] b) =>
+            a == null ? b == null : b != null && a.SequenceEqual(b);
+
+        void QueueSaveFile(string path, byte[] bytes) => savePlan[Path.GetFullPath(path)] = bytes;
+
+        static JToken JournalBytes(byte[] bytes) => bytes == null ? JValue.CreateNull() : new JValue(Convert.ToBase64String(bytes));
+        static byte[] FromJournalBytes(JToken token) => token == null || token.Type == JTokenType.Null ? null : Convert.FromBase64String((string)token);
+
+        static void ReplaceSaveBytes(string path, byte[] bytes)
+        {
+            if (bytes == null) RetryFileOperation(() => File.Delete(path));
+            else SafeWriteBytes(path, bytes);
+        }
+
+        static string JournalPath(string folder, string relative)
+        {
+            string root = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            string path = Path.GetFullPath(Path.Combine(root, relative));
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new IOException("Invalid save recovery path: " + relative);
+            return path;
+        }
+
+        static void RecoverPendingSave(string folder)
+        {
+            string journal = SaveJournal(folder);
+            if (!File.Exists(journal)) return;
+            var entries = JArray.Parse(File.ReadAllText(journal));
+            var failures = new List<string>();
+            foreach (var entry in entries.Reverse())
+            {
+                string relative = (string)entry["path"];
+                try
+                {
+                    string path = JournalPath(folder, relative);
+                    byte[] before = FromJournalBytes(entry["before"]), after = FromJournalBytes(entry["after"]);
+                    byte[] disk = ReadSaveBytes(path);
+                    if (SameSaveBytes(disk, before)) continue;
+                    if (!SameSaveBytes(disk, after))
+                        throw new IOException("file changed outside the interrupted save; manual recovery required");
+                    ReplaceSaveBytes(path, before);
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                { failures.Add(relative + ": " + e.Message); }
+            }
+            if (failures.Count > 0)
+                throw new IOException("Save recovery incomplete. Original and intended data retained in " + journal + ": " + string.Join("; ", failures));
+            RetryFileOperation(() => File.Delete(journal));
+        }
+
+        void CommitSavePlan()
+        {
+            var entries = new JArray();
+            string folder = Path.GetFullPath(Folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            foreach (var change in savePlan)
+            {
+                string relative = change.Key.Substring(folder.Length);
+                TrySaveFile(relative, () =>
+                {
+                    byte[] before = ReadSaveBytes(change.Key);
+                    if (SameSaveBytes(before, change.Value)) return;
+                    // Probe sharing conflicts before any live file changes. This does not
+                    // eliminate a later race with an external process, so commit also rolls back.
+                    if (before != null)
+                        RetryFileOperation(() => { using var stream = new FileStream(change.Key, FileMode.Open, FileAccess.ReadWrite, FileShare.None); });
+                    entries.Add(new JObject { ["path"] = relative, ["before"] = JournalBytes(before), ["after"] = JournalBytes(change.Value) });
+                });
+            }
+            if (saveFailures.Count > 0)
+                throw new IOException("Project save not published; pending edits retained: " + string.Join("; ", saveFailures));
+            if (entries.Count == 0) return;
+            string journal = SaveJournal(Folder);
+            SafeWriteBytes(journal, new System.Text.UTF8Encoding(false).GetBytes(entries.ToString(Formatting.None)));
+            try
+            {
+                foreach (var entry in entries)
+                {
+                    string relative = (string)entry["path"];
+                    string path = JournalPath(Folder, relative);
+                    try
+                    {
+                        if (!SameSaveBytes(ReadSaveBytes(path), FromJournalBytes(entry["before"])))
+                            throw new IOException("file changed during save");
+                        ReplaceSaveBytes(path, FromJournalBytes(entry["after"]));
+                    }
+                    catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                    { throw new IOException(relative + ": " + e.Message, e); }
+                }
+                RetryFileOperation(() => File.Delete(journal));
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                try { RecoverPendingSave(Folder); }
+                catch (Exception recovery) { throw new IOException("Save failed: " + e.Message + "; " + recovery.Message, recovery); }
+                throw new IOException("Project save rolled back: " + e.Message, e);
+            }
         }
     }
 }

@@ -699,7 +699,8 @@ namespace GoF2Remake.UI
             if (screen == null) { c.Fail(why); return; }
             string rel = Str(a, "path");
             bool infrastructure = string.Equals(rel?.Trim(), ModPlayerInfrastructure.FileName, StringComparison.OrdinalIgnoreCase);
-            bool factionWar = string.Equals(rel?.Trim(), ModNpcFactionWar.File, StringComparison.OrdinalIgnoreCase);
+            bool factionWar = string.Equals(rel?.Trim(), ModNpcFactionWar.File, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rel?.Trim().Replace('\\', '/').TrimStart('/'), ModNpcFactionWar.StagedFile, StringComparison.OrdinalIgnoreCase);
             bool economy = string.Equals(rel?.Trim(), ModAdvancedEconomy.File, StringComparison.OrdinalIgnoreCase);
             string full = infrastructure || factionWar || economy ? null : ProjectPath(rel, true, out why);
             if (!infrastructure && !factionWar && !economy && full == null) { c.Fail(why); return; }
