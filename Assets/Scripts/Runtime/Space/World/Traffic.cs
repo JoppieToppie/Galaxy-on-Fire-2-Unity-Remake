@@ -504,6 +504,9 @@ namespace GoF2Remake.World
         NpcFactionWar.Battle? factionBattle;
         float nextWarCheck;
 
+        public bool TryGetFactionBattleStatus(out NpcFactionWar.BattleStatus status) =>
+            NpcFactionWar.TryGetBattleStatus(systemIndex, StationIndex, out status);
+
         public bool CanHostFactionBattle => Modding.ModNpcFactionWar.Enabled && !MenuBackdrop && !IsStoryOrbit &&
             !VoidAttack && !holdEnemies && waiting.Count == 0 && Player != null && Player.Alive &&
             !TrafficPlan.InformerOrbit(StationIndex);
@@ -514,6 +517,10 @@ namespace GoF2Remake.World
             RetireFactionBattle();
             factionBattle = battle;
             var lostSlots = casualties == null ? null : new HashSet<int>(casualties);
+            float half = Modding.ModNpcFactionWar.FormationSeparationKm * 500f;
+            float spacing = Modding.ModNpcFactionWar.FormationSpacingKm * 1000f;
+            float centre = Modding.ModNpcFactionWar.FormationDistanceKm * 1000f;
+            int width = Mathf.CeilToInt(Mathf.Sqrt(battle.shipsPerSide));
             for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
             {
                 if (lostSlots?.Contains(slot) == true) continue;
@@ -523,17 +530,20 @@ namespace GoF2Remake.World
                 int capital = defender ? battle.defenderHull : battle.attackerHull;
                 if (column == 0 && capital > 0)
                 {
-                    var capitalPosition = new Vector3((defender ? -1 : 1) * 42000f, 7000f, 85000f);
+                    var capitalPosition = new Vector3((defender ? -1 : 1) * (half + Modding.ModNpcFactionWar.FormationCapitalOffsetKm * 1000f + width * spacing * 0.5f), 7000f, centre);
                     foreach (var spec in TrafficPlan.WarBattleship(db, race, capital, capitalPosition, battle.Tag(slot))) SpawnShip(spec);
                     continue;
                 }
-                float x = (defender ? -1 : 1) * (14000f + column % 4 * 2200f);
-                float y = 7000f + column / 4 * 1800f;
-                float z = 85000f + column % 4 * 2600f;
+                float sign = defender ? -1f : 1f;
+                int row = column / width, wing = column % width;
+                float lateral = (wing - (width - 1) * 0.5f) * spacing;
+                float x = sign * (half + row * spacing);
+                float y = 7000f + ((row + wing) % 3 - 1) * spacing * 0.4f;
+                float z = centre + lateral;
                 var p = new Vector3(x, y, z);
                 var route = new Route(true);
-                route.points.Add(new Vector3(-x, y, z));
-                route.points.Add(new Vector3(-x, y, z + 12000f));
+                route.points.Add(new Vector3(-sign * half * 0.65f, y, z));
+                route.points.Add(new Vector3(-sign * half * 0.65f, y + spacing, z + sign * spacing * 2f));
                 route.points.Add(p);
                 SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = race, ship = NpcTables.RandomFighter(race),
                     position = p, route = route, eventTag = battle.Tag(slot), noLoot = true });
