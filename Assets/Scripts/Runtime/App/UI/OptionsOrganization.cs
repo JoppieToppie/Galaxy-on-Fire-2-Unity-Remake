@@ -16,8 +16,9 @@ namespace GoF2Remake.UI
             {
                 foreach (var id in ids) result.Add(id, (page, section, group));
             }
+            Add(OptionPage.Cosmetics, OptionSection.None, OptionGroup.None, "cosmeticExperience");
             Add(OptionPage.Cosmetics, OptionSection.SpecialFeatures, OptionGroup.None,
-                "cosmeticExperience", "launchCamera", "hangarFlights", "animatedDialogue", "autoAdvance");
+                "launchCamera", "hangarFlights", "animatedDialogue", "autoAdvance");
             Add(OptionPage.Cosmetics, OptionSection.Interface, OptionGroup.None,
                 "originalUi", "tutorialHints", "inputHints", "hintScale", "shopByCategory", "kaamoSpecialUiFeatures");
             Add(OptionPage.Cosmetics, OptionSection.Hud, OptionGroup.None,
@@ -26,8 +27,8 @@ namespace GoF2Remake.UI
                 "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare",
                 "speedrunPosition", "speedrunLiveSplit", "speedrunReset", "speedrunFolder", "saveFolder", "debugTools");
             // Storage commands are outside the gameplay profile and the rule-editing consent gate.
-            Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.None, "gameplayExperience");
-            Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.None, "difficulty");
+            Add(OptionPage.Gameplay, OptionSection.None, OptionGroup.None, "gameplayExperience");
+            Add(OptionPage.Gameplay, OptionSection.None, OptionGroup.None, "difficulty");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.World,
                 "pirateEvents", "capitalShips", "derelictWrecks", "stationScale");
             Add(OptionPage.Gameplay, OptionSection.GameRules, OptionGroup.Progression,

@@ -76,7 +76,8 @@ namespace GoF2Remake.Tests
             }
             Assert.AreEqual(OptionPage.Accessibility, all.First(o => o.id == "discordPresence").page);
             var rules = all.Where(o => o.section == OptionSection.GameRules).ToList();
-            Assert.AreEqual("gameplayExperience", rules[0].id);
+            Assert.AreEqual("cosmeticExperience", all.First(o => o.page == OptionPage.Cosmetics).id);
+            Assert.AreEqual("gameplayExperience", all.First(o => o.page == OptionPage.Gameplay).id);
             Assert.IsFalse(rules.Any(o => o.id == "debugTools"));
         }
 

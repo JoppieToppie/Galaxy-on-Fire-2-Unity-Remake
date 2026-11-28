@@ -381,6 +381,7 @@ namespace GoF2Remake.UI
             // Remake: a ship's stats sit beside its view and its description right under them, above the trade / buy
             // controls; other items keep both at the bottom.
             bool ship3d = shipPreview.Shown;
+            actionArea.EnableInClassList("detail-action-area--ship-trade", selected?.kind == RowKind.StoredShip || selected?.kind == RowKind.ShopShip);
             previewRow.style.display = ship3d ? DisplayStyle.Flex : DisplayStyle.None;
             detailDescTitle.text = Localization.Get(280).UiCaps();
             detailDescTitle.style.display = DisplayStyle.Flex;
@@ -407,10 +408,11 @@ namespace GoF2Remake.UI
                 foreach (var b in new[] { actionButton, actionButton2 })
                 {
                     if (b == null) continue;
-                    if (ship3d && b.parent != actionArea) actionArea.Add(b);
-                    else if (!ship3d && b.parent != rowActions) rowActions.Add(b);
-                    b.EnableInClassList("detail-action--side", ship3d);
-                    b.EnableInClassList("detail-action--row", !ship3d);
+                    bool besidePreview = ship3d && !(selected?.kind == RowKind.StoredShip && b == actionButton);
+                    var home = besidePreview ? actionArea : rowActions;
+                    if (b.parent != home) home.Add(b);
+                    b.EnableInClassList("detail-action--side", besidePreview);
+                    b.EnableInClassList("detail-action--row", !besidePreview);
                 }
             }
             FitActions();
