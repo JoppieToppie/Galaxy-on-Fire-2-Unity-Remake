@@ -67,7 +67,7 @@ namespace GoF2Remake.Modding
             Directory.CreateDirectory(dir);
             var o = new JObject();
             foreach (var kv in d.OrderBy(k => k.Key, StringComparer.Ordinal)) o[kv.Key] = kv.Value;
-            File.WriteAllText(f, o.ToString(Formatting.Indented));
+            SafeWriteBytes(f, new System.Text.UTF8Encoding(false).GetBytes(o.ToString(Formatting.Indented)));
         }
         static string Str(JObject o, string key) => o[key] is JValue v && v.Type == JTokenType.String ? (string)v : null;
         // ---- the list ----------------------------------------------------------------------------------------------

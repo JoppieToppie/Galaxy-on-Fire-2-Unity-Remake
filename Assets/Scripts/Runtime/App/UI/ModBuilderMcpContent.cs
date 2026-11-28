@@ -141,7 +141,8 @@ namespace GoF2Remake.UI
             if (full == null) { c.Fail(why); return; }
             Directory.CreateDirectory(Path.GetDirectoryName(full));
             ModProject.SafeWriteBytes(full, AemImport.ToGlb(model, Path.GetFileNameWithoutExtension(rel)));
-            screen.ExternalFilesChanged("converted " + rel);
+            if (!screen.ExternalFilesChanged("converted " + rel))
+            { c.Fail("The converted file was written, but project saving failed."); return; }
             c.Wait(() => !screen.ReloadBusy, () => c.Json(new JObject
             {
                 ["ok"] = true, ["path"] = glbRel, ["converted"] = "the .aem was converted to .glb (only the .glb is kept)",
@@ -192,7 +193,7 @@ namespace GoF2Remake.UI
                 jpeg = Flag(a, "jpeg", true),
                 triangles = Mathf.Clamp(Num(a, "triangles", 1f), 0.1f, 1f),
             };
-            screen.ExternalSaveNow();
+            if (!screen.ExternalSaveNow()) { c.Fail("Could not save the project; optimization not started."); return; }
             ModBuilder.History?.Commit();   // the files as they are now: what undo goes back to
             var job = new ModOptimizer(Project.Folder, files, options);
             c.Wait(() => { job.Step(); return job.Finished; }, () =>
@@ -209,7 +210,8 @@ namespace GoF2Remake.UI
                 var answer = new JObject { ["before"] = job.Before, ["after"] = job.After, ["files"] = results };
                 if (!any) { answer["note"] = "Nothing got smaller: the files are as they were."; c.Json(answer, "nothing got smaller"); return; }
                 Visuals.ModLodCache.Forget(Project.Id);   // the levels of detail are made again from the optimized models
-                screen.ExternalFilesChanged("optimized the models and textures");
+                if (!screen.ExternalFilesChanged("optimized the models and textures"))
+                { c.Fail("Files were optimized, but project saving failed."); return; }
                 c.Wait(() => !screen.ReloadBusy, () =>
                 {
                     answer["modBytes"] = Project.ModSize();
@@ -277,9 +279,11 @@ namespace GoF2Remake.UI
             finally { UnityEngine.Object.Destroy(picture); }
             string name = string.IsNullOrWhiteSpace(Str(a, "name")) ? speakerName : Str(a, "name").Trim();
             string id = Project.CharacterIdFor(name);
+            if (!screen.ExternalSaveNow()) { c.Fail("Could not save the project; character not added."); return; }
             var ch = Project.AddCharacter(name, Project.AddFile(tmp, "portraits", id, ".png"));
             ch.Replaces = value;
-            screen.ExternalFilesChanged($"a character replacing {speakerName}");
+            if (!screen.ExternalFilesChanged($"a character replacing {speakerName}"))
+            { c.Fail("Character edit retained, but project saving failed."); return; }
             c.Wait(() => !screen.ReloadBusy, () => c.Json(new JObject { ["character"] = ch.Json, ["replaces"] = speakerName }, "replacing " + speakerName));
         }
     }

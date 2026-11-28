@@ -743,6 +743,7 @@ namespace GoF2Remake.UI
                 WriteInfrastructure(c, screen, rules);
                 return;
             }
+            if (!screen.ExternalSaveNow()) { c.Fail("Could not save or refresh the project; no file was written."); return; }
             string ext = Path.GetExtension(full).ToLowerInvariant();
             if (ext == ".aem") { WriteAem(c, screen, rel, bytes); return; }   // the game's own model: kept as .glb
             if (ext == ".glb" && (bytes.Length < 4 || bytes[0] != 'g' || bytes[1] != 'l' || bytes[2] != 'T' || bytes[3] != 'F')) { c.Fail("Not a glTF binary (.glb)."); return; }
@@ -764,7 +765,8 @@ namespace GoF2Remake.UI
             }
             Directory.CreateDirectory(Path.GetDirectoryName(full));
             ModProject.SafeWriteBytes(full, bytes);
-            screen.ExternalFilesChanged("wrote " + rel);
+            if (!screen.ExternalFilesChanged("wrote " + rel))
+            { c.Fail("The file was atomically written, but project saving failed; pending project edits were retained."); return; }
             c.Wait(() => !screen.ReloadBusy, () =>
             {
                 var o = new JObject { ["ok"] = true, ["path"] = rel.Replace('\\', '/'), ["bytes"] = bytes.Length };
@@ -850,7 +852,7 @@ namespace GoF2Remake.UI
             var screen = Screen(out string why);
             if (screen == null) { c.Fail(why); return; }
             string mode = Str(a, "mode") ?? "station";
-            screen.ExternalSaveNow();
+            if (!screen.ExternalSaveNow()) { c.Fail("Could not save the project; play test not started."); return; }
             if (mode == "mission")
             {
                 string name = Str(a, "mission");

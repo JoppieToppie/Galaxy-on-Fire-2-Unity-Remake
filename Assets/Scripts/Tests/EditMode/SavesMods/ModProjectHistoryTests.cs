@@ -203,6 +203,36 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void EconomyMcpStylePatchValidatesAndRoundTripsThroughHistory()
+        {
+            var p = ModProject.Create("Economy patch", "tests");
+            var db = Database.Load();
+            var mod = Open(p.Folder);
+            var original = JObject.Parse("{'enabled':true,'persistentInventory':true,'saveInventory':true,'tickIntervalSeconds':900}");
+            ModAdvancedEconomy.ValidateConfiguration(db, mod, original);
+            var state = p.CaptureState();
+            state["advancedEconomy"] = original;
+            p.RestoreState(state);
+            p.Save();
+            history = new ModProjectHistory(p);
+            var ops = JArray.Parse("[{'op':'test','path':'tickIntervalSeconds','value':900},{'op':'set','path':'tickIntervalSeconds','value':1200}]");
+            var patch = EntryPatch.Apply(p.CaptureState()["advancedEconomy"], ops, out string error) as JObject;
+            Assert.IsNull(error);
+            Assert.IsNotNull(patch);
+            ModAdvancedEconomy.ValidateConfiguration(db, mod, patch);
+            state = p.CaptureState();
+            state["advancedEconomy"] = patch;
+            p.RestoreState(state);
+            p.Save();
+            Assert.IsTrue(history.Commit());
+            Assert.AreEqual(1200, (int)ModProject.Load(p.Folder).AdvancedEconomyRules["tickIntervalSeconds"]);
+            Assert.IsTrue(history.Undo());
+            Assert.AreEqual(900, (int)ModProject.Load(p.Folder).AdvancedEconomyRules["tickIntervalSeconds"]);
+            Assert.IsTrue(history.Redo());
+            Assert.AreEqual(1200, (int)ModProject.Load(p.Folder).AdvancedEconomyRules["tickIntervalSeconds"]);
+        }
+
+        [Test]
         public void FactionWarRulesSurviveSaveLoadAndUndo()
         {
             var p = ModProject.Create("War history", "tests");

@@ -198,7 +198,7 @@ namespace GoF2Remake.Modding
                     if (ext != ".json" && ext != ".gof2event" && ext != ".gof2netevent" && ext != ".gof2mission" && ext != ".gof2quest") continue;
                     if (Path.GetFileName(f) == ModManifest.FileName || Path.GetFileName(f) == BuilderFile) continue;
                     string text = File.ReadAllText(f), changed = re.Replace(text, id + ":");
-                    if (changed != text) File.WriteAllText(f, changed);
+                    if (changed != text) SafeWriteBytes(f, new System.Text.UTF8Encoding(false).GetBytes(changed));
                 }
                 string folder = Folder;
                 if (string.Equals(Path.GetFileName(Folder), old, StringComparison.OrdinalIgnoreCase))
