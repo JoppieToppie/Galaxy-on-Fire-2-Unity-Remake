@@ -39,6 +39,8 @@ namespace GoF2Remake.Multiplayer
             NetSession.DbProvider = () => NetGame.Db;
             NetSession.LocalIdProvider = () => NetGame.LocalId;
             NetSession.OrbitSeedProvider = NetGame.OrbitSeed;
+            NetSession.WarNewsProvider = (station, headline) =>
+                NetNews.Post(NetNews.Kind.War, headline + NetNews.Place(station) + ".", station);
             NetSession.ServerTimeProvider = () =>
             {
                 var nm = Unity.Netcode.NetworkManager.Singleton;

@@ -2,7 +2,7 @@
 // Feature: CLAUDE.md "Multiplayer" > Sector news: the station ticker's multiplayer items, written in English on the
 // server; the players' own text (names, faction names, an admin's item) is made tag-free for the rich-text ticker
 // (NetNews.Safe: '<' and '>' swapped for look-alikes); "A", "A and B", "A, B and C", "A, B, C and N others"; places
-// "Var Hastra (Mido)", the Void; nothing is posted outside a session.
+// "Var Hastra (Mido)", the Void; local games persist their own news.
 // Expected values: the documented text forms, hand-written names; Var Hastra (78) in the Mido system (CLAUDE.md).
 
 using System.Collections.Generic;
@@ -98,9 +98,57 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void NothingIsPostedOutsideASession()
+        public void LocalNewsDoesNotRequireAdvancedEconomy()
         {
-            Assert.IsFalse(NetNews.Post(NetNews.Kind.Galnet, "Test item"));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.Galnet, "Test item"));
+            StringAssert.Contains("Test item", NetNews.Ticker(78));
+            StringAssert.Contains("Test item", NetNews.Ticker(70));
+        }
+
+        [Test]
+        public void LocalFreightAndAnnouncementsAreStationSpecific()
+        {
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.Freight, "Shipment destroyed", 78));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.StationAnnouncement, "Docking closed", 78));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.War, "Fleet battle"));
+            StringAssert.Contains("Shipment destroyed", NetNews.Ticker(78));
+            StringAssert.Contains("Docking closed", NetNews.Ticker(78));
+            StringAssert.DoesNotContain("Shipment destroyed", NetNews.Ticker(70));
+            StringAssert.DoesNotContain("Docking closed", NetNews.Ticker(70));
+            StringAssert.Contains("Fleet battle", NetNews.Ticker(70));
+            Assert.IsFalse(NetNews.Post(NetNews.Kind.Freight, "Invalid destination", -1));
+        }
+
+        [Test]
+        public void LocalNewsPersistsThrottleAndMigratesFreight()
+        {
+            long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            Session.ScriptData["__native_freight_news"] =
+                "{\"items\":[{\"destination\":\"78\",\"text\":\"Legacy report\",\"time\":" + now + "}]}";
+            StringAssert.Contains("Legacy report", NetNews.Ticker(78));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.War, "New report <b>", 78, "test", 600));
+            Assert.IsFalse(NetNews.Post(NetNews.Kind.War, "Duplicate", 78, "test", 600));
+            Assert.IsFalse(Session.ScriptData.ContainsKey("__native_freight_news"));
+            var saved = new Dictionary<string, string>(Session.ScriptData);
+            Session.ResetNewGame();
+            Assert.IsEmpty(NetNews.Ticker(78));
+            Session.ScriptData = saved;
+            StringAssert.Contains("Legacy report", NetNews.Ticker(78));
+            StringAssert.Contains("New report ‹b›", NetNews.Ticker(78));
+            Assert.IsFalse(NetNews.Post(NetNews.Kind.War, "Duplicate", 78, "test", 600));
+        }
+
+        [Test]
+        public void RemoteSessionCannotPublishLocalNews()
+        {
+            var previous = NetSession.SessionGameProvider;
+            try
+            {
+                NetSession.SessionGameProvider = () => true;
+                Assert.IsFalse(NetNews.Post(NetNews.Kind.Galnet, "Client news"));
+                Assert.IsFalse(Session.ScriptData.ContainsKey("__native_news_v1"));
+            }
+            finally { NetSession.SessionGameProvider = previous; }
         }
 
         [Test]

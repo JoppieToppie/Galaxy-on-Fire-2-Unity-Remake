@@ -113,7 +113,7 @@ namespace GoF2Remake.UI
             bool wrapped = tickerX <= -tickerUnitWidth;
             WrapTicker();
             // Multiplayer: new news, or the items' ages ("5 min ago") a minute old: rebuilt as the copy wraps.
-            if (wrapped && (tickerNewsDirty || ((GoF2Remake.Multiplayer.NetGame.Active || GoF2Remake.Multiplayer.AdvancedEconomyLedger.LocalActive) && Time.unscaledTime - tickerBuiltAt > 60f)))
+            if (wrapped && (tickerNewsDirty || ((GoF2Remake.Multiplayer.NetGame.Active || GoF2Remake.Multiplayer.NetNews.LocalPublishingAllowed) && Time.unscaledTime - tickerBuiltAt > 60f)))
             {
                 SetupTicker(true);
                 return;

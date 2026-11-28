@@ -608,7 +608,14 @@ namespace GoF2Remake.World
             // Multiplayer expiry is decided by the server; its deadline can pause/resume after spawning.
             if (!NetSession.Active && factionBattle.HasValue && !NpcFactionWar.LocalCampaign.TryGetBattle(StationIndex, now, out _))
             {
-                NpcFactionWar.LocalCampaign.RemoveBattle(factionBattle.Value);
+                var expired = factionBattle.Value;
+                // A resolved battle also disappears from the campaign, but only a genuinely expired
+                // active battle should produce a timeout headline.
+                if (NpcFactionWar.LocalCampaign.RemoveBattle(expired))
+                {
+                    NpcFactionWar.SaveLocal();
+                    NetSession.PublishWarNews(expired.orbit, "Faction battle ended without a decisive victory at ");
+                }
                 RetireFactionBattle();
             }
             if (NetSession.Active || !CanHostFactionBattle) return;
@@ -622,6 +629,7 @@ namespace GoF2Remake.World
             {
                 NpcFactionWar.SaveLocal();
                 BeginFactionBattle(battle);
+                NetSession.PublishWarNews(battle.orbit, $"{Standing.RaceName(battle.attacker)} and {Standing.RaceName(battle.defender)} fleets are fighting at ");
                 Modding.ModScripts.Raise("npcFactionBattleStarted", battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide);
             }
         }
@@ -636,6 +644,9 @@ namespace GoF2Remake.World
             int owner = NpcFactionWar.OrbitOwner(db.Systems.Find(s => s.index == battle.system), StationIndex);
             SystemRace = owner;
             AttackRace = Standing.EnemyRaceOf(owner);
+            NetSession.PublishWarNews(battle.orbit, winner == battle.attacker
+                ? $"{Standing.RaceName(winner)} captured "
+                : $"{Standing.RaceName(winner)} repelled the attack at ");
             Modding.ModScripts.Raise("npcFactionBattleResolved", battle.orbit, battle.system, winner, winner == battle.attacker);
         }
 

@@ -877,7 +877,7 @@ namespace GoF2Remake.Multiplayer
                 if (keys.Length == 3 && ModWorld.TryResolveStation(keys[1], out int destination))
                     {
                     string report = $"Freighter destroyed near {NetNews.Place(orbit)}: {pair.Value.Amount} t bound for {NetNews.Place(destination)} lost.";
-                    if (LocalActive) NetNews.PostLocalFreight(report, destination);
+                    if (LocalActive) NetNews.Post(NetNews.Kind.Freight, report, destination);
                     else NetNews.Post(NetNews.Kind.Commerce, report, destination);
                 }
                 return true;
@@ -936,7 +936,7 @@ namespace GoF2Remake.Multiplayer
                 Shop.AddToCargo(item, take);
                 var keys = pair.Key.Split('|');
                 if (ModWorld.TryResolveStation(keys[1], out int destination))
-                    NetNews.PostLocalFreight($"Pirates stole {take} t of freight near {NetNews.Place(orbit)}, bound for {NetNews.Place(destination)}.", destination);
+                    NetNews.Post(NetNews.Kind.Freight, $"Pirates stole {take} t of freight near {NetNews.Place(orbit)}, bound for {NetNews.Place(destination)}.", destination);
             }
             dirty = true;
             Flush(true);
@@ -1439,7 +1439,7 @@ namespace GoF2Remake.Multiplayer
                 foreach (var entry in freightNews)
                     if (entry.destination >= 0 && entry.text.StartsWith("Freight bound for ", StringComparison.Ordinal) &&
                         (entry.text.Contains(" destroyed; ") || entry.text.Contains(" raided; ")))
-                        NetNews.PostLocalFreight(entry.text, entry.destination);
+                        NetNews.Post(NetNews.Kind.Freight, entry.text, entry.destination);
                 freightNews.Clear();
                 return;
             }
