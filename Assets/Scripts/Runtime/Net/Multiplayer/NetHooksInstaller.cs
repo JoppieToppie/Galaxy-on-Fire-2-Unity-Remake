@@ -85,6 +85,8 @@ namespace GoF2Remake.Multiplayer
             GameHooks.BeforeSave = NetStock.SaveLocal;
             GameHooks.AdvancedPricedItem = NetStock.ManagedPricing;
             GameHooks.AdvancedBuyQuote = NetStock.DisplayBuyQuote;
+            GameHooks.AdvancedSellQuote = (station, item) => NetStock.TryPrice(station, item, false, out int price) ? price : (int?)null;
+            GameHooks.NpcMarketPrice = NetStock.NpcMarketPrice;
             GameHooks.StockItemChanged = (station, item, delta, price) => NetStock.ItemChanged(station, item, delta, price);
             GameHooks.StockShipChanged = NetStock.ShipChanged;
             GameHooks.FactionBuyPrice = NetFactionsClient.BuyPrice;

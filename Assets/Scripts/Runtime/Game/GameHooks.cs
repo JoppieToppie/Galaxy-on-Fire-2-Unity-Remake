@@ -67,6 +67,9 @@ namespace GoF2Remake.Data
         public static Action<int, int, int, int> StockItemChanged;
         public static Func<int, int, bool> AdvancedPricedItem;
         public static Func<int, int, int?> AdvancedBuyQuote;
+        public static Func<int, int, int?> AdvancedSellQuote;
+        // Station, item (-1 for a hull), base price, buying. Null means vanilla pricing.
+        public static Func<int, int, int, bool, int?> NpcMarketPrice;
         /// <summary>A dealer ship swapped: station, removed, added (NetStock.ShipChanged).</summary>
         public static Action<int, int, int> StockShipChanged;
         /// <summary>A faction station's buying / selling price (NetFactionsClient); unset: the price.</summary>

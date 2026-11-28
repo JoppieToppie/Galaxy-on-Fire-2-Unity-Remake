@@ -67,6 +67,9 @@ namespace GoF2Remake.Multiplayer
         static Dictionary<string, string> localSave;
         static readonly Dictionary<(int station, int item), (int basis, int stock, int target, int pressure, int hops)> quotes =
             new Dictionary<(int, int), (int, int, int, int, int)>();
+        static readonly Dictionary<int, (int amount, int target, int pressure, int hops)> marketQuotes =
+            new Dictionary<int, (int, int, int, int)>();
+
         static bool priceTradePending;
         static long priceTradeSequence;
         static int priceTradeStation, priceTradeItem;
@@ -92,6 +95,56 @@ namespace GoF2Remake.Multiplayer
             ModAdvancedEconomy.TradeUnitPrice(basis, stock, target, pressure, hops,
                 ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
                 ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread, buy);
+
+        // Managed multiplayer commodities retain the authoritative transaction RPC; other
+        // goods and hulls retain their existing stock/purchase protocols.
+        public static int? NpcMarketPrice(int station, int item, int basis, bool buy)
+        {
+            if (!ModAdvancedEconomy.DynamicPricing || !ModAdvancedEconomy.Enabled ||
+                Shop.UsesPlayerMarketplace(station) || KaamoClub.StorageAt(station) || item == Freelance.Documents)
+                return null;
+            if (!NetGame.Active && !AdvancedEconomyLedger.LocalActive || CoopCampaign.Active)
+                return null;
+
+            int amount = 0, target = 0, pressure = 0, hops = 0;
+            long weightedHops = 0;
+            var database = Database.Shared;
+            if (AdvancedEconomyLedger.LocalActive)
+            {
+                EnsureLocalSession();
+                if (database == null) return null;
+                pressure = ModAdvancedEconomy.Pressure(database, station);
+                var rules = ModAdvancedEconomy.At(station);
+                if (item >= 0 && rules != null && rules.TryGetValue(item, out var own) &&
+                    ModAdvancedEconomy.Eligible(database, item))
+                {
+                    var b = AdvancedEconomyLedger.Get(station, own);
+                    return UnitPrice(basis, b.Amount, own.Target, pressure, b.ImportHops, buy);
+                }
+                if (rules != null)
+                    foreach (var rule in rules.Values)
+                    {
+                        if (!ModAdvancedEconomy.Eligible(database, rule.Item)) continue;
+                        var b = AdvancedEconomyLedger.Get(station, rule);
+                        amount += b.Amount; target += rule.Target;
+                        weightedHops += (long)b.Amount * b.ImportHops;
+                    }
+                hops = amount > 0 ? (int)Math.Round(weightedHops / (double)amount) : 0;
+            }
+            else
+            {
+                if (!Shared(station)) return null;
+                if (item >= 0 && quotes.TryGetValue((station, item), out var own))
+                    return UnitPrice(basis, own.stock, own.target, own.pressure, own.hops, buy);
+                if (marketQuotes.TryGetValue(station, out var market))
+                    (amount, target, pressure, hops) = market;
+                else if (database != null)
+                    pressure = ModAdvancedEconomy.Pressure(database, station);
+            }
+            return ModAdvancedEconomy.MarketUnitPrice(basis, amount, target, pressure, hops,
+                ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
+                ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread, buy);
+        }
 
         static bool TryTotal(int station, int item, int units, bool buy, out long total)
         {
@@ -164,7 +217,7 @@ namespace GoF2Remake.Multiplayer
         {
             localSave = null;
             stocks.Clear();
-            quotes.Clear(); priceTradePending = false;
+            quotes.Clear(); marketQuotes.Clear(); priceTradePending = false;
             nextEconomyTick = nextFreightPulse = nextFreightDispatch = 0;
             economyDiagnosticStarted = false;
             nextEconomyDiagnosticWarning = 0;
@@ -299,7 +352,10 @@ namespace GoF2Remake.Multiplayer
             var oldQuotes = new List<(int station, int item)>();
             foreach (var key in quotes.Keys) if (key.station == station) oldQuotes.Add(key);
             foreach (var key in oldQuotes) quotes.Remove(key);
+            marketQuotes.Remove(station);
             var parts = text.Split('|');
+            int marketAmount = 0, marketTarget = 0, marketPressure = 0;
+            long marketWeightedHops = 0;
             if (parts.Length >= 5)
                 foreach (string entry in parts[4].Split(','))
                 {
@@ -307,8 +363,17 @@ namespace GoF2Remake.Multiplayer
                     if (fields.Length == 6 && int.TryParse(fields[0], out int item) && int.TryParse(fields[1], out int basis) &&
                         int.TryParse(fields[2], out int amount) && int.TryParse(fields[3], out int target) &&
                         int.TryParse(fields[4], out int pressure) && int.TryParse(fields[5], out int hops))
+                    {
                         quotes[(station, item)] = (basis, amount, target, pressure, hops);
+                        marketAmount += Math.Max(0, amount);
+                        marketTarget += Math.Max(0, target);
+                        marketPressure = Math.Max(marketPressure, pressure);
+                        marketWeightedHops += (long)Math.Max(0, amount) * Math.Max(0, hops);
+                    }
                 }
+            if (marketTarget > 0)
+                marketQuotes[station] = (marketAmount, marketTarget, marketPressure,
+                    marketAmount > 0 ? (int)Math.Round(marketWeightedHops / (double)marketAmount) : 0);
             clocks[station] = (Time.unscaledTime, reset, rare);
             stock.items.Clear();
             stock.items.AddRange(items);
@@ -937,7 +1002,7 @@ namespace GoF2Remake.Multiplayer
             }
             int rare = rareShort ? Mathf.Max(0, Mathf.CeilToInt(e.rareNext - Time.unscaledTime)) : -1;
             sb.Append('|').Append(reset).Append('|').Append(rare);
-            if (ModAdvancedEconomy.DynamicPricing && NetProfiles.Enabled && AdvancedEconomyLedger.Active)
+            if (ModAdvancedEconomy.DynamicPricing && AdvancedEconomyLedger.Active)
             {
                 sb.Append('|');
                 var rules = ModAdvancedEconomy.At(station);

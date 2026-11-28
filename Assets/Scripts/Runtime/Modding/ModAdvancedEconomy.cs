@@ -309,6 +309,15 @@ namespace GoF2Remake.Modding
             return (buy, sell);
         }
 
+        // Other goods and hulls follow actual aggregate commodity supply, not fabricated per-item stocks.
+        public static int MarketUnitPrice(int basis, int amount, int target, int pressure, int hops,
+            int scarcity, int surplus, int war, int freight, int spread, bool buy)
+        {
+            var quote = Quote(basis, target > 0 ? amount : 1, Math.Max(1, target), pressure, hops,
+                scarcity, surplus, war, freight, spread);
+            return buy ? quote.buy : quote.sell;
+        }
+
         // Price the same stock boundary in both directions. A round trip crosses
         // identical boundaries in reverse order, with the sell spread on every unit.
         public static int TradeUnitPrice(int basis, int stock, int target, int pressure, int hops,

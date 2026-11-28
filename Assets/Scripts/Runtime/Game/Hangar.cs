@@ -112,13 +112,32 @@ namespace GoF2Remake.Data
         public int PriceOf(int item)
         {
             if (!Storage && GameHooks.AdvancedBuyQuote?.Invoke(Station, item) is int quote) return quote;
-            // An item that joined the list after this opening (multiplayer: another player's sale) gets its price now.
-            if (!prices.ContainsKey(item)) { AddPrices(new List<int> { item }); PinPrices(); }
-            return Story.AdjustPrice(Station, item, prices.TryGetValue(item, out int p) ? p : 0);
+            return ItemMarketPrice(item, true);
         }
-        /// <summary>What buying one unit costs: 0 while the station has free units of it (StationStock.freeUnits), else
-        /// PriceOf. Selling stays at PriceOf.</summary>
-        public int BuyPriceOf(int item) => !Storage && Stock.FreeOf(item) > 0 ? 0 : PriceOf(item);
+
+        int ItemMarketPrice(int item, bool buy)
+        {
+            if (!prices.ContainsKey(item)) { AddPrices(new List<int> { item }); PinPrices(); }
+            int basis = prices.TryGetValue(item, out int p) ? p : 0;
+            int storyPrice = Story.AdjustPrice(Station, item, basis);
+            return !Storage && storyPrice == basis
+                ? GameHooks.NpcMarketPrice?.Invoke(Station, item, basis, buy) ?? basis : storyPrice;
+        }
+
+        public int BuyPriceOf(int item)
+        {
+            if (!Storage && Stock.FreeOf(item) > 0) return 0;
+            if (!Storage && GameHooks.AdvancedBuyQuote?.Invoke(Station, item) is int quote) return quote;
+            int price = ItemMarketPrice(item, true);
+            return !Storage ? GameHooks.FactionBuyPrice?.Invoke(Station, price) ?? price : price;
+        }
+
+        public int SellPriceOf(int item)
+        {
+            if (!Storage && GameHooks.AdvancedSellQuote?.Invoke(Station, item) is int quote) return quote;
+            int price = ItemMarketPrice(item, false);
+            return !Storage ? GameHooks.FactionSellPrice?.Invoke(Station, price) ?? price : price;
+        }
 
         /// <summary>Item::isSaleable: story items (Gunant's Drill, the Alien Remains...) can't be sold or demounted (323).</summary>
         public static bool IsSaleable(int item) => !Session.Unsaleable.Contains(item);
@@ -519,7 +538,8 @@ namespace GoF2Remake.Data
         void Shared(int item, int delta, int price)
         {
             Modding.ModScripts.Raise("trade", item, -delta, price, Station);   // the mod scripts: +1 bought, -1 sold
-            if (!batching) { GameHooks.StockItemChanged?.Invoke(Station, item, delta, price); return; }
+            // Local ledger prices must see each unit before the next quote, including bulk trades.
+            if (!batching || !NetSession.Active && Modding.ModAdvancedEconomy.DynamicPricing) { GameHooks.StockItemChanged?.Invoke(Station, item, delta, price); return; }
             if (batchItem >= 0 && batchItem != item) { EndBatch(); batching = true; }   // (never in a shop's batch: one item)
             batchItem = item;
             batchDelta += delta;
@@ -535,8 +555,7 @@ namespace GoF2Remake.Data
             var row = Stock.items.Find(s => s.item == item && s.amount > 0);
             if (row == null) return Result.NoStock;
             bool free = !Storage && Stock.FreeOf(item) > 0;   // step 67's gifted mines (StationStock.freeUnits)
-            int price = Storage || Cheats.FreeShopping || free ? 0 : PriceOf(item);
-            if (GameHooks.FactionBuyPrice != null && !free) price = GameHooks.FactionBuyPrice(Station, price);   // multiplayer: a faction station's cut / tax
+            int price = Storage || Cheats.FreeShopping || free ? 0 : BuyPriceOf(item);
             if (Session.Credits < price) { need = (int)(price - Session.Credits); return Result.NoCredits; }
             row.amount--;
             if (row.amount <= 0) Stock.items.Remove(row);
@@ -556,6 +575,7 @@ namespace GoF2Remake.Data
             var stack = Session.Cargo.Find(s => s.item == item && s.amount > 0);
             if (stack == null) return Result.NothingToSell;
             if (!IsSaleable(item)) return Result.NotSaleable;
+            int salePrice = Storage ? 0 : SellPriceOf(item);
             stack.amount--;
             if (stack.amount <= 0) Session.Cargo.Remove(stack);
             var row = Stock.items.Find(s => s.item == item);
@@ -566,7 +586,7 @@ namespace GoF2Remake.Data
                 Stock.items.Insert(at < 0 ? Stock.items.Count : at, new ItemStack(item, 1));   // the stock stays in index order
             }
             if (!Storage) Shared(item, 1, 0);   // multiplayer: the shared stock
-            if (!Storage) ChangeCredits(GameHooks.FactionSellPrice != null ? GameHooks.FactionSellPrice(Station, PriceOf(item)) : PriceOf(item));   // multiplayer: no more than a member pays
+            if (!Storage) ChangeCredits(salePrice);
             Session.SeenItems.Add(item);
             if (Session.IsBooze(item)) Session.BoozeTypes.Add(item);   // HangarWindow::selectItem: a committed booze trade
             return Result.Ok;
@@ -873,13 +893,21 @@ namespace GoF2Remake.Data
 
         // ---- ships ---------------------------------------------------------------------------------------------
 
-        public int ShipPrice(int ship) => Shop.ShipPrice(db, ship, Station);
+        int HullMarketPrice(int ship, bool buy)
+        {
+            int basis = Shop.ShipPrice(db, ship, Station);
+            return Storage ? basis : GameHooks.NpcMarketPrice?.Invoke(Station, -1, basis, buy) ?? basis;
+        }
+
+        public int ShipPrice(int ship) => HullMarketPrice(ship, false);
         public int CurrentShipTradeValue => Session.DeathLoaner ? 0 : ShipPrice(Session.ShipIndex);
 
-        /// <summary>What a dealer ship costs here (multiplayer: a faction station's VAT markup for non-members); ShipPrice is
-        /// its value (a trade-in, the club's storage).</summary>
-        public int BuyShipPrice(int ship) => CronusGift(ship) ? 0
-            : Storage ? ShipPrice(ship) : (GameHooks.FactionShipBuyPrice != null ? GameHooks.FactionShipBuyPrice(Station, ShipPrice(ship)) : ShipPrice(ship));
+        public int BuyShipPrice(int ship)
+        {
+            if (CronusGift(ship)) return 0;
+            int price = HullMarketPrice(ship, true);
+            return Storage ? price : GameHooks.FactionShipBuyPrice?.Invoke(Station, price) ?? price;
+        }
 
         /// <summary>#122: Khador's Cronus at Kothar during step 77, once (Session.KhadorCronusGift; ModStation::OnTouchEnd
         /// 0xea4ec's makeShip(37, 0)). Its value (ShipPrice, a later trade-in) stays the table's, as the original rebuilds the
