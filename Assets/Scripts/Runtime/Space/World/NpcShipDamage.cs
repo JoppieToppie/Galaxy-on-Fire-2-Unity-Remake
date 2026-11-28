@@ -128,13 +128,10 @@ namespace GoF2Remake.World
 
         /// <summary>An NPC gun's area blast on one target (Gun.AreaDamage, the echo): the hull damage and EMP, no stray-fire
         /// rules (the blast is what the gun is for). The player takes no area damage (Gun.AreaDamage skips it).</summary>
-        // The raid result is adjudicated on the server at departure, not by local combat damage.
-        bool IsSimulatedFreightAttack(Target hit) => Spec != null && Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) &&
-            hit != null && hit.GetComponent<NpcShip>() is NpcShip freight && freight.Spec != null && Modding.ModAdvancedEconomy.IsFreightTag(freight.Spec.eventTag);
-
+        // Materialized freight raids use ordinary NPC weapon damage; the authority reports actual hull and death to the ledger.
         public void HitByBlast(Gun gun, Target t, int dmg, int emp, Vector3 center)
         {
-            if (t == null || IsSimulatedFreightAttack(t)) return;
+            if (t == null) return;
             if (dmg > 0)
             {
                 t.lastNpcWeapon = gun.itemIndex;
@@ -155,7 +152,6 @@ namespace GoF2Remake.World
         /// EMP (attr 10, Gun::setIndex) lands too (NPC against NPC: the player has no EMP pool).</summary>
         void GunHit(Gun g, GunRig r, int bullet, Target hit, Vector3 point)
         {
-            if (IsSimulatedFreightAttack(hit)) { r.ShowImpact(point); return; }
             float dmg = g.damage;
             if (wingDevice != null) dmg *= wingDevice.DamageFactor;   // remake mods: a wingman's Charged Shots
             bool wasAlive = hit.Alive;

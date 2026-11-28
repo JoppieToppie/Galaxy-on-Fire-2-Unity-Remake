@@ -79,11 +79,22 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void PhysicalFreightSurvivalAndDefeatedRaidersSkipAbstractLossRoll()
+        {
+            Assert.IsTrue(AdvancedEconomyLedger.UseAbstractFreightRaidOutcome(false, 0));
+            Assert.IsTrue(AdvancedEconomyLedger.UseAbstractFreightRaidOutcome(false, 3));
+            Assert.IsFalse(AdvancedEconomyLedger.UseAbstractFreightRaidOutcome(false, 7));
+            Assert.IsFalse(AdvancedEconomyLedger.UseAbstractFreightRaidOutcome(true, 0));
+        }
+
+        [Test]
         public void FreightRaidSnapshotPreservesInterventionAndRejectsInvalidState()
         {
             const string start = "{\"version\":1,\"rows\":[],\"shipments\":[{\"key\":\"s|d|i\",\"amount\":100,\"resale\":0,\"ticks\":1,\"freightTag\":100000123,\"orbit\":1";
             Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + "}]}"));
             const string raid = ",\"raidSystem\":1,\"raidBase\":200000000,\"raidDead\":3,\"raidPlayerKills\":1";
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid.Replace("raidSystem", "raidOrbit") + "}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ",\"raidOrbit\":2}]}"));
             Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid + ",\"raidObservationSeconds\":20,\"delayReason\":2,\"delaySeconds\":120}]}"));
             Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + raid + ",\"raidObservationSeconds\":21}]}"));
             Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + ",\"raidSystem\":1,\"raidBase\":200000000,\"raidDead\":1,\"raidPlayerKills\":2}]}"));
