@@ -361,6 +361,21 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void RoutingCacheReusesUnchangedTopologyAndInvalidatesOnClosure()
+        {
+            var cache = new AdvancedEconomyRoutes.TopologyCache();
+            var first = cache.Refresh(new[] { (1, 2), (2, 3) });
+            Assert.AreEqual(2, first.Distance(1, 3));
+            Assert.AreSame(first, cache.Refresh(new[] { (2, 3), (1, 2), (1, 2) }));
+            var closed = cache.Refresh(new[] { (1, 2) });
+            Assert.AreNotSame(first, closed);
+            Assert.AreEqual(-1, closed.Distance(1, 3));
+            var reopened = cache.Refresh(new[] { (1, 2), (2, 3), (3, 1) });
+            Assert.AreEqual(2, reopened.Distance(1, 3));
+            Assert.AreEqual(1, reopened.Distance(3, 1));
+        }
+
+        [Test]
         public void RouteDistanceRespectsDirectionAndInvalidation()
         {
             var graph = new AdvancedEconomyRoutes();

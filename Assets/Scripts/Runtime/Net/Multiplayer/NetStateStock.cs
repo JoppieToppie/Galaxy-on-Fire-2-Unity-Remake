@@ -169,10 +169,14 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Host: the stock of 'station' for every player docked there.</summary>
         internal void BroadcastStock(int station)
         {
-            string text = NetStock.HostGet(station);
+            string text = null;
             foreach (var p in NetPlayer.All)
                 if (p != null && p.IsSpawned && p.InHangar && p.Station == station)
+                {
+                    // Build the shared payload only if a player is actually docked here.
+                    text ??= NetStock.HostGet(station);
                     StockRpc(station, text, RpcTarget.Single(p.OwnerClientId, RpcTargetUse.Temp));
+                }
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void StockRpc(int station, string text, RpcParams rpc = default) => NetStock.Apply(station, text);

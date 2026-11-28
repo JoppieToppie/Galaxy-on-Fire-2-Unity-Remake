@@ -53,6 +53,20 @@ namespace GoF2Remake.Multiplayer
         // Hostility toward the other players (NpcShip.aggressors, client ids), for their markers and a takeover.
         readonly NetworkVariable<FixedString128Bytes> aggressors = new NetworkVariable<FixedString128Bytes>(default, Read, Owner);
         const int FreighterVolumes = 100000;
+        // Server-only index; the owner's spec may arrive after the network spawn.
+        static readonly HashSet<NetProxy> freightProxies = new HashSet<NetProxy>();
+        internal static IEnumerable<NetProxy> FreightProxies => freightProxies;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetFreightProxies() => freightProxies.Clear();
+
+        void FreightSpecChanged(FixedString4096Bytes before, FixedString4096Bytes after) => RefreshFreightIndex();
+
+        void RefreshFreightIndex()
+        {
+            if (IsServer && Modding.ModAdvancedEconomy.IsFreightTag(EventTag)) freightProxies.Add(this);
+            else freightProxies.Remove(this);
+        }
         int boxesFor = -1;
 
         readonly NetSmoothing smoothing = new NetSmoothing();
@@ -275,6 +289,8 @@ namespace GoF2Remake.Multiplayer
                 bountyKillRecorded = false;
                 status.OnValueChanged += RecordOwnerBountyKill;
                 status.OnValueChanged += ReportFactionWarCasualty;
+                spec.OnValueChanged += FreightSpecChanged;
+                RefreshFreightIndex();
             }
             if (IsOwner && creator.Value == NetworkManager.LocalClientId && !handedOver.Value)
             {
@@ -509,6 +525,8 @@ namespace GoF2Remake.Multiplayer
             pendingWarHits?.Clear();
             status.OnValueChanged -= RecordOwnerBountyKill;
             status.OnValueChanged -= ReportFactionWarCasualty;
+            spec.OnValueChanged -= FreightSpecChanged;
+            freightProxies.Remove(this);
             NetPoses.Unregister(this);
             if (target != null) { Target.NetShips.Remove(target); Target.RadarObjects.Remove(target); }
             sender?.Unhook();

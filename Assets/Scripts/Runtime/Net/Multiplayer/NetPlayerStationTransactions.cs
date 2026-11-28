@@ -289,8 +289,9 @@ namespace GoF2Remake.Multiplayer
         {
             if (journal.completed) return CleanupCompletedJournal();
             // Validate the economy snapshot and registry before changing any participant's durable balance.
+            Func<bool, bool> persistEconomy = null;
             if (!string.IsNullOrEmpty(journal.advancedEconomyJson) &&
-                !AdvancedEconomyLedger.ValidateJournalSnapshot(journal.advancedEconomyJson)) return false;
+                !AdvancedEconomyLedger.TryPrepareJournalSnapshot(journal.advancedEconomyJson, out persistEconomy)) return false;
             var recovered = JsonUtility.FromJson<Registry>(journal.registryJson);
             if (recovered == null || recovered.stations == null || recovered.jumpgates == null) return false;
             var bankTargets = new Dictionary<string, long>(StringComparer.Ordinal);
@@ -339,8 +340,7 @@ namespace GoF2Remake.Multiplayer
             }
             if (!NetFactions.SetBankAmounts(bankTargets)) return false;
 
-            if (!string.IsNullOrEmpty(journal.advancedEconomyJson) &&
-                !AdvancedEconomyLedger.PersistJournalSnapshot(journal.advancedEconomyJson, !preserveLiveRegistry)) return false;
+            if (persistEconomy != null && !persistEconomy(!preserveLiveRegistry)) return false;
             if (!NetProfiles.Write(path, journal.registryJson)) return false;
             // A normal synchronous commit already has exactly this state in memory. Keep
             // object identity for callers; only recovery must replace the live registry.
