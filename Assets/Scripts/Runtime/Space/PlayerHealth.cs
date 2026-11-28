@@ -2,7 +2,7 @@
 // The player ship's Player object (Reference/research/ship_combat.md 2, 6), on the player next to ShipController:
 //   Level::createPlayer 0xbca00     hull = ships.json armor, shield = attr 18 of the mounted shield (sort 9), armor = attr
 //                                   20 of the mounted armor (sort 10); hit cube half-size 1200; no EMP points (immune)
-//   PlayerEgo::update               shield regen (>= 101 ms ticks, + max * 100 / attr 19, no delay after hits), repair bot
+//   PlayerEgo::update               shield regen (100 ms remake ticks, + max * 100 / attr 19, no delay after hits), repair bot
 //                                   (Ketar 600 / 1000 ms, Ketar II 420 / 700 ms); invulnerable during the launch / arrival
 //                                   camera and the jump scenes (LevelScript, startJumpScene)
 //                                   hit feedback when shield + armor + hull dropped: camera shake 1000 ms (+-6 units),
