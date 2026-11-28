@@ -8,10 +8,6 @@ namespace GoF2Remake.Tests
 {
     public class NpcSmepAiTests : NpcTestBase
     {
-namespace GoF2Remake.Tests
-{
-    public class NpcSmepAiTests : NpcTestBase
-    {
         [TestCase("smep", true)]
         [TestCase("SMEP", true)]
         [TestCase("gof3", false)]
