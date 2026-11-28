@@ -13,6 +13,7 @@ namespace GoF2Remake.Modding
         public const string File = "advanced-economy.json";
         public const int MaxStock = 100000;
         public static bool Enabled { get; private set; }
+        public static bool SinglePlayerEnabled { get; private set; }
         public static bool PersistentInventory { get; private set; }
         public static bool SaveInventory { get; private set; }
         public static bool SimulateUnvisitedStations { get; private set; }
@@ -345,7 +346,7 @@ namespace GoF2Remake.Modding
 
         internal static void Apply(Database db)
         {
-            Enabled = PersistentInventory = SaveInventory = SimulateUnvisitedStations = Production = Consumption = false;
+            SinglePlayerEnabled = Enabled = PersistentInventory = SaveInventory = SimulateUnvisitedStations = Production = Consumption = false;
             TickSeconds = 900;
             rules.Clear();
             routes.Clear(); freightFleets.Clear();
@@ -400,6 +401,7 @@ namespace GoF2Remake.Modding
             // A disabled config cannot contribute any settings or rows.
             if (!ModJson.Bool(o, "enabled", false, File)) return;
             bool inventory = ModJson.Bool(o, "persistentInventory", false, File);
+            bool singlePlayer = ModJson.Bool(o, "singlePlayerEnabled", false, File);
             bool save = ModJson.Bool(o, "saveInventory", false, File);
             bool unvisited = ModJson.Bool(o, "simulateUnvisitedStations", false, File);
             bool production = ModJson.Bool(o, "stationProduction", false, File);
@@ -612,6 +614,7 @@ namespace GoF2Remake.Modding
             Enabled = true;
             if (!inventory) return;
             PersistentInventory = true;
+            SinglePlayerEnabled |= singlePlayer;
             SaveInventory |= save;
             if (pricing && save)
             {
@@ -675,7 +678,7 @@ namespace GoF2Remake.Modding
 
         public static int Pressure(Database db, int station)
         {
-            if (!WarPressure || !ModNpcFactionWar.Enabled || NpcFactionWar.NetworkCampaign == null) return 0;
+            if (!WarPressure || !ModNpcFactionWar.Enabled || (NetSession.Active ? NpcFactionWar.NetworkCampaign : NpcFactionWar.LocalCampaign) == null) return 0;
             int system = Shop.SystemOf(db, station);
             var data = db.Systems.Find(s => s.index == system);
             if (NpcFactionWar.TryGetBattleStatus(system, station, out _)) return BattlePressure;
@@ -684,13 +687,13 @@ namespace GoF2Remake.Modding
 
         public static int SystemPressure(Database db, int system)
         {
-            if (!WarPressure || !ModNpcFactionWar.Enabled || NpcFactionWar.NetworkCampaign == null) return 0;
+            if (!WarPressure || !ModNpcFactionWar.Enabled || (NetSession.Active ? NpcFactionWar.NetworkCampaign : NpcFactionWar.LocalCampaign) == null) return 0;
             var data = db.Systems.Find(s => s.index == system);
             if (data == null) return 0;
             if (data.stations != null)
                 foreach (int station in data.stations)
                     if (NpcFactionWar.TryGetBattleStatus(system, station, out _)) return BattlePressure;
-            return NpcFactionWar.NetworkCampaign.IsFrontline(db, data) ? FrontlinePressure : 0;
+            return (NetSession.Active ? NpcFactionWar.NetworkCampaign : NpcFactionWar.LocalCampaign).IsFrontline(db, data) ? FrontlinePressure : 0;
         }
 
         public static bool Eligible(Database db, int item) =>

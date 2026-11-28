@@ -435,6 +435,7 @@ namespace GoF2Remake.Data
 
         static SaveData Capture()
         {
+            GameHooks.BeforeSave?.Invoke();
             Modding.ModScripts.CaptureSaved();   // the script mods' game.saved tables into Session.ScriptData
             static List<SaveData.KnownPrice> Prices(Dictionary<int, (int price, int system)> d)
             {

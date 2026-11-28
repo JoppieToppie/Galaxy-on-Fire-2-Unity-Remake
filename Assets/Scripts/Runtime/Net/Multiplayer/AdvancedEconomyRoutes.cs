@@ -32,7 +32,7 @@ namespace GoF2Remake.Multiplayer
                         graph.Add(system.index, to);
                         graph.Add(to, system.index);
                     }
-            if (ModAdvancedEconomy.PlayerGateRouting)
+            if (NetGame.Active && ModAdvancedEconomy.PlayerGateRouting)
                 foreach (var edge in NetPlayerStations.PublicEconomyGateRoutes())
                     graph.Add(edge.from, edge.to);
             return graph;

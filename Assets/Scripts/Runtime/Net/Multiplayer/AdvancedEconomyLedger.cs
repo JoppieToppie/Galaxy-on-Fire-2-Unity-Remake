@@ -155,8 +155,12 @@ namespace GoF2Remake.Multiplayer
         static bool loaded, dirty, readFailed;
         static float nextSave;
         static string path;
-        public static bool Active => ModAdvancedEconomy.Enabled && ModAdvancedEconomy.PersistentInventory &&
-            NetGame.Active && !NetGame.CoopSession && !CoopCampaign.Active;
+        const string LocalSaveKey = "__native_advanced_economy";
+        public static bool LocalActive => ModAdvancedEconomy.Enabled && ModAdvancedEconomy.PersistentInventory &&
+            ModAdvancedEconomy.SinglePlayerEnabled && !NetSession.SessionGame && !NetGame.Active && !CoopCampaign.Active;
+        public static bool Active => LocalActive || (ModAdvancedEconomy.Enabled && ModAdvancedEconomy.PersistentInventory &&
+            NetGame.Active && !NetGame.CoopSession && !CoopCampaign.Active);
+        static bool WritesBlocked => !LocalActive && NetPlayerStations.ProfileWritesBlocked;
 
         internal static void Reset()
         {
@@ -177,6 +181,29 @@ namespace GoF2Remake.Multiplayer
         {
             if (loaded) return;
             loaded = true;
+            if (LocalActive)
+            {
+                if (!ModAdvancedEconomy.SaveInventory || !Session.ScriptData.TryGetValue(LocalSaveKey, out var json)) return;
+                try
+                {
+                    var parsed = Read(json);
+                    var root = JObject.Parse(json);
+                    var cargo = ReadShipments(root);
+                    var debris = ReadWrecks(root);
+                    var rewards = ReadRescueRewards(root);
+                    ValidateFreightIdentities(cargo, debris);
+                    foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
+                    foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
+                    foreach (var pair in debris) wrecks.Add(pair.Key, pair.Value);
+                    foreach (var pair in rewards) rescueRewards.Add(pair.Key, pair.Value);
+                }
+                catch (Exception ex)
+                {
+                    readFailed = true;
+                    Debug.LogError("Single-player advanced economy snapshot unreadable: " + ex.Message);
+                }
+                return;
+            }
             if (!ModAdvancedEconomy.SaveInventory || !NetProfiles.Enabled) return;
             path = Path.Combine(NetProfiles.Folder, "advanced-economy-stock.json");
             if (!File.Exists(path) && !File.Exists(path + ".bak")) return;
@@ -398,7 +425,7 @@ namespace GoF2Remake.Multiplayer
             return a.Station + "|" + b.Station + "|" + a.Item;
         }
 
-        static bool Physical => Active && ModAdvancedEconomy.PhysicalFreight && NetProfiles.Enabled && CanJournal;
+        static bool Physical => Active && ModAdvancedEconomy.PhysicalFreight && (LocalActive || NetProfiles.Enabled) && CanJournal;
         internal static bool IndependentFreightClock => Physical;
 
         static int NewFreightTag()
@@ -501,7 +528,7 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             int system = db.Stations.Find(s => s.index == ship.Orbit)?.system ?? -1;
-            if (system < 0 || ship.RaidSystem == system || !PirateReports.ServerHasPresence(system)) return;
+            if (system < 0 || ship.RaidSystem == system || !(LocalActive ? PirateReports.Board().Exists(s => !s.done && s.system == system) : PirateReports.ServerHasPresence(system))) return;
             ship.RaidSystem = system; ship.RaidContributors.Clear(); ship.RaidThieves.Clear(); ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0;
             if (UnityEngine.Random.Range(0, 100) < ModAdvancedEconomy.FreightPirateAttemptPercent)
             {
@@ -522,11 +549,11 @@ namespace GoF2Remake.Multiplayer
             var ship = shipments.Values.FirstOrDefault(s => s.Orbit == orbit && s.RaidBase == root);
             if (ship == null || (ship.RaidDead & bit) != 0) return;
             ship.RaidDead |= bit;
-            if (killer != ulong.MaxValue && NetGuard.InOrbit(killer, orbit))
+            if (killer != ulong.MaxValue && (LocalActive || NetGuard.InOrbit(killer, orbit)))
             {
                 ship.RaidPlayerKills++;
-                string account = NetProfiles.AccountOf(killer);
-                if (!string.IsNullOrEmpty(account) && NetProfiles.Controls(killer)) ship.RaidContributors.Add(account);
+                string account = LocalActive ? "local" : NetProfiles.AccountOf(killer);
+                if (!string.IsNullOrEmpty(account) && (LocalActive || NetProfiles.Controls(killer))) ship.RaidContributors.Add(account);
             }
             dirty = true;
             Debug.Log($"[AdvancedEconomy] pirate raid casualty: freight={ship.FreightTag}, playerKills={ship.RaidPlayerKills}, deadMask={ship.RaidDead}");
@@ -539,13 +566,18 @@ namespace GoF2Remake.Multiplayer
 
         static void SendDistress(Database db, ModAdvancedEconomy.Route route, Shipment ship)
         {
-            if (!ModAdvancedEconomy.FreightDistressCalls || ship.RaidBase == 0 || NetState.Instance == null || ship.RaidPlayerKills >= ModAdvancedEconomy.FreightRaidSize) return;
+            if (!ModAdvancedEconomy.FreightDistressCalls || ship.RaidBase == 0 || (!LocalActive && NetState.Instance == null) || ship.RaidPlayerKills >= ModAdvancedEconomy.FreightRaidSize) return;
             var station = db.Stations.Find(s => s.index == ship.Orbit);
             var destination = db.Stations.Find(s => s.index == route.Destination);
             if (station == null || destination == null) return;
             if (!distressSent.TryGetValue(ship.RaidBase, out var sent)) distressSent[ship.RaidBase] = sent = new HashSet<ulong>();
             var recipients = new List<ulong>();
-            foreach (var pilot in NetPlayer.All)
+            if (LocalActive)
+            {
+                if (!sent.Contains(0UL) && (!nextDistress.TryGetValue(0UL, out float next) || Time.unscaledTime >= next) &&
+                    db.Stations.Find(s => s.index == Session.StationIndex)?.system == station.system) recipients.Add(0UL);
+            }
+            else foreach (var pilot in NetPlayer.All)
             {
                 if (pilot == null || !pilot.IsSpawned || pilot.Station < 0) continue;
                 ulong client = pilot.OwnerClientId;
@@ -585,7 +617,12 @@ namespace GoF2Remake.Multiplayer
             string title = ModAdvancedEconomy.FreightDistressTitle(race);
             foreach (ulong client in recipients)
             {
-                NetState.Instance.SendFreightDistress(client, title, message);
+                if (LocalActive)
+                {
+                    if (NetOrbit.LocalFreightOrbit != null) NetOrbit.LocalFreightOrbit.FreightDistressRadio(title, message);
+                    else GoF2Remake.UI.UiHooks.StationToast?.Invoke(title + ": " + message);
+                }
+                else NetState.Instance.SendFreightDistress(client, title, message);
                 sent.Add(client); nextDistress[client] = Time.unscaledTime + 15f;
             }
         }
@@ -625,11 +662,11 @@ namespace GoF2Remake.Multiplayer
         // A restart cannot replay a paid reward, and disconnected contributors are still eligible.
         static void SettleRescueRewards()
         {
-            if (rescueRewards.Count == 0 || NetPlayerStations.ProfileWritesBlocked || Time.unscaledTime < nextRescueSettlement) return;
+            if (rescueRewards.Count == 0 || WritesBlocked || Time.unscaledTime < nextRescueSettlement) return;
             nextRescueSettlement = Time.unscaledTime + 10f;
             foreach (var entry in rescueRewards.ToList())
             {
-                if (NetPlayerStations.ProfileWritesBlocked) break;
+                if (WritesBlocked) break;
                 rescueRewards.Remove(entry.Key);
                 if (!NetPlayerStations.CommitFreightRescueReward(entry.Key, entry.Value, Snapshot()))
                 {
@@ -698,6 +735,8 @@ namespace GoF2Remake.Multiplayer
             bool unloading = ship.Orbit == route.Destination;
             bool materialized = proxies.ContainsKey((ship.Orbit, ship.FreightTag));
             bool ready = !materialized || FreightLegReady(db, ship, proxies);
+            if (LocalActive && NetOrbit.LocalFreightOrbit != null)
+                NetOrbit.LocalFreightOrbit.LocalFreightLeg(ship.Orbit, ship.FreightTag, out materialized, out ready);
             // The caller resolves the route from the current saved orbit, rather than the supplier.
             var remainingPath = systems;
             if (!unloading && (remainingPath == null || remainingPath.Count == 0)) return false;
@@ -705,7 +744,7 @@ namespace GoF2Remake.Multiplayer
             if (next != ship.RemainingSeconds) { ship.RemainingSeconds = next; dirty = true; }
             // An arriving pilot gets a brief opportunity to see the manifest and intervene even if
             // the abstract leg is nearly over. Leaving the orbit removes this hold immediately.
-            bool observingRaid = ship.RaidBase != 0 && NetState.RunnerOf(ship.Orbit) != null && ship.RaidPlayerKills < ModAdvancedEconomy.FreightRaidSize;
+            bool observingRaid = ship.RaidBase != 0 && (LocalActive ? NetOrbit.LocalFreightOrbit != null && NetOrbit.LocalFreightOrbit.Station == ship.Orbit : NetState.RunnerOf(ship.Orbit) != null) && ship.RaidPlayerKills < ModAdvancedEconomy.FreightRaidSize;
             if (observingRaid && ship.RaidObservationSeconds < 20)
             {
                 ship.RaidObservationSeconds++; dirty = true;
@@ -742,9 +781,9 @@ namespace GoF2Remake.Multiplayer
         // Only persisted, in-transit shipments are exposed; the amount is a manifest, not a grant.
         internal static string FreightManifest(int orbit)
         {
-            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return null;
+            if (!Physical || WritesBlocked) return null;
             var rows = new List<string>();
-            var db = NetGame.Db;
+            var db = LocalActive ? Database.Shared : NetGame.Db;
             if (db == null) return null;
             foreach (var pair in shipments.OrderBy(p => p.Key, StringComparer.Ordinal))
             {
@@ -775,7 +814,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static void RecordFreightHull(int orbit, int tag, int hull)
         {
-            if (!Physical || hull <= 0 || NetPlayerStations.ProfileWritesBlocked) return;
+            if (!Physical || hull <= 0 || WritesBlocked) return;
             var ship = shipments.Values.FirstOrDefault(s => s.FreightTag == tag && s.Orbit == orbit);
             if (ship == null) return;
             hull = Math.Clamp(hull, 1, 65535);
@@ -796,7 +835,7 @@ namespace GoF2Remake.Multiplayer
         internal static bool RetryFreightLosses()
         {
             if (pendingFreightLosses.Count == 0) return true;
-            if (!Physical || NetPlayerStations.ProfileWritesBlocked || Time.unscaledTime < nextLossRetry) return false;
+            if (!Physical || WritesBlocked || Time.unscaledTime < nextLossRetry) return false;
             nextLossRetry = Time.unscaledTime + 1f;
             foreach (var pair in pendingFreightLosses.ToList())
             {
@@ -811,7 +850,7 @@ namespace GoF2Remake.Multiplayer
         // accepting the loss; repeated reports and late reports from earlier orbits do nothing.
         static bool LoseFreight(int orbit, int tag, int race, Vector3 position)
         {
-            if (!Physical || !ModAdvancedEconomy.IsFreightTag(tag) || NetPlayerStations.ProfileWritesBlocked) return false;
+            if (!Physical || !ModAdvancedEconomy.IsFreightTag(tag) || WritesBlocked) return false;
             var pair = shipments.FirstOrDefault(p => p.Value.FreightTag == tag && p.Value.Orbit == orbit);
             if (pair.Value == null) return false;
             string[] keys = pair.Key.Split('|');
@@ -836,7 +875,11 @@ namespace GoF2Remake.Multiplayer
             if (!dirty)
             {
                 if (keys.Length == 3 && ModWorld.TryResolveStation(keys[1], out int destination))
-                    NetNews.Post(NetNews.Kind.Commerce, $"Freighter destroyed near {NetNews.Place(orbit)}: {pair.Value.Amount} t bound for {NetNews.Place(destination)} lost.", destination);
+                    {
+                    string report = $"Freighter destroyed near {NetNews.Place(orbit)}: {pair.Value.Amount} t bound for {NetNews.Place(destination)} lost.";
+                    if (LocalActive) NetNews.PostLocalFreight(report, destination);
+                    else NetNews.Post(NetNews.Kind.Commerce, report, destination);
+                }
                 return true;
             }
             foreach (int wreckTag in created) wrecks.Remove(wreckTag);
@@ -846,7 +889,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static string FreightWreckManifest(int orbit)
         {
-            if (!Physical || NetPlayerStations.ProfileWritesBlocked) return null;
+            if (!Physical || WritesBlocked) return null;
             long now = DateTime.UtcNow.Ticks;
             foreach (int tag in wrecks.Where(p => p.Value.Expires <= now).Select(p => p.Key).ToList())
             { wrecks.Remove(tag); dirty = true; }
@@ -864,10 +907,45 @@ namespace GoF2Remake.Multiplayer
 
         // Theft and wreck recovery use the same write-ahead journal as commodity purchases.
         // The client supplies only a requested amount; cargo is resolved from the live ledger.
+        internal static void ClaimLocalFreight(int orbit, int tag, int requested, bool wreck)
+        {
+            if (!LocalActive || !Physical || requested <= 0) return;
+            int room = Math.Min(requested, Math.Max(0, Shop.FreeCargo(Database.Shared)));
+            if (room <= 0) return;
+            if (wreck)
+            {
+                if (!wrecks.TryGetValue(tag, out var debris) || debris.Orbit != orbit ||
+                    debris.Expires <= DateTime.UtcNow.Ticks || !ModContent.TryResolveItem(debris.Item, out int item)) return;
+                int take = Math.Min(room, debris.Amount);
+                debris.Amount -= take;
+                if (debris.Amount == 0) wrecks.Remove(tag);
+                Shop.AddToCargo(item, take);
+            }
+            else
+            {
+                var pair = shipments.FirstOrDefault(p => p.Value.Orbit == orbit && p.Value.FreightTag == tag);
+                if (pair.Value == null) return;
+                var ship = pair.Value;
+                var row = CargoRows(pair.Key, ship).FirstOrDefault(c => c.Amount > 0 && ModContent.TryResolveItem(c.Item, out _));
+                if (row == null || !ModContent.TryResolveItem(row.Item, out int item)) return;
+                int take = Math.Min(room, row.Amount);
+                row.Amount -= take; row.Resale = Math.Min(row.Resale, row.Amount);
+                ship.RaidThieves.Add("local");
+                SyncCargo(ship);
+                if (ship.Amount == 0) shipments.Remove(pair.Key);
+                Shop.AddToCargo(item, take);
+                var keys = pair.Key.Split('|');
+                if (ModWorld.TryResolveStation(keys[1], out int destination))
+                    NetNews.PostLocalFreight($"Pirates stole {take} t of freight near {NetNews.Place(orbit)}, bound for {NetNews.Place(destination)}.", destination);
+            }
+            dirty = true;
+            Flush(true);
+        }
+
         internal static int ClaimFreight(NetPlayer pilot, string account, int tag, NetProxy proxy, int requested, out int item)
         {
             item = -1;
-            if (!Physical || NetPlayerStations.ProfileWritesBlocked || pilot == null || string.IsNullOrEmpty(account) ||
+            if (!Physical || WritesBlocked || pilot == null || string.IsNullOrEmpty(account) ||
                 requested <= 0 || !ModAdvancedEconomy.IsFreightTag(tag)) return 0;
             int orbit = pilot.Station;
             int room = NetProfiles.WreckSalvageCargoRoom(pilot, account);
@@ -928,7 +1006,7 @@ namespace GoF2Remake.Multiplayer
         static Dictionary<(int orbit, int tag), NetProxy> PhysicalFreightProxies()
         {
             var result = new Dictionary<(int, int), NetProxy>();
-            if (!Physical) return result;
+            if (!Physical || LocalActive) return result;
             var state = NetState.Instance;
             if (state == null || state.NetworkManager == null || state.NetworkManager.SpawnManager == null) return result;
             foreach (var obj in state.NetworkManager.SpawnManager.SpawnedObjectsList)
@@ -1278,7 +1356,7 @@ namespace GoF2Remake.Multiplayer
 
         internal static bool CanJournal
         {
-            get { Load(); return path != null && !readFailed; }
+            get { Load(); return (LocalActive ? ModAdvancedEconomy.SaveInventory : path != null) && !readFailed; }
         }
 
         internal static string Snapshot()
@@ -1343,7 +1421,29 @@ namespace GoF2Remake.Multiplayer
 
         internal static void Flush(bool force = false)
         {
-            if (!loaded || readFailed || path == null || NetPlayerStations.ProfileWritesBlocked ||
+            if (LocalActive)
+            {
+                if (!loaded || readFailed) return;
+                if (rescueRewards.TryGetValue("local", out long reward))
+                {
+                    rescueRewards.Remove("local");
+                    Session.AddCredits(reward);
+                    GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+                    dirty = true;
+                }
+                if (dirty && (force || freightNews.Count > 0 || Time.unscaledTime >= nextSave))
+                {
+                    if (ModAdvancedEconomy.SaveInventory) Session.ScriptData[LocalSaveKey] = Snapshot();
+                    dirty = false; nextSave = Time.unscaledTime + 10f;
+                }
+                foreach (var entry in freightNews)
+                    if (entry.destination >= 0 && entry.text.StartsWith("Freight bound for ", StringComparison.Ordinal) &&
+                        (entry.text.Contains(" destroyed; ") || entry.text.Contains(" raided; ")))
+                        NetNews.PostLocalFreight(entry.text, entry.destination);
+                freightNews.Clear();
+                return;
+            }
+            if (!loaded || readFailed || path == null || WritesBlocked ||
                 (!force && (!Active || !ModAdvancedEconomy.SaveInventory || (freightNews.Count == 0 && Time.unscaledTime < nextSave)))) return;
             if (dirty)
             {

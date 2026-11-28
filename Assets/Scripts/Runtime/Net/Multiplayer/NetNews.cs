@@ -287,7 +287,7 @@ namespace GoF2Remake.Multiplayer
         internal static string Place(int station)
         {
             if (station == Session.VoidOrbit) return "the Void";
-            var st = NetGame.Db?.Stations.Find(s => s.index == station);
+            var st = (AdvancedEconomyLedger.LocalActive ? Database.Shared : NetGame.Db)?.Stations.Find(s => s.index == station);
             if (st == null) return $"station {station}";
             return string.IsNullOrEmpty(st.systemName) ? st.name : $"{st.name} ({st.systemName})";
         }
@@ -361,8 +361,60 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>The session's news for the ticker (rich text, each item followed by NewsTicker.Separator), "" = none:
         /// the last day's items, newest first; the fresh ones say BREAKING.</summary>
+        const string LocalNewsKey = "__native_freight_news";
+        [Serializable] sealed class LocalFreightNews { public string destination, text; public long time; }
+        [Serializable] sealed class LocalFreightList { public List<LocalFreightNews> items = new List<LocalFreightNews>(); }
+
+        static LocalFreightList ReadLocalFreight()
+        {
+            try
+            {
+                if (Session.ScriptData.TryGetValue(LocalNewsKey, out string json))
+                    return JsonUtility.FromJson<LocalFreightList>(json) ?? new LocalFreightList();
+            }
+            catch (Exception e) { Debug.LogWarning("Local freight news unreadable: " + e.Message); }
+            return new LocalFreightList();
+        }
+
+        static string DestinationKey(int station) => GoF2Remake.Modding.ModWorld.StationKey(station) ??
+            station.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        internal static void PostLocalFreight(string report, int destination)
+        {
+            if (!AdvancedEconomyLedger.LocalActive || destination < 0) return;
+            var list = ReadLocalFreight();
+            list.items ??= new List<LocalFreightNews>();
+            long now = UnixNow;
+            string key = DestinationKey(destination);
+            list.items.RemoveAll(i => i == null || now - i.time > MaxAgeSeconds);
+            list.items.Insert(0, new LocalFreightNews { destination = key, text = Clean(Safe(report)), time = now });
+            int count = 0;
+            list.items.RemoveAll(i => i.destination == key && ++count > SendOnJoin);
+            if (list.items.Count > 2048) list.items.RemoveRange(2048, list.items.Count - 2048);
+            Session.ScriptData[LocalNewsKey] = JsonUtility.ToJson(list);
+            if (destination == Session.StationIndex) Changed?.Invoke();
+        }
+
+        static string LocalTicker(int station)
+        {
+            var sb = new StringBuilder();
+            long now = UnixNow;
+            string key = DestinationKey(station);
+            int count = 0;
+            foreach (var item in ReadLocalFreight().items ?? new List<LocalFreightNews>())
+            {
+                if (item == null || item.destination != key || now - item.time > TickerHours * 3600f) continue;
+                if (count++ >= TickerItems) break;
+                sb.Append("<b><color=#f5a524>+++ LOCAL FREIGHT +++</color> ").Append(item.text)
+                    .Append("</b> <color=#7f8a99><size=80%>· ").Append(Age(Math.Max(0f, (now - item.time) / 60f)))
+                    .Append("</size></color>").Append(NewsTicker.Separator);
+            }
+            return sb.ToString();
+        }
+
         public static string Ticker(int dockedStation)
         {
+            if (AdvancedEconomyLedger.LocalActive) return LocalTicker(dockedStation);
             if (!NetGame.Active || items.Count == 0) return "";
             long now = UnixNow;
             var sb = new StringBuilder();

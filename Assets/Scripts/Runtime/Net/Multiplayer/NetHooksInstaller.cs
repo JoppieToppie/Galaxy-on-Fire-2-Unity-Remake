@@ -80,6 +80,7 @@ namespace GoF2Remake.Multiplayer
 
             GameHooks.StockShared = NetStock.Shared;
             GameHooks.StockEntered = NetStock.OnEnterStation;
+            GameHooks.BeforeSave = NetStock.SaveLocal;
             GameHooks.AdvancedPricedItem = NetStock.ManagedPricing;
             GameHooks.AdvancedBuyQuote = NetStock.DisplayBuyQuote;
             GameHooks.StockItemChanged = (station, item, delta, price) => NetStock.ItemChanged(station, item, delta, price);
@@ -187,7 +188,12 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.ProxiesProvider = () => Object.FindObjectsByType<NetProxy>();
             SpaceHooks.CratesProvider = () => Object.FindObjectsByType<NetCrate>();
             SpaceHooks.SharedOrbitProvider = () => NetGame.Active ? NetOrbit.Current : null;
-            SpaceHooks.LevelBuilt = level => { if (NetGame.Active) level.gameObject.AddComponent<NetOrbit>().Setup(level); };
+            SpaceHooks.LevelBuilt = level =>
+            {
+                if (NetGame.Active) level.gameObject.AddComponent<NetOrbit>().Setup(level);
+                else if (AdvancedEconomyLedger.LocalActive && !Modding.ModBuilder.Active)
+                    level.gameObject.AddComponent<NetOrbit>().SetupLocalFreight(level);
+            };
             SpaceHooks.StationBuilt = level => { if (NetGame.Active) level.gameObject.AddComponent<NetHangar>().Setup(level); };
             SpaceHooks.OrbitEmpty = NetState.OrbitEmpty;
             SpaceHooks.OutOfSight = NetOrbit.OutOfSight;

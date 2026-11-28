@@ -64,6 +64,7 @@ namespace GoF2Remake.Multiplayer
 
         static readonly Dictionary<int, Entry> stocks = new Dictionary<int, Entry>();   // the host's
         static Database db;
+        static Dictionary<string, string> localSave;
         static readonly Dictionary<(int station, int item), (int basis, int stock, int target, int pressure, int hops)> quotes =
             new Dictionary<(int, int), (int, int, int, int, int)>();
         static bool priceTradePending;
@@ -161,6 +162,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A new session: the host's lists start empty.</summary>
         public static void Reset()
         {
+            localSave = null;
             stocks.Clear();
             quotes.Clear(); priceTradePending = false;
             nextEconomyTick = nextFreightPulse = nextFreightDispatch = 0;
@@ -199,6 +201,12 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Shop.EnterStation: ask the host for the shared stock (it replaces this list when it arrives).</summary>
         public static void OnEnterStation(StationStock stock)
         {
+            if (AdvancedEconomyLedger.LocalActive)
+            {
+                EnsureLocalSession();
+                ApplyLocalStock(stock);
+                return;
+            }
             if (!Ready || stock == null || !Shared(stock.station)) return;
             // Nothing to trade until the host's list is here (Apply); the bar's agents stay.
             stock.items.Clear();
@@ -209,6 +217,16 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Hangar.Buy / Sell: one unit of 'item' out (-1, bought for 'price') or in (+1).</summary>
         public static void ItemChanged(int station, int item, int delta, int price = 0)
         {
+            if (AdvancedEconomyLedger.LocalActive)
+            {
+                EnsureLocalSession();
+                if (LocalParticipates(station) && ModAdvancedEconomy.At(station)?.TryGetValue(item, out var rule) == true && ModAdvancedEconomy.Eligible(db, item))
+                {
+                    var balance = AdvancedEconomyLedger.Get(station, rule);
+                    AdvancedEconomyLedger.Set(station, rule, balance.Amount + delta, balance.Resale + delta);
+                }
+                return;
+            }
             if (!Ready) return;
             if (item == Freelance.Documents)
             {
@@ -381,13 +399,55 @@ namespace GoF2Remake.Multiplayer
             if (entry.resale.TryGetValue(item, out int resale) && resale > amount) entry.resale[item] = amount;
         }
 
+        static void EnsureLocalSession()
+        {
+            if (!ReferenceEquals(localSave, Session.ScriptData))
+            {
+                Reset();
+                localSave = Session.ScriptData;
+            }
+            db = Database.Shared;
+        }
+
+        static bool LocalParticipates(int station) => !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
+            (ModAdvancedEconomy.SimulateUnvisitedStations || Session.VisitedStations.Contains(station) || station == Session.StationIndex);
+
+        static void ApplyLocalStock(StationStock stock)
+        {
+            if (stock == null || !LocalParticipates(stock.station)) return;
+            var rules = ModAdvancedEconomy.At(stock.station);
+            if (rules == null) return;
+            foreach (var rule in rules.Values)
+            {
+                if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                stock.items.RemoveAll(r => r.item == rule.Item);
+                int amount = AdvancedEconomyLedger.Get(stock.station, rule).Amount;
+                if (amount > 0) Shop.InsertStock(stock, new ItemStack(rule.Item, amount));
+            }
+        }
+
+        public static void TickLocal()
+        {
+            if (!AdvancedEconomyLedger.LocalActive || Time.timeScale <= 0f || Modding.ModBuilder.Active) return;
+            EnsureLocalSession();
+            TickEconomy(null);
+        }
+
+        internal static void SaveLocal()
+        {
+            if (!AdvancedEconomyLedger.LocalActive) return;
+            EnsureLocalSession();
+            AdvancedEconomyLedger.Flush(true);
+        }
+
         // One batch for the entire configured network; unopened shops need no generated dealer or item lists.
         static void TickEconomy(NetState state)
         {
             if (!ModAdvancedEconomy.Enabled) return;
-            float now = Time.unscaledTime;
+            bool local = state == null;
+            float now = local ? Time.time : Time.unscaledTime;
             bool active = AdvancedEconomyLedger.Active;
-            bool blocked = NetPlayerStations.ProfileWritesBlocked;
+            bool blocked = !local && NetPlayerStations.ProfileWritesBlocked;
             if (!active || blocked || !AdvancedEconomyLedger.RetryFreightLosses())
             {
                 if (now >= nextEconomyDiagnosticWarning)
@@ -420,7 +480,7 @@ namespace GoF2Remake.Multiplayer
                 if (dispatchDue) nextFreightDispatch = now + ModAdvancedEconomy.FreightDispatchSeconds;
                 if (db == null) db = Database.Load();
                 bool Participates(int station) => !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
-                    (ModAdvancedEconomy.SimulateUnvisitedStations || stocks.ContainsKey(station));
+                    (local ? LocalParticipates(station) : ModAdvancedEconomy.SimulateUnvisitedStations || stocks.ContainsKey(station));
                 var pressures = new Dictionary<int, int>();
                 int Pressure(int station)
                 {
@@ -451,10 +511,11 @@ namespace GoF2Remake.Multiplayer
                         changed.Add(station);
                     }
                 }
+                if (local && (economyDue || dispatchDue)) PirateReports.Refresh(db);
                 var graph = ModAdvancedEconomy.RegionalTrade ? AdvancedEconomyRoutes.Build(db) : null;
                 var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed, graph,
                     advance: freightClock ? freightDue : economyDue, dispatch: freightClock ? dispatchDue : economyDue);
-                if (economyDue)
+                if (economyDue && !local)
                 {
                     var autoGraph = ModAdvancedEconomy.AutomaticRoutes ? graph : null;
                     TickPlayerMarket(Participates, changed, incoming, autoGraph);
@@ -464,7 +525,12 @@ namespace GoF2Remake.Multiplayer
                     foreach (int station in ModAdvancedEconomy.Stations)
                         if (stocks.ContainsKey(station) && Participates(station)) changed.Add(station);
                 foreach (int station in changed)
-                    if (stocks.TryGetValue(station, out var entry))
+                    if (local)
+                    {
+                        var stock = Session.RecentStations.Find(s => s.station == station);
+                        if (stock != null) { ApplyLocalStock(stock); Changed?.Invoke(station); }
+                    }
+                    else if (stocks.TryGetValue(station, out var entry))
                     {
                         CarryEconomy(station, entry);
                         state.BroadcastStock(station);

@@ -41,6 +41,8 @@ namespace GoF2Remake.Multiplayer
         public static NetOrbit Current { get; private set; }
 
         SpaceLevel level;
+        bool localFreight;
+        internal static NetOrbit LocalFreightOrbit { get; private set; }
         readonly Dictionary<int, Target> asteroids = new Dictionary<int, Target>();
         readonly Dictionary<Target, int> asteroidIndex = new Dictionary<Target, int>();
         readonly HashSet<int> requestedShips = new HashSet<int>();
@@ -68,6 +70,13 @@ namespace GoF2Remake.Multiplayer
         {
             var p = NetSquad.Find(client);
             return p != null && p.InSpace && p.Station == station;
+        }
+
+        internal void SetupLocalFreight(SpaceLevel spaceLevel)
+        {
+            level = spaceLevel;
+            localFreight = true;
+            LocalFreightOrbit = this;
         }
 
         public void Setup(SpaceLevel spaceLevel)
@@ -99,6 +108,12 @@ namespace GoF2Remake.Multiplayer
 
         void OnDestroy()
         {
+            if (localFreight)
+            {
+                if (LocalFreightOrbit == this) LocalFreightOrbit = null;
+                if (watchedTraffic != null) watchedTraffic.ShipDied -= OnLocalFreightDeath;
+                return;
+            }
             if (Current == this) Current = null;
             ClearNpcHooks();
             if (watchedTraffic != null) watchedTraffic.ShipDied -= OnShipDied;
@@ -488,6 +503,7 @@ namespace GoF2Remake.Multiplayer
 
         void Update()
         {
+            if (localFreight) { UpdateLocalFreight(); return; }
             var state = NetState.Instance;
             if (state == null || !state.IsSpawned) return;
             if (!requestedList) { requestedList = true; state.RequestDestroyedRpc(Station); }
@@ -512,6 +528,55 @@ namespace GoF2Remake.Multiplayer
             ScanCrates(state);
         }
 
+        void OnLocalFreightDeath(NpcShip ship, bool byPlayer)
+        {
+            if (ship == null) return;
+            int tag = ship.Spec.eventTag;
+            if (Modding.ModAdvancedEconomy.IsFreightTag(tag))
+                AdvancedEconomyLedger.ReportFreightLoss(Station, tag, ship.Race, ship.transform.position);
+            else if (Modding.ModAdvancedEconomy.IsFreightRaidTag(tag))
+                AdvancedEconomyLedger.RecordFreightRaidDeath(Station, tag, byPlayer ? 0UL : ulong.MaxValue);
+        }
+
+        void UpdateLocalFreight()
+        {
+            if (!AdvancedEconomyLedger.LocalActive || level == null || level.Leaving || Time.timeScale <= 0f) return;
+            NetStock.TickLocal();
+            var traffic = level.Traffic;
+            if (traffic == null || level.Layout == null || level.Layout.interstellar || level.IsStoryOrbit || Station < 0) return;
+            if (watchedTraffic != traffic)
+            {
+                if (watchedTraffic != null) watchedTraffic.ShipDied -= OnLocalFreightDeath;
+                watchedTraffic = traffic;
+                traffic.ShipDied += OnLocalFreightDeath;
+            }
+            if (Time.time < freightRequestAt) return;
+            freightRequestAt = Time.time + 5f;
+            foreach (var ship in traffic.Ships)
+                if (ship != null && !ship.Gone && ship.Target != null && ship.Target.Alive &&
+                    Modding.ModAdvancedEconomy.IsFreightTag(ship.Spec.eventTag))
+                    AdvancedEconomyLedger.RecordFreightHull(Station, ship.Spec.eventTag,
+                        Mathf.Clamp(Mathf.RoundToInt(65535f * ship.Hp.hull / Mathf.Max(1, ship.Hp.maxHull)), 1, 65535));
+            string manifest = AdvancedEconomyLedger.FreightManifest(Station);
+            if (manifest != null) ApplyFreightManifest(manifest);
+            string wrecks = AdvancedEconomyLedger.FreightWreckManifest(Station);
+            if (wrecks != null) ApplyFreightWreckManifest(wrecks);
+        }
+
+        internal void LocalFreightLeg(int orbit, int tag, out bool materialized, out bool ready)
+        {
+            materialized = false; ready = true;
+            if (Station != orbit || level?.Traffic == null) return;
+            var ship = level.Traffic.Ships.Find(s => s != null && !s.Gone && s.Target != null &&
+                s.Target.Alive && s.Spec.eventTag == tag);
+            if (ship == null || ship.Current == NpcShip.State.JumpingOut) return;
+            materialized = true;
+            var route = ship.Spec.route;
+            if (route == null || route.points.Count == 0) { ready = false; return; }
+            Vector3 end = OrbitLayout.ToUnity(level.Layout.Place(route.points[0]));
+            ready = (ship.transform.position - end).sqrMagnitude < 500f * 500f;
+        }
+
         float freightRequestAt;
         int freightAmbientReplacements;
 
@@ -529,7 +594,7 @@ namespace GoF2Remake.Multiplayer
         internal void ApplyFreightManifest(string manifest)
         {
             var traffic = level?.Traffic;
-            if (!Authority || traffic == null || level.Layout == null) return;
+            if ((!Authority && !localFreight) || traffic == null || level.Layout == null) return;
             var active = new HashSet<int>();
             var activeRaiders = new HashSet<int>();
             int slot = 0;
@@ -593,7 +658,7 @@ namespace GoF2Remake.Multiplayer
                     if (existing.Target != null && existing.Target.Alive) ApplyFreightRaid(traffic, existing, raidBase, raidDead, activeRaiders);
                     continue;
                 }
-                if (System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
+                if (!localFreight && System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
                 // Freighters fly straight. Keep them in parallel lanes outside the station's hull.
                 Vector3 offset = new Vector3((index % 2 == 0 ? 1f : -1f) * (1800f + 800f * index),
                     350f + index * 100f, 2300f);
@@ -624,6 +689,7 @@ namespace GoF2Remake.Multiplayer
                     name = label
                 });
                 npc.SetLoot(cargo);
+                if (localFreight) npc.Target.CollectFreight = room => AdvancedEconomyLedger.ClaimLocalFreight(Station, tag, room, false);
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
                 npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
                 npc.Target.hp = npc.Hp.hull = Mathf.Clamp(Mathf.RoundToInt(npc.Hp.maxHull * (hull / 65535f)), 1, npc.Hp.maxHull);
@@ -658,7 +724,7 @@ namespace GoF2Remake.Multiplayer
                 if ((dead & (1 << i)) != 0) continue;
                 active.Add(tag);
                 if (traffic.Ships.Exists(x => x != null && !x.Gone && x.Spec.eventTag == tag) ||
-                    System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
+                    (!localFreight && System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag))) continue;
                 Vector3 at = freight.transform.position + new Vector3((i - 1) * 900f, 350f + i * 150f, -1200f);
                 var pirate = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = Standing.Pirate,
                     ship = NpcTables.RandomFighter(Standing.Pirate), eventTag = tag, alwaysEnemy = true, noLoot = true,
@@ -692,7 +758,11 @@ namespace GoF2Remake.Multiplayer
                     crate.remote = true;
                     crate.keep = true;
                     crate.name = "Freight salvage";
-                    crate.CollectStationSalvage = room => NetProfileClient.RequestFreightClaim(tag, ulong.MaxValue, room);
+                    crate.CollectStationSalvage = room =>
+                    {
+                        if (localFreight) AdvancedEconomyLedger.ClaimLocalFreight(Station, tag, room, true);
+                        else NetProfileClient.RequestFreightClaim(tag, ulong.MaxValue, room);
+                    };
                     freightWrecks[tag] = crate;
                 }
                 else

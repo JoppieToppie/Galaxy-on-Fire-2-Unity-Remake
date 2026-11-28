@@ -73,6 +73,7 @@ namespace GoF2Remake.Data
         public static Func<int, int, int> FactionBuyPrice, FactionSellPrice, FactionShipBuyPrice;
         /// <summary>Save point in a session: the profile goes to the server instead (NetProfileClient.Upload).</summary>
         public static Action ProfileUpload;
+        public static Action BeforeSave;
         /// <summary>The session's pirate board as JSON (NetState.PirateBoardJson), null = none.</summary>
         public static Func<string> SharedPirateBoard;
         public static Func<bool> LocalPilotIsPirate;
