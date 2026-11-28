@@ -6,7 +6,7 @@ using GoF2Remake.Modding;
 
 namespace GoF2Remake.Multiplayer
 {
-    // Rebuilt once per economy tick, never per frame. Static links retain vanilla
+    // Reused across economy pulses while topology is unchanged. Static links retain vanilla
     // directionality conventions; public player-built gates are directional.
     public sealed class AdvancedEconomyRoutes
     {
@@ -17,24 +17,57 @@ namespace GoF2Remake.Multiplayer
         public void Add(int from, int to)
         {
             if (!edges.TryGetValue(from, out var set)) edges[from] = set = new SortedSet<int>();
-            set.Add(to);
+            if (!set.Add(to)) return;
             parents.Clear();
             distances.Clear();
+        }
+
+        // Compare exact edge sets rather than a hash or a time-based TTL: a gate closing
+        // must affect the very next freight pulse, even if its endpoints have not changed.
+        internal sealed class TopologyCache
+        {
+            readonly HashSet<(int from, int to)> previous = new HashSet<(int, int)>();
+            readonly HashSet<(int from, int to)> scratch = new HashSet<(int, int)>();
+            AdvancedEconomyRoutes graph;
+
+            public AdvancedEconomyRoutes Refresh(IEnumerable<(int from, int to)> links)
+            {
+                scratch.Clear();
+                foreach (var link in links) scratch.Add(link);
+                if (graph != null && previous.SetEquals(scratch)) return graph;
+                graph = new AdvancedEconomyRoutes();
+                previous.Clear();
+                foreach (var link in scratch)
+                {
+                    graph.Add(link.from, link.to);
+                    previous.Add(link);
+                }
+                return graph;
+            }
+        }
+
+        static TopologyCache cache = new TopologyCache();
+        internal static void ResetCache() => cache = new TopologyCache();
+        internal static AdvancedEconomyRoutes Cached(Database db) => cache.Refresh(Links(db));
+
+        static IEnumerable<(int from, int to)> Links(Database db)
+        {
+            foreach (var system in db.Systems)
+                if (system?.jumpRoutesTo != null)
+                    foreach (int to in system.jumpRoutesTo)
+                    {
+                        yield return (system.index, to);
+                        yield return (to, system.index);
+                    }
+            if (NetGame.Active && ModAdvancedEconomy.PlayerGateRouting)
+                foreach (var edge in NetPlayerStations.PublicEconomyGateRoutes())
+                    yield return (edge.from, edge.to);
         }
 
         public static AdvancedEconomyRoutes Build(Database db)
         {
             var graph = new AdvancedEconomyRoutes();
-            foreach (var system in db.Systems)
-                if (system?.jumpRoutesTo != null)
-                    foreach (int to in system.jumpRoutesTo)
-                    {
-                        graph.Add(system.index, to);
-                        graph.Add(to, system.index);
-                    }
-            if (NetGame.Active && ModAdvancedEconomy.PlayerGateRouting)
-                foreach (var edge in NetPlayerStations.PublicEconomyGateRoutes())
-                    graph.Add(edge.from, edge.to);
+            foreach (var edge in Links(db)) graph.Add(edge.from, edge.to);
             return graph;
         }
 
