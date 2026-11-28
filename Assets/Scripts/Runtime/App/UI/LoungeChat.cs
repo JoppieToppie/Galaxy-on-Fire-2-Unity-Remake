@@ -409,7 +409,7 @@ namespace GoF2Remake.Data
 
         /// <summary>The mechanic still has something to fit: the mod isn't on this hull, or upgrades stack and it is below
         /// Session.MaxModLevel.</summary>
-        static bool ModForSale(int mod) => !Session.HasMod(mod) || (Settings.KaamoStacking && Session.ModLevel(mod) < Session.MaxModLevel);
+        static bool ModForSale(int mod) => Session.KaamoUpgradesEnabled && (!Session.HasMod(mod) || (Settings.KaamoStacking && Session.ModLevel(mod) < Session.MaxModLevel));
 
         /// <summary>786 + type (#P, #Q, #S, #N; Recovery / Salvage + 802) and the reward line with #C = reward + the current
         /// bonus (+ 767 with the bonus percentage). Challenge: 798 only.</summary>
