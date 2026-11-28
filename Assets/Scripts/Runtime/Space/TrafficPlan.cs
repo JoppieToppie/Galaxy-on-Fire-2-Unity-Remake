@@ -406,7 +406,9 @@ namespace GoF2Remake.Flight
                 route.points.Add(new Vector3(Random.Range(0, 400000) - 200000, Random.Range(0, 200000) - 100000, Random.Range(0, 100000) + 50000));
                 list.Add(new SpawnSpec { group = NpcGroup.Jumper, race = sysRace, ship = NpcTables.RandomFighter(sysRace), route = route, startsDead = true });
             }
-            // 3 freighters
+            // Keep the capital ship roll above, but only the economy may dispatch ordinary freighters.
+            // Preserve the explicit story Void raid targets.
+            if (Modding.ModAdvancedEconomy.EconomyOnlyFreighters) freighters = voidRaid ? Mathf.Min(freighters, 2) : 0;
             for (int i = 0; i < freighters; i++)
             {
                 var (ship, race) = NpcTables.RandomFreighter(sysRace);
