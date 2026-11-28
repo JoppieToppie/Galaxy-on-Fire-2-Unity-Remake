@@ -92,6 +92,8 @@ namespace GoF2Remake.Multiplayer
         /// null = the new game PrepareHost made.</summary>
         internal static string HostSave { get; private set; }
         static int hostSlot = -1;
+        /// <summary>The save slot a co-op host plays (PrepareHost), null for a new campaign: its game rules are the session's.</summary>
+        internal static SaveData HostSlotSave => hostSlot >= 0 ? SaveGame.Preview(hostSlot) : null;
 
         /// <summary>NetGame.StartHost: the co-op campaign's game. 'newCampaign' >= 0: a new game of that Campaign (the crew's
         /// old games in CoopFolder kept as .old); -1: the single-player save in 'slot' (LoadHostSave reads it once the

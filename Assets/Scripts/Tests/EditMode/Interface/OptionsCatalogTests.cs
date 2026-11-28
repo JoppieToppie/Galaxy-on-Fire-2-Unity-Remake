@@ -165,7 +165,8 @@ namespace GoF2Remake.Tests
                         Assert.IsNotNull(o.getIndex, o.id); Assert.IsNotNull(o.setIndex, o.id);
                         var c = o.choices();
                         Assert.Greater(c.Length, 0, o.id);
-                        Assert.That(o.getIndex(), Is.InRange(0, c.Length - 1), o.id + " index");
+                        // The presentation preset is -1 ("—") when the settings are neither Fast nor Fancy (#383).
+                        Assert.That(o.getIndex(), Is.InRange(o.id == "presentationPreset" ? -1 : 0, c.Length - 1), o.id + " index");
                         foreach (var s in c) Assert.IsFalse(string.IsNullOrWhiteSpace(s), o.id + " choice text");
                         break;
                     case OptionKind.Button:

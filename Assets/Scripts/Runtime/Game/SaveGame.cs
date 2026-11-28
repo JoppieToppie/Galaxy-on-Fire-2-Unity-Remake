@@ -211,7 +211,8 @@ namespace GoF2Remake.Data
             public bool VipAvailable;
         }
 
-        static CampaignRules ReadCampaignRules(SaveData save)
+        /// <summary>The game rules a save keeps (an older save: the player's old options); a co-op host's session rules.</summary>
+        public static CampaignRules ReadCampaignRules(SaveData save)
         {
             bool legacyKaamo = save.kaamoVipRule == 0 && save.kaamoUpgradeLimit == 0;
             bool stackUpgrades = legacyKaamo ? Settings.LegacyKaamoStacking : save.stackKaamoUpgrades;

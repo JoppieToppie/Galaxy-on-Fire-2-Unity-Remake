@@ -400,8 +400,9 @@ namespace GoF2Remake.Multiplayer
             SetUpHostedWorld();
             if (!Dedicated)
             {
-                NetRules.Host = NetRules.FromOptions();   // a player host's own Gameplay options (a server: Boot)
-                NetRules.HostKaamoLevel = Settings.LocalKaamoLevel();
+                // A player host's own Gameplay options, the co-op save's game rules (a server: Boot).
+                NetRules.Host = NetRules.FromOptions(CoopSession ? NetCoop.HostSlotSave : null, out int kaamoLevel);
+                NetRules.HostKaamoLevel = kaamoLevel;
                 NetRules.HostFlight = SessionRules.DefaultFlight;   // each player's own flight model; an admin's /flightmodel changes it
             }
             NetMods.BeginHost();   // the host's mods when modded content is allowed, else none

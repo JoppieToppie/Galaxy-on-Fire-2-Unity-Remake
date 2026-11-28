@@ -194,7 +194,10 @@ Single player is untouched: every multiplayer path runs only while `NetGame.Acti
   upgrades, stored ships keep their equipment, the cloak bay, EMP breaks cloaks, smarter NPC targeting, the ship
   collision mode. `Settings`' getters return the session's value while a session runs (the
   host's `NetRules.Host`, a client NetState's); a player host takes its own options at hosting and changing one while
-  hosting applies to everyone at once (`NetRules.HostChanged`); a dedicated server starts at the defaults, each flag
+  hosting applies to everyone at once (`NetRules.HostChanged`). The rules a game keeps in its save since #383
+  (`NetRules.SaveRules`: pirate events, capital ships, derelicts, cloak bay, Kaamo stacking and its level) come from the
+  co-op campaign's save, else the server defaults (`NetRules.FromOptions`; `/set` changes them): the session start resets
+  the game, so `Session`'s would all be off. A dedicated server starts at the defaults, each flag
   (`-cloakhides`, `-capitalships`, `-informeroriginal`, `-nopirateevents`, `-nokaamostacking`, `-nokaamoequipment`,
   `-nocloakbay`, `-noempcloak`, `-smarttargeting`, `-es2aiming`, `-es2flight`, `-derelicts`) turns
   one the other way (the ship collision mode is `-shipcollision exact|mixed|original`, two bits set as one setting,

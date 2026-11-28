@@ -92,11 +92,29 @@ namespace GoF2Remake.Tests
         [Test]
         public void ThePlayersOwnOptionsAsRules()
         {
-            int m = NetRules.FromOptions();
+            // Free roam: the options, but the rules a save keeps start at the server's defaults (the session start has just
+            // reset the game, so Session's would all be off).
+            int m = NetRules.FromOptions(null, out int level);
             Assert.AreEqual(Settings.CloakLosesPursuers, (m & NetRules.CloakLosesPursuers) != 0);
-            Assert.AreEqual(Settings.PirateEvents, (m & NetRules.PirateEvents) != 0);
-            Assert.AreEqual(Settings.CapitalShips, (m & NetRules.CapitalShips) != 0);
-            Assert.AreEqual(Settings.KaamoStacking, (m & NetRules.KaamoStacking) != 0);
+            Assert.AreEqual(NetRules.Defaults & NetRules.SaveRules, m & NetRules.SaveRules);
+            Assert.AreEqual(SessionRules.DefaultKaamoLevel, level);
+        }
+
+        [Test]
+        public void ACoopHostsSaveGivesTheSavesRules()
+        {
+            var save = new SaveData
+            {
+                savedGameRules = 1 + (int)(SavedGameRules.CapitalShips | SavedGameRules.DerelictWrecks),
+                stackKaamoUpgrades = true, kaamoUpgradeLimit = 8, kaamoVipRule = 2,
+            };
+            int m = NetRules.FromOptions(save, out int level);
+            Assert.AreEqual(NetRules.CapitalShips | NetRules.DerelictWrecks | NetRules.KaamoStacking, m & NetRules.SaveRules);
+            Assert.AreEqual(8, level);
+            save.stackKaamoUpgrades = false; save.kaamoUpgradeLimit = 1;
+            m = NetRules.FromOptions(save, out level);
+            Assert.AreEqual(0, m & NetRules.KaamoStacking);
+            Assert.AreEqual(SessionRules.DefaultKaamoLevel, level);
         }
 
         [Test]

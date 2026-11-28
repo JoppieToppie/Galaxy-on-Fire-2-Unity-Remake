@@ -186,7 +186,24 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The options' rows: hidden for a player in someone else's session (the host decides).</summary>
         public static bool ClientLocked => NetGame.Active && !NetGame.IsServer;
 
-        /// <summary>The player's own options as rules (a player host's start).</summary>
-        public static int FromOptions() => Settings.LocalRules();
+        /// <summary>The rules a game keeps in its save since #383 (SavedGameRules, Session.StackKaamoUpgrades), not in Options.</summary>
+        public const int SaveRules = PirateEvents | CapitalShips | DerelictWrecks | CloakBay | KaamoStacking;
+
+        /// <summary>A player host's start: its own options, but the save's rules from the co-op campaign's save
+        /// ('coopSave'), else (free roam, a new campaign) the dedicated server's defaults; /set changes them in the session.
+        /// Settings.LocalRules can't give these: the session start has just reset the game (NetGame.PrepareSession).</summary>
+        public static int FromOptions(SaveData coopSave, out int kaamoLevel)
+        {
+            int rules = Settings.LocalRules() & ~SaveRules;
+            kaamoLevel = SessionRules.DefaultKaamoLevel;
+            if (coopSave == null) return rules | (Defaults & SaveRules);
+            var c = SaveGame.ReadCampaignRules(coopSave);
+            if ((c.Rules & SavedGameRules.PirateEvents) != 0) rules |= PirateEvents;
+            if ((c.Rules & SavedGameRules.CapitalShips) != 0) rules |= CapitalShips;
+            if ((c.Rules & SavedGameRules.DerelictWrecks) != 0) rules |= DerelictWrecks;
+            if ((c.Rules & SavedGameRules.CloakBay) != 0) rules |= CloakBay;
+            if (c.StackUpgrades) { rules |= KaamoStacking; kaamoLevel = SessionRules.ClampKaamoLevel(c.UpgradeLimit); }
+            return rules;
+        }
     }
 }
