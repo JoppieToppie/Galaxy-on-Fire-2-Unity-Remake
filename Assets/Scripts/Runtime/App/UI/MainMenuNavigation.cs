@@ -96,6 +96,7 @@ namespace GoF2Remake.UI
             if (NavigateGameOptions(e, focused)) return;
             if (NavigateOptions(e, focused)) return;
             if (NavigateMultiplayer(e, focused)) return;
+            if (NavigateSessionSettings(e, focused)) return;
 
             var scope = dialog.ClassListContains("dialog-backdrop--shown") ? dialog : openPanel ?? mainButtons;
             var items = Focusables(scope);
@@ -171,6 +172,20 @@ namespace GoF2Remake.UI
         /// down stay in a column; across with nothing in the same row, the nearest item that way; the target is scrolled into
         /// view (the host card's settings scroll). Before, the panel was one list in document order. False: not this panel,
         /// or a dialog is open.</summary>
+        /// <summary>The Session settings window: its rows sit two to a line, so the neighbour on screen (SpatialNav).</summary>
+        bool NavigateSessionSettings(NavigationMoveEvent e, VisualElement focused)
+        {
+            if (dialog.ClassListContains("dialog-backdrop--shown")) return false;
+            if (!panels.TryGetValue("mpSettingsPanel", out var panel) || openPanel != panel) return false;
+            var items = Focusables(panel);
+            if (items.Count == 0) return false;
+            int dx = e.direction == NavigationMoveEvent.Direction.Left ? -1 : e.direction == NavigationMoveEvent.Direction.Right ? 1 : 0;
+            int dy = e.direction == NavigationMoveEvent.Direction.Up ? -1 : e.direction == NavigationMoveEvent.Direction.Down ? 1 : 0;
+            var to = focused == null || !items.Contains(focused) ? items[0] : SpatialNav.Next(items, focused, dx, dy, null) ?? focused;
+            if (to != focused) { to.Focus(); EnsureVisible(to); }
+            return Swallow(e);
+        }
+
         bool NavigateMultiplayer(NavigationMoveEvent e, VisualElement focused)
         {
             if (dialog.ClassListContains("dialog-backdrop--shown")) return false;
@@ -262,7 +277,7 @@ namespace GoF2Remake.UI
             var items = Focusables(scope);
             // The difficulty list starts on Normal (the original's first entry), Easy above it; the economy on the last one picked.
             var normal = scope.name == "difficultyPanel" ? scope.Q<Button>("normalButton")
-                : scope.name == "economyPanel" ? scope.Q<Button>(Session.Economy == Economy.Android ? "economyAndroidButton" : "economyDefaultButton")
+                : scope.name == "remakeOptionsPanel" ? scope.Q<Button>("remakeOptionsStart")
                 : scope.name == "gameOptionsPanel" ? scope.Q<Button>("gameOptionsStart") : null;
             // Not on a text field (the multiplayer panel's name is its first item): focused, it takes the keys, and on the
             // Xbox it can bring up the system keyboard, which then takes B (#20). The fields are one step away.

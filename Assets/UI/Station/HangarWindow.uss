@@ -488,6 +488,11 @@
     align-items: center;
 }
 
+.detail-action-area--ship-trade {
+    justify-content: flex-start;
+    padding-top: var(--space-s);
+}
+
 /* Remake: the item window's hint in place of a ship's name and race, as a title bar like "Description". */
 /* Remake: a ship's buy / use buttons centred under its view, as wide as their text (FitActions wraps the price). */
 .detail-action--side {

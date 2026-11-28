@@ -365,8 +365,10 @@
     color: #FFFFFF;
 }
 
+/* .status-window: the theme loads this sheet on every panel, and the flight HUD's shield / hull rows use .status-plate
+   too (their 247 x 39 plate came out 20 px high with the bars squeezed off-centre, Discord 2026-11-24). */
 .ui-style-original .missions-heading,
-.ui-style-original .status-plate {
+.ui-style-original .status-window .status-plate {
     background-image: url("project://database/Assets/UI/Original/og_plate.png");
     -unity-slice-left: 35;
     -unity-slice-right: 35;
@@ -929,7 +931,7 @@
 }
 
 .ui-style-original .missions-heading,
-.ui-style-original .status-plate {
+.ui-style-original .status-window .status-plate {
     height: 20px;
     padding: 0 6px;
     font-size: var(--text-caption);
