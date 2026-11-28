@@ -21,6 +21,9 @@ namespace GoF2Remake.UI
         static readonly float TileW = 256f * S, TileH = 180f * S, BarW = 770f * S, BarH = 58f * S;
         static readonly float TopW = 566f * S, TopH = 416f * S, BottomW = 400f * S, BottomH = 400f * S;
         static readonly float ButtonSize = 62f * S, GlowSize = 291f * S, BlockedW = 68f * S, BlockedH = 67f * S;
+        static readonly float SideSize = 109f * S, SideX = 476f * S;
+        readonly VisualElement[] sideButtons = new VisualElement[2];
+        Texture2D sideIdle, sidePressed;
 
         readonly VisualElement layer;
         readonly VisualElement[] tiles = new VisualElement[6], targets = new VisualElement[6];
@@ -37,6 +40,7 @@ namespace GoF2Remake.UI
             layer.AddToClassList("hacking-layer");
             root.Add(layer);
             for (int i = 0; i < 6; i++) { tileTex[i] = Tex("hack_tile_" + i); goldTex[i] = Tex("hack_gold_" + i); }
+            sideIdle = Tex("hack_side_button"); sidePressed = Tex("hack_side_button_on");
 
             // Frames (mirrored halves), the bar.
             Image(Tex("hack_frame_top"), -TopW, -BarH / 2f - TopH, TopW, TopH, false);
@@ -70,6 +74,22 @@ namespace GoF2Remake.UI
                 e.StopPropagation();
             });
             layer.Add(hit);
+            // Hud::draw (#387): the round turn buttons in the frame's side bulges (0x1f57 idle, 0x1f58 pressed), Hud::init's
+            // w/2 -+ layout 0x31c at h/2 - layout 0x320 (unknown; 476 / the row boundary, measured on an iPad screenshot).
+            for (int side = 0; side < 2; side++)
+            {
+                var b = Image(Tex("hack_side_button"), (side == 0 ? -SideX : SideX) - SideSize / 2f, -BarH / 2f - TileH - SideSize / 2f,
+                              SideSize, SideSize, false);
+                b.pickingMode = PickingMode.Position;
+                int s = side;
+                b.RegisterCallback<PointerDownEvent>(e =>
+                {
+                    if (game == null) return;
+                    if (s == 0) game.TurnLeft(); else game.TurnRight();
+                    e.StopPropagation();
+                });
+                sideButtons[side] = b;
+            }
             layer.style.display = DisplayStyle.None;
         }
 
@@ -123,6 +143,8 @@ namespace GoF2Remake.UI
             glows[1].style.display = game.Turning > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             buttons[0].style.display = game.Turning < 0 ? DisplayStyle.None : DisplayStyle.Flex;
             buttons[1].style.display = game.Turning > 0 ? DisplayStyle.None : DisplayStyle.Flex;
+            sideButtons[0].style.backgroundImage = new StyleBackground(game.Turning < 0 ? sidePressed : sideIdle);
+            sideButtons[1].style.backgroundImage = new StyleBackground(game.Turning > 0 ? sidePressed : sideIdle);
         }
 
         void ReadKeys()
