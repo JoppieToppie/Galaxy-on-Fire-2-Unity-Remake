@@ -52,6 +52,17 @@ namespace GoF2Remake.World
         /// <summary>§5.4 fire, turn, bank, move.</summary>
         void Steer(float dtMs)
         {
+            var smepBeforePosition = transform.position;
+            // Observe actual displacement while conventional flight is active so SMEP
+            // can resume without inventing full-speed forward momentum.
+            if (smepPreviousSteerFrame == Time.frameCount - 1 && dtMs > 0f && M > 0f)
+                smepObservedVelocity = (smepBeforePosition - smepPreviousSteerPosition) / (dtMs * M);
+            else if (es2FlownFrame >= Time.frameCount - 1)
+                smepObservedVelocity = es2Vel / 1000f;
+            else
+                smepObservedVelocity = Vector3.zero;
+            smepPreviousSteerPosition = smepBeforePosition;
+            smepPreviousSteerFrame = Time.frameCount;
             // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
             // remake option (NpcShipEs2): EVERSPACE 2's aim, a reticule on the lead that settles by the difficulty
@@ -61,8 +72,17 @@ namespace GoF2Remake.World
             // remake options: GoF3's attack runs, veer-offs, tease and chase, its led aim (NpcShipDogfight); EVERSPACE 2's runs
             // past the target, gaining distance, tailed evasion and flight (NpcShipEs2)
             bool dog = Dogfighting, es2 = Es2Fighting, chorusF = ChorusFighting, dogHold = false;
+            if (smepFighterAi) smepHoldFire = !es2;
             if (dog) aimPos = DogfightAim(aimPos, out dogHold, es2Aimed);
-            else if (es2) aimPos = Es2FightGoal(aimPos, dtMs, out dogHold);
+            else if (es2)
+            {
+                var es2RunGoal = Es2FightGoal(aimPos, dtMs, out dogHold);
+                // Keep ES2's combat scheduling but not its run-path steering:
+                // SMEP translation owns the approach and orbit, while the nose
+                // tracks the weapon reticule rather than an ES2 run waypoint.
+                aimPos = smepFighterAi && SmepEnabledForTarget ? shotAt : es2RunGoal;
+                if (smepFighterAi) smepHoldFire = dogHold;
+            }
             else if (chorusF) aimPos = ChorusFightGoal(aimPos, out dogHold);   // (remake mods: Chorus's way, NpcShipChorus)
             float formationSpeed = 1f;
             if (!dog && !es2 && !chorusF && FormationSlot(dtMs, out var slot, out formationSpeed)) aimPos = slot;   // (GoF3's V formations)
@@ -117,10 +137,32 @@ namespace GoF2Remake.World
                            || !slow.CanTurn;   // remake: an EMP device's slow
             float dogSpeed = dog ? dogfight.SpeedFactor * Gof3EasySlowdown() : chorusF ? chorusFight.SpeedFactor : formationSpeed;   // (GoF3's Easy: slower in your sights)
             float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
+            bool useSmepFlight = SmepAiRules.UseCustomFlight(SmepHullEligible, ProtectedMobileTarget(target), Hp.empDisabled, slow.CanTurn, noSteer);
+            if (useSmepFlight)
+                // Preserve native boost/pacing as a ratio, but use the modded player hull's top speed.
+                // One shared speed cap applies to forward, reverse, sideways and hover.
+                topSpeed = smepHullTopSpeed * (speed / Mathf.Max(0.01f, baseSpeed))
+                           * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;
+            // SMEP owns movement and steering when active. ES2 is only the fallback controller.
+            bool useEs2Flight = es2Flight && !useSmepFlight;
+            if (!useSmepFlight)
+            {
+                // Preserve the outgoing 6DOF momentum on the exact frame that
+                // ES2 resumes, including a mobile player joining mid-combat.
+                if (smepDogfightState != null)
+                {
+                    es2Vel = smepDogfightState.velocity * 1000f;
+                    es2FlownFrame = Time.frameCount;
+                }
+                smepPendingAvoidanceDirection = Vector3.zero;
+                smepMovementFrame = -1;
+                smepPathInitialized = false;
+                if (smepFighterAi) smepDogfightState = null;
+            }
             if (!noSteer && !Hp.empDisabled)
             {
                 Vector3 h;
-                if (es2Flight) h = Es2FlightTurn(dirN, topSpeed, dtMs);   // remake option: EVERSPACE 2's physics flight (NpcShipEs2Flight)
+                if (useEs2Flight) h = Es2FlightTurn(dirN, topSpeed, dtMs);   // remake option: EVERSPACE 2's physics flight (NpcShipEs2Flight)
                 else
                 {
                     var delta = dirN - fwd;
@@ -147,12 +189,26 @@ namespace GoF2Remake.World
             bank = Mathf.MoveTowards(bank, bankTarget, step);
             if (Mathf.Approximately(bank, before)) { levelTimer -= dtMs; if (levelTimer <= 0f) levelling = true; }
             else levelTimer = 750f;
-            float barrel = es2Fight != null ? Es2Roll(dtMs, out var sideStep) : DogfightRoll(dtMs, out sideStep);   // remake options: GoF3's evasive roll (NpcShipDogfight), ES2's barrel roll (NpcShipEs2)
+            bool useSmepEs2Fight = es2Fight != null && (!smepFighterAi || SmepEnabledForTarget);
+            float barrel = useSmepEs2Fight ? Es2Roll(dtMs, out var sideStep) : DogfightRoll(dtMs, out sideStep);   // remake options: GoF3's evasive roll (NpcShipDogfight), ES2's barrel roll (NpcShipEs2)
             if (model != null) model.localRotation = Quaternion.AngleAxis(bank * Mathf.PI / 4096f * Mathf.Rad2Deg + barrel, Vector3.forward);
             if (levelling) Roll(dtMs);
 
             if (!Hp.empDisabled)
-                transform.position += (es2Flight ? Es2FlightMove(topSpeed, dtMs) : transform.forward * topSpeed * dtMs * M) + sideStep;
+            {
+                if (useSmepFlight)
+                {
+                    smepPendingAvoidanceDirection = Vector3.zero;
+                    smepFrameStartPosition = smepBeforePosition;
+                    smepFrameTopSpeed = Mathf.Max(0f, topSpeed);
+                    smepFrameDtMs = dtMs;
+                    smepMovementFrame = Time.frameCount;
+                    ApplySmepDogfightTranslation(dtMs, smepBeforePosition, topSpeed);
+                }
+                else
+                    transform.position += (useEs2Flight ? Es2FlightMove(topSpeed, dtMs) : transform.forward * topSpeed * dtMs * M) + sideStep;
+            }
+            if (smepFighterAi) FireSmepReadyPrimaryGuns();
         }
 
         /// <summary>Gives the ship an order (null: back to its own AI). Wakes a sleeper, lets a parked ship fly; "hold" is
@@ -368,8 +424,17 @@ namespace GoF2Remake.World
         /// away (direction += (away - fwd) * speed * 0.03, up = world up) and moves it one extra step.</summary>
         void Avoid(bool landmarks, float dtMs)
         {
+            bool smepMoving = SmepEligible && smepMovementFrame == Time.frameCount;
+            bool resetSmepReciprocal = !landmarks && !smepMoving;
+            if (smepMoving && !landmarks)
+            {
+                // Preserve native non-landmark obstacle steering as well as reciprocal player contact.
+                // Both corrections affect steering, not the SMEP displacement budget.
+                SeparateSmepNpcFromPlayer();
+            }
             var all = Obstacle.All;
             var pos = transform.position;
+            var smepAvoidanceDirection = Vector3.zero;
             int frame = Time.frameCount;
             for (int i = 0; i < all.Count; i++)
             {
@@ -382,8 +447,29 @@ namespace GoF2Remake.World
                 var fwd = transform.forward;
                 var dir = (fwd + (p - fwd) * speed * 0.03f).normalized;
                 transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-                transform.position += transform.forward * speed * dtMs * M;
-                return;
+                // Steering correction only: the custom controller owns displacement and speed.
+                if (smepMoving) smepAvoidanceDirection = p;
+                else transform.position += transform.forward * speed * dtMs * M;
+                break;
+            }
+            if (smepMoving)
+            {
+                if (smepAvoidanceDirection.sqrMagnitude > 0f)
+                    smepPendingAvoidanceDirection = smepAvoidanceDirection;
+                // Rebuild velocity only after both avoidance passes: the second pass
+                // otherwise erases the first pass's steering response.
+                if (!landmarks)
+                {
+                    SyncSmepAfterAvoidance();
+                    if (smepPendingAvoidanceDirection.sqrMagnitude > 0f)
+                        TurnSmepVelocityAwayFromObstacle(smepPendingAvoidanceDirection, dtMs);
+                    smepPendingAvoidanceDirection = Vector3.zero;
+                }
+            }
+            if (resetSmepReciprocal)
+            {
+                smepReciprocalLastPosition = transform.position;
+                smepReciprocalHasPosition = true;
             }
         }
 

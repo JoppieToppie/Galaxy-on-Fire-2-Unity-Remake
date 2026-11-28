@@ -116,6 +116,9 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer: another player's ship (NetPlayer, not a proxied NPC or sentry): its marker carries the pilot's
         /// name (CombatView), so players stand apart from the NPCs of the same colour.</summary>
         [NonSerialized] public bool netPilot;
+        /// <summary>Multiplayer (NetPlayer): the owning device's platform and whether it is still using touch controls.
+        /// Defaults are conservative until the owner's first state update: mobile touch is protected from advanced AI.</summary>
+        [NonSerialized] public bool mobilePlatform = true, mobileTouchControls = true;
         /// <summary>Remake (#216, players' request): one of the player's own wingmen (NpcShip.MakeWingman). The original draws
         /// them in the plain friend green; the HUD markers (CombatView) and the VR scope (VrRadar) draw them blue so they stand
         /// apart from the other allies (a battleship's escorts, a fleet battle).</summary>
@@ -212,17 +215,8 @@ namespace GoF2Remake.Flight
         public event Action<Target, int, bool> Damaged;
         public event Action<Target> Died;
 
-        void OnEnable()
-        {
-            if (!All.Contains(this)) All.Add(this);
-            if (isAsteroid) AsteroidTargetGrid.Register(this);
-        }
-
-        void OnDisable()
-        {
-            All.Remove(this);
-            if (isAsteroid) AsteroidTargetGrid.Unregister(this);
-        }
+        void OnEnable() { if (!All.Contains(this)) All.Add(this); }
+        void OnDisable() => All.Remove(this);
 
         /// <summary>Player::damage: 'byNpc' = an NPC gun fired it (friendGun); 'hitVector' = the bullet velocity;
         /// 'shieldFactor' = the weapon's x on the shield (remake, Flight.Gun.ShieldFactor; Hitpoints.Damage).</summary>
@@ -437,7 +431,6 @@ namespace GoF2Remake.Flight
         void Die(bool loot)
         {
             hp = 0f;
-            if (isAsteroid) AsteroidTargetGrid.Unregister(this);
             if (loot && isAsteroid && oreItem >= 0) DropAsteroidCrate();
             if (!customDeath)
             {
@@ -505,7 +498,6 @@ namespace GoF2Remake.Flight
             remoteKiller = ulong.MaxValue;
             crate = null;
             if (isActiveAndEnabled && !All.Contains(this)) All.Add(this);
-            if (isActiveAndEnabled && isAsteroid) AsteroidTargetGrid.Register(this);
         }
     }
 }
