@@ -190,9 +190,14 @@ namespace GoF2Remake.UI
         }
 #endif
 
+        /// <summary>The frame after which the menu counts as up (about three seconds of frames past its first).</summary>
+        int startupFrame = -1;
+
         void Update()
         {
+            if (startupFrame < 0) startupFrame = Time.frameCount + 180;
             if (root == null) return;
+            if (Time.frameCount > startupFrame) { Settings.StartupReached(); startupFrame = int.MaxValue; }   // (Settings.GuardStartup)
             SyncHover();
             // The layout first: the screen and the options change whatever has the keys (a capture, the controller's keyboard).
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
@@ -942,6 +947,9 @@ namespace GoF2Remake.UI
             root.Q("dialogProgress")?.RemoveFromClassList("dialog-progress--shown");   // the updater's (MainMenuUpdate)
             dialog.RemoveFromClassList("dialog-backdrop--shown");
             dialogYes = dialogNo = null;
+            pendingSaveDeletion = null;
+            deleteHoldPointer = -1;
+            ++deleteHoldAttempt;
             dialogCheck = null;
             var back = dialogReturn;
             dialogReturn = null;
