@@ -39,11 +39,13 @@ namespace GoF2Remake.Data
         [System.NonSerialized] public float[] chaseCamera;
         /// <summary>Remake mods (ships.json \"camera.orbitDistance\"): the free-look orbit's default radius in game units.</summary>
         [System.NonSerialized] public float orbitCameraDistance = 3800f;
+        /// <summary>Per-ship targeting reference offset in metres: positive X right, positive Y up.</summary>
+        [System.NonSerialized] public Vector2 crosshairOffset;
         [System.NonSerialized] public Vector3? cockpit;
         [System.NonSerialized] public List<Vector3> smokePoints;
         [System.NonSerialized] public float explosionScale = 1f;
 
-        /// <summary>Remake mods (ships.json "dockingRole"): an explicit "internal" or "external" dock role; null preserves size-based legacy eligibility.</summary>
+        /// <summary>Legacy dockingRole metadata retained for mod compatibility. External docking eligibility follows the canonical ship class.</summary>
         [System.NonSerialized] public string dockingRole;
         /// <summary>Remake mods (Modding.ShipClassRules, ships.json "shipClass" / "classTags"): the ship's class (a free word a
         /// class scanner shows) and the words it answers to besides; none on every original ship.</summary>
@@ -111,6 +113,9 @@ namespace GoF2Remake.Data
         public int index;
         public string name;
         public int securityLevel;
+        /// <summary>Modding: systems.json population, the ambient NPC traffic multiplier (0 = none, 1 = unchanged).</summary>
+        [System.NonSerialized] public float ambientPopulation = 1f;
+        [System.NonSerialized] public bool derelictFreighters = true;
         public bool initiallyVisible;
         public string race;
         public int raceId;
@@ -587,9 +592,7 @@ namespace GoF2Remake.Data
         /// "webber", "shieldCharger", "armorLink", "antiMissile", "jumpSuppressor", "lootDrone" (never a fighter: the loot drone encounter's,
         /// Modding.ModTraffic.PickLootDrone); empty = an ordinary fighter.</summary>
         public string role;
-        /// <summary>Remake: "gof3" = Galaxy on Fire 3's fight, "es2" = EVERSPACE 2's fight, "smep" = the native SMEP fighter
-        /// mode (ES2 aiming / flight plus SMEP range, strafing and fire rules), all while Options > Gameplay "NPC dogfighting"
-        /// is "Mod hulls' own" (the default); else GoF2's. SMEP needs "mobileAi": true below to run on mobile platforms.</summary>
+        /// <summary>This hull's dogfight style when the session uses "Mod hulls' own". "smep" opts into native SMEP 6DOF independently; the session-wide SMEP setting remains available. A hull-only opt-in on mobile builds requires mobileAi.</summary>
         public string ai;
         /// <summary>Remake: with "ai": "smep", explicitly allow SMEP on mobile builds; off by default. A pilot on a phone or tablet is never fought SMEP's way (SmepAiRules.EnabledForTarget).</summary>
         public bool mobileAi;
@@ -1319,6 +1322,7 @@ namespace GoF2Remake.Data
                 {
                     Modding.ModContent.Apply(db);
                     Modding.ModScripts.Raise("database", db);   // the mod scripts' own changes to the tables, last
+                    GameHooks.ApplyPlayerStations?.Invoke(db);   // persistent multiplayer stations follow static and mod stations
                 }
                 finally { applying = outer; }
             }

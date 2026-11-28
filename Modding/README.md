@@ -84,6 +84,7 @@ What mods can do so far:
 - **Add new items**: weapons, missiles, equipment and goods. Each new item is based on an existing one and takes its model,
   icon, sounds and behaviour, with its own name, description, stats, prices and availability.
 - **Change existing items**: rebalance prices, stats, tech levels and availability.
+- **Restrict blueprints in multiplayer**: set `"multiplayerBlueprintRestricted": true` in an `items.json` entry (new item or override) to restrict that item's blueprint. For a generated ship blueprint (the hidden deed item), set the same field on its `blueprints.json` entry. The blueprint entry's explicit setting takes precedence over the item's setting. This prevents ordinary blueprint discovery and production during multiplayer sessions; it does not affect solo play or NPC equipment, erase existing unlocks, suppress scripted story/medal unlock events, or block direct scripted item rewards. Manufacturing remains blocked while the restriction is active, even if a scripted event unlocks the blueprint. Omitting the field leaves the current setting unchanged (normally unrestricted); an explicit `false` clears an earlier mod's setting.
 - **Give weapons their own look and sound**: projectiles, muzzle flashes and impacts from your own sprites or 3D models,
   your own shot and explosion sounds.
 - **Add new ships**: your own 3D model (glTF / GLB) with its stats, weapon mounts, turrets, engine glows and textures, sold
@@ -159,6 +160,25 @@ description, author, views and downloads. To list yours, add one small file to
 [gof2r-mods](https://github.com/JoppieToppie/gof2r-mods) by pull request; its README explains it. The easiest way is to
 point the file at your own GitHub repository. Then every new release there, with a higher `version` in `mod.json`,
 reaches players as an update within the hour, with no further pull request.
+
+## Native feature reference
+
+Use **Mod Builder > Menu > Modding documentation** for the searchable offline reference. MCP assistants can call
+`read_guide` (with no arguments to list files) or read `gof2-guide://<file>` resources. These surfaces use the same
+canonical documents as the repository, including the specialist manuals below.
+
+| Guide | Coverage |
+|---|---|
+| [Native features](NATIVE_FEATURES.md) | Gameplay manifest, native item stats, station construction, external docks, orbital defenses, recipes, origins, wingmen, cameras and NPC AI |
+| [Scanner detection](SCANNER_DETECTION.md) | Scanner ranges, target signatures, passive stealth, NPC sensors and turret contact |
+| [Predictive targeting](PIP_LEADS.md) | Primary projectile and beam lead indicators |
+| [Squad friendly fire](SQUAD_FRIENDLY_FIRE.md) | Optional squadmate damage, PvP permissions |
+| [NPC faction warfare](NpcFactionWar.md) | Frontline eligibility, battles, timers, territory and configuration |
+| [Piracy and recovery](Piracy.md) | Bounties, death loss, recovery and Lua hooks |
+| [Jump drive rules](JUMP_DRIVE_RULES.md) | Fuel, misjumps, item availability and server authority |
+
+The native reference includes the current unique item attribute IDs and migration guidance for older scripts using
+numeric IDs. For an existing native feature, use its data contract rather than writing a global method patch.
 
 ## mod.json
 
@@ -250,7 +270,7 @@ earlier). Only the fields you give change. Giving `name` or `description` rename
 | `alwaysSoldAt` | A station number that always stocks it, whatever its tech level (78 = Var Hastra, the starting station; -1 = none). |
 | `tractorColor` | A tractor beam's colour, `"#rrggbb"` or `[r, g, b]` (0-255): its beams are drawn in it (see [Multi-grab tractor beams](#multi-grab-tractor-beams)). |
 | `stats` | The item's numbers, see below. |
-| `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. For anything `stats` has no name for. |
+| `attributes` | The original game's attribute numbers directly: `{ "9": 14 }`. Accepted IDs are 0–99 (0–8 follow the item's fields); for remake attributes above 99, use their named `stats` entries. |
 | `defaultEconomy` | The same fields again, used when the player picked the Default Economy (the PC / Mac prices) for their game. |
 | `fx` | A weapon's own look and sound; or a weapon effect's id from `weaponfx.json`, or a game weapon's number for its whole look. See [Weapon effects](#weapon-effects). |
 | `icon` | Its own shop icon: a PNG in the mod, 180 x 88 like the originals (frame and background included; copy one from `Assets/Resources/GoF2Icons` to start from), or one of the game's: `"gof2:item_046"`. Without it the item shows its base item's icon. An `override` with `icon` gives an original item a new one. |
@@ -335,12 +355,18 @@ energy cells.
 | `scanShip` | 140 | Scanners: 1 = the lock plate names the locked ship's hull, "Pirate · Phantom 85%" (see [Scanner readouts](#scanner-readouts)) |
 | `scanHitpoints` | 141 | Scanners: 1 = a new lock shows the ship's shield, armor and hull |
 | `scanWeapons` | 142 | Scanners: 1 = a new lock shows the ship's weapons |
-| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 191 to 193 | Independent pitch, yaw and roll rate bonuses (%) |
-| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 194 to 196 | Independent pitch, yaw and roll response / ramp bonuses (%) |
-| `strafeAcceleration` | 197 | Lateral acceleration bonus (%) in free flight |
-| `hoverSpeed`, `hoverAcceleration` | 198 to 199 | Vertical thrust speed and acceleration bonuses (%) in free flight |
-| `reverseSpeed`, `reverseAcceleration` | 200 to 201 | Reverse thrust speed and acceleration bonuses (%) in free flight |
-| `forwardAcceleration` | 202 | Forward thrust acceleration bonus (%) in free flight |
+| `pitchTurnRate`, `yawTurnRate`, `rollTurnRate` | 209 to 211 | Independent pitch, yaw and roll rate bonuses (%) |
+| `pitchTurnAcceleration`, `yawTurnAcceleration`, `rollTurnAcceleration` | 212 to 214 | Independent pitch, yaw and roll response / ramp bonuses (%) |
+| `strafeAcceleration` | 215 | Lateral acceleration bonus (%) in free flight |
+| `hoverSpeed`, `hoverAcceleration` | 216 to 217 | Vertical thrust speed and acceleration bonuses (%) in free flight |
+| `reverseSpeed`, `reverseAcceleration` | 218 to 219 | Reverse thrust speed and acceleration bonuses (%) in free flight |
+| `forwardAcceleration` | 220 | Forward thrust acceleration bonus (%) in free flight |
+| `strictShipClass` | 191 | 1 applies equipment class allow-lists even to an unclassified hull. Requires the applicable class restrictions; not a standalone class list. |
+| `fixedBeam` | 192 | Nonzero disables beam target snapping; aim along the actual firing direction. |
+| `turretDefenseRole` | 193 | Per-mount defense role: 0 legacy, 1 offensive, 2 balanced, 3 dedicated. |
+| `scannerRange` | 194 | Maximum sensor range in game units; absent/0 keeps unlimited legacy detection. |
+| `scanLead` | 195 | Positive enables predictive primary weapon PIPs; default off. See PIP_LEADS.md. |
+| `structuralDamage` | 208 | A positive value permits damage to player-built structure integrity (nukes qualify independently); EMP effects apply independently of this weapon eligibility. |
 | `tractorNoLock` | 137 | Tractor beams: 1 = the scanner never locks a container; every beam takes containers by itself (see [Multi-grab tractor beams](#multi-grab-tractor-beams)) |
 | `shieldDamage` | 124 | A weapon's damage to a shield in percent (default 100; the Disruptor Laser and items based on it 200). What the shield doesn't absorb hits the armor and hull at the plain damage. |
 | `damageType` | 190 | Optional explicit damage channel: `1` = energy, `2` = ballistic; unset / `0` keeps the original damage behaviour. This is not inferred from the weapon category. |
@@ -978,7 +1004,7 @@ A list of entries, like items.json: `"id"` adds a ship, `"override"` changes one
 | `hangarHeight` | How high its pivot sits above the hangar pad, in game units (the originals 140 to 400). A customizable ship's is measured from its build instead. |
 | `mounts` | Where guns and exhausts sit, in game units from the ship's centre (x right, y up, z forward): `slotType` 0 primary gun, 1 secondary, 2 turret (`"upsideDown": true` hangs it under the hull; `"builtIn": true`: the ship's own turret, no turret model of the game on it, the mounted turret item firing from this point; a customizable ship's primary / secondary mounts may also carry `"rotation"`, see [Customizable ships](#customizable-ships)), 3 engine exhaust (the flame and its particles; `turretAngles[0]` sizes the particles; `"glowColor": [r, g, b]` (0 to 1) colours that exhaust's flame and its exhaust particles; `"glowSize": [halfWidth, halfHeight, length]` (game units) makes the flame an ellipse of that size, its flared ring `length` behind the nozzle; `"glowShape"` gives it another outline in that box: `"round"` (the default), `"rounded"` (a rectangle with rounded corners), `"square"` (a square or, with a different half width and half height, a rectangle), `"hexagon"`, `"diamond"` or `"triangle"`; with `engineFx`, `"fxScale"` sizes that exhaust's effect and `"rotation"` turns the way it blows, as a weapon mount's below;
 `"outline": [x0, y0, x1, y1, ...]` the nozzle's shape seen from behind, game units around the mount, for the [exhaust
-styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way it blows in the same axes: a short jet fires whenever the ship strafes, rises, sinks or reverses against it, and with no input the jets blowing along the ship's drift fire to brake it, like EVERSPACE 2's lateral thrusters; only on the player's ship. Its colour is the hue of the `lateral thruster` colour slot, else of the flames' boost colour, at EVERSPACE 2's own brightness: a slot's `intensity` doesn't change it), 5 booster (a ship with engine flames: EVERSPACE 2's booster socket, its trail and light in `boostColor` while boosting; `"socketScale"` sizes them, as on an exhaust), 6 contrail point (EVERSPACE 2's wing-tip contrails: a white ribbon trailing from the point while boosting and flying nose first, `"socketScale"` its width and, below 1, its faintness; on every ship, `"es2Engine": { "contrails": false }` turns a ship's off), 7 headlight fixture (`"direction": [x, y, z]` the way it shines: a lens flare there while the player's headlights are on (the Headlights key, L), and materials named `Headlight` glow only then; the light itself is the player's one headlight at the nose, on any ship), 8 external docking hardpoint (`"rotation": [x, y, z]` in degrees; a ship needs this as well as an external role and a station attachment). |
+styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way it blows in the same axes: a short jet fires whenever the ship strafes, rises, sinks or reverses against it, and with no input the jets blowing along the ship's drift fire to brake it, like EVERSPACE 2's lateral thrusters; only on the player's ship. Its colour is the hue of the `lateral thruster` colour slot, else of the flames' boost colour, at EVERSPACE 2's own brightness: a slot's `intensity` doesn't change it), 5 booster (a ship with engine flames: EVERSPACE 2's booster socket, its trail and light in `boostColor` while boosting; `"socketScale"` sizes them, as on an exhaust), 6 contrail point (EVERSPACE 2's wing-tip contrails: a white ribbon trailing from the point while boosting and flying nose first, `"socketScale"` its width and, below 1, its faintness; on every ship, `"es2Engine": { "contrails": false }` turns a ship's off), 7 headlight fixture (`"direction": [x, y, z]` the way it shines: a lens flare there while the player's headlights are on (the Headlights key, L), and materials named `Headlight` glow only then; the light itself is the player's one headlight at the nose, on any ship), 8 external docking hardpoint (`"rotation": [x, y, z]` in degrees; a ship needs this as well as an eligible large ship class and a station attachment). |
 | `engineGlowRadius` | Size of the engine flame at each exhaust mount (game units, default 24); a mount's `glowSize` replaces it. |
 | `engineGlowColor` | `[r, g, b]` (0 to 1): the flame colour of every exhaust without its own `glowColor`. None = the game's own blue-white flame. |
 | `materials` | Optional. Replace the model's own materials, see below. |
@@ -1000,7 +1026,7 @@ styles](#exhaust-styles)), 4 manoeuvring jet (`"direction": [x, y, z]`, the way 
 | `deathFx` | Optional. The ship's own death effects in place of the game's explosion (its sound stays): a JSON file in the mod, `{ "main": { "emitters": [...] }, "dying": { "emitters": [...] }, "dyingCount": [3, 12] }`: `main` plays where it explodes, `dying` that many times over an NPC's death tumble at points about its hull. Each emitter is a particle system: `image` (a PNG, white on black, added; `sheet` [columns, rows] of frames with `frames` (the frame over its life, samples 0..1 of the sheet) or `randomFrame`), `bursts` [time, count, ...] and `rate` (a second, over `duration`), `life`, `size` (game units), `speed` (outward, or along the ship's nose with `forward`) and `spin` (degrees a second) as [min, max], `sphere` (the radius they start in), `drag` (the share of its speed lost a second), `inherit` (of the ship's motion, default 1), `randomRotation`, `stretch` (drawn along its flight, that long for its width), `color` (its brightest colour; above 1 glows), `colorOverLife` [r, g, b, ...] and `alphaOverLife` (samples 0..1 over its life, times it), `sizeOverLife` (samples, times `size`), `"blend": "alpha"` (the image drawn over what is behind instead of added: smoke, debris; `color` then a plain tint, 0 to 1), `"light"` (no particles: a point light of that range in game units, `lightIntensity` bright, its `color`, dimming and growing with `colorOverLife`, `alphaOverLife` and `sizeOverLife` over its `life`, from its first burst). `"trail": { "image", "every", "life", "size", ... }` leaves puffs of that image every `every` game units along each particle's flight (with no `image` of its own, the particle is only the trail's source: burning debris); `"noise": [strength, cell]` shakes the particles with a turbulence (game units a second, its cells' size). Ships may share a file. Only a look: other players see the game's explosion. |
 | `driftFx` | Optional. The look of [Chorus flight](#flight-styles)'s drift on your ship while it drifts (Chorus's Forsaken): `{ "parts": [ { "node": "SCK_VFX_Drift_L2", "fx": { "emitters": [...] }, "fields": [...] }, ... ] }`. Each part sits on a node of the ship's model, by name (none or a missing one: the ship itself), and moves with it (a wing folding out). `fx` is a list of particle emitters as in `deathFx` (below), in the node's frame, with three more fields: `"loop": true` emits again every `duration` until the drift ends (a light flashes again), `"local": true` keeps its particles moving with the node, `"at": [x, y, z]` is where they start (game units: x right, y up, z forward in the node's frame). `fields` are energy shells shown while the drift lasts: `{ "mesh": "fx/shell.json", "band": "...png", "mask": "...png", "distort": "...png", "line": "...png", "background": "...png", "color": [r, g, b, a], "exposure": 3 }`, the mesh a JSON file (`positions` and `normals` [x, y, z, ...] in game units in the node's frame, `uvs` [u, v, ...] with v down, `triangles`), drawn with Chorus's M_Drift_MagnetField (the five greyscale maps; its other values, such as `tiling`, `pan`, `fresnel`, default to Chorus's). As the drift ends the emitters stop and their particles live out. Only a look, only your ship. |
 | `wingmanDevice` | Optional. What a hired wingman flying this ship uses (Galaxy on Fire 3's wingmen): `"repair"` (Hull Repair: with your hull under 40 %, a quarter of it mended over 3 seconds), `"ammo"` (Ammo Supply: 5 more rounds of your selected secondary weapon when you are down to one or none) or `"charged"` (Charged Shots: its own shots do x1.75 for 5 seconds while it attacks); 55 seconds between uses. The HUD says when it does. None = nothing, like the game's wingmen. See [Wingmen](#wingmen). |
-| `dockingRole` | Optional per-ship docking eligibility: `"internal"` or `"external"`. Omitted or `null` docks in the station's hangar, whatever the ship's size (a hull over 150 m is shown shrunk there). External docking also requires at least one `slotType: 8` ship hardpoint and a station's authored `orbit.externalDocks` point. |
+| `dockingRole` | Legacy optional role (`"internal"` or `"external"`). Docking eligibility is determined by ship class: frigates, freighters, cruisers and carriers dock externally; all other or unclassified ships dock internally. A legacy role does not override the class. External docking requires at least one `slotType: 8` ship hardpoint and a station's authored `orbit.externalDocks` point. |
 | `integrated` | Optional, also in an `override`. Equipment built into the hull, like the Kothar ships' Khador Drive (Cronus, Typhon, Nemesis) and the Specter's / Scimitar's cloak: `{ "khadorDrive": true, "cloak": true }`. `khadorDrive`: the ship can make Khador jumps without the drive in a slot (it still needs energy cells). `cloak`: `true` (the U'tool's stats), a cloak item (a number or `"mod:id"`, e.g. `96`) whose stats it has, or `false`; a cloak the player mounts replaces it, and with the Gameplay option "Cloak bay on cloaking ships" it goes into the built-in cloak's bay instead of a slot. `false` takes an original ship's away. `items`: any equipment built in, a list of item numbers, `"mod:id"` keys or `{ "item": ..., "amount": n }` (a secondary weapon's starting ammo, default 10), e.g. `"items": [46, { "item": 36, "amount": 20 }, 54]`. Built-in items work like mounted ones but take no slot, show on the hangar's Ship tab under "Built into the ship", and can't be demounted, sold or stored; they stay with the ship type when the player changes ships. A one-per-ship item the player fits (a shield, armor, a booster, a scanner, a drill, a cloak...) takes the built-in one's place without a slot, and the built-in one is back when it is demounted; built-in weapons and turrets add to the ship's own slots. A built-in launcher's missiles are refilled by buying more; a one-off item that is used up (an emergency system) is back at the next docking. An empty list takes them away. |
 
 Ship and station materials are lit physically (URP Lit): they reflect the system's sky by their smoothness (the
@@ -1109,6 +1135,7 @@ How a ship is seen, for a new ship or an original through `override` (each one o
 ```json
 "camera": { "distance": 2400, "height": 900, "lookHeight": 900, "lookAhead": -1100 },
 "cockpit": [0, 90, 760],
+"cockpitModel": "models/bridge.glb",
 "smoke": [[39, 68, -64], [-62, 65, 10]],
 "explosionScale": 1.2
 ```
@@ -1119,8 +1146,13 @@ How a ship is seen, for a new ship or an original through `override` (each one o
   A field left out keeps the game's. Without a `camera`, a hull over 150 m across gets one fitted to its size. Free
   flight's EVERSPACE 2 camera uses `distance` and `height` only: it looks along the ship.
 - `cockpit`: where the cockpit view (F2, or holding the camera button) sits, a point like a hardpoint's `position_engine`
-  (x the pilot's left, y up, z the nose). Without it the game puts the seat on the bow from the hull's shape. Either way
-  the seat stays behind the frontmost gun, so its shots start in view.
+  (x the pilot's left, y up, z the nose). An explicit seat is used exactly, including large capital hulls. Without it the
+  automatic seat remains near the bow, constrained by gun placement where applicable.
+- `cockpitModel`: optional local GLB interior, authored in metres with the origin at the pilot's eye, +Z forward and +Y up
+  in the imported Unity frame. Visible only in first-person view; no collision, hardpoints or external ship geometry.
+  Empty string disables an earlier mod's interior. Import it under Camera and damage in Mod Builder.
+- `crosshairOffsetX` and `crosshairOffsetY`: third-person targeting offsets in metres, positive right and up, respectively.
+  Cockpit targeting is centred and independent of these offsets.
 - `smoke`: up to 4 points where the ship trails smoke and fire once it is below a third of its hull (NPC ships); without
   them it smokes from its middle. The smoke is shared between the points, so two points don't make twice as much.
 - `explosionScale`: how big the explosion is when the ship dies, as a multiple of a fighter's (1); 0.25 to 20. The NPC
@@ -2134,7 +2166,7 @@ ahead of it; pitch up from the horizon.
 | `skybox` | The orbit's own sky, with the fields of a system's [`skybox`](#skies), in place of the system's sky in this orbit alone (each of a system's stations can show its own). |
 | `skyRotation` | `[x, y, z]` degrees: the sky's turn in this orbit, like the system skybox's `rotation` but for this station alone (over the system's `rotation` and `sunAligned`): each orbit can show its sky from its own angle, lined up with its own `sun`. |
 | `pads` | Docking pads outside the station, docked at from space like the arms in the Luur mission: `[ { "position": [x, y, z], "approach": [x, y, z], "facing": [x, y, z] } ]`. `position` is where the ship rests, `approach` where it comes in from (default 2000 units above the pad), `facing` where its nose points (default `z`). The player docks at the nearest free one ("DOCK" on the station's pads target); missions hear it as `on pad` (see the steps). With `"station": "nodock"` they are the only way to dock. |
-| `externalDocks` | Manually placed exterior attachment transforms for eligible large ships: `[ { "position": [x, y, z], "rotation": [x, y, z] } ]`, game units and Euler degrees in the station-root frame. Used only with a ship's `slotType: 8` hardpoint and an external docking class/tag. These are separate from `pads`, which remain for mission/NPC docking. |
+| `externalDocks` | Manually placed exterior attachment transforms for eligible large ships: `[ { "position": [x, y, z], "rotation": [x, y, z] } ]`, game units and Euler degrees in the station-root frame. Used only with a ship's `slotType: 8` hardpoint and an eligible external docking class. These are separate from `pads`, which remain for mission/NPC docking. |
 | `pirateHeld` | `true`: pirates hold this station on every visit, like the Kaamo Club at the start (four pirate outposts and their fighters; no docking, jumpgate or Khador Drive until the outposts fall). Driven out, they come back after 30 minutes of play. `false` keeps the station free in a system that is `pirateHeld`. |
 | `wrecks` | A field of wrecks to salvage, like EVERSPACE 2's wreck fields: `{ "count": 1-60 (default 12), "centre": [x, y, z], "spread": units across (default 60000) }`, or `true` for 12 at the default place. Each visit lays out that many wreck containers at random in the field, each with a freighter's loot (or a little Space Waste); they stay until emptied. `"models"`: glTF / GLB wreck hulls in your mod laid among them (`"hulks"` of them, default twice the models up to 8; one at random each; the largest model `"size"` units at its largest side, default 8000, the others in proportion as you made them, each a little bigger or smaller; turned at random, the same for every player), with `"materials"` like a station model's; the player slides along each one's box and pilots steer around it. |
 | `containers` | Closed containers, like EVERSPACE 2's: `{ "count": 1-40 (default 6), "centre": [x, y, z], "spread": units across (default 40000), "bulletproof": share 0-1 (default 0.3) }`, or `true` for 6 at the default place. Each visit lays them out at random in the field, each holding 1 to 3 freighter loot rolls (a bulletproof one 2 to 4: EVERSPACE 2's counts for its containers and rare ones). A hit opens an ordinary one; shots bounce off a bulletproof one. Either opens with the action key (OPEN, F) within 360 m in front of your ship. Opened, it throws its loot out as crates for the tractor beam, which stay until emptied. Not in the alien orbit or interstellar space. `"loot": [ { "item": "mod:core", "amount": 2 }, ... ]` puts fixed items in them on top, an entry a container (the bulletproof ones first), each found once a game: once its container is opened it doesn't come back. `"model"` and `"bulletproofModel"` (glTF / GLB files in the mod) draw them, as big as the race's container, with `"materials"` like ships.json's (by the model's mesh or material names); without them the race's container. `"cloaked": [ [x, y, z], ... ]` (up to 10) adds cloaked containers at those places, like EVERSPACE 2's: a shimmer in space with no marker until your ship is within 144 m ("Container nearby" shows within 2 km), opened with the action key, with a rare container's loot and the fixed loot first. `"secure": [ { "at": [x, y, z], "triggers": [ [x, y, z], ... ], "ordered": true/false, "retrigger": seconds } ]` (up to 6, each with 1-8 triggers) adds locked containers, like EVERSPACE 2's armoured ones: small red lights are placed around them, and shooting one lights it green; once all are lit the container bursts open. With `"ordered"` they must be shot in the listed order (a wrong one puts the earlier ones out again); with `"retrigger"` each lit one goes dark after that many seconds, so you have to be quick. A secure container can also have `"sockets": [ { "at": [x, y, z], "orb": [x, y, z] } or { "at": [x, y, z], "coil": [x, y, z] } ]` (up to 4), which must all be filled as well (`"triggers"` may then be left out): an `"orb"` socket wants an energy sphere from the dispenser placed at the `"orb"` place (GRAB at the dispenser, the sphere fades after 40 s), a `"coil"` socket the energy coil placed at the `"coil"` place (GRAB it). A carried one hangs behind your ship, a coil turning with it as in EVERSPACE 2 (DROP lets it go, drifting on as it moved, a coil let go mid-turn tumbling on); firing your guns while carrying throws it ahead instead, and it goes into a socket of its kind it passes within 36 m. `"conductors": { "sources": [...], "statics": [...], "portables": [...], "receivers": [...], "radius": 4000, "receiverRadius": 40 }` (places as `[x, y, z]` or `[x, y, z, radius]`, up to 12 of each) adds a conductor puzzle like EVERSPACE 2's: energy jumps from a source to any conductor within reach (either one's radius, default 4000 units = 200 m; a receiver's 40), on along the chain, shown as beams. Carry (GRAB / DROP / fire to throw) the portable conductors into gaps until every receiver is energized for 1.5 s. Containers with exactly the same conductors share one puzzle. `"sounds": { "grab", "hold", "drop", "throw", "dispenser", "conductor", "unlock" }` names your [sounds](#sound-effects) for the puzzles: grabbing, a loop while something is carried, letting go, throwing, a loop at each dispenser, a hum at each energized receiver, and a secure container bursting open (each optional). |
@@ -2975,6 +3007,86 @@ look station`, `/camera chase`, `/fade out 1 ffffff`, `/letterbox on`, `/cutscen
 
 ## Scripts
 
+### Server onboarding pages (before permanent race selection)
+
+Add `tutorials/preIdentity.json` to an active mod. On a multiplayer server using permanent pilot identities, first-time pilots who have not chosen a race see these pages before the race picker. Pages from active mods are shown in mod load order. They are independent of Lua and the optional Tutorial Hints setting. Players can go back, continue, or disconnect; existing identities are not prompted again.
+
+```json
+{
+  "pages": [
+    {
+      "title": "Welcome to the server",
+      "layout": "cards",
+      "sections": [
+        {
+          "heading": "Permanent race",
+          "text": "Your race cannot be changed after confirmation.",
+          "style": "warning"
+        },
+        {
+          "heading": "Station access",
+          "text": "Station and jumpgate owners may set access policies.",
+          "style": "card"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Use `layout: "column"` (default) or `"cards"` (responsive wrapping cards), and section styles `"text"` (default), `"card"` or `"warning"`. Pages have a title and 1–24 sections, each with text and an optional heading. Up to 20 pages per mod; title/heading limit 120 characters, section text limit 2000 characters. Malformed files are logged and skipped. This is a local UI briefing, not a server-side proof of acknowledgement; do not treat it as authorization. Files in this folder are included in normal mod exports and Mod Builder history.
+
+### Declarative gameplay tutorials
+
+Add `tutorials/gameplay.json` to an active mod. These definitions are data, not Lua, and work without script approval.
+
+```json
+{
+  "tutorials": [
+    {
+      "id": "first_station",
+      "title": "Station facilities",
+      "text": "Visit the hangar to inspect your ship.",
+      "category": "navigation",
+      "trigger": "station",
+      "presentation": "popup",
+      "enabledByDefault": true,
+      "mandatory": false,
+      "repeatable": false,
+      "persistPending": true,
+      "cooldownSeconds": 0
+    }
+  ]
+}
+```
+
+- `trigger`: a discrete game event from the Lua event list, or omit for manual activation. Frame events are forbidden.
+- `presentation`: `popup` or non-blocking `hint` (existing message plate/toast). Multiplayer flight never opens a blocking popup; a pending popup waits for a station interface.
+- `enabledByDefault`: false disables automatic triggering. `mandatory`: true bypasses the optional Tutorial Hints preference, not interface safety. Manual activation also bypasses that preference.
+- `repeatable`: false by default; progress is stored separately from Lua data in the current save when acknowledged. `cooldownSeconds` limits repeatable automatic triggers in the current session.
+- `persistPending`: true retains a pending request across scene changes, until a save restore or mod change. False discards it on scene change.
+- `multiplayer`: optional boolean restricting the tutorial to multiplayer or single-player.
+- `requires`: optional array of tutorial IDs in the same mod which must already have been shown.
+- `category`: optional handbook grouping/search metadata. `handbook` (default true) controls article visibility; root `handbookTitle` sets the menu title (first eligible mod in load order).
+- `races`: optional array of permanent pilot identity race keys; `shipClasses`: optional array of exact ship class IDs. Both are case-insensitive and must match if provided. Eligibility is rechecked before showing and in the handbook.
+- Modal completion requires ACKNOWLEDGE; LATER dismisses without completion. Nonblocking hints can be acknowledged in their handbook article. The handbook is accessible from station and flight pause menus when eligible articles exist.
+- Maximum 256 definitions per mod, 20 pending declarative requests, title 120 characters and body 2000 characters. IDs are scoped to the mod.
+- Lua: `game.tutorialShow(id)` manually queues a definition; `game.tutorialSeen(id)` queries progress. The existing `game.tutorial(id, title, text, repeatable)` still works, but its modal cannot open in multiplayer flight.
+
+### Mod tutorial popups
+
+Scripts can call `game.tutorial(id, title, text[, repeatable])` from any gameplay event. For example:
+
+```lua
+game.on("station", function()
+    game.tutorial("station_intro", "Station management",
+        "Open the station management panel to manage your infrastructure.")
+end)
+```
+
+Tutorials use the existing station and flight confirmation windows. They respect the player's Tutorial Hints option (off by default), and are local to the player whose script calls the function. IDs are scoped to each mod; the default is once per save, recorded when the popup is acknowledged. Pass true as the fourth argument to allow another popup with that ID after it has opened. Trigger repeatable tutorials on discrete events rather than every frame. Pending duplicates are ignored. The shared queue holds up to 20 requests, waits for a free interface, and discards requests when their scene changes or a save is loaded. The title and body appear as plain dialog text; existing #KEY_ binding tokens are supported. Single-player flight pauses while a popup is open; multiplayer continues running, so prefer safe station events for multiplayer tutorials. No patch hooks are required.
+
+
 Everything above is data: the game reads it and does what it already knows how to do. A **script** is code of your own, for
 what the files and the mission graphs can't express: a bounty paid for every pirate you destroy, a price that follows the
 day's news, a HUD element, a new rule. Scripts are written in **Lua** (5.2), a small language many games use for mods; the
@@ -3057,6 +3169,7 @@ Every script has the global table `game`:
 | `game.saved` | a table kept in the player's save file, per mod |
 | `game.config`, `game.saveConfig()` | a table kept outside the saves: your mod's own settings |
 | `game.log(...)`, `print(...)` | a line in the Mod Builder's console and the game's log |
+| `game.tutorial(id, title, text, repeatable)` | queues a native local tutorial popup; returns true when queued, false when disabled, already seen or pending, or the queue is full. |
 | `game.message(text)` | a line on the player's screen (the flight HUD's message line, a notice in a station) |
 | `game.command(line)` | runs a chat / event command as the server does and returns its answer |
 | `game.addCommand(name, fn)` | a command of your own (see [Commands](#commands)) |

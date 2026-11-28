@@ -65,7 +65,8 @@ namespace GoF2Remake.World
             this.storyOrbit = storyOrbit;
             var sys = db.Systems.Find(s => s.index == layout.systemIndex);
             // (a mod race's system keeps its mod race: its locals, kills and alarms; the tables use its look, Standing.Look)
-            SystemRace = Modding.ModRaces.Is(sys?.raceId ?? 0) ? sys.raceId : Mathf.Clamp(sys?.raceId ?? 0, 0, 3);
+            int owner = NpcFactionWar.OrbitOwner(sys, StationIndex);
+            SystemRace = Modding.ModRaces.Is(owner) ? owner : Mathf.Clamp(owner, 0, 3);
             AttackRace = Standing.EnemyRaceOf(SystemRace);
             Security = sys?.securityLevel ?? 0;
             blackMarket = layout.systemIndex == 25;
@@ -186,8 +187,9 @@ namespace GoF2Remake.World
         /// with its heading and hull.</summary>
         public NpcShip Adopt(SpawnSpec spec, Quaternion rotation, float hullFraction)
         {
-            var ship = Create(spec);
+            var ship = Create(spec, adopted: true);
             ship.transform.rotation = rotation;
+            if (NpcFactionWar.IsWarTag(spec.eventTag)) ship.GetComponent<CapitalSubsystems>()?.BuildNow();
             var hp = ship.Hp;
             if (hp != null && hp.maxHull > 0)
             {
@@ -206,14 +208,35 @@ namespace GoF2Remake.World
                       : spec.fixedObject != null ? db.AssemblyByName(spec.fixedObject)
                       // Ship 13 is the Vossk freighter whatever the race (Globals::getShipGroup; its boxes too): step 40's
                       // Errkt flies it as race 0 until it appears (createShip(0, 1, 0xd)) and showed the Terran model.
-                      : spec.freighter && !spec.modCapital ? db.AssemblyByName(NpcTables.FreighterAssembly(spec.ship == 13 ? 1 : spec.race))
+                      : spec.freighter && !spec.modCapital && (!Modding.ModAdvancedEconomy.IsFreightTag(spec.eventTag) || spec.ship == 13 || spec.ship == 15) ? db.AssemblyByName(NpcTables.FreighterAssembly(spec.ship == 13 ? 1 : spec.race))
                                        : Modding.ModTraffic.Assembly(spec.ship, spec.skin) ?? ShipAssembly(db, spec.ship, spec.race);   // remake mods: a kit ship's random build (a criminal's own skin)
         }
 
-        NpcShip Create(SpawnSpec spec)
+        // Runs once at creation, on the game owning this NPC. A takeover retains the transmitted spec instead of rerolling.
+        void ApplyFighterShield(SpawnSpec spec)
         {
+            if (!Modding.ModContent.FighterNpcShieldsEnabled || spec.shield > 0 || spec.ship < 0 || spec.freighter
+                || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.modCapital
+                || spec.stationPort || spec.deadButSelectable || spec.eventWreck || spec.derelict)
+                return;
+            var shipClass = Modding.ShipClassRules.ClassOf(db?.Ship(spec.ship));
+            if (shipClass == Modding.ShipClassRules.Frigate || shipClass == Modding.ShipClassRules.Freighter
+                || shipClass == Modding.ShipClassRules.Cruiser || shipClass == Modding.ShipClassRules.Carrier)
+                return;
+            int rank = Session.Rank;
+            float chance = NpcTables.FighterShieldChance(rank, Session.DifficultyFactor);
+            if (chance <= 0f || (chance < 1f && UnityEngine.Random.value >= chance)) return;
+            int hull = spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(0, spec.ship);
+            spec.shield = NpcTables.FighterShieldCapacity(rank, hull);
+            spec.shieldRechargeMs = NpcTables.FighterShieldRechargeMs;
+        }
+
+        NpcShip Create(SpawnSpec spec, bool adopted = false)
+        {
+            if (!adopted) ApplyFighterShield(spec);
             var entry = AssemblyOf(db, spec);
-            var prefab = AssembledObject.LoadPrefab(entry);
+            // A construction site supplies its own generated cube; never instantiate a stock pad model behind it.
+            var prefab = spec.dockingType == ObjectDocking.ConstructionSite ? null : AssembledObject.LoadPrefab(entry);
             // Remake: a turret object built from a turret item shows the item's turret (a mod's own model too).
             var itemTurret = spec.turretAssembly != null && spec.turretItem >= 0 ? WeaponFx.Load(spec.turretItem)?.turretMounted : null;
             if (itemTurret != null) prefab = itemTurret;
@@ -236,7 +259,7 @@ namespace GoF2Remake.World
             if (subsystems == null && spec.modCapital) db.ShipSubsystems.TryGetValue(spec.ship, out subsystems);
             if (subsystems != null && subsystems.Count > 0) CapitalSubsystems.Attach(ship, this, db, subsystems);
             // ... one that jumps away instead of dying (ships.json "retreat": EVERSPACE 2's Dreadnought; npcships.json too)
-            if ((spec.modCapital && CustomShips.Get(spec.ship)?.retreat == true) || spec.npcType?.retreat == true) CapitalRetreat.Attach(ship, this);
+            if (!NpcFactionWar.IsWarTag(spec.eventTag) && ((spec.modCapital && CustomShips.Get(spec.ship)?.retreat == true) || spec.npcType?.retreat == true)) CapitalRetreat.Attach(ship, this);
             // ... a freighter's escort follows it, fighting what it meets on the way (TrafficPlan.AddNpcEscorts).
             if (spec.escortLeader != null && Ships.Find(x => x != null && x.Spec == spec.escortLeader) is NpcShip leader)
                 ship.SetOrder(new NpcOrder { kind = NpcOrder.Kind.Follow, leader = leader.transform, offset = spec.escortOffset, fight = true });
@@ -262,7 +285,8 @@ namespace GoF2Remake.World
             bool myfft = host.Spec.ship == 45;
             var spec = new SpawnSpec
             {
-                group = NpcGroup.Turret, race = myfft ? Standing.Pirate : 0, ship = -1, turretAssembly = "turret_002_static",
+                group = NpcGroup.Turret, race = NpcFactionWar.IsWarTag(host.Spec.eventTag) ? host.Race : myfft ? Standing.Pirate : 0, ship = -1, turretAssembly = "turret_002_static",
+                eventTag = NpcFactionWar.IsWarTag(host.Spec.eventTag) ? NpcFactionWar.AuxiliaryTag(host.Spec.eventTag) : 0,
                 hitpoints = Mathf.Max(1, host.Hp.maxHull), noLoot = true, nameText = 1666, stationary = true,
                 alwaysEnemy = host.Spec.alwaysEnemy, alwaysFriend = host.Spec.alwaysFriend, position = host.Spec.position,
             };
@@ -288,17 +312,17 @@ namespace GoF2Remake.World
             if (names == null || names.Count == 0 || player == null || Session.CampaignMission == 158) return;
             // Level::createWingmen: not in the supernova system (27) either, before campaign 0x9e.
             if (!Session.FreePlay && Session.CampaignMission < 0x9e && (db.Stations.Find(s => s.index == StationIndex)?.system ?? -1) == 27) return;
-            int race = Session.WingmanRace;
             float[] right = { -1000f, 2000f, 0f };
-            for (int i = 0; i < Mathf.Min(3, names.Count); i++)
+            for (int i = 0; i < Mathf.Min(Modding.ModWingmen.MaxTotal, names.Count); i++)
             {
+                int race = i < Session.WingmanRaces.Count ? Session.WingmanRaces[i] : Session.WingmanRace;
                 var state = UnityEngine.Random.state;
                 UnityEngine.Random.InitState(5 * names[i].Length);
                 int ship = NpcTables.RandomFighter(race <= 3 || Modding.ModRaces.Is(race) ? race : Standing.Pirate);   // races 4-7: the pirate pool
                 UnityEngine.Random.state = state;
                 // remake mods (wingmen.json): a mod crew flies its own ships (one no longer there: the game's way)
                 if (i < Session.WingmanShips.Count && Session.WingmanShips[i] >= 0 && db.Ship(Session.WingmanShips[i]) != null) ship = Session.WingmanShips[i];
-                var pos = player.position + (player.right * right[i] - player.forward * 2000f + Vector3.up * (i == 2 ? 1000f : 0f)) * 0.05f;
+                var pos = player.position + (player.right * right[i % 3] - player.forward * (2000f + 1800f * (i / 3)) + Vector3.up * (i % 3 == 2 ? 1000f : 0f)) * 0.05f;
                 var spec = new SpawnSpec
                 {
                     group = NpcGroup.Wingman, race = race, ship = ship, alwaysFriend = true, noLoot = true, name = names[i],
@@ -453,6 +477,7 @@ namespace GoF2Remake.World
             float dtMs = Time.deltaTime * 1000f;
             Navigation.SyncMusic(music, ref musicHeld);   // on through conversations, paused by the pause menu
             UpdateOrbit(dtMs);
+            UpdateFactionWar();
             UpdateAlienAttackers(dtMs);
             UpdateChatter(dtMs);
             UpdateLomaToll();
@@ -474,6 +499,155 @@ namespace GoF2Remake.World
                     if (t != null && t.enabled && !t.untargetable && !t.isPlayer && t.Alive && t.hostileToPlayer) hostiles++;
             HostileCount = hostiles;
             if (!MenuBackdrop) UpdateMusic(Time.unscaledDeltaTime);   // the menu plays its own theme
+        }
+
+        NpcFactionWar.Battle? factionBattle;
+        float nextWarCheck;
+
+        public bool TryGetFactionBattleStatus(out NpcFactionWar.BattleStatus status) =>
+            NpcFactionWar.TryGetBattleStatus(systemIndex, StationIndex, out status);
+
+        public bool CanHostFactionBattle => Modding.ModNpcFactionWar.Enabled && !MenuBackdrop && !IsStoryOrbit &&
+            !VoidAttack && !holdEnemies && waiting.Count == 0 && Player != null && Player.Alive &&
+            !TrafficPlan.InformerOrbit(StationIndex);
+
+        public void BeginFactionBattle(NpcFactionWar.Battle battle, int[] casualties = null)
+        {
+            if (battle.orbit != StationIndex || !CanHostFactionBattle || factionBattle?.id == battle.id || battle.expires < NpcFactionWar.Now) return;
+            RetireFactionBattle();
+            factionBattle = battle;
+            var lostSlots = casualties == null ? null : new HashSet<int>(casualties);
+            float half = Modding.ModNpcFactionWar.FormationSeparationKm * 500f;
+            float spacing = Modding.ModNpcFactionWar.FormationSpacingKm * 1000f;
+            float centre = Modding.ModNpcFactionWar.FormationDistanceKm * 1000f;
+            int width = Mathf.CeilToInt(Mathf.Sqrt(battle.shipsPerSide));
+            // Deterministic combat pockets: both factions share the same grid, but each slot
+            // occupies its own offset. Re-entering an orbit never rerolls the roster geometry.
+            float cell = Mathf.Max(spacing * 2.5f, 2f * half / Mathf.Max(1, width));
+            var fighters = new List<NpcShip>();
+            for (int slot = 0; slot < 2 * battle.shipsPerSide; slot++)
+            {
+                if (lostSlots?.Contains(slot) == true) continue;
+                bool defender = slot < battle.shipsPerSide;
+                int race = defender ? battle.defender : battle.attacker;
+                int column = slot % battle.shipsPerSide;
+                int capital = defender ? battle.defenderHull : battle.attackerHull;
+                float sign = defender ? -1f : 1f;
+                if (column == 0 && capital > 0)
+                {
+                    var capitalPosition = new Vector3(sign * (cell * width * 0.5f + Modding.ModNpcFactionWar.FormationCapitalOffsetKm * 1000f), 7000f, centre);
+                    foreach (var spec in TrafficPlan.WarBattleship(db, race, capital, capitalPosition, battle.Tag(slot))) SpawnShip(spec);
+                    continue;
+                }
+                int row = column / width, wing = column % width;
+                float angle = ((column * 137 + battle.id % 360) % 360) * Mathf.Deg2Rad;
+                var pocket = new Vector3((row - (width - 1) * 0.5f) * cell,
+                    7000f + ((column % 3) - 1) * spacing * 0.6f,
+                    centre + (wing - (width - 1) * 0.5f) * cell);
+                var offset = new Vector3(Mathf.Cos(angle), 0.25f * Mathf.Sin(angle * 2f), Mathf.Sin(angle)) * (spacing * 0.5f);
+                var p = pocket + sign * offset;
+                var approach = pocket - sign * offset;
+                var route = new Route(true);
+                route.points.Add(approach);
+                route.points.Add(pocket + new Vector3(-offset.z, spacing * 0.5f, offset.x) * sign);
+                route.points.Add(p);
+                var fighter = SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = race, ship = NpcTables.RandomFighter(race),
+                    position = p, route = route, eventTag = battle.Tag(slot), noLoot = true });
+                if (fighter != null) fighters.Add(fighter);
+            }
+            // Face the nearest surviving opponent, not an empty slot left by abstract attrition.
+            // Do not force an attack order: existing scanner, hostility and target-selection rules remain authoritative.
+            foreach (var fighter in fighters)
+            {
+                NpcShip nearest = null;
+                float best = float.PositiveInfinity;
+                foreach (var other in fighters)
+                {
+                    if (other.Race == fighter.Race) continue;
+                    float distance = (other.transform.position - fighter.transform.position).sqrMagnitude;
+                    if (distance < best) { best = distance; nearest = other; }
+                }
+                if (nearest == null) continue;
+                var direction = nearest.transform.position - fighter.transform.position;
+                if (direction.sqrMagnitude > 0.001f) fighter.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+            }
+            ConnectPlayers();
+            Message?.Invoke($"{Standing.RaceName(battle.attacker)} and {Standing.RaceName(battle.defender)} fleets are fighting for this orbit.");
+        }
+
+        void RetireFactionBattle()
+        {
+            if (!factionBattle.HasValue) return;
+            EndFactionBattle(factionBattle.Value);
+        }
+
+        // The server can retire a fleet even if this runner inherited its ships from another player.
+        public void EndFactionBattle(NpcFactionWar.Battle battle)
+        {
+            if (factionBattle?.id == battle.id) factionBattle = null;
+            foreach (var ship in Ships)
+            {
+                if (ship == null || ship.Gone) continue;
+                if (battle.OwnsTag(ship.Spec.eventTag)) ship.Spec.eventTag = 0;
+            }
+        }
+
+        void UpdateFactionWar()
+        {
+            if (!Modding.ModNpcFactionWar.Enabled) { RetireFactionBattle(); return; }
+            if (Time.unscaledTime < nextWarCheck) return;
+            nextWarCheck = Time.unscaledTime + 5f;
+            var system = db.Systems.Find(s => s.index == systemIndex);
+            int owner = NpcFactionWar.OrbitOwner(system, StationIndex);
+            if (owner >= 0 && owner != SystemRace)
+            {
+                SystemRace = owner;
+                AttackRace = Standing.EnemyRaceOf(owner);
+            }
+            long now = NpcFactionWar.Now;
+            // Multiplayer expiry is decided by the server; its deadline can pause/resume after spawning.
+            if (!NetSession.Active && factionBattle.HasValue && !NpcFactionWar.LocalCampaign.TryGetBattle(StationIndex, now, out _))
+            {
+                var expired = factionBattle.Value;
+                // A resolved battle also disappears from the campaign, but only a genuinely expired
+                // active battle should produce a timeout headline.
+                if (NpcFactionWar.LocalCampaign.RemoveBattle(expired))
+                {
+                    NpcFactionWar.SaveLocal();
+                    NetSession.PublishWarNews(expired.orbit, "Faction battle ended without a decisive victory at ");
+                }
+                RetireFactionBattle();
+            }
+            if (NetSession.Active || !CanHostFactionBattle) return;
+            var campaign = NpcFactionWar.LocalCampaign;
+            if (campaign.TryGetBattle(StationIndex, now, out var existing))
+            {
+                BeginFactionBattle(existing, campaign.Casualties(existing));
+                return;
+            }
+            if (campaign.TryStart(db, StationIndex, now, out var battle))
+            {
+                NpcFactionWar.SaveLocal();
+                BeginFactionBattle(battle);
+                NetSession.PublishWarNews(battle.orbit, $"{Standing.RaceName(battle.attacker)} and {Standing.RaceName(battle.defender)} fleets are fighting at ");
+                Modding.ModScripts.Raise("npcFactionBattleStarted", battle.orbit, battle.system, battle.defender, battle.attacker, battle.shipsPerSide);
+            }
+        }
+
+        public void RecordLocalFactionWarCasualty(NpcShip ship)
+        {
+            if (NetSession.Active || !factionBattle.HasValue || !NpcFactionWar.IsWarTag(ship.Spec.eventTag)) return;
+            var battle = factionBattle.Value;
+            if (!NpcFactionWar.LocalCampaign.RecordCasualty(battle, ship.Spec.eventTag, ship.Race, NpcFactionWar.Now, out int winner)) return;
+            NpcFactionWar.SaveLocal();
+            Message?.Invoke($"{Standing.RaceName(winner)} won the battle for this orbit.");
+            int owner = NpcFactionWar.OrbitOwner(db.Systems.Find(s => s.index == battle.system), StationIndex);
+            SystemRace = owner;
+            AttackRace = Standing.EnemyRaceOf(owner);
+            NetSession.PublishWarNews(battle.orbit, winner == battle.attacker
+                ? $"{Standing.RaceName(winner)} captured "
+                : $"{Standing.RaceName(winner)} repelled the attack at ");
+            Modding.ModScripts.Raise("npcFactionBattleResolved", battle.orbit, battle.system, winner, winner == battle.attacker);
         }
 
         /// <summary>The main menu's backdrop (CutScene(2)): the orbit's traffic without the level's music.</summary>

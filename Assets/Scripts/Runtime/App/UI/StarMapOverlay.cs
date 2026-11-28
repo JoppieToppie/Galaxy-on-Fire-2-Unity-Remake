@@ -59,9 +59,75 @@ namespace GoF2Remake.UI
             it.products.style.left = 71.5f - 7f;
             it.products.style.top = -71.5f + 10f;
             it.products.style.display = DisplayStyle.None;
+            if (ModNpcFactionWar.Enabled)
+            {
+                it.warIcon = Img(it.root, "map-icon", WarMarkerTexture());
+                it.warIcon.style.left = -16f;
+                it.warIcon.style.top = -98f;
+                it.warIcon.style.display = DisplayStyle.None;
+                it.warCount = Line(it.root);
+                it.warTime = Line(it.root);
+                it.warCount.style.color = new Color(1f, 0.83f, 0.65f);
+                it.warTime.style.color = new Color(1f, 0.83f, 0.65f);
+                it.warCount.style.display = it.warTime.style.display = DisplayStyle.None;
+            }
             labels.Add(it.root);
             return it;
         }
+        // Small generated crossed swords, avoiding reliance on a font having the Unicode sword glyph.
+        static Texture2D warMarkerTexture;
+        static Texture2D WarMarkerTexture()
+        {
+            if (warMarkerTexture != null) return warMarkerTexture;
+            const int size = 32;
+            var pixels = new Color32[size * size];
+            var blade = new Color32(255, 226, 186, 255);
+            var edge = new Color32(205, 57, 44, 255);
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    bool core = false, outline = false;
+                    for (int sword = 0; sword < 2; sword++)
+                    {
+                        int px = sword == 0 ? x : size - 1 - x;
+                        int along = px + y, across = px - y;
+                        // Blade, crossguard and grip, along the diagonal.
+                        core |= (along >= 20 && along <= 54 && Mathf.Abs(across) <= 1) ||
+                            (along >= 17 && along <= 20 && Mathf.Abs(across) <= 6) ||
+                            (along >= 7 && along < 17 && Mathf.Abs(across) <= 1);
+                        outline |= (along >= 18 && along <= 56 && Mathf.Abs(across) <= 3) ||
+                            (along >= 15 && along <= 22 && Mathf.Abs(across) <= 8) ||
+                            (along >= 5 && along < 19 && Mathf.Abs(across) <= 3);
+                    }
+                    pixels[y * size + x] = core ? blade : outline ? edge : new Color32(0, 0, 0, 0);
+                }
+            warMarkerTexture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                { name = "NPC warfare crossed swords", hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Point };
+            warMarkerTexture.SetPixels32(pixels);
+            warMarkerTexture.Apply(false, true);
+            return warMarkerTexture;
+        }
+
+        void ShowWarStatus(Item it, int system, int orbit, bool selected, float y, float pulse)
+        {
+            if (it.warIcon == null) return;
+            bool active = NpcFactionWar.TryGetBattleStatus(system, orbit, out var battle);
+            it.warIcon.style.display = active ? DisplayStyle.Flex : DisplayStyle.None;
+            it.warIcon.style.opacity = 0.35f + 0.65f * pulse;
+            bool details = active && selected;
+            it.warCount.style.display = it.warTime.style.display = details ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!details) return;
+            it.warCount.style.top = y;
+            it.warTime.style.top = y + 30f;
+            string attacker = GoF2Remake.Flight.Standing.RaceName(battle.attacker);
+            string defender = GoF2Remake.Flight.Standing.RaceName(battle.defender);
+            it.warCount.text = $"{attacker} (ATK) {battle.AttackersAlive}/{battle.shipsPerSide}  ·  {defender} (DEF) {battle.DefendersAlive}/{battle.shipsPerSide}";
+            long remaining = battle.Remaining(NpcFactionWar.Now);
+            string clock = $"{remaining / 60:00}:{remaining % 60:00}";
+            it.warTime.text = battle.Paused ? $"AUTO RESOLUTION PAUSED  ·  {clock}" :
+                $"AUTO RESOLUTION  ·  {clock}";
+        }
+
         static VisualElement Img(VisualElement parent, string cls, Texture2D tex)
         {
             var e = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -93,10 +159,11 @@ namespace GoF2Remake.UI
                 if (faction != null) it.name.text += $" [{faction}]";
                 it.name.text += SquadMark(s.index, -1);   // multiplayer: squadmates here
                 it.name.text += MobileMark(s.index, -1);  // remake mods: a mobile station in this system now
-                bool owned = GalaxyMap.HasOwner(s.index) && (s.raceId >= 0 && s.raceId <= 3 || Modding.ModRaces.Icon(s.raceId) != null);
+                int owner = NpcFactionWar.SystemOwner(s);
+                bool owned = ShowsWarOwner(s, owner);
                 // Remake: the owner's emblem in the player's standing colours (allied / neutral / enemy), the old radar icon as fallback;
                 // remake mods: a mod race's own emblem.
-                if (owned) it.raceIcon.style.backgroundImage = new StyleBackground(Modding.ModRaces.Icon(s.raceId) ?? StatusWindow.StandingIcon(s.raceId) ?? Tex($"race_{s.raceId}"));
+                if (owned) it.raceIcon.style.backgroundImage = new StyleBackground(Modding.ModRaces.Icon(owner) ?? StatusWindow.StandingIcon(owner) ?? Tex($"race_{owner}"));
                 it.raceIcon.style.display = owned ? DisplayStyle.Flex : DisplayStyle.None;
                 if (s.index == KaamoClub.SystemIndex && KaamoClub.Owned)
                 {
@@ -128,6 +195,12 @@ namespace GoF2Remake.UI
                 var it = MakeItem(true);
                 it.name.text = ItemInfo.WithTag(StationName(p.station, false), GameNames.StationTag(p.station));
                 if (GoF2Remake.Multiplayer.NetFactionsClient.Owner(p.station, out string faction, out _)) it.name.text = $"[{faction}] {it.name.text}";
+                else if (Modding.ModNpcFactionWar.Enabled)
+                {
+                    var system = db.Systems.Find(s => s.stations?.Contains(p.station) == true);
+                    if (Modding.ModNpcFactionWar.CanContest(system))
+                        it.name.text = $"[{GoF2Remake.Flight.Standing.RaceName(NpcFactionWar.OrbitOwner(system, p.station))}] {it.name.text}";
+                }
                 it.name.text += SquadMark(-1, p.station);   // multiplayer: squadmates at this station
                 it.name.text += MobileMark(-1, p.station);  // remake mods: a mobile station in this orbit now
                 it.visited.style.display = Session.VisitedStations.Contains(p.station) ? DisplayStyle.Flex : DisplayStyle.None;
@@ -155,6 +228,19 @@ namespace GoF2Remake.UI
                 var l = new Label(T(text)) { pickingMode = PickingMode.Ignore };
                 l.AddToClassList("key-label");
                 row.Add(l);
+                keyBox.Add(row);
+            }
+            if (ModNpcFactionWar.Enabled)
+            {
+                var row = new VisualElement { pickingMode = PickingMode.Ignore };
+                row.AddToClassList("key-row");
+                var cell = new VisualElement { pickingMode = PickingMode.Ignore };
+                cell.AddToClassList("key-icon-cell");
+                Img(cell, "map-icon", WarMarkerTexture()).style.position = Position.Relative;
+                row.Add(cell);
+                var label = new Label("Active NPC fleet battle") { pickingMode = PickingMode.Ignore };
+                label.AddToClassList("key-label");
+                row.Add(label);
                 keyBox.Add(row);
             }
         }
@@ -208,12 +294,23 @@ namespace GoF2Remake.UI
                 if (it.raceIcon != null) it.raceIcon.style.opacity = other ? 64f / 255f : 1f;
                 it.pulse.style.opacity = pulse;
                 var sys = db.Systems.Find(s => s.index == i);
-                bool owned = GalaxyMap.HasOwner(i) && (sys.raceId >= 0 && sys.raceId <= 3 || Modding.ModRaces.Is(sys.raceId));
+                int owner = NpcFactionWar.SystemOwner(sys);
+                string controller = sel ? WarControlLabel(sys, owner) : null;
+                if (sel && NpcFactionWar.IsFrontline(db, sys))
+                    controller = controller == null ? "Frontline" : controller + " · Frontline";
                 float y = 68.5f + 30f;
-                if (sel && owned) { it.line1.text = GoF2Remake.Flight.Standing.RaceName(sys.raceId); it.line1.style.top = y; y += 30f; }
-                it.line1.style.display = sel && owned ? DisplayStyle.Flex : DisplayStyle.None;
+                if (sel && controller != null) { it.line1.text = controller; it.line1.style.top = y; y += 30f; }
+                it.line1.style.display = sel && controller != null ? DisplayStyle.Flex : DisplayStyle.None;
+                if (Modding.ModNpcFactionWar.Enabled && sys.index != KaamoClub.SystemIndex && it.raceIcon != null)
+                {
+                    bool owned = ShowsWarOwner(sys, owner);
+                    it.raceIcon.style.display = owned ? DisplayStyle.Flex : DisplayStyle.None;
+                    if (owned) it.raceIcon.style.backgroundImage = new StyleBackground(Modding.ModRaces.Icon(owner) ??
+                        StatusWindow.StandingIcon(owner) ?? Tex($"race_{owner}"));
+                }
                 it.line2.style.display = sel ? DisplayStyle.Flex : DisplayStyle.None;
                 if (sel) SetSecurity(it.line2, GalaxyMap.SecurityOf(sys), y);
+                ShowWarStatus(it, i, -1, sel, y + 30f, pulse);
                 if (sel) it.root.BringToFront();
             }
 
@@ -233,6 +330,18 @@ namespace GoF2Remake.UI
                 it.name.EnableInClassList("map-name--selected", sel);
                 it.name.style.opacity = other ? 64f / 255f : 1f;
                 it.pulse.style.opacity = pulse;
+                if (constructionOrbitAllowed != null)
+                {
+                    bool vacant = constructionOrbitAllowed(planets[k].station);
+                    it.name.style.color = vacant ? new Color(0.53f, 0.94f, 0.72f) : new Color(0.65f, 0.65f, 0.65f);
+                    it.ring.style.opacity = vacant ? 1f : 0.25f;
+                    it.line1.text = vacant ? (plannerPurpose == "jumpgate" ? "GATE SITE AVAILABLE" : "VACANT SITE") : "UNAVAILABLE";
+                    it.line1.style.display = DisplayStyle.Flex;
+                    it.line1.style.top = 68.5f + 30f;
+                    it.line2.style.display = DisplayStyle.None;
+                    ShowWarStatus(it, zoomSystem, planets[k].station, false, 0f, pulse);
+                    continue;
+                }
                 int tech = db.Stations.Find(s => s.index == planets[k].station)?.techLevel ?? 0;
                 it.line1.style.display = sel && tech > 0 ? DisplayStyle.Flex : DisplayStyle.None;
                 if (sel && tech > 0) { it.line1.text = $"{T(133)}: {tech}"; it.line1.style.top = 68.5f + 30f; }
@@ -240,6 +349,7 @@ namespace GoF2Remake.UI
                 string sub = sel ? Modding.ModWorld.Subtitle(planets[k].station) : null;
                 it.line2.style.display = sub != null ? DisplayStyle.Flex : DisplayStyle.None;
                 if (sub != null) { it.line2.text = sub; it.line2.style.color = Color.white; it.line2.style.top = 68.5f + (tech > 0 ? 60f : 30f); }
+                ShowWarStatus(it, zoomSystem, planets[k].station, sel, 98.5f + (tech > 0 ? 30f : 0f) + (sub != null ? 30f : 0f), pulse);
                 if (sel) it.root.BringToFront();
             }
 
@@ -255,7 +365,8 @@ namespace GoF2Remake.UI
             energyLine.style.display = energy || route ? DisplayStyle.Flex : DisplayStyle.None;
             if (energy)
             {
-                energyLine.text = $"{T(578)} {cells} / {cellsInCargo}";
+                string risk = DriveFailureRisk(energySystem);
+                energyLine.text = $"{T(578)} {cells} / {cellsInCargo}" + (risk != null ? "  ·  " + risk : "");
                 energyLine.EnableInClassList("energy-line--short", cellsInCargo < cells);
             }
             else if (route)
@@ -289,24 +400,34 @@ namespace GoF2Remake.UI
             l.style.color = (Color)GalaxyMap.SecurityColours[level];
             l.style.top = top;
         }
+        static bool ShowsWarOwner(SystemData system, int owner) => system != null &&
+            (GalaxyMap.HasOwner(system.index) || owner != system.raceId) &&
+            (owner >= 0 && owner <= 3 || Modding.ModRaces.Is(owner));
+
+        static string WarControlLabel(SystemData system, int owner) =>
+            ShowsWarOwner(system, owner) ? GoF2Remake.Flight.Standing.RaceName(owner) :
+            Modding.ModNpcFactionWar.Enabled && owner < 0 && Modding.ModNpcFactionWar.CanContest(system) ? "Contested" : null;
+
         void FillSystemHeader(int system)
         {
             var sys = db.Systems.Find(s => s.index == system);
             if (sys == null) return;
-            bool owned = GalaxyMap.HasOwner(system) && (sys.raceId >= 0 && sys.raceId <= 3 || Modding.ModRaces.Is(sys.raceId));
+            int owner = NpcFactionWar.SystemOwner(sys);
+            bool owned = ShowsWarOwner(sys, owner);
             var logo = root.Q("systemLogo");
-            var tex = !owned ? null : Modding.ModRaces.Is(sys.raceId) ? Modding.ModRaces.Icon(sys.raceId) : Tex($"logo_{sys.raceId}");   // (a mod race: its emblem)
+            var tex = !owned ? null : Modding.ModRaces.Is(owner) ? Modding.ModRaces.Icon(owner) : Tex($"logo_{owner}");   // (a mod race: its emblem)
             logo.style.display = tex != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (tex != null)
             {
-                bool modRace = Modding.ModRaces.Is(sys.raceId);   // (a mod race's emblem at a logo's size, whatever its PNG's)
+                bool modRace = Modding.ModRaces.Is(owner);   // (a mod race's emblem at a logo's size, whatever its PNG's)
                 logo.style.backgroundImage = new StyleBackground(tex);
                 logo.style.width = modRace ? 120f : tex.width; logo.style.height = modRace ? 120f : tex.height;
             }
             root.Q<Label>("systemName").text = ItemInfo.WithTag(sys.name, GameNames.SystemTag(sys.index));
             var race = root.Q<Label>("systemRace");
-            race.text = owned ? GoF2Remake.Flight.Standing.RaceName(sys.raceId) : "";
-            race.style.display = owned ? DisplayStyle.Flex : DisplayStyle.None;
+            string controller = WarControlLabel(sys, owner);
+            race.text = controller ?? "";
+            race.style.display = controller != null ? DisplayStyle.Flex : DisplayStyle.None;
             SetSecurity(root.Q<Label>("systemSecurity"), GalaxyMap.SecurityOf(sys), 0f);
             root.Q<Label>("systemSecurity").style.top = StyleKeyword.Auto;
         }

@@ -12,6 +12,11 @@ namespace GoF2Remake.Modding
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class ItemStats
     {
+        // Shared IDs for Game, Space and Net. Preserve existing native IDs 191–195;
+        // ModFlight's per-axis equipment bonuses occupy 209–220. 189 belongs to ItemData.CoreYieldAttr.
+        public const int StrictShipClassAttr = 191, FixedBeamAttr = 192, TurretDefenseRoleAttr = 193,
+                         ScannerRangeAttr = 194, ScanLeadAttr = 195, StructuralDamageAttr = 208;
+
         /// <summary>The names a mod may use (the readable ones first; items.json's statList names work too).</summary>
         static readonly Dictionary<string, int> Ids = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
@@ -50,6 +55,7 @@ namespace GoF2Remake.Modding
             // based on it 200): the part the shield doesn't absorb hits the armor and hull at its plain value.
             ["shieldDamage"] = 124,
             // Explicit damage channel: 0 = legacy/none, 1 = energy, 2 = ballistic.
+            ["beamAimTolerancePercent"] = 97, ["projectileSpread"] = 98, // Matches Gun constants; Modding cannot reference Flight.
             ["damageType"] = 190,   // (Flight.Gun.DamageTypeAttr; was 182, the Chorus devices' deviceElementalProof)
             // per-axis flight bonuses in % (ModFlight, #350; were 170-181, taken by the Chorus stack's stats)
             ["pitchTurnRate"] = ModFlight.PitchTurnRate, ["yawTurnRate"] = ModFlight.YawTurnRate, ["rollTurnRate"] = ModFlight.RollTurnRate,
@@ -60,6 +66,9 @@ namespace GoF2Remake.Modding
             ["forwardAcceleration"] = ModFlight.ForwardAcceleration,
             // Optional shield resistances, percentages (0..100).
             ["energyResistance"] = 183, ["ballisticResistance"] = 184,
+            // Player-built structures: weapons with structuralDamage 1 can damage hull integrity.
+            // EMP effects always apply independently of structural weapon eligibility.
+            ["structuralDamage"] = StructuralDamageAttr,
             // A weapon's echo (Flight.GunEcho): a second, weaker blast at each hit, echoDelayMs after it (0 = none), at
             // echoPercent of the damage, EMP and size; echoRadius is that blast's reach in game units (0 = blastRadius, 14);
             // echoExplosion is the explosion type it shows (0 ship, 8-10 scatter, 11 shock blast, 13 fireworks; -1 none).
@@ -117,7 +126,10 @@ namespace GoF2Remake.Modding
             // on each new lock (beside radarShowsCargo, 31: 1 the first cargo entry, 2 the whole hold).
             ["scanShip"] = 140, ["scanHitpoints"] = 141, ["scanWeapons"] = 142,
             // Project ship-class identification; separate from hull, hitpoint and weapon readouts.
-            ["scanClass"] = 143,
+            ["scanClass"] = 143, ["scannerRange"] = ScannerRangeAttr, ["scanLead"] = ScanLeadAttr,
+            // Strict allow-lists apply even to unclassified ships. Fixed beams do not snap onto targets.
+            // Per-mount defense roles: 0 legacy, 1 offensive, 2 balanced, 3 dedicated.
+            ["strictShipClass"] = StrictShipClassAttr, ["fixedBeam"] = FixedBeamAttr, ["turretDefenseRole"] = TurretDefenseRoleAttr,
             // items.json's statList names
             ["steerable"] = 15, ["handling"] = 17,
             ["loadingTimeMs"] = 11, ["range"] = 12, ["projectileSpeed"] = 13, ["magnitude"] = 14, ["shieldRegenTime"] = 19,

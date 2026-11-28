@@ -19,6 +19,11 @@ namespace GoF2Remake.Data
         public static Func<ulong> LocalIdProvider;
         public static Func<int, int> OrbitSeedProvider;
 
+        // The lower gameplay assembly can publish battle news without referencing GoF2.Net.
+        public static Func<int, string, bool> WarNewsProvider;
+        public static bool PublishWarNews(int station, string headline) =>
+            WarNewsProvider?.Invoke(station, headline) == true;
+
         /// <summary>NetGame.Active: a session runs (host, client or dedicated server).</summary>
         public static bool Active => ActiveProvider != null && ActiveProvider();
 

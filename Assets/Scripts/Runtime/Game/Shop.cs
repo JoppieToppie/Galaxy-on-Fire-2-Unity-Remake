@@ -97,7 +97,9 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake: the item is the base game's Khador Slipstream and Options > Gameplay "Khador Slipstream" is off
         /// (Settings.KhadorSlipstream): it stays in the hold and on the ship, but does nothing.</summary>
-        public static bool SlipstreamOff(int item) => item >= 0 && !Settings.KhadorSlipstream && item == Modding.ModContent.ItemIndexOf(SlipstreamKey);
+        public static bool SlipstreamOff(int item) =>
+            item >= 0 && item == Modding.ModContent.ItemIndexOf(SlipstreamKey) &&
+            (!Settings.KhadorSlipstream || !Modding.ModContent.ItemAvailableFor(item, "equipment"));
 
         /// <summary>The mounted cruise drive when it may fly (not a Khador Slipstream switched off), null otherwise.</summary>
         public static ItemData WorkingCruiseDrive(Database db)
@@ -212,11 +214,23 @@ namespace GoF2Remake.Data
 
         /// <summary>Base cargo (+30 with mod 1, Ship::refreshValue, before compression) + (int)(base * sum of mounted
         /// compression (attr 22, category 12) % / 100).</summary>
-        public static int MaxLoad(Database db)
+        public static int MaxLoad(Database db) =>
+            CargoCapacity(db, Modding.KitRules.Cargo(db.Ship(Session.ShipIndex), 0), Session.ModLevel(1), Session.Equipment);
+
+        public static int CargoCapacity(Database db, int hullCargo, int upgradeLevel, IReadOnlyList<ItemStack> equipment)
         {
-            int b = Modding.KitRules.Cargo(db.Ship(Session.ShipIndex), 0) + 30 * Session.ModLevel(1), pct = 0;   // a kit ship's build too
-            foreach (var e in Session.Equipment) { var it = db.Item(e.item); if (it != null && it.categoryId == 12) pct += it.Attr(22); }
-            return b + (int)(b * pct / 100f);
+            long basis = System.Math.Max(0, hullCargo) + 30L * System.Math.Max(0, upgradeLevel);
+            long compression = 0;
+            if (equipment != null)
+                foreach (var stack in equipment)
+                {
+                    if (stack == null) continue;
+                    var item = db.Item(stack.item);
+                    if (item != null && item.categoryId == 12) compression += item.Attr(22);
+                }
+
+            double capacity = basis + System.Math.Truncate(basis * (double)compression / 100);
+            return (int)System.Math.Clamp(capacity, 0, int.MaxValue);
         }
 
         public static int FreeCargo(Database db) => MaxLoad(db) - CargoLoad();
@@ -368,6 +382,15 @@ namespace GoF2Remake.Data
             if (stock.agents == null || stock.agents.Count == 0) stock.agents = AgentGenerator.CreateAgents(db, station);
             // An evacuated supernova station's lounge is empty (AgentGenerator.CreateAgents): visitors a save kept from before go.
             if (InSupernovaSystem(SystemOf(db, station), station)) stock.agents.Clear();
+            if (UsesPlayerMarketplace(station))
+            {
+                stock.items = new List<ItemStack>();
+                stock.ships = new List<int>();
+                stock.PruneShipMods();
+                stock.agents.RemoveAll(agent => AgentGenerator.IsMerchantOffer(agent.offer));
+                Freelance.OnEnterStation(stock);   // private mission documents, outside the marketplace catalogue
+                return stock;
+            }
             AgentGenerator.RefreshKaamoMechanics(db, station, stock.agents);
             AgentGenerator.AddNamedSellers(db, station, stock.agents);
             // The Kaamo Club never has a dealer (getShipBuyList); a save from a test build that gave it one is cleared.
@@ -376,16 +399,22 @@ namespace GoF2Remake.Data
             if (KaamoClub.StorageAt(station)) stock.items = Session.KaamoItems;
             Freelance.OnEnterStation(stock);
             GameHooks.StockEntered?.Invoke(stock);   // multiplayer: the stock everyone shares replaces it
+            // Filter after shared stock substitution too, not only locally generated stock.
+            if (!KaamoClub.StorageAt(station))  // the club's inventory is the player's own storage, not shop stock
+                stock.items?.RemoveAll(row => !Modding.ModContent.ItemAvailableFor(row.item, "shops"));
             return stock;
         }
+
+        public static bool UsesPlayerMarketplace(int station) => GameHooks.IsPlayerStation?.Invoke(station) == true;
 
         /// <summary>Generator::getItemBuyList 0xa05c4 (see shop.md 4.3).</summary>
         /// <summary>The station's stock (getItemBuyList); remake mods: a campaign with only mods' items drops the rest.</summary>
         public static List<ItemStack> GenerateItems(Database db, int station)
         {
+            if (UsesPlayerMarketplace(station)) return new List<ItemStack>();
             var list = GenerateItemsOriginal(db, station);
             list.RemoveAll(s => !Modding.ModCampaigns.ItemAllowed(db, s.item) || !Modding.ModUnlocks.ItemAvailable(s.item)
-                                || NotInSession(db, s.item));
+                                || !Modding.ModContent.ItemAvailableFor(s.item, "shops") || NotInSession(db, s.item));
             return list;
         }
 
@@ -513,6 +542,7 @@ namespace GoF2Remake.Data
         /// <summary>The station's dealer ships (getShipBuyList); remake mods: a campaign with only mods' ships drops the rest.</summary>
         public static List<int> GenerateShips(Database db, int station)
         {
+            if (UsesPlayerMarketplace(station)) return new List<int>();
             var ships = GenerateShipsOriginal(db, station);
             Modding.ModMedals.AddShips(station, ships);   // remake mods: ships the mods' medals put on sale
             ships.RemoveAll(s => !Modding.ModCampaigns.ShipAllowed(s) || !Modding.ModUnlocks.ShipAvailable(s));

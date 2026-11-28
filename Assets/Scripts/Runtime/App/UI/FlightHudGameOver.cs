@@ -14,13 +14,39 @@ namespace GoF2Remake.UI
 {
     public partial class FlightHud
     {
+        int secureRespawnStation = -1;
+        bool protectedDeath;
+
+        bool IsProtectedDeath()
+        {
+            if (!Modding.ModPvpPiracy.Enabled || GoF2Remake.Events.EventRespawn.Active ||
+                level == null || level.Challenge != null || Modding.ModBuilder.TestFlying || Modding.ModBuilder.PlayTesting) return false;
+            var system = level.Database?.Systems?.Find(s => s != null && s.index == level.Layout.systemIndex);
+            bool pirate = GoF2Remake.Multiplayer.NetGame.Active && GoF2Remake.Multiplayer.NetPlayer.Local?.IsPirate == true;
+            return !pirate && GalaxyMap.SecurityOf(system) >= 3;
+        }
+
+        int SecureRespawnStation()
+        {
+            if (!protectedDeath || GoF2Remake.Multiplayer.NetGame.Active) return -1;
+            var db = level.Database;
+            int last = Session.LastDockedStation;
+            if (db.Stations.Exists(s => s != null && s.index == last)) return last;
+            if (level.Layout.hasStation && level.StationInfo != null) return level.StationInfo.index;
+            return GalaxyMap.FallbackStation(db, level.Layout.systemIndex);
+        }
+
         void OnGameOver()
         {
             if (GoF2Remake.Multiplayer.NetArenaClient.InMatch) return;   // an arena match respawns the ship instead
+            protectedDeath = IsProtectedDeath();
+            secureRespawnStation = SecureRespawnStation();
+            // Keep the protected progress even if the player closes the game before tapping the respawn prompt.
+            if (secureRespawnStation >= 0) SaveGame.SaveProtectedDeath(secureRespawnStation);
             gameOverMs = 0f;
             gameOver.AddToClassList("game-over--shown");
             // Remake (hardcore): the run's saves go at once (closing the game now can't keep them), Tap leaves to the menu.
-            if (Session.Hardcore && !GoF2Remake.Multiplayer.NetGame.Active && !GoF2Remake.Events.EventRespawn.Active)
+            if (secureRespawnStation < 0 && Session.Hardcore && !GoF2Remake.Multiplayer.NetGame.Active && !GoF2Remake.Events.EventRespawn.Active)
             {
                 SaveGame.DeleteRun(Session.RunId);
                 hardcoreDead = true;
@@ -37,7 +63,9 @@ namespace GoF2Remake.UI
                 gameOverText.text = Localization.Extra("mbTestDead", "Tap to return to the Mod Builder.");
                 return;
             }
-            gameOverText.text = GoF2Remake.Events.EventRespawn.Active || GoF2Remake.Multiplayer.NetCoop.RespawnsInSpace
+            gameOverText.text = secureRespawnStation >= 0
+                ? Localization.Extra("secureRespawn", "Tap to respawn at the station without losing progress.")
+                : GoF2Remake.Events.EventRespawn.Active || GoF2Remake.Multiplayer.NetCoop.RespawnsInSpace
                 ? Localization.Extra("mpRespawnEvent", "Respawning in space...")      // an event's respawn point, a co-op guest beside the leader
                 : GoF2Remake.Multiplayer.NetGame.Active
                 ? Localization.Extra("mpRespawn", "Tap to respawn at the station.")   // multiplayer: no saves, docked again
@@ -70,10 +98,23 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.NetGame.Active)
             {
                 int docked = Session.LastDockedStation;
-                // A defender destroyed in their station's siege fight respawns there (NetFactions).
-                bool defending = GoF2Remake.Multiplayer.NetFactionsClient.DefendsSiegeHere(Session.StationIndex);
-                if (!defending && docked >= 0 && docked < GoF2Remake.Multiplayer.NetGame.Db.Stations.Count) Session.StationIndex = docked;
+                if (GoF2Remake.Multiplayer.NetState.Instance?.ProfilesOn == true && GoF2Remake.Multiplayer.NetPlayer.Local != null)
+                {
+                    gameOverMs = 7000f; // keep the prompt retryable until the server approves
+                    GoF2Remake.Multiplayer.NetPlayer.Local.RequestDeathRespawnRpc();
+                    return;
+                }
+                if (docked >= 0 && docked < GoF2Remake.Multiplayer.NetGame.Db.Stations.Count) Session.StationIndex = docked;
                 Session.DockedFromSpace = false;
+                Session.SkipRespawnDockingFine = protectedDeath;
+                SceneManager.LoadScene("Station");
+                return;
+            }
+            if (secureRespawnStation >= 0 && Application.CanStreamedLevelBeLoaded("Station"))
+            {
+                Session.StationIndex = secureRespawnStation;
+                Session.DockedFromSpace = false;
+                Session.SkipRespawnDockingFine = true; // still autosave this respawn, unlike loading a save
                 SceneManager.LoadScene("Station");
                 return;
             }
@@ -95,7 +136,7 @@ namespace GoF2Remake.UI
             var tex = owned ? GoF2Remake.Data.OriginalTextures.Image($"GoF2Hud/logo_{race}") : null;
             logo.style.display = tex != null ? DisplayStyle.Flex : DisplayStyle.None;
             if (tex != null) { logo.style.backgroundImage = new StyleBackground(tex); logo.style.width = tex.width; logo.style.height = tex.height; }
-            orbitInfo.Q<Label>("orbitStation").text = st == null ? "" : st.index == 101 ? st.name : $"{st.name} {Localization.Get(136)}";
+            orbitInfo.Q<Label>("orbitStation").text = GameNames.Station(st);
             orbitInfo.Q<Label>("orbitSystem").text = st == null ? "" : $"{st.systemName} {Localization.Get(137)}";
             string holder = st == null ? "" : GoF2Remake.Multiplayer.NetFactionsClient.OwnerText(st.index);   // a faction's station (NetFactions)
             if (holder.Length > 0) orbitInfo.Q<Label>("orbitSystem").text += $"  ·  {holder}";
@@ -140,8 +181,14 @@ namespace GoF2Remake.UI
             // plasma is in range); else the ship's nose.
             var viewTurret = level != null ? level.Turret : null;
             bool turretView = viewTurret != null && viewTurret.InTurretView;
+            var hull = level?.Database?.Ship(Session.ShipIndex);
+            var freeLook = level?.FreeLook;
+            bool centered = !turretView && freeLook != null && freeLook.FreeLookActive
+                && Modding.ModShipView.FreeLookTargeting(hull, Settings.RemakeFreeLook);
+            var offset = Modding.ModShipView.CrosshairOffset(hull, freeLook != null && freeLook.FirstPersonActive);
             var aim = turretView ? viewTurret.GunPosition + viewTurret.AimForward * CrosshairDistanceMeters
-                                 : ChaseCamera.AimOrigin(ship.transform) + ship.transform.forward * CrosshairDistanceMeters;
+                : centered ? cam.ViewportToWorldPoint(new Vector3(.5f, .5f, Mathf.Max(1f, cam.nearClipPlane + 1f)))
+                : CombatRadar.ShipCrosshairWorldPoint(ship.transform, offset);
             bool collector = turretView && viewTurret.IsCollector;
             crosshair.EnableInClassList("crosshair--plasma", collector);
             // PlayerEgo::draw: 0x1f5d while Radar::isPlasmaInRange, else 0x1f5e (#78: the remake showed 0x1f5d all the time).

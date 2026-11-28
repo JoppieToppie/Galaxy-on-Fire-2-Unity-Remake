@@ -20,9 +20,18 @@ namespace GoF2Remake.Multiplayer
             if (faction == null) return Localization.Extra("mpFactionNone", "You aren't in a faction.");
             if (!TryAmount(arg, out long amount)) return "/faction deposit N";
             if (!NetProfiles.Controls(client)) return Localization.Extra("mpFactionController", "Do that on the device that controls your profile.");
-            long saved = NetProfiles.SpendableCredits(client, me);
+            if (NetPlayerStations.ProfileWritesBlocked) return "Faction treasury recovery is pending.";
+            long saved = NetProfiles.CreditAmount(me);
             if (amount > saved)
                 return string.Format(Localization.Extra("mpFactionSavedShort", "Your saved game has {0:N0} credits: dock to save it, then deposit."), saved);
+            if (faction.bank > long.MaxValue - amount) return "The faction treasury cannot hold that deposit.";
+            // The host's live balance is authoritative. Do not pre-charge it and then debit it again.
+            if (NetProfiles.IsHostClient(client))
+            {
+                if (!NetPlayerStations.CommitFactionBankTransfer(me, faction.id, amount)) return "The deposit could not be committed.";
+                AnnounceDeposit(faction, me, amount);
+                return "";
+            }
             int token = nextCharge++;
             charges[token] = (me, faction.id, amount, Time.realtimeSinceStartup + ChargeSeconds);
             NetState.Instance?.Charge(client, token, amount);
@@ -39,7 +48,8 @@ namespace GoF2Remake.Multiplayer
             charges.Remove(token);
             var faction = list?.factions.Find(x => x.id == c.faction);
             if (!paid) { NetState.Instance?.Notify(client, Localization.Extra("mpFactionNoCredits", "You don't have that many credits.")); return; }
-            if (!NetProfiles.MoveCredits(client, c.account, -c.amount))
+            if (faction == null || Of(c.account)?.id != c.faction || !NetProfiles.Controls(client) ||
+                !NetPlayerStations.CommitFactionBankTransfer(c.account, c.faction, c.amount))
             {
                 // The game says it paid, but its saved game hasn't that much (spent since, or a game that only claims to
                 // have the credits): nothing banked, the game's credits back.
@@ -48,11 +58,12 @@ namespace GoF2Remake.Multiplayer
                 NetState.Instance?.Notify(client, string.Format(Localization.Extra("mpFactionSavedShort", "Your saved game has {0:N0} credits: dock to save it, then deposit."), NetProfiles.SpendableCredits(client, c.account)));
                 return;
             }
-            if (faction == null) { Grant(client, c.account, c.amount); return; }   // the faction went meanwhile: back to the player
-            faction.bank += c.amount;
-            Save();
-            NetAudit.Bank(faction.tag, "deposited", NameOf(c.account), c.amount, faction.bank);
-            TellFaction(faction, string.Format(Localization.Extra("mpFactionDeposited", "{0} put {1:N0} credits into the bank ({2:N0})."), NameOf(c.account), c.amount, faction.bank));
+            AnnounceDeposit(faction, c.account, c.amount);
+        }
+        static void AnnounceDeposit(Faction faction, string account, long amount)
+        {
+            NetAudit.Bank(faction.tag, "deposited", NameOf(account), amount, faction.bank);
+            TellFaction(faction, string.Format(Localization.Extra("mpFactionDeposited", "{0} put {1:N0} credits into the bank ({2:N0})."), NameOf(account), amount, faction.bank));
         }
         static string Withdraw(ulong client, string me, string arg)
         {
@@ -60,10 +71,11 @@ namespace GoF2Remake.Multiplayer
             if (faction == null || !IsOfficer(faction, me)) return Localization.Extra("mpFactionNotOfficer", "Only a faction's leader and officers can do that.");
             if (!TryAmount(arg, out long amount)) return "/faction withdraw N";
             if (!NetProfiles.Controls(client)) return Localization.Extra("mpFactionController", "Do that on the device that controls your profile.");
+            if (NetPlayerStations.ProfileWritesBlocked) return "Faction treasury recovery is pending.";
             if (faction.bank < amount) return string.Format(Localization.Extra("mpFactionBankShort", "The bank has {0:N0} credits."), faction.bank);
-            faction.bank -= amount;
-            Save();
-            Grant(client, me, amount);
+            if (!NetPlayerStations.CommitFactionBankTransfer(me, faction.id, -amount))
+                return "The withdrawal could not be committed; no credits were transferred.";
+            if (!NetProfiles.IsHostClient(client)) NetState.Instance?.Grant(client, amount);
             NetAudit.Bank(faction.tag, "withdrew", NameOf(me), amount, faction.bank);
             TellFaction(faction, string.Format(Localization.Extra("mpFactionWithdrew", "{0} took {1:N0} credits from the bank ({2:N0})."), NameOf(me), amount, faction.bank));
             return "";
@@ -190,13 +202,14 @@ namespace GoF2Remake.Multiplayer
         /// <summary>NetState.Update (server): members docked at a claim keep it; claims nobody kept lapse; old deposits drop.</summary>
         public static void Tick()
         {
-            if (list == null) return;
+            if (list == null || NetPlayerStations.ProfileWritesBlocked) return;
+            FlushDeferredStationTax();
             if ((siegeTimer -= Time.unscaledDeltaTime) <= 0f) { siegeTimer = SiegeTickSeconds; TickSieges(SiegeTickSeconds); }
             if (charges.Count > 0)
                 foreach (var key in new List<int>(charges.Keys)) if (charges[key].until < Time.realtimeSinceStartup) charges.Remove(key);
             if ((claimTimer -= Time.unscaledDeltaTime) > 0f) return;
             claimTimer = ClaimTickSeconds;
-            if (list.claims.Count == 0) return;
+            TickBounties();
             bool changed = taxDirty;   // the trade tax since the last write (saved once a minute)
             taxDirty = false;
             string now = DateTime.UtcNow.ToString("o");
@@ -237,7 +250,11 @@ namespace GoF2Remake.Multiplayer
                     : $"{NetNews.Place(c.station)} is unclaimed again", c.station);
                 changed = true;
             }
-            if (changed) { Save(); PublishClaims(); }
+            if (changed)
+            {
+                if (!NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true))) taxDirty = true;
+                PublishClaims();
+            }
         }
     }
 }

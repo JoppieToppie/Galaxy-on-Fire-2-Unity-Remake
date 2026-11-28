@@ -2063,3 +2063,29 @@ reach outside the game (Application, PlayerPrefs, the clipboard, asset bundles, 
 - `UnityEngine.UI` (61 classes)
 - `UnityEngine.UIElements` (440 classes)
 - `UnityEngine.VFX` (18 classes)
+
+
+### Native interaction rule registration
+
+These functions register native rules once. They return a handle removable with `game.off(handle)`, and rules disappear when the mod stops. They do not patch methods or invoke Lua for each check. Unclassified ships are unaffected. Existing mission restrictions still apply.
+
+- `game.restrictMiningClass(classId, message)`: deny drilling and beam mining for a class.
+- `game.restrictDerelictBoardingClass(classId, message)`: deny boarding hackable freighter wrecks only; other object docking is unchanged.
+- `game.weightLoungeRace(systemName, raceKey, chancePercent)`: assign a custom race's visitor silhouette with a 0–100 percentage weight. System names compare case-insensitively, ignoring punctuation and spaces. Weights for different races are cumulative (keep their total at or below 100); the remainder preserves the original visitor selection. Later registrations override the same system/race pair and take priority if totals exceed 100. Explicit character races still take precedence.
+
+```lua
+local h = game.restrictMiningClass("cruiser", "Cruisers cannot mine asteroids.")
+game.restrictDerelictBoardingClass("freighter", "This ship is too large to board the wreck.")
+game.weightLoungeRace("My System", "my_mod:my_race", 65)
+-- game.off(h) lifts the mining restriction.
+```
+
+### Publishing station news (single-player and multiplayer)
+
+`NetNews.Post` publishes a ticker item to the current game's news. In single-player it is saved in the player's save; in multiplayer only the server can publish and distribute it. Remote clients cannot publish local substitutes. The advanced economy need not be enabled.
+
+```lua
+game.call("GoF2Remake.Multiplayer.NetNews", "Post", "War", "A fleet battle has begun.", 78, "my_mod:battle:78", 600)
+```
+
+The arguments are kind, headline, station ID (or -1 for global news), optional throttle key and throttle seconds. The call returns true only when accepted. Freight and station announcements require a valid station; single-player freight is destination-specific and multiplayer freight retains system visibility. Use a mod-prefixed throttle key. Official player/faction broadcasts still require the multiplayer authority checks.

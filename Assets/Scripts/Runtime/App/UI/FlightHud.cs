@@ -42,6 +42,9 @@ namespace GoF2Remake.UI
         bool lastTurretView, lastTurretAuto, lastShipLocked;
         VisualElement lockPlate;
         VisualElement root, safeArea, hints;
+        VisualElement factionConflictPanel, factionDefenderBar, factionAttackerBar;
+        Label factionConflictTitle, factionConflictCounts, factionConflictState;
+        float nextFactionHudRefresh;
         VisualElement flashLayer;   // remake: a boss's flash grenade (Flight.ScreenFlash), white over everything
         bool hudFading;
         VisualElement crosshair, dockPrompt, dockGlyph;
@@ -267,7 +270,7 @@ namespace GoF2Remake.UI
                 SquadView.Attach(gameObject, safeArea ?? root);   // the squad window, invitations
                 ArenaView.Attach(gameObject, safeArea ?? root);   // an arena match: score, timer, respawn, result
                 TerritoryView.Attach(gameObject, safeArea ?? root);   // a faction station's toll, a siege's banner
-                MultiplayerWindow.Attach(gameObject, safeArea ?? root, true);   // the multiplayer window (N): chat, squad, distress, admin
+                MultiplayerWindow.Attach(gameObject, safeArea ?? root, true, level?.Navigation);   // the multiplayer window (N): chat, squad, distress, admin
             }
 
             InputGlyph.TrackHintsOption(hints);
@@ -473,6 +476,53 @@ namespace GoF2Remake.UI
         const float StickRingFadeInMs = 150f, StickRingFadeOutMs = 400f;
         const float StickRingFrom = 0.6f, StickRingFull = 0.9f;
 
+        void UpdateFactionConflictHud(bool hidden)
+        {
+            if (factionConflictPanel != null && factionConflictPanel.parent != safeArea) factionConflictPanel = null;
+            bool show = !hidden && level != null && level.LaunchCameraOver && !level.Cutscene && !level.DockedInOrbit &&
+                level.HudShown > 0f && (health == null || !health.Dead) && (storyDialogue == null || !storyDialogue.IsOpen) &&
+                (nav == null || !nav.Jumping) && (jump == null || !jump.Cinematic);
+            NpcFactionWar.BattleStatus status = default;
+            show = show && traffic != null && traffic.TryGetFactionBattleStatus(out status);
+            if (!show) { if (factionConflictPanel != null) factionConflictPanel.style.display = DisplayStyle.None; return; }
+            if (safeArea == null) return;
+            if (factionConflictPanel == null)
+            {
+                factionConflictPanel = new VisualElement { pickingMode = PickingMode.Ignore };
+                factionConflictPanel.style.position = Position.Absolute;
+                factionConflictPanel.style.top = 112f; factionConflictPanel.style.left = Length.Percent(50);
+                factionConflictPanel.style.marginLeft = -170f; factionConflictPanel.style.width = 340f;
+                factionConflictPanel.style.paddingTop = factionConflictPanel.style.paddingBottom = 5f;
+                factionConflictPanel.style.paddingLeft = factionConflictPanel.style.paddingRight = 10f;
+                factionConflictPanel.style.backgroundColor = new Color(0.025f, 0.07f, 0.10f, 0.86f);
+                factionConflictTitle = new Label { pickingMode = PickingMode.Ignore };
+                factionConflictCounts = new Label { pickingMode = PickingMode.Ignore };
+                factionConflictState = new Label { pickingMode = PickingMode.Ignore };
+                foreach (var label in new[] { factionConflictTitle, factionConflictCounts, factionConflictState })
+                { label.style.unityTextAlign = TextAnchor.MiddleCenter; label.style.color = Color.white; label.style.fontSize = 15f; }
+                factionConflictPanel.Add(factionConflictTitle); factionConflictPanel.Add(factionConflictCounts);
+                var bar = new VisualElement { pickingMode = PickingMode.Ignore };
+                bar.style.flexDirection = FlexDirection.Row; bar.style.height = 7f; bar.style.backgroundColor = new Color(0.15f, 0.18f, 0.21f);
+                factionDefenderBar = new VisualElement { pickingMode = PickingMode.Ignore };
+                factionAttackerBar = new VisualElement { pickingMode = PickingMode.Ignore };
+                factionDefenderBar.style.backgroundColor = new Color(0.25f, 0.65f, 0.95f);
+                factionAttackerBar.style.backgroundColor = new Color(0.95f, 0.43f, 0.24f);
+                bar.Add(factionDefenderBar); bar.Add(factionAttackerBar); factionConflictPanel.Add(bar);
+                factionConflictPanel.Add(factionConflictState); safeArea.Add(factionConflictPanel); nextFactionHudRefresh = 0f;
+            }
+            factionConflictPanel.style.display = DisplayStyle.Flex;
+            if (Time.unscaledTime < nextFactionHudRefresh) return;
+            nextFactionHudRefresh = Time.unscaledTime + 0.25f;
+            int d = Mathf.Max(0, status.DefendersAlive), a = Mathf.Max(0, status.AttackersAlive);
+            factionConflictTitle.text = Localization.Extra("hudFactionConflict", "ORBIT CONFLICT");
+            factionConflictCounts.text = $"{Standing.RaceName(status.defender)} {d}/{status.shipsPerSide}  |  {a}/{status.shipsPerSide} {Standing.RaceName(status.attacker)}";
+            factionDefenderBar.style.width = Length.Percent(50f * d / Mathf.Max(1, status.shipsPerSide));
+            factionAttackerBar.style.width = Length.Percent(50f * a / Mathf.Max(1, status.shipsPerSide));
+            long remaining = status.Remaining(NpcFactionWar.Now);
+            string lead = d == a ? "Even" : Standing.RaceName(d > a ? status.defender : status.attacker) + " leads";
+            factionConflictState.text = $"{lead}  |  {(status.Paused ? "Timer paused" : $"{remaining / 60}:{remaining % 60:00}")}";
+        }
+
         void Update()
         {
             if (root == null) return;
@@ -538,6 +588,7 @@ namespace GoF2Remake.UI
             // under it (#137: a mission's reward line was drawn over the counter).
             root.EnableInClassList("hud-fps", Settings.ShowFps && Settings.FpsPosition == Settings.FpsTop);
             ApplyHudLook();
+            UpdateFactionConflictHud(mapOpen || (pauseMenu != null && pauseMenu.IsOpen) || hudMode == Settings.HudOff || (movie != null && movie.Active));
             if (mapOpen) return;   // the map has its own input
             // Movie mode: setting up a scene has the frame; during a take the game goes on (the player flies, no HUD).
             if (movie != null && movie.Active && movie.Tick()) return;
@@ -609,6 +660,10 @@ namespace GoF2Remake.UI
             // (NetChat.SetTyping: the binding's key is a letter there).
             if (MultiplayerWindow.IsOpenAny)
             {
+                touch?.ReleaseAll();
+                ship?.SetSteer(Vector2.zero);
+                ship?.SetTouchFree(Vector2.zero, 0f, false);
+                weapons?.SetPrimaryHeld(false);
                 var k = GoF2Remake.Multiplayer.NetChat.Keys;
                 if ((k != null && k.escapeKey.wasPressedThisFrame) || (Gamepad.current != null && (Gamepad.current.buttonEast.wasPressedThisFrame || Gamepad.current.startButton.wasPressedThisFrame))
                     || (!MultiplayerWindow.TypingAny && GameControls.MultiplayerWindow.WasPressedThisFrame()))

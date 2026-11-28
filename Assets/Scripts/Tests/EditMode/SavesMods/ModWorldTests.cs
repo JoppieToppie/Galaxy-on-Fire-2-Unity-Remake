@@ -10,6 +10,7 @@
 using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
+using GoF2Remake.World;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -24,6 +25,34 @@ namespace GoF2Remake.Tests
             var m = Installed("frontier_systems");
             Assert.IsFalse(m.Broken, AllMessages(m));
             return Database.Load();
+        }
+
+        [Test]
+        public void InfrastructureThumbnailReferencesAreOptionalAndValidated()
+        {
+            var empty = ModPlayerInfrastructure.Parse(new Newtonsoft.Json.Linq.JObject());
+            Assert.AreEqual(0, empty.StationModelImages.Count);
+            var rules = ModPlayerInfrastructure.Parse(Newtonsoft.Json.Linq.JObject.Parse(
+                "{ 'stationModelImages': { '41': 'images/terran.png', 'example:station': 'gof2:item_046' } }"));
+            Assert.AreEqual("images/terran.png", rules.StationModelImages["41"]);
+            Assert.AreEqual("gof2:item_046", rules.StationModelImages["example:station"]);
+            Assert.Throws<ModJsonException>(() => ModPlayerInfrastructure.Parse(
+                Newtonsoft.Json.Linq.JObject.Parse("{ 'stationModelImages': { '41': '' } }")));
+        }
+
+        [Test]
+        public void ActiveModsSetIndependentSizeFloorsForStockOrbits()
+        {
+            WriteMod("t_station_size", "t_station_size", "1.0", "",
+                (ModPlayerInfrastructure.FileName, "{ 'minimumStationScale': 2.5, 'minimumJumpgateScale': 2 }"));
+            WriteMod("t_gate_size", "t_gate_size", "1.0", "",
+                (ModPlayerInfrastructure.FileName, "{ 'minimumJumpgateScale': 4 }"));
+            ScanAndEnable("t_station_size", "t_gate_size");
+
+            var layout = OrbitLayout.Build(Database.Load(), 0);
+            Assert.AreEqual(2.5f, layout.StationScale);
+            Assert.AreEqual(4f, layout.JumpgateScale);
+            Assert.AreEqual(OrbitLayout.GateRadius * 4, layout.JumpgateRadius);
         }
 
         [Test]
@@ -173,6 +202,44 @@ namespace GoF2Remake.Tests
             int look = ModWorld.StationLook(135);
             Assert.Less(look, OriginalStations);
             Assert.AreEqual(2, db.Systems[db.Stations[look].system].raceId, "without looksLike: an original station of the system's race");
+        }
+
+        [Test]
+        public void PopulationAndDerelictSettingsMergeForNewSystemsAndOverrides()
+        {
+            var db = World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A' } ]",
+                "[ { 'id': 'home', 'name': 'Home', 'race': 0, 'position': [1, 2, 3], 'population': 0.25, 'derelictFreighters': false }, "
+                + "{ 'override': 4, 'population': 2, 'derelictFreighters': false } ]");
+            Assert.AreEqual(0.25f, db.Systems[34].ambientPopulation);
+            Assert.IsFalse(db.Systems[34].derelictFreighters);
+            Assert.AreEqual(2f, db.Systems[4].ambientPopulation);
+            Assert.IsFalse(db.Systems[4].derelictFreighters);
+
+            var defaults = World("[ { 'id': 'a', 'system': 't_world:home', 'name': 'A' } ]");
+            Assert.AreEqual(1f, defaults.Systems[34].ambientPopulation);
+            Assert.IsTrue(defaults.Systems[34].derelictFreighters);
+        }
+
+        [Test]
+        public void ModBuilderSystemTrafficSettingsRoundTripAndOmitDefaults()
+        {
+            var project = ModProject.Create("Traffic settings", "tests");
+            var system = project.AddSystem("Kepler", new Vector3(50, 50, 50), 0);
+            Assert.AreEqual(1f, system.AmbientPopulation);
+            Assert.IsTrue(system.DerelictFreighters);
+            system.AmbientPopulation = 0.5f;
+            system.DerelictFreighters = false;
+            project.Save();
+
+            var loaded = ModProject.Load(project.Folder);
+            Assert.IsNull(loaded.LoadError);
+            var back = loaded.Systems.Single();
+            Assert.AreEqual(0.5f, back.AmbientPopulation);
+            Assert.IsFalse(back.DerelictFreighters);
+            back.AmbientPopulation = 1f;
+            back.DerelictFreighters = true;
+            Assert.IsNull(back.Json["population"]);
+            Assert.IsNull(back.Json["derelictFreighters"]);
         }
 
         [Test]

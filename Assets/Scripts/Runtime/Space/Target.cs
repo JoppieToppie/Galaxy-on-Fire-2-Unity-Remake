@@ -48,6 +48,8 @@ namespace GoF2Remake.Flight
         /// <summary>Multiplayer (NetPlayer): the database ship another player flies, -1 = not a player's ship (an NPC's comes from
         /// its spawn spec). A class scanner reads the ship's class from it (Modding.ShipClassRules).</summary>
         [NonSerialized] public int netShipIndex = -1;
+        /// <summary>Fitted cloak generator signature, independent of active cloaking (NetPlayer).</summary>
+        [NonSerialized] public bool passiveStealthGenerator;
         [Tooltip("Player+0x5c / +0x5d: hostile to / friend of the player (recomputed every frame by the ship).")]
         public bool hostileToPlayer, friendToPlayer;
         [Tooltip("Player+0x5e: NPCs don't attack it.")]
@@ -101,6 +103,7 @@ namespace GoF2Remake.Flight
         /// which this player's tractor beam may steal (CombatRadar); RemoteSteal(item, amount) takes it off the owner's ship.</summary>
         [NonSerialized] public int netStealItem = -1, netStealAmount;
         [NonSerialized] public Action<int, int> RemoteSteal;
+        [NonSerialized] public Action<int> CollectFreight;
         /// <summary>Multiplayer: a cargo steal candidate on another game's ship (KIPlayer+0x20 on the owner's side).</summary>
         public bool NetStealable => RemoteSteal != null && netStealItem >= 0 && netStealAmount > 0;
         /// <summary>Multiplayer: the killing hit came from another player (NetProxy): counts as the player's for a freelance
@@ -213,6 +216,17 @@ namespace GoF2Remake.Flight
 
         /// <summary>(target, damage, byNpc) after every hit, before the death check.</summary>
         public event Action<Target, int, bool> Damaged;
+        // Actual fraction of maximum hull removed by one applied hit, before death callbacks.
+        // Unlike Damaged's raw damage, this excludes shields, armor, resisted damage and overkill.
+        public event Action<Target, double, bool> HullDamageApplied;
+
+        double DamageHullFraction()
+        {
+            double fraction = hitpoints != null
+                ? (hitpoints.maxHull > 0 ? hitpoints.hull / (double)hitpoints.maxHull : 0d)
+                : (maxHp > 0f ? hp / (double)maxHp : 0d);
+            return Math.Max(0d, Math.Min(1d, fraction));
+        }
         public event Action<Target> Died;
 
         void OnEnable()
@@ -259,6 +273,7 @@ namespace GoF2Remake.Flight
             amount *= damageFactor;
             int dmg = Mathf.Max(0, (int)amount);
             lastHitVector = hitVector;
+            double hullBefore = HullDamageApplied != null ? DamageHullFraction() : 0d;
             bool dead;
             if (hitpoints != null)
             {
@@ -270,6 +285,11 @@ namespace GoF2Remake.Flight
             {
                 hp -= amount;
                 dead = hp <= 0f;
+            }
+            if (HullDamageApplied != null)
+            {
+                double lost = hullBefore - DamageHullFraction();
+                if (lost > 0d) HullDamageApplied(this, lost, byNpc);
             }
             Damaged?.Invoke(this, dmg, byNpc);
             if (dead && SaveFromDeath != null && SaveFromDeath()) dead = false;   // the player's emergency system
@@ -411,6 +431,34 @@ namespace GoF2Remake.Flight
             return transform.TransformPoint(best);
         }
 
+        // Cache the collision-hull centre once per frame; every attacker shares it.
+        int combatCenterFrame = -1;
+        Vector3 combatCenter;
+
+        /// <summary>Geometric centre of the collision volumes, not a sampled mesh vertex or a model pivot.
+        /// Prefer local hit boxes, then enabled collider bounds; fall back to the target's position.</summary>
+        public Vector3 CombatCenter()
+        {
+            if (combatCenterFrame == Time.frameCount) return combatCenter;
+            combatCenterFrame = Time.frameCount;
+            if (boxes != null && boxes.Length > 0)
+            {
+                var bounds = boxes[0];
+                for (int i = 1; i < boxes.Length; i++) bounds.Encapsulate(boxes[i]);
+                return combatCenter = transform.TransformPoint(bounds.center);
+            }
+            bool found = false;
+            Bounds world = default;
+            if (hull != null && hull.colliders != null)
+                foreach (var collider in hull.colliders)
+                {
+                    if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy) continue;
+                    if (!found) { world = collider.bounds; found = true; }
+                    else world.Encapsulate(collider.bounds);
+                }
+            return combatCenter = found ? world.center : transform.position;
+        }
+
         /// <summary>The point on the target's exact collision meshes nearest 'from'; position when there is no mesh hull.</summary>
         public Vector3 NearestHullPoint(Vector3 from)
         {
@@ -497,6 +545,7 @@ namespace GoF2Remake.Flight
             {
                 hitpoints.hull = hitpoints.maxHull;
                 hitpoints.shield = hitpoints.maxShield;
+                hitpoints.RestoreShieldRechargeDelay(0f);
                 hitpoints.armor = hitpoints.maxArmor;
                 hitpoints.emp = hitpoints.maxEmp;
                 hitpoints.empDisabled = false;

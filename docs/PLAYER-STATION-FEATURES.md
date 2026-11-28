@@ -1,0 +1,55 @@
+# Player-built stations and jumpgates
+
+## Player controls
+
+- **Station Management** opens while docked in a persistent multiplayer world. Build a station by choosing a named system, an existing station model and a name. Select your project to check material requirements, contribute cargo, or manage funded orders. A pilot with a shared project ID can contribute from the same screen.
+- **Sponsored jumpgates** can be ordered from an operational player-built station. Choose an eligible orbit, a destination system, a model and an optional build time. Terran, Vossk, Nivelian and Midorian presets reuse the corresponding game assemblies. The catalogue shows only assemblies available in the current game. Manage gates you can access while docked in their origin system.
+- **Multiplayer → Orbit Projects** shows wreck control and takeover time, the exclusivity countdown, salvage, reconstruction and gate construction progress. This is where you deliver cargo to a gate or reconstruction site, fund a gate from donated stock, reclaim a scrapped gate, or start an exclusive station rebuild. Rebuilds offer models from the wreck model's race. Gate reclamation can keep or replace the existing gate model.
+- **Station Management facilities** expose modules and purchase orders, item and hull listings, storage, ship hangars, the dry-dock blueprint screen, the refinery and factory production. The factory supports one-off batches and continuous or fixed-count repeats. Station history, permission defaults, account overrides, role assignments, bans, transfers, succession, builder rights and public retirement are available in the same management window. The server checks permissions on each action.
+- Station and gate model choices are saved with their projects. Station names have 3–40 characters and accept letters, ASCII digits, spaces, hyphens, underscores and straight apostrophes. Existing gate saves use the original orbit-model rule. Station appearance changes refresh the loaded scene when it can safely replace the model. Gate completion and reclamation use the selected asset for the visual, associated radius and exact structural hit target.
+
+## What the branch adds
+
+| Area | Features |
+| --- | --- |
+| Persistent world | Server-owned station and gate registries, stable IDs and orbital indices, revisioned snapshot chunks, save/load and legacy migration, write-ahead transactions for coordinated registry, profile and faction balances, and administrator recovery and orbit retirement. |
+| Station projects | Named stations, selectable models and generated orbits, incremental cargo deliveries, faction-treasury compensation for eligible contributions, contribution ledgers, escrow-funded construction and reconstruction buy orders, and return of unused escrow to the original funder. |
+| Facilities and production | Installable storage, refinery, factory, ship hangar and dry dock, directly from cargo or through a module buy-order project. Per-profile stock ownership, ore-to-core refining, timed factory batches and repeat orders, configurable recipe and construction-cost JSON, bare-hull storage, privately owned dry-dock output, and large-ship blueprint construction with configurable blueprint consumption. Storing a ship moves its removable gear and cargo into station storage. |
+| Player marketplace | Player-set item and bare-hull listings, purchase and cancellation, personal or faction-treasury item proceeds, per-account ownership, and a configurable 0–10% sales tax paid on top by the buyer to the station owner or owning faction. |
+| Station governance | Individual and faction ownership, builder precedence and relinquishment, faction roles, member/officer defaults, per-account overrides, bans and docking enforcement, renaming and appearance, history, proposed and accepted transfers, individual and faction successors, faction disband handling, and administrator-authorised individual recovery. Personal stored property, listings and designated proceeds survive routine ownership handovers. |
+| Public retirement | Operational owners can list for public claim at 25 million credits. NPC docking and ordinary services continue, hangar stock is unavailable, and player facilities pause. Existing sponsored gate access keeps working while management and construction pause. A claim restores the facilities, resumes timers, transfers sponsored gates and retains donated stock. |
+| Station combat and recovery | Exact station mesh damage from eligible weapons, operational and wreck integrity, an initial wreck with one-time 50% compensation to the current owner, complete destruction, blueprint and construction salvage, tracked 5 km control, immediate first claim, five minutes of uncontested takeover and a 30-minute exclusivity clock. The exclusive side can rebuild for reduced materials in the same orbit at a shifted position. A failed rebuild pays no compensation and drops no salvage. |
+| Gate network | Sponsored construction, one gate per orbit, one directed destination, known-system requirements and discovery, optional timed builds, personal or faction-funded material deliveries, a 24-hour reroute cooldown, owner/faction/blacklist/public access, map and navigation integration, and an independent gate required for a reverse link. Sponsored gates transfer with operational handovers and completed station reconstruction. |
+| Gate combat and salvage | Exact gate mesh targeting, weapon-level structural damage, temporary EMP shutdown with the structure still present and targetable, regeneration after a 15-minute damage-free interval, reclaimable scrap after first destruction, permanent destruction only after subsequent attacks deplete the scrap's separate integrity, public salvage and a fresh sponsored replacement path. |
+| Shared construction stock and salvage | Cargo donations remain attached to their station, and allocated stock remains with the intended gate. Eligible owners and faction members can spend it without payouts. Public tractor salvage respects reach and available hold capacity, persists uncollected materials and caps each pickup at 500 units. |
+| Mod integration carried by the branch | Optional jump-drive energy and failure rules, visible failure risk, emergency destinations checked against live reciprocal gate availability, configurable hull damage and equipment loss, and item-availability filters for shops, equipment, loot, NPC cargo and blueprints. Mod-drive failure outcomes currently run in the local jump controller. |
+
+## Mod Builder
+
+Open **Menu → Player-built stations & gates** to allow or block new station and sponsored gate projects, choose whether to offer stock models, register extra models and set fresh scrap integrity. The section writes `playerInfrastructure.json` when applied, supports undo and redo, and exports with the mod. The last active mod that includes the file supplies the settings. With no file, the existing construction options remain enabled. With an explicit file, mod station models must be listed to appear in the catalogue.
+
+Register station entries from `stations.json` and systems with a custom `jumpgate` model from `systems.json`. Use a qualified reference such as `my_mod:frontier_station` or an original index shared by an override. The section can fill in references for models already defined in the current project. Players see eligible models by name. The server validates the selection, and saved builds keep their model reference. Turning off new projects leaves existing infrastructure and rebuilds available.
+
+Fresh scrap starts with 5,000 integrity by default. A hit that wrecks an operational gate makes scrap and does not carry over damage into it. The next qualifying structural hits damage the scrap, which does not regenerate. If someone reclaims and rebuilds the gate before that integrity reaches zero, the next operational loss again produces fresh scrap. The new rules apply to existing scrapped gates, and existing permanently destroyed sites retain their saved state.
+
+Server configuration examples live in [Player station economy](PLAYER-STATION-ECONOMY.md). Optional drive rules are described in [Jump drive rules](../Modding/JUMP_DRIVE_RULES.md).
+
+
+### Storage, economy, siege access and stock sentry maintenance
+
+These settings are available in **Player-built stations & gates** and in the same validated `playerInfrastructure.json` rules object (including the MCP playerInfrastructure entry).
+
+| Field | Default | Accepted range |
+| --- | --- | --- |
+| storageCapacityPerLevel | 2000 | 1–1000000 |
+| storageItemTypes | 64 | 1–4096 |
+| stationClaimPrice | 25000000 | 0–2147483647 |
+| stationRenamePrice | 300000 | 0–2147483647 |
+| siegeRespawnFactionOfficers | true | boolean |
+| siegeRespawnStationAdministrators | true | boolean |
+| siegeRespawnOriginalBuilders | true | boolean |
+| stockDefenseMaintenanceSeconds | 604800 | 60–31536000 |
+| stockDefenseDecayPercentPerDay | 1 | 0.001–100 |
+| stockDefenseMinimumIntegrityPercent | 15 | 15–99 |
+
+Lower storage limits restrict new deposits without deleting saved possessions. Faction leaders and owners retain siege privileges; ordinary defenders cannot be opted into them. The stock maintenance settings apply to new sentries and legacy stock sentries lacking upkeep; already-maintained structures retain their persisted settings. Custom orbital presets can specify their own maintenance terms. Default maintenance costs remain 20 units of item 156, 10 of 155, 8 of 118 and 5 of 127 per interval.

@@ -26,7 +26,9 @@ using System.Linq;
 using System.Reflection;
 using GoF2Remake.Data;
 using MoonSharp.Interpreter;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace GoF2Remake.Modding
 {
@@ -61,12 +63,16 @@ THE GAME TABLE
   game.emit(event, ...)               an event for every script mod (this game)
   game.log(...) or print(...)         to this console and the game's log
   game.message(text)                  a line on the player's screen
+  game.tutorial(id, title, text, repeatable) -> queued
+                                      native tutorial popup; once per save by default
+                                      respects the Tutorial Hints setting
   game.command(line) -> answer        a chat / event command, as the server:
                                       game.command(""title @a Welcome for 5"")
   game.addCommand(name, fn)           a command of your own: fn(args, who)
                                       returns its answer; ""/name"" in the chat,
                                       an event graph's Command node, game.command
   game.multiplayer()                  ""none"", ""host"" or ""client""
+  game.stationUi                     native station UI editor (during stationUi event)
   game.scene()                        ""MainMenu"", ""Space"", ""Station""
   game.space() / game.station()       the flight level / the docked level, or nil
   game.player()                       the player's ship in flight, or nil
@@ -90,6 +96,8 @@ EVENTS  (game.on)
   database(db)               the game's tables were loaded: change them here
   shipDestroyed(ship, byPlayer)
   playerDestroyed()
+  piracyKillRegistered(killerId, victimId, station, count, threshold, windowSeconds)
+  piracyStatusChanged(pilotId, isPirate)  server only, requires the piracy mod option
   trade(item, amount, price, station)   bought (+) or sold (-) in a shop
   missionAccepted(mission), missionSucceeded(mission, pay), missionFailed(mission)
   storyStep(step, previous)  the campaign moved on
@@ -128,6 +136,9 @@ HOOKS
       game.hook(""GameHooks"", ""FactionBuyPrice"", function(original, station, price)
           return math.floor(original(station, price) / 2)
       end)
+  Server piracy rules (requires the piracy mod option):
+      game.hook(""GameHooks"", ""PiracyKillThreshold"", function() return 40 end)
+      game.hook(""GameHooks"", ""PiracyWindowSeconds"", function() return 5 * 86400 end)
   game.listen(target, ""Member"", function(...) ... end)
       adds to a C# event or delegate: game.listen(""Settings"", ""Changed"", fn)
   The hook classes GameHooks, SpaceHooks, UiHooks and NetSession hold most
@@ -183,6 +194,241 @@ LIMITS
   browser, never crash the game. Players are asked before a mod with
   scripts runs.";
 
+        // Declarative tutorials do not execute scripts and are not subject to script approval.
+        // Progress is separate from game.saved so data-only mods can persist it.
+        const string DefinedTutorialFile = "tutorials/gameplay.json";
+        sealed class DefinedTutorial
+        {
+            public string mod, id, title, text, trigger, presentation, category;
+            public string[] requires, races, shipClasses;
+            public bool handbook;
+            public string handbookTitle;
+            public bool enabled, mandatory, repeatable, persistPending;
+            public bool? multiplayer;
+            public float cooldown;
+        }
+
+        static readonly List<DefinedTutorial> definitions = new List<DefinedTutorial>();
+        static readonly List<(DefinedTutorial item, SceneHandle scene)> definedPending = new List<(DefinedTutorial, SceneHandle)>();
+        static readonly Dictionary<string, float> definedLast = new Dictionary<string, float>();
+        static int definedRevision = -1, tutorialGeneration;
+        static string DefinedKey(string mod, string id) => "__mod_tutorial/" + mod + "/" + id;
+        static bool DefinedSeen(string mod, string id) => Session.ScriptData.ContainsKey(DefinedKey(mod, id));
+        public static bool HandbookArticleSeen(string mod, string id) => DefinedSeen(mod, id);
+
+        static void ClearDefinedTutorials()
+        {
+            tutorialGeneration++;
+            definitions.Clear();
+            definedPending.Clear();
+            definedLast.Clear();
+            definedRevision = -1;
+        }
+
+        static void SyncDefinedTutorials()
+        {
+            if (definedRevision == ModManager.Revision) return;
+            tutorialGeneration++;
+            definitions.Clear();
+            definedPending.Clear();
+            definedRevision = ModManager.Revision;
+            foreach (var mod in ModManager.Active)
+            {
+                if (mod.Broken || !mod.Source.Exists(DefinedTutorialFile)) continue;
+                try
+                {
+                    var root = ModJson.Read(mod.Source, DefinedTutorialFile) as JObject;
+                    if (!(root?["tutorials"] is JArray entries) || entries.Count > 256)
+                        throw new FormatException("Expected a tutorials array (maximum 256).");
+                    var ids = new HashSet<string>(StringComparer.Ordinal);
+                    var parsed = new List<DefinedTutorial>();
+                    string handbookTitle = (string)root["handbookTitle"] ?? "Pilot Handbook";
+                    if (string.IsNullOrWhiteSpace(handbookTitle) || handbookTitle.Length > 120) throw new FormatException("Invalid handbook title.");
+                    foreach (var entry in entries)
+                    {
+                        if (!(entry is JObject obj)) throw new FormatException("Tutorial must be an object.");
+                        var t = new DefinedTutorial
+                        {
+                            mod = mod.Id, id = (string)obj["id"], title = (string)obj["title"],
+                            text = (string)obj["text"], trigger = (string)obj["trigger"],
+                            presentation = (string)obj["presentation"] ?? "popup",
+                            category = (string)obj["category"] ?? "",
+                            handbookTitle = handbookTitle,
+                            handbook = (bool?)obj["handbook"] ?? true,
+                            races = obj["races"] == null ? Array.Empty<string>() : obj["races"].ToObject<string[]>(),
+                            shipClasses = obj["shipClasses"] == null ? Array.Empty<string>() : obj["shipClasses"].ToObject<string[]>(),
+                            enabled = (bool?)obj["enabledByDefault"] ?? true,
+                            mandatory = (bool?)obj["mandatory"] ?? false,
+                            repeatable = (bool?)obj["repeatable"] ?? false,
+                            persistPending = (bool?)obj["persistPending"] ?? true,
+                            multiplayer = (bool?)obj["multiplayer"],
+                            cooldown = (float?)obj["cooldownSeconds"] ?? 0,
+                            requires = obj["requires"] == null ? Array.Empty<string>() : obj["requires"].ToObject<string[]>()
+                        };
+                        if (string.IsNullOrWhiteSpace(t.id) || t.id.Length > 128 || t.id.Contains("/") ||
+                            !ids.Add(t.id) || string.IsNullOrWhiteSpace(t.title) || t.title.Length > 120 ||
+                            string.IsNullOrWhiteSpace(t.text) || t.text.Length > 2000 ||
+                            (t.presentation != "popup" && t.presentation != "hint") ||
+                            t.trigger == "update" || t.trigger == "lateUpdate" ||
+                            float.IsNaN(t.cooldown) || float.IsInfinity(t.cooldown) || t.cooldown < 0 ||
+                            !ValidTutorialFilter(t.races) || !ValidTutorialFilter(t.shipClasses) ||
+                            t.requires == null || t.requires.Length > 64 ||
+                            t.requires.Any(x => string.IsNullOrWhiteSpace(x) || x.Length > 128 || x.Contains("/")))
+                            throw new FormatException("Invalid tutorial definition: " + t.id);
+                        parsed.Add(t);
+                    }
+                    definitions.AddRange(parsed);
+                }
+                catch (Exception e) { Debug.LogWarning("Mod " + mod.Id + " " + DefinedTutorialFile + ": " + e.Message); }
+            }
+        }
+
+        static bool ValidTutorialFilter(string[] values) => values != null && values.Length <= 64 &&
+            values.All(x => !string.IsNullOrWhiteSpace(x) && x.Length <= 128);
+
+        static bool EligibleTutorial(DefinedTutorial t)
+        {
+            if (t.multiplayer.HasValue && t.multiplayer.Value != NetSession.Active) return false;
+            if (t.races.Length > 0 && !t.races.Any(r => string.Equals(r, Session.PlayerIdentityRace, StringComparison.OrdinalIgnoreCase))) return false;
+            if (t.shipClasses.Length > 0)
+            {
+                var ship = Database.Shared?.Ship(Session.ShipIndex);
+                var cls = ShipClassRules.ClassOf(ship);
+                if (!t.shipClasses.Any(c => string.Equals(c, cls, StringComparison.OrdinalIgnoreCase))) return false;
+            }
+            return true;
+        }
+
+        public static (string title, string category, string text, string mod, string id)[] HandbookArticles(string search = "")
+        {
+            SyncDefinedTutorials();
+            search = search ?? "";
+            return definitions.Where(t => t.handbook && EligibleTutorial(t) &&
+                (t.title + " " + t.category + " " + t.text + " " + t.mod).IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                .OrderBy(t => t.category).ThenBy(t => t.title)
+                .Select(t => (t.title, t.category, t.text, t.mod, t.id)).ToArray();
+        }
+
+        public static string HandbookTitle()
+        {
+            SyncDefinedTutorials();
+            return definitions.FirstOrDefault(t => t.handbook && EligibleTutorial(t))?.handbookTitle ?? "Pilot Handbook";
+        }
+
+        public static void AcknowledgeHandbookArticle(string mod, string id)
+        {
+            SyncDefinedTutorials();
+            var t = definitions.FirstOrDefault(x => x.mod == mod && x.id == id && x.handbook && EligibleTutorial(x));
+            if (t != null) CompleteDefined(t);
+        }
+
+        static void CompleteDefined(DefinedTutorial t)
+        {
+            Session.ScriptData[DefinedKey(t.mod, t.id)] = "true";
+            definedLast[DefinedKey(t.mod, t.id)] = Time.realtimeSinceStartup;
+            definedPending.RemoveAll(p => p.item.mod == t.mod && p.item.id == t.id);
+        }
+
+        static bool QueueDefined(DefinedTutorial t, bool manual = false)
+        {
+            if ((!manual && !t.enabled) || (!manual && !t.mandatory && !Settings.TutorialHints) ||
+                !EligibleTutorial(t) ||
+                (!manual && !t.repeatable && DefinedSeen(t.mod, t.id)) ||
+                t.requires.Any(id => !DefinedSeen(t.mod, id)) ||
+                definedPending.Count >= 20 || definedPending.Any(p => p.item.mod == t.mod && p.item.id == t.id))
+                return false;
+            if (!manual && definedLast.TryGetValue(DefinedKey(t.mod, t.id), out float last) &&
+                Time.realtimeSinceStartup - last < Math.Max(t.cooldown, t.presentation == "hint" && !t.repeatable ? 30f : 0f)) return false;
+            definedPending.Add((t, UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle));
+            return true;
+        }
+
+        static void RaiseDefinedTutorials(string name)
+        {
+            if (name == "update" || name == "lateUpdate" || name == "saving" || name == "stop") return;
+            SyncDefinedTutorials();
+            foreach (var t in definitions)
+                if (t.trigger == name) QueueDefined(t);
+        }
+
+        static void ShowDefinedTutorials()
+        {
+            if (definedPending.Count == 0) return;
+            SceneHandle scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            for (int i = 0; i < definedPending.Count; i++)
+            {
+                var pending = definedPending[i];
+                var t = pending.item;
+                if ((!t.persistPending && pending.scene != scene) ||
+                    !EligibleTutorial(t))
+                { definedPending.RemoveAt(i--); continue; }
+                try
+                {
+                    var save = Session.ScriptData;
+                    int generation = tutorialGeneration;
+                    bool shown = t.presentation == "hint"
+                        ? GameHooks.Notice != null && GameHooks.Notice(t.title + ": " + t.text)
+                        : GameHooks.TutorialPopupAcknowledged != null && GameHooks.TutorialPopupAcknowledged(t.title, t.text, () =>
+                        {
+                            if (generation == tutorialGeneration && ReferenceEquals(save, Session.ScriptData)) CompleteDefined(t);
+                        });
+                    if (!shown) continue;
+                    definedPending.RemoveAt(i);
+                    // Nonblocking hints have no acknowledgement button. Read them in the handbook to complete.
+                    definedLast[DefinedKey(t.mod, t.id)] = Time.realtimeSinceStartup;
+                    return;
+                }
+                catch (Exception e)
+                {
+                    definedPending.RemoveAt(i--);
+                    Debug.LogWarning("Mod tutorial " + t.mod + ":" + t.id + ": " + e.Message);
+                }
+            }
+        }
+
+        sealed class Tutorial
+        {
+            public string modId, id, title, text;
+            public SceneHandle scene;
+            public bool repeatable;
+            public Action shown;
+        }
+
+        static readonly List<Tutorial> tutorials = new List<Tutorial>();
+
+        static void ShowTutorials()
+        {
+            if (tutorials.Count == 0) return;
+            if (!Settings.TutorialHints) { tutorials.Clear(); return; }
+            SceneHandle scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle;
+            tutorials.RemoveAll(t => t.scene != scene);
+            if (tutorials.Count == 0 || (GameHooks.TutorialPopupAcknowledged == null && GameHooks.TutorialPopup == null)) return;
+            var t = tutorials[0];
+            try
+            {
+                int generation = tutorialGeneration;
+                var save = Session.ScriptData;
+                if (GameHooks.TutorialPopupAcknowledged != null)
+                {
+                    if (!GameHooks.TutorialPopupAcknowledged(t.title, t.text, () =>
+                    {
+                        if (generation == tutorialGeneration && ReferenceEquals(save, Session.ScriptData)) t.shown?.Invoke();
+                    })) return;
+                }
+                else
+                {
+                    if (!GameHooks.TutorialPopup(t.title, t.text)) return;
+                    t.shown?.Invoke(); // compatibility for older hook providers
+                }
+                tutorials.RemoveAt(0);
+            }
+            catch (Exception e)
+            {
+                tutorials.Remove(t);
+                Debug.LogWarning("Mod tutorial " + t.modId + ":" + t.id + ": " + e.Message);
+            }
+        }
+
         sealed class Message { public string text; public float left; }
 
         /// <summary>game.message's lines waiting for an interface to show them (the oldest first, one a frame).</summary>
@@ -220,6 +466,7 @@ LIMITS
                 g["mod"] = info;
                 g["version"] = Application.version;
                 g["saved"] = saved;
+                BuildStationUiApi(g);
                 BuildMoreApi(g);   // ModScriptsMore.cs: sequences, any member, the mod's files, components, commands, messages
 
                 Fn(g, "on", a =>
@@ -267,6 +514,34 @@ LIMITS
                     AddLine(mod, "[message] " + text, false);
                     if (messages.Count < 20) messages.Add(new Message { text = text, left = 3f });
                     return DynValue.Nil;
+                });
+                Fn(g, "tutorialShow", a =>
+                {
+                    string id = a.AsType(0, "game.tutorialShow", DataType.String).String;
+                    SyncDefinedTutorials();
+                    var t = definitions.FirstOrDefault(x => x.mod == mod.Id && x.id == id);
+                    return DynValue.NewBoolean(t != null && QueueDefined(t, true));
+                });
+                Fn(g, "tutorialSeen", a => DynValue.NewBoolean(DefinedSeen(mod.Id, a.AsType(0, "game.tutorialSeen", DataType.String).String)));
+                Fn(g, "tutorial", a =>
+                {
+                    string id = a.AsType(0, "game.tutorial", DataType.String).String.Trim();
+                    string title = a.AsType(1, "game.tutorial", DataType.String).String.Trim();
+                    string text = a.AsType(2, "game.tutorial", DataType.String).String.Trim();
+                    bool repeatable = a.Count > 3 && a[3].CastToBool();
+                    if (id.Length == 0 || id.Length > 128 || title.Length == 0 || title.Length > 120 || text.Length == 0 || text.Length > 2000)
+                        throw new ScriptRuntimeException("game.tutorial: id (1-128), title (1-120) and text (1-2000 characters) required");
+                    string key = "__tutorial_seen:" + id;
+                    if (!Settings.TutorialHints || (!repeatable && saved.Get(key).CastToBool())
+                        || tutorials.Count >= 20 || tutorials.Any(t => t.modId == mod.Id && t.id == id))
+                        return DynValue.False;
+                    tutorials.Add(new Tutorial
+                    {
+                        modId = mod.Id, id = id, title = title, text = text, repeatable = repeatable,
+                        scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().handle,
+                        shown = () => { if (!stopped && !repeatable) saved.Set(key, DynValue.True); }
+                    });
+                    return DynValue.True;
                 });
                 Fn(g, "command", a =>
                 {
@@ -326,6 +601,16 @@ LIMITS
                 }, "class");
                 script.Globals.MetaTable = meta;
 
+                Fn(g, "restrictMiningClass", a => OwnRule(ModInteractionRules.RegisterMiningRestriction(
+                    a.AsType(0, "game.restrictMiningClass", DataType.String).String,
+                    a.AsType(1, "game.restrictMiningClass", DataType.String).String)));
+                Fn(g, "restrictDerelictBoardingClass", a => OwnRule(ModInteractionRules.RegisterDerelictBoardingRestriction(
+                    a.AsType(0, "game.restrictDerelictBoardingClass", DataType.String).String,
+                    a.AsType(1, "game.restrictDerelictBoardingClass", DataType.String).String)));
+                Fn(g, "weightLoungeRace", a => OwnRule(ModInteractionRules.RegisterLoungeWeight(
+                    a.AsType(0, "game.weightLoungeRace", DataType.String).String,
+                    a.AsType(1, "game.weightLoungeRace", DataType.String).String,
+                    (float)a.AsType(2, "game.weightLoungeRace", DataType.Number).Number)));
                 Fn(g, "hook", a => Hook(a, "game.hook", true));
                 Fn(g, "listen", a => Hook(a, "game.listen", false));
 
@@ -381,6 +666,14 @@ LIMITS
                     l[i] = ScriptAccess.FromLua(a[2], Arg(l.GetType(), 0));
                     return DynValue.Nil;
                 });
+            }
+
+            DynValue OwnRule(Action remove)
+            {
+                int id = nextId++;
+                undo.Add(remove);
+                undoById[id] = remove;
+                return DynValue.NewNumber(id);
             }
 
             DynValue Fn(Table g, string name, Func<CallbackArguments, DynValue> body)
@@ -531,6 +824,111 @@ LIMITS
                 undoById[id] = off;
                 return DynValue.NewNumber(id);
             }
+        }
+    }
+
+    // Shared native rules: GoF2.Game owns registration and GoF2.Space consumes them.
+    [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
+    public static class ModInteractionRules
+    {
+        // Opt-in rules registered by mod scripts, evaluated entirely in native code.
+        // The registering VM owns the returned removal action (game.off / script shutdown).
+        sealed class ClassRestriction
+        {
+            public string shipClass, message;
+        }
+        sealed class LoungeWeight
+        {
+            public string system, race;
+            public float chance;
+        }
+        static readonly List<ClassRestriction> miningRestrictions = new List<ClassRestriction>();
+        static readonly List<ClassRestriction> boardingRestrictions = new List<ClassRestriction>();
+        static readonly List<LoungeWeight> loungeWeights = new List<LoungeWeight>();
+        static System.Random loungeRandom = new System.Random();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetModInteractionRules()
+        {
+            miningRestrictions.Clear();
+            boardingRestrictions.Clear();
+            loungeWeights.Clear();
+            loungeRandom = new System.Random();
+        }
+
+        static Action RegisterRestriction(List<ClassRestriction> rules, string shipClass, string message)
+        {
+            if (string.IsNullOrWhiteSpace(shipClass) || string.IsNullOrWhiteSpace(message))
+                throw new ArgumentException("A ship class and refusal message are required.");
+            var rule = new ClassRestriction { shipClass = shipClass.Trim(), message = message };
+            rules.Add(rule);
+            return () => rules.Remove(rule);
+        }
+
+        public static Action RegisterMiningRestriction(string shipClass, string message) =>
+            RegisterRestriction(miningRestrictions, shipClass, message);
+
+        public static Action RegisterDerelictBoardingRestriction(string shipClass, string message) =>
+            RegisterRestriction(boardingRestrictions, shipClass, message);
+
+        static string ClassRefusal(List<ClassRestriction> rules, int shipIndex)
+        {
+            if (rules.Count == 0) return null;
+            string shipClass = Database.Shared?.Ship(shipIndex)?.shipClass;
+            if (string.IsNullOrEmpty(shipClass)) return null;
+            foreach (var rule in rules)
+                if (string.Equals(shipClass, rule.shipClass, StringComparison.OrdinalIgnoreCase)) return rule.message;
+            return null;
+        }
+
+        public static string MiningClassRefusal(int shipIndex) => ClassRefusal(miningRestrictions, shipIndex);
+
+        public static string DerelictBoardingClassRefusal(int shipIndex) => ClassRefusal(boardingRestrictions, shipIndex);
+
+        static string NormalizeLoungeSystem(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            var result = new System.Text.StringBuilder(name.Length);
+            foreach (char c in name)
+                if (char.IsLetterOrDigit(c)) result.Append(char.ToLowerInvariant(c));
+            return result.ToString();
+        }
+
+        public static Action RegisterLoungeWeight(string system, string race, float chance)
+        {
+            system = NormalizeLoungeSystem(system);
+            if (system.Length == 0 || string.IsNullOrWhiteSpace(race) || float.IsNaN(chance) ||
+                float.IsInfinity(chance) || chance < 0 || chance > 100)
+                throw new ArgumentException("A system name, race key and chance from 0 to 100 are required.");
+            var rule = new LoungeWeight { system = system, race = race.Trim(), chance = chance };
+            loungeWeights.Add(rule);
+            return () => loungeWeights.Remove(rule);
+        }
+
+        // A single draw for all registered weights. Remaining probability uses the original visitor race.
+        // Later registrations for the same system/race override earlier ones without affecting their removal handles.
+        public static int? WeightedLoungeRace(Database db, int stationIndex)
+        {
+            if (db == null || loungeWeights.Count == 0) return null;
+            var station = db.Stations.Find(s => s != null && s.index == stationIndex);
+            if (station == null) return null;
+            var system = db.Systems.Find(s => s != null && s.index == station.system);
+            if (system == null) return null;
+            string key = NormalizeLoungeSystem(system.name);
+            if (!loungeWeights.Exists(rule => rule.system == key && rule.chance > 0)) return null;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Keep lounge weighting separate from Unity's gameplay random stream.
+            double roll = loungeRandom.NextDouble() * 100.0;
+            for (int i = loungeWeights.Count - 1; i >= 0; i--)
+            {
+                var rule = loungeWeights[i];
+                if (rule.system != key || !seen.Add(rule.race)) continue;
+                var race = ModRaces.Get(rule.race);
+                if (race == null) continue;
+                if (roll < rule.chance) return race.race;
+                roll -= rule.chance;
+            }
+            return null;
         }
     }
 }

@@ -15,6 +15,20 @@ namespace GoF2Remake.Tests
     public class ShipClassRulesTests
     {
         [Test]
+        public void CrosshairOffsetsArePerShipAndPreserveUnspecifiedAxes()
+        {
+            var a = new ShipData();
+            var b = new ShipData();
+            ModShipView.ApplyShip(a, JObject.Parse("{\"crosshairOffsetX\":125,\"crosshairOffsetY\":-80}"));
+            ModShipView.ApplyShip(a, JObject.Parse("{\"crosshairOffsetX\":2000}"));
+            Assert.AreEqual(new UnityEngine.Vector2(1000f, -80f), ModShipView.CrosshairOffset(a));
+            Assert.AreEqual(UnityEngine.Vector2.zero, ModShipView.CrosshairOffset(b));
+            Assert.AreEqual(UnityEngine.Vector2.zero, ModShipView.CrosshairOffset(a, true));
+            ModShipView.ApplyShip(a, JObject.Parse("{\"crosshairOffsetX\":0}"));
+            Assert.AreEqual(new UnityEngine.Vector2(0f, -80f), ModShipView.CrosshairOffset(a));
+        }
+
+        [Test]
         public void CanonicalTaxonomyContainsExactlySixteenClasses()
         {
             Assert.AreEqual(16, ShipClassRules.CanonicalClassIds.Length);
@@ -136,6 +150,49 @@ namespace GoF2Remake.Tests
             Assert.IsTrue(ShipClassRules.Fits(item, Ship("fighter", "agile")));
         }
 
+        [Test]
+        public void ReservedSecondarySlotsAreExclusiveInBothDirections()
+        {
+            var hull = Ship("frigate", "secondarySlot:7:test:salvo", "secondarySlot:8:test:salvo");
+            var special = new ItemData { type = "secondary", modKey = "test:salvo" };
+            var ordinary = new ItemData { type = "secondary", modKey = "test:missile" };
+            Assert.IsTrue(ShipClassRules.HasSecondaryReservations(hull));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(special, hull, 7));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(special, hull, 8));
+            Assert.IsFalse(ShipClassRules.SecondarySlotFits(special, hull, 6));
+            Assert.IsFalse(ShipClassRules.SecondarySlotFits(ordinary, hull, 7));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(ordinary, hull, 6));
+            Assert.IsTrue(ShipClassRules.SecondarySlotFits(ordinary, Ship("frigate"), 7));
+        }
+
+        [Test]
+        public void MultiplePrimaryLocksAreExplicitAlternatives()
+        {
+            var hull = Ship("cruiser", "primaryOnly:test:beam", "primaryOnly:test:cannon");
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:beam" }, hull));
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:cannon" }, hull));
+            Assert.IsFalse(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:other" }, hull));
+        }
+
+        [Test]
+        public void PrimaryLockDoesNotRestrictSecondaries()
+        {
+            var hull = Ship("cruiser", "primaryOnly:test:beam");
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:beam" }, hull));
+            Assert.IsFalse(ShipClassRules.Fits(new ItemData { type = "primary", modKey = "test:gun" }, hull));
+            Assert.IsTrue(ShipClassRules.Fits(new ItemData { type = "secondary", modKey = "test:missile" }, hull));
+        }
+
+        [Test]
+        public void StrictAllowListAlsoChecksUnclassifiedShips()
+        {
+            var item = Item(new[] { "cruiser" });
+            item.attrKeys = new[] { ItemStats.IdOf("strictShipClass") };
+            item.attrValues = new[] { 1 };
+            Assert.IsFalse(ShipClassRules.Fits(item, new ShipData()));
+            Assert.IsTrue(ShipClassRules.Fits(item, Ship("cruiser")));
+        }
+
         // ---- the scanner's view ---------------------------------------------------------------------------------------
 
         [Test]
@@ -232,17 +289,31 @@ namespace GoF2Remake.Tests
             Assert.Throws<ModJsonException>(() => ShipClassRules.CheckItem(JObject.Parse("{ 'allowedClasses': { 'a': 1 } }"), "items.json", null, "items.json"));
             Assert.DoesNotThrow(() => ShipClassRules.CheckItem(JObject.Parse("{ 'allowedClasses': ['a'], 'excludedClasses': 'b' }"), "items.json", null, "items.json"));
         }
-
-        // ---- docking role ---------------------------------------------------------------------------------------------
-
         [Test]
-        public void OnlyAnExternalRoleKeepsAShipOutOfTheHangar()
+        public void ClassDockingAndCameraPolicyDoesNotChangeVanillaShips()
         {
-            // no size limit: a big mod hull without a role lands in the hangar (Discord 2026-11-21, the UNSC Savannah)
-            Assert.IsTrue(ExternalDockingRules.CanDockInternally(new ShipData()));
-            Assert.IsTrue(ExternalDockingRules.CanDockInternally(new ShipData { dockingRole = "internal" }));
+            foreach (string id in ShipClassRules.CanonicalClassIds)
+            {
+                var ship = new ShipData { shipClass = id, dockingRole = "external" };
+                bool large = id == ShipClassRules.Frigate || id == ShipClassRules.Freighter ||
+                    id == ShipClassRules.Cruiser || id == ShipClassRules.Carrier;
+                Assert.AreEqual(large, ExternalDockingRules.CanDockExternally(ship), id);
+                Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship, false), id);
+                Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship, true), id);
+                Assert.AreEqual(!large, ExternalDockingRules.CanDockInternally(ship), id);
+                Assert.AreEqual(large, ModShipView.FreeLookTargeting(ship, !large), id);
+                if (large) Assert.GreaterOrEqual(ModShipView.OrbitDistance(ship), 50000f, id);
+            }
+            var vanilla = new ShipData { dockingRole = "external" };
+            Assert.IsFalse(ExternalDockingRules.CanDockExternally(vanilla));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(vanilla, false));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(vanilla, true));
             Assert.IsTrue(ExternalDockingRules.CanDockInternally(null));
-            Assert.IsFalse(ExternalDockingRules.CanDockInternally(new ShipData { dockingRole = "external" }));
+            Assert.IsFalse(ExternalDockingRules.CanDockInternally(new ShipData { shipClass = ShipClassRules.Cruiser }));
+            Assert.IsTrue(ExternalDockingRules.CanDockInternally(new ShipData { dockingRole = "internal" }));
+            Assert.IsTrue(ModShipView.FreeLookTargeting(vanilla, true));
+            Assert.IsFalse(ModShipView.FreeLookTargeting(vanilla, false));
         }
+
     }
 }

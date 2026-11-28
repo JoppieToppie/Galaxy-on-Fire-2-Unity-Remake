@@ -20,6 +20,11 @@ namespace GoF2Remake.Multiplayer
         public static void OnLogin(ulong client, string token, string device, string name)
         {
             if (!Enabled || NetState.Instance == null || logins.ContainsKey(client)) return;
+            if (NetPlayerStations.ProfileWritesBlocked && !IsHostClient(client))
+            {
+                NetGame.Kick(client, "Station transaction recovery is pending. Reconnect once recovery completes.");
+                return;
+            }
             device = CleanDevice(device);
             name = NetGame.Clean(name);
             Account account = null;
@@ -52,11 +57,24 @@ namespace GoF2Remake.Multiplayer
                 if (name.Length > 0)
                     NetNews.Post(NetNews.Kind.Pilot, $"New pilot in the sector: {NetNews.Safe(NetGame.Clean(name))} registers at Dis", -1, "newpilot", 120f);
             }
+            if (!NetFactions.ReplayPendingReputation(account.id) || !ReplayPendingDeath(account.id))
+            {
+                NetGame.Kick(client, "Your reputation or death recovery transaction is pending. Reconnect after the server recovers it.");
+                return;
+            }
             // One connection per device: the older one goes (a reconnect while the dropped one still times out).
             if (account != null)
                 foreach (var other in new List<Login>(logins.Values))
                     if (other.account == account && other.device == device)
                     {
+                        var departing = NetSquad.Find(other.client);
+                        if (other.controller && departing != null &&
+                            (departing.HasRecordedDeath || departing.InSpace && departing.Hull == 0f) &&
+                            NetState.Instance?.EnsureDeathPenalty(departing, refresh: false) != true)
+                        {
+                            NetGame.Kick(client, "Your previous connection has an unresolved death. Reconnect after the server settles it.");
+                            return;
+                        }
                         logins.Remove(other.client);
                         if (other.controller) Debug.Log($"Server: profile {account.id} signed in again from the same device; the older connection goes.");
                         NetGame.Kick(other.client, Localization.Extra("mpSignedInElsewhere", "You signed in again from this device."));
@@ -75,7 +93,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 SaveIndex();
             }
-            SetObserverFlag(client, !login.controller);
+            SetObserverFlag(client, !login.controller || NeedsIdentity(account));
             SendProfile(login, newToken);
             if (account != null && !login.controller)
                 NetState.Instance.Notify(client, Localization.Extra("mpObserverJoined",
@@ -107,6 +125,19 @@ namespace GoF2Remake.Multiplayer
         {
             if (!Enabled) return;
             float now = Time.realtimeSinceStartup;
+            if (!NetPlayerStations.ProfileWritesBlocked)
+                foreach (var login in logins.Values)
+                    if (login.economyRevisionDirty && NetState.Instance != null && NetState.Instance.IsSpawned)
+                    {
+                        login.economyRevisionDirty = false;
+                        NetState.Instance.SendEconomyRevision(login.client, login.economyRevision);
+                    }
+            // A disconnect during journal recovery may have deferred controller promotion.
+            if (!NetPlayerStations.ProfileWritesBlocked)
+                foreach (var login in new List<Login>(logins.Values))
+                    if (login.account != null && !login.controller && ControllerOf(login.account) == null &&
+                        !handovers.ContainsKey(login.account.id)) Promote(login);
+            TickDeathRecoveries();
             if (now >= nextPrune) Prune();   // hourly: profiles unused for PruneDays
             if (links.Count > 0)
                 foreach (var code in new List<string>(links.Keys))
@@ -128,9 +159,12 @@ namespace GoF2Remake.Multiplayer
         static void Promote(Login login)
         {
             if (login.account != null && ControllerOf(login.account) != null) return;
+            if (NetPlayerStations.ProfileWritesBlocked || (login.account != null && (!NetFactions.ReplayPendingReputation(login.account.id) || !ReplayPendingDeath(login.account.id)))) return;
             login.controller = true;
+            login.acceptedUploadSequence = 0;
+            incoming.Remove(login.client);
             login.acceptedAt = Time.realtimeSinceStartup;
-            SetObserverFlag(login.client, false);
+            SetObserverFlag(login.client, NeedsIdentity(login.account));
             SendProfile(login, null);
             NetState.Instance?.Notify(login.client, Localization.Extra("mpNowController", "This device controls your profile now."));
             Debug.Log($"Server: client {login.client} controls profile {login.account?.id} now.");
@@ -157,7 +191,16 @@ namespace GoF2Remake.Multiplayer
                 catch (Exception e) { Debug.LogError($"NetProfiles: profile {login.account.id} unreadable: {e.Message}"); }
             // A profile saved before the upgrade cap: cut back here too, so the game gets (and next uploads) the capped hull.
             SaveData saved = null;
-            int cut = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _) ? ClampMods(saved) : 0;
+            bool parsed = !coopHost && json.Length > 0 && SaveGame.TryParse(json, NetGame.Db, out saved, out _);
+            // A missing or unreadable established profile must not be replaced by a fresh
+            // client snapshot. Preserve both disk copies for recovery on advanced economy servers.
+            if (!coopHost && login.account != null && (Modding.ModAdvancedEconomy.DynamicPricing || Flight.Standing.Independent) &&
+                !parsed && (File.Exists(ProfilePath(login.account.id)) || File.Exists(ProfilePath(login.account.id) + ".bak")))
+            {
+                NetGame.Kick(login.client, "Your saved profile could not be loaded. Contact the server administrator to recover it.");
+                return;
+            }
+            int cut = parsed ? ClampMods(saved) : 0;
             int misfits = saved != null ? ClampClasses(saved) : 0;   // remake mods: gear the ship's class can't mount
             if (cut > 0 || misfits > 0)
             {
@@ -168,8 +211,26 @@ namespace GoF2Remake.Multiplayer
                     if (misfits > 0) Debug.LogWarning($"Server: profile {login.account.id} ({login.account.name}): {misfits} item(s) the ship's class can't mount moved to the hold.");
                 }
             }
+            // Replacing a remote client's snapshot is itself an economy barrier. An upload
+            // assembled before a refresh or handover cannot be used for a later trade.
+            if (Modding.ModAdvancedEconomy.DynamicPricing && !IsHostClient(login.client))
+            {
+                login.economyRevision++;
+                login.economyRevisionDirty = true;
+                login.acceptedUploadSequence = 0;
+                incoming.Remove(login.client);
+            }
+            RefreshServerReputation(NetSquad.Find(login.client));
             int home = login.account != null ? NetFactions.HomeOf(login.account.id) : -1;   // a faction member starts at its home
-            NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home);
+            NetState.Instance?.SendProfile(login.client, newToken, login.controller, login.account == null, json, home,
+                NeedsIdentity(login.account),
+                NeedsIdentity(login.account) && !PlayerIdentity.TryResolveSelectableRace(login.account?.stationPolicyRace, out _) ? null : login.account?.stationPolicyRace,
+                Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled ? login.account?.playerPortrait : null);
+            if (!NetPlayerStations.ProfileWritesBlocked && !IsHostClient(login.client))
+            {
+                login.economyRevisionDirty = false;
+                NetState.Instance?.SendEconomyRevision(login.client, login.economyRevision);
+            }
             NetModeration.SyncRole(login.client);   // the profile's role onto its NetPlayer (NetCommands' rights)
         }
         /// <summary>The log's note on a signed-in client: its profile and device label ("" when it has none).</summary>
@@ -254,32 +315,131 @@ namespace GoF2Remake.Multiplayer
         }
         // ---- uploads ----------------------------------------------------------------------------------------
         /// <summary>NetState.UploadChunkRpc: a piece of a client's profile; the last one checks and saves it.</summary>
-        public static void OnUploadChunk(ulong client, int seq, int part, int count, byte[] data)
+        public static void OnUploadChunk(ulong client, int seq, int part, int count, long economyRevision, byte[] data)
         {
-            if (!Enabled || data == null || data.Length > ChunkBytes || count < 1 || count > MaxChunks || part < 0 || part >= count) return;
+            if (!Enabled || seq <= 0 || data == null || data.Length > ChunkBytes || count < 1 || count > MaxChunks || part < 0 || part >= count) return;
+            if (!logins.TryGetValue(client, out var login) || login.account == null ||
+                seq <= login.lastAcceptedUploadSequence || economyRevision != login.economyRevision || login.economyRevisionDirty || NetPlayerStations.ProfileWritesBlocked) return;
+            if (incoming.TryGetValue(client, out var prior) && seq < prior.seq) return;
             if (!incoming.TryGetValue(client, out var inc) || inc.seq != seq)
-                incoming[client] = inc = new Incoming { seq = seq, count = count, parts = new byte[count][] };
-            if (inc.count != count || inc.parts[part] != null) return;
+                incoming[client] = inc = new Incoming { seq = seq, count = count, economyRevision = economyRevision, parts = new byte[count][] };
+            if (inc.count != count || inc.economyRevision != economyRevision || inc.parts[part] != null) return;
             inc.parts[part] = data;
             if (++inc.got < count) return;
             incoming.Remove(client);
             string json = Unpack(inc.parts);
-            if (json != null) Receive(client, json);
+            if (json != null) Receive(client, json, seq, inc.economyRevision);
         }
-        static void Receive(ulong client, string json)
+        static void Receive(ulong client, string json, int acceptedSequence = 0, long uploadRevision = 0)
         {
             if (!logins.TryGetValue(client, out var login) || login.account == null) return;
             var account = login.account;
             bool handing = handovers.TryGetValue(account.id, out var handover) && handover.from == client;
-            if (!login.controller && !handing) return;   // observers don't write
+            if (NeedsIdentity(account) || (!login.controller && !handing)) return;   // incomplete profiles and observers don't write
+            if (NetPlayerStations.ProfileWritesBlocked)
+            {
+                Reject(login, "a station transaction is awaiting durable recovery; retry after recovery completes");
+                return;
+            }
+            if (HasPendingDeath(account.id) || NetFactions.HasPendingReputation(account.id))
+            {
+                Reject(login, "a death or reputation transaction is pending");
+                return;
+            }
+            if (acceptedSequence != 0 && acceptedSequence <= login.lastAcceptedUploadSequence) return;
             float now = Time.realtimeSinceStartup;
             if (!SaveGame.TryParse(json, NetGame.Db, out var save, out string problem))
             {
                 Reject(login, problem);
                 return;
             }
+            if (!IsHostClient(client) && Modding.ModAdvancedEconomy.DynamicPricing && save.cargo != null)
+            {
+                var seen = new HashSet<int>();
+                foreach (var stack in save.cargo)
+                    if (stack != null && (stack.builtIn || !seen.Add(stack.item)))
+                    {
+                        Reject(login, "your cargo contains duplicate or integrated item rows");
+                        return;
+                    }
+            }
+            // Settle the server-observed death before reading the canonical profile.
+            // Settlement can replace the profile and invalidate the upload revision.
+            var pilot = NetSquad.Find(client);
+            if (pilot != null && pilot.HasRecordedDeath && pilot.RecordedDeathRequiresPenalty &&
+                NetState.Instance?.EnsureDeathPenalty(pilot, refresh: false) != true)
+            {
+                Reject(login, "your recorded death has not been settled");
+                return;
+            }
+            if (acceptedSequence != 0 && (uploadRevision != login.economyRevision || login.economyRevisionDirty || NetPlayerStations.ProfileWritesBlocked))
+            {
+                Reject(login, "your profile changed while the upload was being validated");
+                return;
+            }
+            // A stale upload must not resurrect the pre-death loadout, even if it was
+            // assembled after receipt of the new economy revision.
+            var prior = ReadSave(account.id);
+            if (!IsHostClient(client) && (Modding.ModAdvancedEconomy.DynamicPricing || Flight.Standing.Independent) && prior == null &&
+                (File.Exists(ProfilePath(account.id)) || File.Exists(ProfilePath(account.id) + ".bak")))
+            {
+                Reject(login, "your established server profile is unavailable; administrator recovery is required");
+                return;
+            }
+            if (!string.IsNullOrEmpty(prior?.lastDeathPenaltyId) &&
+                !string.Equals(prior.lastDeathPenaltyId, save.lastDeathPenaltyId, StringComparison.Ordinal))
+            {
+                Reject(login, "your profile has not acknowledged the latest death recovery");
+                if (!IsHostClient(client)) RefreshProfile(client);
+                return;
+            }
+            if (Flight.Standing.Independent)
+            {
+                if (!IsHostClient(client) && !string.IsNullOrEmpty(prior?.reputationRevision) &&
+                    !string.Equals(prior.reputationRevision, save.reputationRevision, StringComparison.Ordinal))
+                {
+                    Reject(login, "your profile has not acknowledged the latest reputation change");
+                    if (pilot != null && pilot.Where == NetPlayer.Place.Hangar) RefreshProfile(client);
+                    else PublishReputation(pilot, prior, true);
+                    return;
+                }
+                if (!IsHostClient(client))
+                    PreserveServerReputation(save, prior, NetFactions.HasPiracyHistory(account.id), NetFactions.IsPirateAccount(account.id));
+                if (SavedReputation(prior).ContainsKey(Flight.Standing.PiracyHistoryKey) || NetFactions.HasPiracyHistory(account.id))
+                    SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
+                if (NetFactions.IsPirateAccount(account.id))
+                {
+                    SetSavedReputation(save, Flight.Standing.PiracyHistoryKey, 1);
+                    foreach (int race in Flight.Standing.ReputationRaces())
+                        SetSavedReputation(save, Flight.Standing.ReputationKey(race), -100);
+                }
+                if (!IsHostClient(client)) save.reputationRevision = prior?.reputationRevision;
+            }
+            // Reward receipts are server-owned. Refuse an upload that predates a payout even if
+            // the client has already received the newer economy revision.
+            if (prior?.factionWarRewardReceipts != null &&
+                prior.factionWarRewardReceipts.Exists(id => save.factionWarRewardReceipts?.Contains(id) != true))
+            {
+                Reject(login, "your profile has not acknowledged the latest faction war reward");
+                if (!IsHostClient(client)) RefreshProfile(client);
+                return;
+            }
+            save.factionWarRewardReceipts = prior?.factionWarRewardReceipts == null
+                ? new List<string>() : new List<string>(prior.factionWarRewardReceipts);
+            // The origin grant is a creation-only server intent, never accepted from an upload.
+            save.originStartAsPirate = false;
+            // Recovery records belong to the server, not to the uploading client.
+            save.deathRecoveries = prior?.deathRecoveries ?? new List<DeathRecovery>();
+            save.lastDeathPenaltyId = prior?.lastDeathPenaltyId;
+            if (prior?.deathLoaner == true && save.ship == prior.ship && !IsHostClient(client))
+            {
+                int before = prior.kaamoShips?.FindAll(x => x != null && x.ship == save.ship).Count ?? 0;
+                int after = save.kaamoShips?.FindAll(x => x != null && x.ship == save.ship).Count ?? 0;
+                if (after >= before) save.deathLoaner = true;
+            }
             int cut = ClampMods(save);
             int misfits = ClampClasses(save);   // remake mods: gear the ship's class can't mount
+            json = JsonUtility.ToJson(save, false);
             if (cut > 0 || misfits > 0)
             {
                 json = JsonUtility.ToJson(save, false);
@@ -288,20 +448,26 @@ namespace GoF2Remake.Multiplayer
             }
             long worth = Worth(save);
             string why = !NetGame.HostAllowsDebug && !IsHostClient(client) ? Implausible(login, save, worth) : null;
-            // The money log (NetAudit): big growth since the last accepted upload, per part, and every refusal.
-            if (why != null || worth - account.worth >= 100_000) NetAudit.Upload(account.id, account.name, client, ReadSaved(account.id), save,
-                account.worth, Mathf.Max(0f, now - login.acceptedAt) / 60f, why);
+            // Audit every accepted upload for provenance, not merely large credit-value changes.
+            // Refused uploads must not consume receipts; failed disk writes are not accepted.
+            float minutes = Mathf.Max(0f, now - login.acceptedAt) / 60f;
             if (why != null)
             {
+                NetAudit.Upload(account.id, account.name, client, prior, save, account.worth, minutes, why);
                 Reject(login, why);
                 return;
             }
             if (!Write(ProfilePath(account.id), json)) return;
+            NetAudit.Upload(account.id, account.name, client, prior, save, account.worth, minutes, null);
+            login.acceptedUploadSequence = acceptedSequence;
+            if (acceptedSequence != 0) login.lastAcceptedUploadSequence = acceptedSequence;
             account.worth = worth;
             account.playSeconds = save.playSeconds;
             account.lastSeen = Now();
             login.acceptedAt = now;
             SaveIndex();
+            if (Flight.Standing.Independent && !IsHostClient(client)) PublishReputation(pilot, save, true);
+            if (!handing) NetState.Instance?.ClaimVictoryReward(pilot, save);
             if (handing)
             {
                 handovers.Remove(account.id);
@@ -338,8 +504,9 @@ namespace GoF2Remake.Multiplayer
             if (save.kaamoShips != null && save.kaamoShips.Exists(k => k.ship == 13 || k.ship == 14 || k.ship == 15)) return "a stored ship nobody can own";
             float minutes = Mathf.Max(0f, Time.realtimeSinceStartup - login.acceptedAt) / 60f;
             long allowed = EarnBurst + (long)(minutes * EarnPerMinute);
-            if (worth - login.account.worth > allowed)
-                return $"its worth grew by {worth - login.account.worth:N0} in {minutes:0.#} minutes (at most {allowed:N0})";
+            long growth = worth - Math.Max(0L, login.account.worth);
+            if (growth > allowed)
+                return $"its worth grew by {growth:N0} in {minutes:0.#} minutes (at most {allowed:N0})";
             return null;
         }
         /// <summary>What a profile owns: credits, the ships (their price) and every item at its lowest price.</summary>

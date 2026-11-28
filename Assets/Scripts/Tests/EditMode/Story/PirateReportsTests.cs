@@ -38,6 +38,33 @@ namespace GoF2Remake.Tests
             new PirateSighting { id = id, station = station, system = system, boss = boss, tier = tier, name = boss ? "Red Vex" : "",
                                  bounty = 10000 + id, reportedAt = PirateReports.Now, expiresAt = PirateReports.Now + life };
 
+        [Test]
+        public void FreightRaidPresenceFollowsBossOrbitButOutpostsCoverSystem()
+        {
+            var boss = Sighting(500, 21, 4, boss: true);
+            Session.PirateSightings.Clear();
+            Session.PirateSightings.Add(boss);
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 21));
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(4, 22));
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(5, 21));
+            boss.station = 22;
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(4, 21));
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 22));
+            boss.done = true;
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(4, 22));
+            var outpost = Sighting(501, 21, 4);
+            Session.PirateSightings.Add(outpost);
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 21));
+            Assert.IsTrue(PirateReports.HasFreightRaidPresence(4, 22));
+            Assert.IsFalse(PirateReports.HasFreightRaidPresence(5, 22));
+            PirateReports.ServerRestore("{\"items\":[{\"id\":1,\"station\":21,\"system\":4,\"boss\":true,\"expiresAt\":3000}]}");
+            Assert.IsTrue(PirateReports.ServerHasFreightRaidPresence(4, 21));
+            Assert.IsFalse(PirateReports.ServerHasFreightRaidPresence(4, 22));
+            PirateReports.ServerRestore("{\"items\":[{\"id\":2,\"station\":21,\"system\":4,\"established\":true}]}");
+            Assert.IsTrue(PirateReports.ServerHasFreightRaidPresence(4, 22));
+            Assert.IsFalse(PirateReports.ServerHasFreightRaidPresence(5, 22));
+        }
+
         // ---- bounties and tiers -------------------------------------------------------------------------------
 
         [TestCase(true, 0, 3, false, 10000)]
@@ -132,17 +159,20 @@ namespace GoF2Remake.Tests
 
         // ---- the board ----------------------------------------------------------------------------------------
 
-        [TestCase(2, 3)]
-        [TestCase(8, 4)]
-        [TestCase(16, 5)]
-        [TestCase(20, 5)]
-        public void RefreshFillsTheBoard(int rank, int size)
+        [TestCase(2)]
+        [TestCase(8)]
+        [TestCase(16)]
+        [TestCase(20)]
+        public void RefreshFillsTheBoard(int rank)
         {
             SetRankFreePlay(rank);
             Session.StationIndex = 78;
             PirateReports.Refresh(Db);
             var board = Session.PirateSightings;
-            Assert.AreEqual(size, board.Count, "3 + rank / 8, at most 5");
+            int size = board.Count;
+            Assert.Greater(size, 0);
+            Assert.LessOrEqual(board.Count(s => !s.boss), PirateReports.MaxOutposts);
+            Assert.LessOrEqual(board.Count(s => s.boss), PirateReports.MaxShipBounties);
             Assert.AreEqual(size, board.Select(s => s.system).Distinct().Count(), "one per system");
             Assert.AreEqual(size, board.Select(s => s.id).Distinct().Count());
             Assert.AreEqual(size, Session.NextPirateSightingId);
@@ -197,7 +227,8 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(Session.PirateSightings.Contains(done));
             Assert.IsFalse(Session.PirateSightings.Contains(expired));
             Assert.IsTrue(Session.PirateSightings.Contains(live));
-            Assert.AreEqual(3, Session.PirateSightings.Count);
+            Assert.LessOrEqual(Session.PirateSightings.Count(s => !s.boss), PirateReports.MaxOutposts);
+            Assert.LessOrEqual(Session.PirateSightings.Count(s => s.boss), PirateReports.MaxShipBounties);
             Assert.AreEqual(1, Session.PirateSightings.Count(s => s.system == 7), "the live one keeps its system");
         }
 
@@ -287,7 +318,7 @@ namespace GoF2Remake.Tests
         [System.Serializable] class SharedBoard { public List<PirateSighting> items = new List<PirateSighting>(); }
 
         [Test]
-        public void TheServerKeepsFourReportsAtRank10()
+        public void TheServerRespectsSeparateReportLimitsAtRank10()
         {
             Session.FreePlay = true;
             string published = null;
@@ -295,8 +326,10 @@ namespace GoF2Remake.Tests
             Assert.IsNotNull(published);
             PirateReports.ApplyShared(published);
             var board = Session.PirateSightings;
-            Assert.AreEqual(4, board.Count);
-            Assert.AreEqual(4, board.Select(s => s.system).Distinct().Count());
+            Assert.Greater(board.Count, 0);
+            Assert.LessOrEqual(board.Count(s => !s.boss), PirateReports.MaxOutposts);
+            Assert.LessOrEqual(board.Count(s => s.boss), PirateReports.MaxShipBounties);
+            Assert.AreEqual(board.Count, board.Select(s => s.system).Distinct().Count());
             foreach (var s in board) Assert.AreEqual(PirateReports.Bounty(!s.boss, 10, s.tier, true), s.bounty);
 
             published = null;

@@ -32,6 +32,9 @@ namespace GoF2Remake.Multiplayer
 
         static HashSet<int> stations;
 
+        /// <summary>Clear the station index cache after player stations are appended to the live database.</summary>
+        internal static void RefreshStations() => stations = null;
+
         public static bool Finite(float f) => !float.IsNaN(f) && !float.IsInfinity(f);
         public static bool Finite(Vector3 v) => Finite(v.x) && Finite(v.y) && Finite(v.z);
 
@@ -91,7 +94,7 @@ namespace GoF2Remake.Multiplayer
         public static bool DockedAt(ulong client, int station)
         {
             var p = NetSquad.Find(client);
-            return p != null && p.InHangar && p.Station == station;
+            return p != null && p.InHangar && p.Station == station && !NetPlayerStations.StationClosedByCombat(station);
         }
 
         /// <summary>A shot as NetShotSender sends it: a weapon item, finite values in range.</summary>

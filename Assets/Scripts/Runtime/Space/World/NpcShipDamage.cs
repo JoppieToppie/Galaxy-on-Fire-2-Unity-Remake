@@ -17,6 +17,21 @@ namespace GoF2Remake.World
         /// The hull damage itself comes in as an NPC's hit (no standing or kill credit for this game's player).</summary>
         public void OnRemoteHit(ulong client, int dmg)
         {
+            if (dmg <= 0) return;
+            // Pirate NPCs normally spare pirate pilots. Track aggression by client/squad,
+            // not globally: unrelated pirate pilots must remain friendly.
+            if (Race == Standing.Pirate && Modding.ModPvpPiracy.Enabled && !IsWingman && !alwaysFriend && !noFriendlyFire)
+            {
+                if (aggressors.Contains(client)) return;
+                int pirateDamage = (remoteHullDamage.TryGetValue(client, out int prior) ? prior : 0) + dmg;
+                remoteHullDamage[client] = pirateDamage;
+                if (pirateDamage >= Hp.maxHull * Modding.ModPvpPiracy.PirateHullTolerance(Session.IsExtreme))
+                {
+                    aggressors.Add(client);
+                    Wake();
+                }
+                return;
+            }
             if (alwaysEnemy || IsWingman || Race == Standing.Pirate || Race == Standing.Void || Race == Standing.Specter) return;
             // Remake (CapitalShips): a capital ship, its turrets and escorts turn on another player's squad at the first hit.
             if (Spec.capitalEnhanced && (Spec.capital != 0 || Spec.capitalPart)) { aggressors.Add(client); return; }
@@ -31,11 +46,16 @@ namespace GoF2Remake.World
         {
             if (Target.Alive) BreakCloak();
             if (Hp == null || !Target.Alive || Hp.emp <= 0) return;
-            if (!alwaysEnemy && !IsWingman && Race != Standing.Void && Race != Standing.Specter)
+            bool pirateCrew = Race == Standing.Pirate && Modding.ModPvpPiracy.Enabled && !alwaysFriend && !noFriendlyFire;
+            if ((pirateCrew || !alwaysEnemy) && !IsWingman && Race != Standing.Void && Race != Standing.Specter)
             {
                 int total = (remoteEmp.TryGetValue(client, out int e) ? e : 0) + emp;
                 remoteEmp[client] = total;
-                if (total > Hp.maxEmp / 3) aggressors.Add(client);
+                if (pirateCrew ? total >= Hp.maxEmp * Modding.ModPvpPiracy.PirateEmpTolerance(Session.IsExtreme) : total > Hp.maxEmp / 3)
+                {
+                    aggressors.Add(client);
+                    if (pirateCrew) Wake();
+                }
             }
             Hp.DamageEmp(emp);
         }
@@ -108,6 +128,7 @@ namespace GoF2Remake.World
 
         /// <summary>An NPC gun's area blast on one target (Gun.AreaDamage, the echo): the hull damage and EMP, no stray-fire
         /// rules (the blast is what the gun is for). The player takes no area damage (Gun.AreaDamage skips it).</summary>
+        // Materialized freight raids use ordinary NPC weapon damage; the authority reports actual hull and death to the ledger.
         public void HitByBlast(Gun gun, Target t, int dmg, int emp, Vector3 center)
         {
             if (t == null) return;
@@ -172,10 +193,25 @@ namespace GoF2Remake.World
         {
             if (dmg > 0 && dogfight != null && Target.Alive) dogfight.Hit();   // remake option: GoF3's evasive roll (NpcShipDogfight)
             if (!byNpc && mindControlMs > 0f) mindControlMs = 0f;   // remake mods: the player's hit breaks a mind control
+            if (!byNpc && dmg > 0 && Spec != null && Modding.ModAdvancedEconomy.IsFreightRaidTag(Spec.eventTag) && Order != null) Resume();
             // Player::damage on a Most Wanted criminal (+0x3e): Level::attackWanted instead of the friendly-fire rules.
-            if (!byNpc && Spec.wantedIndex >= 0) { traffic.AttackWanted(this, dmg); return; }
+            if (!byNpc && Spec.wantedIndex >= 0)
+            {
+                traffic.AttackWanted(this, dmg);
+                if (!PirateFriendlyFire) return;
+            }
             // Player::damage 0xafd80: hitting a pirate in Loma arms and alarms them all and revokes the toll.
             if (!byNpc && Race == Standing.Pirate) traffic.LomaPirateHit();
+            if (!byNpc && PirateFriendlyFire)
+            {
+                if (dmg > 0 && !LocalPirateAggressor)
+                {
+                    damageByPlayer += dmg;
+                    if (damageByPlayer >= Hp.maxHull * Modding.ModPvpPiracy.PirateHullTolerance(Session.IsExtreme))
+                        RetaliateAgainstLocalPirate();
+                }
+                return;
+            }
             if (byNpc || alwaysEnemy || noFriendlyFire || IsWingman || Race == Standing.Void || Race == Standing.Specter) return;
             if (Target.hostileToPlayer && !turnedEnemy) return;
             if (Race != traffic.SystemRace && Race != traffic.AttackRace) return;
@@ -197,11 +233,36 @@ namespace GoF2Remake.World
         /// player ("Hold your fire!", Level::friendTurnedEnemy).</summary>
         public void OnPlayerEmp(int emp)
         {
+            if (PirateFriendlyFire)
+            {
+                if (Spec.wantedIndex >= 0) traffic.AttackWanted(this, 0);
+                if (emp > 0 && !LocalPirateAggressor)
+                {
+                    empByPlayer += emp;
+                    if (empByPlayer >= Hp.maxEmp * Modding.ModPvpPiracy.PirateEmpTolerance(Session.IsExtreme))
+                        RetaliateAgainstLocalPirate();
+                }
+                return;
+            }
             if (alwaysEnemy) return;
             if (Race != Standing.Void && Race != Standing.Specter && Spec.wantedIndex >= 0) { traffic.AttackWanted(this, 0); return; }
             if (IsWingman || Race == Standing.Void || Race == Standing.Specter || Race != traffic.SystemRace) return;
             empByPlayer += emp;
             if (empByPlayer > Hp.maxEmp / 3) { turnedEnemy = true; traffic.FriendTurnedEnemy(Race); }
+        }
+
+        bool PirateFriendlyFire => Modding.ModPvpPiracy.Enabled && Race == Standing.Pirate &&
+            !IsWingman && !alwaysFriend && !noFriendlyFire && GameHooks.LocalPilotIsPirate?.Invoke() == true;
+
+        bool LocalPirateAggressor => NetSession.Active ? aggressors.Contains(NetSession.LocalId) : turnedEnemy;
+
+        void RetaliateAgainstLocalPirate()
+        {
+            // A local-only turned flag could attach hostility to an unrelated new orbit owner.
+            if (NetSession.Active) aggressors.Add(NetSession.LocalId);
+            else turnedEnemy = true;
+            UpdateRelations();
+            Wake();
         }
 
         /// <summary>Player::damageEmp's disable: the system's race all turn hostile (alarmAllFriends(race, false), no radio);
@@ -221,6 +282,8 @@ namespace GoF2Remake.World
             // PlayerFighter's death: a hostile Void ship leaves 1-3 t Alien Remains (131).
             if (Race == Standing.Void && !Spec.noLoot && Target.hostileToPlayer && !loot.Exists(s => s.item == 131))
                 loot = new List<ItemStack> { new ItemStack(131, Random.Range(0, 3) + 1) };
+            if (!NetSession.Active && Spec.sightingId >= 0 && Spec.eventTag > 700000 && Spec.eventTag <= 700031)
+                PirateReports.RecordDefenderLoss(PirateReports.Find(Spec.sightingId), Spec.eventTag - 700000);
             traffic.OnShipDied(this, !Target.killedByNpc);
             // Remake mods: a ship the player destroys may drop a mod blueprint (blueprints.json "drops") in a data crate.
             if (!Target.killedByNpc && !IsWingman && !IsTurret)
@@ -448,6 +511,15 @@ namespace GoF2Remake.World
         public Crate CreateStealCrate()
         {
             if (!HasCargo) return null;
+            if (Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag))
+            {
+                if (Target.CollectFreight == null) return null;
+                var freight = Crate.Spawn(transform.position, loot, Race, Crate.LookContainer);
+                freight.stolenFrom = this;
+                freight.pulled = true;
+                freight.CollectStationSalvage = room => { Target.CollectFreight?.Invoke(room); Destroy(freight.gameObject); };
+                return freight;
+            }
             string model = Modding.ModCrates.KeyOf(Spec.ship);   // a mod ship's own container
             var go = Crate.Model(Crate.LookContainer, Race, model, transform.position, Random.rotation);
             go.name = "Stolen cargo";
@@ -474,7 +546,7 @@ namespace GoF2Remake.World
         {
             // A fixed object dropped its crate as it died (OnDied) and again at the end of its dying (UpdateDying): a pirate
             // outpost's loot came twice. One crate per death.
-            if (crateDropped || loot.Count == 0 || assets == null) return;
+            if (crateDropped || loot.Count == 0 || assets == null || Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag)) return;
             crateDropped = true;
             // The beam was already pulling the ship's own crate (KIPlayer+0x74): that one is its crate now.
             if (stealCrate != null)

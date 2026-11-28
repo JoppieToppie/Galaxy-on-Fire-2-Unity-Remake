@@ -29,6 +29,26 @@ namespace GoF2Remake.Tests
         ]";
 
         [Test]
+        public void PilotSelectionRequiresAnOwnPortraitForModRaces()
+        {
+            string dir = WriteMod("pilot_races", "t_pilots", "1.0", "",
+                ("races.json", "[ { 'id': 'shared', 'name': 'Shared', 'look': 'terran' }, { 'id': 'own', 'name': 'Own', 'look': 'terran' } ]"),
+                ("characters.json", "[ { 'id': 'npc', 'portrait': 'p.png', 'race': 'shared' }, { 'id': 'pilot', 'portrait': 'p.png', 'race': 'own', 'playerPortrait': true } ]"));
+            WriteFile(dir, "p.png", Dummy);
+            ScanAndEnable("t_pilots");
+            int shared = ModRaces.Get("t_pilots:shared").race, own = ModRaces.Get("t_pilots:own").race;
+            Assert.IsFalse(GoF2Remake.Multiplayer.PlayerIdentity.IsSelectableRace(shared));
+            Assert.IsEmpty(GoF2Remake.Multiplayer.PlayerIdentity.Portraits(shared));
+            Assert.IsTrue(GoF2Remake.Multiplayer.PlayerIdentity.IsSelectableRace(own));
+            CollectionAssert.AreEqual(new[] { "t_pilots:pilot" },
+                GoF2Remake.Multiplayer.PlayerIdentity.Portraits(own).Select(p => p.Key).ToArray());
+            Assert.IsTrue(GoF2Remake.Multiplayer.PlayerIdentity.TryResolveSelectionPortrait(own, "t_pilots:pilot", out _, out _));
+            Assert.IsFalse(GoF2Remake.Multiplayer.PlayerIdentity.TryResolveSelectionPortrait(own, "stock/t_pilots:own/0-0", out _, out _));
+            Assert.IsTrue(GoF2Remake.Multiplayer.PlayerIdentity.TryResolvePortrait(own, "stock/t_pilots:own/0-0", out _, out _),
+                "Existing saved identities can still be displayed.");
+        }
+
+        [Test]
         public void CharactersAreRead()
         {
             CharactersOn(Two);

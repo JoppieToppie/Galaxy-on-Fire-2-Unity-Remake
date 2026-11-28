@@ -37,6 +37,9 @@ namespace GoF2Remake.Data
         public int station = -1, system = -1;
         public string name;               // a boss's name (empty for an outpost)
         public int bounty;
+        public float nextMoveAt;
+        public int guardLossMask, turretLossMask;
+        public bool established;          // persistent blockade, unlike ambient encounters
         public float reportedAt, expiresAt;   // Session.PlaySeconds
         public bool done;                 // destroyed: off the board at the next docking
         public bool warned;               // its system's authorities radioed the warning
@@ -45,8 +48,7 @@ namespace GoF2Remake.Data
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class PirateReports
     {
-        /// <summary>Sightings on the board at once: 3, one more per 8 ranks, at most 5.</summary>
-        static int Wanted => Mathf.Min(3 + Session.Rank / 8, 5);
+        public const int MaxOutposts = 4, MaxShipBounties = 5;
         /// <summary>Seconds of playing time a sighting stays reported.</summary>
         const float LifeMin = 40f * 60f, LifeMax = 90f * 60f;
         /// <summary>A board contract pays a quarter more than an unannounced event.</summary>
@@ -54,6 +56,83 @@ namespace GoF2Remake.Data
 
         /// <summary>The board runs: the option on (in a session the session's rule).</summary>
         public static bool Enabled => Settings.PirateEvents;
+
+        public static bool RecordDefenderLoss(PirateSighting s, int slot)
+        {
+            if (s == null || s.done || !s.established || slot < 1 || slot > 31) return false;
+            int bit = 1 << (slot - 1);
+            if ((s.guardLossMask & bit) != 0) return false;
+            s.guardLossMask |= bit;
+            return true;
+        }
+
+        public static bool ServerDefenderLoss(int id, int slot, Func<int, bool> inOrbit, Action<string> publish)
+        {
+            var s = serverBoard.Find(x => x.id == id);
+            if (s == null || !inOrbit(s.station) || !RecordDefenderLoss(s, slot)) return false;
+            publish(ServerBoardJson());
+            return true;
+        }
+
+        public static bool Escape(Database db, PirateSighting s, List<PirateSighting> board, Func<int, bool> occupied)
+        {
+            if (s == null || !s.boss || !Active(s, Now)) return false;
+            var origin = db.Systems.Find(x => x.index == s.system);
+            var candidates = Candidates(db, s.station, true);
+            candidates.RemoveAll(c => occupied(c.station) ||
+                (c.system.index != s.system && (origin == null || !origin.jumpRoutesTo.Contains(c.system.index))) ||
+                board.Exists(other => other != s && Active(other, Now) && other.system == c.system.index));
+            if (candidates.Count == 0) return false;
+            var destination = candidates[Random.Range(0, candidates.Count)];
+            s.station = destination.station;
+            s.system = destination.system.index;
+            s.reportedAt = Now;
+            s.nextMoveAt = Now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax);
+            s.warned = false;
+            return true;
+        }
+
+        public static bool ServerEscape(Database db, int id, int station, Func<int, bool> occupied, Action<string> publish)
+        {
+            var s = serverBoard.Find(x => x.id == id && x.station == station);
+            if (!Escape(db, s, serverBoard, occupied)) return false;
+            publish(ServerBoardJson());
+            return true;
+        }
+
+        public static bool BlocksDocking(int station)
+        {
+            var s = At(station);
+            return s != null && !s.boss && s.established;
+        }
+
+        static bool Active(PirateSighting s, float now) => !s.done && (s.established || s.expiresAt > now);
+
+        public static bool Relocate(Database db, List<PirateSighting> board, Func<int, bool> occupied, bool anyRank)
+        {
+            float now = Now;
+            bool changed = false;
+            foreach (var s in board)
+            {
+                if (!s.boss || !Active(s, now)) continue;
+                if (s.nextMoveAt <= 0f) { s.nextMoveAt = now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax); changed = true; }
+                if (s.nextMoveAt > now || occupied(s.station)) continue;
+                var origin = db.Systems.Find(x => x.index == s.system);
+                var candidates = Candidates(db, s.station, anyRank);
+                candidates.RemoveAll(c => occupied(c.station) ||
+                    (c.system.index != s.system && (origin == null || !origin.jumpRoutesTo.Contains(c.system.index))) ||
+                    board.Exists(other => other != s && Active(other, now) && other.system == c.system.index));
+                s.nextMoveAt = now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax);
+                changed = true;
+                if (candidates.Count == 0) continue;
+                var destination = candidates[Random.Range(0, candidates.Count)];
+                s.station = destination.station;
+                s.system = destination.system.index;
+                s.reportedAt = now;
+                s.warned = false;
+            }
+            return changed;
+        }
 
         static bool InSession => NetSession.Active;
 
@@ -78,7 +157,7 @@ namespace GoF2Remake.Data
         {
             if (!Enabled) return null;
             float now = Now;
-            return Session.PirateSightings.Find(s => s.station == station && !s.done && s.expiresAt > now);
+            return Session.PirateSightings.Find(s => s.station == station && Active(s, now));
         }
 
         /// <summary>The sightings to list: the active ones first (soonest to run out last), then the ones dealt with.</summary>
@@ -87,7 +166,7 @@ namespace GoF2Remake.Data
             var list = new List<PirateSighting>();
             if (!Enabled) return list;
             float now = Now;
-            foreach (var s in Session.PirateSightings) if (s.done || s.expiresAt > now) list.Add(s);
+            foreach (var s in Session.PirateSightings) if (s.done || Active(s, now)) list.Add(s);
             list.Sort((a, b) => a.done != b.done ? (a.done ? 1 : -1) : b.expiresAt.CompareTo(a.expiresAt));
             return list;
         }
@@ -98,7 +177,7 @@ namespace GoF2Remake.Data
         public static int Done(int id)
         {
             var s = Find(id);
-            if (s == null || s.done) return -1;
+            if (s == null || !Active(s, Now)) return -1;
             s.done = true;
             return s.bounty;
         }
@@ -108,23 +187,29 @@ namespace GoF2Remake.Data
         public static void Refresh(Database db)
         {
             if (!Enabled || InSession) return;
-            Fill(db, Session.PirateSightings, Wanted, Session.Rank, Session.StationIndex, false, () => Session.NextPirateSightingId++);
+            Relocate(db, Session.PirateSightings, st => st == Session.StationIndex, false);
+            Fill(db, Session.PirateSightings, Session.Rank, Session.StationIndex, false, () => Session.NextPirateSightingId++);
         }
 
-        static void Fill(Database db, List<PirateSighting> board, int want, int rank, int notAt, bool anyRank, Func<int> nextId)
+        static void Fill(Database db, List<PirateSighting> board, int rank, int notAt, bool anyRank, Func<int> nextId, Func<int, bool> occupied = null)
         {
             float now = Now;
-            board.RemoveAll(s => s.done || s.expiresAt <= now || !db.Stations.Exists(x => x.index == s.station));   // (a mod's station gone)
-            if (board.Count >= want) return;
+            board.RemoveAll(s => !Active(s, now) || !db.Stations.Exists(x => x.index == s.station));   // (a mod's station gone)
+            int outposts = board.FindAll(s => !s.boss).Count;
+            int ships = board.FindAll(s => s.boss).Count;
+            if (outposts >= MaxOutposts && ships >= MaxShipBounties) return;
             var candidates = Candidates(db, notAt, anyRank);
-            while (board.Count < want && candidates.Count > 0)
+            if (occupied != null) candidates.RemoveAll(c => occupied(c.station));
+            while ((outposts < MaxOutposts || ships < MaxShipBounties) && candidates.Count > 0)
             {
                 int k = Random.Range(0, candidates.Count);
                 var (station, system) = candidates[k];
                 candidates.RemoveAt(k);
                 // One per system at a time, so a report always names one place to search.
                 if (board.Exists(s => s.system == system.index)) continue;
-                board.Add(Make(nextId(), station, system, now, rank));
+                bool boss = outposts >= MaxOutposts || (ships < MaxShipBounties && Random.value < 0.5f);
+                board.Add(Make(nextId(), station, system, now, rank, boss));
+                if (boss) ships++; else outposts++;
             }
         }
 
@@ -142,14 +227,14 @@ namespace GoF2Remake.Data
             return list;
         }
 
-        static PirateSighting Make(int id, int station, SystemData system, float now, int playerRank)
+        static PirateSighting Make(int id, int station, SystemData system, float now, int playerRank, bool boss)
         {
-            bool boss = Random.value < 0.5f;
             int rank = Mathf.Clamp(playerRank, 0, 20);
             int tier = RollTier(system.securityLevel, rank);
             return new PirateSighting
             {
-                id = id, boss = boss, tier = tier, station = station, system = system.index,
+                id = id, boss = boss, established = !boss, tier = tier, station = station, system = system.index,
+                nextMoveAt = boss ? now + Random.Range((float)Modding.ModNpcFactionWar.PirateMoveMin, Modding.ModNpcFactionWar.PirateMoveMax) : 0f,
                 bounty = Bounty(!boss, rank, tier, true),
                 name = boss ? BossName() : "", reportedAt = now, expiresAt = now + Random.Range(LifeMin, LifeMax),
             };
@@ -210,7 +295,7 @@ namespace GoF2Remake.Data
             var sb = new StringBuilder();
             foreach (var s in Session.PirateSightings)
             {
-                if (s.done || s.expiresAt <= now) continue;
+                if (!Active(s, now)) continue;
                 if (s.system != system && (sys == null || !sys.jumpRoutesTo.Contains(s.system))) continue;
                 sb.Append(Report(db, s)).Append(NewsTicker.Separator);
             }
@@ -232,7 +317,7 @@ namespace GoF2Remake.Data
         {
             if (!Enabled) return null;
             float now = Now;
-            var s = Session.PirateSightings.Find(x => x.system == system && !x.done && !x.warned && !warnedHere.Contains(x.id) && x.expiresAt > now);
+            var s = Session.PirateSightings.Find(x => x.system == system && Active(x, now) && !x.warned && !warnedHere.Contains(x.id));
             if (s == null) return null;
             s.warned = true;
             warnedHere.Add(s.id);
@@ -249,8 +334,52 @@ namespace GoF2Remake.Data
         static readonly List<PirateSighting> serverBoard = new List<PirateSighting>();
         static int serverNextId;
 
+        public static string ServerSnapshot()
+        {
+            var copy = JsonUtility.FromJson<Shared>(JsonUtility.ToJson(new Shared { items = serverBoard }));
+            float now = Now;
+            foreach (var item in copy.items)
+            {
+                item.reportedAt -= now;
+                item.expiresAt -= now;
+                if (item.nextMoveAt > 0f) item.nextMoveAt = Mathf.Max(1f, item.nextMoveAt - now);
+            }
+            return JsonUtility.ToJson(copy);
+        }
+
+        public static void ServerRestore(string json)
+        {
+            var saved = JsonUtility.FromJson<Shared>(json)?.items;
+            if (saved == null) return;
+            ServerReset();
+            float now = Now;
+            foreach (var item in saved)
+            {
+                if (item == null || item.done || (!item.established && item.expiresAt <= 0f)) continue;
+                item.reportedAt += now;
+                item.expiresAt += now;
+                if (item.nextMoveAt > 0f) item.nextMoveAt += now;
+                serverBoard.Add(item);
+                serverNextId = Mathf.Max(serverNextId, item.id + 1);
+            }
+        }
+
+        public static bool ServerHasPresence(int system) => Enabled && serverBoard.Exists(s => s.system == system && Active(s, Now));
+
+        // Mobile pirate bosses threaten only their current orbit; fixed outposts threaten the entire system.
+        static bool HasFreightRaidPresence(List<PirateSighting> board, int system, int orbit, float now) =>
+            board.Exists(s => s.system == system && Active(s, now) && (!s.boss || s.station == orbit));
+
+        public static bool HasFreightRaidPresence(int system, int orbit) =>
+            Enabled && HasFreightRaidPresence(Session.PirateSightings, system, orbit, Now);
+
+        public static bool ServerHasFreightRaidPresence(int system, int orbit) =>
+            Enabled && HasFreightRaidPresence(serverBoard, system, orbit, Now);
+
+        public static string ServerBoardJson() => JsonUtility.ToJson(new Shared { items = serverBoard });
+
         /// <summary>Server, every few seconds: the board kept full and published when it changed. 'publish' writes NetState.</summary>
-        public static void ServerTick(Database db, Action<string> publish)
+        public static void ServerTick(Database db, Action<string> publish, Func<int, bool> occupied = null)
         {
             if (!Enabled)
             {
@@ -258,8 +387,9 @@ namespace GoF2Remake.Data
                 return;
             }
             int before = serverBoard.Count;
-            bool changed = serverBoard.RemoveAll(s => s.done || s.expiresAt <= Now) > 0;
-            Fill(db, serverBoard, 4, 10, -1, true, () => serverNextId++);   // rank 10's bounties: the session's pilots differ
+            bool changed = serverBoard.RemoveAll(s => !Active(s, Now)) > 0;
+            changed |= Relocate(db, serverBoard, occupied ?? (_ => false), true);
+            Fill(db, serverBoard, 10, -1, true, () => serverNextId++, occupied);   // rank 10's bounties: the session's pilots differ
             if (changed || serverBoard.Count != before) publish(JsonUtility.ToJson(new Shared { items = serverBoard }));
         }
 
@@ -270,7 +400,7 @@ namespace GoF2Remake.Data
         public static int ServerDone(int id, Func<int, bool> inOrbit, Action<string> publish)
         {
             var s = serverBoard.Find(x => x.id == id);
-            if (s == null || s.done || s.expiresAt <= Now || !inOrbit(s.station)) return -1;
+            if (s == null || !Active(s, Now) || !inOrbit(s.station)) return -1;
             s.done = true;
             publish(JsonUtility.ToJson(new Shared { items = serverBoard }));
             return s.bounty;

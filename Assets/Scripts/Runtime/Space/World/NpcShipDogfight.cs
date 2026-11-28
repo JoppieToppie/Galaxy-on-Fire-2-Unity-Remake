@@ -37,8 +37,6 @@ namespace GoF2Remake.World
             smepFighterAi = false;
             smepHoldFire = true;
             smepDogfightState = null;
-            smepMotionTarget = null;
-            smepMotionInitialized = false;
             smepReciprocalHasPosition = false;
             smepMovementFrame = -1;
             smepPathInitialized = false;
@@ -47,16 +45,12 @@ namespace GoF2Remake.World
             smepPendingAvoidanceDirection = UnityEngine.Vector3.zero;
 
             int mode = Settings.NpcDogfight;
-            var customTraffic = (db?.Ship(spec.ship) as CustomShipData)?.traffic;
-            // An explicit SMEP mod opt-in outranks global dogfight presets. Global
-            // settings still govern NPCs that did not opt into SMEP.
-            bool smep = SmepAiRules.RequestedByMod(customTraffic?.ai);
+            var hull = db?.Ship(spec.ship);
+            var customTraffic = (hull as CustomShipData)?.traffic;
             string ai = mode == SessionRules.DogfightAll ? "gof3" : mode == SessionRules.DogfightEs2All ? "es2"
                       : mode == SessionRules.DogfightOriginalMode ? null : customTraffic?.ai;
-            bool smepMobileAllowed = SmepAiRules.EnabledOnPlatform(Application.isMobilePlatform, customTraffic?.mobileAi == true);
-            var npcClass = ShipClassRules.ClassOf(db?.Ship(spec.ship));
-            bool capitalOrFreighterClass = SmepAiRules.ExcludedNpcClass(npcClass);
-            bool smepEligible = smep && smepMobileAllowed && !capitalOrFreighterClass
+            bool smepRequested = SmepAiRules.RequestedForSession(Settings.SmepFighterAi, customTraffic?.ai, Application.isMobilePlatform, customTraffic?.mobileAi == true);
+            bool smepEligible = smepRequested && !SmepAiRules.ExcludedNpcClass(ShipClassRules.ClassOf(hull))
                                 && !spec.freighter && spec.fixedObject == null && spec.turretAssembly == null
                                 && spec.capital == 0 && !spec.capitalPart && !spec.modCapital && !spec.stationary
                                 && !spec.structure && !spec.stationPort && !spec.eventWreck && spec.eventTag == 0
@@ -66,7 +60,7 @@ namespace GoF2Remake.World
             if (spec.freighter || spec.fixedObject != null || spec.turretAssembly != null || spec.capital != 0 || spec.capitalPart || spec.modCapital) return;
             if (smepEligible)
             {
-                SetupSmepHullFlight(db.Ship(spec.ship));
+                SetupSmepHullFlight(hull);
                 smepFighterAi = true;
                 SetupEs2Fight();
                 return;

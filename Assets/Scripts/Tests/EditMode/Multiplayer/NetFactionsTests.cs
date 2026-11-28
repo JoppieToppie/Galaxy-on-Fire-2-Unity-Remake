@@ -42,6 +42,132 @@ namespace GoF2Remake.Tests
         [TearDown]
         public void StopServer() => NetServerFixture.Stop();
 
+        [TestCase(3, 0, 3d, 0d, true)]
+        [TestCase(3, 1, 3d, 1.499d, true)]
+        [TestCase(3, 1, 1.5d, 1.5d, false)]
+        [TestCase(5, 1, 5d, 1.6d, false)]
+        [TestCase(5, 1, 1.6d, 5d, false)]
+        [TestCase(1, 1, 1d, 0d, false)]
+        [TestCase(0, 0, 0d, 0d, false)]
+        public void CaptureRewardsExcludeDoubleSidedDamage(int winning, int losing, double defenders, double attackers, bool eligible)
+        {
+            Assert.AreEqual(eligible, NpcFactionWar.QualifiesForCapture(winning, losing, defenders, attackers));
+        }
+
+        [TestCase(50, 0.5d, 0.5d, false)]
+        [TestCase(50, 0.499d, 1d, true)]
+        [TestCase(200, 1.5d, 2d, true)]
+        [TestCase(200, 2d, 2d, false)]
+        [TestCase(0, 10d, 10d, true)]
+        public void CaptureRewardsRespectConfiguredDoubleSidedThreshold(int threshold, double defenders, double attackers, bool eligible)
+        {
+            Assert.AreEqual(eligible, NpcFactionWar.QualifiesForCapture(3, 1, defenders, attackers, threshold));
+            Assert.IsFalse(NpcFactionWar.QualifiesForCapture(1, 1, defenders, attackers, threshold),
+                "the normal contribution requirement remains");
+        }
+
+        [Test]
+        public void MaximumFactionFleetHasDistinctSlotsAndTags()
+        {
+            int count = NpcFactionWar.MaxShipsPerSide;
+            Assert.AreEqual(100, count);
+            var a = new NpcFactionWar.Battle(1, 11, 0, 0, 1, count, 1000);
+            var b = new NpcFactionWar.Battle(2, 12, 1, 1, 0, count, 1000);
+            var tags = new HashSet<int>();
+            for (int slot = 0; slot < 2 * count; slot++)
+            {
+                Assert.IsTrue(tags.Add(a.Tag(slot)));
+                Assert.IsTrue(tags.Add(b.Tag(slot)));
+                Assert.AreEqual(slot, a.Slot(a.Tag(slot)));
+                Assert.IsTrue(NpcFactionWar.IsWarTag(a.Tag(slot)));
+            }
+            Assert.AreEqual(400, tags.Count);
+        }
+
+        [Test]
+        public void MaximumFactionFleetSurvivesMapSnapshot()
+        {
+            var campaign = NpcFactionWar.Campaign.Read("{\"active\":[{\"id\":1,\"orbit\":11,\"system\":0,\"defender\":0,\"attacker\":1,\"shipsPerSide\":100,\"defendersLost\":65,\"attackersLost\":99,\"expires\":1000,\"pausedSeconds\":-1}]}");
+            var restored = NpcFactionWar.Campaign.Read(campaign.Snapshot(true));
+            Assert.IsTrue(restored.TryGetStatus(0, 11, 1, out var status));
+            Assert.AreEqual(35, status.DefendersAlive);
+            Assert.AreEqual(1, status.AttackersAlive);
+        }
+
+        [Test]
+        public void FactionWarAuxiliariesBelongToBattleButNeverCountAsCasualties()
+        {
+            var a = new NpcFactionWar.Battle(1, 11, 0, 0, 1, 100, 1000, 1, 2);
+            var b = new NpcFactionWar.Battle(2, 12, 1, 1, 0, 100, 1000);
+            int tag = NpcFactionWar.AuxiliaryTag(a.Tag(100));
+            Assert.AreEqual(tag, NpcFactionWar.AuxiliaryTag(a.Tag(0)));
+            Assert.IsTrue(NpcFactionWar.IsAuxiliaryTag(tag));
+            Assert.IsTrue(a.OwnsTag(tag));
+            Assert.IsFalse(a.IsRosterTag(tag));
+            var campaign = NpcFactionWar.Campaign.Read("{\"active\":[{\"id\":1,\"orbit\":11,\"system\":0,\"defender\":0,\"attacker\":1,\"shipsPerSide\":100,\"expires\":1000,\"pausedSeconds\":-1}]}");
+            Assert.IsFalse(campaign.RecordCasualty(a, tag, 0, 100, out _));
+            Assert.IsTrue(campaign.TryGetStatus(0, 11, 100, out var status));
+            Assert.AreEqual(100, status.DefendersAlive);
+            Assert.IsFalse(b.OwnsTag(tag));
+            Assert.AreEqual(123, NpcFactionWar.AuxiliaryTag(123));
+        }
+
+        [Test]
+        public void FactionWarHullSelectionSurvivesPauseAndMapSnapshot()
+        {
+            var campaign = NpcFactionWar.Campaign.Read("{\"active\":[{\"id\":1,\"orbit\":11,\"system\":0,\"defender\":0,\"attacker\":1,\"shipsPerSide\":4,\"expires\":1000,\"pausedSeconds\":-1,\"defenderHull\":1,\"attackerHull\":2}]}");
+            Assert.IsTrue(campaign.TryGetBattle(11, 100, out var battle));
+            Assert.IsTrue(campaign.SetPaused(battle, true, 100, out var paused));
+            Assert.AreEqual(1, paused.defenderHull);
+            Assert.AreEqual(2, paused.attackerHull);
+            var restored = NpcFactionWar.Campaign.Read(campaign.Snapshot(true));
+            Assert.IsTrue(restored.TryGetStatus(0, 11, 100, out var status));
+            Assert.AreEqual(1, status.defenderHull);
+            Assert.AreEqual(2, status.attackerHull);
+            Assert.IsTrue(status.Paused);
+            Assert.IsFalse(NpcFactionWar.Campaign.Read(campaign.Snapshot()).TryGetBattle(11, 100, out _));
+        }
+
+        [Test]
+        public void MissingFactionKeysSurvivePrivateSaveButAreNotClaimable()
+        {
+            const string missing = "missing_test_mod:race";
+            var campaign = NpcFactionWar.Campaign.Read("{\"held\":[{\"orbit\":\"11\",\"race\":32,\"raceKey\":\"" + missing + "\"}],\"rewards\":[{\"id\":\"missing-reward\",\"account\":\"profile:a\",\"orbitKey\":\"11\",\"race\":32,\"raceKey\":\"" + missing + "\",\"credits\":100}],\"participation\":[{\"account\":\"profile:a\",\"race\":32,\"raceKey\":\"" + missing + "\",\"count\":5}]}");
+            string saved = campaign.Snapshot();
+            StringAssert.Contains(missing, saved);
+            StringAssert.Contains("missing-reward", saved);
+            StringAssert.Contains("\"count\":5", saved);
+            Assert.IsNull(campaign.RewardAt("profile:a", 11));
+            StringAssert.DoesNotContain(missing, campaign.Snapshot(true));
+            StringAssert.Contains("missing-reward", NpcFactionWar.Campaign.Read(saved).Snapshot());
+        }
+
+        [Test]
+        public void VictoryCreditPoolIsConserved()
+        {
+            Assert.AreEqual(100000L, NpcFactionWar.Campaign.CreditShare(100000, 1, 0));
+            Assert.AreEqual(33334L, NpcFactionWar.Campaign.CreditShare(100000, 3, 0));
+            Assert.AreEqual(33333L, NpcFactionWar.Campaign.CreditShare(100000, 3, 1));
+            Assert.AreEqual(33333L, NpcFactionWar.Campaign.CreditShare(100000, 3, 2));
+            Assert.AreEqual(0L, NpcFactionWar.Campaign.CreditShare(100000, 0, 0));
+        }
+
+        [Test]
+        public void VictoryRewardsArePrivateAndReplacedOnRecapture()
+        {
+            var campaign = new NpcFactionWar.Campaign();
+            var reward = new NpcFactionWar.VictoryReward { id = "battle-reward", account = "profile:a", race = 0, credits = 50000 };
+            campaign.ReplaceOrbitRewards(AlphaStation, new[] { reward });
+            Assert.AreSame(reward, campaign.RewardAt("profile:a", AlphaStation));
+            Assert.IsNull(campaign.RewardAt("profile:b", AlphaStation));
+            Assert.IsNull(campaign.RewardAt("profile:a", SoloStation));
+            Assert.IsNull(NpcFactionWar.Campaign.Read(campaign.Snapshot(true)).RewardAt("profile:a", AlphaStation));
+            var restored = NpcFactionWar.Campaign.Read(campaign.Snapshot());
+            Assert.AreEqual("battle-reward", restored.RewardAt("profile:a", AlphaStation).id);
+            restored.ReplaceOrbitRewards(AlphaStation, new NpcFactionWar.VictoryReward[0]);
+            Assert.IsNull(restored.RewardAt("profile:a", AlphaStation));
+        }
+
         [Test]
         public void TheDocumentedNumbers()
         {

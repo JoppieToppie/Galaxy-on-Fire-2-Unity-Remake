@@ -79,7 +79,7 @@ namespace GoF2Remake.Multiplayer
             int gen = ++generation;
             try
             {
-                var lobby = await LobbyService.Instance.CreateLobbyAsync(Trim(name, 60), Mathf.Clamp(maxPlayers, 1, 100), new CreateLobbyOptions
+                var lobby = await LobbyService.Instance.CreateLobbyAsync(Trim(name, 60), Mathf.Clamp(maxPlayers, 1, NetGame.MaxPlayersLimit), new CreateLobbyOptions
                 {
                     IsPrivate = false,
                     Data = new Dictionary<string, DataObject>

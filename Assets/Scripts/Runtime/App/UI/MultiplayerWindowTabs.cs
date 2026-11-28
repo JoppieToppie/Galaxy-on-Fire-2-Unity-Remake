@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using GoF2Remake.Modding;
 using GoF2Remake.Data;
 using GoF2Remake.Multiplayer;
 using UnityEngine;
@@ -31,6 +33,7 @@ namespace GoF2Remake.UI
             if (tab == Tab.Chat) return;   // the chat pane is built once (its line keeps the focus and the draft)
             if (tab == Tab.Squad) { BuildSquad(); scroll.scrollOffset = new Vector2(0f, y); return; }   // no snapshot needed
             if (tab == Tab.Trade) { BuildTrade(); scroll.scrollOffset = new Vector2(0f, y); return; }
+            if (tab == Tab.OrbitProjects) { BuildOrbitProjects(); scroll.scrollOffset = new Vector2(0f, y); return; }
             var s = NetPanel.Latest;
             if (s == null) { var wait = Text(Localization.Extra("mpPanelLoading", "Asking the server..."), 16, Dim); UiBusy.Mark(wait, true); body.Add(wait); return; }
             switch (tab)
@@ -54,6 +57,9 @@ namespace GoF2Remake.UI
             }
             (last ?? body.Query<Button>().First())?.Focus();
         }
+        string factionBroadcastDraft = "";
+        string factionBroadcastDraftOwner = "";
+
         void BuildFaction(NetPanel.State s)
         {
             if (!s.profiles) { body.Add(Text(Localization.Extra("mpPanelNoProfiles", "Factions need a dedicated server with player profiles."), 16, Dim)); return; }
@@ -84,6 +90,47 @@ namespace GoF2Remake.UI
             body.Add(title);
             body.Add(Text(s.rank == 2 ? Localization.Extra("mpRankLeader", "You lead this faction.") : s.rank == 1 ? Localization.Extra("mpRankOfficer", "You are an officer.")
                                                                                                                    : Localization.Extra("mpRankMember", "You are a member."), 14, Dim));
+
+            if (officer && s.controller)
+            {
+                if (factionBroadcastDraftOwner != s.factionTag)
+                {
+                    factionBroadcastDraftOwner = s.factionTag;
+                    factionBroadcastDraft = "";
+                }
+                Section("Galactic news broadcast");
+                body.Add(Text("Official faction announcements appear in GalNet. The faction has its own five-minute cooldown, separate from every station.", 14, Dim));
+                var field = new TextField { multiline = true, maxLength = NetNews.OfficialMessageLimit, value = factionBroadcastDraft };
+                field.style.minHeight = 72;
+                body.Add(field);
+                var counter = Text("", 14, Dim);
+                body.Add(counter);
+                var preview = Text("", 15, Color.white);
+                preview.enableRichText = false;
+                preview.style.whiteSpace = WhiteSpace.Normal;
+                body.Add(preview);
+                var cooldown = Text("", 14, Good);
+                body.Add(cooldown);
+                var publish = Btn("Publish faction broadcast", () =>
+                {
+                    string message = System.Text.RegularExpressions.Regex.Replace(factionBroadcastDraft.Trim(), @"\s+", " ");
+                    if (message.Length > 0) Send("/faction broadcast " + message);
+                }, "squad-button--accept");
+                body.Add(publish);
+                void UpdateComposer()
+                {
+                    var live = NetPanel.Latest;
+                    bool authorized = live != null && live.inFaction && live.rank >= 1 && live.controller && live.factionTag == s.factionTag;
+                    long remaining = Math.Max(0L, (live?.factionBroadcastReadyUtc ?? s.factionBroadcastReadyUtc) - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    counter.text = $"{factionBroadcastDraft.Length} / {NetNews.OfficialMessageLimit} characters";
+                    preview.text = "[" + s.factionTag + "] " + s.factionName + ": " + factionBroadcastDraft;
+                    cooldown.text = remaining > 0 ? $"Faction cooldown: {remaining / 60:00}:{remaining % 60:00}" : "Faction broadcast available";
+                    publish.SetEnabled(authorized && remaining == 0 && !string.IsNullOrWhiteSpace(factionBroadcastDraft));
+                }
+                field.RegisterValueChangedCallback(change => { factionBroadcastDraft = change.newValue; UpdateComposer(); });
+                UpdateComposer();
+                cooldown.schedule.Execute(UpdateComposer).Every(1000);
+            }
 
             Section(Localization.Extra("mpPanelBank", "Bank"));
             var bank = Row();
@@ -282,6 +329,7 @@ namespace GoF2Remake.UI
                 body.Add(Text(s.controller ? Localization.Extra("mpPanelControls", "This device plays the profile; it saves on docking, every minute and when leaving.")
                                            : Localization.Extra("mpPanelWatches", "Another of your devices plays the profile; this one only watches."), 15, s.controller ? Dim : Bad));
                 if (!s.controller) body.Add(Btn(Localization.Extra("mpPanelTakeControl", "Take control (the other device must be docked)"), () => Send("/control"), "squad-button--accept"));
+                if (s.playerIdentityEnabled) BuildPlayerIdentity(s);
                 Section(Localization.Extra("mpPanelOtherDevice", "Use this profile on another device"));
                 body.Add(Text(Localization.Extra("mpPanelLinkHint", "Get a code here, then enter it on your other device within 5 minutes."), 14, Dim));
                 if (s.controller) body.Add(Btn(Localization.Extra("mpPanelGetCode", "Get a link code"), () => Send("/link"), "squad-button--accept"));
@@ -304,6 +352,38 @@ namespace GoF2Remake.UI
                 body.Add(claim);
             }
         }
+
+
+
+
+
+        void BuildPlayerIdentity(NetPanel.State profile)
+        {
+            Section("Pilot identity (permanent)");
+            if (!PlayerIdentity.IsComplete(profile.playerRace, profile.playerPortrait))
+            {
+                body.Add(Text("Identity setup must be completed when joining the server.", 15, Bad));
+                return;
+            }
+            if (!PlayerIdentity.TryResolveRace(profile.playerRace, out int race))
+            {
+                body.Add(Text("Saved race: " + profile.playerRace + " (currently unavailable)", 15, Dim));
+                return;
+            }
+            string name = ModRefs.RaceWords.FirstOrDefault(entry => entry.race == race).name ?? ModRaces.Name(race);
+            body.Add(Text(name, 16, Color.white));
+            if (PlayerIdentity.TryResolvePortrait(race, profile.playerPortrait, out var parts, out var character))
+            {
+                var preview = new VisualElement();
+                preview.AddToClassList("profile-portrait");
+                if (character == null) Portrait.Show(preview, parts, false);
+                else Portrait.ShowCharacter(preview, character, false);
+                body.Add(preview);
+            }
+            else body.Add(Text("Saved portrait unavailable with the current mods.", 15, Dim));
+            body.Add(Text("Race and portrait cannot be changed.", 14, Dim));
+        }
+
         /// <summary>Admins: the server's settings, each with its field (or switch) and Save; saved on the server and kept
         /// after a restart (the command line's own options win at a start: said beside them).</summary>
         void BuildSettings(NetPanel.State s)

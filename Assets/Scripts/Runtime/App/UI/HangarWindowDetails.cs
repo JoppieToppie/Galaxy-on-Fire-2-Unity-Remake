@@ -15,10 +15,281 @@ namespace GoF2Remake.UI
     {
         void ShowDetails()
         {
+            using var modUi = Modding.ModScripts.StationUiScope(window, PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage) ? "marketplace" : "hangar", () => tab.ToString().ToLowerInvariant());
             FillDetails();
             PlaceRowActions();
+            ShowSecondaryDistribution();
             rowActions.schedule.Execute(FitRowActionMinimum);
         }
+        VisualElement secondaryDistributionPanel;
+        Label distributionCargo, distributionMounted, distributionTotal, distributionCount, distributionStatus;
+        Button distributionApply;
+        int distributionItem = -1, distributionCursor;
+        bool distributionNavigation;
+        readonly HashSet<int> distributionSlots = new HashSet<int>();
+        int[] distributionEligible = Array.Empty<int>();
+        public bool DistributionNavigation => distributionNavigation && distributionItem >= 0;
+
+        string DistributionText(string key, string fallback) => Localization.Extra(key, fallback);
+
+        void ResetSecondaryDistribution()
+        {
+            distributionNavigation = false;
+            distributionCursor = 0;
+            distributionItem = -1;
+            distributionSlots.Clear();
+            distributionEligible = Array.Empty<int>();
+            secondaryDistributionPanel?.RemoveFromHierarchy();
+            secondaryDistributionPanel = null;
+            rowActions.style.display = StyleKeyword.Null;
+            foreach (var row in rows) ClearDistributionRow(row);
+        }
+
+        void ClearDistributionRow(Row row)
+        {
+            if (row.distributionToggle == null) return;
+            row.distributionToggle.RemoveFromHierarchy();
+            row.distributionToggle = null;
+            row.element.RemoveFromClassList("list-row--allocation");
+            row.element.RemoveFromClassList("list-row--allocation-selected");
+            row.element.RemoveFromClassList("list-row--allocation-cursor");
+            if (row.distributionSub == null) return;
+            row.distributionSub.text = row.distributionOriginalSub;
+            foreach (var child in row.distributionSub.parent.Children())
+                child.style.display = StyleKeyword.Null;
+        }
+
+        void ShowSecondaryDistribution()
+        {
+            secondaryDistributionPanel?.RemoveFromHierarchy();
+            secondaryDistributionPanel = null;
+            foreach (var row in rows) ClearDistributionRow(row);
+            if (!ShipTab || selected == null || (selected.kind != RowKind.Slot && selected.kind != RowKind.CargoItem))
+            { ResetSecondaryDistribution(); return; }
+            int item = selected.kind == RowKind.Slot && selected.equipment >= 0 && selected.equipment < Session.Equipment.Count
+                ? Session.Equipment[selected.equipment].item : selected.item;
+            var eligible = item >= 0 ? hangar.SecondaryDistributionSlots(item) : Array.Empty<int>();
+            if (eligible.Length < 2) { ResetSecondaryDistribution(); return; }
+
+            distributionEligible = eligible;
+            if (distributionItem != item)
+            {
+                distributionItem = item;
+                distributionNavigation = false;
+                distributionSlots.Clear();
+                var places = hangar.SlotsOfType(1);
+                foreach (int slot in eligible)
+                    if (places[slot - 1] >= 0) distributionSlots.Add(slot);
+                // A new weapon in cargo starts with all compatible empty mounts selected.
+                if (distributionSlots.Count == 0) distributionSlots.UnionWith(eligible);
+            }
+            distributionSlots.IntersectWith(eligible);
+            if (!eligible.Contains(distributionCursor)) distributionCursor = eligible[0];
+
+            var panel = secondaryDistributionPanel = new VisualElement();
+            panel.AddToClassList("secondary-allocation");
+            // Leave the existing item icon/name and the normal stats/description in place.
+            detailsPanel.Insert(detailsPanel.IndexOf(detailIcon.parent) + 1, panel);
+            var heading = new Label(DistributionText("secondaryAllocationTitle", "MOUNT DISTRIBUTION").UiCaps());
+            heading.AddToClassList("secondary-allocation-heading");
+            heading.AddToClassList("gof-semibold");
+            panel.Add(heading);
+
+            Label Metric(string caption)
+            {
+                var line = new VisualElement();
+                line.AddToClassList("secondary-allocation-metric");
+                var label = new Label(caption);
+                label.AddToClassList("secondary-allocation-label");
+                line.Add(label);
+                var value = new Label();
+                value.AddToClassList("secondary-allocation-value");
+                value.AddToClassList("gof-semibold");
+                line.Add(value);
+                panel.Add(line);
+                return value;
+            }
+            distributionCargo = Metric(DistributionText("secondaryAllocationCargo", "Ammo in cargo"));
+            distributionCount = Metric(DistributionText("secondaryAllocationSelected", "Selected mounts"));
+            distributionMounted = Metric(DistributionText("secondaryAllocationMounted", "Selected mounted ammo"));
+            distributionTotal = Metric(DistributionText("secondaryAllocationTotal", "Total ammunition"));
+            distributionTotal.AddToClassList("secondary-allocation-total");
+
+            var actions = new VisualElement();
+            actions.AddToClassList("secondary-allocation-actions");
+            Button Control(string text, Action action)
+            {
+                var b = new Button(action) { text = text.UiCaps(), focusable = false };
+                b.AddToClassList("detail-action");
+                b.AddToClassList("gof-semibold");
+                b.AddToClassList("secondary-allocation-button");
+                return b;
+            }
+            actions.Add(Control(DistributionText("secondaryAllocationAll", "Select all"), () =>
+            {
+                distributionSlots.UnionWith(distributionEligible);
+                menu.PlayRelease();
+                RefreshSecondaryDistribution();
+            }));
+            actions.Add(Control(DistributionText("secondaryAllocationClear", "Clear"), () =>
+            {
+                distributionSlots.Clear();
+                menu.PlayRelease();
+                RefreshSecondaryDistribution();
+            }));
+            panel.Add(actions);
+            distributionApply = Control(DistributionText("secondaryAllocationApply", "Mount & distribute"), ApplySecondaryDistribution);
+            distributionApply.AddToClassList("secondary-allocation-apply");
+            panel.Add(distributionApply);
+            distributionStatus = new Label();
+            distributionStatus.AddToClassList("secondary-allocation-status");
+            panel.Add(distributionStatus);
+
+            // The existing numbered secondary rows are the only hardpoint selector.
+            // Embedded buttons consume presses so they never invoke row drag or double-click fitting.
+            foreach (var row in rows)
+            {
+                if (row.kind != RowKind.Slot || row.type != 1 || row.place < 0) continue;
+                int slot = row.place + 1;
+                var toggle = row.distributionToggle = new Button(() => ToggleDistributionSlot(slot)) { focusable = false };
+                toggle.AddToClassList("secondary-allocation-toggle");
+                toggle.AddToClassList("gof-semibold");
+                KeepInButton(toggle);
+                row.element.Insert(0, toggle);
+                row.element.AddToClassList("list-row--allocation");
+            }
+            RefreshSecondaryDistribution();
+        }
+
+        void ToggleDistributionSlot(int slot)
+        {
+            if (distributionItem < 0 || !distributionEligible.Contains(slot)) return;
+            if (!distributionSlots.Add(slot)) distributionSlots.Remove(slot);
+            menu.PlayRelease();
+            RefreshSecondaryDistribution();
+        }
+
+        void RefreshSecondaryDistribution()
+        {
+            if (secondaryDistributionPanel == null || distributionItem < 0) return;
+            var eligible = hangar.SecondaryDistributionSlots(distributionItem);
+            distributionEligible = eligible;
+            distributionSlots.IntersectWith(eligible);
+            if (!eligible.Contains(distributionCursor)) distributionCursor = eligible.FirstOrDefault();
+            bool valid = hangar.TryPreviewSecondaryDistribution(distributionItem, distributionSlots,
+                out var allocation, out long cargo, out long mounted);
+            distributionCargo.text = cargo.ToString("N0");
+            distributionCount.text = $"{distributionSlots.Count} / {eligible.Length}";
+            distributionMounted.text = mounted.ToString("N0");
+            distributionTotal.text = (cargo + mounted).ToString("N0");
+            distributionApply.SetEnabled(valid);
+            distributionApply.EnableInClassList("detail-action--disabled", !valid);
+            distributionStatus.text = distributionSlots.Count == 0
+                ? DistributionText("secondaryAllocationChoose", "Select compatible mounts in the ship list.")
+                : !valid ? DistributionText("secondaryAllocationInsufficient", "Not enough ammunition for the selected mounts.")
+                : DistributionNavigation
+                    ? DistributionText("secondaryAllocationNavigate", "Select a mount, confirm to toggle, X to apply. Back cancels navigation.")
+                    : InputMode.Current == InputKind.Gamepad
+                        ? DistributionText("secondaryAllocationGamepad", "Only selected mounts change. X: select mounts.")
+                        : DistributionText("secondaryAllocationUnchanged", "Only selected mounts are modified.");
+            if (DistributionNavigation) rowActions.style.display = DisplayStyle.None;
+            else rowActions.style.display = StyleKeyword.Null;
+
+            foreach (var row in rows)
+            {
+                if (row.distributionToggle == null || row.distributionSub == null) continue;
+                int slot = row.place + 1;
+                bool allowed = eligible.Contains(slot), chosen = distributionSlots.Contains(slot);
+                var button = row.distributionToggle;
+                button.text = allowed ? (chosen ? "✓" : "□") : "–";
+                button.SetEnabled(allowed);
+                button.EnableInClassList("secondary-allocation-toggle--selected", chosen);
+                row.element.EnableInClassList("list-row--allocation-selected", chosen);
+                row.element.EnableInClassList("list-row--allocation-cursor", DistributionNavigation && distributionCursor == slot);
+                int ammo = row.equipment >= 0 && row.equipment < Session.Equipment.Count
+                    ? Math.Max(0, Session.Equipment[row.equipment].amount) : 0;
+                string status;
+                if (!allowed)
+                {
+                    bool reserved = !Modding.ShipClassRules.SecondarySlotFits(level.Database.Item(distributionItem), hangar.Ship, slot);
+                    status = reserved ? DistributionText("secondaryAllocationReserved", "Reserved mount")
+                        : DistributionText("secondaryAllocationOccupied", "Different weapon");
+                }
+                else if (chosen)
+                {
+                    string change = row.equipment >= 0 ? DistributionText("secondaryAllocationRebalance", "Rebalance")
+                        : DistributionText("secondaryAllocationMount", "Mount") + " " + ItemInfo.ItemName(distributionItem);
+                    status = valid && allocation.TryGetValue(slot, out int count) ? $"{ammo:N0} → {count:N0}  ·  {change}" : change;
+                }
+                else status = DistributionText("secondaryAllocationNoChange", "Unchanged");
+                row.distributionSub.text = $"S{slot}  ·  {status}";
+                foreach (var child in row.distributionSub.parent.Children())
+                    child.style.display = child == row.distributionSub ? DisplayStyle.Flex : DisplayStyle.None;
+                button.tooltip = row.distributionSub.text;
+            }
+        }
+
+        void ApplySecondaryDistribution()
+        {
+            int item = distributionItem;
+            int slot = distributionSlots.Count > 0 ? distributionSlots.Min() : 0;
+            if (item < 0 || !hangar.DistributeSecondaries(item, distributionSlots))
+            {
+                menu.ShowToast(DistributionText("secondaryAllocationChanged", "Allocation changed or is unavailable. Check your mounts."));
+                Rebuild();
+                return;
+            }
+            distributionNavigation = false;
+            var places = hangar.SlotsOfType(1);
+            // Preserve the weapon context even when its cargo row disappears.
+            selected = new Row { kind = RowKind.Slot, item = item, type = 1, place = slot - 1, equipment = places[slot - 1] };
+            menu.PlayClip(menu.shopMount);
+            Rebuild();
+            menu.RefreshCredits();
+        }
+
+        bool BeginOrApplyDistributionNavigation()
+        {
+            if (secondaryDistributionPanel == null || distributionEligible.Length < 2) return false;
+            if (DistributionNavigation) { ApplySecondaryDistribution(); return true; }
+            ReleaseArrow();
+            distributionNavigation = true;
+            distributionCursor = selected.kind == RowKind.Slot && distributionEligible.Contains(selected.place + 1)
+                ? selected.place + 1 : distributionEligible[0];
+            RefreshSecondaryDistribution();
+            ScrollDistributionCursor();
+            menu.RefreshCredits();
+            return true;
+        }
+
+        void ScrollDistributionCursor()
+        {
+            var row = rows.FirstOrDefault(r => r.kind == RowKind.Slot && r.type == 1 && r.place + 1 == distributionCursor);
+            if (row?.element?.panel != null && !float.IsNaN(row.element.layout.height)) list.ScrollTo(row.element);
+        }
+
+        bool MoveDistributionCursor(int dir, bool wrap)
+        {
+            if (!DistributionNavigation || distributionEligible.Length == 0) return false;
+            int index = Math.Max(0, Array.IndexOf(distributionEligible, distributionCursor));
+            int next = index + dir;
+            if (wrap) next = (next + distributionEligible.Length) % distributionEligible.Length;
+            else next = Mathf.Clamp(next, 0, distributionEligible.Length - 1);
+            distributionCursor = distributionEligible[next];
+            RefreshSecondaryDistribution();
+            ScrollDistributionCursor();
+            return true;
+        }
+
+        bool CancelDistributionNavigation()
+        {
+            if (!DistributionNavigation) return false;
+            distributionNavigation = false;
+            RefreshSecondaryDistribution();
+            menu.RefreshCredits();
+            return true;
+        }
+
         // CLAUDE.md "Row actions": keep proportional columns readable on narrow screens and in longer translations.
         void FitRowActionMinimum()
         {
@@ -123,6 +394,15 @@ namespace GoF2Remake.UI
             tradeBox.RemoveFromClassList("trade-box--ingredient");
             if (selected == null) return;
             string T(int id) => Localization.Get(id);
+            if (selected.kind == RowKind.MarketAction)
+            {
+                if (selected.ship >= 0) detailIcon.style.backgroundImage = new StyleBackground(ItemInfo.ShipIcon(selected.ship));
+                else detailIcon.style.backgroundImage = StyleKeyword.None;
+                detailName.text = selected.marketLabel;
+                detailSub.text = "";
+                ShowAction(selected.marketLabel, true);
+                return;
+            }
             if (selected.kind == RowKind.VipCard) { ShowVipDetails(); return; }   // remake: the Kaamo Club VIP Card
 
             int item = selected.kind == RowKind.Slot && selected.equipment >= 0 ? Session.Equipment[selected.equipment].item : selected.item;
@@ -153,12 +433,43 @@ namespace GoF2Remake.UI
                     tradeCargo.text = $"{cargo} t";
                     // Remake: the hold's amount leaves out what is mounted (a launcher's remaining missiles): shown under it.
                     int mounted = hangar.MountedOf(item);
+                    if (PlayerMarketplace)
+                    {
+                        store = PlayerStorageTab;
+                        if (store) { tradeStockLabel.text = "STORAGE"; tradeCargoLabel.text = "CARGO"; }
+                        stock = selected.stationUnits;
+                        tradeStock.text = $"{stock} t";
+                        sellLabel.text = store ? "‹ DEPOSIT" : selected.ownListing ? "‹ CANCEL" : "‹ LIST";
+                        buyLabel.text = store ? "WITHDRAW ›" : "BUY ›";
+                        int storeLimit = store ? PlayerStorageTransferLimit(-1) : 0;
+                        int takeLimit = store ? PlayerStorageTransferLimit(1) : 0;
+                        sellButton.EnableInClassList("trade-arrow--disabled", store ? storeLimit <= 0 :
+                            !selected.ownListing && (cargo <= 0 || !Hangar.IsSaleable(item) || playerMarket?.canListGoods != true));
+                        buyButton.EnableInClassList("trade-arrow--disabled", store ? takeLimit <= 0 : selected.ownListing || stock <= 0);
+                        if (store && (takeLimit > 0 || storeLimit > 0))
+                        {
+                            ShowAction(takeLimit > 0 ? $"WITHDRAW {takeLimit:N0}" : $"DEPOSIT {storeLimit:N0}", true);
+                            if (takeLimit > 0 && storeLimit > 0 && actionButton2 != null)
+                            {
+                                SetActionText(actionButton2, $"DEPOSIT {storeLimit:N0}");
+                                actionButton2.RemoveFromClassList("detail-action--hidden");
+                            }
+                        }
+                        tradePrice.text = !store && selected.listingPrice > 0 ? ItemInfo.Credits(selected.listingPrice) : "";
+                        tradePrice.EnableInClassList("trade-price--expensive", !selected.ownListing && selected.listingPrice > Session.Credits);
+                        if (tradeMounted != null) tradeMounted.style.display = DisplayStyle.None;
+                        return;
+                    }
                     if (tradeMounted != null)
                     {
                         tradeMounted.text = mounted > 0 ? MountedNote(mounted) : "";
                         tradeMounted.style.display = mounted > 0 ? DisplayStyle.Flex : DisplayStyle.None;   // Modified: under the price, only when there is one
                     }
-                    tradePrice.text = store ? "" : ItemInfo.Credits(price);
+                    string economyInfo = GoF2Remake.Multiplayer.NetStock.EconomyInfo(hangar.Station, item);
+                    bool dynamicMarket = !store && GameHooks.NpcMarketPrice?.Invoke(hangar.Station, item, 1, true) != null;
+                    tradePrice.text = store ? "" : economyInfo.Length > 0 ? economyInfo : dynamicMarket
+                        ? $"Buy {ItemInfo.Credits(price)} / Sell {ItemInfo.Credits(hangar.SellPriceOf(item))}"
+                        : ItemInfo.Credits(price);
                     tradePrice.EnableInClassList("trade-price--expensive", !store && price > Session.Credits);
                     sellButton.EnableInClassList("trade-arrow--disabled", cargo <= 0);
                     buyButton.EnableInClassList("trade-arrow--disabled", stock <= 0);
@@ -200,14 +511,19 @@ namespace GoF2Remake.UI
                 if (selected.kind == RowKind.OwnShip) ItemInfo.FillModLines(detailMods, Session.ShipMods);
                 if (selected.kind == RowKind.ShopShip)
                 {
-                    int delta = hangar.BuyShipPrice(selected.ship) - hangar.ShipPrice(Session.ShipIndex);
+                    if (PlayerMarketplace)
+                    {
+                        ShowAction(selected.ownListing ? "CANCEL LISTING" : $"BUY   {ItemInfo.Credits(selected.listingPrice)}", true);
+                        return;
+                    }
+                    int delta = hangar.BuyShipPrice(selected.ship) - hangar.CurrentShipTradeValue;
                     ShowAction($"{Localization.Extra("shopBuy", "BUY").UiCaps()}   {ItemInfo.Credits(delta)}", true);
                     ItemInfo.FillModLines(detailMods, hangar.Stock.ModsOf(selected.ship));   // a traded-in hull's mods
                 }
                 else if (selected.kind == RowKind.StoredShip)
                 {
                     // Row buttons 1 "Use" (332) and 10 "Sell" (330).
-                    ShowAction(T(332).UiCaps(), selected.ship != Session.ShipIndex);
+                    ShowAction(T(332).UiCaps(), Session.DeathLoaner || selected.ship != Session.ShipIndex);
                     if (actionButton2 != null)
                     {
                         SetActionText(actionButton2, $"{T(330).UiCaps()}   {ItemInfo.Credits(hangar.StoredPrice(selected.equipment))}");
@@ -341,6 +657,7 @@ namespace GoF2Remake.UI
         {
             var db = level.Database;
             int item = selected.item;
+            if (Blueprints.IsRestricted(editing)) { ReleaseArrow(); menu.ShowToast(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.")); return false; }
             // Remake mods: a skin's blueprint ("requiresShip") is only built while flying that ship.
             string refusal = Modding.ModBlueprints.RequiresShipRefusal(editing);
             if (refusal != null) { ReleaseArrow(); menu.ShowToast(refusal); return false; }
@@ -378,6 +695,7 @@ namespace GoF2Remake.UI
         void Commit(System.Action after)
         {
             var db = level.Database;
+            if (editing >= 0 && Blueprints.IsRestricted(editing)) { Revert(); after?.Invoke(); return; }
             if (!HasPending || editing < 0) { after?.Invoke(); return; }
             var st = Blueprints.State(db, editing);
             int units = 0;
@@ -424,6 +742,7 @@ namespace GoF2Remake.UI
         }
         void Apply()
         {
+            if (editing >= 0 && Blueprints.IsRestricted(editing)) { Revert(); return; }
             var db = level.Database;
             foreach (var kv in pendingUnits)
                 if (kv.Value > 0) Blueprints.Invest(db, editing, kv.Key, kv.Value, StationIndex, true);
@@ -446,6 +765,7 @@ namespace GoF2Remake.UI
         {
             var db = level.Database;
             int product = editing;
+            if (Blueprints.IsRestricted(product)) { menu.ShowToast(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.")); return; }
             int station = Blueprints.State(db, product).station;
             bool here = Blueprints.Produce(db, product, StationIndex);
             hangar = new Hangar(db, level.Stock);   // the new product needs its price
@@ -484,7 +804,7 @@ namespace GoF2Remake.UI
         void AskAutocomplete()
         {
             var db = level.Database;
-            if (editing < 0 || db.Item(editing) == null || !Blueprints.CanAutocomplete(editing)) return;   // only in the ingredients view
+            if (editing < 0 || db.Item(editing) == null || Blueprints.IsRestricted(editing) || !Blueprints.CanAutocomplete(editing)) return;   // only in the ingredients view
             string refusal = Modding.ModBlueprints.RequiresShipRefusal(editing);
             if (refusal != null) { menu.ShowToast(refusal); return; }
             int price = Blueprints.AutoCompletePrice(db, editing);

@@ -1,0 +1,65 @@
+# Multiplayer piracy and faction bounties
+
+Add `piracy.json` to the root of an active mod to opt in. Bounties and equipment drops require a multiplayer server with profiles; protected Secure-system respawns also apply to single-player.
+
+```json
+{ "enabled": true, "playerKillsForBounty": 5, "npcKillsForBounty": 100, "shipRecoverySeconds": 1800, "emergencyShip": 10 }
+```
+
+Piracy and faction bounties are disabled by default. A mod can set `playerKillsForBounty` (1–1,000) and `npcKillsForBounty` (1–10,000) independently. Both thresholds default to 5; the example explicitly changes the NPC threshold to 100. Later active mods override individual thresholds. The optional `maximumNpcBounty` and `npcBountyIncrement` are positive integers, defaulting to 300000 and 10000 credits respectively.
+
+- A pilot becomes a pirate after 30 registered PvP kill points in a rolling four-day window; qualifying Secure-system kills contribute two points, and other qualifying kills contribute one. Outside secure systems, retaliation, active siege opponents, pirates, and the faction diplomacy exemptions below are excluded. Arena matches are excluded everywhere.
+- Player-faction bounties activate at the configured player kill threshold. NPC-issued bounties accrue the configured increment for each complete NPC threshold of combined recorded PvE and PvP kills, capped at the configured maximum before death reductions. Active records use an indefinite wanted-until marker; do not assume a seven-day expiration or a weighted conversion between thresholds. Secure-system eligibility rules still apply.
+- Officers can use `/faction rival TAG` and `/faction unrival TAG`. Rivalry exempts fights outside secure systems once both factions declare it. `/faction hostile NAME` and `/faction unhostile NAME` mark a pilot as hostile to your faction. Your members and protected pilots can fight that pilot without registering a kill outside secure systems.
+- A lounge diplomat can clear your pending NPC kills with their faction and revoke pirate status. PvP kill history for faction bounties and existing bounties survive the deal.
+- `/faction bounties` lists active bounties. A verified player kill claims the target's active bounties and removes them from the board. Outside Secure systems, a pilot who dies with removable, saleable equipment fitted loses one equipped item. In Secure systems, only pilots with active pirate status lose equipment. Security is effective security (including Shima after the pilot's Kaamo siege), not only the initial galaxy table. A protected death does not charge a respawn docking fine; in single-player it saves current progress at the respawn station rather than loading the old autosave or deleting the hardcore run. The rule applies to PvP and other deaths regardless of bounty status. Organized arena matches are exempt. Other pilots can tractor the dropped item using the normal loot controls.
+
+## Pirate friendly fire and bounty eligibility
+
+Pirate NPCs normally spare pirate pilots, but retaliate after accumulated damage reaches 10% of maximum hull (5% on Extreme) or 15% of their EMP pool (10% on Extreme). Local and remote attacks are tracked, with existing squad aggression rules. Script-protected friends and wingmen are excluded. Ordinary faction thresholds and special Loma toll rules remain unchanged.
+
+Pirate pilots may collect active NPC-faction wanted rewards and accepted, funded player-faction contracts. This includes the faction-issued portion of a wanted pirate's bounty, not the general pirate-status bounty. Pirate boss/outpost rewards and general pirate-status rewards are forbidden to pirate hunters. Destroyed boss/outpost reports still resolve; if the killer is a pirate there is no payout. If an eligible killer shares with a squad, pirate members' shares are withheld rather than redistributed. Faction Most Wanted boards for NPC targets remain available.
+
+## Ship recovery
+
+On a penalized multiplayer death the server removes the active owned hull, cargo and remaining removable equipment into a durable recovery record. One eligible fitted item is still dropped as wreck loot. A bare emergency hull (the Phantom by default) replaces the flown hull; it has zero trade-in value and cannot be stored as an owned hull. Dying again in the loaner does not create another recoverable hull.
+
+Mods can choose the emergency replacement using `emergencyShip`: a base-game ship index (for example `10`) or a stable custom ship reference such as `"my_mod:rescue_fighter"`. Later active mods override this setting only when they supply it. The server resolves the reference against its loaded ship database. Missing or non-ownable hulls fall back to the Phantom with a warning. The chosen hull remains an emergency loaner, not player property, regardless of its class or value.
+
+The recovery timer is wall-clock time, including while disconnected. Mods can set `shipRecoverySeconds` (1–604,800, default 1,800). At expiry the server first tries the last docked player station, then other eligible player stations, with actual storage permission, item and ship capacity, and dry dock requirements for large hulls. Stored assets remain individually owned. Owned Kaamo Club storage is an alternative if it can accept the hull. Otherwise the surviving fitted equipment is returned to the pilot's hold and the hull's table price plus the cargo's minimum item prices are credited. No refund is paid for the lost equipment or an emergency hull. The storage transaction journal and durable profile queue prevent repeated settlements after reconnect or restart. A per-profile death intent is journalled before assets are removed; an authoritative transaction ID prevents duplicate penalties, and unfinished intents replay before login or profile handover. A missing or stale wreck pose does not waive equipment loss, although there may be no loot crate to recover.
+
+Secure non-pirates and organized arena matches are exempt. Event-loaned hulls are not treated as owned ships.
+
+## Lua hooks
+
+Install these hooks in a mod script running on the host or dedicated server. The piracy option must also be enabled in `piracy.json`.
+
+```lua
+game.hook("GameHooks", "PiracyKillThreshold", function(original)
+    return original() + 10
+end)
+
+game.hook("GameHooks", "PiracyWindowSeconds", function()
+    return 5 * 86400
+end)
+
+game.on("piracyKillRegistered", function(killerId, victimId, station, count, threshold, windowSeconds)
+    game.log("Piracy progress", killerId, count, threshold)
+end)
+
+game.on("piracyStatusChanged", function(pilotId, isPirate)
+    game.log("Pirate status", pilotId, isPirate)
+end)
+```
+
+The rules default to 30 kills and 345,600 seconds. The server evaluates both on each qualifying kill while the pilot is building toward pirate status. Nonpositive values use the defaults. The limits are 1,000 kills and 365 days. The hooks affect pirate status. Faction bounty thresholds use their own rules.
+
+Both events fire on the server after saving. The IDs are session client IDs. The kill event fires while the pirate tally is building, including the kill that sets pirate status. The status event also fires when a diplomat revokes pirate status.
+
+### Reliable fatal-hull reporting and recovery enforcement
+
+A server-observed fatal hull transition is latched immediately and supplemented by a reliable owner death report. Delayed or reordered unreliable pose batches cannot replace a newer server pose. Death intent is journalled even if a valid emergency hull or respawn destination is temporarily unavailable. A replay recognizes the same penalty ID and a profile upload must acknowledge the latest server-owned death ID before it can replace the saved profile. Secure and arena exemptions remain in force. The server still depends on the owner's combat simulation; disconnects before any evidence arrives cannot be treated as a confirmed death.
+
+## Independent faction reputation (optional)
+
+Set `"independentReputation": true` in `piracy.json` alongside `"enabled": true`. The four base standings are independent and initially inherit the existing axes. The default secure PvP kill penalty is 5 toward every non-permanently-hostile NPC faction (`secureKillStandingPenalty`, 1–100). At -71 and below, enemy kill rewards no longer increase reputation. Pirate status locks all faction standings to -100, including against signatures; paying a diplomat lifts pirate status and restores only the represented faction. The base game is unchanged when the option is absent. Secure PvP penalties require the existing profile-based piracy system.

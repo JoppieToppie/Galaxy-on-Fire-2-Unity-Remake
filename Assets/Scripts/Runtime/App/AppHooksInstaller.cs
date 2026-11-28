@@ -29,6 +29,20 @@ namespace GoF2Remake
             SpaceHooks.SettleHud = FlightHud.SettleKept;
             SpaceHooks.TemporalUpscaler = () => Bootstrap.IsTemporal(Bootstrap.ActiveUpscaler);
 
+            Data.GameHooks.TutorialPopupAcknowledged = (title, text, acknowledged) =>
+            {
+                var hud = Object.FindAnyObjectByType<FlightHud>();
+                if (hud != null) return hud.TryModTutorial(title, text, acknowledged);
+                var menu = Object.FindAnyObjectByType<StationMenu>();
+                return menu != null && menu.TryModTutorial(title, text, acknowledged);
+            };
+            Data.GameHooks.TutorialPopup = (title, text) =>
+            {
+                var hud = Object.FindAnyObjectByType<FlightHud>();
+                if (hud != null) return hud.TryModTutorial(title, text);
+                var menu = Object.FindAnyObjectByType<StationMenu>();
+                return menu != null && menu.TryModTutorial(title, text);
+            };
             UiHooks.LatestDialogueProvider = () => DialogueView.Latest;
             UiHooks.FlightMessage = text =>
             {

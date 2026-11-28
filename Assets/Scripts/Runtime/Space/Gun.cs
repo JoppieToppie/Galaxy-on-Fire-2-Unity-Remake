@@ -131,6 +131,12 @@ namespace GoF2Remake.Flight
         public event Action<Vector3> Ignited;
         /// <summary>Modified: a shot stopped on the station's or jumpgate's hull there (its GunRig shows the impact).</summary>
         public event Action<Vector3> SceneryHit;
+        /// <summary>Bomb or mine detonation with its shot slot and centre. Used to check
+        /// proximity to exact player-built gate meshes, including EMP blasts.</summary>
+        public event Action<int, Vector3> BlastDetonation;
+        /// <summary>Exact scenery hull hit: shot slot, hull owner and impact point (player-built gates).
+        /// Unlike a generic impact position, the hull identity cannot confuse a nearby station with a gate.</summary>
+        public event Action<int, HullBody, Vector3> SceneryImpact;
         /// <summary>A shot's echo went off at this point (its damage is done; the explosion is for the view).</summary>
         public event Action<Vector3> Echoed;
         /// <summary>A shot left the gun (gun, bullet index; a cluster salvo: its first bullet). Multiplayer sends it to the
@@ -193,6 +199,8 @@ namespace GoF2Remake.Flight
         [System.NonSerialized] public float shieldFactor = 1f;
 
         public const int ShieldDamageAttr = 124, DisruptorShieldPercent = 200;
+        public const int BeamAimToleranceAttr = 97; // percent of the original beam auto-aim window
+        public const int ProjectileSpreadAttr = 98; // integer spreadError, zero = perfectly straight
         public const int DamageTypeAttr = 190;   // (was 182: Core.Device.ElementalAttr's)
         /// <summary>Remake mods (GoF3's abilities): 161 shieldBypass (its hits go past the shield), 162 slowMs / 163 slowPercent
         /// (a hit slows the ship to that share of its speed for that long, turning still allowed: AbilitySlowdown).</summary>
@@ -224,9 +232,10 @@ namespace GoF2Remake.Flight
         public void Charge(float dtMs, bool held) => chargedMs = held ? chargedMs + dtMs : 0f;
         /// <summary>Game units around a beam's line it hits (0 = only what it meets, the original's).</summary>
         public readonly float beamRadius;
-        /// <summary>A wide beam's length with nothing aimed, and how far past its target it sweeps (176 beamReach, game units;
-        /// default the beams' 30 000; Chorus's ProjectileRange).</summary>
+        /// <summary>Beam length with nothing aimed (176 beamReach, game units; default 30 000).
+        /// Explicit reach also controls acquisition, including narrow beams.</summary>
         public readonly float beamReach = BeamRangeUnits;
+        public readonly bool hasCustomBeamReach;
         public readonly int heatShots;
         public readonly float heatCoolMs, overheatMs;
         float heat, overheatLeftMs;
@@ -271,7 +280,8 @@ namespace GoF2Remake.Flight
             vulnerableMs = Mathf.Max(0, item.Attr(VulnerableMsAttr));
             echo = GunEcho.From(item);
             beamRadius = isBeam ? Mathf.Max(0, item.Attr(BeamRadiusAttr)) : 0f;
-            if (beamRadius > 0f) beamReach = Mathf.Max(1, item.Attr(BeamReachAttr, (int)BeamRangeUnits));
+            hasCustomBeamReach = isBeam && item.HasAttr(BeamReachAttr);
+            if (hasCustomBeamReach) beamReach = Mathf.Max(1, item.Attr(BeamReachAttr, (int)BeamRangeUnits));
             heatShots = Mathf.Max(0, item.Attr(HeatShotsAttr));
             chargeMs = Mathf.Max(0, item.Attr(ChargeMsAttr));
             heatCoolMs = Mathf.Max(1, item.Attr(HeatCoolMsAttr, 10000));
@@ -301,7 +311,8 @@ namespace GoF2Remake.Flight
                 Kind.Sentry => 3,
                 _ => isBeam ? 1 : 20,
             };
-            spreadError = kind switch { Kind.AutoCannon or Kind.ScatterGun => 2f, Kind.Thermo => 20f, _ => 0f };
+            spreadError = item.HasAttr(ProjectileSpreadAttr) ? Mathf.Max(0, item.Attr(ProjectileSpreadAttr))
+                : kind switch { Kind.AutoCannon or Kind.ScatterGun => 2f, Kind.Thermo => 20f, _ => 0f };
             bullets = new Bullet[pool];
             for (int i = 0; i < pool; i++) bullets[i].timer = -1e9f;
             reloadAcc = reloadMs + 1f;   // ready at start
@@ -376,6 +387,11 @@ namespace GoF2Remake.Flight
             heat = Mathf.Max(0f, heat - dtMs * heatShots / heatCoolMs);
         }
 
+        /// <summary>Exact muzzle used by Shoot, including the game's forward offset.</summary>
+        public Vector3 ShotSpawn(Vector3 origin, Quaternion rotation, bool addForwardOffset = true) =>
+            origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
+                ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
+
         int Shoot(Vector3 origin, Quaternion rotation, bool addForwardOffset)
         {
             if (!Ready) return -1;
@@ -386,8 +402,7 @@ namespace GoF2Remake.Flight
             var fwd = rotation * Vector3.forward;
             var up = rotation * Vector3.up;
             var shotFwd = rotation * (launchTurn * Vector3.forward);
-            Vector3 Spawn() => origin + rotation * (mountLocal + (addForwardOffset && kind != Kind.ShockBlast
-                ? Vector3.forward * SpawnForwardUnits * MetersPerUnit : Vector3.zero));
+            Vector3 Spawn() => ShotSpawn(origin, rotation, addForwardOffset);
 
             if (isBeam)
             {
@@ -395,6 +410,10 @@ namespace GoF2Remake.Flight
                 var target = AutoAim?.Invoke();
                 ref var bb = ref bullets[0];
                 var from = Spawn();
+                // Enforce explicit reach at the actual muzzle, even for custom AutoAim providers.
+                if (target != null && hasCustomBeamReach &&
+                    (target.transform.position - from).sqrMagnitude > Mathf.Pow(beamReach * MetersPerUnit, 2f))
+                    target = null;
                 if (target != null)
                 {
                     var d = target.transform.position - from;
@@ -407,7 +426,7 @@ namespace GoF2Remake.Flight
                 else
                 {
                     BeamDir = fwd;
-                    BeamLengthUnits = beamReach;   // (BeamRangeUnits but for a wide beam's own reach)
+                    BeamLengthUnits = beamReach;
                     BeamTarget = null;
                     beamAim = null;
                     bb.position = from + fwd * beamReach * MetersPerUnit;
@@ -613,8 +632,12 @@ namespace GoF2Remake.Flight
                 // beams couldn't hurt anything with a hull (the battlestation's turrets, capital ships, freighters). Its
                 // first pass sweeps the whole beam, from where it was fired.
                 if (isBeam && fresh) from = b.position - BeamDir * BeamLengthUnits * MetersPerUnit;
+                // A range-configured narrow beam is hitscan, not a projectile drifting beyond its endpoint.
+                // Keep its bullet alive for the existing visual/reload timing, but only test its first sweep.
+                bool fixedBeam = isBeam && hasCustomBeamReach && beamRadius <= 0f;
+                if (fixedBeam && !fresh) continue;
                 if (kind == Kind.Mine) b.position += b.velocity * dtMs * Mathf.Max(1f - b.age / MineStopMs, 0f);
-                else b.position += b.velocity * dtMs;
+                else if (!fixedBeam) b.position += b.velocity * dtMs;
                 if (kind == Kind.ClusterMissile) Corkscrew(i, ref b, dtMs);
                 if (IsBomb && b.timer < 1f) { Ignite(targets); continue; }   // end of life
                 // Remake: a homing missile that reaches its goal hits its target there. A salvo's spot on a big hull
@@ -657,7 +680,8 @@ namespace GoF2Remake.Flight
         void TestHits(int i, ref Bullet b, IReadOnlyList<Target> targets, Vector3 from)
         {
             var wall = b.position;
-            bool onHull = HullCollision.Any && HullCollision.CastScenery(from, b.position, HullShotRadius, out wall);
+            HullBody sceneryBody = null;
+            bool onHull = HullCollision.Any && HullCollision.CastScenery(from, b.position, HullShotRadius, out wall, out sceneryBody);
             // Modified (a player's request): an NPC's shots (a gun whose targets hold no asteroid, so it can't hit one) stop on
             // asteroids, on the hit sphere the player's shots have (PlayerAsteroid: mesh radius x0.7); they flew through
             // the rocks. The player's own shots keep the original's rules (they hit asteroids as targets).
@@ -673,6 +697,7 @@ namespace GoF2Remake.Flight
             b.position = wall;   // the path ends at the hull / rock: only what lies before it can be hit
             TestTargets(i, ref b, targets, from);
             if (b.timer <= -1e8f) return;   // a target took it on the way
+            if (onHull && sceneryBody != null) SceneryImpact?.Invoke(i, sceneryBody, wall);
             if (IsBomb) { Ignite(targets); return; }
             b.timer = -1e9f;   // gone
             SceneryHit?.Invoke(wall);
@@ -1070,6 +1095,7 @@ namespace GoF2Remake.Flight
                 var at = b.position;
                 b.timer = -1e9f;
                 AreaDamage(at, targets, true);
+                BlastDetonation?.Invoke(i, at);
                 Ignited?.Invoke(at);
                 Detonated?.Invoke(this, at);
             }

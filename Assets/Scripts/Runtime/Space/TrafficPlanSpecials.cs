@@ -111,6 +111,34 @@ namespace GoF2Remake.Flight
             }
             return first;
         }
+        // A territorial battleship is one roster slot. Its attached turrets are not extra fleet members.
+        public static List<SpawnSpec> WarBattleship(Database db, int race, int choice, Vector3 position, int tag)
+        {
+            var specs = new List<SpawnSpec>();
+            if (choice == 1 || choice == 2)
+                AddCapitalShipAt(db, specs, choice == 1 ? SpawnSpec.CapitalBattleship : SpawnSpec.CapitalVossk, position, false);
+            else
+            {
+                var spec = ModCapitalShips.Spawn(choice - 3, race, position);
+                spec.capital = SpawnSpec.CapitalMod;
+                specs.Add(spec);
+            }
+            var host = specs[0];
+            host.race = race; host.eventTag = tag; host.group = NpcGroup.Special;
+            host.stationary = true; host.capitalEnhanced = true; host.noLoot = true;
+            host.dockingType = 0; host.spacePoints = -1; host.alwaysEnemy = false; host.alwaysFriend = false;
+            if (host.hitpoints <= 0 || host.hitpoints >= 9999999) host.hitpoints = NpcTables.Hull(1, 14) * 5;
+            for (int i = specs.Count - 1; i > 0; i--)
+            {
+                var part = specs[i];
+                if (part.group != NpcGroup.Turret) { specs.RemoveAt(i); continue; }
+                part.race = race; part.capitalEnhanced = true; part.noLoot = true;
+                part.eventTag = NpcFactionWar.AuxiliaryTag(tag);
+                part.hitpoints = Mathf.Max(1, (int)((500 + 50 * Mathf.Min(Session.Rank, 20)) * Session.DifficultyFactor));
+            }
+            return specs;
+        }
+
         /// <summary>The game's capital ship hull of 'kind' at 'host' and (with 'turrets') its turrets, as the original builds them.</summary>
         static void AddCapitalHull(List<SpawnSpec> list, int kind, Vector3 host, bool turrets)
         {

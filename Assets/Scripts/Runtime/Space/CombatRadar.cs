@@ -79,7 +79,113 @@ namespace GoF2Remake.Flight
         public bool HasScanner { get; private set; }
         /// <summary>Remake mods: the scanner names a locked ship's hull on the plate (attr 140 "scanShip").</summary>
         public bool ShipScan { get; private set; }
-        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142;
+        public const int ScanShipAttr = 140, ScanHitpointsAttr = 141, ScanWeaponsAttr = 142, ScannerRangeAttr = Modding.ItemStats.ScannerRangeAttr, ScanLeadAttr = Modding.ItemStats.ScanLeadAttr;
+        /// <summary>Mod opt-in only: stock scanners and absent/zero scanLead attributes do not show PIPs.</summary>
+        public bool ScanLead { get; private set; }
+        public static bool ScannerHasLead(ItemData scanner) => scanner != null && scanner.HasAttr(ScanLeadAttr) && scanner.Attr(ScanLeadAttr) > 0;
+        public WeaponSystem LeadWeapons => ScanLead && weapons != null && !weapons.TurretView && !weapons.PrimaryBlocked &&
+            nav != null && !nav.Paused && !nav.MenuOpen && !nav.Conversation && !nav.RadarOff && !nav.Jumping ? weapons : null;
+        /// <summary>Maximum detection range in game units. Zero keeps the original unlimited range.</summary>
+        public int ScannerRangeUnits { get; private set; }
+        static readonly Dictionary<string, int> detectionPercent = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, int> npcRanges = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Opt-in NPC sensor baseline: 240000 game units = 12 km. Vanilla AI and weapons keep their original ranges.</summary>
+        public const int DefaultNpcScannerRangeUnits = 240000;
+        static int generatorDetectionPercent = 80;
+        static Database sensorDatabase;
+        static bool npcSensors;
+        static CombatRadar localRadar;
+
+        static void ConfigureSensors(Database database, bool refresh = false)
+        {
+            if (!refresh && object.ReferenceEquals(sensorDatabase, database)) return;
+            sensorDatabase = database;
+            detectionPercent.Clear();
+            npcRanges.Clear();
+            detectionPercent[Modding.ShipClassRules.StealthFighter] = 50;
+            detectionPercent[Modding.ShipClassRules.StealthBomber] = 60;
+            generatorDetectionPercent = 80;
+            npcSensors = false;
+            foreach (var mod in Modding.ModManager.Active)
+                if (mod != null && !mod.IsBase && mod.Manifest != null)
+                {
+                    var m = mod.Manifest;
+                    foreach (var pair in m.scannerClassDetectionPercent) detectionPercent[pair.Key] = pair.Value;
+                    foreach (var pair in m.npcScannerRangeUnits) npcRanges[pair.Key] = pair.Value;
+                    if (m.scannerGeneratorDetectionPercent >= 0) generatorDetectionPercent = m.scannerGeneratorDetectionPercent;
+                    npcSensors |= m.npcScannerDetection || m.npcScannerRangeUnits.Count > 0;
+                }
+        }
+
+        public static bool NpcSensorsEnabled(Database database)
+        {
+            ConfigureSensors(database);
+            return npcSensors;
+        }
+
+        /// <summary>Explicit scripted detection ranges take precedence over class defaults.</summary>
+        public static float NpcSensorRange(Database database, int shipIndex, float explicitRange, float fallback)
+        {
+            ConfigureSensors(database);
+            if (explicitRange >= 0f) return explicitRange;
+            var cls = shipIndex >= 0 && database != null ? Modding.ShipClassRules.ClassOf(database.Ship(shipIndex)) : null;
+            return cls != null && npcRanges.TryGetValue(cls, out int range) ? range : fallback;
+        }
+
+        public static bool PlayerDetects(Target target) => localRadar == null || localRadar.Detects(target);
+
+        public static bool DetectsFrom(Database database, Vector3 origin, float rangeUnits, Target target)
+        {
+            if (target == null) return false;
+            if (rangeUnits <= 0f) return false;
+            ConfigureSensors(database);
+            int index = target.netShipIndex >= 0 ? target.netShipIndex : target.isPlayer ? Session.ShipIndex : target.shipType;
+            return DetectsShipAtDistance(database, (target.transform.position - origin).sqrMagnitude, rangeUnits, index, target.passiveStealthGenerator);
+        }
+
+        public static bool DetectsShipAtDistance(Database database, float distanceSquared, float rangeUnits, int index, bool generator)
+        {
+            if (rangeUnits <= 0f) return false;
+            ConfigureSensors(database);
+            int percent = 100;
+            string cls = null;
+            if (index >= 0 && database != null)
+            {
+                cls = Modding.ShipClassRules.ClassOf(database.Ship(index));
+                if (cls != null && detectionPercent.TryGetValue(cls, out int configured)) percent = configured;
+                if (!generator && !DedicatedStealth(cls)) generator = database.IntegratedCloak(index) >= 0;
+            }
+            percent = EffectiveDetectionPercent(cls, percent, generator, generatorDetectionPercent);
+            float reach = rangeUnits * M * (percent / 100f);
+            return distanceSquared <= reach * reach;
+        }
+
+        public static bool DedicatedStealth(string cls) =>
+            string.Equals(cls, Modding.ShipClassRules.StealthFighter, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(cls, Modding.ShipClassRules.StealthBomber, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Stealth hulls use their built-in signature without stacking an equipment reduction.</summary>
+        public static int EffectiveDetectionPercent(string cls, int classPercent, bool generator, int generatorPercent)
+        {
+            if (!generator || DedicatedStealth(cls)) return classPercent;
+            return Mathf.Max(1, Mathf.RoundToInt(classPercent * Mathf.Clamp(generatorPercent, 1, 100) / 100f));
+        }
+
+        public static bool WithinScannerRange(float distanceSquaredMeters, int rangeUnits, int targetPercent = 100)
+        {
+            if (rangeUnits <= 0) return true;
+            float reach = rangeUnits * M * (targetPercent / 100f);
+            return distanceSquaredMeters <= reach * reach;
+        }
+
+        /// <summary>Range for unclassified objects and manual crate detection, measured from the observing ship, not the camera.</summary>
+        public bool DetectsPosition(Vector3 position) => WithinScannerRange((position - transform.position).sqrMagnitude, ScannerRangeUnits);
+
+        /// <summary>One shared rule for visible markers and acquisition/retention of a ship lock.</summary>
+        public bool Detects(Target target)
+        {
+            return target != null && (ScannerRangeUnits <= 0 || DetectsFrom(db, transform.position, ScannerRangeUnits, target));
+        }
         /// <summary>The lock candidate: a Target (ship) or null.</summary>
         public Target Candidate { get; private set; }
         public Crate CrateCandidate { get; private set; }
@@ -171,6 +277,10 @@ namespace GoF2Remake.Flight
             assets = CombatAssets.Load();
             var scanner = Shop.FirstMounted(db, 17);
             HasScanner = scanner != null;
+            ScanLead = ScannerHasLead(scanner);
+            ScannerRangeUnits = scanner != null ? Mathf.Max(0, scanner.Attr(ScannerRangeAttr)) : 0;
+            ConfigureSensors(db, true);
+            localRadar = this;
             lockTimeMs = scanner != null && scanner.HasAttr(29) ? scanner.Attr(29) : 8000;
             lockTimeMs = Cheats.LockMs(lockTimeMs);
             cargoScan = scanner != null ? Mathf.Clamp(scanner.Attr(31), 0, 2) : 0;
@@ -188,7 +298,7 @@ namespace GoF2Remake.Flight
                 tractorLockMs = tractor.Attr(24);
                 tractorMode = tractor.Attr(23);
                 tractorTargets = TractorTargets(tractor);
-                tractorRangeUnits = tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits);
+                tractorRangeUnits = TractorReachUnits(tractor);
                 tractorNoLock = tractor.Attr(TractorNoLockAttr) == 1;
                 beamColor = BeamColor(tractor);
             }
@@ -208,6 +318,10 @@ namespace GoF2Remake.Flight
                 if (beamLength <= 0f) beamLength = M;
             }
         }
+
+        /// <summary>The tractor beam's configured reach in game units, or zero without a beam.</summary>
+        public static float TractorReachUnits(ItemData tractor) =>
+            tractor == null ? 0 : Mathf.Max(0, tractor.Attr(TractorRangeAttr, (int)DefaultTractorRangeUnits));
 
         /// <summary>The tractor beam's crate count (attr 122, 1..MaxTractorTargets; 1 = the original's one beam).</summary>
         public static int TractorTargets(ItemData tractor) =>
@@ -235,6 +349,7 @@ namespace GoF2Remake.Flight
 
         void OnDestroy()
         {
+            if (localRadar == this) localRadar = null;
             if (beam != null) Destroy(beam.gameObject);
             for (int i = extra.Count - 1; i >= 0; i--) ReleaseExtra(i);
         }
@@ -246,7 +361,7 @@ namespace GoF2Remake.Flight
             // remake only switches it off, hull intact, and its "<race> 100%" plate stayed with no ship (#28).
             // Remake: a ship gone off the lock (another player cloaking, a hidden proxy) loses a lock already held too; the
             // missiles homing on it lose theirs for good (Gun).
-            if (Locked != null && (!Locked.Alive || !Locked.gameObject.activeInHierarchy || Locked.untargetable || Locked.cloaked)) Locked = null;
+            if (Locked != null && (!Locked.Alive || !Locked.gameObject.activeInHierarchy || Locked.untargetable || Locked.cloaked || !Detects(Locked))) Locked = null;
             if (RadarJam.Active) Locked = null;   // remake: a boss's radar jammer (the scanner holds nothing)
             // Modified: the ship marked as the docking target (a Supernova freighter, NpcShip.ShipMarker) drops its ship lock:
             // the docking target's marker takes over (a player's comparison with the original: its reticle stayed).
@@ -277,7 +392,9 @@ namespace GoF2Remake.Flight
             if (!blocked && cam != null)
             {
                 // (Remake free look, #302: the middle of the view in free look; else the ship's crosshair, as the original)
-                var c = LockCrosshairPoint(cam, transform, Settings.RemakeFreeLook && freeLook != null && freeLook.FreeLookActive);
+                bool cameraTargeting = GoF2Remake.Modding.ModShipView.FreeLookTargeting(db?.Ship(Session.ShipIndex), Settings.RemakeFreeLook);
+                var offset = Modding.ModShipView.CrosshairOffset(db?.Ship(Session.ShipIndex), freeLook != null && freeLook.FirstPersonActive);
+                var c = LockCrosshairPoint(cam, transform, cameraTargeting && freeLook != null && freeLook.FreeLookActive, offset);
                 float box = Screen.width / 16f, bestD = float.MaxValue, stealD = float.MaxValue;
                 if (c.z > 0f)
                 {
@@ -301,7 +418,7 @@ namespace GoF2Remake.Flight
                     // PlayerJunk objects: Level::createMission (Junk removal) puts them in the ship list before the pirates,
                     // so the first in the box is the junk, not a ship behind it (#28).
                     foreach (var o in Target.RadarObjects)
-                        if (o != null && o.Alive && !o.untargetable && o != Released && InBox(cam, c, box, o.transform.position, out float dj))
+                        if (o != null && o.Alive && !o.untargetable && o != Released && Detects(o) && InBox(cam, c, box, o.transform.position, out float dj))
                         {
                             if (!smart) { best = o; break; }
                             if (Better(o)) best = o;
@@ -313,13 +430,13 @@ namespace GoF2Remake.Flight
                             // Radar::draw: a fighter dying with cargo (KIPlayer+0x48) is salvage until it explodes.
                             if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
                             {
-                                if (InBox(cam, c, box, s.transform.position, out float dd) && dd < stealD) { stealD = dd; bestSteal = s.Target; }
+                                if (Detects(s.Target) && InBox(cam, c, box, s.transform.position, out float dd) && dd < stealD) { stealD = dd; bestSteal = s.Target; }
                                 continue;
                             }
                             // KIPlayer untargetable (a Rhino's / Myfft's turret, Level::createFighterTurrets): no lock; it was
                             // locked, dropped and locked again every frame, so the Rhino under it couldn't be scanned.
                             if (s.Gone || !s.Target.Alive || s.Hidden || s.RadarHidden || s.DockingOnly || s.Asleep || s.Target.untargetable) continue;
-                            if (!InBox(cam, c, box, s.transform.position, out float d)) continue;
+                            if (!Detects(s.Target) || !InBox(cam, c, box, s.transform.position, out float d)) continue;
                             // KIPlayer+0x20: a disabled ship with cargo is salvage (it wins over the ship locks).
                             if (s.Hp.empDisabled && s.HasCargo) { if (d < stealD && !StealingFrom(s.Target)) { stealD = d; bestSteal = s.Target; } }
                             else if (smart) { if (Better(s.Target)) best = s.Target; }
@@ -330,7 +447,7 @@ namespace GoF2Remake.Flight
                     // the player whose game ran the orbit's NPCs could steal: Discord report 2026-10-21).
                     foreach (var o in Target.NetShips)
                     {
-                        if (o == null || !o.Alive || o.untargetable || !InBox(cam, c, box, o.transform.position, out float dn)) continue;
+                        if (o == null || !o.Alive || o.untargetable || !Detects(o) || !InBox(cam, c, box, o.transform.position, out float dn)) continue;
                         if (o.NetStealable) { if (dn < stealD && !StealingFrom(o)) { stealD = dn; bestSteal = o; } continue; }
                         if (bestSteal != null || o == Released) continue;
                         if (!smart) { if (best == null) best = o; continue; }   // the first in the list, after the traffic's
@@ -346,7 +463,7 @@ namespace GoF2Remake.Flight
                     {
                         bestD = float.MaxValue;
                         foreach (var cr in Crate.All)
-                            if (cr != Salvaging && !cr.pulled && !cr.claimedByOther && InBox(cam, c, box, cr.transform.position, out float d) && d < bestD) { bestD = d; bestCrate = cr; }
+                            if (cr != Salvaging && !cr.pulled && !cr.claimedByOther && DetectsPosition(cr.transform.position) && InBox(cam, c, box, cr.transform.position, out float d) && d < bestD) { bestD = d; bestCrate = cr; }
                         if (bestCrate != null) best = null;
                     }
                     // Radar::draw 0x1570ec, a spectral filter with attr 57: a live gas cloud in the box is a lock candidate
@@ -377,7 +494,7 @@ namespace GoF2Remake.Flight
                     if (assets != null && assets.targetLock != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.targetLock), Settings.SfxVolume);
                     Haptics.Play(Haptics.TargetLock);   // remake
                     ReadShip(Locked);
-                    GoF2Remake.World.SpaceHooks.ShipScanned?.Invoke(Session.StationIndex, PlateName(Locked));   // remake: "on scanned"
+                    GoF2Remake.World.SpaceHooks.ShipScanned?.Invoke(Session.StationIndex, Locked);   // remake: "on scanned"
                 }
             }
             else if (CrateCandidate != null || StealCandidate != null)
@@ -527,6 +644,8 @@ namespace GoF2Remake.Flight
             var c = Crate.Spawn(t.transform.position, new[] { new ItemStack(t.netStealItem, t.netStealAmount) }, t.race, Crate.LookContainer);
             c.name = "Stolen cargo";
             c.stolenFromRemote = t;
+            if (t.CollectFreight != null)
+                c.CollectStationSalvage = room => { t.CollectFreight?.Invoke(room); Destroy(c.gameObject); };
             c.fromFriend = t.friendToPlayer;
             c.pulled = true;
             return c;
@@ -646,7 +765,17 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The lock-acquisition point: the ship's forward aim line normally, the active camera's viewport centre while free look is active.</summary>
+        public static Vector3 ShipCrosshairWorldPoint(Transform ship, Vector2 offset)
+        {
+            Vector3 point = ChaseCamera.AimOrigin(ship) + ChaseCamera.AimDirection(ship) * CrosshairDistanceMeters;
+            point += ship.right * offset.x + ship.up * offset.y;
+            return point;
+        }
+
         public static Vector3 LockCrosshairPoint(Camera cam, Transform ship, bool freeLookActive)
+            => LockCrosshairPoint(cam, ship, freeLookActive, Vector2.zero);
+
+        public static Vector3 LockCrosshairPoint(Camera cam, Transform ship, bool freeLookActive, Vector2 offset)
         {
             if (cam == null || ship == null) return Vector3.zero;
             if (freeLookActive)
@@ -654,7 +783,7 @@ namespace GoF2Remake.Flight
                 var centre = cam.pixelRect.center;
                 return new Vector3(centre.x, centre.y, 1f);
             }
-            return cam.WorldToScreenPoint(ChaseCamera.AimOrigin(ship) + ship.forward * CrosshairDistanceMeters);
+            return cam.WorldToScreenPoint(ShipCrosshairWorldPoint(ship, offset));
         }
 
         static bool InBox(Camera cam, Vector3 crosshair, float box, Vector3 world, out float dist)
@@ -719,10 +848,26 @@ namespace GoF2Remake.Flight
             if (crate == Salvaging) Salvaging = null;
             UpdateBeamLoop();
             if (assets != null && assets.tractorClose != null) sfx.PlayOneShot(GoF2Remake.Modding.ModSounds.Get(assets.tractorClose), Settings.SfxVolume);
+            if (crate.CollectStationSalvage != null)
+            {
+                int room = Shop.FreeCargo(db);
+                crate.pulled = false;
+                if (room > 0) crate.CollectStationSalvage(room);
+                else Message?.Invoke(Localization.Get(322), 1, HudMessageKind.Normal);
+                refusedCrate = crate;
+                return;
+            }
             var entry = crate.loot.Find(s => s.amount > 0);
             if (entry == null) { Destroy(crate.gameObject); return; }
             if (GoF2Remake.Modding.ModBlueprints.Of(entry.item) != null)
             {
+                if (Blueprints.IsRestricted(entry.item))
+                {
+                    Message?.Invoke(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session."), 1, HudMessageKind.Normal);
+                    crate.CapturedHere?.Invoke();
+                    Destroy(crate.gameObject);
+                    return;
+                }
                 // Remake mods: a data crate (a mod blueprint's drop or derelict): the blueprint is learnt, nothing goes in
                 // the hold.
                 bool known = Blueprints.IsUnlocked(entry.item);

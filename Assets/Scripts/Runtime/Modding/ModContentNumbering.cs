@@ -14,6 +14,9 @@ namespace GoF2Remake.Modding
     {
         // Modified: true while EnsureMapping loads the tables for the original counts.
         static bool loadingForCounts;
+        // An override may contain only availability rules, with no name or price change.
+        // Store these separately from itemRenames so all item overrides are supported.
+        static readonly Dictionary<int, JObject> itemAvailability = new Dictionary<int, JObject>();
 
         /// <summary>The numbers of the active mods' content (again after ModManager.Revision changes).</summary>
         static void EnsureMapping()
@@ -32,6 +35,7 @@ namespace GoF2Remake.Modding
             _ = ModManager.Active;   // read first: the first read may scan the mods, a new revision, and map all this again inside the loops
             mappedRevision = ModManager.Revision;
             itemIndex.Clear(); itemDefAt.Clear(); placeholderItems.Clear(); itemLook.Clear(); itemRenames.Clear(); deedAt.Clear();
+            itemAvailability.Clear();
             bool session = ModManager.InSession;
             int next = originalItems;
             // A session numbers afresh: its mods first, so they keep the numbers they had before there was any base content.
@@ -60,6 +64,11 @@ namespace GoF2Remake.Modding
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).items)
                     if (d.overrideRef != null && (d.name != null || d.description != null) && TryResolveItem(d.overrideRef, out int t)) itemRenames[t] = d;
+            foreach (var mod in ModManager.Active)
+                foreach (var d in Parse(mod).items)
+                    if (d.overrideRef != null && d.json["availability"] is JObject rules &&
+                        TryResolveItem(d.overrideRef, out int number))
+                        itemAvailability[number] = rules;
             // Shop icons ("icon"): a new item's own, or an override's for the item it changes (the later mod wins).
             itemIcons.Clear();
             foreach (var mod in ModManager.Active)
@@ -213,7 +222,8 @@ namespace GoF2Remake.Modding
             if (originalShips < 0) return false;
             foreach (var mod in ModManager.Active)
                 foreach (var d in Parse(mod).ships)
-                    if (d.overrideRef != null && ModJson.Has(d.json, "model") && !GameModels.Is(ModJson.Str(d.json, "model"))
+                    if (d.overrideRef != null && ModJson.Has(d.json, "cockpitModel")) return true;
+                    else if (d.overrideRef != null && ModJson.Has(d.json, "model") && !GameModels.Is(ModJson.Str(d.json, "model"))
                         && TryResolveShip(d.overrideRef, out int t) && t < originalShips)
                         return true;
             return false;
@@ -225,6 +235,22 @@ namespace GoF2Remake.Modding
             var l = new List<(ModInfo, CustomShipData)>();
             foreach (var kv in shipDefAt.OrderBy(k => k.Key)) l.Add((kv.Value.mod, ShipData(kv.Key, kv.Value)));
             return l;
+        }
+        /// <summary>Effective optional first-person models, including overrides of original and mod ships.</summary>
+        public static Dictionary<int, (ModInfo mod, string path)> CockpitModels()
+        {
+            EnsureMapping();
+            var result = new Dictionary<int, (ModInfo mod, string path)>();
+            foreach (var mod in ModManager.Active)
+                foreach (var d in Parse(mod).ships)
+                {
+                    if (!ModJson.Has(d.json, "cockpitModel")) continue;
+                    if (!TryResolveShip(d.overrideRef ?? d.key, out int index)) continue;
+                    string path = ModJson.Str(d.json, "cockpitModel");
+                    if (string.IsNullOrEmpty(path)) result.Remove(index);
+                    else result[index] = (mod, path);
+                }
+            return result;
         }
         public static string ShipKey(int index)
         {
@@ -288,6 +314,18 @@ namespace GoF2Remake.Modding
             ItemDef d = itemDefAt.TryGetValue(index, out var nd) ? nd : itemRenames.TryGetValue(index, out var rd) ? rd : null;
             mod = d?.mod; json = d?.json; where = d?.where;
             return d != null && d.json != null;
+        }
+
+        /// <summary>Optional per-source availability restrictions in items.json. Absent means allowed.
+        /// Works on original overrides as well as new mod items; the latest explicit override wins.</summary>
+        public static bool ItemAvailableFor(int index, string source)
+        {
+            EnsureMapping();
+            JObject rules = null;
+            if (itemDefAt.TryGetValue(index, out var definition))
+                rules = definition.json["availability"] as JObject;
+            if (itemAvailability.TryGetValue(index, out var applied)) rules = applied;
+            return (bool?)rules?[source] ?? true;
         }
 
         /// <summary>An item reference ("12" or "mod:id") to its number in the current numbering.</summary>

@@ -42,17 +42,20 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: 45%;
+    /* Leave space for the logo, but centre the complete list in the remaining
+       height. Multiplayer and co-op add two rows to the classic menu. */
+    top: 23%;
     bottom: 0;
     margin-top: 0;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
 }
 
 /* Original f3: 198 x 28 steel-blue bars, 42 px pitch, the label centred in small regular type, no slide on focus. */
 .ui-style-original .menu-screen .main-buttons .menu-button {
     width: 198px;
     min-height: 28px;
+    flex-shrink: 0;
     margin: 0 0 14px 0;
     padding: 0 22px;
     -unity-slice-scale: 0.55px;
@@ -65,7 +68,7 @@
 .ui-style-original.layout-phone .menu-screen .main-buttons .menu-button,
 .ui-style-original .layout-phone .menu-screen .main-buttons .menu-button {
     min-height: 44px;
-    margin-bottom: 8px;
+    margin-bottom: 0;
 }
 
 /* Original f3: the dim "1." at the bar's left end (labels added by MainMenu.RefreshMenuNumbers). */
@@ -673,4 +676,21 @@
 .ui-style-original .mod-loading__track {
     border-radius: 0;
     background-color: rgba(0, 0, 0, 0.45);
+}
+
+/* Permanent identity and server briefing. */
+.ui-style-original #firstJoinIdentity,
+.ui-style-original .identity-briefing-card {
+    background-image: url("project://database/Assets/UI/Original/og_panel_bg.png"); background-repeat: repeat; background-size: 320px 320px; background-color: rgba(5,5,8,0.94); border-width: 1px; border-color: var(--gof-line); border-radius: 0;
+}
+.ui-style-original .identity-choice {
+    background-image: url("project://database/Assets/UI/Original/og_row.png"); -unity-slice-left: 75; -unity-slice-right: 75; -unity-slice-top: 20; -unity-slice-bottom: 20; -unity-slice-scale: 0.5px; background-color: rgba(0,0,0,0); border-width: 0; border-radius: 0;
+}
+.ui-style-original .identity-choice--selected,
+.ui-style-original .identity-choice--focused,
+.ui-style-original .identity-choice:focus {
+    background-image: url("project://database/Assets/UI/Original/og_row_on.png"); background-color: rgba(0,0,0,0); border-width: 0;
+}
+.ui-style-original .identity-briefing-warning {
+    background-color: rgba(65,37,12,0.94); border-width: 1px; border-color: var(--gof-amber); border-radius: 0;
 }

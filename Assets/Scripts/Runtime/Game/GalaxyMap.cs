@@ -161,8 +161,14 @@ namespace GoF2Remake.Data
 
         /// <summary>SolarSystem::hasNoOwner: no race icon, race line or logo.</summary>
         /// <summary>StarMap::drawOnScreenInfo: Shima reads 3 "Secure" once the Kaamo Club's siege is over (Status+0x114 &gt; 1).</summary>
-        public static int SecurityOf(SystemData s) =>
-            s == null ? 0 : s.index == KaamoClub.SystemIndex && Session.KaamoState > 1 ? 3 : s.securityLevel;
+        public static int SecurityOf(SystemData s) => SecurityOf(s, Session.KaamoState);
+
+        /// <summary>Effective security for an explicit pilot state (the server must not use its own Kaamo progress for remote pilots).</summary>
+        public static int SecurityOf(SystemData s, int kaamoState) =>
+            s == null ? 0 : s.index == KaamoClub.SystemIndex && kaamoState > 1 ? 3 : s.securityLevel;
+
+        public static bool DeathPenaltiesApply(SystemData s, int kaamoState, bool pirate) =>
+            s != null && (pirate || SecurityOf(s, kaamoState) < 3);
 
         public static bool HasOwner(int system) => system != 23 && system != 24 && system != 26 && system != 32 && system != 33;
 
@@ -248,7 +254,7 @@ namespace GoF2Remake.Data
 
         /// <summary>The system's race (an owned system's: HasOwner) is the player's enemy now (Standing.IsEnemy: beyond -70 on
         /// its axis, or against a signature; a mod race's own rule).</summary>
-        public static bool EnemyTerritory(SystemData s) => s != null && HasOwner(s.index) && Flight.Standing.IsEnemy(s.raceId);
+        public static bool EnemyTerritory(SystemData s) => s != null && HasOwner(s.index) && Flight.Standing.IsEnemy(NpcFactionWar.SystemOwner(s));
 
         /// <summary>The danger of a route: the Danger of the systems it enters (0 = all Secure and none an enemy's).</summary>
         public static int RouteDanger(Database db, List<int> path)
@@ -282,6 +288,9 @@ namespace GoF2Remake.Data
         /// any distance.</summary>
         public static int NextHop(Database db, int from, int to, bool safest = false)
         {
+            // A player-built gate has one fixed destination and bypasses the ordinary system-route graph.
+            int playerGateDestination = GameHooks.PlayerJumpgateDestination?.Invoke(from) ?? -1;
+            if (playerGateDestination >= 0) return playerGateDestination;
             int a = db.Stations.Find(s => s.index == from)?.system ?? -1;
             int b = db.Stations.Find(s => s.index == to)?.system ?? -1;
             if (a < 0 || b < 0 || (!safest && IsInRoutes(db.Systems.Find(s => s.index == a), b))) return to;
@@ -295,6 +304,13 @@ namespace GoF2Remake.Data
         /// route at all, warning 581).</summary>
         public static int EnergyCells(Database db, int a, int b, out bool noGate)
         {
+            var drive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            return EnergyCells(db, a, b, Session.IsExtreme, drive, FreeJumps, out noGate);
+        }
+
+        public static int EnergyCells(Database db, int a, int b, bool extreme,
+            GoF2Remake.Modding.ModJumpFx.Spec drive, bool freeJumps, out bool noGate)
+        {
             noGate = false;
             var path = SystemPath(db, a, b);
             int n = path != null ? path.Count - 1 : 0;
@@ -304,10 +320,8 @@ namespace GoF2Remake.Data
                 var target = db.Systems.Find(s => s.index == b);
                 noGate = target == null || target.jumpRoutesTo.Count == 0;
             }
-            if (FreeJumps) return 0;
-            int cells = Session.IsExtreme ? n * 2 : n;
-            // Modified: a mod drive's own cost (its jumpFx "cellsFactor", x the Khador Drive's, Extreme's x2 included).
-            var drive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (freeJumps) return 0;
+            int cells = extreme ? n * 2 : n;
             if (drive != null && drive.cellsFactor != 1f) cells = Mathf.CeilToInt(cells * drive.cellsFactor);
             return cells;
         }
@@ -326,7 +340,8 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Ship::hasJumpDriveIntegrated (37 / 38 / 40, and a mod ship's "integrated": "khadorDrive").</summary>
-        public static bool HasIntegratedDrive(int ship) => Database.Shared.HasIntegratedDrive(ship);
+        public static bool HasIntegratedDrive(int ship) =>
+            Modding.ModContent.ItemAvailableFor(KhadorDriveItem, "equipment") && Database.Shared.HasIntegratedDrive(ship);
 
         /// <summary>Modified: jumps take no energy cells: the Debug panel's free jumps, or a mounted mod drive whose "jumpFx" has
         /// "freeJumps": true (Modding.ModJumpFx).</summary>
@@ -336,6 +351,7 @@ namespace GoF2Remake.Data
         /// own jump effect and rules); not a cruise drive, which is based on it too (Shop.IsCruiseDrive).</summary>
         public static bool IsKhadorDrive(int item)
         {
+            if (!GoF2Remake.Modding.ModContent.ItemAvailableFor(item, "equipment")) return false;
             if (item == KhadorDriveItem) return true;
             var it = item >= 0 ? Database.Shared.Item(item) : null;
             return it != null && it.Look == KhadorDriveItem && !Shop.IsCruiseDrive(it);

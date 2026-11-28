@@ -69,6 +69,17 @@ namespace GoF2Remake.Flight
             return (int)(hp * Difficulty);
         }
 
+        /// <summary>Ordinary fighter shield chance. Early ranks on Easy and Normal have virtually no shields.
+        /// Uses the same difficulty factor as Hull (0.5 / 1 / 1.5 / 2).</summary>
+        public static float FighterShieldChance(int rank, float difficultyFactor)
+            => Mathf.Clamp01((Mathf.Clamp(rank, 0, 20) - 2f) / 14f + (Mathf.Clamp(difficultyFactor, 0.5f, 2f) - 1f) * 0.2f);
+
+        /// <summary>Shield pool as a fraction of the already difficulty-scaled hull, without scaling difficulty twice.</summary>
+        public static int FighterShieldCapacity(int rank, int hull)
+            => hull <= 0 ? 0 : Mathf.Max(1, Mathf.RoundToInt(hull * Mathf.Lerp(0.12f, 0.40f, Mathf.Clamp01(rank / 20f))));
+
+        public const int FighterShieldRechargeMs = 60000;
+
         public static int Emp(int kind) => (5 * Mathf.Min(Session.Rank, 20) + 40) * (kind == 1 ? 3 : 1);
         public static float EmpRecoveryMs(int kind) => kind == 1 ? 45000f : 15000f;
         public static float HitRadiusUnits => Session.IsExtreme ? 650f : 1000f;
@@ -165,7 +176,8 @@ namespace GoF2Remake.Flight
                     if (Random.Range(0, 100) >= (type >= 0 && type < LootTypeChance.Length ? LootTypeChance[type] : 10)) continue;
                     if (Random.Range(0, 100) >= it.occurrence) continue;
                     if (!Modding.ModUnlocks.ItemAvailable(it.index)) continue;   // remake mods: its "available" condition
-                    if (Shop.NotInSession(db, it.index)) continue;   // remake: no time extender in multiplayer
+                    if (Shop.NotInSession(db, it.index) || !Modding.ModContent.ItemAvailableFor(it.index, "loot")
+                        || !Modding.ModContent.ItemAvailableFor(it.index, "npcCargo")) continue;   // remake: no time extender in multiplayer
                     if (type == 4) entry = new ItemStack(it.index, Random.Range(0, 9) + 1);
                     else if (it.techLevel < 8) entry = new ItemStack(it.index, Random.Range(0, 3) + 1);
                 }

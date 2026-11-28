@@ -271,18 +271,21 @@ namespace GoF2Remake.Flight
         /// capital ship parked in front of the station (or at its "position" / "distance"), clear of it; a freighter in the
         /// freighters' box; a boss out where the pirate boss comes. 'gameCapital': the game's capital ship special was rolled
         /// here (a "replaceGame" type takes its place: the caller drops it, true returned).</summary>
-        public static bool AddModNpcShips(Database db, List<SpawnSpec> list, int station, SystemData system, int sysRace, bool gameCapital)
+        public static bool AddModNpcShips(Database db, List<SpawnSpec> list, int station, SystemData system, int sysRace, bool gameCapital, float population = 1f)
         {
             bool replaced = false;
             foreach (var t in ModNpcShips.ModTypes())
             {
+                if (ModAdvancedEconomy.EconomyOnlyFreighters && t.kind == ModNpcShips.Freighter) continue;
                 var s = t.spawn;
                 if (s == null || s.chance <= 0f || !NpcSpawnHolds(t, station, system, sysRace)) continue;
                 if (s.replaceGame && !gameCapital) continue;
                 if (Random.Range(0f, 100f) >= s.chance) continue;
+                int count = TrafficPlan.ScaleAmbientCount(Random.Range(s.min, s.max + 1), population);
+                if (count <= 0) continue;
                 if (s.replaceGame) replaced = true;
                 int race = t.race >= 0 ? t.race : sysRace;
-                for (int n = Random.Range(s.min, s.max + 1), i = 0; i < n; i++)
+                for (int i = 0; i < count; i++)
                     AddNpcType(db, list, t, race, NpcSpawnPoint(t, station, race));
             }
             return replaced;

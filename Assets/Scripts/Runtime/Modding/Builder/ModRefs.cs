@@ -105,6 +105,7 @@ namespace GoF2Remake.Modding
         public static readonly (string word, int race, string name)[] RaceWords =
         {
             ("terran", 0, "Terran"), ("vossk", 1, "Vossk"), ("nivelian", 2, "Nivelian"), ("midorian", 3, "Midorian"),
+            ("octopod", 4, "Octopod"), ("cyborg", 5, "Cyborg"), ("bobolian", 6, "Bobolian"), ("grey", 7, "Grey"),
             ("pirates", 8, "Pirate"), ("void", 9, "Void"), ("specters", 10, "Specters"),
         };
 

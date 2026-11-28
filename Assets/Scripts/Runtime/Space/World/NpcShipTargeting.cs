@@ -31,12 +31,28 @@ namespace GoF2Remake.World
             else if (territory < 0) { hostile = true; friend = false; }
             if (alwaysFriend) { hostile = false; friend = true; }
             if (mindControlMs > 0f) { hostile = true; friend = false; }   // remake mods: a boss's mind control (NpcDevices)
+            if (GameHooks.LocalPilotIsPirate?.Invoke() == true && !alwaysFriend && !IsWingman)
+            {
+                friend = r == Standing.Pirate && !turnedEnemy && !(HostileToLocalBySquad?.Invoke(this) ?? false);
+                hostile = !friend && r >= 0;
+            }
             Target.hostileToPlayer = hostile;
             Target.friendToPlayer = friend;
         }
 
+        public bool UsesScannerDetection => CombatRadar.NpcSensorsEnabled(db);
+
+        public bool Detects(Target t)
+        {
+            if (t == null) return false;
+            if (!UsesScannerDetection) return true;
+            return CombatRadar.DetectsFrom(db, transform.position,
+                CombatRadar.NpcSensorRange(db, Spec != null ? Spec.ship : -1, detectRange, CombatRadar.DefaultNpcScannerRangeUnits), t);
+        }
+
         bool InBox(Target t)
         {
+            if (UsesScannerDetection) return Detects(t);
             var d = t.transform.position - transform.position;
             float r = (detectRange > 0f ? detectRange : NpcTables.DetectRange) * M;
             return Mathf.Abs(d.x) < r && Mathf.Abs(d.y) < r && Mathf.Abs(d.z) < r;
@@ -55,6 +71,17 @@ namespace GoF2Remake.World
             if (modelGo != null && modelGo.activeSelf == hide) modelGo.SetActive(!hide);
             Target.untargetable = true;
             if (inactive) return;
+            if (UsesScannerDetection)
+            {
+                // Sleepers wake only on a detectable, uncloaked hostile contact.
+                foreach (var e in enemies)
+                    if (Valid(e) && !e.cloaked && Detects(e) &&
+                        (e.isPlayer ? Target.hostileToPlayer : Standing.RacesHostile(Race, e.race))) { Wake(); return; }
+                if (RemotePlayers != null && HostileToRemote != null)
+                    foreach (var e in RemotePlayers)
+                        if (Valid(e) && !e.cloaked && HostileToRemote(this, e) && Detects(e)) { Wake(); return; }
+                return;
+            }
             bool Near(Vector3 p, float units) { var d = p - transform.position; float r = units * M; return Mathf.Abs(d.x) < r && Mathf.Abs(d.y) < r && Mathf.Abs(d.z) < r; }
             // Freighters and fixed objects are PlayerFixedObjects: PlayerFixedObject::update (0x17f480) state 5 wakes them on
             // the first active enemy within +-50 000 per axis (a constant: no detect range, and no cloak test, only
@@ -130,7 +157,7 @@ namespace GoF2Remake.World
         /// and only holds its fire): a cloaked target is lost. The ship flies to where it was last seen, then back to its
         /// route.</summary>
         static bool LostToCloak(Target t) => t != null && t.cloaked && Settings.CloakLosesPursuers;   // a session: the host's (NetRules)
-        static bool Pursuable(Target t) => Valid(t) && !LostToCloak(t);
+        bool Pursuable(Target t) => Valid(t) && !LostToCloak(t) && Detects(t);
 
         /// <summary>PlayerFighter::update 0xf131e / 0xf1444: a turned ship (Player::turnedEnemy, +0xe0) of any race but the
         /// pirates' (8) takes a target outside its detection box too, when it picks one (not attacking, or the 5 s re-roll's
@@ -141,12 +168,20 @@ namespace GoF2Remake.World
         void UpdateTargeting()
         {
             // remake mods: a pursuer (Chorus's Guilt) always has the player (BTService_SelectTarget: bPreferPlayer)
-            if (Role == NpcRoles.Role.Pursuer && traffic != null && traffic.Player != null && traffic.Player.Alive)
+            if (Role == NpcRoles.Role.Pursuer && traffic != null && traffic.Player != null && traffic.Player.Alive && Detects(traffic.Player))
             {
                 target = traffic.Player; targetPos = target.transform.position; attacking = true; followingWaypoint = false;
                 return;
             }
             if (attacking && target != null && LostToCloak(target)) { lastSeen = target.transform.position; searchMs = SearchMs; }
+            if (attacking && target != null && !Detects(target))
+            {
+                attacking = false;
+                targetIdx = -1;
+                remoteTarget = null;
+                target = null;
+            }
+            if (attacking && target != null) lastSeen = target.transform.position;
             if (searchMs > 0f)
             {
                 searchMs -= Time.deltaTime * 1000f;
@@ -272,7 +307,7 @@ namespace GoF2Remake.World
                 var wp = route.Waypoint;
                 // A finished route: the target is the player (PlayerFighter+0x144), so the break-off circle applies, but it isn't
                 // an attack: no firing.
-                if (wp == null && LostToCloak(traffic.Player))   // the option: no circling a cloaked player, straight on
+                if (wp == null && (LostToCloak(traffic.Player) || !Detects(traffic.Player)))   // the option: no circling a cloaked player, straight on
                 { attacking = false; targetPos = transform.position + transform.forward * (20000f * M); followingWaypoint = true; }
                 else if (wp == null) { target = traffic.Player; attacking = false; targetPos = traffic.Player != null ? traffic.Player.transform.position : transform.position; }
                 else { route.Update(ToGame(transform.position)); wp = route.Waypoint; targetPos = wp.HasValue ? ToUnity(wp.Value) : transform.position; followingWaypoint = true; }

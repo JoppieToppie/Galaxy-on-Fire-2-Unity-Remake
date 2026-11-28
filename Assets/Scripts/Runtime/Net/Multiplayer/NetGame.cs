@@ -192,7 +192,7 @@ namespace GoF2Remake.Multiplayer
         // ---- Unity Relay (online sessions) ------------------------------------------------------------------
 
         /// <summary>The default and the largest session (players, a host's own included; Relay takes at most 100).</summary>
-        public const int DefaultMaxPlayers = 16, MaxPlayersLimit = 100;
+        public const int DefaultMaxPlayers = 16, MaxPlayersLimit = 150;
 
         /// <summary>The session's size, a host's own player included (the Host card, -maxplayers): Relay's connections, the
         /// server browser's "x / max", and the connection approval turns away a player past it (a local session too).</summary>
@@ -504,6 +504,7 @@ namespace GoF2Remake.Multiplayer
             // The Host card's choices win over the saved settings (they are its "command line").
             NetServerSettings.Load(option => option == "-password" || option == "-maxplayers" || option == "-allowdebug" || option == "-name");
             NetProfiles.Start();   // the profiles, factions, bans and news (before NetState: it carries the world's id)
+            NetPlayerStations.Start();   // durable player-built stations, before NetState accepts world actions
             Debug.Log($"NetGame: hosting a {(CoopSession ? "co-op campaign" : "persistent world")} in {NetProfiles.Folder}.");
         }
 
@@ -518,6 +519,7 @@ namespace GoF2Remake.Multiplayer
             NetMods.BeginHost();
             Dedicated = true;
             NetProfiles.Start();   // the player profiles (before NetState: it carries the server's id)
+            NetPlayerStations.Start();   // durable player-built stations, before NetState accepts world actions
             if (!keepSeed || Seed == 0) Seed = Environment.TickCount & 0x7fffffff;   // a restart keeps the world's asteroid fields
             var m = EnsureManager();
             if (relay != null) Transport.SetRelayServerData(relay.ToRelayServerData(RelayConnection));
@@ -912,7 +914,7 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Betty's slots (1 primary, 1 secondary, 3 equipment): Nirai Impulse EX 1 (0), Targe Shield (50), Telta
         /// Quickscan (81), IMT Extract 1.3 (86); all saleable, the secondary slot empty.</summary>
-        static List<ItemStack> StartEquipment() => new List<ItemStack>
+        internal static List<ItemStack> StartEquipment() => new List<ItemStack>
         {
             new ItemStack(0, 1), new ItemStack(50, 1), new ItemStack(81, 1), new ItemStack(86, 1),
         };
@@ -1177,3 +1179,4 @@ namespace GoF2Remake.Multiplayer
         }
     }
 }
+

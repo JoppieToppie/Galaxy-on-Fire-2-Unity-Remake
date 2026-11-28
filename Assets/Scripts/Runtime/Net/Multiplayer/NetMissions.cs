@@ -61,7 +61,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Sends 'm' to the squadmates: new (their mission becomes it) or an update of theirs.</summary>
         public static void Share(FreelanceMission m, bool isNew)
         {
-            if (!Squad || !Held(m)) return;
+            if ((!Squad && !(InSession && Standing.ServerManaged)) || !Held(m)) return;
             NetState.Instance.ShareMissionRpc(JsonUtility.ToJson(m), isNew);
         }
 
@@ -182,8 +182,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Freelance.Succeed: this player's share of 'pay' (all of it solo); the squadmates get theirs.</summary>
         public static int SplitReward(FreelanceMission m, int pay)
         {
-            if (!Squad || !Held(m)) return pay;
-            int share = pay / Mathf.Max(1, NetSquad.Members().Count);   // an equal share for every member
+            if ((!Squad && !(InSession && Standing.ServerManaged)) || !Held(m)) return pay;
+            int share = Squad ? pay / Mathf.Max(1, NetSquad.Members().Count) : pay;   // an equal share for every member
             NetState.Instance.MissionResultRpc(m.netId, Success, share);
             return share;
         }

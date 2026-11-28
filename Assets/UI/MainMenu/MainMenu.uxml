@@ -1,5 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:Style src="MainMenu.uss" />
+    <ui:Style src="../Dialogue/Dialogue.uss" />
     <ui:Style src="../GoF2InputGlyphs.uss" />
     <ui:VisualElement name="root" class="menu-root">
         <ui:VisualElement name="sideShade" class="side-shade" picking-mode="Ignore" />

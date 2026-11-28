@@ -52,6 +52,7 @@ namespace GoF2Remake.Multiplayer
         static readonly NetworkVariableWritePermission Write = NetworkVariableWritePermission.Owner;
 
         readonly NetworkVariable<int> ship = new NetworkVariable<int>(-1, Read, Write);
+        readonly NetworkVariable<bool> fittedStealthGenerator = new NetworkVariable<bool>(false, Read, Write);
         readonly NetworkVariable<FixedString128Bytes> pilot = new NetworkVariable<FixedString128Bytes>(default, Read, Write);
         readonly NetworkVariable<int> station = new NetworkVariable<int>(-1, Read, Write);
         readonly NetworkVariable<byte> place = new NetworkVariable<byte>((byte)Place.None, Read, Write);
@@ -61,6 +62,60 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> squad = new NetworkVariable<int>(0);   // the host's (NetSquad), 0 = none
         readonly NetworkVariable<bool> observer = new NetworkVariable<bool>(false);   // the server's: another device controls the profile
         readonly NetworkVariable<FixedString32Bytes> factionTag = new NetworkVariable<FixedString32Bytes>();   // the server's: NetFactions, "" = none
+        readonly NetworkVariable<int> wreckControlProgress = new NetworkVariable<int>(0,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal int WreckControlProgress => wreckControlProgress.Value;
+        internal int WreckControlEarnedSeconds => (wreckControlProgress.Value >> 2) - 1;
+        internal bool WreckControlContested => (wreckControlProgress.Value & 1) != 0;
+        internal bool WreckControlAdvancing => (wreckControlProgress.Value & 2) != 0;
+
+        internal void SetWreckControlProgress(int earnedSeconds, bool contested, bool advancing)
+        {
+            int value = ((earnedSeconds + 1) << 2) | (contested ? 1 : 0) | (advancing ? 2 : 0);
+            if (IsServer && wreckControlProgress.Value != value) wreckControlProgress.Value = value;
+        }
+
+        readonly NetworkVariable<FixedString4096Bytes> stationProjectsFundable = new NetworkVariable<FixedString4096Bytes>(default,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+
+        internal void SetStationProjectFundingAccess(string ids)
+        {
+            if (!IsServer) return;
+            var encoded = new FixedString4096Bytes(ids);
+            if (!stationProjectsFundable.Value.Equals(encoded)) stationProjectsFundable.Value = encoded;
+        }
+
+        internal bool CanFundStationProjectInUi(int id) =>
+            System.Array.IndexOf(stationProjectsFundable.Value.ToString().Split(','), id.ToString()) >= 0;
+
+        readonly NetworkVariable<FixedString4096Bytes> stationLedgers = new NetworkVariable<FixedString4096Bytes>(default,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal void SetStationLedgerAccess(string ids)
+        {
+            if (!IsServer) return;
+            var encoded = new FixedString4096Bytes(ids);
+            if (!stationLedgers.Value.Equals(encoded)) stationLedgers.Value = encoded;
+        }
+        internal bool CanViewStationLedgerInUi(int id) =>
+            System.Array.IndexOf(stationLedgers.Value.ToString().Split(','), id.ToString()) >= 0;
+
+        internal bool CanUseStationStockInUi => AvailableStationActions.HasFlag(StationProjectActions.UseStationStock);
+        internal bool CanRelinquishBuilderRightsInUi => AvailableStationActions.HasFlag(StationProjectActions.RelinquishBuilder);
+
+        readonly NetworkVariable<byte> stationProjectActions = new NetworkVariable<byte>(0,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        internal StationProjectActions AvailableStationActions => (StationProjectActions)stationProjectActions.Value;
+        internal void SetStationProjectActions(StationProjectActions value)
+        {
+            if (IsServer && stationProjectActions.Value != (byte)value) stationProjectActions.Value = (byte)value;
+        }
+
+        readonly NetworkVariable<FixedString64Bytes> profileAccount = new NetworkVariable<FixedString64Bytes>(default,
+            NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Server);
+        readonly NetworkVariable<FixedString64Bytes> factionId = new NetworkVariable<FixedString64Bytes>(default,
+            NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        int gateRequestSequence;
+        System.Action<int> gateTravelReply;
         readonly NetworkVariable<int> factionHome = new NetworkVariable<int>(-1);   // the server's: the faction's home station, -1 = none
         readonly NetworkVariable<int> tollStation = new NetworkVariable<int>(-1, Read, Write);   // NetFactionsClient.TollStation
         readonly NetworkVariable<bool> distress = new NetworkVariable<bool>(false, Read, Write);  // NetDistress: calls for help
@@ -75,6 +130,15 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<int> signature = new NetworkVariable<int>(-1, Read, Write);
         // Remake mods: the standings toward mods'races (NetModRaceStandings), and another player's read back
         readonly NetworkVariable<FixedString4096Bytes> modRaceStanding = new NetworkVariable<FixedString4096Bytes>(default, Read, Write);
+        readonly NetworkVariable<FixedString4096Bytes> serverRaceStanding = new NetworkVariable<FixedString4096Bytes>(default);
+        readonly Dictionary<string, int> serverRaceStandings = new Dictionary<string, int>(System.StringComparer.Ordinal);
+        internal void SetServerReputation(Dictionary<string, int> standings)
+        {
+            if (!IsServer || IsOwner) return;
+            serverRaceStandings.Clear();
+            foreach (var entry in standings) serverRaceStandings[entry.Key] = entry.Value;
+            serverRaceStanding.Value = NetModRaceStandings.Encode(standings);
+        }
         readonly Dictionary<string, int> modRaceStandings = new Dictionary<string, int>(System.StringComparer.Ordinal);
         readonly NetworkVariable<long> missionRun = new NetworkVariable<long>(0, Read, Write);   // NetMissions: the mission its level runs
         readonly NetworkVariable<long> missionHeld = new NetworkVariable<long>(0, Read, Write);  // the mission this player holds (netId)
@@ -85,6 +149,10 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<float> missionClock = new NetworkVariable<float>(0f, Read, Write);
         readonly NetworkVariable<int> missionScore = new NetworkVariable<int>(0, Read, Write);
         readonly NetworkVariable<bool> siegeRun = new NetworkVariable<bool>(false, Read, Write);   // KaamoSiege: builds the siege here
+        readonly NetworkVariable<int> constructionDockProject = new NetworkVariable<int>(-1, Read, Write);
+        internal int ConstructionDockProject => IsOwner && level != null && level.Docking?.IsDocked == true &&
+            level.Layout != null && level.Docking.Target?.DockingType == ObjectDocking.ConstructionSite
+            ? NetPlayerStations.StationAt(level.Layout.stationIndex)?.id ?? -1 : IsOwner ? -1 : constructionDockProject.Value;
         readonly NetworkVariable<bool> atObject = new NetworkVariable<bool>(false, Read, Write);   // docked at an object (ObjectDocking)
         readonly NetworkVariable<int> turretItem = new NetworkVariable<int>(-1, Read, Write);   // the mounted turrets (PackTurrets)
         readonly NetworkVariable<FixedString128Bytes> weapons = new NetworkVariable<FixedString128Bytes>(default, Read, Write);   // primaries | secondaries (PackWeapons)
@@ -116,17 +184,43 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Whether the server selected this player as an orbit runner (separate from the orbit id: Void is -1).</summary>
         public bool RunsOrbitActive => runsOrbitActive.Value;
         public int ShipIndex => ship.Value;
+        internal bool HasFittedStealthGenerator => fittedStealthGenerator.Value;
+        void WantedSystemChanged(int previous, int current) => NetFactions.ObserveWantedSystem(this);
         /// <summary>Server: the ship this player flew before ShipIndex (a dealer trade-in puts it on the dealer's list,
         /// NetState.StockShipRpc: the trade may arrive before or after the new ship), -1 = none.</summary>
         public int PreviousShip { get; private set; } = -1;
         public int SquadId => squad.Value;
         /// <summary>This player's standing axes and signature (their Session): Standing.IsEnemyWith / IsFriendWith.</summary>
+        static bool HostileToFriendlyRace(NetPlayer other)
+        {
+            var local = Local;
+            if (local == null || other == null) return false;
+            bool Enemy(int race) => Standing.IsFriendWith(race, local.Standing0, local.Standing1, -1, local.ModRaceStandings) &&
+                Standing.IsEnemyWith(race, other.Standing0, other.Standing1, -1, other.ModRaceStandings);
+            for (int race = 0; race < 4; race++) if (Enemy(race)) return true;
+            foreach (var race in Modding.ModRaces.All) if (Enemy(race.race)) return true;
+            return false;
+        }
+
         public int Standing0 => standing0.Value;
         public int Standing1 => standing1.Value;
-        public int Signature => signature.Value;
+        public int Signature => Standing.Independent && IsPirate ? -1 : signature.Value;
         /// <summary>This player's standings toward mods'races (mod race key -> value): Standing.IsEnemyWith.</summary>
-        public IReadOnlyDictionary<string, int> ModRaceStandings => IsOwner ? Session.ModRaceStanding : modRaceStandings;
+        readonly Dictionary<string, int> lockedRaceStandings = new Dictionary<string, int>(System.StringComparer.Ordinal);
+        public IReadOnlyDictionary<string, int> ModRaceStandings
+        {
+            get
+            {
+                if (!Standing.Independent || !IsPirate)
+                    return IsOwner ? Session.ModRaceStanding : Standing.Independent && serverRaceStandings.Count != 0 ? serverRaceStandings : modRaceStandings;
+                lockedRaceStandings.Clear();
+                lockedRaceStandings[Standing.PiracyHistoryKey] = 1;
+                foreach (int race in Standing.ReputationRaces()) lockedRaceStandings[Standing.ReputationKey(race)] = -100;
+                return lockedRaceStandings;
+            }
+        }
         public float CloakPercent => look.cloak;
+        internal bool ScanVisible => visible.Value && Hull > 0f && CloakPercent < 25f && HasCurrentWreckClaimPose;
         /// <summary>The squad mission (FreelanceMission.netId) this player's level runs here, 0 = none.</summary>
         public long MissionRun => missionRun.Value;
         /// <summary>The squad mission (netId) this player holds, 0 = none (the reward split, NetMissions).</summary>
@@ -267,9 +361,33 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: NetProfiles' role for this device.</summary>
         public void SetObserver(bool on) { if (IsServer && observer.Value != on) observer.Value = on; }
         /// <summary>The player's faction tag (NetFactions), "" = no faction.</summary>
+        readonly NetworkVariable<bool> piratePilot = new NetworkVariable<bool>();
+        readonly NetworkVariable<bool> wantedPilot = new NetworkVariable<bool>();
+
+        public bool IsPirate => piratePilot.Value;
+        public bool IsWanted => wantedPilot.Value;
+
+        internal void SetPiracyFlags(bool pirate, bool wanted)
+        {
+            if (!IsServer) return;
+            if (piratePilot.Value != pirate) piratePilot.Value = pirate;
+            if (wantedPilot.Value != wanted) wantedPilot.Value = wanted;
+        }
+
         public string FactionTag => factionTag.Value.ToString();
-        /// <summary>Server: NetFactions' tag for this player.</summary>
-        public void SetFactionTag(string tag) { if (IsServer && factionTag.Value.ToString() != (tag ?? "")) factionTag.Value = tag ?? ""; }
+        /// <summary>Profile identity visible only to this player and the server, for owner-bound station infrastructure.</summary>
+        public string ProfileAccount => profileAccount.Value.ToString();
+        /// <summary>Server-replicated faction identity used to enforce faction-owned infrastructure access.</summary>
+        public string FactionId => factionId.Value.ToString();
+        /// <summary>Server: NetFactions' tag and stable faction ID for this player.</summary>
+        public void SetFactionTag(string tag)
+        {
+            if (!IsServer) return;
+            if (factionTag.Value.ToString() != (tag ?? "")) factionTag.Value = tag ?? "";
+            string account = NetProfiles.AccountOf(OwnerClientId);
+            string id = NetFactions.Of(account)?.id ?? "";
+            if (factionId.Value.ToString() != id) factionId.Value = id;
+        }
         /// <summary>This pilot calls their squad for help (NetDistress).</summary>
         public bool Distress => distress.Value;
         /// <summary>Where this pilot paid the toll for the current visit (-1 = none): a held station's defence spares them.</summary>
@@ -279,7 +397,8 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: NetFactions' home for this player.</summary>
         public void SetFactionHome(int station) { if (IsServer && factionHome.Value != station) factionHome.Value = station; }
         /// <summary>The name with the faction's tag before it ("[TAG] Name"): the lock plate and the chat.</summary>
-        public string TaggedName => FactionTag.Length > 0 ? $"[{FactionTag}] {DisplayName}" : DisplayName;
+        public string TaggedName => (IsPirate ? "[Pirate] " : IsWanted ? "[Wanted] " : "") +
+            (FactionTag.Length > 0 ? $"[{FactionTag}] {DisplayName}" : DisplayName);
         public string DisplayName
         {
             get
@@ -326,6 +445,318 @@ namespace GoF2Remake.Multiplayer
         /// <summary>This player's ship as a Target here: the local player's own where it is theirs, else the proxy Target.</summary>
         public Target LocalTarget => IsOwner ? (level != null && level.Health != null ? level.Health.Target : null) : target;
 
+        /// <summary>Server: the selected authority for an orbit, or null when nobody is currently running it.</summary>
+        internal static NetPlayer OrbitRunner(int orbitStationIndex) =>
+            NetGame.IsServer ? All.Find(p => p != null && p.IsSpawned && p.OrbitAuthority &&
+                p.RunsOrbitActive && p.RunsOrbit == orbitStationIndex) : null;
+
+        /// <summary>The completed construction was saved: refresh the live orbit's gate.</summary>
+        internal void BroadcastJumpgateRestored(int orbitStationIndex)
+        {
+            if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            var gate = NetPlayerStations.FindJumpgate(orbitStationIndex);
+            if (layout != null && layout.hasJumpgate && gate != null)
+                JumpgateRestoredRpc(orbitStationIndex, layout.jumpgate, gate.modelPreset, gate.modelReference ?? "");
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateRestoredRpc(int orbitStationIndex, Vector3 gatePosition, int modelPreset, string modelReference)
+        {
+            if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
+                Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
+            if (Local.level != null && Local.level.Layout != null &&
+                Local.level.Layout.stationIndex == orbitStationIndex)
+                Local.level.OnPlayerJumpgateRestored(gatePosition, modelPreset, modelReference);
+        }
+
+        /// <summary>Server: notify pilots of a persisted EMP shutdown immediately.</summary>
+        internal void BroadcastJumpgateEmp(int orbitStationIndex, long untilUtc)
+        {
+            if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
+            JumpgateEmpRpc(orbitStationIndex, untilUtc);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateEmpRpc(int orbitStationIndex, long untilUtc)
+        {
+            if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
+                Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
+            if (Local.level != null && Local.level.Layout != null &&
+                Local.level.Layout.stationIndex == orbitStationIndex)
+                Local.level.OnPlayerJumpgateEmpShutdown(untilUtc);
+        }
+
+        /// <summary>Server: broadcast a saved gate-destruction event on the orbit runner's network object.</summary>
+        internal void BroadcastJumpgateExplosion(int orbitStationIndex, bool permanentlyDestroyed)
+        {
+            if (!IsServer || !IsSpawned || !RunsOrbitActive || RunsOrbit != orbitStationIndex) return;
+            JumpgateExplosionRpc(orbitStationIndex, permanentlyDestroyed);
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateExplosionRpc(int orbitStationIndex, bool permanentlyDestroyed)
+        {
+            // Every player object receives its own invocation; only the runner's object handles the event
+            // and only clients physically present in the orbit spawn the effect.
+            if (!RunsOrbitActive || RunsOrbit != orbitStationIndex ||
+                Local == null || !Local.InSpace || Local.Station != orbitStationIndex) return;
+            if (Local.level != null && Local.level.Layout != null &&
+                Local.level.Layout.stationIndex == orbitStationIndex)
+                Local.level.OnPlayerJumpgateDestroyed(permanentlyDestroyed);
+        }
+
+        int stationUiSequence;
+        float stationUiSentAt;
+        System.Action<string> stationUiReply;
+        internal bool RequestStationUiCommand(string command, System.Action<string> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null || string.IsNullOrEmpty(command) ||
+                !command.StartsWith("/station ", System.StringComparison.OrdinalIgnoreCase)) return false;
+            if (stationUiReply != null && Time.realtimeSinceStartup - stationUiSentAt < 10f) return false;
+            string args = command.Substring(9);
+            bool syncStorage = IsStorageUiCommand(args) && !IsServer;
+            int uploadSequence = syncStorage ? NetProfileClient.UploadForStationStorage() : 0;
+            if (syncStorage && uploadSequence == 0) return false;
+            stationUiReply = reply;
+            stationUiSentAt = Time.realtimeSinceStartup;
+            stationUiSequence = stationUiSequence == int.MaxValue ? 1 : stationUiSequence + 1;
+            if (syncStorage) NetState.Instance.RequestStationStorageRpc(stationUiSequence, args, uploadSequence);
+            else StationUiCommandRpc(stationUiSequence, args);
+            return true;
+        }
+
+        internal static bool IsStorageUiCommand(string args)
+        {
+            if (string.IsNullOrWhiteSpace(args)) return false;
+            int split = args.IndexOf(' ');
+            if (split < 0) return false;
+            return args.Substring(0, split).ToLowerInvariant() is "deposit" or "withdraw" or
+                "storage-store-hull" or "storage-take-hull" or "storage-store-large" or "storage-take-large";
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationUiCommandRpc(int sequence, string args, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId) return;
+            ExecuteStationUiCommand(sequence, args);
+        }
+
+        internal void ReceiveStationStorageCommand(int sequence, string args, int uploadSequence)
+        {
+            if (!IsServer) return;
+            if (string.IsNullOrWhiteSpace(args) || args.Length > NetGuard.MaxCommandArgs || !IsStorageUiCommand(args))
+                StationUiResultRpc(sequence, "Invalid storage command.");
+            else if (!NetProfiles.ConsumeActionUpload(OwnerClientId, uploadSequence))
+                StationUiResultRpc(sequence, "Cargo or fleet data has not synced yet. Try the transfer again.");
+            else ExecuteStationUiCommand(sequence, args);
+        }
+
+        void ExecuteStationUiCommand(int sequence, string args)
+        {
+            string result;
+            if (string.IsNullOrWhiteSpace(args) || args.Length > NetGuard.MaxCommandArgs)
+                result = "Invalid station command.";
+            else if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Command))
+                result = "Too many station requests. Try again shortly.";
+            else if (!ResolveManagementCommand(ref args))
+                result = "This selection is no longer available. Refresh the page and select again.";
+            else
+                result = NetCommands.RunOnServer("station", args, this) ?? "Station command unavailable.";
+            StationUiResultRpc(sequence, result ?? "");
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void StationUiResultRpc(int sequence, string result)
+        {
+            if (!IsOwner || sequence != stationUiSequence) return;
+            var reply = stationUiReply;
+            stationUiReply = null;
+            if (!string.IsNullOrEmpty(result)) NetChat.Notice(result);
+            reply?.Invoke(result);
+        }
+
+        readonly System.Collections.Generic.Dictionary<string, string> managementTargets = new System.Collections.Generic.Dictionary<string, string>();
+        readonly System.Collections.Generic.Dictionary<string, string> managementTokens = new System.Collections.Generic.Dictionary<string, string>();
+        string ManagementToken(string id)
+        {
+            if (managementTokens.TryGetValue(id, out string value)) return value;
+            value = "target:" + System.Guid.NewGuid().ToString("N");
+            managementTokens[id] = value; managementTargets[value] = id; return value;
+        }
+        int managementCatalogueSequence;
+        System.Action<NetPlayerStations.ManagementCatalogue> managementCatalogueReply;
+        internal bool RequestManagementCatalogue(int station, int page, System.Action<NetPlayerStations.ManagementCatalogue> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null) return false;
+            managementCatalogueReply = reply;
+            managementCatalogueSequence = managementCatalogueSequence == int.MaxValue ? 1 : managementCatalogueSequence + 1;
+            ManagementCatalogueRequestRpc(managementCatalogueSequence, station, page); return true;
+        }
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void ManagementCatalogueRequestRpc(int sequence, int station, int page, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            ManagementCatalogueReplyRpc(sequence, JsonUtility.ToJson(NetPlayerStations.ManagementCatalogueFor(this, station, page, ManagementToken)));
+        }
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void ManagementCatalogueReplyRpc(int sequence, string json)
+        {
+            if (!IsOwner || sequence != managementCatalogueSequence) return;
+            var reply = managementCatalogueReply; managementCatalogueReply = null;
+            try { reply?.Invoke(JsonUtility.FromJson<NetPlayerStations.ManagementCatalogue>(json)); }
+            catch (System.Exception e) { Debug.LogWarning("Station management catalogue: " + e.Message); }
+        }
+        bool ResolveManagementCommand(ref string args)
+        {
+            // Never interpret words in announcement or denial text as selector tokens.
+            var words = args.Split(' ');
+            if (words.Length < 3) return true;
+            int last = words[0] switch {
+                "transfer" or "successor" => 3, "jumpgate-blacklist" => 4,
+                "jumpgate-race" or "race-policy" => words.Length > 2 && words[2] == "exempt" ? 4 : -1,
+                "role" or "permission" or "pilot-tax" or "pilot-market-access" or "ban" or "unban" or "ban-faction" or "unban-faction" or "successor-delegate" or "individual-successor" => 2,
+                "store-ship" or "retrieve-ship" or "storage-store-hull" or "storage-take-hull" or "storage-store-large" or "storage-take-large" or "drydock-store" or "drydock-retrieve" or "list-ship" => 2,
+                _ => -1 };
+            if (last < 0 || last >= words.Length) return true;
+            string selected = words[last];
+            if (selected.StartsWith("target:", System.StringComparison.Ordinal))
+            {
+                if (!managementTargets.TryGetValue(selected, out string resolved)) return false;
+                words[last] = resolved;
+            }
+            else if (selected.StartsWith("fleet-hull:") || selected.StartsWith("hangar-hull:") || selected.StartsWith("drydock-hull:"))
+            {
+                string expected = words[0] is "retrieve-ship" or "storage-take-hull" ? "hangar-hull:" : words[0] is "drydock-retrieve" or "storage-take-large" ? "drydock-hull:" : "fleet-hull:";
+                if (!selected.StartsWith(expected) || !int.TryParse(words[1], out int station) ||
+                    !NetPlayerStations.ResolveManagementHull(this, station, selected, out string index)) return false;
+                words[last] = index;
+            }
+            args = string.Join(" ", words); return true;
+        }
+
+        int stationMarketSequence;
+        System.Action<NetPlayerStations.MarketUiCatalogue> stationMarketReply;
+        internal bool RequestStationMarket(int station, int page, System.Action<NetPlayerStations.MarketUiCatalogue> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null) return false;
+            stationMarketReply = reply;
+            stationMarketSequence = stationMarketSequence == int.MaxValue ? 1 : stationMarketSequence + 1;
+            StationMarketRequestRpc(stationMarketSequence, station, page);
+            return true;
+        }
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationMarketRequestRpc(int sequence, int station, int page, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            StationMarketReplyRpc(sequence, JsonUtility.ToJson(NetPlayerStations.MarketCatalogueFor(this, station, page)));
+        }
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void StationMarketReplyRpc(int sequence, string json)
+        {
+            if (!IsOwner || sequence != stationMarketSequence) return;
+            var reply = stationMarketReply;
+            stationMarketReply = null;
+            try { reply?.Invoke(JsonUtility.FromJson<NetPlayerStations.MarketUiCatalogue>(json)); }
+            catch (System.Exception e) { Debug.LogWarning("Station marketplace snapshot: " + e.Message); }
+        }
+
+        int stationPlannerSequence;
+        System.Action<int[]> stationPlannerReply;
+        internal bool RequestStationPlannerLocations(System.Action<int[]> reply)
+        {
+            if (!IsOwner || !IsSpawned || reply == null) return false;
+            stationPlannerReply = reply;
+            stationPlannerSequence = stationPlannerSequence == int.MaxValue ? 1 : stationPlannerSequence + 1;
+            StationPlannerRequestRpc(stationPlannerSequence);
+            return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void StationPlannerRequestRpc(int sequence, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId || !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Request)) return;
+            StationPlannerReplyRpc(sequence, NetPlayerStations.AvailableConstructionOrbits(this));
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void StationPlannerReplyRpc(int sequence, int[] orbits)
+        {
+            if (!IsOwner || sequence != stationPlannerSequence) return;
+            var reply = stationPlannerReply;
+            stationPlannerReply = null;
+            reply?.Invoke(orbits ?? System.Array.Empty<int>());
+        }
+
+        internal string LastPlayerGateRefusal { get; private set; }
+
+        /// <summary>Explicit player-gate travel request, separate from ordinary orbit changes.</summary>
+        public bool RequestPlayerJumpgateTravel(int orbit, System.Action<int> done)
+        {
+            if (!IsOwner || !IsSpawned || done == null) return false;
+            gateTravelReply = done;
+            LastPlayerGateRefusal = null;
+            gateRequestSequence = gateRequestSequence == int.MaxValue ? 1 : gateRequestSequence + 1;
+            PlayerGateTravelUpRpc(orbit, gateRequestSequence);
+            return true;
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void PlayerGateTravelUpRpc(int orbitStationIndex, int sequence, RpcParams rpc = default)
+        {
+            int arrival = -1;
+            string reason = null;
+            if (IsServer && rpc.Receive.SenderClientId == OwnerClientId &&
+                NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Claim))
+            {
+                reason = NetPlayerStations.JumpgateBlacklistRefusal(this, orbitStationIndex);
+                int system = NetPlayerStations.JumpgateDestinationForInteraction(this, orbitStationIndex);
+                if (system >= 0)
+                {
+                    int target = NetPlayerStations.JumpgateDestinationStation(orbitStationIndex);
+                    if (target >= 0)
+                    {
+                        bool newlyDiscovered = !NetProfiles.HasDiscoveredSystem(ProfileAccount, system);
+                        if (NetProfiles.DiscoverSystem(ProfileAccount, system))
+                        {
+                            arrival = target;
+                            JumpgateDiscoveryRpc(system, newlyDiscovered);
+                        }
+                    }
+                }
+            }
+            PlayerGateTravelReplyRpc(sequence, arrival, arrival < 0 ? reason ?? "" : "");
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void PlayerGateTravelReplyRpc(int sequence, int arrival, string reason)
+        {
+            if (!IsOwner || sequence != gateRequestSequence) return;
+            var reply = gateTravelReply;
+            gateTravelReply = null;
+            LastPlayerGateRefusal = reason;
+            if (arrival < 0 && !string.IsNullOrEmpty(reason)) NetChat.Notice(reason);
+            reply?.Invoke(arrival);
+        }
+
+        [Rpc(SendTo.Owner, InvokePermission = RpcInvokePermission.Server)]
+        void JumpgateDiscoveryRpc(int systemIndex, bool newlyDiscovered)
+        {
+            if (!IsOwner || NetGame.Db?.Systems?.Find(x => x != null && x.index == systemIndex) == null) return;
+            GalaxyMap.Reveal(NetGame.Db, systemIndex);
+            if (newlyDiscovered)
+            {
+                string name = NetGame.Db.Systems.Find(x => x != null && x.index == systemIndex)?.name ?? ("System " + systemIndex);
+                NetChat.Notice("New system discovered: " + name + ".");
+            }
+        }
+
+        void FreightNewsSystemChanged(int previous, int current)
+        {
+            if (IsServer && NetNews.FreightSystem(previous) != NetNews.FreightSystem(current))
+                NetNews.SendAll(OwnerClientId);
+        }
+
         public override void OnNetworkSpawn()
         {
             DontDestroyOnLoad(gameObject);
@@ -333,7 +764,23 @@ namespace GoF2Remake.Multiplayer
             name = $"NetPlayer {OwnerClientId}";
             if (IsServer) collisionModeReportDeadline = Time.unscaledTime + CollisionModeReportGrace;
             if (IsServer) ship.OnValueChanged += (old, _) => PreviousShip = old;
-            if (IsServer) SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
+            if (IsServer)
+            {
+                station.OnValueChanged += OnStationValueChanged;
+                station.OnValueChanged += WantedSystemChanged;
+                station.OnValueChanged += FreightNewsSystemChanged;
+                place.OnValueChanged += OnPlaceValueChanged;
+            }
+            if (IsServer)
+            {
+                string account = NetProfiles.AccountOf(OwnerClientId);
+                profileAccount.Value = account ?? "";
+                NetProfiles.RefreshServerReputation(this);
+                var faction = NetFactions.Of(account);
+                factionId.Value = faction?.id ?? "";
+                factionTag.Value = faction?.tag ?? "";
+                SetStaffRole(NetModeration.RoleOfClient(OwnerClientId));   // signed in before the ship spawned
+            }
             if (IsServer) NetNews.SendAll(OwnerClientId);   // the sector's recent news for their ticker
             NetPoses.Register(this);
             if (IsOwner)
@@ -343,6 +790,8 @@ namespace GoF2Remake.Multiplayer
                 ship.Value = Session.ShipIndex;
                 pilot.Value = NetGame.Clean(NetGame.PlayerName);
                 NetModRaceStandings.Resend();
+                piratePilot.OnValueChanged += (_, v) => { if (v) Standing.EnforcePiracyLock(); };
+                if (IsPirate) Standing.EnforcePiracyLock();
                 sender = new NetShotSender(SendShot, BlastUpRpc, () => level != null && level.Weapons != null ? level.Weapons.LockTarget : null, () => NetworkObjectId);
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 admin.OnValueChanged += (_, on) => NetChat.Notice(on
@@ -361,6 +810,8 @@ namespace GoF2Remake.Multiplayer
             target = gameObject.AddComponent<Target>();
             target.isShip = true;
             target.netShipIndex = ship.Value;
+            target.passiveStealthGenerator = fittedStealthGenerator.Value;
+            fittedStealthGenerator.OnValueChanged += (_, value) => { if (target != null) target.passiveStealthGenerator = value; };
             target.netPilot = true;
             target.customDeath = true;
             target.maxHp = 100f;
@@ -374,6 +825,11 @@ namespace GoF2Remake.Multiplayer
             ApplyName();
             pilot.OnValueChanged += (_, _) => ApplyName();
             factionTag.OnValueChanged += (_, _) => ApplyName();
+            piratePilot.OnValueChanged += (_, v) => { ApplyName(); if (IsOwner && v) Standing.EnforcePiracyLock(); };
+            if (IsOwner && IsPirate) Standing.EnforcePiracyLock();
+            wantedPilot.OnValueChanged += (_, _) => ApplyName();
+            if (!IsServer) NetModRaceStandings.Decode(serverRaceStanding.Value, serverRaceStandings);
+            serverRaceStanding.OnValueChanged += (_, v) => { if (!IsServer) NetModRaceStandings.Decode(v, serverRaceStandings); };
             NetModRaceStandings.Decode(modRaceStanding.Value, modRaceStandings);
             modRaceStanding.OnValueChanged += (_, v) => NetModRaceStandings.Decode(v, modRaceStandings);
             Target.NetShips.Add(target);
@@ -457,6 +913,15 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
+            if (IsServer)
+            {
+                if ((HasRecordedDeath || InSpace && Hull == 0f) && NetState.Instance != null && !NetworkManager.ShutdownInProgress)
+                    NetState.Instance.EnsureDeathPenalty(this, refresh: false);
+                station.OnValueChanged -= OnStationValueChanged;
+                station.OnValueChanged -= WantedSystemChanged;
+                station.OnValueChanged -= FreightNewsSystemChanged;
+                place.OnValueChanged -= OnPlaceValueChanged;
+            }
             // Host: a player going (disconnected: Netcode despawns the player object before OnClientDisconnectCallback) hands
             // what they carried for the squad's mission to a squadmate (not when the whole session closes).
             if (IsServer && !IsOwner && NetState.Instance != null && !NetworkManager.ShutdownInProgress) NetState.Instance.HandOverMission(this);
@@ -508,13 +973,22 @@ namespace GoF2Remake.Multiplayer
         /// (NetState.FreePvp), or while an event's free for all runs (NetState.FreeForAll: /pvp on, the Free For All node; the
         /// Free For All / King of the Hill templates had stopped working). Squadmates never (NetSquad).</summary>
         static bool PvpWith(NetPlayer other) =>
-            other != null && ((NetState.Instance != null && NetState.Instance.FreePvp) || NetState.FreeForAll || NetArena.IsArenaOrbit(other.Station)
+            other != null && (other.IsPirate || other.IsWanted || (Local != null && (Local.IsPirate || Local.IsWanted)) ||
+                               (NetState.Instance != null && NetState.Instance.FreePvp) || NetState.FreeForAll || NetArena.IsArenaOrbit(other.Station)
                               || (Local != null && NetFactionsClient.SiegePvp(other.Station, Local.FactionTag, other.FactionTag)));   // a faction siege
 
-        /// <summary>This player's shots pass through their squadmates (the local player's ship included).</summary>
+        /// <summary>Squad membership is not itself a PvP permission. The opt-in only removes squad immunity.</summary>
+        public static bool SquadDamageBlocked(bool sameSquad, bool friendlyFire) => sameSquad && !friendlyFire;
+        public static bool PlayerDamageProtected(bool sameSquad, bool pvpAllowed, bool friendlyFire) =>
+            !pvpAllowed || SquadDamageBlocked(sameSquad, friendlyFire);
+
+        static bool SquadDamageBlocked(NetPlayer a, NetPlayer b) =>
+            SquadDamageBlocked(NetSquad.Same(a, b), Modding.ModContent.SquadFriendlyFireEnabled);
+
+        /// <summary>Legacy squad immunity also applies to mirrored projectile visuals.</summary>
         bool ThroughSquad(Target t)
         {
-            if (SquadId == 0 || t == null) return false;
+            if (SquadId == 0 || t == null || Modding.ModContent.SquadFriendlyFireEnabled) return false;
             var p = t.isPlayer ? Local : t.GetComponent<NetPlayer>();
             return p != null && p != this && NetSquad.Same(this, p);
         }
@@ -556,13 +1030,17 @@ namespace GoF2Remake.Multiplayer
                 shieldFactor = Gun.ShieldFactor(weapon); // typed damage never trusts a client-supplied shield multiplier
             }
             if (byNpc && weaponItem >= 0 && (by.RunsOrbit != Station || Database.Shared.Item(weaponItem) == null)) { NetRateLimit.Reject(shooter, $"an NPC hit from untrusted weapon {weaponItem}"); return; }
-            if (!byNpc && NetSquad.Same(by, this)) return;
+            if (!byNpc && SquadDamageBlocked(by, this)) return;
             if (!by.CollisionModeCompliant)
             {
                 by.CheckReportedCollisionMode();
                 return;
             }
-            NetState.Instance?.NoteHit(NetworkObjectId, shooter);
+            if (!byNpc && NetState.Instance != null)
+            {
+                NetState.Instance.NoteHit(NetworkObjectId, shooter);
+                NetState.Instance.NoteBountyCombatHit(this, by);
+            }
             HitRpc(amount, hitVector, byNpc, shooter, shieldFactor, weaponItem);
         }
 
@@ -585,7 +1063,81 @@ namespace GoF2Remake.Multiplayer
             var damageType = item != null ? (DamageType)Mathf.Clamp(item.Attr(Gun.DamageTypeAttr), 0, 2) : DamageType.None;
             own.lastPlayerWeapon = byNpc ? -1 : weaponItem;
             own.Damage(amount, byNpc, hitVector, shieldFactor, damageType);
-            if (alive && !own.Alive && !byNpc && NetState.Instance != null) NetState.Instance.DestroyedByRpc(shooter);
+            if (alive && !own.Alive && !byNpc && NetState.Instance != null)
+                NetState.Instance.DestroyedByRpc(shooter);
+        }
+
+        /// <summary>Client: an explosive or EMP blast reached a precise gate mesh.</summary>
+        public void ReportJumpgateBlast(int orbitStationIndex, int weaponItem, uint shotId,
+            Vector3 detonation, Vector3 gateSurface)
+        {
+            if (IsOwner && IsSpawned && InSpace && Station == orbitStationIndex &&
+                shotId != 0 && NetGuard.Position(detonation) && NetGuard.Position(gateSurface))
+                JumpgateBlastUpRpc(orbitStationIndex, weaponItem, shotId, detonation, gateSurface);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void JumpgateBlastUpRpc(int orbitStationIndex, int weaponItem, uint shotId,
+            Vector3 detonation, Vector3 gateSurface, RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                !InSpace || Station != orbitStationIndex || shotId == 0 ||
+                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
+                !NetGuard.Item(weaponItem) || !HasWeaponItem(weaponItem) ||
+                !NetGuard.Position(detonation) || !NetGuard.Position(gateSurface) ||
+                !NetPlayerStations.HasAttackableJumpgateAtStation(orbitStationIndex)) return;
+            var weapon = NetGame.Db.Item(weaponItem);
+            if (weapon == null) return;
+            var kind = (Gun.Kind)weapon.categoryId;
+            if (kind is not (Gun.Kind.EmpBomb or Gun.Kind.Nuke or Gun.Kind.Ionizing
+                or Gun.Kind.Mine or Gun.Kind.ShockBlast)) return;
+            float blastRadius = Mathf.Max(0, weapon.Attr(14)) * OrbitLayout.MetersPerUnit;
+            if (blastRadius <= 0f) return;
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            if (layout == null || !layout.hasJumpgate) return;
+            Vector3 gateCentre = OrbitLayout.ToUnity(layout.Place(layout.jumpgate));
+            float gateRadius = layout.JumpgateRadius * OrbitLayout.MetersPerUnit;
+            if (!NetShotRegistry.TryConsumeGateBlast(NetworkObjectId, shotId, weaponItem,
+                detonation, gateSurface, gateCentre, gateRadius, blastRadius)) return;
+            float factor = Mathf.Clamp01((blastRadius - Vector3.Distance(detonation, gateSurface)) / blastRadius);
+            float structural = kind == Gun.Kind.EmpBomb ? 0f : Mathf.Max(0, weapon.Attr(9)) * factor;
+            float empDamage = Mathf.Max(0, weapon.Attr(10)) * factor;
+            if (NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage))
+                NetPlayerStations.NoteOrbitalAggression(this, orbitStationIndex);
+        }
+
+        /// <summary>Only an exact local scenery mesh hit can request gate damage. The server
+        /// independently checks the recorded shot, mounted weapon, orbit and approximate flight path.</summary>
+        public void ReportJumpgateImpact(int orbitStationIndex, int weaponItem, uint shotId, Vector3 point)
+        {
+            if (IsOwner && IsSpawned && InSpace && Station == orbitStationIndex &&
+                shotId != 0 && NetGuard.Position(point))
+                JumpgateHitUpRpc(orbitStationIndex, weaponItem, shotId, point);
+        }
+
+        [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Owner)]
+        void JumpgateHitUpRpc(int orbitStationIndex, int weaponItem, uint shotId, Vector3 point,
+            RpcParams rpc = default)
+        {
+            if (!IsServer || rpc.Receive.SenderClientId != OwnerClientId ||
+                !InSpace || Station != orbitStationIndex ||
+                !NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Hit) ||
+                !NetGuard.Item(weaponItem) || !HasWeaponItem(weaponItem) ||
+                !NetGuard.Position(point) || shotId == 0 ||
+                !NetPlayerStations.HasAttackableJumpgateAtStation(orbitStationIndex)) return;
+            var layout = OrbitLayout.Build(NetGame.Db, orbitStationIndex);
+            if (layout == null || !layout.hasJumpgate) return;
+            Vector3 gateCentre = OrbitLayout.ToUnity(layout.Place(layout.jumpgate));
+            float gateRadius = layout.JumpgateRadius * OrbitLayout.MetersPerUnit;
+            if (!NetShotRegistry.TryConsumeGateHit(NetworkObjectId, shotId, weaponItem, point,
+                gateCentre, gateRadius)) return;
+            var weapon = NetGame.Db.Item(weaponItem);
+            if (weapon == null) return;
+            // Damage numbers are resolved from the server's item registry, never the client's report.
+            float structural = Mathf.Max(0, weapon.Attr(9));
+            float empDamage = Mathf.Max(0, weapon.Attr(10));
+            if (NetPlayerStations.ApplyJumpgateCombatHit(orbitStationIndex, weaponItem, structural, empDamage))
+                NetPlayerStations.NoteOrbitalAggression(this, orbitStationIndex);
         }
 
         void SendShot(int item, Vector3 position, Vector3 velocity, Vector3 up, float lifetimeMs, float homingDelayMs, ulong targetId, uint shotId) =>
@@ -600,7 +1152,8 @@ namespace GoF2Remake.Multiplayer
         {
             if (!NetRateLimit.Allow(OwnerClientId, NetRateLimit.Kind.Shot)) return;
             if (!NetGuard.Shot(shot.item, shot.position, shot.velocity, shot.up, shot.lifetimeMs, shot.homingDelayMs)) { NetRateLimit.Reject(OwnerClientId, $"a shot of item {shot.item}"); return; }
-            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId, Mathf.Max(0f, shot.lifetimeMs + 2000f));
+            NetShotRegistry.Register(NetworkObjectId, shot.shotId, shot.item, shot.targetId,
+                Mathf.Max(0f, shot.lifetimeMs + 2000f), shot.position, shot.velocity);
             if (InSpace && NetInterest.OrbitGroup(this, Station, OwnerClientId, out var to)) ShotRpc(shot, to);
         }
 
@@ -620,7 +1173,7 @@ namespace GoF2Remake.Multiplayer
             if (NetworkManager.Singleton == null || !NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(sourceObjectId, out var sourceObject)) return;
             var source = sourceObject.GetComponent<NetPlayer>();
             var defender = NetSquad.Find(requester);
-            if (source == null || defender == null || source == this || source.OwnerClientId == requester || source.Station != Station || NetSquad.Same(defender, source)) return;
+            if (source == null || defender == null || source == this || source.OwnerClientId == requester || source.Station != Station || SquadDamageBlocked(defender, source)) return;
             if (!NetShotRegistry.TryCancel(sourceObjectId, shotId, NetworkObjectId)) return;
             source.CancelShotRpc(shotId);
         }
@@ -737,7 +1290,7 @@ namespace GoF2Remake.Multiplayer
             if (shooter == OwnerClientId || !NetRateLimit.Allow(shooter, NetRateLimit.Kind.Hit)) return;
             if (emp <= 0 || emp > NetGuard.MaxDamage) { NetRateLimit.Reject(shooter, $"an EMP of {emp}"); return; }
             var by = NetSquad.Find(shooter);
-            if (!NetGuard.SameOrbit(by, this) || NetSquad.Same(by, this)) return;
+            if (!NetGuard.SameOrbit(by, this) || SquadDamageBlocked(by, this)) return;
             if (!by.CollisionModeCompliant) { by.CheckReportedCollisionMode(); return; }
             EmpRpc(emp, shooter);
         }
@@ -825,7 +1378,12 @@ namespace GoF2Remake.Multiplayer
         void Update()
         {
             if (!IsSpawned) return;
-            if (IsServer) CheckReportedCollisionMode();
+            if (IsServer && NetProfiles.IdentityPending(OwnerClientId) && Where != Place.None)
+            {
+                NetGame.Kick(OwnerClientId, "Complete your permanent pilot identity before entering the world.");
+                return;
+            }
+            if (IsServer) { CheckReportedCollisionMode(); ValidateDeathRespawnArrival(); }
             if (!IsOwner)
             {
                 if (target != null)
@@ -858,10 +1416,11 @@ namespace GoF2Remake.Multiplayer
                     target.netArmor = Armor;
                     bool mate = NetSquad.Same(this, Local);   // squadmates: green, out of each other's line of fire
                     target.friendToPlayer = mate;
-                    target.playerProof = mate || !PvpWith(this);   // free roam: no player hurts another (NetArena)
+                    target.playerProof = PlayerDamageProtected(mate, PvpWith(this), Modding.ModContent.SquadFriendlyFireEnabled);
                     // An enemy after attacking this player, until one of them is destroyed (NetAggression): a red marker, the
                     // turrets and sentries fire at them (only where players may fight).
-                    target.hostileToPlayer = !mate && PvpWith(this) && NetAggression.IsHostile(OwnerClientId);
+                    target.hostileToPlayer = !mate && PvpWith(this) &&
+                ((Local != null && Local.IsPirate != IsPirate) || NetAggression.IsHostile(OwnerClientId) || HostileToFriendlyRace(this));
                 }
                 mirror?.Update(Time.deltaTime * 1000f);
                 return;
@@ -883,6 +1442,9 @@ namespace GoF2Remake.Multiplayer
             NetFollow.Tick(this);
             if (distress.Value != NetDistress.Active) distress.Value = NetDistress.Active;
             if (ship.Value != Session.ShipIndex) ship.Value = Session.ShipIndex;   // bought another
+            // SpaceLevel builds the actual mounted/integrated cloak on launch. No per-frame equipment search.
+            bool hasGenerator = level != null && level.Cloak != null;
+            if (fittedStealthGenerator.Value != hasGenerator) fittedStealthGenerator.Value = hasGenerator;
             if (standing0.Value != Session.Standing[0]) standing0.Value = Session.Standing[0];
             if (standing1.Value != Session.Standing[1]) standing1.Value = Session.Standing[1];
             int sig = Standing.SignatureRace;
@@ -932,7 +1494,7 @@ namespace GoF2Remake.Multiplayer
             if (build.Value.ToString() != buildNow) build.Value = buildNow;
             bool runsHangar = dock != null && NetHangar.Running;
             if (hangarRun.Value != runsHangar) hangarRun.Value = runsHangar;
-            bool flew = dock != null && dock.ArrivedFlying;
+            bool flew = docked || (dock != null && dock.ArrivedFlying);
             if (arrivedFlying.Value != flew) arrivedFlying.Value = flew;
             var mining = level != null ? level.Mining : null;
             int drilling = mining != null && mining.State == Mining.Phase.Mining && NetOrbit.Current != null ? NetOrbit.Current.IndexOf(mining.Target) : -1;
@@ -950,6 +1512,8 @@ namespace GoF2Remake.Multiplayer
             if (NetGame.TestAccept && now == Place.Hangar && NetSquad.Invites.Count > 0) NetSquad.Accept(NetSquad.Invites[NetSquad.Invites.Count - 1]);
             if (level == null)
             {
+                if (constructionDockProject.Value != -1) constructionDockProject.Value = -1;
+                if (atObject.Value) atObject.Value = false;
                 // Docked: repaired (the pools' presence stays as last seen in space).
                 if (dock != null) { look.hull = WireQuant.Fraction(1f); WritePools(Shield < 0f ? -1f : 1f, Armor < 0f ? -1f : 1f); }
                 return;
@@ -963,13 +1527,22 @@ namespace GoF2Remake.Multiplayer
             foreach (var t in level.Turrets) if (t != null && t.Gun != null) sender?.Hook(new[] { t.Gun });
             foreach (var sentry in SentryGun.All) if (sentry != null && sentry.Gun != null) sender?.Hook(new[] { sentry.Gun });
             if (atObject.Value != ObjectDocking.PlayerDocked) atObject.Value = ObjectDocking.PlayerDocked;
+            int constructionProject = ConstructionDockProject;
+            if (constructionDockProject.Value != constructionProject) constructionDockProject.Value = constructionProject;
             transform.SetPositionAndRotation(localShip.position, localShip.rotation);
             posePosition = localShip.position;
             poseRotation = localShip.rotation;
             hasPose = true;
             var hp = level.Health != null && level.Health.Target != null ? level.Health.Target.hitpoints : null;
             float h = level.Health != null && level.Health.Target != null ? level.Health.Target.HullFraction : 1f;
+            bool fatalHull = h == 0f && look.hull > 0 && NetState.Instance?.ProfilesOn == true && !NetArenaClient.InMatch;
+            if (fatalHull && Modding.ModPvpPiracy.Enabled) NetProfileClient.UploadForStationStorage();
             look.hull = WireQuant.Fraction(h);
+            if (fatalHull)
+            {
+                if (IsServer) NetState.Instance?.ObserveFatalHull(this);
+                else FatalHullRpc(Station);
+            }
             // The look the others see: the engine glow (off while mining, docking at an object, cloaked, dead), boost, cloak.
             var ownAsm = level.Player.visualModel != null ? level.Player.visualModel.GetComponent<AssembledObject>() : null;
             var glowPart = ownAsm != null && ownAsm.playerVariantParts != null && ownAsm.playerVariantParts.Length > 0 ? ownAsm.playerVariantParts[0] : null;

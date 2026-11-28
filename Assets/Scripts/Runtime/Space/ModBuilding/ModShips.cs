@@ -37,6 +37,8 @@ namespace GoF2Remake.Modding
         public const string Pack = ModContent.Pack;
         const int FallbackShip = 10;   // the Phantom
 
+        static readonly Dictionary<int, GameObject> cockpitTemplates = new Dictionary<int, GameObject>();
+        public static GameObject CockpitTemplate(int shipIndex) => loadedRevision == ModManager.Revision && cockpitTemplates.TryGetValue(shipIndex, out var model) ? model : null;
         static readonly Dictionary<int, GameObject> templates = new Dictionary<int, GameObject>();
         static readonly Dictionary<int, Texture2D> icons = new Dictionary<int, Texture2D>();
         static readonly Dictionary<int, string> names = new Dictionary<int, string>();
@@ -79,7 +81,7 @@ namespace GoF2Remake.Modding
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            templates.Clear(); icons.Clear(); imports.Clear(); names.Clear();
+            templates.Clear(); cockpitTemplates.Clear(); icons.Clear(); imports.Clear(); names.Clear();
             partTemplates.Clear(); kitShips.Clear(); variants.Clear(); variantOrder.Clear(); partsLoading.Clear(); KitPartsLoaded = null; notifyPending = false;
             skinned.Clear(); skinnedOrder.Clear();
             loadCancellation?.Cancel();
@@ -181,13 +183,15 @@ namespace GoF2Remake.Modding
                 }
                 set.UnionWith(ModHardpoints.Files(kit));   // the weapon / turret models: few, all at the start
             }
+            var cockpits = ModContent.CockpitModels();
             var exhausts = ModExhausts.All();
-            steps = ships.Count * StepsPerShip + needed.Values.Sum(v => v.Count) + kitted.Count + exhausts.Count(e => e.IsFlame);
+            steps = ships.Count * StepsPerShip + needed.Values.Sum(v => v.Count) + kitted.Count + exhausts.Count(e => e.IsFlame) + cockpits.Count;
             stepsDone = 0;
             current.Clear();
             var watch = System.Diagnostics.Stopwatch.StartNew();
             var tasks = new List<Task>();
             foreach (var (mod, c) in ships) tasks.Add(LoadShip(rev, mod, c));
+            foreach (var kv in cockpits) tasks.Add(LoadCockpit(rev, kv.Key, kv.Value.mod, kv.Value.path));
             foreach (var kit in kits) tasks.Add(LoadKit(rev, kit, needed.TryGetValue(kit, out var files) ? files : new HashSet<string>()));
             foreach (var t in skinTextures.Distinct()) tasks.Add(ModMaterials.PreloadTexture(t.mod, t.path, t.linear, false, t.normal));
             // The exhaust styles: the flame models, and the pictures of Galaxy on Fire 3's effects.
@@ -271,6 +275,31 @@ namespace GoF2Remake.Modding
                 foreach (var f in EngineModels.Textures(mod, fx.meshes)) yield return f;
             foreach (var em in new[] { fx.trailParticles, fx.contrailParticles, fx.boostParticles })
                 if (em?.Any == true) yield return em.texture;
+        }
+
+        static async Task LoadCockpit(int rev, int index, ModInfo mod, string path)
+        {
+            var slots = ShipSlots;
+            await slots.WaitAsync();
+            try
+            {
+                if (rev != ModManager.Revision) return;
+                var bytes = await Task.Run(() => mod.Source.ReadBytes(path));
+                if (rev != ModManager.Revision || bytes == null) return;
+                var import = await ModGltf.Load(mod, bytes, agent);
+                if (import == null) { Warn(mod, $"{path}: could not load cockpit model"); return; }
+                var scene = await InstantiateForRevision(rev, import, holder != null ? holder.transform : null, "Cockpit interior", mod, path);
+                if (scene == null || rev != ModManager.Revision) return;
+                if (ModGltf.HasNoMeshes(scene)) { Warn(mod, $"{path}: cockpit model has no meshes"); Object.Destroy(scene); return; }
+                foreach (var renderer in scene.GetComponentsInChildren<Renderer>(true))
+                {
+                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    renderer.receiveShadows = false;
+                }
+                cockpitTemplates[index] = scene;
+            }
+            catch (System.Exception e) { if (rev == ModManager.Revision) Warn(mod, $"{path}: {e.Message}"); }
+            finally { if (rev == ModManager.Revision) stepsDone++; slots.Release(); }
         }
 
         // Keep the import local until instantiation finishes. A newer load can release
@@ -865,6 +894,7 @@ namespace GoF2Remake.Modding
         {
             foreach (var t in templates.Values) if (t != null) Object.Destroy(t);
             templates.Clear();
+            cockpitTemplates.Clear();
             partTemplates.Clear(); kitShips.Clear(); variants.Clear(); variantOrder.Clear();   // under the holder: destroyed below
             partsLoading.Clear(); notifyPending = false;
             skinned.Clear(); skinnedOrder.Clear();

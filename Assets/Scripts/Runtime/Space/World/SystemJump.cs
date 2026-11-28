@@ -50,7 +50,7 @@ namespace GoF2Remake.World
 
         public string spaceScene = "Space";
 
-        enum State { None, AtGate, Charging, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
+        enum State { None, AtGate, Charging, AwaitingNetworkJump, AwaitingPlayerGate, GateScene, KhadorScene, Failing }   // Modified: Failing, a mod drive's failed jump
 
         Database db;
         Navigation nav;
@@ -61,6 +61,7 @@ namespace GoF2Remake.World
         StarMapAssets assets;
         AudioSource sfx;
         State state;
+        float playerGateDeadline;
         float chargeMs, animMs, animLength, speed;
         /// <summary>Modified: when the ship vanishes in the Khador scene (1700 ms; a mounted drive's own effect, ModJumpFx:
         /// its meetMs, when the ship reaches the effect's meeting point).</summary>
@@ -96,7 +97,7 @@ namespace GoF2Remake.World
         Vector3 sceneDir = Vector3.forward;
 
         /// <summary>The HUD is hidden: docked to the gate or a jump scene running.</summary>
-        public bool Cinematic => state == State.AtGate || state == State.GateScene || state == State.KhadorScene || swapping;
+        public bool Cinematic => state == State.AtGate || state == State.AwaitingPlayerGate || state == State.GateScene || state == State.KhadorScene || swapping;
         public bool Charging => state == State.Charging;
         /// <summary>Remake: the ship is on its way through a jumpgate or the Khador Drive (the jump scenes; ThrottleGlow).</summary>
         public bool Traveling => state == State.GateScene || state == State.KhadorScene;
@@ -111,6 +112,9 @@ namespace GoF2Remake.World
         public event Action<bool, Vector3, Quaternion> JumpFxStarted;
         /// <summary>The Khador Drive starts charging (multiplayer: the others hear it).</summary>
         public event Action ChargeStarted;
+
+        /// <summary>A player-built gate may finish while this orbit is loaded; update the cinematic's gate reference.</summary>
+        public void SetJumpgate(GameObject jumpgate) => gate = jumpgate;
 
         public void Setup(Database database, Navigation navigation, ShipController controller, WeaponSystem weaponSystem,
                           ChaseCamera chaseCamera, GameObject jumpgate)
@@ -158,6 +162,25 @@ namespace GoF2Remake.World
             return (Time.time - requestedAt) * 1000f >= delay;
         }
         PlayerHealth health;
+        GoF2Remake.Modding.ModJumpFx.Spec networkDrive;
+        int networkDestination;
+        GameHooks.ModJumpResult? networkMisjump;
+        static (int destination, GameHooks.ModJumpResult? network, GoF2Remake.Modding.ModJumpFx.Spec drive)? pendingFailureArrival;
+        string arrivalFailureNotice;
+
+        void ReportFailure(string message) =>
+            arrivalFailureNotice = arrivalFailureNotice == null ? message : arrivalFailureNotice + "\n" + message;
+
+        internal void ApplyArrivalFailure(int station, PlayerHealth arrivalHealth)
+        {
+            var pending = pendingFailureArrival;
+            pendingFailureArrival = null;
+            if (!pending.HasValue || pending.Value.destination != station || !Session.ArrivedByTravel) return;
+            health = arrivalHealth;
+            if (health == null || health.Target == null || health.Dead) return;
+            if (pending.Value.network is GameHooks.ModJumpResult outcome) ApplyNetworkFailure(outcome);
+            else ApplyFailureConsequences(pending.Value.drive);
+        }
 
         /// <summary>Set by the level: the gate refuses the jump (the Kaamo siege).</summary>
         public System.Func<bool> GateBlocked;
@@ -173,6 +196,11 @@ namespace GoF2Remake.World
 
         void Update()
         {
+            if (arrivalFailureNotice != null && Message != null)
+            {
+                Message.Invoke(arrivalFailureNotice);
+                arrivalFailureNotice = null;
+            }
             if (ship == null) return;
             float dtMs = Time.deltaTime * 1000f;
             // Remake (#37): a destroyed ship neither takes the gate nor finishes a Khador charge (shot down on its way into
@@ -181,7 +209,7 @@ namespace GoF2Remake.World
             if (health == null) health = ship.GetComponent<PlayerHealth>();
             if (health != null && health.Dead)
             {
-                if (state == State.Charging) { state = State.None; EndChargeShow(); }
+                if (state == State.Charging) { state = State.None; networkDrive = null; EndChargeShow(); }
                 if (state == State.Failing) { StopFailure(); state = State.None; }   // Modified
                 toInterstellar = false;
                 if (state == State.None) return;
@@ -210,13 +238,19 @@ namespace GoF2Remake.World
                     // dockToStream: input locked, the ship keeps moving at its speed (the game is paused while asking).
                     ship.transform.position += ship.transform.forward * speed * dtMs * M;
                     break;
+                case State.AwaitingPlayerGate:
+                    if (Time.realtimeSinceStartup >= playerGateDeadline || (health != null && health.Dead))
+                        FinishPlayerGateRequest(-1);
+                    break;
                 case State.Charging:
                     chargeMs += dtMs;
                     Haptics.Rumble(0.1f + 0.35f * ChargeRate);   // remake: the drive winding up
                     UpdateChargeShow();
                     if (chargeMs >= GalaxyMap.ChargeMs)
                     {
-                        if (RollFailure()) StartFailure(); else StartKhadorScene();   // Modified: a mod drive may fail
+                        if (networkDrive != null) ResolveNetworkJump();
+                        else if (RollFailure()) StartFailure();
+                        else StartKhadorScene();
                     }
                     break;
                 case State.GateScene:
@@ -242,6 +276,22 @@ namespace GoF2Remake.World
                 if (cam != null) cam.transform.SetPositionAndRotation(ship.transform.TransformPoint(heldView), ship.transform.rotation * heldTurn);
                 return;
             }
+            if (cam != null && state == State.KhadorScene && khadorModFx && modCamera?.HasCamera == true)
+            {
+                var fallback = new Vector3(2000f, 300f, -2000f);
+                if (modCamera.keys.Count > 0 || modCamera.drift.HasValue)
+                    cam.transform.position = modCameraOrigin + sceneFrame * (modCamera.Position(animMs, fallback, new Vector3(-5f, 2f, -5f)) * M);
+                var aim = modCamera.lookAt == "effect" && fx != null ? fx.transform.position :
+                    modCamera.lookAt == "custom" ? modCameraOrigin : ship.transform.position;
+                aim += sceneFrame * ((modCamera.lookOffset ?? Vector3.zero) * M);
+                var direction = aim - cam.transform.position;
+                if (modCamera.rotation.HasValue)
+                    cam.transform.rotation = sceneFrame * Quaternion.Euler(modCamera.rotation.Value);
+                else if (direction.sqrMagnitude > 1e-6f)
+                    cam.transform.rotation = Quaternion.LookRotation(direction, up);
+                if (modCamera.fov.HasValue) cam.fieldOfView = Aspect.VerticalFov(modCamera.fov.Value, cam.aspect);
+                return;
+            }
             if (cam != null) cam.transform.rotation = Quaternion.LookRotation(ship.transform.position - cam.transform.position, up);
             if (cam != null && toInterstellar && state == State.KhadorScene) GlideBehindShip(cam);
         }
@@ -260,6 +310,9 @@ namespace GoF2Remake.World
             cam.fieldOfView = Mathf.Lerp(sceneFov, Aspect.VerticalFov(chase.baseFov, cam.aspect), t);
         }
 
+        GoF2Remake.Modding.ModJumpFx.Cinematic modCamera;
+        GoF2Remake.Modding.ModJumpFx.Spec sceneDrive;
+        Vector3 modCameraOrigin;
         Vector3 sceneCam;
         float sceneFov;
 
@@ -326,6 +379,18 @@ namespace GoF2Remake.World
             ship.ExternalSpeedMetersPerSecond = ship.SpeedMetersPerSecond;
             if (weapons != null) weapons.Blocked = true;
             nav.Paused = true;
+            bool playerGate = GameHooks.HasPlayerJumpgate?.Invoke(Session.StationIndex) == true;
+            // Obtain the authoritative refusal reason even when the cached decision is negative.
+            if (playerGate)
+            {
+                // Do not start a gate cinematic or fall back to normal routing until the server approves.
+                state = State.AwaitingPlayerGate;
+                playerGateDeadline = Time.realtimeSinceStartup + 10f;
+                ship.ExternalSpeedMetersPerSecond = 0f;
+                if (SpaceHooks.RequestPlayerJumpgateTravel?.Invoke(Session.StationIndex, FinishPlayerGateRequest) != true)
+                    FinishPlayerGateRequest(-1);
+                return;
+            }
             int prog = Session.ProgrammedStation;
             // Remake (jumpgate route planning): on a route under way (a hop kept the destination) the gate jumps on toward it
             // without asking: the route was confirmed on the map and at its first gate. Remake (Settings.AutoJumpgate, Discord
@@ -338,6 +403,27 @@ namespace GoF2Remake.World
             }
             bool opened = SpaceHooks.OpenStarMap != null && SpaceHooks.OpenStarMap(db, StarMapMode.Gate, false, OnGateMapClosed, prog >= 0 && prog != Session.StationIndex ? prog : -1, false);
             if (!opened) OnGateMapClosed(new StarMapResult { station = -1 });
+        }
+
+        void FinishPlayerGateRequest(int destination)
+        {
+            if (this == null || state != State.AwaitingPlayerGate) return;
+            nav.Paused = false;
+            if (destination < 0 || (health != null && health.Dead))
+            {
+                state = State.None;
+                ship.externalControl = false;
+                ship.ExternalSpeedMetersPerSecond = 0f;
+                if (weapons != null) weapons.Blocked = false;
+                nav.Refuse();
+                string reason = SpaceHooks.PlayerJumpgateRefusalMessage?.Invoke();
+                Message?.Invoke(string.IsNullOrEmpty(reason) ? "Player jumpgate travel was refused or timed out." : reason);
+                return;
+            }
+            Session.ProgrammedStation = destination;
+            Session.RouteSafest = false;
+            hopping = false;
+            StartGateScene(destination);
         }
 
         /// <summary>DockToStream: the gate jumps on toward the programmed station without its "Travel to this station?" (a
@@ -362,8 +448,11 @@ namespace GoF2Remake.World
             ship.externalControl = false;
             if (weapons != null) weapons.Blocked = false;
             if (gate != null)
-                ship.transform.SetPositionAndRotation(gate.transform.position + OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.Factor),   // OrbitScale: past the grown gate
-                                                      Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
+            {
+                var turn = SpaceHooks.PlayerJumpgateRotation?.Invoke(Session.StationIndex) ?? Quaternion.identity;
+                ship.transform.SetPositionAndRotation(gate.transform.position + turn * OrbitLayout.DirToUnity(new Vector3(0f, 0f, 8000f)) * (M * OrbitScale.JumpgateFactor),
+                    turn * Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
+            }
         }
 
         /// <summary>Set while the gate takes the ship one system along the route to the programmed station (Arrive keeps it).
@@ -371,6 +460,7 @@ namespace GoF2Remake.World
         bool hopping;
         /// <summary>Remake (OrbitScale): the gate scene's spots and motion times the gate's scale (1 off).</summary>
         float gateSceneScale = 1f;
+        Quaternion gateSceneRotation = Quaternion.identity;
 
         void StartGateScene(int station)
         {
@@ -378,11 +468,12 @@ namespace GoF2Remake.World
             state = State.GateScene;
             var g = gate != null ? gate.transform.position : ship.transform.position;
             // OrbitScale: the scene round the grown gate grown with it, its motion too (gateSceneScale), so it keeps its timing.
-            gateSceneScale = gate != null ? OrbitScale.Factor : 1f;
-            ship.transform.SetPositionAndRotation(g + OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * (M * gateSceneScale),
-                                                  Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
+            gateSceneScale = gate != null ? OrbitScale.JumpgateFactor : 1f;
+            gateSceneRotation = gate != null ? SpaceHooks.PlayerJumpgateRotation?.Invoke(Session.StationIndex) ?? Quaternion.identity : Quaternion.identity;
+            ship.transform.SetPositionAndRotation(g + gateSceneRotation * OrbitLayout.DirToUnity(new Vector3(0f, 0f, -10000f)) * (M * gateSceneScale),
+                                                  gateSceneRotation * Quaternion.LookRotation(OrbitLayout.DirToUnity(Vector3.forward), Vector3.up));
             var cam = Camera.main;
-            if (cam != null) cam.transform.position = g + OrbitLayout.DirToUnity(new Vector3(-2000f, 300f, -6000f)) * (M * gateSceneScale);
+            if (cam != null) cam.transform.position = g + gateSceneRotation * OrbitLayout.DirToUnity(new Vector3(-2000f, 300f, -6000f)) * (M * gateSceneScale);
         }
 
         /// <summary>PlayerJumpgate::activate: the idle glow is replaced by the one-shot jump animation.</summary>
@@ -451,10 +542,21 @@ namespace GoF2Remake.World
         {
             if (state != State.None || nav.Jumping || storyTarget.HasValue) return;
             var forced = Story.ForcedKhadorTarget(Session.StationIndex);
+            if (!forced.HasValue && GoF2Remake.Modding.ModJumpFx.IncompatibleMountedDrive())
+            {
+                Message?.Invoke("This jump drive is incompatible with your ship class.");
+                return;
+            }
             bool inVoid = Session.StationIndex == Session.VoidOrbit;
             // Modified: a mod drive with "noVoid" (ModJumpFx) can't take the ship out of the Void (only the story's own jump, or
             // the Debug panel's free jumps), nor into it (the map's Jump to the Void button, askVoid below).
             var modDrive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (modDrive?.hasJumpRules == true && NetSession.Active && !forced.HasValue &&
+                !GameHooks.ModJumpServerReady())
+            {
+                Message?.Invoke("This jump drive requires a multiplayer server with active profiles.");
+                return;
+            }
             bool noVoid = modDrive != null && modDrive.noVoid;
             if (inVoid && noVoid && !forced.HasValue && !Cheats.FreeJumps)
             {
@@ -551,6 +653,15 @@ namespace GoF2Remake.World
                 return;
             }
             suppressedShown = false;
+            networkDrive = null;
+            if (!storyForced && !toInterstellar && GoF2Remake.Modding.ModJumpFx.IncompatibleMountedDrive())
+            {
+                Session.InstantJump = false;
+                Session.EnergyCellsForNextJump = 0;
+                storyTarget = null;
+                Message?.Invoke("This jump drive is incompatible with your ship class.");
+                return;
+            }
             if (toInterstellar)
             {
                 int leg = nav.Drive != null ? nav.Drive.cellsPerLeg : 1;
@@ -575,6 +686,17 @@ namespace GoF2Remake.World
                 Session.ProgrammedStation = -1;
                 return;
             }
+            var drive = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            if (!storyTarget.HasValue && NetSession.Active && drive?.hasJumpRules == true)
+            {
+                if (!GameHooks.ModJumpServerReady())
+                {
+                    Message?.Invoke("This jump drive requires a multiplayer server with active profiles.");
+                    return;
+                }
+                networkDrive = drive;
+                networkDestination = Session.ProgrammedStation;
+            }
             int cells = storyTarget.HasValue ? jumpCells : Session.EnergyCellsForNextJump;
             // Into the Void it asks for two shares but takes one (startChargingJumpDrive 0x1a9710).
             int taken = storyTarget == Session.VoidOrbit ? VoidCellsTaken : cells;
@@ -593,8 +715,7 @@ namespace GoF2Remake.World
                 }
             }
             cells = taken;
-            GalaxyMap.RemoveCells(cells);
-            if (cells > 0) Message?.Invoke($"-{cells}t {Localization.Get(1396)}");
+            if (networkDrive == null) SpendJumpCells(cells);
             Play(assets != null ? assets.jumpgateCharge : null);
             // Modified: a mod drive's voice as its charge starts (ModJumpFx "chargeVoice", e.g. the prologue's ship computer:
             // "Activating hyperdrive.").
@@ -607,8 +728,83 @@ namespace GoF2Remake.World
             }
             chargeMs = 0f;
             state = State.Charging;
+            if (voiceDrive != null && voiceDrive.showFailureChance && !storyTarget.HasValue && !toInterstellar)
+                Message?.Invoke($"Jump drive failure risk: {Mathf.RoundToInt(FailureChance(voiceDrive) * 100f)}%");
             requestedAt = -1f;
             ChargeStarted?.Invoke();
+        }
+
+        void SpendJumpCells(int cells)
+        {
+            if (cells <= 0) return;
+            GalaxyMap.RemoveCells(cells);
+            Message?.Invoke($"-{cells}t {Localization.Get(1396)}");
+        }
+
+        void ResolveNetworkJump()
+        {
+            state = State.AwaitingNetworkJump;
+            var drive = networkDrive;
+            networkDrive = null;
+            if (GameHooks.ResolveModJump?.Invoke(Session.StationIndex, networkDestination, drive.item,
+                result => CompleteNetworkJump(drive, result)) != true)
+                CompleteNetworkJump(drive, null);
+        }
+
+        void CompleteNetworkJump(GoF2Remake.Modding.ModJumpFx.Spec drive, GameHooks.ModJumpResult? result)
+        {
+            if (this == null || state != State.AwaitingNetworkJump) return;
+            if (!result.HasValue)
+            {
+                state = State.None;
+                EndChargeShow();
+                Message?.Invoke("The server refused the jump.");
+                return;
+            }
+
+            var outcome = result.Value;
+            SpendJumpCells(outcome.Cells);
+            if (health != null && health.Dead)
+            {
+                state = State.None;
+                EndChargeShow();
+                return;
+            }
+            if (outcome.Misjump)
+            {
+                networkMisjump = outcome;
+                failDrive = drive;
+                StartFailure();
+            }
+            else
+            {
+                jumpFailed = false;
+                Session.ProgrammedStation = outcome.Station;
+                StartKhadorScene();
+            }
+        }
+
+        void ApplyNetworkFailure(GameHooks.ModJumpResult outcome)
+        {
+            if (outcome.LostItem >= 0)
+            {
+                var item = Session.Equipment.Find(entry => entry.item == outcome.LostItem && !entry.builtIn);
+                if (item != null)
+                {
+                    if (item.amount > 1) item.amount--;
+                    else Session.Equipment.Remove(item);
+                    if (health != null && !health.Dead) health.RefreshLoadout(db, true);
+                    ReportFailure($"Misjump equipment lost: {GameNames.Item(outcome.LostItem)}");
+                }
+            }
+            if (health != null && health.Target != null && !health.Dead && outcome.HullLimit > 0)
+            {
+                var hp = health.Hp;
+                hp.hull = Mathf.Min(hp.hull, outcome.HullLimit);
+                health.Target.hp = hp.hull;
+                Session.PlayerHull = hp.hull;
+                ReportFailure($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
+            }
         }
 
         void StartKhadorScene()
@@ -648,16 +844,23 @@ namespace GoF2Remake.World
             // Modified: a mounted drive's own jump effect (Modding.ModJumpFx), set so the ship, flying on at BaseSpeed, reaches
             // its meeting point at meetMs; the camera stays the Khador Drive's (around fxPos). Not into interstellar space,
             // which has its own hole.
-            var modSpec = toInterstellar ? null : GoF2Remake.Modding.ModJumpFx.ActiveDrive();
+            var modSpec = toInterstellar ? null : jumpFailed && failDrive != null ? failDrive : GoF2Remake.Modding.ModJumpFx.ActiveDrive();
             khadorHideMs = 1700f;
             khadorModFx = false;
+            sceneDrive = modSpec;
+            modCamera = null;
             if (rift == null && modSpec != null)
             {
-                var meet = ship.transform.position + sceneDir * (BaseSpeed * modSpec.meetMs * M);
+                modCamera = modSpec.departureCamera;
+                if (modCamera?.shipSpeed != null) speed = modCamera.shipSpeed.Value;
+                if (modCamera?.shipRotation != null)
+                    ship.transform.rotation = sceneFrame * Quaternion.Euler(modCamera.shipRotation.Value);
+                var meet = ship.transform.position + sceneDir * (speed * modSpec.meetMs * M);
                 var modRot = Quaternion.LookRotation(-sceneDir, sceneFrame * Vector3.up);   // its front toward the ship
                 var modFx = ModJumpEffect.Spawn(modSpec, meet - modRot * ModJumpEffect.MeetOffset(modSpec), modRot, jumpFailed ? modSpec.failTexture : null);
                 fx = modFx.gameObject;
                 animLength = Mathf.Max(modFx.LengthMs, modSpec.meetMs) + modSpec.endHoldMs;   // then the next area loads
+                if (modCamera != null) animLength = Mathf.Max(animLength, modCamera.MinimumDuration);
                 khadorHideMs = modSpec.meetMs;
                 khadorModFx = true;
             }
@@ -665,7 +868,7 @@ namespace GoF2Remake.World
             JumpFxStarted?.Invoke(false, fxPos, fxRot);
             activated = true;
             animMs = 0f;
-            ship.turnOnly = rift == null;   // remake: the player turns the ship (and the camera's drift with it), not its path
+            ship.turnOnly = rift == null && (modCamera == null || modCamera.allowShipTurning);   // remake: the player turns the ship (and the camera's drift with it), not its path
             var cam = Camera.main;
             // game (-2000, 300, -2000), in the ship's frame. Into the hole the camera stays where it is behind the ship.
             if (rift != null && cam != null)
@@ -689,7 +892,8 @@ namespace GoF2Remake.World
             }
             if (cam != null && rift == null)
             {
-                cam.transform.position = fxPos + sceneFrame * (new Vector3(2000f, 300f, -2000f) * M);
+                modCameraOrigin = fxPos;
+                cam.transform.position = fxPos + sceneFrame * ((modCamera != null ? modCamera.Position(0f, new Vector3(2000f, 300f, -2000f)) : new Vector3(2000f, 300f, -2000f)) * M);
                 sceneCam = cam.transform.position;
                 sceneFov = cam.fieldOfView;
             }
@@ -742,7 +946,7 @@ namespace GoF2Remake.World
             bool gateScene = state == State.GateScene;
             var cam = Camera.main;
             // Modified: a mod drive's effect keeps the camera drifting off after the ship vanished, to its end and the hold after.
-            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null)   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
+            if ((!hidden || (!gateScene && khadorModFx)) && cam != null && rift == null && (gateScene || !khadorModFx || modCamera == null || (modCamera.keys.Count == 0 && !modCamera.drift.HasValue)))   // ship-space game (5, 2, -3 / -5) u/ms -> Unity local (-5, 2, -3 / -5)
                 cam.transform.position += ship.transform.rotation * (new Vector3(-5f, 2f, gateScene ? -3f : -5f) * dtMs * M * (gateScene ? gateSceneScale : 1f));
             if (rift != null)
             {
@@ -757,7 +961,7 @@ namespace GoF2Remake.World
             ship.ExternalSpeedMetersPerSecond = speed * M * 1000f * (gateScene ? gateSceneScale : 1f);
 
             if (gateScene && !activated && gate != null && cam != null
-                && -cam.transform.position.z / M < -gate.transform.position.z / M - 10000f * gateSceneScale)   // camera z (game) < gate z - 10000 (OrbitScale: x the gate's scale)
+                && (Quaternion.Inverse(gateSceneRotation) * (cam.transform.position - gate.transform.position)).z / M > 10000f * gateSceneScale)   // camera z (game) < gate z - 10000 (OrbitScale: x the gate's scale)
                 ActivateGate();
             if (!activated) return;
             animMs += dtMs;
@@ -798,6 +1002,20 @@ namespace GoF2Remake.World
 
         /// <summary>Whether this jump fails: the mounted mod drive's failChance per gate jump of the route (x2 on Extreme, at
         /// most failMax), failNoRoute from or to a system without jumpgate routes. Never a story jump or interstellar space.</summary>
+        /// <summary>One calculator for both the HUD prediction and the actual failure roll.</summary>
+        float FailureChance(GoF2Remake.Modding.ModJumpFx.Spec d)
+        {
+            if (d == null || db == null) return 0f;
+            int from = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
+            int to = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
+            var a = db.Systems.Find(s => s.index == from);
+            var b = db.Systems.Find(s => s.index == to);
+            var path = a != null && b != null && a.jumpRoutesTo.Count > 0 && b.jumpRoutesTo.Count > 0
+                ? GalaxyMap.SystemPath(db, from, to) : null;
+            return GoF2Remake.Modding.ModJumpFx.FailureProbability(d, path != null ? path.Count - 1 : 0,
+                path != null, Session.IsExtreme);
+        }
+
         bool RollFailure()
         {
             jumpFailed = false;
@@ -805,13 +1023,9 @@ namespace GoF2Remake.World
             if (toInterstellar || storyTarget.HasValue) return false;
             var d = GoF2Remake.Modding.ModJumpFx.ActiveDrive();
             if (d == null || (d.failChance <= 0f && d.failNoRoute <= 0f)) return false;
-            int from = db.Stations.Find(s => s.index == Session.StationIndex)?.system ?? -1;
-            int to = db.Stations.Find(s => s.index == Session.ProgrammedStation)?.system ?? -1;
-            var a = db.Systems.Find(s => s.index == from);
-            var b = db.Systems.Find(s => s.index == to);
-            var path = a != null && b != null && a.jumpRoutesTo.Count > 0 && b.jumpRoutesTo.Count > 0 ? GalaxyMap.SystemPath(db, from, to) : null;
-            float chance = path == null ? d.failNoRoute : Mathf.Min(d.failMax, d.failChance * (path.Count - 1) * (Session.IsExtreme ? 2 : 1));
-            bool failed = UnityEngine.Random.value < chance;
+            // No potentially irreversible failure when no safe emergency destination exists.
+            if (d.requireConnectedFailureDestination && FailCandidates(true).Count == 0) return false;
+            bool failed = UnityEngine.Random.value < FailureChance(d);
             if (failed) failDrive = d;
             return failed;
         }
@@ -872,26 +1086,126 @@ namespace GoF2Remake.World
             if (d != null && failElapsed < d.failMs) return;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }   // IntroCutscenes: StopLoop(1) at the jump
             ship.impairment = 1f;
-            int target = FailTarget();
+            if (networkMisjump.HasValue)
+            {
+                Session.ProgrammedStation = networkMisjump.Value.Station;
+                jumpFailed = true;
+                StartKhadorScene();
+                return;
+            }
+            // A gate may have become unavailable during the failure sequence.
+            // If no safe escape destination remains, complete the intended jump without penalties.
+            bool hasEscape = d == null || !d.requireConnectedFailureDestination || FailCandidates(true).Count > 0;
+            int target = hasEscape ? FailTarget() : Session.ProgrammedStation;
             Session.ProgrammedStation = target;
-            jumpFailed = true;
+            jumpFailed = hasEscape;
             StartKhadorScene();
         }
 
         void StopFailure()
         {
+            networkMisjump = null;
             if (ship != null) ship.impairment = 1f;
             if (failEngine != null) { failEngine.Stop(); Destroy(failEngine); failEngine = null; }
             if (failRumble != null) { failRumble.Stop(); Destroy(failRumble); failRumble = null; }
         }
 
-        /// <summary>A random station of a system on the map (not this one, nor an orbit without a station).</summary>
-        int FailTarget()
+        /// <summary>Eligible emergency destinations, with optional reciprocal-gate connectivity.</summary>
+        System.Collections.Generic.List<int> FailCandidates(bool requireConnected)
         {
             var visible = GalaxyMap.Visibility(db);
-            var list = db.Stations.FindAll(s => s.index != Session.StationIndex && s.system >= 0 && s.system < visible.Length
-                                               && visible[s.system] && !OrbitLayout.IsEmptyOrbit(s.index, Session.WorldIndex));
-            return list.Count > 0 ? list[UnityEngine.Random.Range(0, list.Count)].index : Session.ProgrammedStation;
+            return MisjumpDestinations(db, Session.StationIndex, Session.ProgrammedStation, Session.WorldIndex,
+                system => system >= 0 && system < visible.Length && visible[system], requireConnected);
+        }
+
+        public static System.Collections.Generic.List<int> MisjumpDestinations(Database db, int departure, int destination,
+            int worldIndex, Func<int, bool> visible, bool requireConnected)
+        {
+            int origin = db.Stations.Find(s => s.index == departure)?.system ?? -1;
+            int intended = db.Stations.Find(s => s.index == destination)?.system ?? -1;
+            var candidates = new System.Collections.Generic.List<int>();
+            foreach (var station in db.Stations)
+            {
+                if (station.index == departure || station.system < 0 || !visible(station.system) ||
+                    OrbitLayout.IsEmptyOrbit(station.index, worldIndex)) continue;
+                if (requireConnected)
+                {
+                    if (station.system == origin || station.system == intended) continue;
+                    var system = db.Systems.Find(s => s.index == station.system);
+                    if (system == null) continue;
+                    bool connected = false;
+                    // Static vanilla links require reciprocity. A live provider may additionally
+                    // expose fully operational, reciprocal player-built gate connections.
+                    if (system.jumpRoutesTo != null)
+                        foreach (int neighbourId in system.jumpRoutesTo)
+                        {
+                            var neighbour = db.Systems.Find(s => s.index == neighbourId);
+                            if (neighbour != null && neighbour.jumpRoutesTo != null &&
+                                neighbour.jumpRoutesTo.Contains(system.index) &&
+                                (GameHooks.JumpgateLinkOperational?.Invoke(system.index, neighbourId) ?? true) &&
+                                (GameHooks.JumpgateLinkOperational?.Invoke(neighbourId, system.index) ?? true))
+                            { connected = true; break; }
+                        }
+                    if (!connected && GameHooks.JumpgateLinkOperational != null)
+                        foreach (var neighbour in db.Systems)
+                        {
+                            if (neighbour == null || neighbour.index == system.index) continue;
+                            if (GameHooks.JumpgateLinkOperational(system.index, neighbour.index) &&
+                                GameHooks.JumpgateLinkOperational(neighbour.index, system.index))
+                            { connected = true; break; }
+                        }
+                    if (!connected) continue;
+                }
+                candidates.Add(station.index);
+            }
+            return candidates;
+        }
+
+        int FailTarget()
+        {
+            var candidates = FailCandidates(failDrive != null && failDrive.requireConnectedFailureDestination);
+            return candidates.Count > 0 ? candidates[UnityEngine.Random.Range(0, candidates.Count)] : Session.ProgrammedStation;
+        }
+
+        /// <summary>Optional nonlethal misjump consequences; cargo and ship ownership are unchanged.</summary>
+        void ApplyFailureConsequences(GoF2Remake.Modding.ModJumpFx.Spec d)
+        {
+            if (d == null || !d.hasJumpRules) return;
+            if (health == null && ship != null) health = ship.GetComponent<PlayerHealth>();
+            if (health == null || health.Target == null) return;
+            if (d.failEquipmentLossChance > 0f && UnityEngine.Random.value < d.failEquipmentLossChance)
+            {
+                var eligible = new System.Collections.Generic.List<int>();
+                for (int i = 0; i < Session.Equipment.Count; i++)
+                {
+                    int installed = Session.Equipment[i].item;
+                    // Never select a mounted weapon, ammunition, cargo or ship component.
+                    var itemData = db.Item(installed);
+                    if (itemData != null && itemData.TypeId == 3 && !Session.Equipment[i].builtIn &&
+                        (d.failEquipmentIncludesDrive || installed != d.item))
+                        eligible.Add(i);
+                }
+                if (eligible.Count > 0)
+                {
+                    int slot = eligible[UnityEngine.Random.Range(0, eligible.Count)];
+                    var item = Session.Equipment[slot];
+                    string name = GameNames.Item(item.item);
+                    if (item.amount > 1) item.amount--;
+                    else Session.Equipment.RemoveAt(slot);
+                    health.RefreshLoadout(db, true);
+                    ReportFailure($"Misjump equipment lost: {name}");
+                }
+            }
+            var hp = health.Hp;
+            int minimum = Mathf.CeilToInt(hp.maxHull * d.failMinimumHull);
+            if (hp.maxHull > 0 && hp.hull > minimum && d.failHullDamage > 0f)
+            {
+                hp.hull = GoF2Remake.Modding.ModJumpFx.HullAfterFailure(
+                    hp.hull, hp.maxHull, d.failHullDamage, d.failMinimumHull);
+                health.Target.hp = hp.hull;
+                Session.PlayerHull = hp.hull;
+                ReportFailure($"Misjump hull: {Mathf.RoundToInt(100f * hp.hull / hp.maxHull)}%");
+            }
         }
 
         /// <summary>Status::departStation(programmedStation), Level::setInitStreamOut, reload in the target orbit.</summary>
@@ -922,7 +1236,9 @@ namespace GoF2Remake.World
             Session.PreviousStationIndex = Session.StationIndex;
             Session.StationIndex = targetStation;
             Session.ArrivedByTravel = true;
+            pendingFailureArrival = jumpFailed && !viaGate ? (targetStation, networkMisjump, failDrive) : null;
             Session.DriveFailArrival = jumpFailed;   // Modified: a failed mod jump comes out somewhere near the station
+            Session.DriveArrivalSpec = khadorModFx && !viaGate ? sceneDrive : null;
             Session.DriveArrival = khadorModFx && !viaGate;   // Modified: a mod drive's jump arrives with its effect (ModJumpFx "arrivalFx")
             jumpFailed = false;
             Session.ArrivedBySystemJump = !Session.WarpLocal;

@@ -38,7 +38,19 @@ namespace GoF2Remake.Multiplayer
         internal struct Parts
         {
             public long credits, ship, equipment, cargo, kaamo, parked;
-            public long Total => credits + ship + equipment + cargo + kaamo + parked;
+            public long Total => SumWorth(credits, ship, equipment, cargo, kaamo, parked);
+        }
+
+        internal static long SumWorth(params long[] values)
+        {
+            long result = 0;
+            foreach (long value in values)
+            {
+                long positive = Math.Max(0L, value);
+                if (result > long.MaxValue - positive) return long.MaxValue;
+                result += positive;
+            }
+            return result;
         }
 
         internal static Parts Of(SaveData s)
@@ -48,19 +60,19 @@ namespace GoF2Remake.Multiplayer
             var db = NetGame.Db;
             long ShipPrice(int ship) => db.Ship(ship)?.price ?? 0;
             p.credits = s.credits;
-            p.ship = ShipPrice(s.ship);
+            p.ship = s.deathLoaner ? 0 : ShipPrice(s.ship);
             p.equipment = Items(s.equipment);
             p.cargo = Items(s.cargo);
             p.kaamo = Items(s.kaamoItems);
-            if (s.kaamoShips != null) foreach (var k in s.kaamoShips) if (k != null) p.kaamo += ShipPrice(k.ship) + Items(k.equipment);
-            if (s.hasParkedShip && s.parkedShip != null) p.parked = ShipPrice(s.parkedShip.ship) + Items(s.parkedShip.equipment) + Items(s.parkedShip.cargo);
+            if (s.kaamoShips != null) foreach (var k in s.kaamoShips) if (k != null) p.kaamo = SumWorth(p.kaamo, ShipPrice(k.ship), Items(k.equipment));
+            if (s.hasParkedShip && s.parkedShip != null) p.parked = SumWorth(ShipPrice(s.parkedShip.ship), Items(s.parkedShip.equipment), Items(s.parkedShip.cargo));
             return p;
         }
 
         static long Items(List<ItemStack> list)
         {
             long v = 0;
-            if (list != null) foreach (var st in list) if (st != null && !st.builtIn) v += (long)(NetGame.Db.Item(st.item)?.minPrice ?? 0) * Math.Max(0, st.amount);   // built-ins are the hull's
+            if (list != null) foreach (var st in list) if (st != null && !st.builtIn) v = SumWorth(v, (long)Math.Max(0, NetGame.Db.Item(st.item)?.minPrice ?? 0) * Math.Max(0, st.amount));   // built-ins are the hull's
             return v;
         }
 
@@ -83,12 +95,45 @@ namespace GoF2Remake.Multiplayer
             return d;
         }
 
+        // Report-only provenance: receipts for server-granted shop purchases since the last accepted upload.
+        // Station transactions already update the persisted profile, so their gains are in the old baseline.
+        // Client-only loot, crafting and rewards may legitimately lack a receipt: never enforce on this report.
+        static readonly Dictionary<(string account, int item), long> itemReceipts = new Dictionary<(string, int), long>();
+
+        static void AuditItemGains(string id, string name, ulong client, SaveData old, SaveData now, bool accepted)
+        {
+            if (string.IsNullOrEmpty(id) || now == null) return;
+            if (old != null)
+            {
+                var before = Holdings(old);
+                var after = Holdings(now);
+                foreach (var pair in after)
+                {
+                    long previous = before.TryGetValue(pair.Key, out long count) ? count : 0;
+                    long gain = pair.Value - previous;
+                    if (gain <= 0) continue;
+                    long traced = itemReceipts.TryGetValue((id, pair.Key), out long receipt) ? Math.Min(gain, receipt) : 0;
+                    if (gain <= traced) continue;
+                    long fitted = 0;
+                    if (now.equipment != null)
+                        foreach (var stack in now.equipment)
+                            if (stack != null && !stack.builtIn && stack.item == pair.Key && stack.amount > 0) fitted += stack.amount;
+                    Debug.LogWarning($"Server: audit item UNVERIFIED {DateTime.UtcNow:O}: profile {id} ({name}, client {client}); {ItemName(pair.Key)}; previous {previous}, current {pair.Value}, gained {gain}, shop-traced {traced}, unexplained {gain - traced}, fitted {fitted}; upload {(accepted ? "accepted" : "refused")}; review only, acquisition source not verified.");
+                }
+            }
+            // A refused upload cannot consume evidence. Accepted snapshots become the next baseline.
+            if (accepted)
+                foreach (var key in itemReceipts.Keys.Where(key => key.account == id).ToList())
+                    itemReceipts.Remove(key);
+        }
+
         // ---- uploads ------------------------------------------------------------------------------------------
 
         /// <summary>NetProfiles.Receive: an upload checked against the profile's last accepted one ('old', null = none on
         /// disk). Logs only big growth or a refusal ('refused' = the reason).</summary>
         internal static void Upload(string id, string name, ulong client, SaveData old, SaveData now, long oldWorth, float minutes, string refused)
         {
+            AuditItemGains(id, name, client, old, now, refused == null);
             var b = Of(now);
             long growth = b.Total - oldWorth;
             if (refused == null && growth < LogGrowth) return;
@@ -128,7 +173,7 @@ namespace GoF2Remake.Multiplayer
         static readonly Dictionary<(ulong, int, int, bool), Run> runs = new Dictionary<(ulong, int, int, bool), Run>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => runs.Clear();
+        static void ResetStatics() { runs.Clear(); itemReceipts.Clear(); }
 
         /// <summary>NetState.StockItemRpc: 'units' of 'item' bought (delta &lt; 0) or sold at 'station', 'price' a unit (the
         /// game's own figure); only what the host granted.</summary>
@@ -136,6 +181,13 @@ namespace GoF2Remake.Multiplayer
         {
             if (delta == 0) return;
             bool buy = delta < 0;
+            string account = NetProfiles.AccountOf(client);
+            if (!string.IsNullOrEmpty(account) && buy)
+            {
+                var receiptKey = (account, item);
+                long prior = itemReceipts.TryGetValue(receiptKey, out long existing) ? existing : 0;
+                itemReceipts[receiptKey] = prior + Math.Abs((long)delta);
+            }
             var key = (client, station, item, buy);
             if (!runs.TryGetValue(key, out var r)) runs[key] = r = new Run { client = client, station = station, item = item, buy = buy };
             long units = Math.Abs((long)delta);

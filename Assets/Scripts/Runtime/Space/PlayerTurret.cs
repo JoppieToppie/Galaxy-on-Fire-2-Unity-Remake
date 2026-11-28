@@ -260,14 +260,28 @@ namespace GoF2Remake.Flight
             MountIndex = mountIndex;
             Hangs = mount.TurretHangs;
             IsAuto = item.Attr(16) == 1;
-            defenseReachMeters = PointDefense.ReachUnits(Database.Shared) * Gun.MetersPerUnit;
-            defenseTargets = PointDefense.TargetMask(Database.Shared);
-            missileOnlyDefense = PointDefense.Mode(Database.Shared) == 1;
+            int defenseRole = item.Attr(PointDefense.TurretRoleAttribute);
+            if (defenseRole == 1) { defenseReachMeters = 0f; defenseTargets = 0; missileOnlyDefense = false; }
+            else if (defenseRole == 2 || defenseRole == 3)
+            {
+                defenseReachMeters = item.Attr(PointDefense.Attribute) * Gun.MetersPerUnit;
+                int coverage = item.Attr(PointDefense.TargetsAttribute);
+                defenseTargets = coverage == 0 ? 7 : coverage & 7;
+                missileOnlyDefense = defenseRole == 3;
+            }
+            else
+            {
+                defenseReachMeters = PointDefense.ReachUnits(Database.Shared, true) * Gun.MetersPerUnit;
+                defenseTargets = PointDefense.TargetMask(Database.Shared, true);
+                missileOnlyDefense = PointDefense.Mode(Database.Shared, true) == 1;
+            }
             IsCollector = item.categoryId == 35;
             PullSpeed = item.Attr(49);
             CollectRange = item.Attr(51);
             picking = new TurretTargeting(TurretTargeting.Rule.Retarget, item.Attr(109) > 0 ? item.Attr(109) : AutoRangeUnits, true)
             {
+                accelerationLead = true,
+                Sensor = CombatRadar.PlayerDetects,
                 Candidate = t => t.isShip && t.hostileToPlayer && t.Alive && !t.untargetable && t.isActiveAndEnabled
                                  && !t.cloaked   // a cloaked ship (Target.cloaked, NpcShip: a Specter past a quarter of its fade)
                                  && !(t.GetComponent<World.NpcShip>() is World.NpcShip npc && npc.RadarHidden),   // KIPlayer+0x70
@@ -567,7 +581,8 @@ namespace GoF2Remake.Flight
         {
             var t = picking.Update(dtMs, Target.All, transform.position);
             if (t == null) return false;
-            bool aligned = core.StepToward(picking.LeadPoint(t, GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs), dtMs);
+            bool aligned = core.StepToward(Settings.TurretLeadAim && gun.isBeam ? TurretTargeting.CombatAimPoint(t, GunPosition) :
+                picking.LeadPoint(t, GunPosition, gun.speedUnitsPerMs, gun.lifetimeMs), dtMs);
             if (aim.LimitHit || aligned && core.Blocked) { picking.LimitHit(dtMs); return false; }   // (its own hull in the way: another target)
             return aligned;
         }

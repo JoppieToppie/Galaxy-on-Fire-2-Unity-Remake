@@ -109,6 +109,20 @@ namespace GoF2Remake.Data
         public bool lentKeep;        // ... with "keep": the items aboard the loaner are the player's and go back with this ship
     }
 
+    /// <summary>Assets held outside the usable fleet until the death recovery deadline. Server profiles own this queue.</summary>
+    [Serializable]
+    public class DeathRecovery
+    {
+        public string id;
+        public long dueUtc;
+        public int originStation;
+        public bool hasHull;
+        public StoredShip hull;
+        public List<ItemStack> cargo = new List<ItemStack>();
+        public List<ItemStack> equipment = new List<ItemStack>();
+        public long refundCredits;
+    }
+
     [Serializable]
     public class StoredShip
     {

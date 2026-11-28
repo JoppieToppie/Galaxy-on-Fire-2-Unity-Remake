@@ -53,6 +53,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using GoF2Remake.Data;
 using Unity.Netcode;
@@ -305,6 +306,9 @@ namespace GoF2Remake.Multiplayer
             new Command { name = "control", available = Everyone, allowed = Anyone,
                 run = (a, by) => Handler(NetProfiles.Command, true, "control", a, by), needsPlayer = true,
                 description = () => X("mpCmdControl", "this device takes control of your profile") },
+            new Command { name = "appearance", usage = "<race ID> <portrait ID>", arg = Arg.Text, available = Everyone, allowed = Anyone,
+                run = (a, by) => Handler(NetProfiles.Command, true, "appearance", a, by), needsPlayer = true,
+                description = () => X("mpCmdAppearance", "save your pilot race and portrait") },
             new Command { name = "profile", available = Everyone, allowed = Anyone,
                 run = (a, by) => Handler(NetProfiles.Command, true, "profile", a, by), needsPlayer = true,
                 description = () => X("mpCmdProfile", "your profile on this server") },
@@ -341,9 +345,767 @@ namespace GoF2Remake.Multiplayer
             // Trades between players (NetTradeClient / NetTrade): asked and answered by this game, the server checks them.
             new Command { name = "trade", usage = "[<player> | accept | decline | cancel]", arg = Arg.Text, optional = true, available = Everyone,
                 local = Trade, description = () => X("mpCmdTrade", "trades credits and cargo with a pilot docked at your station") },
+            new Command { name = "station", usage = "start-orbit <system id> <orbit id> <model id> <name> | start-model <system id> <station model index> <name> | start <system id> <name> | rebuild <wreck id> [model index] | status <project id> | contribute <project id> <item id> <amount> | modules | module-project <id> <module|cancel> | install <id> storage|refinery|factory|hangar|drydock | storage <id> | access <id> owner|faction | refine <id> <ore item id> <amount> | recipes | factory-status <id> | manufacture <id> <recipe id> <batches> | repeat <id> <recipe id> continuous|<total batches> [batches per cycle] | repeat-cancel <id> <order id> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | drydock <id> | drydock-store <id> <fleet index> | drydock-retrieve <id> <dock index> | market <id> | list-ship <id> <fleet index> <price> | buy-ship <id> <listing> | delist-ship <id> <listing> | tax <id> <percent> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> [personal|faction] | delist <id> <listing index> | buy-order <id> <item id> <amount> <unit price> | sell-order <id> <order index> <amount> | cancel-order <id> <order index> | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | transfer <id> player|faction <recipient account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | rename <station id> <name> | appearance-presets | appearance <id> <model station index> | retire <station id> | claim <station id> | recover <id> <verification note> (server admin) | successor <id> player|faction <account>|clear | successor-delegate <id> <officer account|none> | builder-relinquish <id> | history <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban <id> <account> <reason> | unban <id> <account> | contributions <id> | jumpgate <sponsor station id> <orbit station index> <destination system id> [model id] | orbital-build <sponsor id> <orbit> <preset> | orbital-deliver <id> <item> <amount> | orbital-fund <id> <item> <amount> | orbital-remove <id> | jumpgate-models | jumpgate-orbits <system id> | jumpgate-cost | faction-materials | faction-donate <item> <amount> [cargo|storage] | jumpgate-fund-stock <orbit> <item> <amount> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | jumpgate-claim <orbit station index> faction|individual [destination system id] [model id; 0 keeps current] | jumpgate-access <orbit station index> everyone|faction|blacklist|owner | jumpgate-blacklist <orbit station index> add|remove player|faction <account or faction id> | jumpgate-race <orbit> [<race> <inherit|allow|deny>] | profile-race <profile ID> <race|clear> (server admin)", arg = Arg.Text, available = Everyone, allowed = Anyone,
+                run = (a, by) => Station(a, by), needsPlayer = true,
+                description = () => X("mpCmdStation", "builds stations and independent-orbit jumpgates, changes gate destinations daily, installs modules, manages storage, ship hangars, dry docks and station listings; persistent worlds only") },
         };
 
         static bool ProfilesOn => NetState.Instance != null && NetState.Instance.ProfilesOn;
+
+        static string Station(string args, IPilot by)
+        {
+            args = (args ?? "").Trim();
+            if (args.StartsWith("broadcast ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(10).Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int broadcastStation)) return "/station broadcast <station> <message>";
+                return NetPlayerStations.PublishStationBroadcast(by as NetPlayer, broadcastStation, words[1]);
+            }
+            if (args.StartsWith("announce ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(9).Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int announcementStation)) return "/station announce <station> <message>";
+                return NetPlayerStations.PublishStationAnnouncement(by as NetPlayer, announcementStation, words[1]);
+            }
+            if (args.StartsWith("race-policy ", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.StationFacilityRaceCommand(by as NetPlayer, args.Substring("race-policy ".Length));
+            if (args.StartsWith("jumpgate-race ", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.SetJumpgateRace(by as NetPlayer, args.Substring("jumpgate-race ".Length));
+            if (args.StartsWith("profile-race ", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.SetPolicyProfileRace(by as NetPlayer, args.Substring("profile-race ".Length));
+            if (args.Equals("modules", StringComparison.OrdinalIgnoreCase)) return NetPlayerStations.Modules();
+            const string jumpgateOrbits = "jumpgate-orbits ";
+            if (args.StartsWith(jumpgateOrbits, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(jumpgateOrbits.Length).Trim(), out int orbitSystem))
+                    return "/station jumpgate-orbits <system id>";
+                return NetPlayerStations.JumpgateOrbits(orbitSystem);
+            }
+            const string jumpgateStatus = "jumpgate-status ";
+            if (args.StartsWith(jumpgateStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(jumpgateStatus.Length).Trim(), out int statusOrbit))
+                    return "/station jumpgate-status <orbit station index>";
+                return NetPlayerStations.JumpgateStatus(by as NetPlayer, statusOrbit);
+            }
+            if (args.Equals("faction-materials", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.FactionConstructionStockStatus(by as NetPlayer);
+            if (args.StartsWith("faction-donate ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if ((words.Length != 3 && words.Length != 4) || !int.TryParse(words[1], out int item) || !int.TryParse(words[2], out int amount) ||
+                    (words.Length == 4 && !words[3].Equals("cargo", StringComparison.OrdinalIgnoreCase) &&
+                     !words[3].Equals("storage", StringComparison.OrdinalIgnoreCase)))
+                    return "/station faction-donate <item> <amount> [cargo|storage]";
+                bool fromStorage = words.Length == 4 && words[3].Equals("storage", StringComparison.OrdinalIgnoreCase);
+                return NetPlayerStations.DonateFactionConstructionMaterials(by as NetPlayer, item, amount, fromStorage);
+            }
+            if (args.StartsWith("jumpgate-fund-stock ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[1], out int orbit) ||
+                    !int.TryParse(words[2], out int item) || !int.TryParse(words[3], out int amount))
+                    return "/station jumpgate-fund-stock <orbit> <item> <amount>";
+                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, orbit, item, amount, fromFactionStock: true);
+            }
+            const string jumpgateContribute = "jumpgate-contribute ";
+            if (args.StartsWith(jumpgateContribute, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateContribute.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int contributeOrbit) ||
+                    !int.TryParse(words[1], out int gateItem) || !int.TryParse(words[2], out int gateAmount))
+                    return "/station jumpgate-contribute <orbit station index> <item id> <amount>";
+                return NetPlayerStations.ContributeJumpgate(by as NetPlayer, contributeOrbit, gateItem, gateAmount);
+            }
+            const string jumpgateClaim = "jumpgate-claim ";
+            if (args.StartsWith(jumpgateClaim, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateClaim.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 2 || words.Length > 4 || !int.TryParse(words[0], out int claimOrbit) ||
+                    (words.Length >= 3 && !int.TryParse(words[2], out _)) ||
+                    (words.Length == 4 && (!int.TryParse(words[3], out int claimModel) || claimModel < 0)))
+                    return "/station jumpgate-claim <orbit id> faction|individual [destination id] [model id; 0 keeps current]";
+                int claimDestinationId = words.Length >= 3 ? int.Parse(words[2]) : -1;
+                int model = words.Length == 4 ? int.Parse(words[3]) : 0;
+                return NetPlayerStations.ClaimScrappedJumpgate(by as NetPlayer, claimOrbit, words[1], claimDestinationId, model);
+            }
+            const string jumpgateNpc = "jumpgate-npc ";
+            if (args.StartsWith(jumpgateNpc, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateNpc.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int npcOrbit) ||
+                    (!string.Equals(words[1], "on", StringComparison.OrdinalIgnoreCase) &&
+                     !string.Equals(words[1], "off", StringComparison.OrdinalIgnoreCase)))
+                    return "/station jumpgate-npc <orbit station index> on|off";
+                return NetPlayerStations.SetJumpgateNpcEconomyAccess(by as NetPlayer, npcOrbit,
+                    string.Equals(words[1], "on", StringComparison.OrdinalIgnoreCase));
+            }
+            const string jumpgateAccess = "jumpgate-access ";
+            if (args.StartsWith(jumpgateAccess, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateAccess.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int accessOrbit))
+                    return "/station jumpgate-access <orbit station index> everyone|faction|blacklist|owner";
+                return NetPlayerStations.SetJumpgateAccess(by as NetPlayer, accessOrbit, words[1]);
+            }
+            const string jumpgateBlacklist = "jumpgate-blacklist ";
+            if (args.StartsWith(jumpgateBlacklist, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateBlacklist.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 4 || !int.TryParse(words[0], out int blacklistOrbit))
+                    return "/station jumpgate-blacklist <orbit station index> add|remove player|faction <account or faction id>";
+                string targetAndReason = string.Join(" ", words, 3, words.Length - 3);
+                int separator = targetAndReason.IndexOf(" | ", StringComparison.Ordinal);
+                string target = separator < 0 ? targetAndReason : targetAndReason.Substring(0, separator);
+                string reason = separator < 0 ? null : targetAndReason.Substring(separator + 3);
+                return NetPlayerStations.SetJumpgateBlacklist(by as NetPlayer, blacklistOrbit, words[1], words[2], target, reason);
+            }
+            const string jumpgateDestination = "jumpgate-destination ";
+            if (args.StartsWith(jumpgateDestination, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgateDestination.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int destinationOrbit) || !int.TryParse(words[1], out int newDestination))
+                    return "/station jumpgate-destination <orbit station index> <destination system id>";
+                return NetPlayerStations.ChangeJumpgateDestination(by as NetPlayer, destinationOrbit, newDestination);
+            }
+            const string jumpgate = "jumpgate ";
+            if (args.StartsWith(jumpgate, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(jumpgate.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if ((words.Length != 3 && words.Length != 4 && words.Length != 7) || !int.TryParse(words[0], out int sponsorStationId) ||
+                    !int.TryParse(words[1], out int buildOrbit) || !int.TryParse(words[2], out int destinationSystem) ||
+                    (words.Length >= 4 && (!int.TryParse(words[3], out int gateModel) || gateModel < 1)))
+                    return "/station jumpgate <sponsor id> <orbit id> <destination id> [model id]";
+                int model = words.Length >= 4 ? int.Parse(words[3]) : 0;
+                UnityEngine.Vector3Int? rotation = null;
+                if (words.Length == 7)
+                {
+                    if (!int.TryParse(words[4], out int pitch) || !int.TryParse(words[5], out int yaw) || !int.TryParse(words[6], out int roll)) return "Invalid rotation.";
+                    rotation = new UnityEngine.Vector3Int(pitch, yaw, roll);
+                }
+                return NetPlayerStations.StartJumpgate(by as NetPlayer, sponsorStationId, buildOrbit, destinationSystem, model, rotation);
+            }
+            if (args.Equals("jumpgate-models", StringComparison.OrdinalIgnoreCase))
+            {
+                var models = NetPlayerStations.JumpgateModelChoices().Select(model => model.id + ": " + model.label);
+                return "Jumpgate model IDs\n" + string.Join("\n", models);
+            }
+            if (args.StartsWith("place ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-place ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if ((words.Length != 7 && words.Length != 10) || !int.TryParse(words[1], out int sponsor) ||
+                    !int.TryParse(words[3], out int x) || !int.TryParse(words[4], out int y) || !int.TryParse(words[5], out int z))
+                    return "/station place <station> <module> <x> <y> <z> <preset> or /station orbital-place <station> <orbit> <x> <y> <z> <preset>";
+                if (words[0].Equals("place", StringComparison.OrdinalIgnoreCase))
+                {
+                    UnityEngine.Vector3Int? rotation = null;
+                    if (words.Length == 10)
+                    {
+                        if (!int.TryParse(words[7], out int pitch) || !int.TryParse(words[8], out int yaw) || !int.TryParse(words[9], out int roll))
+                            return "Rotation requires three integer angles in degrees.";
+                        rotation = new UnityEngine.Vector3Int(pitch, yaw, roll);
+                    }
+                    return NetPlayerStations.PlanModulePlacement(by as NetPlayer, sponsor, words[2], x, y, z, words[6], rotation);
+                }
+                if (!int.TryParse(words[2], out int orbit)) return "Choose a valid orbit.";
+                UnityEngine.Vector3Int? orbitalRotation = null;
+                if (words.Length == 10)
+                {
+                    if (!int.TryParse(words[7], out int op) || !int.TryParse(words[8], out int oy) || !int.TryParse(words[9], out int oroll)) return "Invalid rotation.";
+                    orbitalRotation = new UnityEngine.Vector3Int(op,oy,oroll);
+                }
+                return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, sponsor, orbit, words[6], new UnityEngine.Vector3Int(x, y, z), rotation: orbitalRotation);
+            }
+            if (args.StartsWith("defense-build ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[1], out int sponsorId) || !int.TryParse(words[2], out int slot) || slot < 1)
+                    return "/station defense-build <station> <slot>";
+                return NetPlayerStations.StartPlannedDefense(by as NetPlayer, sponsorId, slot - 1);
+            }
+            if (args.StartsWith("orbital-build ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-deliver ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-fund ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-maintain ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("orbital-maintain-stock ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[1], out int structureId) ||
+                    !int.TryParse(words[2], out int orbitOrItem))
+                    return "/station orbital-build <sponsor id> <orbit> <preset> | orbital-deliver|orbital-fund|orbital-maintain|orbital-maintain-stock <structure id> <item id> <amount>";
+                if (words[0].Equals("orbital-build", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.StartOrbitalStructure(by as NetPlayer, structureId, orbitOrItem, words[3]);
+                if (!int.TryParse(words[3], out int quantity)) return "Enter a valid material quantity.";
+                bool maintenance = words[0].StartsWith("orbital-maintain", StringComparison.OrdinalIgnoreCase);
+                bool fromStock = words[0].Equals("orbital-fund", StringComparison.OrdinalIgnoreCase) ||
+                    words[0].Equals("orbital-maintain-stock", StringComparison.OrdinalIgnoreCase);
+                return NetPlayerStations.ContributeOrbitalStructure(by as NetPlayer, structureId, orbitOrItem, quantity, fromStock, maintenance);
+            }
+            if (args.StartsWith("orbital-finish-storage ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring("orbital-finish-storage ".Length), out int structureId))
+                    return "/station orbital-finish-storage <structure id>";
+                return NetPlayerStations.FinishOrbitalFromStorage(by as NetPlayer, structureId);
+            }
+            if (args.StartsWith("orbital-remove ", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring("orbital-remove ".Length), out int structureId))
+                    return "/station orbital-remove <structure id>";
+                return NetPlayerStations.RemoveOrbitalStructure(by as NetPlayer, structureId);
+            }
+            if (args.Equals("appearance-presets", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.AppearancePresets();
+            const string appearance = "appearance ";
+            if (args.StartsWith(appearance, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(appearance.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int appearanceStationId) ||
+                    !int.TryParse(words[1], out int modelStationIndex))
+                    return "/station appearance <station id> <model station index>";
+                return NetPlayerStations.SetStationAppearance(by as NetPlayer, appearanceStationId, modelStationIndex);
+            }
+            const string rename = "rename ";
+            if (args.StartsWith(rename, StringComparison.OrdinalIgnoreCase))
+            {
+                string value = args.Substring(rename.Length).Trim();
+                int split = value.IndexOf(' ');
+                if (split <= 0 || !int.TryParse(value.Substring(0, split), out int renameStationId))
+                    return "/station rename <station id> <name>";
+                return NetPlayerStations.RenameStation(by as NetPlayer, renameStationId, value.Substring(split + 1));
+            }
+            const string claimStation = "claim ";
+            if (args.StartsWith(claimStation, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(claimStation.Length).Trim(), out int claimedStation))
+                    return "/station claim <station id>";
+                return NetPlayerStations.ClaimOfferedStation(by as NetPlayer, claimedStation);
+            }
+            const string retire = "retire ";
+            if (args.StartsWith(retire, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(retire.Length).Trim(), out int retiredStation))
+                    return "/station retire <station id>";
+                var station = NetPlayerStations.Find(retiredStation);
+                if (station == null) return "No player station with that id exists.";
+                return station.destroyed ? NetPlayerStations.RetireStation(by as NetPlayer, retiredStation)
+                    : NetPlayerStations.OfferStationForPublicClaim(by as NetPlayer, station);
+            }
+            const string recover = "recover ";
+            if (args.StartsWith(recover, StringComparison.OrdinalIgnoreCase))
+            {
+                string value = args.Substring(recover.Length).Trim();
+                int split = value.IndexOf(' ');
+                if (split <= 0 || !int.TryParse(value.Substring(0, split), out int recoveryStationId))
+                    return "/station recover <station id> <verification note>. Server admins only; dock at the affected station.";
+                string verificationNote = value.Substring(split + 1).Trim();
+                return NetPlayerStations.AuthorizeIndividualRecovery(by as NetPlayer, recoveryStationId, verificationNote);
+            }
+            const string transferAccept = "transfer-accept ";
+            if (args.StartsWith(transferAccept, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(transferAccept.Length).Trim(), out int stationId)) return "/station transfer-accept <station id>";
+                return NetPlayerStations.AcceptTransfer(by as NetPlayer, stationId);
+            }
+            const string transferCancel = "transfer-cancel ";
+            if (args.StartsWith(transferCancel, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(transferCancel.Length).Trim(), out int stationId)) return "/station transfer-cancel <station id>";
+                return NetPlayerStations.CancelTransfer(by as NetPlayer, stationId);
+            }
+            const string transferStatus = "transfer-status ";
+            if (args.StartsWith(transferStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(transferStatus.Length).Trim(), out int stationId)) return "/station transfer-status <station id>";
+                return NetPlayerStations.TransferStatus(by as NetPlayer, stationId);
+            }
+            const string transfer = "transfer ";
+            if (args.StartsWith(transfer, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(transfer.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId))
+                    return "/station transfer <station id> player|faction <recipient account id>";
+                return NetPlayerStations.ProposeTransfer(by as NetPlayer, stationId, words[1], words[2]);
+            }
+            const string history = "history ";
+            if (args.StartsWith(history, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(history.Length).Trim(), out int historyId))
+                    return "/station history <station id>";
+                return NetPlayerStations.GovernanceHistory(by as NetPlayer, historyId);
+            }
+            const string builderRelinquish = "builder-relinquish ";
+            if (args.StartsWith(builderRelinquish, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(builderRelinquish.Length).Trim(), out int builderStationId))
+                    return "/station builder-relinquish <station id>";
+                return NetPlayerStations.RelinquishBuilderRights(by as NetPlayer, builderStationId);
+            }
+            const string individualSuccessor = "individual-successor ";
+            if (args.StartsWith(individualSuccessor, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(individualSuccessor.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int individualSuccessorStationId))
+                    return "/station individual-successor <station id> <account id|clear>";
+                return NetPlayerStations.SetIndividualSuccessor(by as NetPlayer, individualSuccessorStationId, words[1]);
+            }
+            const string successorDelegate = "successor-delegate ";
+            if (args.StartsWith(successorDelegate, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(successorDelegate.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int delegateStationId))
+                    return "/station successor-delegate <station id> <officer account id|none>";
+                return NetPlayerStations.SetFactionSuccessorDelegate(by as NetPlayer, delegateStationId, words[1]);
+            }
+            const string successor = "successor ";
+            if (args.StartsWith(successor, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(successor.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length == 2 && string.Equals(words[1], "clear", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(words[0], out int clearStationId))
+                    return NetPlayerStations.SetFactionSuccessor(by as NetPlayer, clearStationId, "clear", null);
+                if (words.Length != 3 || !int.TryParse(words[0], out int successorStationId))
+                    return "/station successor <station id> player|faction <account id> | successor <station id> clear";
+                return NetPlayerStations.SetFactionSuccessor(by as NetPlayer, successorStationId, words[1], words[2]);
+            }
+            const string role = "role ";
+            if (args.StartsWith(role, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(role.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int roleStationId))
+                    return "/station role <station id> <account id> <StationAdministrator|Quartermaster|ConstructionManager|MarketManager|SecurityOfficer|none>";
+                return NetPlayerStations.SetStationRole(by as NetPlayer, roleStationId, words[1], words[2]);
+            }
+            const string permission = "permission ";
+            if (args.StartsWith(permission, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(permission.Length).Split(new[] { ' ' }, 5, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 4 || !int.TryParse(words[0], out int permissionStationId))
+                    return "/station permission <station id> <account id> <permission> <inherit|allow|deny> [reason]";
+                return NetPlayerStations.SetStationPermission(by as NetPlayer, permissionStationId, words[1], words[2], words[3],
+                    words.Length == 5 ? words[4] : null);
+            }
+            const string permissionDefault = "default ";
+            if (args.StartsWith(permissionDefault, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(permissionDefault.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[0], out int defaultStationId))
+                    return "/station default <station id> <member|officer> <permission> <allow|deny>";
+                return NetPlayerStations.SetFactionPermissionDefault(by as NetPlayer, defaultStationId, words[1], words[2], words[3]);
+            }
+            const string banFaction = "ban-faction ", unbanFaction = "unban-faction ";
+            bool addFactionBan = args.StartsWith(banFaction, StringComparison.OrdinalIgnoreCase);
+            if (addFactionBan || args.StartsWith(unbanFaction, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring((addFactionBan ? banFaction : unbanFaction).Length)
+                    .Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 2 || !int.TryParse(words[0], out int factionStationId))
+                    return "/station ban-faction <station id> <faction id> [reason] or /station unban-faction <station id> <faction id>";
+                return NetPlayerStations.SetStationBan(by as NetPlayer, factionStationId, words[1],
+                    words.Length == 3 ? words[2] : "", addFactionBan, faction: true);
+            }
+            const string ban = "ban ";
+            if (args.StartsWith(ban, StringComparison.OrdinalIgnoreCase))
+            {
+                string rest = args.Substring(ban.Length).Trim();
+                string[] words = rest.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < 2 || !int.TryParse(words[0], out int banStationId))
+                    return "/station ban <station id> <account id> [reason]";
+                return NetPlayerStations.SetStationBan(by as NetPlayer, banStationId, words[1],
+                    words.Length == 3 ? words[2] : "", true);
+            }
+            const string unban = "unban ";
+            if (args.StartsWith(unban, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(unban.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int unbanStationId))
+                    return "/station unban <station id> <account id>";
+                return NetPlayerStations.SetStationBan(by as NetPlayer, unbanStationId, words[1], "", false);
+            }
+            if (args.StartsWith("bank-withdraw ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring("bank-withdraw ".Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int withdrawalStation) || !long.TryParse(words[1], out long withdrawalAmount))
+                    return "/station bank-withdraw <station id> <credits>";
+                return NetPlayerStations.WithdrawStationCredits(by as NetPlayer, withdrawalStation, withdrawalAmount);
+            }
+            if (args.StartsWith("bank-donate ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring("bank-donate ".Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int bankStation) || !long.TryParse(words[1], out long bankAmount))
+                    return "/station bank-donate <station id> <credits>";
+                return NetPlayerStations.DonateStationCredits(by as NetPlayer, bankStation, bankAmount);
+            }
+            const string contributions = "contributions ";
+            if (args.StartsWith(contributions, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(contributions.Length).Trim(), out int stationId)) return "/station contributions <station id>";
+                return NetPlayerStations.ConstructionContributions(by as NetPlayer, stationId);
+            }
+            if (args.StartsWith("list-ship ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("buy-ship ", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("delist-ship ", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                bool listing = words[0].Equals("list-ship", StringComparison.OrdinalIgnoreCase);
+                long price = 0;
+                if (words.Length != (listing ? 4 : 3) || !int.TryParse(words[1], out int shipStation) ||
+                    !int.TryParse(words[2], out int shipIndex) || (listing && !long.TryParse(words[3], out price)))
+                    return "/station list-ship <id> <fleet index> <price> | buy-ship <id> <listing> | delist-ship <id> <listing>";
+                if (listing) return NetPlayerStations.ListMarketplaceShip(by as NetPlayer, shipStation, shipIndex, price);
+                return NetPlayerStations.SettleMarketplaceShip(by as NetPlayer, shipStation, shipIndex,
+                    words[0].Equals("delist-ship", StringComparison.OrdinalIgnoreCase));
+            }
+            const string npcMarket = "npc-market ";
+            if (args.StartsWith(npcMarket, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(npcMarket.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId) ||
+                    (words[1] != "on" && words[1] != "off")) return "/station npc-market <id> on|off";
+                return NetPlayerStations.SetNpcEconomyPurchases(by as NetPlayer, stationId, words[1] == "on");
+            }
+            const string tax = "tax ";
+            if (args.StartsWith(tax, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(tax.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int taxStation) || !int.TryParse(words[1], out int percent))
+                    return "/station tax <id> <percent>";
+                return NetPlayerStations.SetMarketplaceTax(by as NetPlayer, taxStation, percent);
+            }
+            const string rebuild = "rebuild ";
+            if (args.StartsWith(rebuild, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(rebuild.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                int model = -1;
+                if (words.Length == 0 || words.Length > 2 || !int.TryParse(words[0], out int wreckId) ||
+                    (words.Length == 2 && (!int.TryParse(words[1], out model) || model < 0)))
+                    return "/station rebuild <wreck id> [model index]";
+                return NetPlayerStations.RebuildStation(by as NetPlayer, wreckId, model);
+            }
+            const string status = "status ";
+            if (args.StartsWith(status, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(status.Length).Trim(), out int project))
+                    return "/station status <project id>";
+                return NetPlayerStations.Status(by as NetPlayer, project);
+            }
+            const string rotatedStart = "start-orbit-rotated ";
+            if (args.StartsWith(rotatedStart, StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = args.Substring(rotatedStart.Length).Trim().Split(new[] { ' ' }, 7, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 7 || !int.TryParse(parts[0], out int systemId) || !int.TryParse(parts[1], out int orbitId) ||
+                    !int.TryParse(parts[2], out int modelId) || !int.TryParse(parts[3], out int pitch) || !int.TryParse(parts[4], out int yaw) ||
+                    !int.TryParse(parts[5], out int roll) || orbitId < 0 || modelId < 0)
+                    return "/station start-orbit-rotated <system> <orbit> <model> <pitch> <yaw> <roll> <name>";
+                return NetPlayerStations.StartConstruction(by as NetPlayer, systemId, parts[6], modelId, orbitId, new UnityEngine.Vector3Int(pitch,yaw,roll));
+            }
+            const string startOrbit = "start-orbit ";
+            if (args.StartsWith(startOrbit, StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = args.Substring(startOrbit.Length).Trim().Split(new[] { ' ' }, 4, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 4 || !int.TryParse(parts[0], out int targetSystem) || !int.TryParse(parts[1], out int targetOrbit) ||
+                    !int.TryParse(parts[2], out int targetModel) || targetOrbit < 0 || targetModel < 0)
+                    return "/station start-orbit <system> <orbit> <model> <name>";
+                return NetPlayerStations.StartConstruction(by as NetPlayer, targetSystem, parts[3], targetModel, targetOrbit);
+            }
+            const string startModel = "start-model ";
+            if (args.StartsWith(startModel, StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = args.Substring(startModel.Length).Trim().Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 3 || !int.TryParse(parts[0], out int modelSystem) ||
+                    !int.TryParse(parts[1], out int stationModel) || stationModel < 0)
+                    return "/station start-model <system id> <station model index> <name>";
+                return NetPlayerStations.StartConstruction(by as NetPlayer, modelSystem, parts[2], stationModel);
+            }
+            const string start = "start ";
+            if (args.StartsWith(start, StringComparison.OrdinalIgnoreCase))
+            {
+                string rest = args.Substring(start.Length).Trim();
+                int split = rest.IndexOf(' ');
+                if (split <= 0 || !int.TryParse(rest.Substring(0, split), out int system))
+                    return "/station start <system id> <name> (planning is available from anywhere in the system)";
+                return NetPlayerStations.StartConstruction(by as NetPlayer, system, rest.Substring(split + 1));
+            }
+            const string moduleProject = "module-project ";
+            if (args.StartsWith(moduleProject, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(moduleProject.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId))
+                    return "/station module-project <station id> storage|refinery|factory|hangar|drydock|cancel";
+                return words[1].Equals("cancel", StringComparison.OrdinalIgnoreCase)
+                    ? NetPlayerStations.CancelModuleProject(by as NetPlayer, stationId)
+                    : NetPlayerStations.StartModuleProject(by as NetPlayer, stationId, words[1]);
+            }
+            if (args.StartsWith("storage-store-", StringComparison.OrdinalIgnoreCase) ||
+                args.StartsWith("storage-take-", StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length == 3 && int.TryParse(words[1], out int id) && int.TryParse(words[2], out int index))
+                    return words[0].ToLowerInvariant() switch
+                    {
+                        "storage-store-hull" => NetPlayerStations.StoreShip(by as NetPlayer, id, index, fromStorage: true),
+                        "storage-take-hull" => NetPlayerStations.RetrieveShip(by as NetPlayer, id, index, fromStorage: true),
+                        "storage-store-large" => NetPlayerStations.DryDockStoreShip(by as NetPlayer, id, index, viaStorage: true),
+                        "storage-take-large" => NetPlayerStations.DryDockRetrieveShip(by as NetPlayer, id, index, viaStorage: true),
+                        _ => "Choose a valid ship storage action."
+                    };
+                return "Choose a station and a ship to transfer.";
+            }
+            const string installStorage = "install-storage ";
+            if (args.StartsWith(installStorage, StringComparison.OrdinalIgnoreCase))
+            {
+                var words = args.Substring(installStorage.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId))
+                    return "/station install-storage <station id> <module>";
+                return NetPlayerStations.InstallModuleFromStorage(by as NetPlayer, stationId, words[1]);
+            }
+            const string install = "install ";
+            if (args.StartsWith(install, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(install.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId)) return "/station install <station id> storage|refinery|factory|hangar|drydock";
+                if (string.Equals(words[1], "refinery", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.InstallRefinery(by as NetPlayer, stationId);
+                if (string.Equals(words[1], "factory", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.InstallFactory(by as NetPlayer, stationId);
+                if (string.Equals(words[1], "hangar", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.InstallHangar(by as NetPlayer, stationId);
+                if (string.Equals(words[1], "drydock", StringComparison.OrdinalIgnoreCase))
+                    return NetPlayerStations.InstallDryDock(by as NetPlayer, stationId);
+                return NetPlayerStations.Install(by as NetPlayer, stationId, words[1]);
+            }
+            if (args.Equals("jumpgate-cost", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.ConstructionCostSummary("jumpgate", "Jumpgate construction");
+            if (args.Equals("recipes", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.FactoryRecipeList();
+            const string factoryStatus = "factory-status ";
+            if (args.StartsWith(factoryStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(factoryStatus.Length).Trim(), out int factoryStationId))
+                    return "/station factory-status <station id>";
+                return NetPlayerStations.FactoryStatus(by as NetPlayer, factoryStationId);
+            }
+            const string repeatCancel = "repeat-cancel ";
+            if (args.StartsWith(repeatCancel, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(repeatCancel.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int cancelStationId) ||
+                    !int.TryParse(words[1], out int cancelOrderId))
+                    return "/station repeat-cancel <station id> <order id>";
+                return NetPlayerStations.CancelFactoryRepeatOrder(by as NetPlayer, cancelStationId, cancelOrderId);
+            }
+            const string repeat = "repeat ";
+            if (args.StartsWith(repeat, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(repeat.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if ((words.Length != 3 && words.Length != 4) ||
+                    !int.TryParse(words[0], out int repeatStationId) ||
+                    !int.TryParse(words[1], out int repeatRecipeId) ||
+                    (words.Length == 4 && (!int.TryParse(words[3], out int ignoredCycle) || ignoredCycle < 1 || ignoredCycle > 100)))
+                    return "/station repeat <station id> <recipe id> continuous|<total batches> [batches per cycle]";
+                bool continuous = words[2].Equals("continuous", StringComparison.OrdinalIgnoreCase);
+                int totalBatches = 0;
+                if (!continuous && (!int.TryParse(words[2], out totalBatches) || totalBatches < 1 || totalBatches > 100000))
+                    return "Choose continuous or a fixed total between 1 and 100,000 batches.";
+                int cycle = words.Length == 4 ? int.Parse(words[3]) : 1;
+                return NetPlayerStations.SetFactoryRepeatOrder(by as NetPlayer, repeatStationId,
+                    repeatRecipeId, continuous, totalBatches, cycle);
+            }
+            const string manufacture = "manufacture ";
+            if (args.StartsWith(manufacture, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(manufacture.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) ||
+                    !int.TryParse(words[1], out int recipeId) || !int.TryParse(words[2], out int batches))
+                    return "/station manufacture <station id> <recipe id> <batches>";
+                return NetPlayerStations.Manufacture(by as NetPlayer, stationId, recipeId, batches);
+            }
+            if (args.Equals("fleet", StringComparison.OrdinalIgnoreCase))
+                return NetPlayerStations.PersonalFleet(by as NetPlayer);
+            const string dryDockBlueprints = "drydock-blueprints ";
+            if (args.StartsWith(dryDockBlueprints, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(dryDockBlueprints.Length).Trim(), out int stationId))
+                    return "/station drydock-blueprints <station id>";
+                return NetPlayerStations.DryDockBlueprintList(by as NetPlayer, stationId);
+            }
+            const string dryDockBuild = "drydock-build ";
+            if (args.StartsWith(dryDockBuild, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(dryDockBuild.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int blueprintId))
+                    return "/station drydock-build <station id> <blueprint item id>";
+                return NetPlayerStations.DryDockBuildShip(by as NetPlayer, stationId, blueprintId);
+            }
+            foreach (string action in new[] { "ships ", "store-ship ", "retrieve-ship ", "drydock ", "drydock-store ", "drydock-retrieve " })
+            {
+                if (!args.StartsWith(action, StringComparison.OrdinalIgnoreCase)) continue;
+                string[] words = args.Substring(action.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (action == "ships " || action == "drydock ")
+                {
+                    if (words.Length != 1 || !int.TryParse(words[0], out int stationId))
+                        return action == "ships " ? "/station ships <station id>" : "/station drydock <station id>";
+                    return action == "ships " ? NetPlayerStations.ShipStorageStatus(by as NetPlayer, stationId) :
+                        NetPlayerStations.DryDockStatus(by as NetPlayer, stationId);
+                }
+                if (words.Length != 2 || !int.TryParse(words[0], out int id) || !int.TryParse(words[1], out int index))
+                {
+                    if (action == "store-ship ") return "/station store-ship <station id> <fleet index>";
+                    if (action == "retrieve-ship ") return "/station retrieve-ship <station id> <hangar index>";
+                    if (action == "drydock-store ") return "/station drydock-store <station id> <fleet index>";
+                    return "/station drydock-retrieve <station id> <dock index>";
+                }
+                if (action == "store-ship ") return NetPlayerStations.StoreShip(by as NetPlayer, id, index);
+                if (action == "retrieve-ship ") return NetPlayerStations.RetrieveShip(by as NetPlayer, id, index);
+                return action == "drydock-store " ? NetPlayerStations.DryDockStoreShip(by as NetPlayer, id, index) :
+                    NetPlayerStations.DryDockRetrieveShip(by as NetPlayer, id, index);
+            }
+            const string refine = "refine ";
+            if (args.StartsWith(refine, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(refine.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) ||
+                    !int.TryParse(words[1], out int oreItem) || !int.TryParse(words[2], out int amount))
+                    return "/station refine <station id> <ore item id> <amount>";
+                return NetPlayerStations.Refine(by as NetPlayer, stationId, oreItem, amount);
+            }
+            const string access = "access ";
+            if (args.StartsWith(access, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(access.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId))
+                    return "/station access <station id> owner|faction";
+                return NetPlayerStations.SetStorageAccess(by as NetPlayer, stationId, words[1]);
+            }
+            const string market = "market ";
+            if (args.StartsWith(market, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(market.Length).Trim(), out int stationId)) return "/station market <station id>";
+                return NetPlayerStations.MarketStatus(stationId);
+            }
+            bool buyStable = args.StartsWith("buy-listing ", StringComparison.OrdinalIgnoreCase);
+            bool cancelStable = args.StartsWith("cancel-listing ", StringComparison.OrdinalIgnoreCase);
+            if (buyStable || cancelStable)
+            {
+                var words = args.Substring(buyStable ? 12 : 15).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                int quantity = 0;
+                if (words.Length != (buyStable ? 3 : 2) || !int.TryParse(words[0], out int targetStation) ||
+                    !int.TryParse(words[1], out int listingId) || (buyStable && !int.TryParse(words[2], out quantity)))
+                    return "Choose a station listing and quantity.";
+                return NetPlayerStations.BuyItemListingById(by as NetPlayer, targetStation, listingId, quantity, cancelStable);
+            }
+            const string buy = "buy ";
+            if (args.StartsWith(buy, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(buy.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) ||
+                    !int.TryParse(words[1], out int listingIndex) || !int.TryParse(words[2], out int amount))
+                    return "/station buy <station id> <listing index> <amount>";
+                return NetPlayerStations.BuyListing(by as NetPlayer, stationId, listingIndex, amount);
+            }
+            const string pilotMarketRules = "pilot-market-rules ";
+            if (args.StartsWith(pilotMarketRules, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(pilotMarketRules.Length), out int stationId))
+                    return "/station pilot-market-rules <station id>";
+                return NetPlayerStations.PilotMarketRulesStatus(by as NetPlayer, stationId);
+            }
+            const string pilotTax = "pilot-tax ", pilotMarketAccess = "pilot-market-access ";
+            bool marketAccess = args.StartsWith(pilotMarketAccess, StringComparison.OrdinalIgnoreCase);
+            if (marketAccess || args.StartsWith(pilotTax, StringComparison.OrdinalIgnoreCase))
+            {
+                int fields = marketAccess ? 3 : 4;
+                var words = args.Substring((marketAccess ? pilotMarketAccess : pilotTax).Length)
+                    .Split(new[] { ' ' }, fields + 1, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length < fields || !int.TryParse(words[0], out int stationId))
+                    return "/station pilot-tax <station id> <pilot> <purchase|sale> <percent|inherit> [reason] or /station pilot-market-access <station id> <pilot> <deny|inherit> [reason]";
+                return NetPlayerStations.SetPilotMarketRule(by as NetPlayer, stationId, words[1],
+                    marketAccess ? "access" : words[2], words[fields - 1], words.Length > fields ? words[fields] : null);
+            }
+            const string listItem = "list-item ", listCargo = "list-cargo ";
+            bool fromCargo = args.StartsWith(listCargo, StringComparison.OrdinalIgnoreCase);
+            if (fromCargo || args.StartsWith(listItem, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring((fromCargo ? listCargo : listItem).Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if ((words.Length != 4 && words.Length != 5) || !int.TryParse(words[0], out int stationId) ||
+                    !int.TryParse(words[1], out int item) || !int.TryParse(words[2], out int amount) ||
+                    !long.TryParse(words[3], out long unitPrice))
+                    return "/station list-item <station id> <item id> <amount> <unit price> [personal|faction]";
+                bool payFaction = words.Length == 5 && string.Equals(words[4], "faction", StringComparison.OrdinalIgnoreCase);
+                if (words.Length == 5 && !payFaction && !string.Equals(words[4], "personal", StringComparison.OrdinalIgnoreCase))
+                    return "Choose personal or faction for listing proceeds.";
+                return NetPlayerStations.CreateListing(by as NetPlayer, stationId, item, amount, unitPrice, payFaction, fromCargo);
+            }
+            const string delist = "delist ";
+            if (args.StartsWith(delist, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(delist.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int listingIndex))
+                    return "/station delist <station id> <listing index>";
+                return NetPlayerStations.CancelListing(by as NetPlayer, stationId, listingIndex);
+            }
+            const string buyOrder = "buy-order ";
+            if (args.StartsWith(buyOrder, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(buyOrder.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 4 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int itemId) ||
+                    !int.TryParse(words[2], out int amount) || !long.TryParse(words[3], out long unitPrice))
+                    return "/station buy-order <station id> <item id> <amount> <unit price>";
+                return NetPlayerStations.CreateConstructionBuyOrder(by as NetPlayer, stationId, itemId, amount, unitPrice);
+            }
+            bool sellStableOrder = args.StartsWith("sell-order-id ", StringComparison.OrdinalIgnoreCase);
+            bool cancelStableOrder = args.StartsWith("cancel-order-id ", StringComparison.OrdinalIgnoreCase);
+            if (sellStableOrder || cancelStableOrder)
+            {
+                var words = args.Substring(sellStableOrder ? "sell-order-id ".Length : "cancel-order-id ".Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                int quantity = 0;
+                if (words.Length != (sellStableOrder ? 3 : 2) || !int.TryParse(words[0], out int projectId) ||
+                    !int.TryParse(words[1], out int orderId) || (sellStableOrder && !int.TryParse(words[2], out quantity)))
+                    return "Choose a construction order and valid quantity.";
+                return NetPlayerStations.SettleConstructionOrderById(by as NetPlayer, projectId, orderId, quantity, cancelStableOrder);
+            }
+            const string sellOrder = "sell-order ";
+            if (args.StartsWith(sellOrder, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(sellOrder.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int orderIndex) ||
+                    !int.TryParse(words[2], out int amount))
+                    return "/station sell-order <station id> <order index> <amount>";
+                return NetPlayerStations.FulfilConstructionBuyOrder(by as NetPlayer, stationId, orderIndex, amount);
+            }
+            const string cancelOrder = "cancel-order ";
+            if (args.StartsWith(cancelOrder, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(cancelOrder.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 2 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int orderIndex))
+                    return "/station cancel-order <station id> <order index>";
+                return NetPlayerStations.CancelConstructionBuyOrder(by as NetPlayer, stationId, orderIndex);
+            }
+            const string storage = "storage ";
+            if (args.StartsWith(storage, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(args.Substring(storage.Length).Trim(), out int stationId)) return "/station storage <station id>";
+                return NetPlayerStations.StorageStatus(by as NetPlayer, stationId);
+            }
+            foreach (string action in new[] { "deposit ", "withdraw " })
+            {
+                if (!args.StartsWith(action, StringComparison.OrdinalIgnoreCase)) continue;
+                string[] words = args.Substring(action.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int stationId) || !int.TryParse(words[1], out int itemId) || !int.TryParse(words[2], out int amount))
+                    return "/station " + action.Trim() + " <station id> <item id> <amount>";
+                return NetPlayerStations.MoveStorage(by as NetPlayer, stationId, itemId, amount, action.StartsWith("deposit", StringComparison.Ordinal));
+            }
+            const string contribute = "contribute ";
+            if (args.StartsWith(contribute, StringComparison.OrdinalIgnoreCase))
+            {
+                string[] words = args.Substring(contribute.Length).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (words.Length != 3 || !int.TryParse(words[0], out int project) || !int.TryParse(words[1], out int item)
+                    || !int.TryParse(words[2], out int amount))
+                    return "/station contribute <project id> <item id> <amount> (deposit while docked at any station)";
+                return NetPlayerStations.Contribute(by as NetPlayer, project, item, amount);
+            }
+            return "/station jumpgate <sponsor station id> <orbit station index> <destination system id> [model id] | jumpgate-models | jumpgate-orbits <system id> | faction-materials | faction-donate <item> <amount> [cargo|storage] | jumpgate-fund-stock <orbit> <item> <amount> | jumpgate-contribute <orbit station index> <item id> <amount> | jumpgate-destination <orbit station index> <destination system id> | jumpgate-status <orbit station index> | start <system id> <name> | rebuild <wreck id> [model index] | status <project id> | contribute <project id> <item id> <amount> | modules | install <id> storage|refinery|factory|hangar | storage <id> | access <id> owner|faction | deposit <id> <item id> <amount> | withdraw <id> <item id> <amount> | refine <id> <ore item id> <amount> | recipes | factory-status <id> | manufacture <id> <recipe id> <batches> | fleet | ships <id> | store-ship <id> <fleet index> | retrieve-ship <id> <hangar index> | market <id> | list-ship <id> <fleet index> <price> | buy-ship <id> <listing> | delist-ship <id> <listing> | tax <id> <percent> | buy <id> <listing index> <amount> | list-item <id> <item id> <amount> <unit price> | delist <id> <listing index> | transfer <id> player|faction <account> | transfer-accept <id> | transfer-cancel <id> | transfer-status <id> | individual-successor <id> <account|clear> | successor <id> player|faction <account> | successor-delegate <id> <officer|none> | builder-relinquish <id> | role <id> <account> <role|none> | permission <id> <account> <permission> <inherit|allow|deny> | default <id> <member|officer> <permission> <allow|deny> | ban/unban <id> <account> [reason] | history <id>";
+        }
 
         /// <summary>This player's server role (NetModeration; 0 without profiles).</summary>
         static int LocalRole => NetPlayer.Local != null ? NetPlayer.Local.StaffRole : 0;

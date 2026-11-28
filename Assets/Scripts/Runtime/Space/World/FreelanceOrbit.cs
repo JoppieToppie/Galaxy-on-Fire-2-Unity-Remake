@@ -247,6 +247,7 @@ namespace GoF2Remake.World
                     if ((role & RoleCarrier) != 0 && mission.status == 0) { spec.missionCrate = crateItem; spec.nameText = 1611; spec.name = null; }
                     if ((role & RoleRival) != 0 && PlayerRoute != null) spec.route = PlayerRoute.Clone();
                     var s = traffic.Adopt(spec, p.WorldRotation, p.HullFraction);
+                    p.RestoreShield(s);
                     s.MissionShip = true;
                     foreach (var id in p.Aggressors) s.aggressors.Add(id);
                     if ((role & RoleNoFire) != 0) s.shootingEnabled = false;

@@ -22,6 +22,7 @@
 
 using System.Collections.Generic;
 using GoF2Remake.Data;
+using GoF2Remake.Multiplayer;
 using GoF2Remake.World;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -41,12 +42,31 @@ namespace GoF2Remake.UI
         readonly ScrollView wantedList, wantedScroll;
         readonly Label wantedName, wantedStatus, wantedBounty, wantedText;
         readonly List<Button> wantedRows = new List<Button>();
+        readonly List<Button> contractButtons = new List<Button>();
+        readonly VisualElement contractActions;
         enum Tab { Missions, Wanted, Pirates }
 
         const string PirateHelpEnglish = "Pirate activity\n\nThe authorities report pirate outposts and pirate bosses sighted in the systems. The board names the system but not the station: you have to search its orbits. Each report shows its threat level, the bounty and how long it stays on the board. Destroy the outpost or the boss to collect the bounty.";
         Tab tab;
         bool wantedShown => tab != Tab.Missions;   // the list-and-details panel (the Most Wanted's or the pirates')
         int wantedSelected = -1, pirateSelected = -1;
+        string playerWantedSelected;
+        int playerWantedRevision = -1;
+        NetState playerWantedSource;
+        static bool PlayerBoardHere => NetGame.Active && NetState.Instance?.ProfilesOn == true && Modding.ModPvpPiracy.Enabled;
+        NetFactions.PlayerWantedEntry SelectedPlayerWanted => NetState.Instance?.PlayerWanted.entries.Find(e => e.name == playerWantedSelected);
+        void RefreshPlayerWanted()
+        {
+            if (!IsOpen || !PlayerBoardHere) return;
+            var state = NetState.Instance;
+            state.PlayerWantedRequestRpc();
+            if (state != playerWantedSource || playerWantedRevision != state.PlayerWantedRevision)
+            {
+                playerWantedSource = state;
+                playerWantedRevision = state.PlayerWantedRevision;
+                if (tab == Tab.Wanted) FillWanted();
+            }
+        }
 
         static string T(int id) => Localization.Get(id);
 
@@ -99,10 +119,14 @@ namespace GoF2Remake.UI
             wantedTab = Bind("wantedTab", () => ShowTab(Tab.Wanted));
             pirateTab = Bind("pirateTab", () => ShowTab(Tab.Pirates));
             wantedMap = Bind("wantedMap", () => { if (tab == Tab.Pirates) ShowPirateOnMap(); else ShowWantedOnMap(); });
+            contractActions = new VisualElement();
+            wantedMap.parent.Insert(wantedMap.parent.IndexOf(wantedMap), contractActions);
+            Show(contractActions, false);
             missionsTab.text = T(129).UiCaps();
             wantedTab.text = T(3219).UiCaps();
             pirateTab.text = Localization.Extra("pirateBoardTab", "Pirate activity").UiCaps();
             wantedMap.text = T(424).UiCaps();
+            root.schedule.Execute(RefreshPlayerWanted).Every(3000);
         }
 
         ScrollView Scroll(string name)
@@ -145,6 +169,7 @@ namespace GoF2Remake.UI
             root.AddToClassList("missions-open");
             tab = Tab.Missions;
             Fill();
+            RefreshPlayerWanted();
         }
 
         public void Close()
@@ -154,7 +179,7 @@ namespace GoF2Remake.UI
             menu.OnMissionsClosed();
         }
 
-        bool BoardHere => level.Station != null && WantedBoard.Accessible(level.Database, level.Station.index);
+        bool BoardHere => level.Station != null && (PlayerBoardHere || WantedBoard.Accessible(level.Database, level.Station.index));
 
         /// <summary>The Pirate activity tab: the pirate events on (a session's rule) and they can happen for this pilot yet
         /// (rank 2, campaign 0x10), or a session's board.</summary>
@@ -308,6 +333,7 @@ namespace GoF2Remake.UI
             if (wantedShown)
             {
                 l.AddRange(wantedRows);
+                l.AddRange(contractButtons.FindAll(button => button.enabledSelf));
                 if (wantedMap.style.display != DisplayStyle.None) l.Add(wantedMap);
             }
             else
@@ -326,6 +352,8 @@ namespace GoF2Remake.UI
             wantedRows.Clear();
             var list = WantedBoard.ListFor(db, level.Station.index);
             int story = WantedBoard.StorylineRow;
+            var players = PlayerBoardHere ? NetState.Instance.PlayerWanted.entries : new List<NetFactions.PlayerWantedEntry>();
+            if (!players.Exists(e => e.name == playerWantedSelected)) playerWantedSelected = null;
             // WantedWindow::init: the first active entry is selected.
             if (wantedSelected < 0 || !list.Exists(w => w.index == wantedSelected))
                 wantedSelected = (list.Find(w => WantedBoard.State(db, w.index)?.active == true) ?? (list.Count > 0 ? list[0] : null))?.index ?? -1;
@@ -339,20 +367,89 @@ namespace GoF2Remake.UI
                 b.EnableInClassList("wanted-row--active", st != null && st.active);
                 b.EnableInClassList("wanted-row--dead", st != null && st.terminated);
                 b.EnableInClassList("wanted-row--story", index == story);
-                b.EnableInClassList("wanted-row--selected", index == wantedSelected);
+                b.EnableInClassList("wanted-row--selected", playerWantedSelected == null && index == wantedSelected);
                 b.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
-                b.clicked += () => { menu.PlayRelease(); wantedSelected = index; FillWanted(); };
-                b.RegisterCallback<FocusInEvent>(_ => { if (wantedSelected != index) { wantedSelected = index; ShowWantedDetails(); foreach (var r in wantedRows) r.EnableInClassList("wanted-row--selected", r == b); } });
+                b.clicked += () => { menu.PlayRelease(); playerWantedSelected = null; wantedSelected = index; FillWanted(); };
+                b.RegisterCallback<FocusInEvent>(_ => { if (playerWantedSelected != null || wantedSelected != index) { playerWantedSelected = null; wantedSelected = index; ShowWantedDetails(); foreach (var r in wantedRows) r.EnableInClassList("wanted-row--selected", r == b); } });
+                wantedList.Add(b);
+                wantedRows.Add(b);
+            }
+            if (playerWantedSelected == null && list.Count == 0 && players.Count > 0) playerWantedSelected = players[0].name;
+            int selectedRow = playerWantedSelected == null ? list.FindIndex(w => w.index == wantedSelected) : -1;
+            foreach (var entry in players)
+            {
+                var b = new Button { text = (entry.pirate ? "[Pirate] " : "[Wanted] ") + entry.name };
+                b.AddToClassList("wanted-row");
+                b.AddToClassList("gof-semibold");
+                b.EnableInClassList("wanted-row--active", true);
+                b.EnableInClassList("wanted-row--selected", playerWantedSelected == entry.name);
+                if (playerWantedSelected == entry.name) selectedRow = wantedRows.Count;
+                b.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+                b.clicked += () => { menu.PlayRelease(); playerWantedSelected = entry.name; FillWanted(); };
+                b.RegisterCallback<FocusInEvent>(_ =>
+                {
+                    if (playerWantedSelected == entry.name) return;
+                    playerWantedSelected = entry.name;
+                    ShowWantedDetails();
+                    foreach (var row in wantedRows) row.EnableInClassList("wanted-row--selected", row == b);
+                });
                 wantedList.Add(b);
                 wantedRows.Add(b);
             }
             ShowWantedDetails();
-            menu.Focus(wantedRows.Count > 0 ? wantedRows[Mathf.Max(0, list.FindIndex(w => w.index == wantedSelected))] : close);
+            menu.Focus(wantedRows.Count > 0 ? wantedRows[Mathf.Max(0, selectedRow)] : close);
+        }
+
+        void ClearContractActions()
+        {
+            contractActions.Clear();
+            contractButtons.Clear();
+            Show(contractActions, false);
+        }
+
+        void ShowContractActions(NetFactions.PlayerWantedEntry player)
+        {
+            if (player.contracts == null || player.contracts.Count == 0) return;
+            Show(contractActions, true);
+            foreach (var contract in player.contracts)
+            {
+                var button = new Button();
+                foreach (string cls in wantedMap.GetClasses()) button.AddToClassList(cls);
+                button.text = (contract.accepted ? "ACCEPTED: " : "ACCEPT: ") + contract.issuerName + $" ({contract.reward:N0} CR)";
+                button.SetEnabled(!contract.accepted);
+                button.RegisterCallback<PointerDownEvent>(_ => menu.PlayPush(), TrickleDown.TrickleDown);
+                button.clicked += () =>
+                {
+                    menu.PlayRelease();
+                    menu.ShowDialog($"Accept {contract.issuerName}'s bounty on {player.name} for {contract.reward:N0} credits?", () =>
+                        NetState.Instance?.AcceptPlayerBountyRpc(contract.issuerId, player.name));
+                };
+                contractActions.Add(button);
+                contractButtons.Add(button);
+            }
         }
 
         void ShowWantedDetails()
         {
+            ClearContractActions();
             var db = level.Database;
+            var player = SelectedPlayerWanted;
+            if (player != null)
+            {
+                wantedPortrait.EnableInClassList("portrait-hidden", true);
+                wantedName.text = player.name;
+                wantedStatus.text = player.pirate ? "Player pirate" : "Wanted player";
+                wantedBounty.text = $"{player.reward:N0} CR" + (string.IsNullOrEmpty(player.issuers) ? "" : " | " + player.issuers);
+                var place = db.Stations.Find(s => s.index == player.station);
+                long age = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - player.seenAt;
+                bool known = place != null && player.seenAt > 0 && age < 900;
+                wantedText.text = "Last sighting:\n" + (known ? place.name + " (" + place.systemName + ")\n" +
+                    Mathf.Max(0, (int)(age / 60)) + " min ago\nReported by: " + player.reporter : T(3229));
+                wantedScroll.scrollOffset = Vector2.zero;
+                Show(wantedMap, known);
+                ShowContractActions(player);
+                return;
+            }
             var w = wantedSelected >= 0 && wantedSelected < db.Wanted.Count ? db.Wanted[wantedSelected] : null;
             var st = w != null ? WantedBoard.State(db, w.index) : null;
             wantedPortrait.EnableInClassList("portrait-hidden", w == null);
@@ -417,6 +514,7 @@ namespace GoF2Remake.UI
 
         void ShowPirateDetails()
         {
+            ClearContractActions();
             var db = level.Database;
             var s = PirateReports.Find(pirateSelected);
             wantedPortrait.EnableInClassList("portrait-hidden", s == null);
@@ -442,7 +540,7 @@ namespace GoF2Remake.UI
                 + " " + TierHint(s.tier);
             wantedText.text = $"{Localization.Extra("pirateLastSeen", "Last seen in")}\n{PirateReports.SystemName(db, s.system)} ({security})\n\n"
                 + $"{string.Format(Localization.Extra("pirateThreat", "Threat: {0}"), PirateReports.TierName(s.tier))}\n"
-                + (s.done ? "" : string.Format(Localization.Extra("pirateReportedAgo", "Reported {0} min ago, off the board in {1} min."), ago, left) + "\n\n")
+                + (s.done ? "" : s.established ? Localization.Extra("pirateBlockade", "Active blockade: station docking is unavailable until the outpost is destroyed.") + "\n\n" : string.Format(Localization.Extra("pirateReportedAgo", "Reported {0} min ago, off the board in {1} min."), ago, left) + "\n\n")
                 + what + "\n\n" + Localization.Extra("pirateSearchHint", "Its exact position is unknown: search the system's station orbits.");
             wantedScroll.scrollOffset = Vector2.zero;
             Show(wantedMap, !s.done);
@@ -471,6 +569,12 @@ namespace GoF2Remake.UI
         /// <summary>WantedWindow::OnTouchEnd 424: the star map on the criminal's destination (Mission(0, 0, travelsTo)).</summary>
         void ShowWantedOnMap()
         {
+            var player = SelectedPlayerWanted;
+            if (player != null)
+            {
+                if (player.station >= 0 && player.seenAt > 0 && System.DateTimeOffset.UtcNow.ToUnixTimeSeconds() - player.seenAt < 900) ShowOnMap(player.station, wantedMap);
+                return;
+            }
             var st = WantedBoard.State(level.Database, wantedSelected);
             if (st == null || st.travelsTo < 0) return;
             // WantedWindow: a dummy Mission(0, 0, travelsTo) and setStart(system of lastSeen): the route of the criminal's trip.

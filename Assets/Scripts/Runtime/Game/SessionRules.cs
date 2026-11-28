@@ -10,7 +10,7 @@ namespace GoF2Remake.Data
                          KaamoStacking = 16, KaamoKeepsEquipment = 32, CloakBay = 64, EmpBreaksCloak = 128,
                          SmarterNpcTargeting = 256, PreciseShipCollision = 512, OriginalCollision = 1024,
                          DogfightOriginal = 2048, DogfightEvery = 4096, Es2Aiming = 8192, DogfightEs2 = 16384, Es2NpcFlight = 32768,
-                         DerelictWrecks = 65536;
+                         DerelictWrecks = 65536, SmepFighterAi = 131072;
 
         /// <summary>Remake (the GoF3 roadmap's G6; ES2's added 2026-11-06): how NPC fighters fight (Settings.NpcDogfight,
         /// Flight.Gof3Dogfight / Es2Dogfight), three bits: DogfightOriginal = GoF2's everywhere, DogfightEvery = GoF3's for every

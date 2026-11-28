@@ -1,0 +1,763 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using GoF2Remake.Multiplayer;
+using GoF2Remake.Data;
+using GoF2Remake.World;
+using GoF2Remake.Visuals;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace GoF2Remake.UI
+{
+    public sealed partial class StationManagementWindow
+    {
+        // Convert panel drag to world units at the camera's focus depth.
+        static Vector3 PlacementPan(Camera camera, VisualElement viewport, float distance, Vector2 delta, bool fast)
+        {
+            float height = Mathf.Max(1f, viewport.layout.height);
+            float scale = 2f * distance * Mathf.Tan(camera.fieldOfView * Mathf.Deg2Rad * .5f) / height;
+            return (-camera.transform.right * delta.x + camera.transform.up * delta.y) * scale * (fast ? 3f : 1f);
+        }
+
+        readonly List<Material> placementMaterials = new List<Material>();
+        Material PlacementMaterial(Color color)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            if (shader == null) return null;
+            var material = new Material(shader);
+            PlacementTint(material,color);
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface",1f);
+            if (material.HasProperty("_SrcBlend")) material.SetFloat("_SrcBlend",(float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend")) material.SetFloat("_DstBlend",(float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite",0f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            placementMaterials.Add(material);
+            return material;
+        }
+
+        static void PlacementTint(Material material, Color tint)
+        {
+            if (material == null) return;
+            material.color = tint;
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor",tint);
+        }
+
+        // Separating-axis test of each mesh's oriented local bounding box, including the swept
+        // departure interval. This is deliberately conservative, not triangle-level physics.
+        static bool PlacementBoxesOverlap(MeshFilter a, MeshFilter b, Vector3 sweep)
+        {
+            if (a == null || b == null || a.sharedMesh == null || b.sharedMesh == null) return false;
+            var ar = a.GetComponent<Renderer>(); var br = b.GetComponent<Renderer>();
+            if (ar != null && br != null)
+            {
+                var broad = ar.bounds; var end = broad; end.center += sweep; broad.Encapsulate(end);
+                if (!broad.Intersects(br.bounds)) return false;
+            }
+            var ab = a.sharedMesh.bounds; var bb = b.sharedMesh.bounds;
+            var ac = a.transform.TransformPoint(ab.center); var bc = b.transform.TransformPoint(bb.center);
+            Vector3[] aa = { a.transform.TransformVector(Vector3.right * ab.extents.x), a.transform.TransformVector(Vector3.up * ab.extents.y), a.transform.TransformVector(Vector3.forward * ab.extents.z) };
+            Vector3[] ba = { b.transform.TransformVector(Vector3.right * bb.extents.x), b.transform.TransformVector(Vector3.up * bb.extents.y), b.transform.TransformVector(Vector3.forward * bb.extents.z) };
+            float enter = 0f, exit = 1f;
+            bool Axis(Vector3 n)
+            {
+                if (n.sqrMagnitude < 1e-10f) return true;
+                n.Normalize();
+                float r = 0f;
+                for (int i = 0; i < 3; i++) r += Mathf.Abs(Vector3.Dot(aa[i], n)) + Mathf.Abs(Vector3.Dot(ba[i], n));
+                float d = Vector3.Dot(bc - ac, n), v = Vector3.Dot(sweep, n);
+                if (Mathf.Abs(v) < 1e-5f) return Mathf.Abs(d) <= r;
+                float t0 = (d-r)/v, t1 = (d+r)/v;
+                enter = Mathf.Max(enter, Mathf.Min(t0,t1)); exit = Mathf.Min(exit, Mathf.Max(t0,t1));
+                return enter <= exit;
+            }
+            for (int i = 0; i < 3; i++)
+            {
+                if (!Axis(Vector3.Cross(aa[(i+1)%3].normalized,aa[(i+2)%3].normalized)) || !Axis(Vector3.Cross(ba[(i+1)%3].normalized,ba[(i+2)%3].normalized))) return false;
+                for (int j = 0; j < 3; j++) if (!Axis(Vector3.Cross(aa[i].normalized, ba[j].normalized))) return false;
+            }
+            return true;
+        }
+
+        string ConstructionRotationArgs(string key)
+        {
+            placementRotationDrafts.TryGetValue(key,out var angles);
+            return $"{angles.x} {angles.y} {angles.z}";
+        }
+
+        // The construction forms reuse the same isolated render stage as the orbit editor.
+        void AddConstructionRotationPreview(string key, string assembly)
+        {
+            if (string.IsNullOrEmpty(assembly) || NetGame.Db == null) return;
+            AddSection("ORIENTATION", "Rotate the selected model before reserving construction. Drag to orbit; middle-drag or use Pan camera to pan; scroll to zoom.");
+            placementRotationDrafts.TryGetValue(key,out var angles);
+            var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.flexWrap = Wrap.Wrap; body.Add(row);
+            var pitch = new IntegerField("Pitch (X)"); var yaw = new IntegerField("Yaw (Y)"); var roll = new IntegerField("Roll (Z)");
+            foreach (var field in new[] { pitch,yaw,roll }) { field.isDelayed = true; field.AddToClassList("player-station-field"); row.Add(field); }
+            var viewport = new VisualElement(); viewport.AddToClassList("player-station-orbit-viewport"); viewport.style.height = 280; viewport.style.flexShrink = 0; body.Add(viewport);
+            placementRoot = new GameObject("Construction orientation preview"); placementRoot.transform.position = new Vector3(0,-1000000f,0);
+            var model = OrbitBuilder.Spawn(NetGame.Db, assembly, Vector3.zero,Quaternion.identity,"Proposed construction",placementRoot.transform);
+            if (model == null) { DestroyPlacementPreview(); body.Add(new Label("3D model unavailable; angles are still editable.")); viewport.style.display = DisplayStyle.None; }
+            float cameraYaw = 34f, cameraPitch = 29f, distance = 1000f; Camera camera = null; Vector3 centre = Vector3.zero, cameraPan = Vector3.zero;
+            if (model != null)
+            {
+                model.transform.localPosition = Vector3.zero;
+                foreach(var part in model.GetComponentsInChildren<Transform>(true)) part.gameObject.layer = 31;
+                foreach(var collider in model.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                var bounds = new Bounds(model.transform.position,Vector3.zero);
+                foreach(var renderer in model.GetComponentsInChildren<Renderer>()) bounds.Encapsulate(renderer.bounds);
+                centre = model.transform.position; distance = Mathf.Max(30f,bounds.extents.magnitude*2.7f);
+                var cameraObject = new GameObject("Construction camera"); cameraObject.transform.SetParent(placementRoot.transform,false);
+                camera = cameraObject.AddComponent<Camera>(); camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.025f,.045f,.07f); camera.cullingMask = 1<<31; camera.nearClipPlane = .1f; camera.farClipPlane = Mathf.Max(240000f,distance*10f);
+                placementTexture = new RenderTexture(768,384,24); placementTexture.Create(); camera.targetTexture = placementTexture; viewport.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(placementTexture));
+                var lightObject = new GameObject("Construction light"); lightObject.transform.SetParent(placementRoot.transform,false); lightObject.transform.rotation = Quaternion.Euler(35,-45,0);
+                var light = lightObject.AddComponent<Light>(); light.type = LightType.Directional; light.cullingMask = 1<<31; light.intensity = 1.4f;
+            }
+            var initialRings = new LineRenderer[3];
+            var ringToggle = new Toggle("Show rotation rings") { value = true }; body.Add(ringToggle);
+            var local = new Toggle("Local axes") {value=true}; body.Add(local);
+            Vector3 AxisOf(int i) => i==0?Vector3.right:i==1?Vector3.up:Vector3.forward;
+            if (model != null)
+            {
+                Color[] colors = {new Color(1f,.25f,.25f),new Color(.25f,1f,.4f),new Color(.25f,.6f,1f)};
+                for(int i=0;i<3;i++)
+                {
+                    var go = new GameObject("Construction rotation ring"); go.transform.SetParent(placementRoot.transform,false); go.layer=31;
+                    var line=go.AddComponent<LineRenderer>(); line.sharedMaterial=PlacementMaterial(colors[i]); line.positionCount=64; line.loop=true; line.useWorldSpace=true;
+                    line.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off; line.receiveShadows=false; initialRings[i]=line;
+                }
+            }
+            void UpdateRings()
+            {
+                for(int i=0;i<3;i++)
+                {
+                    var line=initialRings[i]; if(line==null) continue; line.enabled=ringToggle.value;
+                    float radius=distance*.26f*(1+i*.06f); line.widthMultiplier=radius*.025f;
+                    var q=(local.value?Quaternion.Euler(angles):Quaternion.identity)*Quaternion.FromToRotation(Vector3.forward,AxisOf(i));
+                    for(int k=0;k<line.positionCount;k++){float a=k*Mathf.PI*2f/line.positionCount;line.SetPosition(k,centre+q*new Vector3(Mathf.Cos(a),Mathf.Sin(a),0)*radius);}
+                }
+            }
+            ringToggle.RegisterValueChangedCallback(_=>UpdateRings()); local.RegisterValueChangedCallback(_=>UpdateRings());
+            void CameraPose() { if (camera != null) { camera.transform.position = centre + cameraPan + Quaternion.Euler(cameraPitch,cameraYaw,0)*new Vector3(0,0,-distance); camera.transform.LookAt(centre + cameraPan); UpdateRings(); } }
+            void Apply()
+            {
+                placementRotationDrafts[key] = angles;
+                pitch.SetValueWithoutNotify(angles.x); yaw.SetValueWithoutNotify(angles.y); roll.SetValueWithoutNotify(angles.z);
+                if(model != null) model.transform.rotation = Quaternion.Euler(angles);
+                UpdateRings();
+            }
+            void Read() { angles = new Vector3Int(Mathf.Clamp(pitch.value,-360,360),Mathf.Clamp(yaw.value,-360,360),Mathf.Clamp(roll.value,-360,360)); Apply(); }
+            pitch.RegisterValueChangedCallback(_=>Read()); yaw.RegisterValueChangedCallback(_=>Read()); roll.RegisterValueChangedCallback(_=>Read());
+            var axis = new PopupField<string>("Rotation axis",new List<string>{"Pitch (X)","Yaw (Y)","Roll (Z)"},1); body.Add(axis);
+            var snap = new PopupField<string>("Rotation step",new List<string>{"1","15","45","90"},1); body.Add(snap);
+            void Rotate(float amount)
+            {
+                var a = axis.index == 0 ? Vector3.right : axis.index == 1 ? Vector3.up : Vector3.forward;
+                var q = Quaternion.Euler(angles); var d = Quaternion.AngleAxis(amount,a);
+                angles = Vector3Int.RoundToInt((local.value ? q*d : d*q).eulerAngles); Apply();
+            }
+            AddAction("Rotate −",()=>Rotate(-int.Parse(snap.value))); AddAction("Rotate +",()=>Rotate(int.Parse(snap.value)));
+            AddAction("Reset rotation",()=>{angles=Vector3Int.zero;Apply();});
+            var dragRotate = new Toggle("Drag to rotate model instead of camera"); body.Add(dragRotate);
+            var panMode = new Toggle("Pan camera (drag)"); body.Add(panMode);
+            AddAction("Centre camera",()=>{cameraPan=Vector3.zero;CameraPose();});
+            float drag=0f; bool ringDrag=false, panning=false; Plane plane=default; Vector3 last=Vector3.zero;
+            Vector2 Screen(Vector2 p){p=viewport.WorldToLocal(p);return new Vector2(p.x/viewport.layout.width*camera.pixelWidth,(1-p.y/viewport.layout.height)*camera.pixelHeight);}
+            int Pick(Vector2 p)
+            {
+                if(camera==null||!ringToggle.value)return -1; float best=196f;int choice=-1;
+                for(int i=0;i<3;i++)for(int k=0;k<64;k++)
+                {
+                    var line=initialRings[i];if(line==null)continue;
+                    var a=camera.WorldToScreenPoint(line.GetPosition(k));var b=camera.WorldToScreenPoint(line.GetPosition((k+1)%64));if(a.z<=0||b.z<=0)continue;
+                    Vector2 segment=(Vector2)b-(Vector2)a;float t=Mathf.Clamp01(Vector2.Dot(p-(Vector2)a,segment)/Mathf.Max(.001f,segment.sqrMagnitude));float d=(p-((Vector2)a+t*segment)).sqrMagnitude;if(d<best){best=d;choice=i;}
+                }
+                return choice;
+            }
+            viewport.RegisterCallback<PointerDownEvent>(evt=>
+            {
+                if(camera==null||placementDragging||(evt.button!=0&&evt.button!=2))return; placementDragging=true;drag=0f;panning=evt.button==2||panMode.value;int ring=panning?-1:Pick(Screen(evt.position));ringDrag=ring>=0;
+                if(ringDrag){axis.index=ring;plane=new Plane((local.value?Quaternion.Euler(angles):Quaternion.identity)*AxisOf(ring),centre);var ray=camera.ScreenPointToRay(Screen(evt.position));last=plane.Raycast(ray,out float hit)?(ray.GetPoint(hit)-centre).normalized:Vector3.zero;}
+                viewport.CapturePointer(evt.pointerId);evt.StopPropagation();
+            });
+            viewport.RegisterCallback<PointerMoveEvent>(evt=>
+            {
+                if(!placementDragging||camera==null||!viewport.HasPointerCapture(evt.pointerId))return;
+                if(panning){cameraPan+=PlacementPan(camera,viewport,distance,evt.deltaPosition,evt.shiftKey);CameraPose();evt.StopPropagation();return;}
+                if(ringDrag||dragRotate.value)
+                {
+                    if(ringDrag){var ray=camera.ScreenPointToRay(Screen(evt.position));if(plane.Raycast(ray,out float hit)){var d=(ray.GetPoint(hit)-centre).normalized;if(last.sqrMagnitude>.5f)drag+=Vector3.SignedAngle(last,d,plane.normal);last=d;}else drag+=evt.deltaPosition.x*.6f;}
+                    else drag+=evt.deltaPosition.x*.6f;
+                    float step=evt.ctrlKey?int.Parse(snap.value):1f;float turn=Mathf.Round(drag/step)*step;if(Mathf.Abs(turn)>=step){Rotate(turn);drag-=turn;}
+                }
+                else{cameraYaw+=evt.deltaPosition.x*.4f;cameraPitch=Mathf.Clamp(cameraPitch-evt.deltaPosition.y*.4f,-80f,80f);CameraPose();}
+            });
+            viewport.RegisterCallback<PointerUpEvent>(evt=>{if(!viewport.HasPointerCapture(evt.pointerId))return;placementDragging=panning=false;viewport.ReleasePointer(evt.pointerId);});
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_=>{placementDragging=panning=false;});
+            viewport.RegisterCallback<WheelEvent>(evt=>{distance=Mathf.Clamp(distance*Mathf.Pow(1.12f,evt.delta.y),10f,170000f);CameraPose();evt.StopPropagation();});
+            Apply(); CameraPose();
+        }
+
+        void DestroyPlacementPreview()
+        {
+            if (placementRoot != null)
+            {
+                placementRoot.SetActive(false);
+                UnityEngine.Object.Destroy(placementRoot);
+            }
+            placementRoot = null;
+            foreach (var material in placementMaterials) if (material != null) UnityEngine.Object.Destroy(material);
+            placementMaterials.Clear();
+            placementDragging = false;
+            if (placementTexture != null)
+            {
+                placementTexture.Release();
+                UnityEngine.Object.Destroy(placementTexture);
+            }
+            placementTexture = null;
+        }
+
+        static string PlacementSnapshotOf(PlayerStationRecord station, int orbit)
+        {
+            if (station == null) return "";
+            var modules = station.placements?.Where(p => p != null)
+                .Select(p => $"{p.kind}:{p.preset}:{p.x}:{p.y}:{p.z}:{p.hasRotation}:{p.pitch}:{p.yaw}:{p.roll}") ?? Enumerable.Empty<string>();
+            var orbital = NetPlayerStations.OrbitalStructures?.Where(p => p != null && p.orbit == orbit)
+                .Select(p => $"{p.id}:{p.operational}:{p.placementX}:{p.placementY}:{p.placementZ}:{p.hasRotation}:{p.pitch}:{p.yaw}:{p.roll}") ?? Enumerable.Empty<string>();
+            return string.Join("|", modules.Concat(orbital));
+        }
+
+        void BuildOrbitPlacement()
+        {
+            var db = NetGame.Db;
+            var station = selected;
+            int firstControl = body.contentContainer.childCount;
+            var types = new List<(string, string)>();
+            for (int i = 1; i <= Modding.ModPlayerInfrastructure.Current.OrbitalDefenseLimit; i++) types.Add(("defense-" + i, "Defense " + i));
+            types.AddRange(new[] { ("factory", "Factory"), ("refinery", "Refinery"), ("drydock", "Dry dock") });
+            for (int i = 1; i <= 4; i++) types.Add(("dockarm-" + i, "Docking arm " + i));
+            AddChoice("placementType", "Project", types, _ => drafts.Remove("placementPreset"));
+            string kind = Value("placementType");
+            bool orbital = NetPlayerStations.TryDefenseSlot(kind, out int defenseSlot);
+            var system = db.Systems.Find(entry => entry.index == station.system);
+            int previewOrbit = station.stationIndex;
+            placementOrbit = previewOrbit;
+            placementSnapshot = PlacementSnapshotOf(station, previewOrbit);
+            var layout = OrbitLayout.Build(db, previewOrbit);
+            if (layout == null) { AddInfo("Orbit editor", "The orbit preview is unavailable."); return; }
+            int race = system?.raceId ?? -1;
+            var settings = Modding.ModPlayerInfrastructure.Current;
+            var presets = (orbital ? settings.OrbitalStructures.Where(preset =>
+                preset.Defense && NetPlayerStations.OrbitalPresetAvailable(preset, race) &&
+                settings.OrbitalDefenseLimit > 0) :
+                NetPlayerStations.ModuleExteriorChoices(station, kind)).ToList();
+            var existing = station.placements?.Find(entry => entry?.kind == kind);
+            var builtDefense = orbital ? NetPlayerStations.OrbitalStructures?.FirstOrDefault(entry => entry != null && entry.orbit == previewOrbit && entry.defense && entry.slot == defenseSlot) : null;
+            if (builtDefense != null) { AddInfo("Defense " + (defenseSlot + 1), builtDefense.name + " · " + (builtDefense.operational ? "Operational" : "Construction ordered")); AddInfo("Placement", "Fixed once construction is ordered."); return; }
+            if (!drafts.ContainsKey("placementPreset") && existing != null) drafts["placementPreset"] = existing.preset;
+            AddChoice("placementPreset", "Exterior model", presets.Select(preset => (preset.Id, preset.Name)).ToList());
+            var preset = presets.Find(value => value.Id == Value("placementPreset"));
+            if (preset == null) return;
+
+            Vector3 stationPosition = NetPlayerStations.StationPosition(previewOrbit);
+            string draftKey = station.id + ":" + previewOrbit + ":" + kind;
+            bool hasDraft = placementDrafts.TryGetValue(draftKey, out Vector3Int position);
+            if (!hasDraft)
+                position = existing != null ? new Vector3Int(existing.x, existing.y, existing.z) :
+                    (orbital ? Vector3Int.RoundToInt(Quaternion.Euler(0, defenseSlot * 360f / Math.Max(1, settings.OrbitalDefenseLimit), 0) * new Vector3(0, 0, 8000)) : new Vector3Int(0, 0, Mathf.Clamp(Mathf.RoundToInt(layout.stationReach * OrbitLayout.MetersPerUnit * layout.StationScale), 300, 9000)));
+
+            bool dockingArm = kind.StartsWith("dockarm-", StringComparison.Ordinal);
+            if (!placementRotationDrafts.TryGetValue(draftKey, out var angles))
+                angles = existing?.hasRotation == true ? new Vector3Int(existing.pitch, existing.yaw, existing.roll) :
+                    dockingArm && position.sqrMagnitude > 0 ? Vector3Int.RoundToInt(Quaternion.LookRotation((Vector3)position).eulerAngles) : Vector3Int.zero;
+            Quaternion Rotation() => Quaternion.Euler(angles);
+            Vector3Int Absolute(Vector3Int point) => Vector3Int.RoundToInt(stationPosition) + point;
+            string PlacementError(Vector3Int point)
+            {
+                var error = NetPlayerStations.OrbitalPlacementError(previewOrbit, layout, Absolute(point), preset.HitRadius);
+                if (error != null) return error;
+                foreach (var other in station.placements ?? new List<PlayerStationPlacement>())
+                {
+                    if (other == null || other.kind == kind || !NetPlayerStations.TryDefenseSlot(other.kind, out _)) continue;
+                    var otherPreset = settings.OrbitalStructures.FirstOrDefault(p => p.Defense && p.Id == other.preset);
+                    float separation = Math.Max(200f, preset.HitRadius + (otherPreset?.HitRadius ?? 0f));
+                    if ((new Vector3(other.x, other.y, other.z) - point).sqrMagnitude < separation * separation) return "Overlaps " + other.kind;
+                }
+                return null;
+            }
+
+            bool TryNextClearPosition(Vector3Int start, out Vector3Int next)
+            {
+                float angle = Mathf.Atan2(start.x, start.z) * Mathf.Rad2Deg;
+                float baseRadius = Mathf.Max(8000f, NetPlayerStations.OrbitalStationClearance(layout, preset.HitRadius) + 500f);
+                const int positionsPerRing = 12;
+                for (int ring = 0; ring < 5; ring++)
+                {
+                    float radius = baseRadius + ring * Mathf.Max(2500f, preset.HitRadius * 2f + 500f);
+                    for (int slot = 1; slot <= positionsPerRing; slot++)
+                    {
+                        Vector3 offset = Quaternion.Euler(0, angle + slot * (360f / positionsPerRing), 0) * new Vector3(0, 0, radius);
+                        next = Vector3Int.RoundToInt(offset);
+                        if (next != start && PlacementError(next) == null) return true;
+                    }
+                }
+                next = start;
+                return false;
+            }
+
+            int slotLimit = preset.Defense ? settings.OrbitalDefenseLimit : settings.OtherOrbitalStructureLimit;
+            int slotsTaken = orbital ? NetPlayerStations.OrbitalStructures?.Count(entry =>
+                entry != null && entry.orbit == previewOrbit && entry.defense == preset.Defense) ?? 0 : 0;
+            if (orbital && PlacementError(position) != null && TryNextClearPosition(position, out var initialClear))
+                position = initialClear;
+
+            var configuration = body.contentContainer.Children().Skip(firstControl).ToList();
+            AddSection("ORBIT PLACEMENT", orbital
+                ? "Save each numbered defense position before ordering construction. Amber markers show saved positions and existing projects. Drag empty space to rotate, middle-drag to pan, scroll to zoom, and hold Ctrl to snap."
+                : "Drag the marker or its arrows to move; enable rotation rings and drag a colored ring. Drag empty space to orbit the camera, middle-drag to pan, scroll to zoom, and hold Ctrl to snap.");
+            var editor = new VisualElement(); editor.AddToClassList("player-station-orbit-layout"); body.Add(editor);
+            var scene = new VisualElement(); scene.AddToClassList("player-station-orbit-scene"); editor.Add(scene);
+            var controls = new VisualElement(); controls.AddToClassList("player-station-orbit-controls"); editor.Add(controls);
+            foreach (var element in configuration) { element.RemoveFromHierarchy(); controls.Add(element); }
+            if (orbital)
+            {
+                var reserved = NetPlayerStations.OrbitalStructures?.Where(entry => entry != null && entry.orbit == previewOrbit && entry.defense == preset.Defense).ToList();
+                int built = reserved?.Count(entry => entry.operational) ?? 0;
+                AddInfoTo(controls, preset.Defense ? "Defense slots" : "Structure slots", $"{slotsTaken} / {slotLimit} reserved");
+                AddInfoTo(controls, "Operational", built.ToString());
+                AddInfoTo(controls, "Unbuilt / planned", (slotsTaken - built).ToString());
+                if (reserved != null)
+                    foreach (var entry in reserved.OrderBy(entry => entry.slot))
+                        AddInfoTo(controls, $"Slot {entry.slot + 1}", entry.name + " · " + (entry.operational ? "Operational" : entry.completesUtc > 0 ? "Building" : "Awaiting materials"));
+            }
+            var cameraControls = new VisualElement(); cameraControls.style.flexDirection = FlexDirection.Row; cameraControls.style.flexWrap = Wrap.Wrap; scene.Add(cameraControls);
+            var snap = new Toggle("Snap to 100 m") { value = Value("placementSnap") == "true" }; snap.AddToClassList("player-station-field"); controls.Add(snap);
+            snap.RegisterValueChangedCallback(change => drafts["placementSnap"] = change.newValue ? "true" : "false");
+            var placementActions = new VisualElement();
+            placementActions.style.flexDirection = FlexDirection.Row;
+            placementActions.style.flexWrap = Wrap.Wrap;
+            controls.Add(placementActions);
+            var viewport = new VisualElement();
+            viewport.AddToClassList("player-station-orbit-viewport");
+            viewport.style.height = compact ? 300 : Mathf.Clamp(panel.resolvedStyle.height * 0.55f, 360f, 720f);
+            viewport.style.flexShrink = 0;
+            scene.Add(viewport);
+            var coordinateLabel = new Label();
+            coordinateLabel.AddToClassList("player-station-note");
+            controls.Add(coordinateLabel);
+            var placementStatus = new Label();
+            placementStatus.AddToClassList("player-station-note");
+            placementStatus.style.whiteSpace = WhiteSpace.Normal;
+            controls.Add(placementStatus);
+
+            const int previewLayer = 31;
+            placementRoot = new GameObject("Station placement preview");
+            placementRoot.transform.position = new Vector3(0, -1000000f, 0);
+            var frame = new GameObject("Placement coordinates").transform;
+            frame.SetParent(placementRoot.transform, false);
+            var model = OrbitBuilder.SpawnStation(db, layout, frame);
+            if (model != null) model.transform.localPosition = Vector3.zero;
+            var ghost = OrbitBuilder.Spawn(db, NetPlayerStations.OrbitalStructureAssembly(preset.Assembly, preset.StationModel, db),
+                Vector3.zero, Quaternion.identity, "Proposed structure", placementRoot.transform);
+            if (ghost != null) ghost.transform.localScale *= preset.ModelScale;
+            void SetLayer(Transform rootTransform)
+            {
+                foreach (var part in rootTransform.GetComponentsInChildren<Transform>(true))
+                    if (part.gameObject.layer != ModBuilderGizmo.PickLayer) part.gameObject.layer = previewLayer;
+            }
+            SetLayer(placementRoot.transform);
+            foreach (var collider in frame.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            var cameraObject = new GameObject("Placement camera");
+            cameraObject.transform.SetParent(placementRoot.transform, false);
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(.025f, .045f, .07f);
+            camera.cullingMask = 1 << previewLayer;
+            camera.nearClipPlane = 1;
+            camera.farClipPlane = 240000;
+            placementTexture = new RenderTexture(1024, 512, 24);
+            placementTexture.Create();
+            camera.targetTexture = placementTexture;
+            viewport.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(placementTexture));
+            var lightObject = new GameObject("Placement light");
+            lightObject.transform.SetParent(placementRoot.transform, false);
+            lightObject.transform.rotation = Quaternion.Euler(35, -45, 0);
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.cullingMask = 1 << previewLayer;
+            light.intensity = 1.4f;
+
+            int[] Units(Vector3 point) => new[] { Mathf.RoundToInt(-point.x / OrbitLayout.MetersPerUnit),
+                Mathf.RoundToInt(point.y / OrbitLayout.MetersPerUnit), Mathf.RoundToInt(point.z / OrbitLayout.MetersPerUnit) };
+            var mounts = new List<WeaponMount>();
+            foreach (var entry in station.placements ?? new List<PlayerStationPlacement>())
+                if (previewOrbit == station.stationIndex && entry != null && entry.kind != kind)
+                    mounts.Add(new WeaponMount { slotType = 8, position_engine = Units(new Vector3(entry.x, entry.y, entry.z)) });
+            if (NetPlayerStations.OrbitalStructures != null)
+                foreach (var structure in NetPlayerStations.OrbitalStructures)
+                    if (structure != null && structure.orbit == previewOrbit)
+                        mounts.Add(new WeaponMount { slotType = 1, position_engine = Units(NetPlayerStations.OrbitalStructurePosition(structure) - stationPosition) });
+            int active = mounts.Count;
+            mounts.Add(new WeaponMount { slotType = orbital ? 2 : 8, position_engine = Units(position) });
+            var handles = new GameObject("Placement handles");
+            handles.transform.SetParent(placementRoot.transform, false);
+            var gizmo = handles.AddComponent<ModBuilderGizmo>();
+            gizmo.cam = camera;
+            gizmo.Selected = active;
+            gizmo.Bind(frame, mounts);
+            SetLayer(handles.transform);
+            if (placementCameraKey != draftKey)
+            {
+                placementCameraKey = draftKey;
+                placementDistance = Mathf.Max(1800f, position.magnitude * 1.8f);
+                placementYaw = 34;
+                placementPitch = 29;
+            }
+            // Rotation controls operate on the same transform that will be saved by the server.
+            var rotateMode = new Toggle("Show rotation rings"); controls.Add(rotateMode);
+            var localAxes = new Toggle("Local axes") { value = true }; controls.Add(localAxes);
+            var axes = new List<string> { "Pitch (X)", "Yaw (Y)", "Roll (Z)" };
+            var axisChoice = new PopupField<string>("Rotation axis", axes, 1); controls.Add(axisChoice);
+            var steps = new List<string> { "1", "15", "45", "90" };
+            var stepChoice = new PopupField<string>("Rotation step (degrees)", steps, 1); controls.Add(stepChoice);
+            var pitchField = new IntegerField("Pitch (X)"); var yawField = new IntegerField("Yaw (Y)"); var rollField = new IntegerField("Roll (Z)");
+            foreach (var field in new[] { pitchField, yawField, rollField }) { field.isDelayed = true; field.AddToClassList("player-station-field"); controls.Add(field); }
+            var ringColors = new[] { new Color(1f,.25f,.25f), new Color(.25f,1f,.4f), new Color(.25f,.6f,1f) };
+            var rings = new LineRenderer[3];
+            LineRenderer PreviewLine(string name, Color color, int count, bool loop = false)
+            {
+                var go = new GameObject(name); go.transform.SetParent(placementRoot.transform, false); go.layer = previewLayer;
+                var line = go.AddComponent<LineRenderer>(); line.sharedMaterial = PlacementMaterial(color);
+                line.startColor = line.endColor = Color.white; line.useWorldSpace = true; line.positionCount = count; line.loop = loop;
+                line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; line.receiveShadows = false;
+                return line;
+            }
+            for (int i = 0; i < 3; i++) rings[i] = PreviewLine("Rotation ring " + i, ringColors[i], 64, true);
+            var departure = PreviewLine("Undocking path", new Color(.3f,.95f,1f), 5);
+            departure.enabled = false;
+            var shipMaterial = PlacementMaterial(new Color(.2f,.9f,.8f,.42f));
+            var stationMeshes = model != null ? model.GetComponentsInChildren<MeshFilter>() : Array.Empty<MeshFilter>();
+            // Include already constructed structures in clearance checks, not merely the station hull.
+            var obstacles = new List<MeshFilter>(stationMeshes);
+            if (SpaceHooks.PlayerOrbitalModels != null)
+                foreach (var item in SpaceHooks.PlayerOrbitalModels(db, previewOrbit))
+                {
+                    if (item.assembly == null || (item.id < 0 && -1-item.id == Array.IndexOf(NetPlayerStations.PlacementKinds, kind))) continue;
+                    var other = OrbitBuilder.Spawn(db, item.assembly, Vector3.zero, Quaternion.identity, item.name, frame);
+                    if (other == null) continue;
+                    other.transform.SetPositionAndRotation(frame.TransformPoint(item.position-stationPosition), SpaceHooks.PlayerPlacedModelRotation?.Invoke(previewOrbit,item.id) ?? Quaternion.identity);
+                    other.transform.localScale *= item.scale; SetLayer(other.transform);
+                    foreach (var collider in other.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                    obstacles.AddRange(other.GetComponentsInChildren<MeshFilter>());
+                }
+            GameObject dockShip = null;
+            MeshFilter[] shipMeshes = Array.Empty<MeshFilter>();
+            WeaponMount previewMount = null;
+            var previewStatus = new Label(); previewStatus.style.whiteSpace = WhiteSpace.Normal;
+            Vector3 AxisOf(int i) => i == 0 ? Vector3.right : i == 1 ? Vector3.up : Vector3.forward;
+            void UpdateRings()
+            {
+                Vector3 centre = frame.TransformPoint(position);
+                float radius = Mathf.Max(50f, Vector3.Distance(camera.transform.position, centre) * .13f);
+                for (int i = 0; i < 3; i++)
+                {
+                    var ring = rings[i]; ring.enabled = rotateMode.value;
+                    ring.widthMultiplier = radius * .035f;
+                    Quaternion turn = (localAxes.value ? Rotation() : Quaternion.identity) * Quaternion.FromToRotation(Vector3.forward, AxisOf(i));
+                    for (int k = 0; k < ring.positionCount; k++)
+                    {
+                        float a = k * Mathf.PI * 2f / ring.positionCount;
+                        ring.SetPosition(k, centre + turn * new Vector3(Mathf.Cos(a),Mathf.Sin(a),0) * radius * (1f + i*.06f));
+                    }
+                }
+            }
+            rotateMode.RegisterValueChangedCallback(_ => UpdateRings()); localAxes.RegisterValueChangedCallback(_ => UpdateRings());
+            Vector3 orbitPan = Vector3.zero;
+            var orbitPanMode = new Toggle("Pan camera (drag)"); cameraControls.Add(orbitPanMode);
+            void SetCamera()
+            {
+                camera.transform.position = frame.position + orbitPan + Quaternion.Euler(placementPitch, placementYaw, 0) * new Vector3(0, 0, -placementDistance);
+                camera.transform.LookAt(frame.position + orbitPan);
+                UpdateRings();
+            }
+            void CameraPreset(string title, float pitch, float yaw)
+            {
+                var button = new Button(() => { placementPitch = pitch; placementYaw = yaw; SetCamera(); }) { text = title };
+                button.AddToClassList("player-station-action"); cameraControls.Add(button);
+            }
+            CameraPreset("Perspective", 29f, 34f);
+            CameraPreset("Top", 89f, 0f);
+            CameraPreset("Side", 0f, 90f);
+            cameraControls.Add(new Button(() => { orbitPan = Vector3.zero; SetCamera(); }) { text = "Centre camera" });
+            var orderButton = new Button { text = "Save planned placement" };
+            void AddPlacementControl(Button button)
+            {
+                StyleChoice(button, false);
+                button.AddToClassList("player-station-action");
+                button.style.flexGrow = 1;
+                button.clicked += () => menu?.PlayRelease();
+                placementActions.Add(button);
+            }
+            void UpdatePoint()
+            {
+                position = Vector3Int.RoundToInt(frame.InverseTransformPoint(gizmo.WorldOf(mounts[active])));
+                placementDrafts[draftKey] = position;
+                placementRotationDrafts[draftKey] = angles;
+                pitchField.SetValueWithoutNotify(angles.x); yawField.SetValueWithoutNotify(angles.y); rollField.SetValueWithoutNotify(angles.z);
+                if (ghost != null) ghost.transform.SetPositionAndRotation(frame.TransformPoint(position), Rotation());
+                UpdateRings();
+                if (dockShip != null && previewMount != null)
+                {
+                    var pose = NetPlayerStations.DockArmPose(position, preset.HitRadius, Rotation());
+                    var shipRotation = Es2Dock.ExternalDockRotation(pose.rotation, previewMount);
+                    dockShip.transform.SetPositionAndRotation(Es2Dock.ExternalDockPosition(frame.TransformPoint(pose.position), shipRotation, previewMount), shipRotation);
+                    var path = Es2Dock.ExternalDepartureOffset(shipRotation);
+                    bool overlap = false, blockedDeparture = false;
+                    foreach (var shipPart in shipMeshes)
+                    {
+                        foreach (var obstacle in obstacles)
+                        {
+                            if (PlacementBoxesOverlap(shipPart, obstacle, Vector3.zero)) { overlap = true; break; }
+                            if (!blockedDeparture && PlacementBoxesOverlap(shipPart, obstacle, path)) blockedDeparture = true;
+                        }
+                        if (overlap) break;
+                    }
+                    PlacementTint(shipMaterial, overlap || blockedDeparture ? new Color(1f,.2f,.2f,.5f) : new Color(.2f,.9f,.8f,.42f));
+                    departure.enabled = true;
+                    departure.widthMultiplier = Mathf.Max(4f, Vector3.Distance(camera.transform.position,dockShip.transform.position)*.004f);
+                    PlacementTint(departure.sharedMaterial, overlap || blockedDeparture ? Color.red : Color.cyan);
+                    var start = dockShip.transform.position; var end = start + path;
+                    var back = shipRotation * Vector3.forward * 45f; var side = shipRotation * Vector3.right * 30f;
+                    departure.SetPositions(new[] { start, end, end-back+side, end, end-back-side });
+                    previewStatus.text = overlap ? "Warning: docked hull overlaps structure bounds." : blockedDeparture ? "Warning: undocking path intersects structure bounds." : "Docked pose and undocking path clear of checked mesh bounds.";
+                }
+                coordinateLabel.text = $"X {position.x:N0} m   Y {position.y:N0} m   Z {position.z:N0} m";
+                if (!orbital) { placementStatus.text = "Save the planned position and rotation before construction."; return; }
+                string error = PlacementError(position);
+                placementStatus.text = placementAwaitingSnapshot ? "Placement saved. Synchronizing reserved slots…" : error ?? "Position clear. Save this plan without ordering construction.";
+                orderButton.SetEnabled(error == null && !placementOrderPending);
+            }
+            int RotationStep() => int.Parse(stepChoice.value);
+            Vector3 RotationAxis() => axisChoice.index == 0 ? Vector3.right : axisChoice.index == 1 ? Vector3.up : Vector3.forward;
+            void Rotate(float amount)
+            {
+                Quaternion delta = Quaternion.AngleAxis(amount, RotationAxis());
+                angles = Vector3Int.RoundToInt((localAxes.value ? Rotation() * delta : delta * Rotation()).eulerAngles);
+                UpdatePoint();
+            }
+            void ReadAngles() { angles = new Vector3Int(Mathf.Clamp(pitchField.value, -360, 360), Mathf.Clamp(yawField.value, -360, 360), Mathf.Clamp(rollField.value, -360, 360)); UpdatePoint(); }
+            pitchField.RegisterValueChangedCallback(_ => ReadAngles()); yawField.RegisterValueChangedCallback(_ => ReadAngles()); rollField.RegisterValueChangedCallback(_ => ReadAngles());
+            AddPlacementControl(new Button(() => Rotate(-RotationStep())) { text = "Rotate −" });
+            AddPlacementControl(new Button(() => Rotate(RotationStep())) { text = "Rotate +" });
+            AddPlacementControl(new Button(() => { angles = Vector3Int.zero; UpdatePoint(); }) { text = "Reset rotation" });
+            if (dockingArm)
+            {
+                var ships = db.Ships.Where(s => s != null && Modding.ExternalDockingRules.CanDockExternally(s) && db.MountsOf(s.index, 8)?.Count > 0).ToList();
+                if (ships.Count > 0)
+                {
+                    var names = ships.Select(s => s.name + " #" + s.index).ToList();
+                    var shipChoice = new PopupField<string>("Docked preview ship", names, 0); controls.Add(shipChoice);
+                    var mountRow = new VisualElement(); controls.Add(mountRow); controls.Add(previewStatus);
+                    void PreviewShip()
+                    {
+                        if (dockShip != null) { dockShip.SetActive(false); UnityEngine.Object.Destroy(dockShip); }
+                        dockShip = null; previewMount = null; shipMeshes = Array.Empty<MeshFilter>(); departure.enabled = false; mountRow.Clear();
+                        var ship = ships[shipChoice.index];
+                        var shipMounts = db.MountsOf(ship.index, 8);
+                        var prefab = AssembledObject.LoadPrefab(db.ShipAssembly(ship.index));
+                        if (prefab == null) { previewStatus.text = "Ship model unavailable."; return; }
+                        dockShip = UnityEngine.Object.Instantiate(prefab, frame);
+                        dockShip.name = "External docking preview ship";
+                        SetLayer(dockShip.transform);
+                        shipMeshes = dockShip.GetComponentsInChildren<MeshFilter>();
+                        if (shipMaterial != null) foreach (var renderer in dockShip.GetComponentsInChildren<Renderer>(true))
+                            renderer.sharedMaterials = Enumerable.Repeat(shipMaterial, renderer.sharedMaterials.Length).ToArray();
+                        foreach (var collider in dockShip.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+                        var mountChoice = new PopupField<string>("Ship attachment", shipMounts.Select((m, i) => "Hardpoint " + (i + 1)).ToList(), 0);
+                        mountRow.Add(mountChoice); previewMount = shipMounts[0];
+                        mountChoice.RegisterValueChangedCallback(_ => { previewMount = shipMounts[mountChoice.index]; UpdatePoint(); });
+                        UpdatePoint();
+                    }
+                    shipChoice.RegisterValueChangedCallback(_ => PreviewShip()); PreviewShip();
+                }
+                else controls.Add(new Label("No compatible external docking ship is available."));
+            }
+            if (orbital)
+                AddPlacementControl(new Button(() =>
+                {
+                    if (TryNextClearPosition(position, out var clear))
+                    {
+                        mounts[active].position_engine = Units(clear);
+                        UpdatePoint();
+                    }
+                    else placementStatus.text = "No clear position found nearby. Try moving the marker manually.";
+                }) { text = "Next clear position" });
+            AddPlacementControl(new Button(() =>
+            {
+                placementDistance = Mathf.Max(1800f, position.magnitude * 1.8f);
+                orbitPan = Vector3.zero;
+                SetCamera();
+            }) { text = "Frame orbit" });
+            AddPlacementControl(orderButton);
+            orderButton.clicked += () =>
+            {
+                if (orbital && (placementOrderPending || PlacementError(position) != null)) return;
+                Vector3Int point = position;
+                string command = $"/station place {station.id} {kind}";
+                string request = $"{command} {point.x} {point.y} {point.z} {preset.Id} {angles.x} {angles.y} {angles.z}";
+                if (!orbital) { Send(request); return; }
+                int version = ++placementRequestVersion;
+                string submittedSnapshot = PlacementSnapshotOf(station, previewOrbit);
+                placementAwaitingSnapshot = false;
+                placementOrderPending = true;
+                placementRequestDeadline = Time.unscaledTime + 10f;
+                orderButton.SetEnabled(false);
+                if (!Dispatch(request, result =>
+                {
+                    if (version != placementRequestVersion) return;
+                    bool accepted = result?.EndsWith("planned placement saved.", StringComparison.Ordinal) == true;
+                    // The reply and replicated registry may arrive in either order. Do not allow
+                    // another confirmation against stale slots or stale collision geometry.
+                    var live = NetPlayerStations.StationAt(CurrentOrbit);
+                    placementAwaitingSnapshot = accepted && PlacementSnapshotOf(live, previewOrbit) == submittedSnapshot;
+                    placementOrderPending = placementAwaitingSnapshot;
+                    if (placementAwaitingSnapshot) placementRequestDeadline = Time.unscaledTime + 10f;
+                    if (live?.id == selected?.id) selected = live;
+                    if (managementPage == "placement" && !placementDragging) RebuildBody();
+                }))
+                {
+                    placementOrderPending = false;
+                    UpdatePoint();
+                }
+            };
+            Vector2 ScreenPoint(Vector2 panelPosition)
+            {
+                Vector2 p = viewport.WorldToLocal(panelPosition);
+                return new Vector2(p.x / viewport.layout.width * camera.pixelWidth,
+                    (1f - p.y / viewport.layout.height) * camera.pixelHeight);
+            }
+            SetCamera();
+            UpdatePoint();
+            bool orbiting = false, movingInPlane = false, rotating = false, orbitPanning = false;
+            float rotationDrag = 0f;
+            Plane rotationPlane = default; Vector3 previousRingDirection = Vector3.zero, ringCentre = Vector3.zero;
+            int PickRing(Vector2 point)
+            {
+                if (!rotateMode.value) return -1;
+                float best = 14f * 14f; int chosen = -1;
+                for (int i = 0; i < rings.Length; i++)
+                    for (int j = 0; j < rings[i].positionCount; j++)
+                    {
+                        Vector3 a = camera.WorldToScreenPoint(rings[i].GetPosition(j)), b = camera.WorldToScreenPoint(rings[i].GetPosition((j+1)%rings[i].positionCount));
+                        if (a.z <= 0 || b.z <= 0) continue;
+                        Vector2 segment = (Vector2)b-(Vector2)a;
+                        float t = Mathf.Clamp01(Vector2.Dot(point-(Vector2)a,segment)/Mathf.Max(.001f,segment.sqrMagnitude));
+                        float d = (point-((Vector2)a+t*segment)).sqrMagnitude;
+                        if (d < best) { best = d; chosen = i; }
+                    }
+                return chosen;
+            }
+            Plane dragPlane = default;
+            Vector3 grabOffset = Vector3.zero;
+            viewport.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (placementDragging || (evt.button != 0 && evt.button != 2)) return;
+                orbitPanning = evt.button == 2 || orbitPanMode.value;
+                if (orbitPanning)
+                {
+                    placementDragging = true; viewport.CapturePointer(evt.pointerId); evt.StopPropagation(); return;
+                }
+                var point = ScreenPoint(evt.position);
+                bool axis = gizmo.PickAxis(point) >= 0;
+                bool marker = gizmo.PickMarker(point) == active;
+                int ring = PickRing(point);
+                rotating = ring >= 0;
+                rotationDrag = 0f;
+                if (rotating)
+                {
+                    axisChoice.index = ring; ringCentre = frame.TransformPoint(position);
+                    rotationPlane = new Plane((localAxes.value ? Rotation() : Quaternion.identity)*AxisOf(ring), ringCentre);
+                    var ray = camera.ScreenPointToRay(point);
+                    previousRingDirection = rotationPlane.Raycast(ray,out float hitRing) ? (ray.GetPoint(hitRing)-ringCentre).normalized : Vector3.zero;
+                }
+                if (!rotating && orbital && marker && !axis)
+                {
+                    var markerWorld = gizmo.WorldOf(mounts[active]);
+                    dragPlane = new Plane(camera.transform.forward, markerWorld);
+                    var ray = camera.ScreenPointToRay(point);
+                    movingInPlane = dragPlane.Raycast(ray, out float hit);
+                    if (movingInPlane) grabOffset = markerWorld - ray.GetPoint(hit);
+                }
+                orbiting = !rotating && !movingInPlane && (!(axis || marker) || !gizmo.BeginDrag(point));
+                placementDragging = true;
+                viewport.CapturePointer(evt.pointerId);
+                evt.StopPropagation();
+            });
+            viewport.RegisterCallback<PointerMoveEvent>(evt =>
+            {
+                if (placementDragging && !viewport.HasPointerCapture(evt.pointerId)) return;
+                if (orbitPanning)
+                {
+                    orbitPan += PlacementPan(camera, viewport, placementDistance, evt.deltaPosition, evt.shiftKey);
+                    SetCamera(); evt.StopPropagation(); return;
+                }
+                var point = ScreenPoint(evt.position);
+                if (rotating)
+                {
+                    var ray = camera.ScreenPointToRay(point);
+                    if (rotationPlane.Raycast(ray,out float hitRing))
+                    {
+                        Vector3 direction = (ray.GetPoint(hitRing)-ringCentre).normalized;
+                        if (previousRingDirection.sqrMagnitude > .5f) rotationDrag += Vector3.SignedAngle(previousRingDirection,direction,rotationPlane.normal);
+                        previousRingDirection = direction;
+                    }
+                    else rotationDrag += evt.deltaPosition.x * .6f;
+                    float step = evt.ctrlKey ? RotationStep() : 1f;
+                    float turn = Mathf.Round(rotationDrag / step) * step;
+                    if (Mathf.Abs(turn) >= step) { Rotate(turn); rotationDrag -= turn; }
+                }
+                else if (movingInPlane)
+                {
+                    var ray = camera.ScreenPointToRay(point);
+                    if (dragPlane.Raycast(ray, out float hit))
+                    {
+                        Vector3 desired = frame.InverseTransformPoint(ray.GetPoint(hit) + grabOffset);
+                        if (evt.ctrlKey || snap.value) desired = new Vector3(Mathf.Round(desired.x / 100f), Mathf.Round(desired.y / 100f), Mathf.Round(desired.z / 100f)) * 100f;
+                        mounts[active].position_engine = Units(desired);
+                        UpdatePoint();
+                    }
+                }
+                else if (gizmo.Dragging)
+                {
+                    gizmo.Drag(point, evt.ctrlKey || snap.value, Mathf.RoundToInt(100f / OrbitLayout.MetersPerUnit));
+                    UpdatePoint();
+                }
+                else if (orbiting)
+                {
+                    placementYaw += evt.deltaPosition.x * .4f;
+                    placementPitch = Mathf.Clamp(placementPitch - evt.deltaPosition.y * .4f, -80, 80);
+                    SetCamera();
+                }
+                else gizmo.Hover(point);
+            });
+            viewport.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                if (!viewport.HasPointerCapture(evt.pointerId)) return;
+                bool wasPanning = orbitPanning;
+                gizmo.EndDrag();
+                orbiting = movingInPlane = rotating = orbitPanning = placementDragging = false;
+                if (!wasPanning) UpdatePoint();
+                if (viewport.HasPointerCapture(evt.pointerId)) viewport.ReleasePointer(evt.pointerId);
+            });
+            viewport.RegisterCallback<PointerCaptureOutEvent>(_ => { gizmo.EndDrag(); orbiting = movingInPlane = rotating = orbitPanning = placementDragging = false; });
+            viewport.RegisterCallback<WheelEvent>(evt =>
+            {
+                placementDistance = Mathf.Clamp(placementDistance * Mathf.Pow(1.12f, evt.delta.y), 300, 170000);
+                SetCamera();
+                evt.StopPropagation();
+            });
+        }
+
+    }
+}

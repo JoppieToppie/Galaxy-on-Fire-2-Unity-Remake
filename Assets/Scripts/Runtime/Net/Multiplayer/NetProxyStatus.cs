@@ -19,6 +19,7 @@ namespace GoF2Remake.Multiplayer
         public byte relation;      // NetProxy.Hostile / Friend / Neutral toward the owner's player
         public ushort hull;        // 0..65535 = the hull fraction
         public ushort shield;      // 0..65534 = shield fraction; 65535 = no shield
+        public ushort shieldCooldown; // remaining recharge delay, units of 100 ms
         public float radius;
         public byte flags;
         public byte life;          // NetProxy.Flying / Dying / Dead
@@ -42,6 +43,7 @@ namespace GoF2Remake.Multiplayer
             s.SerializeValue(ref relation);
             s.SerializeValue(ref hull);
             s.SerializeValue(ref shield);
+            s.SerializeValue(ref shieldCooldown);
             s.SerializeValue(ref radius);
             s.SerializeValue(ref flags);
             s.SerializeValue(ref life);
@@ -54,7 +56,7 @@ namespace GoF2Remake.Multiplayer
             s.SerializeValue(ref empMs);
         }
 
-        public bool Equals(NetProxyStatus o) => race == o.race && relation == o.relation && hull == o.hull && shield == o.shield && radius == o.radius
+        public bool Equals(NetProxyStatus o) => race == o.race && relation == o.relation && hull == o.hull && shield == o.shield && shieldCooldown == o.shieldCooldown && radius == o.radius
             && flags == o.flags && life == o.life && cloak == o.cloak && stealItem == o.stealItem && stealAmount == o.stealAmount
             && roleFlags == o.roleFlags && killer == o.killer && routeIndex == o.routeIndex && empMs == o.empMs;
 

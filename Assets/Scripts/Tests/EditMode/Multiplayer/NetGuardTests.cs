@@ -19,6 +19,17 @@ namespace GoF2Remake.Tests
     {
         // ---- NetGuard ----
 
+        [TestCase(true, true, false, true)]
+        [TestCase(true, true, true, false)]
+        [TestCase(true, false, true, true)]
+        [TestCase(false, true, false, false)]
+        [TestCase(false, false, true, true)]
+        public void FriendlyFireRespectsPvpPermission(bool squad, bool pvp, bool friendlyFire, bool protectedTarget)
+        {
+            Assert.AreEqual(protectedTarget, NetPlayer.PlayerDamageProtected(squad, pvp, friendlyFire));
+            Assert.AreEqual(squad && !friendlyFire, NetPlayer.SquadDamageBlocked(squad, friendlyFire));
+        }
+
         [Test]
         public void TheLimits()
         {
@@ -50,6 +61,16 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(NetGuard.Position(new Vector3(1.01e6f, 0, 0)));
             Assert.IsFalse(NetGuard.Position(new Vector3(0, -2e6f, 0)));
             Assert.IsFalse(NetGuard.Position(new Vector3(0, 0, float.NaN)));
+        }
+
+        [Test]
+        public void ScanDistanceRejectsInvalidAndDistantPositions()
+        {
+            Assert.IsTrue(NetState.ScanDistanceValid(Vector3.zero, Vector3.forward * 5000f));
+            Assert.IsTrue(NetState.ScanDistanceValid(Vector3.zero, Vector3.forward * NetState.ScanMaxDistanceMeters));
+            Assert.IsFalse(NetState.ScanDistanceValid(Vector3.zero, Vector3.forward * (NetState.ScanMaxDistanceMeters + 100f)));
+            Assert.IsFalse(NetState.ScanDistanceValid(Vector3.zero, new Vector3(float.NaN, 0, 0)));
+            Assert.IsFalse(NetState.ScanDistanceValid(new Vector3(2e6f, 0, 0), new Vector3(2e6f, 0, 0)));
         }
 
         [Test]
@@ -118,6 +139,214 @@ namespace GoF2Remake.Tests
             Assert.IsFalse(NetGuard.Shot(0, Vector3.zero, new Vector3(1e7f, 0, 0), up, 3000f, 0f), "too fast");
             Assert.IsFalse(NetGuard.Shot(0, Vector3.zero, v, new Vector3(float.NaN, 0, 0), 3000f, 0f));
             Assert.IsFalse(NetGuard.Shot(0, Vector3.zero, v, up, float.NaN, 0f));
+        }
+
+        [Test]
+        public void StructuralWeaponStatDoesNotAliasEnergyResistance()
+        {
+            Assert.AreEqual(189, GoF2Remake.Modding.ItemStats.IdOf("structuralDamage"));
+            Assert.AreEqual(183, GoF2Remake.Modding.ItemStats.IdOf("energyResistance"));
+        }
+
+        // ---- Player-built jumpgate shot validation ----
+
+        [Test]
+        public void RebuiltGateSecondDestructionIsPermanent()
+        {
+            var transition = typeof(NetPlayerStations).GetMethod("TransitionDestroyedGate",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(transition);
+            var gate = new PlayerJumpgateRecord
+            {
+                orbitStationIndex = 78,
+                structuralIntegrity = 0f,
+                combatStateInitialized = true
+            };
+            transition.Invoke(null, new object[] { gate });
+            Assert.IsTrue(gate.scrapped);
+            Assert.IsFalse(gate.permanentlyDestroyed);
+            Assert.AreEqual(1, gate.destructionCount);
+            Assert.IsTrue(gate.explosionPending);
+            Assert.IsFalse(gate.salvageDropPending);
+
+            // Reconstruction re-enables the same record after a successful reclaim.
+            gate.scrapped = false;
+            gate.building = false;
+            gate.explosionPending = false;
+            gate.structuralIntegrity = 10000f;
+            transition.Invoke(null, new object[] { gate });
+            Assert.IsFalse(gate.scrapped);
+            Assert.IsTrue(gate.permanentlyDestroyed);
+            Assert.AreEqual(2, gate.destructionCount);
+            Assert.IsTrue(gate.salvageDropPending);
+            Assert.IsTrue(gate.explosionPending);
+            Assert.IsNotEmpty(gate.salvageMaterials);
+            foreach (var material in gate.salvageMaterials)
+                Assert.Greater(material.required, 0);
+        }
+
+        [Test]
+        public void RegisteredGateShotCanHitOnlyOnce()
+        {
+            const ulong source = 100001;
+            const uint shot = 101;
+            var impact = new Vector3(0f, 0f, 100f);
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f,
+                Vector3.zero, Vector3.forward * 200f);
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                impact, impact, 20f));
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                impact, impact, 20f), "one shot cannot destroy a gate through repeated RPCs");
+        }
+
+        [Test]
+        public void GateHitRejectsWrongWeaponAndImpossibleTrajectory()
+        {
+            const ulong source = 100002;
+            const uint shot = 102;
+            var impact = new Vector3(0f, 0f, 100f);
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f,
+                Vector3.zero, Vector3.forward * 200f);
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 56,
+                impact, impact, 20f), "shot cannot be retagged as another equipped weapon");
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                new Vector3(100f, 0f, 100f), new Vector3(100f, 0f, 100f), 20f),
+                "a shot cannot abruptly move sideways to another mesh");
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateHit(source, shot, 55,
+                impact, impact, 20f), "a rejected report must not consume a valid shot");
+        }
+
+        [Test]
+        public void GateBlastMustReachItsReportedHullSurface()
+        {
+            const ulong source = 100003;
+            const uint shot = 103;
+            var detonation = new Vector3(0f, 0f, 100f);
+            var surface = new Vector3(0f, 0f, 120f);
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f,
+                Vector3.zero, Vector3.forward * 200f);
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateBlast(source, shot, 55,
+                detonation, surface, surface, 20f, 10f));
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateBlast(source, shot, 55,
+                detonation, surface, surface, 20f, 40f));
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateBlast(source, shot, 55,
+                detonation, surface, surface, 20f, 40f), "the detonation applies only once");
+        }
+
+        [Test]
+        public void RepeatedShotRegistrationCannotRearmConsumedGateHit()
+        {
+            const ulong source = 100004;
+            const uint shot = 104;
+            var point = Vector3.forward * 100f;
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f, Vector3.zero, Vector3.forward * 200f);
+            Assert.IsTrue(NetShotRegistry.TryConsumeGateHit(source, shot, 55, point, point, 20f));
+            NetShotRegistry.Register(source, shot, 55, NetShots.NoTarget, 10000f, Vector3.zero, Vector3.forward * 200f);
+            Assert.IsFalse(NetShotRegistry.TryConsumeGateHit(source, shot, 55, point, point, 20f));
+        }
+
+        [Test]
+        public void StationSnapshotDecodesPaddedChunksAndSplitUtf8()
+        {
+            string original = new string('x', 2799) + "é" + new string('z', 2800);
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(original);
+            var chunks = new System.Collections.Generic.List<string>();
+            for (int offset = 0; offset < bytes.Length; offset += 2800)
+                chunks.Add(System.Convert.ToBase64String(bytes, offset, System.Math.Min(2800, bytes.Length - offset)));
+            Assert.AreEqual(original, NetState.DecodePlayerStationChunks(chunks.ToArray()));
+        }
+
+        [Test]
+        public void StationSnapshotRejectsTruncatedIntermediateChunk()
+        {
+            Assert.Throws<System.FormatException>(() => NetState.DecodePlayerStationChunks(new[] { "YQ==", "Yg==" }));
+        }
+
+        [Test]
+        public void NewStorageLotDoesNotCreditStationOwnerForVisitorDeposit()
+        {
+            var station = new PlayerStationRecord { ownerProfile = "owner" };
+            station.storage.Add(new PlayerStationStorage { item = 156, amount = 10 });
+            var add = typeof(NetPlayerStations).GetMethod("AddStorageLot",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(add);
+            add.Invoke(null, new object[] { station, "visitor", 156, 10 });
+            Assert.AreEqual(1, station.storageLots.Count);
+            Assert.AreEqual("visitor", station.storageLots[0].ownerProfile);
+            Assert.AreEqual(10, station.storageLots[0].amount);
+            Assert.AreEqual(10, station.storage[0].amount);
+        }
+
+        [Test]
+        public void PlayerGateInteractionRequiresFiniteNearbyPosition()
+        {
+            var centre = Vector3.forward * 5000f;
+            Assert.IsTrue(NetPlayerStations.GateInteractionInRange(centre, centre, 375f));
+            Assert.IsTrue(NetPlayerStations.GateInteractionInRange(centre + Vector3.right * 450f, centre, 375f));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(centre + Vector3.right * 476f, centre, 375f));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(Vector3.zero, centre, 375f));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(centre, centre, float.NaN));
+            Assert.IsFalse(NetPlayerStations.GateInteractionInRange(centre, centre, 0f));
+        }
+
+        [Test]
+        public void PercentageFactionTollDoesNotOverflowLongCreditBalances()
+        {
+            Assert.AreEqual(500, NetFactions.TollFor(-5, 10000));
+            Assert.AreEqual(1, NetFactions.TollFor(-5, 0));
+            Assert.AreEqual(int.MaxValue, NetFactions.TollFor(-100, long.MaxValue));
+            Assert.AreEqual(int.MaxValue, NetFactions.TollFor(-5, long.MaxValue));
+        }
+
+        [Test]
+        public void ItemListingIdsSurviveListRemovalAndLegacyMigration()
+        {
+            var station = new PlayerStationRecord();
+            station.listings.Add(new PlayerStationListing { id = 7, item = 156 });
+            station.listings.Add(new PlayerStationListing { item = 155 });
+            station.listings.Add(new PlayerStationListing { id = 7, item = 118 });
+            var normalize = typeof(NetPlayerStations).GetMethod("NormalizeItemListingIds",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.IsNotNull(normalize);
+            normalize.Invoke(null, new object[] { station });
+            Assert.AreEqual(7, station.listings[0].id);
+            Assert.AreEqual(8, station.listings[1].id);
+            Assert.AreEqual(9, station.listings[2].id);
+            station.listings.RemoveAt(0);
+            normalize.Invoke(null, new object[] { station });
+            Assert.AreEqual(8, station.listings[0].id);
+            Assert.AreEqual(9, station.listings[1].id);
+            Assert.AreEqual(10, station.nextItemListingId);
+        }
+
+        [Test]
+        public void ConstructionDockRequiresAContactFaceNotJustNearbyFlight()
+        {
+            var centre = new Vector3(3500f, 0f, -1000f);
+            Assert.IsTrue(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.right * 120f, centre, 20f));
+            Assert.IsTrue(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.back * 120f, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.forward * 2500f, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.up * 120f, centre, 20f));
+            Assert.IsFalse(NetPlayerStations.ConstructionDockPoseValid(centre + Vector3.right * 120f, centre, float.NaN));
+        }
+
+        [Test]
+        public void ConstructionOrderIdentitySurvivesRemovalAndLegacyMigration()
+        {
+            var station = new PlayerStationRecord();
+            station.buyOrders.Add(new PlayerStationBuyOrder { id = 7, item = 156 });
+            station.buyOrders.Add(new PlayerStationBuyOrder { item = 155 });
+            station.buyOrders.Add(new PlayerStationBuyOrder { id = 7, item = 118 });
+            NetPlayerStations.NormalizeConstructionOrderIds(station);
+            Assert.AreEqual(7, station.buyOrders[0].id);
+            Assert.AreEqual(8, station.buyOrders[1].id);
+            Assert.AreEqual(9, station.buyOrders[2].id);
+            station.buyOrders.RemoveAt(0);
+            NetPlayerStations.NormalizeConstructionOrderIds(station);
+            Assert.AreEqual(8, station.buyOrders[0].id);
+            Assert.AreEqual(9, station.buyOrders[1].id);
+            Assert.AreEqual(10, station.nextConstructionOrderId);
         }
 
         // ---- NetRateLimit ----
@@ -230,5 +459,137 @@ namespace GoF2Remake.Tests
             NetRateLimit.Reset();
             Assert.IsTrue(NetRateLimit.Allow(2005, NetRateLimit.Kind.Chat));
         }
+
+        [TestCase(false, 1)]
+        [TestCase(true, 2)]
+        public void PiracyAndBountyKillsShareSecureWeight(bool secure, int weight)
+        {
+            Assert.AreEqual(weight, NetFactions.PiracyKillWeight(secure));
+        }
+
+        [Test]
+        public void StockOrbitalSentriesRequireMaintenanceAndDecayOnlyAboveFloor()
+        {
+            var rules = new GoF2Remake.Modding.ModPlayerInfrastructure();
+            Assert.AreEqual(3, rules.OrbitalStructures.Count);
+            foreach (var preset in rules.OrbitalStructures)
+            {
+                Assert.IsTrue(preset.Defense);
+                Assert.Greater(preset.MaintenanceIntervalSeconds, 0);
+                Assert.IsNotEmpty(preset.MaintenanceMaterials);
+                Assert.Greater(preset.MaintenanceDecayPercentPerDay, 0f);
+                var defense = new PlayerOrbitalStructure
+                {
+                    operational = true, defense = true, maintenanceIntervalSeconds = preset.MaintenanceIntervalSeconds,
+                    maintenanceDueUtc = 1000, maxIntegrity = 100, integrity = 100,
+                    hasMaintenanceDecayRate = true, maintenanceDecayPercentPerDay = preset.MaintenanceDecayPercentPerDay,
+                    minimumMaintenanceIntegrityPercent = preset.MinimumMaintenanceIntegrityPercent
+                };
+                Assert.IsFalse(defense.MaintenanceDue(999));
+                Assert.IsTrue(defense.MaintenanceDue(1000));
+                Assert.IsTrue(defense.CanLoseIntegrityToMaintenance);
+                Assert.AreEqual(15f, defense.MaintenanceIntegrityFloor, 0.001f);
+                defense.integrity = defense.MaintenanceIntegrityFloor;
+                Assert.IsFalse(defense.CanLoseIntegrityToMaintenance);
+            }
+        }
+
+
+        [Test]
+        public void InfrastructureDefaultsPreserveExistingBalance()
+        {
+            var rules = new GoF2Remake.Modding.ModPlayerInfrastructure();
+            Assert.AreEqual(2000, rules.StorageCapacityPerLevel);
+            Assert.AreEqual(64, rules.StorageItemTypes);
+            Assert.AreEqual(300000, rules.StationRenamePrice);
+            Assert.AreEqual(25000000, rules.StationClaimPrice);
+            Assert.IsTrue(rules.SiegeRespawnFactionOfficers);
+        }
+
+        [Test]
+        public void InfrastructureModOverridesAreBounded()
+        {
+            var rules = GoF2Remake.Modding.ModPlayerInfrastructure.Parse(
+                Newtonsoft.Json.Linq.JObject.Parse("{\"storageCapacityPerLevel\":4000,\"storageItemTypes\":128,\"stationRenamePrice\":500000,\"siegeRespawnFactionOfficers\":false}"));
+            Assert.AreEqual(4000, rules.StorageCapacityPerLevel);
+            Assert.AreEqual(128, rules.StorageItemTypes);
+            Assert.AreEqual(500000, rules.StationRenamePrice);
+            Assert.IsFalse(rules.SiegeRespawnFactionOfficers);
+            Assert.IsTrue(rules.SiegeRespawnStationAdministrators);
+        }
+
+
+        [Test]
+        public void ConstructionQueueProcessesOnlyDueJobsInDeadlineOrder()
+        {
+            var queue = new ConstructionDeadlineQueue();
+            queue.Schedule(ConstructionJobKind.Jumpgate, 9, 120, 100);
+            queue.Schedule(ConstructionJobKind.Module, 2, 110, 100);
+            queue.Schedule(ConstructionJobKind.Station, 5, 110, 100);
+            queue.Schedule(ConstructionJobKind.Module, 2, 110, 100);
+            Assert.AreEqual(3, queue.Count);
+            Assert.IsFalse(queue.TryTakeDue(109, out _));
+            Assert.IsTrue(queue.TryTakeDue(110, out var station));
+            Assert.AreEqual((int)ConstructionJobKind.Station, station.kind);
+            Assert.IsTrue(queue.TryTakeDue(110, out var module));
+            Assert.AreEqual((int)ConstructionJobKind.Module, module.kind);
+            Assert.IsFalse(queue.TryTakeDue(119, out _));
+            Assert.IsTrue(queue.TryTakeDue(120, out var gate));
+            Assert.AreEqual(9, gate.id);
+            Assert.IsFalse(queue.TryTakeDue(120, out _));
+        }
+
+        [Test]
+        public void ConstructionQueueRetrySurvivesIndexRebuildButCancelledJobsDoNot()
+        {
+            var queue = new ConstructionDeadlineQueue();
+            queue.Schedule(ConstructionJobKind.Module, 2, 50, 100);
+            queue.Schedule(ConstructionJobKind.Station, 3, 105, 100);
+            Assert.IsTrue(queue.TryTakeDue(100, out var job));
+            queue.Retry(job, 100);
+            queue.BeginRebuild(101);
+            queue.Schedule(ConstructionJobKind.Module, 2, 50, 101);
+            // Station 3 was cancelled; a replacement project has a different deadline.
+            queue.Schedule(ConstructionJobKind.Station, 3, 200, 101);
+            queue.EndRebuild();
+            Assert.IsFalse(queue.TryTakeDue(104, out _));
+            Assert.IsTrue(queue.TryTakeDue(105, out var retry));
+            Assert.AreEqual(job.deadline, retry.deadline);
+            Assert.AreEqual(job.id, retry.id);
+            Assert.IsFalse(queue.TryTakeDue(105, out _));
+            Assert.IsTrue(queue.TryTakeDue(200, out var replacement));
+            Assert.AreEqual(200L, replacement.deadline);
+        }
+
+        [Test]
+        public void ConstructionQueueHandlesOfflineDeadlinesAndClearsOnWorldChange()
+        {
+            var queue = new ConstructionDeadlineQueue();
+            queue.Schedule(ConstructionJobKind.DryDock, 4, 10, 10000);
+            queue.Schedule(ConstructionJobKind.DonationFunding, 5, 0, 10000);
+            Assert.IsTrue(queue.TryTakeDue(10000, out var offline));
+            Assert.AreEqual((int)ConstructionJobKind.DryDock, offline.kind);
+            queue.Reset();
+            Assert.AreEqual(0, queue.Count);
+            Assert.IsFalse(queue.TryTakeDue(long.MaxValue, out _));
+        }
+
+        [Test]
+        public void StockDefenseMaintenanceModOverridesAllThreeModels()
+        {
+            var rules = GoF2Remake.Modding.ModPlayerInfrastructure.Parse(Newtonsoft.Json.Linq.JObject.Parse(
+                "{\"stockDefenseMaintenanceSeconds\":86400,\"stockDefenseDecayPercentPerDay\":2,\"stockDefenseMinimumIntegrityPercent\":20}"));
+            Assert.AreEqual(3, rules.OrbitalStructures.Count);
+            foreach (var preset in rules.OrbitalStructures)
+            {
+                Assert.AreEqual(86400, preset.MaintenanceIntervalSeconds);
+                Assert.AreEqual(2f, preset.MaintenanceDecayPercentPerDay);
+                Assert.AreEqual(20f, preset.MinimumMaintenanceIntegrityPercent);
+                Assert.Greater(preset.MaintenanceMaterials.Count, 0);
+            }
+            Assert.Throws<GoF2Remake.Modding.ModJsonException>(() =>
+                GoF2Remake.Modding.ModPlayerInfrastructure.Parse(Newtonsoft.Json.Linq.JObject.Parse("{\"stockDefenseMaintenanceSeconds\":0}")));
+        }
+
     }
 }

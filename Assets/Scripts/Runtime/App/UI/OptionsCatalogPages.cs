@@ -867,6 +867,10 @@ namespace GoF2Remake.UI
                               X("npcDogfightEs2All", "ES2 for all") },
                 () => Settings.NpcDogfight, i => Settings.NpcDogfight = i,
                 () => X("npcDogfightHelp2", "GoF3: attack runs, veering off, tailing you, barrel rolls on hits. ES2: runs past you, gaining distance, evading when tailed, fleeing when nearly dead."))));
+            var smepFighterAi = Toggle("smepFighterAi", OptionPage.Gameplay, () => X("smepFighterAi", "SMEP 6DOF fighter AI"),
+                () => Settings.SmepFighterAi, v => Settings.SmepFighterAi = v);
+            smepFighterAi.description = () => X("smepFighterAiHelp", "Eligible NPC fighters use native six-axis combat and their hull's flight tuning. Mobile players in smaller ships keep the fallback combat behavior. Applies to newly spawned fighters.");
+            list.Add(SessionRule(smepFighterAi));
             // Remake (2026-11-06): EVERSPACE 2's aim (Settings.Es2Aiming, Flight.Es2Aim / Es2Director), apart from the dogfighting.
             var es2Aiming = Toggle("es2Aiming", OptionPage.Gameplay, () => X("es2Aiming", "EVERSPACE 2 NPC aiming"),
                 () => Settings.Es2Aiming, v => Settings.Es2Aiming = v);

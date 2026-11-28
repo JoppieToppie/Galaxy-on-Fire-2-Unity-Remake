@@ -1,5 +1,5 @@
 // NpcSmepAiTests.cs
-// Regression coverage for the mod opt-in boundary and SMEP's fallback firing safeguards.
+// Regression coverage for SMEP fighter flight and its fallback firing safeguards.
 
 using NUnit.Framework;
 using GoF2Remake.World;
@@ -31,9 +31,37 @@ namespace GoF2Remake.Tests
         [TestCase(false, true, true)]
         [TestCase(true, false, false)]
         [TestCase(true, true, false)]
-        public void DesktopHostAlsoRequiresOptInForMobileMultiplayerTargets(bool mobileTarget, bool mobileOptIn, bool expected)
+        public void ProtectedMobileTargetsAlwaysUseFallback(bool mobileTarget, bool mobileOptIn, bool expected)
         {
             Assert.AreEqual(expected, SmepAiRules.EnabledForTarget(mobileTarget, mobileOptIn));
+        }
+
+        [Test]
+        public void MobileOptInDoesNotOverrideMobileTargetFallback()
+        {
+            // Mobile AI opt-in controls the build, not the target's controller.
+            Assert.IsTrue(SmepAiRules.EnabledOnPlatform(true, true));
+            Assert.IsFalse(SmepAiRules.EnabledForTarget(true, true));
+            Assert.IsFalse(SmepAiRules.UseCustomFlight(true, true, false, true, false));
+        }
+
+        [Test]
+        public void ExistingModsDoNotOptIntoMobileSmepByDefault()
+        {
+            Assert.IsFalse(new GoF2Remake.Data.CustomTraffic().mobileAi);
+            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{}").mobileAi);
+            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{\"ai\":\"smep\"}").mobileAi);
+        }
+
+        [TestCase(true, null, true, false, true)]
+        [TestCase(true, "gof3", false, false, true)]
+        [TestCase(false, "smep", false, false, true)]
+        [TestCase(false, "smep", true, false, false)]
+        [TestCase(false, "smep", true, true, true)]
+        [TestCase(false, "es2", false, true, false)]
+        public void SessionAndHullOptInsRemainIndependent(bool session, string ai, bool mobile, bool optIn, bool expected)
+        {
+            Assert.AreEqual(expected, SmepAiRules.RequestedForSession(session, ai, mobile, optIn));
         }
 
         [TestCase(true, false, false, true, true)]
@@ -110,15 +138,6 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void MobileOptInDoesNotOverrideMobileTargetFallback()
-        {
-            // Mobile AI opt-in controls the build, not the target's controller.
-            Assert.IsTrue(SmepAiRules.EnabledOnPlatform(true, true));
-            Assert.IsFalse(SmepAiRules.EnabledForTarget(true, true));
-            Assert.IsFalse(SmepAiRules.UseCustomFlight(true, true, false, true, false));
-        }
-
-        [Test]
         public void MobilePilotJoiningMidFightForcesConventionalFlight()
         {
             Assert.IsTrue(SmepAiRules.UseCustomFlight(true, false, false, true, false));
@@ -190,14 +209,6 @@ namespace GoF2Remake.Tests
             Assert.That(velocity.magnitude, Is.EqualTo(0.5f).Within(0.00001f));
             Assert.AreEqual(UnityEngine.Vector3.zero, SmepAiRules.VelocityFromDisplacement(
                             UnityEngine.Vector3.zero, UnityEngine.Vector3.one, 0f, 1f, 1f));
-        }
-
-        [Test]
-        public void ExistingModsDoNotOptIntoMobileSmepByDefault()
-        {
-            Assert.IsFalse(new GoF2Remake.Data.CustomTraffic().mobileAi);
-            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{}").mobileAi);
-            Assert.IsFalse(UnityEngine.JsonUtility.FromJson<GoF2Remake.Data.CustomTraffic>("{\"ai\":\"smep\"}").mobileAi);
         }
 
         [Test]

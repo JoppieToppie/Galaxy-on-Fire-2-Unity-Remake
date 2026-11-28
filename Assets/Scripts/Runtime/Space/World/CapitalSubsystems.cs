@@ -71,11 +71,19 @@ namespace GoF2Remake.World
             return c;
         }
 
+        // A multiplayer handover must build parts before NetOrbit matches old proxies to them.
+        internal void BuildNow()
+        {
+            if (built || host == null || dead || halted) return;
+            built = true;
+            Build();
+        }
+
         void Update()
         {
             if (halted && !dead) { UpdateEscape(Time.deltaTime * 1000f); return; }
             if (host == null || dead || halted) return;
-            if (!built) { built = true; Build(); }
+            BuildNow();
             float dtMs = Time.deltaTime * 1000f;
             sinceWarnMs += dtMs;
             bool hostile = host.alwaysEnemy || host.turnedEnemy;
@@ -136,7 +144,7 @@ namespace GoF2Remake.World
                     group = NpcGroup.Turret, race = host.Race, ship = -1, position = OrbitScale.ToGame(worldPos),   // OrbitScale: the original's coordinates
                     hitpoints = hull, noLoot = true, stationary = true, scale = d.scale * k,
                     alwaysEnemy = host.Spec.alwaysEnemy, alwaysFriend = host.Spec.alwaysFriend, alwaysNeutral = host.Spec.alwaysNeutral,
-                    capitalPart = true, capitalHost = host.Spec, eventTag = host.Spec.eventTag,
+                    capitalPart = true, capitalHost = host.Spec, eventTag = NpcFactionWar.AuxiliaryTag(host.Spec.eventTag),
                     name = string.IsNullOrEmpty(d.name) ? null : d.name, nameText = string.IsNullOrEmpty(d.name) ? (d.kind == "turret" ? 1666 : 1665) : -1,
                     hitRadius = d.radius * k,
                 };
@@ -229,7 +237,7 @@ namespace GoF2Remake.World
         void UpdateHangar(Part p, float dtMs, bool hostile)
         {
             p.flying.RemoveAll(s => s == null || s.Gone || !s.Target.Alive);
-            if (!Launching(p) || !hostile || !host.Target.Alive) return;
+            if (NpcFactionWar.IsWarTag(host.Spec.eventTag) || !Launching(p) || !hostile || !host.Target.Alive) return;
             if (p.data.total >= 0 && p.launched >= p.data.total) return;
             var player = traffic.Player;
             var at = p.ship != null ? p.ship.transform.position : host.transform.TransformPoint(p.localPos);

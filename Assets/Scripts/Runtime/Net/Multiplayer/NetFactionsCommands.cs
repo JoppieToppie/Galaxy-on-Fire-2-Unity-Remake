@@ -44,8 +44,16 @@ namespace GoF2Remake.Multiplayer
             if (cmd == "/f") return Talk(me, text.Trim().Length > 2 ? text.Trim().Substring(2).Trim() : "");
             string sub = words.Length > 1 ? words[1].ToLowerInvariant() : "info";
             string arg = words.Length > 2 ? words[2].Trim() : "";
+            if (NetPlayerStations.ProfileWritesBlocked && sub != "info" && sub != "list" && sub != "claims" && sub != "sieges" && sub != "bounties")
+                return "Faction changes are paused while a station transaction is being recovered.";
             switch (sub)
             {
+                case "broadcast":
+                    var broadcaster = Of(me);
+                    if (!NetGame.IsServer || !NetProfiles.Controls(client) || broadcaster == null || !IsOfficer(broadcaster, me))
+                        return "Only the faction leader and officers using a controlled profile may broadcast.";
+                    return NetNews.PostOfficial(NetNews.Kind.FactionBroadcast, "faction:" + broadcaster.id,
+                        NetNews.FactionName(broadcaster.tag, broadcaster.name), me, arg);
                 case "create": return Create(me, arg);
                 case "invite": return Invite(me, arg);
                 case "join": return Join(me, arg);
@@ -65,15 +73,66 @@ namespace GoF2Remake.Multiplayer
                 case "claims": return ClaimsText(arg.Length > 0 ? ByTag(arg) : Of(me));
                 case "siege": return DeclareSiege(client, me);
                 case "sieges": return SiegesText();
+                case "acceptbounty": return AcceptFactionBounty(client, me, arg);
+                case "bounty": return SetFactionBounty(client, me, arg);
+                case "bounties": return BountiesText(client);
+                case "rival": return SetPiracyRelation(client, me, arg, rival: true, enabled: true);
+                case "unrival": return SetPiracyRelation(client, me, arg, rival: true, enabled: false);
+                case "hostile": return SetPiracyRelation(client, me, arg, rival: false, enabled: true);
+                case "unhostile": return SetPiracyRelation(client, me, arg, rival: false, enabled: false);
+                case "protect": return SetBountyProtection(client, me, arg, true);
+                case "unprotect": return SetBountyProtection(client, me, arg, false);
                 case "garrison": return SetGarrison(client, me, arg);
                 case "vat": return SetVat(client, me, arg);
+                case "station-race": return NetProfiles.Controls(client) ?
+                    SetFactionStationRace(me, arg) : "Take profile control before editing faction policy.";
+                case "gate-race": return NetProfiles.Controls(client) ?
+                    SetFactionJumpgateRace(me, arg) : "Take profile control before editing faction policy.";
                 default:
                     return Localization.Extra("mpFactionHelp", "Faction commands: /faction create TAG Name, invite <pilot>, join TAG, leave, kick <pilot>, " +
                                                             "promote / demote <pilot>, leader <pilot>, disband, info [TAG], list; deposit N, withdraw N; " +
                                                             "claim, unclaim, home, claims [TAG] (docked at the station); garrison <ships> <level> [station]; vat <0-20> [station]; siege (in another faction's orbit), sieges; " +
-                                                            "/f <text> talks to your faction.");
+                                                            "bounties lists wanted pilots; bounty <NAME> <AMOUNT> funds a wanted pilot reward; acceptbounty <TAG> <NAME> accepts a funded contract; protect / unprotect faction <TAG> or pilot <NAME> changes bounty protection; " +
+                                                            "rival / unrival <TAG> and hostile / unhostile <NAME> change piracy relations; " +
+                                                            "gate-race <race> <inherit|allow|deny> sets race defaults for faction-owned jumpgates; broadcast <message> posts official GalNet news. /f <text> talks to your faction.");
             }
         }
+        static string SetFactionStationRace(string account, string arg)
+        {
+            if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.StationRacePoliciesEnabled)
+                return "Station race policies are disabled.";
+            var faction = Of(account);
+            if (faction == null || faction.leader != account)
+                return "Only the faction leader can change faction station race defaults.";
+            if (!NetPlayerStations.TryReadFacilityRaceRule(arg, out var rule))
+                return "/faction station-race <facility|purchase|sale> <race> <inherit|allow|deny|percent>";
+            var previous = faction.stationRaceRules;
+            faction.stationRaceRules = NetPlayerStations.WithFacilityRaceRule(previous, rule);
+            if (!Save())
+            {
+                faction.stationRaceRules = previous;
+                return "The faction station race default could not be saved.";
+            }
+            NetPlayerStations.RefreshAccessForFactionChange();
+            return "Faction station race default saved.";
+        }
+
+        static string SetFactionJumpgateRace(string account, string arg)
+        {
+            if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.JumpgateRacePoliciesEnabled)
+                return "Jumpgate race policies are disabled.";
+            var faction = Of(account);
+            if (faction == null || faction.leader != account)
+                return "Only the faction leader can change faction jumpgate race defaults.";
+            if (!NetPlayerStations.TryReadRaceAccess(arg, out string race, out var state, out string reason))
+                return "/faction gate-race <race> <inherit|allow|deny>";
+            var previous = faction.jumpgateRaceAccess;
+            faction.jumpgateRaceAccess = NetPlayerStations.WithRaceAccess(previous, race, state, reason);
+            if (Save()) return "Faction jumpgate race default saved.";
+            faction.jumpgateRaceAccess = previous;
+            return "The faction jumpgate race default could not be saved.";
+        }
+
         static string Create(string me, string arg)
         {
             if (Of(me) != null) return Localization.Extra("mpFactionAlready", "You are in a faction already: /faction leave first.");
@@ -135,8 +194,11 @@ namespace GoF2Remake.Multiplayer
             if (faction == null) return Localization.Extra("mpFactionNone", "You aren't in a faction.");
             if (faction.leader == me && faction.members.Count > 1)
                 return Localization.Extra("mpFactionLeaderLeave", "Hand the faction over first (/faction leader <pilot>), or /faction disband.");
-            Remove(faction, me);
-            return Localization.Extra("mpFactionYouLeft", "You left the faction.");
+            if (faction.leader == me && faction.members.Count == 1 && NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
+                return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before leaving.";
+            return Remove(faction, me)
+                ? Localization.Extra("mpFactionYouLeft", "You left the faction.")
+                : "Your faction could not be dissolved safely because its station ownership changes could not be saved.";
         }
         static string Kick(string me, string who)
         {
@@ -148,8 +210,8 @@ namespace GoF2Remake.Multiplayer
             if (target == faction.leader || (faction.officers.Contains(target) && faction.leader != me))
                 return Localization.Extra("mpFactionKickRank", "Only the leader can remove an officer, and nobody the leader.");
             Tell(target, string.Format(Localization.Extra("mpFactionKicked", "You were removed from the faction [{0}]."), faction.tag));
-            Remove(faction, target);
-            return "";
+            return Remove(faction, target) ? "" :
+                "The member could not be removed because the faction's final station ownership changes could not be saved.";
         }
         static string SetOfficer(string me, string who, bool on)
         {
@@ -160,6 +222,7 @@ namespace GoF2Remake.Multiplayer
             if (on && !faction.officers.Contains(target)) faction.officers.Add(target);
             if (!on) faction.officers.Remove(target);
             Save();
+            NetPlayerStations.RefreshAccessForFactionChange();
             TellFaction(faction, string.Format(on ? Localization.Extra("mpFactionPromoted", "{0} is an officer now.") : Localization.Extra("mpFactionDemoted", "{0} is no officer any more."), NameOf(target)));
             return "";
         }
@@ -173,6 +236,7 @@ namespace GoF2Remake.Multiplayer
             faction.officers.Remove(target);
             if (!faction.officers.Contains(me)) faction.officers.Add(me);   // the old leader stays an officer
             Save();
+            NetPlayerStations.RefreshAccessForFactionChange();
             TellFaction(faction, string.Format(Localization.Extra("mpFactionNewLeader", "{0} leads the faction now."), NameOf(target)));
             return "";
         }
@@ -180,6 +244,10 @@ namespace GoF2Remake.Multiplayer
         {
             var faction = Of(me);
             if (faction == null || faction.leader != me) return Localization.Extra("mpFactionNotLeader", "Only the faction's leader can do that.");
+            if (NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
+                return "This faction is still named as the payout destination for active station listings. Complete or cancel those listings before disbanding.";
+            if (!NetPlayerStations.PrepareFactionDeparture(me, faction.id, true))
+                return "Faction dissolution was cancelled because station ownership could not be saved safely.";
             TellFaction(faction, string.Format(Localization.Extra("mpFactionDisbanded", "The faction [{0}] {1} was disbanded."), faction.tag, faction.name));
             var members = new List<string>(faction.members);
             int claimsBefore = list.claims.Count;
@@ -234,8 +302,13 @@ namespace GoF2Remake.Multiplayer
             return sb.ToString();
         }
         /// <summary>A member out of the faction (left, kicked, profile deleted); an emptied faction ends, a leaderless one passes on.</summary>
-        static void Remove(Faction faction, string account)
+        static bool Remove(Faction faction, string account)
         {
+            if (faction == null || string.IsNullOrEmpty(account) || NetPlayerStations.ProfileWritesBlocked) return false;
+            if (faction.members.Count == 1 && NetPlayerStations.HasFactionMarketplaceClaims(faction.id))
+                return false;
+            if (!NetPlayerStations.PrepareFactionDeparture(account, faction.id, faction.members.Count == 1))
+                return false;
             faction.members.Remove(account);
             faction.officers.Remove(account);
             invites.Remove(account);
@@ -257,7 +330,9 @@ namespace GoF2Remake.Multiplayer
                 TellFaction(faction, string.Format(Localization.Extra("mpFactionMemberLeft", "{0} left the faction."), NameOf(account)));
             }
             Save();
+            NetPlayerStations.RefreshAccessForFactionChange();
             RefreshTags(account);
+            return true;
         }
         /// <summary>NetProfiles: a profile was deleted.</summary>
         public static void OnAccountDeleted(string account)
@@ -265,5 +340,6 @@ namespace GoF2Remake.Multiplayer
             var faction = Of(account);
             if (faction != null) Remove(faction, account);
         }
+
     }
 }

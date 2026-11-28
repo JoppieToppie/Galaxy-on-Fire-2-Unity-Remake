@@ -87,12 +87,13 @@ namespace GoF2Remake.Flight
                     long current = System.Math.Max(0, stack.amount);
                     long capacity = int.MaxValue - current;
                     if (capacity <= 0) continue;
-                    int amount = (int)System.Math.Min(capacity, share);
+                    int amount = (int)System.Math.Min(remaining, System.Math.Min(capacity, share));
                     if (amount <= 0) continue;
                     stack.amount = (int)(current + amount);
                     remaining -= amount;
                     added += amount;
                     changed = true;
+                    if (remaining == 0) break;
                 }
                 if (!changed) break;
             }
@@ -281,7 +282,20 @@ namespace GoF2Remake.Flight
             }
         }
         /// <summary>More than one secondary item is mounted (the HUD offers the switch).</summary>
-        public bool CanCycleSecondary { get { int n = 0, last = -1; foreach (var r in rigs) if (r.gun.isSecondary && r.gun.itemIndex != last) { last = r.gun.itemIndex; n++; } return n > 1; } }
+        public bool CanCycleSecondary
+        {
+            get
+            {
+                int? first = null;
+                foreach (var r in rigs)
+                {
+                    if (!r.gun.isSecondary) continue;
+                    if (!first.HasValue) first = r.gun.itemIndex;
+                    else if (r.gun.itemIndex != first.Value) return true;
+                }
+                return false;
+            }
+        }
         /// <summary>No firing (the mining minigame blocks the guns, MGame::OnTouchBegin / OnTouchEnd).</summary>
         public bool Blocked { get => blocked || WarpHeld; set => blocked = value; }
         bool blocked;
@@ -423,7 +437,11 @@ namespace GoF2Remake.Flight
                     gun.damage = (int)(gun.damage * damageFactor);
                     gun.reloadMs = Mathf.Max(1f, (int)(gun.reloadMs * fireRate));
                 }
-                if (gun.isBeam) gun.AutoAim = BeamTarget;
+                if (gun.isBeam && item.Attr(Modding.ItemStats.FixedBeamAttr) == 0)
+                {
+                    float tolerance = Mathf.Clamp(item.Attr(Gun.BeamAimToleranceAttr, 100), 0, 1000) * 0.01f;
+                    if (tolerance > 0f) gun.AutoAim = () => BeamTarget(tolerance, gun);
+                }
                 if (gun.beamRadius > 0f) gun.BeamSweeps = t => t.isShip ? t.hostileToPlayer || t == LockTarget : !t.friendToPlayer;   // remake mods: a wide beam
                 if (gun.heatShots > 0)   // remake mods: a gun that overheats (heatShots)
                     gun.OverheatStarted += g => Message?.Invoke(string.Format(Localization.Extra("weaponOverheated", "{0} overheated"),
@@ -481,6 +499,20 @@ namespace GoF2Remake.Flight
             }
             gun.owner = owner;
             gun.Hit += (i, target, point) => OnHit(rig, i, target, point);
+            gun.BlastDetonation += (i, centre) => OnStructureBlast(gun, i, centre);
+            // Scenery collision supplies the actual mesh body, not just a position near a gate.
+            gun.SceneryImpact += (i, body, point) =>
+            {
+                if (body == null || !HullCollision.IsForcedExact(body)) return;
+                var reportContact = GoF2Remake.World.SpaceHooks.ReportInfrastructureContact;
+                uint shotId = gun.bullets[i].networkShotId;
+                if (body.orbitalStructureId > 0 || body.orbitalStructureId is -1 or -2)
+                    reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.OrbitalStructure, body.orbitalStructureId, gun.itemIndex, shotId, point, point, false);
+                else if (body.playerStationOrbit >= 0)
+                    reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.Station, body.playerStationOrbit, gun.itemIndex, shotId, point, point, false);
+                else if (body.playerJumpgateOrbit >= 0)
+                    reportContact?.Invoke(GoF2Remake.World.InfrastructureContactKind.Jumpgate, body.playerJumpgateOrbit, gun.itemIndex, shotId, point, point, false);
+            };
             gun.AreaHit += (target, dmg, emp, center) => OnAreaHit(rig, target, dmg, emp, center);
             gun.Ignited += point => OnIgnited(rig, point);
             gun.Expired += _ => Session.RocketAsteroids = 0;   // Gun::update: a rocket / missile ran out (medal 41)
@@ -682,12 +714,58 @@ namespace GoF2Remake.Flight
         /// <summary>A shot from the mount on the banked model (FirePose: the wings' muzzles through a turn), flying along the
         /// ship's own heading: PlayerEgo::shoot -> Player::shoot passes the unbanked Player matrix to Gun::shootAt, so the
         /// bullets keep to the crosshair (taking the tilted model's heading put them 8-16 deg off the nose while pitching).</summary>
-        int Fire(Gun g)
+        Vector3 FireOrigin(Gun g, Transform pose) => pose == transform ? transform.position
+            : pose.position + pose.rotation * g.mountLocal - transform.rotation * g.mountLocal;
+
+        int Fire(Gun g) => g.TryFire(FireOrigin(g, FirePose), transform.rotation);
+
+        /// <summary>One PIP per distinct primary ballistic profile. Matching mounts use their mean muzzle.</summary>
+        public struct LeadProfile
         {
+            public float speed, lifetime, beamRange;
+            public bool beam;
+            public Vector3 muzzle;
+            public int count, item;
+        }
+
+        public void CollectLeadProfiles(List<LeadProfile> profiles)
+        {
+            profiles.Clear();
             var pose = FirePose;
-            if (pose == transform) return g.TryFire(transform);
-            var origin = pose.position + pose.rotation * g.mountLocal - transform.rotation * g.mountLocal;
-            return g.TryFire(origin, transform.rotation);   // TryFire adds rotation * (mountLocal + the forward offset) again
+            var rotation = transform.rotation;
+            foreach (var rig in rigs)
+            {
+                var g = rig.gun;
+                if (g.isSecondary || (!g.isBeam && !(g.kind == Gun.Kind.Laser || g.kind == Gun.Kind.Blaster ||
+                    g.kind == Gun.Kind.AutoCannon || g.kind == Gun.Kind.Thermo || g.kind == Gun.Kind.ScatterGun))) continue;
+                float speed = g.isBeam ? 0f : g.speedUnitsPerMs * Gun.MetersPerUnit * 1000f;
+                float lifetime = g.isBeam ? 0f : g.lifetimeMs * 0.001f;
+                float beamRange = g.isBeam ? g.beamReach * Gun.MetersPerUnit : 0f;
+                if (!g.isBeam && (!(speed > 0f) || !(lifetime > 0f))) continue;
+                Vector3 muzzle = g.ShotSpawn(FireOrigin(g, pose), rotation);
+                int match = -1;
+                for (int i = 0; i < profiles.Count; i++)
+                {
+                    var p = profiles[i];
+                    if (p.beam == g.isBeam && p.speed == speed && p.lifetime == lifetime && p.beamRange == beamRange)
+                    { match = i; break; }
+                }
+                if (match < 0) profiles.Add(new LeadProfile { speed = speed, lifetime = lifetime, beamRange = beamRange,
+                    beam = g.isBeam, muzzle = muzzle, count = 1, item = g.itemIndex });
+                else
+                {
+                    var p = profiles[match];
+                    p.muzzle += muzzle;
+                    p.count++;
+                    profiles[match] = p;
+                }
+            }
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                var p = profiles[i];
+                p.muzzle /= p.count;
+                profiles[i] = p;
+            }
         }
 
         void OnShot(Rig r, bool sound = true)
@@ -736,22 +814,35 @@ namespace GoF2Remake.Flight
         /// Remake (#100), with the Smart target lock (Settings.OriginalTargetLock off, the default): a friendly or neutral ship
         /// only when it is the radar's lock (LockTarget); the beam snapped onto the nearest ship whatever its side, and a
         /// friendly flying between the player and the enemy took the shots and turned its race.</summary>
-        Target BeamTarget()
+        // Stock guns retain their original asymmetric acquisition limits; explicit beam reach is spherical.
+        public static bool BeamTargetInRange(Vector3 offset, bool isShip, Gun gun)
+        {
+            if (gun.hasCustomBeamReach)
+                return offset.sqrMagnitude <= Mathf.Pow(gun.beamReach * M, 2f);
+            return isShip ? offset.sqrMagnitude < Mathf.Pow(BeamRangeUnits * M, 2f)
+                          : Mathf.Abs(offset.x) < BeamObjectCubeUnits * M &&
+                            Mathf.Abs(offset.y) < BeamObjectCubeUnits * M &&
+                            Mathf.Abs(offset.z) < BeamObjectCubeUnits * M;
+        }
+
+        Target BeamTarget(float tolerance, Gun gun)
         {
             bool smart = !Settings.OriginalTargetLock;
             var cam = Camera.main;
             if (cam == null) return null;
-            var aim = cam.WorldToScreenPoint(ChaseCamera.AimOrigin(transform) + transform.forward * 22000f * M);
-            float box = Screen.width / 16f, best = float.MaxValue;
+            var view = GetComponent<FreeLookCamera>();
+            var offset = Modding.ModShipView.CrosshairOffset(db?.Ship(Session.ShipIndex), view != null && view.FirstPersonActive);
+            // Free-look locks can use the camera centre, but forward weapons retain their ship-local aim reference.
+            var aim = cam.WorldToScreenPoint(CombatRadar.ShipCrosshairWorldPoint(transform, offset));
+            float box = Screen.width / 16f * tolerance, best = float.MaxValue;
             Target found = null;
             foreach (var t in Target.All)
             {
                 if (t == null || t == owner || !t.Alive || t.untargetable || !t.isActiveAndEnabled || t.playerProof) continue;   // multiplayer: squadmates
-                if (t.isAsteroid) continue;   // the remake's beams took a rock near the crosshair while fighting
+                if (t.isAsteroid || !CombatRadar.PlayerDetects(t)) continue;   // beam auto-aim needs sensor contact
                 if (smart && t.isShip && !t.hostileToPlayer && t != LockTarget) continue;
                 var d = t.transform.position - transform.position;
-                if (t.isShip ? d.magnitude >= BeamRangeUnits * M
-                             : Mathf.Abs(d.x) >= BeamObjectCubeUnits * M || Mathf.Abs(d.y) >= BeamObjectCubeUnits * M || Mathf.Abs(d.z) >= BeamObjectCubeUnits * M) continue;
+                if (!BeamTargetInRange(d, t.isShip, gun)) continue;
                 var p = cam.WorldToScreenPoint(t.transform.position);
                 if (p.z <= 0f || Mathf.Abs(p.x - aim.x) >= box || Mathf.Abs(p.y - aim.y) >= box) continue;
                 float dist = d.sqrMagnitude;
@@ -784,6 +875,54 @@ namespace GoF2Remake.Flight
             ApplyEmp(target, (int)r.gun.emp);
             r.visuals.ShowImpact(point);
             Hit?.Invoke();
+        }
+
+        /// <summary>Only a blast that actually reaches a shown, precise gate mesh reports its
+        /// closest contact point. The server rechecks the recorded projectile and damage formula.</summary>
+        static void OnStructureBlast(Gun gun, int bullet, Vector3 centre)
+        {
+            if (gun == null || gun.magnitude <= 0f || bullet < 0 || bullet >= gun.bullets.Length) return;
+            uint shotId = gun.bullets[bullet].networkShotId;
+            var reportContact = GoF2Remake.World.SpaceHooks.ReportInfrastructureContact;
+            if (reportContact == null || shotId == 0) return;
+            float radius = gun.magnitude * M;
+            Physics.SyncTransforms();  // bombs can detonate on expiry without a preceding hull cast
+            foreach (var body in HullCollision.ForcedExactBodies)
+            {
+                if (body == null || (body.playerJumpgateOrbit < 0 && body.playerStationOrbit < 0 && body.orbitalStructureId <= 0 && body.orbitalStructureId is not (-1 or -2)) ||
+                    !HullCollision.IsForcedExact(body) || !body.Collides) continue;
+                float nearest = radius;
+                Vector3 surface = default;
+                bool found = false;
+                foreach (var collider in body.colliders)
+                {
+                    if (collider == null || !collider.enabled || !HullCollision.Shown(collider)) continue;
+                    Vector3 candidate;
+                    if (body.playerStationOrbit >= 0 || body.orbitalStructureId > 0 || body.orbitalStructureId is -1 or -2)
+                    {
+                        // ClosestPoint does not support the non-convex station meshes. The bounds
+                        // only select rays; the contact itself must come from the exact collider.
+                        Vector3 aim = collider.bounds.ClosestPoint(centre) - centre;
+                        if ((aim.sqrMagnitude < 0.001f ||
+                            !collider.Raycast(new Ray(centre, aim.normalized), out var hit, nearest)) &&
+                            !collider.Raycast(new Ray(centre, (collider.bounds.center - centre).normalized), out hit, nearest))
+                            continue;
+                        candidate = hit.point;
+                    }
+                    else candidate = collider.ClosestPoint(centre);
+                    float distance = Vector3.Distance(centre, candidate);
+                    if (distance > nearest) continue;
+                    nearest = distance;
+                    surface = candidate;
+                    found = true;
+                }
+                if (!found) continue;
+                if (body.orbitalStructureId > 0 || body.orbitalStructureId is -1 or -2)
+                    reportContact(GoF2Remake.World.InfrastructureContactKind.OrbitalStructure, body.orbitalStructureId, gun.itemIndex, shotId, centre, surface, true);
+                else if (body.playerStationOrbit >= 0)
+                    reportContact(GoF2Remake.World.InfrastructureContactKind.Station, body.playerStationOrbit, gun.itemIndex, shotId, centre, surface, true);
+                else reportContact(GoF2Remake.World.InfrastructureContactKind.Jumpgate, body.playerJumpgateOrbit, gun.itemIndex, shotId, centre, surface, true);
+            }
         }
 
         /// <summary>Gun::calcCharacterCollision on an asteroid: a rocket / missile / cluster missile / ionizing missile

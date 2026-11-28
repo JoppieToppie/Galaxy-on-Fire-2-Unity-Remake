@@ -119,7 +119,9 @@ namespace GoF2Remake.World
         public PlayerDevices Devices { get; private set; }
         /// <summary>MGame::dockEvent: 525 while a mission holds the player here (the story's blocks, the Kaamo siege).</summary>
         public bool DockingBlocked => Story.BlocksDocking(Layout.stationIndex, StoryLocked) || (Siege != null && Siege.Active) || FreelanceBlocks
-                                      || GoF2Remake.World.SpaceHooks.NoDocking;   // an event's Restrict Travel
+                                      || PirateReports.BlocksDocking(Layout.stationIndex)
+                                      || GoF2Remake.World.SpaceHooks.NoDocking
+                                      || GameHooks.StationClosedByCombat?.Invoke(Layout.stationIndex) == true;   // an event's Restrict Travel
         bool freelanceMissionOrbit;
         /// <summary>The orbit was built around the freelance mission (Status::departStation put it in Status+400) and it holds
         /// the player here until it is won or failed (Freelance.BlocksTravel).</summary>
@@ -201,7 +203,7 @@ namespace GoF2Remake.World
         /// <summary>The station is there (a level script may hide it: 78's Valkyrie jumping away); nothing docks at a hidden one.</summary>
         bool StationShown => Station == null || Station.activeInHierarchy;
         bool InDockRange => Es2 != null ? Es2.InZone(Player.transform.position)   // EVERSPACE 2: the dock's Interact box
-                                         : Player.transform.position.sqrMagnitude < DockMeters * DockMeters;
+                                         : (Player.transform.position - SpaceHooks.StationPosition(Layout.stationIndex)).sqrMagnitude < DockMeters * DockMeters;
         /// <summary>The dock range in metres in the scaled orbit (OrbitScale.Radius).</summary>
         float DockMeters => Layout.PlaceRadius(StationDockRange) * M;
         /// <summary>Remake mods: a mobile station whose dock range the player is in (having left it once since the level began).</summary>
@@ -470,10 +472,13 @@ namespace GoF2Remake.World
             Mining.navigation = Navigation;
             SystemJump = Player.gameObject.AddComponent<SystemJump>();
             SystemJump.Setup(db, Navigation, Player, Weapons, chase, Jumpgate);
+            if (GameHooks.HasPlayerJumpgateWreck?.Invoke(Layout.stationIndex) == true)
+                SetPlayerJumpgateWreck(false);
 
             // Ship combat: the player's Player object, the orbit's NPC traffic, the ship / salvage locks.
             Health = Player.gameObject.AddComponent<PlayerHealth>();
             Health.Setup(db, Player, chase, Weapons);
+            SystemJump.ApplyArrivalFailure(station, Health);
             if (Navigation != null) Health.Hit += Navigation.InterruptDrive;   // remake: a hit drops a cruise drive
             if (Player.visualModel != null)   // NPC shots hit its real shape (with Original ship collision its cube)
                 HullCollision.Attach(Player.visualModel.gameObject, Health.Target, null, HullCollision.FlyableShip(Session.ShipIndex));
@@ -558,12 +563,11 @@ namespace GoF2Remake.World
                 Docking.Docked += () => { if (DockedLook) FreeLook.EnterDockedLook(); };
             }
             // Remake mods: a station's docking pads outside (stations.json "orbit.pads"): every game builds its own port.
-            if (plainOrbit && !prologue && !interstellar && Station != null)
-            {
-                SpawnStationPads(station);
-                SpawnExternalDockPoints(station);
-            }
-            Docking.Refusal = t => t.DockingType == ObjectDocking.StationPad && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active))
+            if (plainOrbit && !prologue && !interstellar && Station != null &&
+                (Layout.hasStation || GameHooks.IsPlayerStation?.Invoke(station) != true))
+                SpawnPlayerStationDockPoints(station);
+            Docking.Refusal = t => (t.DockingType == ObjectDocking.StationPad || t.DockingType == ObjectDocking.ConstructionSite) && (GoF2Remake.World.SpaceHooks.NoDocking || (Siege != null && Siege.Active) ||
+                    GameHooks.StationClosedByCombat?.Invoke(Layout.stationIndex) == true)
                 ? Localization.Get(525) : null;
             Docking.Docked += () =>
             {
@@ -688,7 +692,9 @@ namespace GoF2Remake.World
             Navigation.PlanetJumpRefused = st => StorySpace != null && StorySpace.RefusePlanetJump(st);
             // MGame::dockEvent refuses the gate on the same mission check as docking: the story's level missions too.
             SystemJump.GateBlocked = () => builderTest || challenge || Story.BlocksJumps(Layout.stationIndex, StoryLocked) || FreelanceBlocks
-                                           || (Siege != null && Siege.Active) || GoF2Remake.World.SpaceHooks.NoJumps;
+                                           || (Siege != null && Siege.Active) || GoF2Remake.World.SpaceHooks.NoJumps
+                                           || PlayerJumpgateEmpDisabled
+                                           || SpaceHooks.PlayerJumpgateOffline?.Invoke(Layout.stationIndex) == true;
             Radar = Player.gameObject.AddComponent<CombatRadar>();
             Radar.Setup(db, Player, Navigation, Mining, Weapons, Health, Traffic);
             Radar.Clouds = GasClouds;
@@ -816,6 +822,8 @@ namespace GoF2Remake.World
             // MGame::OnUpdate: the wingmen's contract runs down while flying (fast-forward included, not while paused).
             if (Session.Wingmen.Count > 0 && Session.WingmanContractMs > 0f) Session.WingmanContractMs = Mathf.Max(0f, Session.WingmanContractMs - Time.deltaTime * 1000f);
             if (Health == null) return;
+            UpdatePlayerJumpgate();
+            UpdatePlayerStationLifecycle();
             bool warpHolds = WarpHolds;
             if (Weapons != null) Weapons.WarpHeld = warpHolds;
             Navigation.ArrivalHeld = warpSky != null && warpSky.Arriving;
@@ -944,7 +952,7 @@ namespace GoF2Remake.World
             {
                 // Modified: the arrival camera's clock starts once a mod drive's arrival fx is over (no skipping meanwhile).
                 var hc = mainCamera.transform;
-                hc.rotation = Quaternion.LookRotation(Player.transform.position - hc.position, Player.transform.up);
+                if (arrivalCinematic?.HasCamera != true) hc.rotation = Quaternion.LookRotation(Player.transform.position - hc.position, Player.transform.up);
                 return;
             }
             if (Time.timeScale > 0f && PlayerTriedToFly()) { EndLaunchCamera(false); return; }
@@ -972,6 +980,7 @@ namespace GoF2Remake.World
 
         void OnDestroy()
         {
+            RemoveConstructionPort();
             if (DockedInOrbit) SpaceHooks.DockedInOrbit = false;   // (a scene loaded over both: a save, the menu)
         }
 

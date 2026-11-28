@@ -17,6 +17,15 @@ namespace GoF2Remake.Tests
         public void ForgetOrbit() => OrbitScale.Use(null);
 
         [Test]
+        public void ConstructionDoesNotTreatOccupiedOrWreckedOrbitsAsVacant()
+        {
+            Assert.IsFalse(OrbitLayout.VacantStationSite(Session.VoidOrbit, 20));
+            Assert.IsFalse(OrbitLayout.VacantStationSite(41, 20));
+            Assert.IsFalse(OrbitLayout.VacantStationSite(110, 20));
+            Assert.IsTrue(OrbitLayout.VacantStationSite(102, 20));
+        }
+
+        [Test]
         public void TheMapScalesInsideTheReachAndShiftsBeyond()
         {
             const float f = 4f, r = 40000f;
@@ -104,6 +113,29 @@ namespace GoF2Remake.Tests
                 var g = new Vector3(5000f, 200f, 9000f);
                 Assert.Less((OrbitScale.ToGame(OrbitScale.ToUnity(g)) - g).magnitude, 0.5f);
             }
+        }
+
+        [Test]
+        public void AJumpgateMinimumCanScaleAnOrbitWithoutAStation()
+        {
+            var layout = new OrbitLayout { hasJumpgate = true, minimumJumpgateScale = 2.5f };
+            OrbitScale.Use(layout);
+            Assert.AreEqual(1f, layout.StationScale);
+            Assert.AreEqual(2.5f, OrbitScale.JumpgateFactor);
+            Assert.AreEqual(Mathf.RoundToInt(OrbitLayout.GateRadius * 2.5f), layout.JumpgateRadius);
+        }
+
+        [Test]
+        public void TheDefaultArrivalClearsAnEnlargedGate()
+        {
+            var layout = new OrbitLayout
+            {
+                hasJumpgate = true, minimumJumpgateScale = 6f,
+                jumpgate = new Vector3(0f, 0f, 90000f), hiddenJumpgate = new Vector3(0f, 0f, 120000f)
+            };
+            layout.ArrivalPose(-1, out var arrival, out _);
+            float distance = Vector3.Distance(arrival, OrbitLayout.ToUnity(layout.jumpgate));
+            Assert.Greater(distance, layout.JumpgateRadius * OrbitLayout.MetersPerUnit);
         }
 
         [Test]

@@ -477,6 +477,34 @@ namespace GoF2Remake.World
             : Spec.modCapital && db?.Ship(Spec.ship)?.explosionScale is float own && own != 1f ? own
             : Spec.modCapital && Spec.stationary ? 8f : 6f;
 
+        static Bounds? CapitalObstacleBounds(Transform root, Transform shipRoot)
+        {
+            bool any = false;
+            Bounds result = default;
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                string n = renderer.name.ToLowerInvariant();
+                if (n.Contains("engine") || n.Contains("exhaust") || n.Contains("thruster") || n.Contains("glow") ||
+                    n.Contains("lights") || n.Contains("_add") || n.Contains("additive") || n.Contains("_lod_gen")) continue;
+                int lod = n.IndexOf("_lod_", System.StringComparison.Ordinal);
+                if (lod >= 0 && lod + 5 < n.Length && n[lod + 5] >= '1' && n[lod + 5] <= '9') continue;
+                var filter = renderer.GetComponent<MeshFilter>();
+                bool local = filter != null && filter.sharedMesh != null;
+                Bounds b = local ? filter.sharedMesh.bounds : renderer.bounds;
+                for (int x = -1; x <= 1; x += 2)
+                    for (int y = -1; y <= 1; y += 2)
+                        for (int z = -1; z <= 1; z += 2)
+                        {
+                            Vector3 p = b.center + Vector3.Scale(b.extents, new Vector3(x, y, z));
+                            if (local) p = renderer.transform.TransformPoint(p);
+                            p = shipRoot.InverseTransformPoint(p);
+                            if (!any) { result = new Bounds(p, Vector3.zero); any = true; }
+                            else result.Encapsulate(p);
+                        }
+            }
+            return any && result.size.x > 0.01f && result.size.y > 0.01f && result.size.z > 0.01f ? result : (Bounds?)null;
+        }
+
         public void Setup(Traffic owner, Database database, SpawnSpec spec, GameObject prefab, Transform fxRoot)
         {
             traffic = owner;
@@ -532,7 +560,8 @@ namespace GoF2Remake.World
             // red (a player's report: only the Most Wanted criminals were).
             Target.plateRed = spec.wantedIndex >= 0 || spec.nameText == 1611 || spec.nameText == 1663;
             Target.radius = (spec.hitRadius > 0f ? spec.hitRadius : NpcTables.HitRadiusUnits) * M * spec.HullScale * StructureScale;
-            Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship), Mathf.Max(0, spec.shield));
+            Target.hitpoints = new Hitpoints(spec.hitpoints > 0 ? spec.hitpoints : NpcTables.Hull(kind, spec.ship), Mathf.Max(0, spec.shield))
+            { shieldRechargeDelayMs = Modding.ModContent.ShieldRechargeDelayMs };
             Target.hitpoints.energyResistance = Mathf.Clamp01(spec.energyResistance);
             Target.hitpoints.ballisticResistance = Mathf.Clamp01(spec.ballisticResistance);
             Target.hitpoints.SetEmp(spec.empPoints > 0 ? spec.empPoints : NpcTables.Emp(kind), NpcTables.EmpRecoveryMs(kind));   // also with a hull override
@@ -566,11 +595,13 @@ namespace GoF2Remake.World
             Asleep = spec.asleep || spec.inactive;
             inactive = spec.inactive;
             parked = spec.stationary;
-            if (spec.freighter)
+            bool economyHull = Modding.ModAdvancedEconomy.IsFreightTag(spec.eventTag) && spec.ship != 13 && spec.ship != 15;
+            if (spec.freighter && !economyHull)
             {
                 obstacle = gameObject.AddComponent<Obstacle>();
                 obstacle.projectFromVolume = false;
-                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForFreighter(spec.ship, spec.race), spec.HullScale);
+                obstacle.volumes = CollisionVolume.Scaled(CollisionVolume.ForFreighter(spec.ship,
+                    Modding.ModAdvancedEconomy.IsFreightTag(spec.eventTag) ? Modding.ModRaces.Look(spec.race) : spec.race), spec.HullScale);
                 Target.boxes = LocalBoxes(obstacle.volumes);
             }
             else if (spec.fixedObject != null && spec.collisionId >= 0)
@@ -581,12 +612,27 @@ namespace GoF2Remake.World
                 // Remake (CapitalShips): a killable capital ship is hit on its collision boxes, not the +-1000 cube at its centre.
                 if (spec.capitalEnhanced) Target.boxes = LocalBoxes(obstacle.volumes);
             }
-            // Remake: shots hit its real shape and the player slides along it (HullCollision); NPCs still steer by the volumes.
+            // Explicitly classified large hulls without a stock obstacle need a hull-aligned avoidance volume.
+            // Bounds are measured once at spawn, never while steering.
+            if (obstacle == null && modelGo != null && (economyHull || GoF2Remake.Modding.ShipClassRules.IsLargeShipClass(database.Ship(spec.ship))))
+            {
+                var bounds = CapitalObstacleBounds(model, transform);
+                if (bounds.HasValue)
+                {
+                    obstacle = gameObject.AddComponent<Obstacle>();
+                    obstacle.projectFromVolume = false;
+                    obstacle.rotates = true;
+                    // Bounds were measured in the hull's own local frame.
+                    obstacle.baseRotation = Quaternion.identity;
+                    obstacle.volumes.Add(CollisionVolume.Box(bounds.Value.center, bounds.Value.extents));
+                }
+            }
+            // Remake: shots hit its real shape and the player slides along it (HullCollision); NPCs steer by that mesh when available.
             // A fighter (not a freighter, a fixed object such as the battleship or a capital ship, nor a turret) is a flyable
             // ship: Original ship collision hits it on its cube (HullBody.flyableShip).
             if (modelGo != null) HullCollision.Attach(modelGo, Target, obstacle, !IsFreighter && !IsFixed && !IsTurret && HullCollision.FlyableShip(spec.ship));
             // Native asteroid destruction for explicitly classified large ships; no player-style push-out.
-            AsteroidVolumeCollision.Attach(gameObject, database, spec.ship, Target, obstacle);
+            AsteroidVolumeCollision.Attach(gameObject, database, spec.ship, Target, obstacle, modelGo);
             if (spec.deadButSelectable) ShowWreckAtEnd();
             Target.Damaged += OnDamaged;
             Target.Died += OnDied;
@@ -759,6 +805,9 @@ namespace GoF2Remake.World
         /// <summary>Level::createFighterTurrets: the turret on this ship (45 / 51), null = none.</summary>
         [System.NonSerialized] public NpcShip AttachedTurret;
 
+        float bountyEscapeCharge;
+        bool bountyEscapeAnnounced;
+
         void Update()
         {
             EngineVoices.Tick();   // once a frame for all ships: the three loudest loops of each engine event
@@ -821,17 +870,56 @@ namespace GoF2Remake.World
                 }
                 return;
             }
+            if (Spec.pirateEvent == SpawnSpec.EventBoss && Spec.sightingId >= 0 && Current == State.Fly && Target.Alive &&
+                Hp.hull <= Hp.maxHull * 0.25f)
+            {
+                if (!bountyEscapeAnnounced)
+                {
+                    bountyEscapeAnnounced = true;
+                    traffic.Warn("Wanted pirate is charging its jump drive!");
+                }
+                if (Hp.empDisabled) bountyEscapeCharge = 0f;
+                else bountyEscapeCharge += dtMs;
+                if (bountyEscapeCharge >= Modding.ModNpcFactionWar.PirateEscapeSeconds * 1000f)
+                {
+                    if (PirateReports.Find(Spec.sightingId) is PirateSighting report && !report.done)
+                    {
+                        JumpOut();
+                        return;
+                    }
+                    bountyEscapeCharge = 0f;
+                }
+            }
             if (Current == State.JumpingOut) { UpdateJumpOut(dtMs); return; }
             if (order != null && UpdateOrder(dtMs)) return;   // an event graph's order (NpcOrder)
             if (IsFreighter)
             {
-                if (!Hp.empDisabled) transform.position += transform.forward * (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * slow.SpeedFactor * dtMs * M;   // remake mods: a type's "speed"
+                if (!Hp.empDisabled)
+                {
+                    float step = (Spec.speed > 0f ? Spec.speed : NpcTables.FreighterSpeed) * slow.SpeedFactor * dtMs * M;
+                    if (Modding.ModAdvancedEconomy.IsFreightTag(Spec.eventTag) && Spec.route?.points.Count > 0)
+                    {
+                        Vector3 end = ToUnity(Spec.route.points[0]);
+                        Vector3 delta = end - transform.position;
+                        if (delta.sqrMagnitude > 1f)
+                        {
+                            transform.rotation = Quaternion.LookRotation(delta.normalized, Vector3.up);
+                            transform.position = Vector3.MoveTowards(transform.position, end, step);
+                        }
+                    }
+                    else transform.position += transform.forward * step;
+                }
                 return;
             }
             reselectTimer += dtMs;
             boostTimer += dtMs;
             if (mindControlMs > 0f) UpdateMindControlled(dtMs);
             else if (IsWingman) { UpdateWingman(); UpdateWingmanCrew(dtMs); } else UpdateTargeting();
+            if (attacking && target != null && !Detects(target))
+            {
+                target = null; attacking = false; followingWaypoint = true;
+                targetPos = transform.position + transform.forward * (20000f * M);
+            }
             UpdateDogfight(dtMs);   // remake option (NpcShipDogfight)
             if (IsJumper && followingWaypoint) { jumpMs += dtMs; if (jumpMs >= 20000f) { jumpMs = 0f; Current = State.JumpingOut; } }
             else jumpMs = 0f;

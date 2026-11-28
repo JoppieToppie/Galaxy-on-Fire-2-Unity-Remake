@@ -51,9 +51,13 @@ namespace GoF2Remake.Data
         static readonly HashSet<int> NeedsRoutes = new HashSet<int> { 210, 223 };
 
         /// <summary>Every product (items with ingredients) in item-index order (Status::resetGame).</summary>
-        public static List<ItemData> Products(Database db) => db.Items.FindAll(i => i.blueprint != null && i.blueprint.Count > 0);
+        public static List<ItemData> Products(Database db) => db.Items.FindAll(i => i.blueprint != null && i.blueprint.Count > 0
+            && Modding.ModContent.ItemAvailableFor(i.index, "blueprints"));
 
         public static bool IsUnlocked(int product) => Session.UnlockedBlueprints.Contains(product);
+
+        /// <summary>A mod may bar ordinary blueprint acquisition and production in multiplayer; scripted unlocks remain intact.</summary>
+        public static bool IsRestricted(int product) => Modding.ModContent.IsBlueprintRestricted(product);
         public static void Unlock(int product) => Session.UnlockedBlueprints.Add(product);
 
         /// <summary>BluePrint+0x20: 10 per run for secondaries, else 1.</summary>
@@ -168,7 +172,9 @@ namespace GoF2Remake.Data
         /// ADD), which Withdraw may give back; the story's pre-investments (UnlockFromStory) are not.</summary>
         public static void Invest(Database db, int product, int ingredient, int units, int station, bool byPlayer = false)
         {
-            if (units <= 0) return;
+            if (units <= 0 || byPlayer && IsRestricted(product)) return;
+            // A dry-dock-restricted ship blueprint cannot be progressed through an ordinary station's hangar.
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && GameHooks.HasDryDockAtStation?.Invoke(station) != true) return;
             var s = State(db, product);
             var it = db.Item(product);
             int slot = it.blueprint.FindIndex(p => p.item == ingredient);
@@ -224,6 +230,8 @@ namespace GoF2Remake.Data
         /// <summary>210 / 223 can't be started in a system without gate routes (528).</summary>
         public static bool CanStartIn(Database db, int product, int station)
         {
+            if (IsRestricted(product) || !Modding.ModContent.ItemAvailableFor(product, "blueprints")) return false;
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && GameHooks.HasDryDockAtStation?.Invoke(station) != true) return false;
             if (!NeedsRoutes.Contains(product)) return true;
             int sys = db.Stations.Find(x => x.index == station)?.system ?? -1;
             var routes = db.Systems.Find(x => x.index == sys)?.jumpRoutesTo;
@@ -255,15 +263,17 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Remake mods: the blueprint may be autocompleted (blueprints.json "autocomplete": false: never).</summary>
-        public static bool CanAutocomplete(int product) => Settings.BlueprintAutocomplete
+        public static bool CanAutocomplete(int product) => !IsRestricted(product) && Modding.ModContent.ItemAvailableFor(product, "blueprints") && Settings.BlueprintAutocomplete
             && (!Modding.ModBlueprints.AutocompleteOverride(product, out bool allowed, out _) || allowed);
 
         /// <summary>A completed run: to the hold here (true) or waiting at the production station (false); then reset.
         /// Remake mods: a ship blueprint's ship always waits at the production station (TakeBuiltShips), here too.</summary>
         public static bool Produce(Database db, int product, int currentStation)
         {
+            // Keep the final production path authoritative too; the UI's CanStartIn check is not a security boundary.
+            if (Modding.ModBlueprints.RequiresDryDock(product, db) && GameHooks.HasDryDockAtStation?.Invoke(currentStation) != true) return false;
             var it = db.Item(product);
-            if (it == null || it.blueprint == null) return false;   // not a product (-1 from a stale hangar row)
+            if (it == null || it.blueprint == null || IsRestricted(product) || !Modding.ModContent.ItemAvailableFor(product, "blueprints")) return false;   // unavailable or stale product
             var s = State(db, product);
             int qty = BaseQuantity(it);
             if (s.station < 0) s.station = currentStation;
@@ -291,8 +301,8 @@ namespace GoF2Remake.Data
         {
             if (db.Item(item)?.TypeId == 1)
             {
-                var mounted = Session.Equipment.Find(e => e.item == item);
-                if (mounted != null) { mounted.amount += qty; return; }
+                var mounted = Hangar.SecondaryReplenishmentTarget(db, item);
+                if (mounted != null && qty > 0 && mounted.amount <= int.MaxValue - qty) { mounted.amount += qty; return; }
             }
             Shop.AddToCargo(item, qty);
         }

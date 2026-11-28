@@ -272,7 +272,7 @@ namespace GoF2Remake.UI
             if (key != squadKey)
             {
                 squadKey = key;
-                squadHeader.text = $"{Localization.Extra("mpSquad", "Squad").UiCaps()} ({members.Count})  {(squadCollapsed ? "+" : "-")}";
+                squadHeader.text = $"{Localization.Extra("mpSquad", "Squad").UiCaps()} ({members.Count}/{NetSquad.MaxMembers})  {(squadCollapsed ? "+" : "-")}";
                 squadBody.Clear();
                 bars.Clear();
                 squadBody.style.display = squadCollapsed ? DisplayStyle.None : DisplayStyle.Flex;
@@ -351,7 +351,8 @@ namespace GoF2Remake.UI
             }
             pilotsPanel.style.display = pilots.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             if (pilots.Count == 0) { pilotsKey = ""; return; }
-            var sb = new StringBuilder(pilotsCollapsed ? "c" : "o");
+            bool full = NetSquad.IsFull(me);
+            var sb = new StringBuilder(pilotsCollapsed ? "c" : "o").Append(full);
             foreach (var p in pilots) sb.Append('|').Append(p.OwnerClientId).Append(p.DisplayName).Append(NetSquad.Same(p, me)).Append(NetSquad.WasInvited(p))
                                         .Append(NetTradeClient.WasAsked(p)).Append(TradingWith(p));
             string key = sb.ToString();
@@ -383,6 +384,10 @@ namespace GoF2Remake.UI
                     var tag = new Label(Localization.Extra("mpInYourSquad", "In your squad"));
                     tag.AddToClassList("squad-tag");
                     row.Add(tag);
+                }
+                else if (full)
+                {
+                    var tag = new Label("Squad full"); tag.AddToClassList("squad-tag"); row.Add(tag);
                 }
                 else if (NetSquad.WasInvited(p))
                 {
@@ -439,7 +444,9 @@ namespace GoF2Remake.UI
             shownInvite = latest;
             if (latest != null)
             {
-                string warning = NetMissions.AbandonWarning();
+                bool full = NetSquad.IsFull(NetSquad.Find(latest.from));
+                inviteAccept.SetEnabled(!full);
+                string warning = full ? "The squad is full (6/6)." : NetMissions.AbandonWarning();
                 inviteText.text = string.Format(Localization.Extra("mpSquadInvited", "{0} invites you to their squad."), latest.name)
                                   + (warning.Length > 0 ? "\n" + warning : "");
             }

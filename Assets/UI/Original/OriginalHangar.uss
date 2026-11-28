@@ -1264,3 +1264,18 @@
 .ui-style-original .row-actions--equipment { margin: 4px 0 4px 8px; }
 .ui-style-original .row-actions--blueprint .detail-action--row,
 .ui-style-original .row-actions--equipment .detail-action--row { height: auto; margin: 0; padding: 0; }
+
+/* Secondary allocation follows the Original UI's steel panels and amber cursor. */
+.ui-style-original .secondary-allocation {
+    background-image: url("project://database/Assets/UI/Original/og_plate.png");
+    -unity-slice-left: 35;
+    -unity-slice-right: 35;
+    -unity-slice-top: 20;
+    -unity-slice-bottom: 20;
+    -unity-slice-scale: 0.75px;
+    background-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+}
+.ui-style-original .secondary-allocation-toggle { border-radius: 0; }
+.ui-style-original .list-row--allocation-selected { border-left-color: var(--gof-cyan); }
+.ui-style-original .list-row--allocation-cursor { border-left-color: var(--gof-amber); }

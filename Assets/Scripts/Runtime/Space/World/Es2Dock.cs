@@ -145,11 +145,17 @@ namespace GoF2Remake.World
             return Mathf.Abs(local.x) <= half.x && Mathf.Abs(local.y) <= half.y && Mathf.Abs(local.z) <= half.z;
         }
 
+        public static Quaternion ExternalDockRotation(Quaternion pointRotation, WeaponMount mount) =>
+            pointRotation * Quaternion.Inverse(Modding.ModHardpoints.MountTurn(mount));
+        public static Vector3 ExternalDepartureOffset(Quaternion shipRotation) => shipRotation * Vector3.forward * 250f;
+        public static Vector3 ExternalDockPosition(Vector3 pointPosition, Quaternion shipRotation, WeaponMount mount) =>
+            pointPosition - shipRotation * WeaponSystem.MountToLocal(mount);
+
         Quaternion DockedRot => external
-            ? externalPoint.rotation * Quaternion.Inverse(Modding.ModHardpoints.MountTurn(externalMount))
+            ? ExternalDockRotation(externalPoint.rotation, externalMount)
             : Facing(room.ship, room.shipAhead);
         Vector3 DockedPos => external
-            ? externalPoint.position - DockedRot * WeaponSystem.MountToLocal(externalMount)
+            ? ExternalDockPosition(externalPoint.position, DockedRot, externalMount)
             : W(room.ship) - DockedRot * hullCentre;   // GetShipDockingTransform: the bounds' centre on it
         Vector3 LookAt(Vector3 shipPos, Quaternion shipRot) => shipPos + shipRot * hullCentre + (W(room.cameraTarget) - W(room.ship));
 
@@ -284,7 +290,7 @@ namespace GoF2Remake.World
             if (!external || State != Phase.Docked) return;
             startPos = DockedPos;
             startRot = DockedRot;
-            externalTakeOffPosition = startPos + (DockedRot * Vector3.forward) * 5000f * 0.05f;
+            externalTakeOffPosition = startPos + ExternalDepartureOffset(DockedRot);
             State = Phase.TakeOff;
             t = 0f;
             released = false;

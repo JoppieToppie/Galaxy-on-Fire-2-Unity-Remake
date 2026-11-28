@@ -84,9 +84,11 @@ namespace GoF2Remake.UI
         void Rebuild()
         {
             if (!IsOpen) return;
+            using var modUi = Modding.ModScripts.StationUiScope(window, PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage) ? "marketplace" : "hangar", () => tab.ToString().ToLowerInvariant());
             UpdateVipTools();   // remake: the free Kaamo Ships tab and tools (a Ships tab without them falls back to the Store)
             tabShip.EnableInClassList("hangar-tab--active", tab == Tab.Ship);
             tabShop.EnableInClassList("hangar-tab--active", tab == Tab.Shop);
+            tabStorage.EnableInClassList("hangar-tab--active", tab == Tab.Storage);
             tabBlueprints.EnableInClassList("hangar-tab--active", tab == Tab.Blueprints);
             var keep = selected;
             int keepIndex = pendingKeepIndex ?? (keep != null ? rows.IndexOf(keep) : -1);
@@ -98,7 +100,9 @@ namespace GoF2Remake.UI
             string T(int id) => Localization.Get(id).UiCaps();
             int[] typeHeaders = { 265, 266, 267, 269, 270 };
 
-            if (tab == Tab.Shop)
+            if (PlayerMarketplace && (tab == Tab.Shop || tab == Tab.Storage))
+                BuildPlayerMarketRows(typeHeaders);
+            else if (tab == Tab.Shop)
             {
                 if (hangar.Storage)
                 {
@@ -147,7 +151,7 @@ namespace GoF2Remake.UI
                     AddHeader(T(273));
                     int known = 0;
                     foreach (var p in Blueprints.Products(db))
-                        if (Blueprints.IsUnlocked(p.index)) { AddRow(new Row { kind = RowKind.Blueprint, item = p.index }); known++; }
+                        if (Blueprints.IsUnlocked(p.index) && !Blueprints.IsRestricted(p.index)) { AddRow(new Row { kind = RowKind.Blueprint, item = p.index }); known++; }
                     // Rework (docs/UI-DESIGN.md "Empty states"): an empty tab says how to fill it (it was a heading over nothing).
                     if (known == 0) AddNote(Localization.Extra("blueprintsNone", "No blueprints yet. Space Lounge visitors sell them."));
                     if (Session.PendingProducts.Count > 0)
@@ -207,7 +211,7 @@ namespace GoF2Remake.UI
                 }
             }
             foreach (var r in rows) r.element.EnableInClassList("list-row--selected", r == selected);
-            list.schedule.Execute(() => { list.scrollOffset = new Vector2(0f, scroll); ScrollToSelected(); });
+            list.schedule.Execute(() => { list.scrollOffset = new Vector2(0f, scroll); if (DistributionNavigation) ScrollDistributionCursor(); else ScrollToSelected(); });
             ShowDetails();
             UpdateFooter();
             // Remake: the key hints say TAKE / ADD in the ingredients view (StationMenu.BuildHints asks EditingBlueprint), and
@@ -234,7 +238,7 @@ namespace GoF2Remake.UI
             actions.AddToClassList("manufacturing-actions");
             list.Add(actions);
             AddProductionRow(actions, RowKind.ShopLink, Localization.Get(hangar.Storage ? 186 : 185).UiCaps(), "manufacturing-shop");   // the tab's name
-            productionAutocomplete = Blueprints.CanAutocomplete(editing)
+            productionAutocomplete = !Blueprints.IsRestricted(editing) && Blueprints.CanAutocomplete(editing)
                 ? AddProductionRow(actions, RowKind.Autocomplete, "", "manufacturing-autocomplete") : null;
             productionComplete = AddProductionRow(actions, RowKind.Complete, Localization.Extra("bpComplete", "Complete").UiCaps(),
                                                   "manufacturing-complete");
@@ -262,7 +266,7 @@ namespace GoF2Remake.UI
         void RefreshProductionActions()
         {
             if (productionComplete == null || editing < 0) return;
-            bool ready = CanComplete();
+            bool ready = !Blueprints.IsRestricted(editing) && CanComplete();
             productionComplete.EnableInClassList("detail-action--disabled", !ready);
             productionComplete.pickingMode = ready ? PickingMode.Position : PickingMode.Ignore;
             if (productionAutocomplete != null)
@@ -276,7 +280,7 @@ namespace GoF2Remake.UI
         /// <summary>Remake: every ingredient is in, counting the units waiting to be shipped (they go in first, 288).</summary>
         bool CanComplete()
         {
-            if (editing < 0) return false;
+            if (editing < 0 || Blueprints.IsRestricted(editing)) return false;
             var db = level.Database;
             var parts = db.Item(editing)?.blueprint;
             if (parts == null) return false;
@@ -327,6 +331,102 @@ namespace GoF2Remake.UI
         }
         /// <summary>Remake: "+N mounted" (a secondary's N is its remaining ammo).</summary>
         static string MountedNote(int units) => string.Format(Localization.Extra("shopMountedCount", "+{0} mounted"), units);
+        void BuildPlayerMarketRows(int[] typeHeaders)
+        {
+            string T(int id) => Localization.Get(id).UiCaps();
+            var storage = playerMarket?.storage;
+            if (PlayerStorageTab)
+            {
+                if (storage == null || (!storage.canDeposit && !storage.canWithdraw) || !string.IsNullOrEmpty(storage.error))
+                {
+                    AddNote(storage == null ? "Loading station storage…" : string.IsNullOrEmpty(storage.error) ? "Storage access unavailable." : storage.error);
+                    return;
+                }
+                AddNote($"PERSONAL STORAGE · {storage.used:N0} / {storage.capacity:N0} t used at this station");
+                var stacks = storage.items?.Where(stack => stack != null).GroupBy(stack => stack.item).ToDictionary(group => group.Key, group => group.Sum(stack => stack.amount)) ?? new Dictionary<int, int>();
+                var items = new HashSet<int>(stacks.Keys);
+                if (storage.canDeposit)
+                    foreach (var stack in Session.Cargo)
+                        if (stack.amount > 0) items.Add(stack.item);
+                for (int type = 0; type < typeHeaders.Length; type++)
+                {
+                    var group = items.Where(item => hangar.TypeOf(item) == type && level.Database.Item(item) != null)
+                        .OrderBy(item => level.Database.Item(item).name).ToList();
+                    if (group.Count == 0) continue;
+                    AddHeader(T(typeHeaders[type]));
+                    foreach (int item in group)
+                        AddRow(new Row { kind = RowKind.ShopItem, item = item, type = type,
+                            stationUnits = stacks.TryGetValue(item, out int owned) ? owned : 0 });
+                }
+                if (items.Count == 0) AddNote("No loose goods in the hold or station storage.");
+                bool mountedHeader = false;
+                for (int i = 0; i < Session.Equipment.Count; i++)
+                {
+                    var stack = Session.Equipment[i];
+                    if (stack == null || stack.builtIn || stack.amount <= 0 || level.Database.Item(stack.item) == null) continue;
+                    if (!mountedHeader) { AddHeader("FITTED EQUIPMENT"); mountedHeader = true; }
+                    AddRow(new Row { kind = RowKind.Slot, item = stack.item, equipment = i, type = hangar.TypeOf(stack.item) });
+                }
+                if (storage.hulls?.Count > 0)
+                {
+                    AddHeader("SHIPS");
+                    foreach (var hull in storage.hulls)
+                    {
+                        if (level.Database.Ship(hull.ship) == null) continue;
+                        string action = hull.stored ? "storage-take-" : "storage-store-";
+                        string command = $"{action}{(hull.dryDock ? "large" : "hull")} {storage.stationId} {hull.token}";
+                        AddRow(new Row { kind = RowKind.MarketAction, ship = hull.ship, marketKey = hull.token,
+                            marketLabel = (hull.stored ? "Withdraw " : "Store ") + ItemInfo.ShipName(hull.ship) + (hull.dryDock ? " · Dry dock" : ""),
+                            marketAction = () => SendPlayerMarketCommand(command) });
+                    }
+                }
+                return;
+            }
+
+            if (hangar.StockOf(Freelance.Documents) > 0 && Freelance.Active && Freelance.Mission.status == 0 && !Freelance.HasDocuments)
+            {
+                AddHeader("MISSION");
+                AddRow(new Row { kind = RowKind.ShopItem, item = Freelance.Documents, type = hangar.TypeOf(Freelance.Documents),
+                    stationUnits = hangar.StockOf(Freelance.Documents), listingPrice = hangar.BuyPriceOf(Freelance.Documents) });
+            }
+            if (playerMarket == null) { AddNote("Loading marketplace listings…"); return; }
+            var listings = playerMarket.rows;
+            var hulls = listings.Where(entry => entry.hull && level.Database.Ship(entry.item) != null).ToList();
+            if (hulls.Count > 0) AddHeader(T(173));
+            foreach (var entry in hulls)
+                AddRow(new Row { kind = RowKind.ShopShip, ship = entry.item, listingId = entry.id,
+                    listingPrice = entry.mine ? entry.price : entry.quotedPrice, ownListing = entry.mine });
+            if (!string.IsNullOrEmpty(playerMarket.accessMessage)) AddNote(playerMarket.accessMessage);
+            else if (listings.Count == 0) AddNote("No player listings.");
+            for (int type = 0; type < typeHeaders.Length; type++)
+            {
+                var group = listings.Where(entry => !entry.hull && level.Database.Item(entry.item) != null &&
+                    hangar.TypeOf(entry.item) == type).OrderBy(entry => level.Database.Item(entry.item).name)
+                    .ThenBy(entry => entry.price).ToList();
+                var cargo = playerMarket.canListGoods ? Session.Cargo.Where(stack => stack.amount > 0 &&
+                    level.Database.Item(stack.item) != null && Hangar.IsSaleable(stack.item) && hangar.TypeOf(stack.item) == type &&
+                    !group.Any(entry => entry.item == stack.item)).Select(stack => stack.item).Distinct().ToArray() : Array.Empty<int>();
+                if (group.Count == 0 && cargo.Length == 0) continue;
+                AddHeader(T(typeHeaders[type]));
+                foreach (var entry in group)
+                    AddRow(new Row { kind = RowKind.ShopItem, item = entry.item, type = type, listingId = entry.id,
+                        stationUnits = entry.amount, listingPrice = entry.mine ? entry.price : entry.quotedPrice, ownListing = entry.mine });
+                foreach (int item in cargo) AddRow(new Row { kind = RowKind.ShopItem, item = item, type = type });
+            }
+            if (playerMarket.canListHulls)
+                AddRow(new Row { kind = RowKind.MarketAction, marketLabel = "List a stored ship",
+                    marketAction = () => menu.OpenMarketplaceListing(-1) });
+            if (playerMarketPage > 0) AddMarketPage("Previous listings page", -1);
+            if (playerMarketPage + 1 < playerMarket.pageCount) AddMarketPage("Next listings page", 1);
+        }
+
+        void AddMarketPage(string label, int delta) =>
+            AddRow(new Row { kind = RowKind.MarketAction, marketLabel = label, marketAction = () =>
+            {
+                playerMarketPage += delta;
+                RefreshPlayerMarket();
+            } });
+
         void AddRow(Row row)
         {
             var db = level.Database;
@@ -355,6 +455,10 @@ namespace GoF2Remake.UI
             VisualElement bpAmount = null;   // Remake: an ingredient's blueprint amount, at the row's right edge
             switch (row.kind)
             {
+                case RowKind.MarketAction:
+                    name.text = row.marketLabel;
+                    if (row.ship >= 0) tex = ItemInfo.ShipIcon(row.ship);
+                    break;
                 case RowKind.ShopItem:
                 {
                     var it = db.Item(row.item);
@@ -377,6 +481,13 @@ namespace GoF2Remake.UI
                     // The trade mode's two amounts: Remake, the station's at the row's left edge and the ship's at its right
                     // (the original's columns), under the name only the category.
                     subText.text = ItemInfo.Category(it);
+                    if (PlayerMarketplace)
+                    {
+                        if (row.ownListing) subText.text += " · Your listing";
+                        if (PlayerStorageTab) price.text = $"{hangar.CargoOf(row.item):N0} C / {row.stationUnits:N0} S";
+                        else if (row.listingPrice > 0) price.text = ItemInfo.Credits(row.listingPrice);
+                        break;
+                    }
                     if (hangar.Storage) break;   // the storage draws no prices
                     int p = hangar.BuyPriceOf(row.item);   // 0 for step 67's gifted mines
                     price.text = ItemInfo.Credits(p);
@@ -401,6 +512,13 @@ namespace GoF2Remake.UI
                 {
                     tex = ItemInfo.ShipIcon(row.ship);
                     name.text = ItemInfo.TaggedShipName(row.ship);
+                    if (PlayerMarketplace)
+                    {
+                        subText.text = row.ownListing ? "Your listing" : ItemInfo.ShipRaceText(row.ship);
+                        price.text = ItemInfo.Credits(row.listingPrice);
+                        price.EnableInClassList("row-price--expensive", !row.ownListing && row.listingPrice > Session.Credits);
+                        break;
+                    }
                     subText.text = ItemInfo.ShipRaceText(row.ship) + (hangar.Stock.ModsOf(row.ship).Count > 0 ? "  (+)" : "");
                     // Remake (the VIP Card): a type already parked at the Kaamo Club carries the map's house.
                     if (MarkAtKaamo(row.ship)) sub.Add(KaamoBadge());
@@ -554,6 +672,11 @@ namespace GoF2Remake.UI
             }
             else texts.Add(name);
             texts.Add(sub);
+            if (ShipTab && row.kind == RowKind.Slot && row.type == 1 && row.place >= 0)
+            {
+                row.distributionSub = subText;
+                row.distributionOriginalSub = subText.text;
+            }
             Label Amount(int t, string side)
             {
                 var l = new Label($"{t}t") { pickingMode = PickingMode.Ignore };
@@ -565,7 +688,7 @@ namespace GoF2Remake.UI
             // The station's (or the storage's) left, the hold's right; the Ship tab's hold items only the hold's (right), a
             // blueprint's ingredients only the hold's, on the left (the station's is in their SOLD HERE badge).
             if (row.kind == RowKind.Ingredient) e.Add(Amount(hangar.BlueprintSupply(row.item), "row-qty--station"));
-            else if (amounts && row.kind != RowKind.CargoItem) e.Add(Amount(hangar.StockOf(row.item), "row-qty--station"));
+            else if (amounts && row.kind != RowKind.CargoItem) e.Add(Amount(PlayerMarketplace && row.kind == RowKind.ShopItem ? row.stationUnits : hangar.StockOf(row.item), "row-qty--station"));
             e.Add(icon);
             e.Add(texts);
             if (amounts && row.kind != RowKind.Ingredient)
@@ -633,10 +756,11 @@ namespace GoF2Remake.UI
             // player's report: a stale Autocomplete row stayed selected and A autocompleted blueprint -1 for 0 $); units
             // staged for another production station wait for FREIGHT, Complete or leaving the view.
             if (sound) menu.PlayPush();
+            CancelDistributionNavigation();
             ReleaseArrow();
             selected = row;
             foreach (var r in rows) r.element.EnableInClassList("list-row--selected", r == selected);
-            if (AutoEquip()) return;   // rebuilt
+            if (!PlayerStorageTab && AutoEquip()) return;   // rebuilt
             ScrollToSelected();
             ShowDetails();
             SelectionHint(row);
@@ -657,6 +781,7 @@ namespace GoF2Remake.UI
         /// fresh press wraps (HoldDirections), a held key's repeat stops at the end.</summary>
         public void MoveSelection(int dir, bool wrap = false)
         {
+            if (MoveDistributionCursor(dir, wrap)) return;
             if (rows.Count == 0) return;
             int i = selected != null ? rows.IndexOf(selected) : -1;
             for (int n = i + dir; n >= 0 && n < rows.Count; n += dir)

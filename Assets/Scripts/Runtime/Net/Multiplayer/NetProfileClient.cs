@@ -27,18 +27,83 @@ namespace GoF2Remake.Multiplayer
         static int seed;
         static float uploadTimer = UploadSeconds;
         static int outSeq;
+        static long economyRevision;
+
+        internal static void OnEconomyRevision(long revision)
+        {
+            if (revision > economyRevision) economyRevision = revision;
+        }
+        static int pendingWreckPickup, lastFreightResult;
+        static float wreckPickupSentAt;
+        static int pendingJumpSequence;
+        static Action<GameHooks.ModJumpResult?> pendingJump;
+        static NetState pendingJumpServer;
         // The profile coming in.
         static int inSeq = -1, inGot;
         static byte[][] inParts;
         static string inToken;
-        static bool inController, inGuest;
+        static bool inController, inGuest, inIdentityRequired;
+        static string inSavedRace, inSavedPortrait;
+        internal static string SelectedRace { get; private set; }
+        internal static string SelectedPortrait { get; private set; }
+        internal static bool IdentityRequired { get; private set; }
+        internal static string IdentityRace { get; private set; }
+        internal static string IdentityMessage { get; private set; }
+        internal static bool IdentitySubmitting
+        {
+            get
+            {
+                if (!IdentityRequired || identityRequestUntil <= 0) return false;
+                if (Time.realtimeSinceStartup < identityRequestUntil) return true;
+                identityRequestUntil = 0;
+                IdentityMessage = "No confirmation received. Retry or reconnect; any saved identity will be retained.";
+                return false;
+            }
+        }
+        static float identityRequestUntil;
+
+        internal static void ChooseIdentity(string race, string portrait)
+        {
+            if (!IdentityRequired || !Controller || IdentitySubmitting || NetState.Instance == null) return;
+            IdentityMessage = "Saving your permanent identity…";
+            identityRequestUntil = Time.realtimeSinceStartup + 10f;
+            NetState.Instance.ChoosePlayerIdentityRpc(race, portrait);
+        }
+
+        internal static void LinkIdentity(string code)
+        {
+            if (!IdentityRequired || IdentitySubmitting || NetState.Instance == null) return;
+            IdentityMessage = "Linking your existing profile…";
+            identityRequestUntil = Time.realtimeSinceStartup + 10f;
+            NetState.Instance.LinkIdentityRpc(code);
+        }
+
+        internal static void OnIdentityResult(string result)
+        {
+            identityRequestUntil = 0;
+            IdentityMessage = result;
+        }
+
+        internal static void ClearIdentitySetup()
+        {
+            IdentityRequired = false;
+            IdentityRace = IdentityMessage = null;
+            identityRequestUntil = 0;
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
             waiting = false;
+            SelectedRace = SelectedPortrait = null;
+            ClearIdentitySetup();
             uploadTimer = UploadSeconds;
             outSeq = 0;
+            economyRevision = 0;
+            pendingWreckPickup = lastFreightResult = 0;
+            pendingJumpSequence = 0;
+            pendingJump = null;
+            pendingJumpServer = null;
             inSeq = -1; inGot = 0; inParts = null;
             Controller = true;
             Guest = false;
@@ -64,6 +129,10 @@ namespace GoF2Remake.Multiplayer
         /// <summary>NetState reached this client on a server with profiles: sign in, the world waits for the profile.</summary>
         public static void Begin(string server, int worldSeed)
         {
+            SelectedRace = SelectedPortrait = null;
+            ClearIdentitySetup();
+            economyRevision = 0;
+            outSeq = 0;
             serverId = server ?? "";
             seed = worldSeed;
             waiting = true;
@@ -100,7 +169,7 @@ namespace GoF2Remake.Multiplayer
 
         // ---- the profile coming in --------------------------------------------------------------------------
 
-        internal static void OnProfileHeader(int seq, int count, string token, bool controller, bool guest, int home)
+        internal static void OnProfileHeader(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace, string savedPortrait)
         {
             inSeq = seq;
             inGot = 0;
@@ -108,6 +177,9 @@ namespace GoF2Remake.Multiplayer
             inToken = token;
             inController = controller;
             inGuest = guest;
+            inIdentityRequired = identityRequired;
+            inSavedRace = savedRace;
+            inSavedPortrait = savedPortrait;
             if (count <= 0) Complete(null);
         }
 
@@ -124,6 +196,18 @@ namespace GoF2Remake.Multiplayer
             if (!string.IsNullOrEmpty(inToken)) { PlayerPrefs.SetString(TokenKey, inToken); PlayerPrefs.Save(); }
             Controller = inController;
             Guest = inGuest;
+            SelectedRace = !inIdentityRequired && !inGuest ? inSavedRace : null;
+            SelectedPortrait = !inIdentityRequired && !inGuest ? inSavedPortrait : null;
+            if (inIdentityRequired)
+            {
+                IdentityRequired = true;
+                IdentityRace = inSavedRace;
+                identityRequestUntil = 0;
+                // Keep the token, but do not enter or apply the gameplay profile until the server saves both choices.
+                waiting = true;
+                return;
+            }
+            ClearIdentitySetup();
             bool applied = false;
             if (!string.IsNullOrEmpty(json))
             {
@@ -157,13 +241,102 @@ namespace GoF2Remake.Multiplayer
         /// control to another device of the profile).</summary>
         public static void Upload(bool handover = false)
         {
-            if (!Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return;
-            if (SaveGame.HostSaves) return;   // the co-op host's game is in its save slots
-            if (NetArenaClient.InMatch) return;   // nothing of an arena match is saved (its start uploaded the profile)
+            if (ModJumpPending() || (!handover && WreckPickupPending())) return;
+            UploadSnapshot(handover);
+        }
+
+        internal static bool CanResolveModJump =>
+            Active && !waiting && !Guest && Controller && !SaveGame.HostSaves && !NetArenaClient.InMatch;
+
+        internal static bool RequestModJump(int origin, int destination, int drive,
+            Action<GameHooks.ModJumpResult?> done)
+        {
+            if (!CanResolveModJump || ModJumpPending() || WreckPickupPending()) return false;
+            int sequence = UploadSnapshot(handover: false);
+            if (sequence == 0) return false;
+            pendingJumpSequence = sequence;
+            pendingJump = done;
+            pendingJumpServer = NetState.Instance;
+            pendingJumpServer.RequestModJumpRpc(origin, destination, drive, sequence);
+            return true;
+        }
+
+        static bool ModJumpPending()
+        {
+            if (pendingJump == null) return false;
+            if (NetGame.Active && pendingJumpServer != null && pendingJumpServer == NetState.Instance) return true;
+            ReceiveModJump(pendingJumpSequence, null);
+            return false;
+        }
+
+        internal static void ReceiveModJump(int sequence, GameHooks.ModJumpResult? outcome)
+        {
+            if (sequence != pendingJumpSequence || pendingJump == null) return;
+            var callback = pendingJump;
+            pendingJumpSequence = 0;
+            pendingJump = null;
+            pendingJumpServer = null;
+            callback(outcome);
+        }
+
+        internal static void RequestWreckSalvage(int orbit, int room, bool jumpgate)
+        {
+            if (ModJumpPending() || WreckPickupPending()) return;
+            int sequence = UploadSnapshot(handover: false);
+            if (sequence == 0) return;
+            pendingWreckPickup = sequence;
+            wreckPickupSentAt = Time.realtimeSinceStartup;
+            NetState.Instance.RequestWreckSalvageRpc(orbit, room, jumpgate, sequence);
+        }
+
+        internal static void RequestFreightClaim(int tag, ulong proxy, int room)
+        {
+            if (!Active || !Controller || Guest || room <= 0 || NetState.Instance == null ||
+                ModJumpPending() || WreckPickupPending()) return;
+            int sequence = NetGame.IsServer && NetGame.PersistentHost ? ++outSeq : UploadSnapshot(handover: false);
+            if (sequence == 0) return;
+            pendingWreckPickup = sequence;
+            wreckPickupSentAt = Time.realtimeSinceStartup;
+            NetState.Instance.RequestFreightClaimRpc(tag, proxy, room, sequence);
+        }
+
+        internal static void ApplyFreightClaim(int sequence, int item, int amount)
+        {
+            if (sequence <= lastFreightResult || sequence > outSeq) return;
+            lastFreightResult = sequence;
+            AcknowledgeWreckSalvage(sequence);
+            if (amount <= 0 || item < 0) return;
+            if (!(NetGame.IsServer && NetGame.PersistentHost)) Shop.AddToCargo(item, amount);
+            GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+            NetChat.Notice($"Recovered {amount:N0} t of {GameNames.Item(item)} from freight.");
+        }
+
+        static bool WreckPickupPending()
+        {
+            if (pendingWreckPickup == 0) return false;
+            if (Time.realtimeSinceStartup - wreckPickupSentAt < 8f) return true;
+            pendingWreckPickup = 0;
+            return false;
+        }
+
+        internal static void AcknowledgeWreckSalvage(int sequence)
+        {
+            if (pendingWreckPickup == sequence) pendingWreckPickup = 0;
+        }
+
+        internal static int UploadForStationStorage() =>
+            ModJumpPending() || WreckPickupPending() ? 0 : UploadSnapshot(handover: false);
+
+        static int UploadSnapshot(bool handover)
+        {
+            if (NetStock.PriceTradePending || !Active || waiting || Guest || (!Controller && !handover) || NetState.Instance == null || !NetState.Instance.IsSpawned) return 0;
+            if (SaveGame.HostSaves) return 0;   // the co-op host's game is in its save slots
+            if (NetArenaClient.InMatch) return 0;   // nothing of an arena match is saved (its start uploaded the profile)
             uploadTimer = UploadSeconds;
             var parts = NetProfiles.Pack(SaveGame.ProfileJson());
             int seq = ++outSeq;
-            for (int i = 0; i < parts.Count; i++) NetState.Instance.UploadChunkRpc(seq, i, parts.Count, parts[i]);
+            for (int i = 0; i < parts.Count; i++) NetState.Instance.UploadChunkRpc(seq, i, parts.Count, economyRevision, parts[i]);
+            return seq;
         }
 
         /// <summary>A persistent hosted world's host leaving: its game straight into its profile (NetProfiles.SaveHost). The

@@ -22,6 +22,8 @@ namespace GoF2Remake.Data
 
         /// <summary>Why the squad can't take a mission now (the whole squad docked here), null = it can.</summary>
         public static Func<string> SquadAcceptRefusal;
+        public static Func<bool> ServerOwnsReputation;
+        public static Action<int, int> ReportReputationDelict;
         /// <summary>A mission was accepted: the squad gets it too.</summary>
         public static Action<FreelanceMission> MissionAccepted;
         /// <summary>The mission changed (Recovery's return trip): the squad's copies follow.</summary>
@@ -63,14 +65,27 @@ namespace GoF2Remake.Data
         public static Action<StationStock> StockEntered;
         /// <summary>A unit bought / sold at the station: station, item, delta, price (NetStock.ItemChanged).</summary>
         public static Action<int, int, int, int> StockItemChanged;
+        public static Func<int, int, bool> AdvancedPricedItem;
+        public static Func<int, int, int?> AdvancedBuyQuote;
+        public static Func<int, int, int?> AdvancedSellQuote;
+        // Station, item (-1 for a hull), base price, buying. Null means vanilla pricing.
+        public static Func<int, int, int, bool, int?> NpcMarketPrice;
         /// <summary>A dealer ship swapped: station, removed, added (NetStock.ShipChanged).</summary>
         public static Action<int, int, int> StockShipChanged;
         /// <summary>A faction station's buying / selling price (NetFactionsClient); unset: the price.</summary>
         public static Func<int, int, int> FactionBuyPrice, FactionSellPrice, FactionShipBuyPrice;
         /// <summary>Save point in a session: the profile goes to the server instead (NetProfileClient.Upload).</summary>
         public static Action ProfileUpload;
+        public static Action BeforeSave;
         /// <summary>The session's pirate board as JSON (NetState.PirateBoardJson), null = none.</summary>
         public static Func<string> SharedPirateBoard;
+        public static Func<bool> LocalPilotIsPirate;
+
+        public const int DefaultPiracyKillThreshold = 30;
+        public const int DefaultPiracyWindowSeconds = 4 * 86400;
+        /// <summary>Server piracy rules. These hooks only run when the piracy mod option is enabled.</summary>
+        public static Func<int> PiracyKillThreshold = () => DefaultPiracyKillThreshold;
+        public static Func<int> PiracyWindowSeconds = () => DefaultPiracyWindowSeconds;
 
         public delegate bool RuleQuery(int bit, out bool on);
         /// <summary>The session's value of a gameplay rule (NetRules.TryGet); false = no session, the player's own option.</summary>
@@ -85,6 +100,43 @@ namespace GoF2Remake.Data
         /// <summary>The session's flight model (NetRules.TryGetFlight: FlightStyles.Original / Free, SessionRules.PlayerFlight);
         /// false = no session, the player's own option.</summary>
         public static NumberQuery SessionFlightStyle;
+
+        // ---- opt-in mod jump drives and dynamic jumpgate lifecycles -----------------------------------------------
+
+        /// <summary>Whether a listed jumpgate connection is presently usable (EMP, destruction, scrapping).
+        /// Null means the game's static galaxy links are operational, preserving vanilla behaviour.
+        /// A station/gate lifecycle implementation can supply this per directed system link.</summary>
+        public static Func<int, int, bool> JumpgateLinkOperational;
+
+        public readonly struct ModJumpResult
+        {
+            public readonly int Station, Cells, LostItem, HullLimit;
+            public readonly bool Misjump;
+
+            public ModJumpResult(int station, int cells, int lostItem, int hullLimit, bool misjump)
+            {
+                Station = station;
+                Cells = cells;
+                LostItem = lostItem;
+                HullLimit = hullLimit;
+                Misjump = misjump;
+            }
+        }
+
+        /// <summary>In a session, the server commits the jump before returning its result to the flight controller.</summary>
+        public static Func<bool> CanResolveModJump;
+        public static bool ModJumpServerReady() => CanResolveModJump?.Invoke() == true;
+        public static Func<int, int, int, Action<ModJumpResult?>, bool> ResolveModJump;
+
+        public static Action<Database> ApplyPlayerStations;
+        public static Func<int, string> PlayerStationName;
+        public static Func<int, bool?> PlayerStationTraffic;
+        public static Func<int, bool> IsPlayerStation, StationSceneryPresent, StationClosedByCombat, HasDryDockAtStation;
+        public static Func<int, bool> StationConstructionPlaceholder;
+        public static Func<int, bool> HasPlayerJumpgate, HasPlayerJumpgateWreck;
+        public static Func<int, int> PlayerStationModel, PlayerJumpgateDestination, PlayerJumpgateModelPreset;
+        public static Func<int, string> PlayerJumpgateModelReference;
+        public static Func<string, Modding.ModWorld.StationModel> ResolvePlayerJumpgateModel;
 
         // ---- the co-op campaign (NetCoop; CoopCampaign) -------------------------------------------------------------
 
@@ -134,6 +186,9 @@ namespace GoF2Remake.Data
         /// <summary>game.message: a line on screen wherever the player is (the flight HUD's message plate, else a station toast);
         /// false = nothing can show it now (the scene's interface isn't up yet: ModScripts tries again for a moment).</summary>
         public static Func<string, bool> Notice;
+        /// <summary>A local mod tutorial popup; false if the interface is not ready or another window is open.</summary>
+        public static Func<string, string, bool> TutorialPopup;
+        public static Func<string, string, Action, bool> TutorialPopupAcknowledged;
         /// <summary>game.command: a chat / event command line ("spawn pirate 3") run as the server runs it
         /// (NetCommands.RunOnServer); its answer, which says so when this game isn't the server.</summary>
         public static Func<string, string> RunCommand;

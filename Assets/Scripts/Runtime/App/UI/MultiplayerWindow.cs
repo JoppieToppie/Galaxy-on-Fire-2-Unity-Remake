@@ -37,6 +37,7 @@
 
 using System;
 using System.Collections.Generic;
+using GoF2Remake.Flight;
 using GoF2Remake.Data;
 using GoF2Remake.Multiplayer;
 using UnityEngine;
@@ -48,14 +49,34 @@ namespace GoF2Remake.UI
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public sealed partial class MultiplayerWindow : MonoBehaviour
     {
-        enum Tab { Chat, Squad, Trade, Faction, Arena, Profile, Admin }
+        enum Tab { Chat, Squad, Trade, Faction, Arena, Profile, OrbitProjects, Admin }
 
         static MultiplayerWindow current;
 
         /// <summary>The window is open (StationMenu: Esc closes it, its keys wait).</summary>
-        public static bool IsOpenAny => current != null && current.isOpen;
+        public static bool IsOpenAny => current != null && (current.isOpen || current.orbitManagement?.IsOpen == true);
 
-        public static void CloseAny() { if (current != null) current.Close(); }
+        public static void CloseAny()
+        {
+            if (current?.orbitManagement?.IsOpen == true) current.orbitManagement.Back();
+            else current?.Close();
+        }
+
+        public static bool CanOpenOrbitManagementAny => current != null && current.flight && current.orbitManagement?.CanOpen == true;
+
+        public static void OpenOrbitManagementAny()
+        {
+            if (!CanOpenOrbitManagementAny) return;
+            current.Close();
+            current.orbitManagement.Open();
+        }
+
+        public static void OpenOrbitProjectsAny()
+        {
+            if (current != null && current.flight) current.OpenTab(Tab.OrbitProjects);
+        }
+
+        StationManagementWindow orbitManagement;
 
         VisualElement plate, window, tabs, body, chatPane, flightColumn;
         Button sosButton;
@@ -88,12 +109,13 @@ namespace GoF2Remake.UI
                               Dim = new Color(0.85f, 0.92f, 0.97f, 0.65f), Good = new Color(0.47f, 0.9f, 0.55f), Bad = new Color(1f, 0.55f, 0.47f);
 
         /// <summary>The window's button and window on 'parent' (the station menu's or the flight HUD's safe area).</summary>
-        public static void Attach(GameObject host, VisualElement parent, bool flight = false)
+        public static void Attach(GameObject host, VisualElement parent, bool flight = false, Navigation navigation = null)
         {
             if (parent == null) return;
             var view = host.GetComponent<MultiplayerWindow>();
             if (view == null) view = host.AddComponent<MultiplayerWindow>();
             view.flight = flight;
+            view.SetConstructionNavigation(navigation);
             view.Build(parent);
         }
 
@@ -104,7 +126,8 @@ namespace GoF2Remake.UI
         public static void ToggleAny() { if (current != null) current.Toggle(); }
 
         /// <summary>A text field of the window has the focus (its keys aren't the game's: FlightHud leaves N alone).</summary>
-        public static bool TypingAny => current != null && current.isOpen && TextFieldKeys.InTextField(current.window?.focusController?.focusedElement);
+        public static bool TypingAny => current != null && (current.orbitManagement?.IsTyping == true ||
+            current.isOpen && TextFieldKeys.InTextField(current.window?.focusController?.focusedElement));
 
         void OnEnable()
         {
@@ -116,6 +139,7 @@ namespace GoF2Remake.UI
 
         void OnDisable()
         {
+            orbitManagement?.Close();
             if (current == this) current = null;
             NetPanel.Changed -= OnChanged;
             NetChat.Added -= OnChat;
@@ -130,6 +154,7 @@ namespace GoF2Remake.UI
 
         void OpenTab(Tab t)
         {
+            orbitManagement?.Close();
             tab = t;
             confirmLeave = false;
             BuildTabs();
@@ -139,11 +164,14 @@ namespace GoF2Remake.UI
 
         void OnDestroy()
         {
+            orbitManagement?.Dispose();
+            orbitManagement = null;
             if (typing) { typing = false; NetChat.DropTyping(); }   // the scene's actions go with it (ChatView does the same)
             sosButton?.RemoveFromHierarchy();
             plate?.RemoveFromHierarchy();
             window?.RemoveFromHierarchy();
             flightColumn?.RemoveFromHierarchy();
+            SetConstructionNavigation(null);
         }
 
         // ---- building -------------------------------------------------------------------------------------
@@ -160,6 +188,7 @@ namespace GoF2Remake.UI
         void Open()
         {
             if (!NetGame.Active) return;
+            orbitManagement?.Close();
             isOpen = true;
             confirmLeave = false;
             window.style.display = DisplayStyle.Flex;
@@ -184,6 +213,7 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (plate == null) return;
+            orbitManagement?.Update();
             // The window's text fields: the game's own keys (the station's 1 / 2 / M / L, the flight controls, the hangar's
             // A / D) are off while one has the focus.
             bool fieldFocused = TypingAny;
@@ -197,6 +227,7 @@ namespace GoF2Remake.UI
             // In the top bar: the new button takes the bar's free space on its left while it shows.
             if (plate == plateButton && menuButton != null)
                 menuButton.style.marginLeft = session ? new StyleLength(0f) : new StyleLength(StyleKeyword.Null);
+            if (flight) UpdateConstructionShortcut(session ? NetPlayer.Local : null);
             if (!session) { if (isOpen) Close(); return; }
             var s = NetPanel.Latest;
             bool waiting = (s != null && (s.factionInvites.Count > 0 || s.duelFrom.Length > 0))
@@ -206,6 +237,7 @@ namespace GoF2Remake.UI
             plateButton.text = (label + (waiting || unread ? "  •" : "")).UiCaps();
             if (isOpen && tab == Tab.Squad && SquadKey() != squadKey) Rebuild();
             if (isOpen && tab == Tab.Trade && TradeKey() != tradeKey && !Busy) Rebuild();
+            if (isOpen && tab == Tab.OrbitProjects) UpdateOrbitProjects();
             // The plate's dot needs a snapshot now and then even while the window is closed.
             if ((refresh -= Time.unscaledDeltaTime) <= 0f) { refresh = isOpen ? NetPanel.RefreshSeconds : NetPanel.RefreshSeconds * 3f; NetPanel.Request(); }
         }
@@ -213,7 +245,7 @@ namespace GoF2Remake.UI
         void OnChanged()
         {
             if (NetPanel.Latest != null && NetPanel.Latest.role != shownRole && tabs != null) BuildTabs();   // made an op / admin, or no longer
-            if (!isOpen || tab == Tab.Squad || tab == Tab.Trade) return;   // they follow the players, not the snapshot
+            if (!isOpen || tab == Tab.Squad || tab == Tab.Trade || tab == Tab.OrbitProjects) return;
             // Not under a finger or a text field being typed into (a rebuild made new fields: the focus and Android's keyboard
             // went, and a pressed button was gone before its release): once they are done (Update).
             if (Busy) pendingRebuild = true;

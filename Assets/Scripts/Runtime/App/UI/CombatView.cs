@@ -40,7 +40,7 @@ namespace GoF2Remake.UI
         class Marker
         {
             public VisualElement dot, bar, fill, bracket, emp, empFill;
-            public VisualElement shieldBar, shieldFill, armorFill;   // another player's pools, made on first use (DrawPools)
+            public VisualElement shieldBar, shieldFill, armorFill;   // ship health pools, made on first use (DrawPools)
             public Label distance;
             public Label pilot;   // another player's name over their marker, made on first use (DrawPilotName)
             public bool used;
@@ -57,6 +57,10 @@ namespace GoF2Remake.UI
         readonly VisualElement arcBox, safeBox;   // the arcs' 0 x 0 box at the screen centre, the HUD's safe area
         readonly Texture2D[] lockFrames = new Texture2D[24];
         readonly Dictionary<Object, Marker> markers = new Dictionary<Object, Marker>();
+        readonly List<WeaponSystem.LeadProfile> leadProfiles = new List<WeaponSystem.LeadProfile>();
+        readonly List<VisualElement> leadMarkers = new List<VisualElement>();
+        readonly TurretTargeting.HudLeadMotion leadMotion = new TurretTargeting.HudLeadMotion();
+        readonly TurretTargeting.HudLeadDisplay leadDisplay = new TurretTargeting.HudLeadDisplay();
         readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
         // 3: the player's wingmen (remake #216): the friend images, tinted (FactionTextures).
         static readonly string[] Faction = { "enemy", "friend", "neutral", "friend" };
@@ -265,16 +269,22 @@ namespace GoF2Remake.UI
                         // Remake option (Settings.DyingCargoMarkers): none at all.
                         if (s.DyingWithCargo && !s.Gone && !s.Hidden && !s.RadarHidden)
                         {
-                            if (Settings.DyingCargoMarkers) DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
+                            if (Settings.DyingCargoMarkers && radar.Detects(s.Target)) DrawCrate(Get(s), s.transform.position, s.Race == Standing.Void, cam, origin, centre);
                             continue;
                         }
-                        if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingOnly || s.Target.untargetable) continue;
+                        if (s.Gone || !s.Target.Alive || s.Hidden || s.Asleep || s.RadarHidden || s.DockingOnly || s.Target.untargetable || !radar.Detects(s.Target)) continue;
                         int f = s.Target.hostileToPlayer ? 0 : s.Target.friendToPlayer ? (s.Target.wingman ? 3 : 1) : 2;
-                        DrawShip(Get(s), s.transform.position, f, s.Target.HullFraction, radar.Locked == s.Target, cam, origin, centre);
-                        DrawEmp(Get(s), s.Hp != null ? s.Hp.EmpFraction : 1f);
+                        var m = Get(s);
+                        bool lockedShip = radar.Locked == s.Target;
+                        var hp = s.Hp;
+                        DrawShip(m, s.transform.position, f, s.Target.HullFraction, lockedShip, cam, origin, centre);
+                        // Locally simulated NPCs have real health pools, unlike network proxies' replicated fractions.
+                        DrawPools(m, hp != null && hp.maxShield > 0 ? hp.ShieldFraction : -1f,
+                            hp != null && hp.maxArmor > 0 ? hp.ArmorFraction : -1f, lockedShip);
+                        DrawEmp(m, hp != null ? hp.EmpFraction : 1f);
                     }
                 foreach (var o in Target.NetShips)   // multiplayer: the other players, the host's ships on a client
-                    if (o != null && o.Alive && !o.untargetable)
+                    if (o != null && o.Alive && !o.untargetable && radar.Detects(o))
                     {
                         var m = Get(o);
                         int f = o.hostileToPlayer ? 0 : o.friendToPlayer ? 1 : 2;
@@ -283,14 +293,14 @@ namespace GoF2Remake.UI
                         if (o.netPilot) DrawPilotName(m, o.displayName, f, radar.Locked == o);
                     }
                 foreach (var o in Target.RadarObjects)
-                    if (o != null && o.Alive && !o.untargetable)
+                    if (o != null && o.Alive && !o.untargetable && radar.Detects(o))
                         DrawShip(Get(o), o.transform.position, o.hostileToPlayer ? 0 : 2, 1f, radar.Locked == o, cam, origin, centre, true);
                 // Level::createSentryGuns: the player's sentries are in Level::getEnemies too, always-friend: green markers.
                 foreach (var sg in SentryGun.All)
-                    if (sg != null && sg.Target != null && sg.Target.Alive)
+                    if (sg != null && sg.Target != null && sg.Target.Alive && radar.Detects(sg.Target))
                         DrawShip(Get(sg), sg.transform.position, 1, sg.Target.HullFraction, radar.Locked == sg.Target, cam, origin, centre);
                 foreach (var c in Crate.All)   // the registry: a scene search every frame before
-                    DrawCrate(Get(c), c.transform.position, c.race == 9, cam, origin, centre);
+                    if (radar.DetectsPosition(c.transform.position)) DrawCrate(Get(c), c.transform.position, c.race == 9, cam, origin, centre);
                 // Radar::draw 0x1570ec: a spectral filter's gas clouds (attr 57), off screen too with attr 58 (Omega).
                 var clouds = radar.Clouds;
                 if (radar.CloudRadar && clouds != null)
@@ -308,6 +318,9 @@ namespace GoF2Remake.UI
                     Image(lockRing, lockFrames[Mathf.Clamp(radar.LockFrame, 0, 23)]);
                 }
                 var locked = radar.Locked;
+                // Damage can arrive after CombatRadar.Update but before the HUD paints this frame.
+                if (locked != null && (!locked.Targetable || locked.cloaked || !radar.Detects(locked))) locked = null;
+                DrawLeadMarkers(drawLock ? radar : null, cam, origin, centre);
                 if (drawLock && plateFree && locked != null)
                 {
                     lockPlate.EnableInClassList("lock-plate--shown", true);
@@ -346,6 +359,7 @@ namespace GoF2Remake.UI
                     lockClass.style.display = DisplayStyle.None;
                 }
             }
+            if (!show) { HideLeadMarkers(0); leadMotion.Reset(); leadDisplay.Reset(); }
             List<Object> gone = null;
             foreach (var kv in markers)
             {
@@ -366,6 +380,67 @@ namespace GoF2Remake.UI
                 if (m.pilot != null) Show(m.pilot, false);
             }
             if (gone != null) foreach (var k in gone) markers.Remove(k);
+        }
+
+        void HideLeadMarkers(int from)
+        {
+            for (int i = from; i < leadMarkers.Count; i++) Show(leadMarkers[i], false);
+        }
+
+        // A lightweight non-interactive ring per projectile profile, reused across frames.
+        void DrawLeadMarkers(CombatRadar radar, Camera cam, Vector2 origin, Vector2 centre)
+        {
+            var weapons = radar?.LeadWeapons;
+            var target = radar?.Locked;
+            int used = 0;
+            if (weapons != null && TurretTargeting.HudLeadEligible(target) && radar.Detects(target))
+            {
+                // Sample only the locked target once per render frame, regardless of weapon count.
+                if (!leadMotion.Sample(target)) leadDisplay.Reset();
+                leadDisplay.BeginFrame();
+                var targetPosition = target.transform.position;
+                bool remote = target.netShipIndex >= 0 || target.netPilot;
+                float dt = Time.unscaledDeltaTime;
+                weapons.CollectLeadProfiles(leadProfiles);
+                if (leadProfiles.Count > 0)
+                {
+                    var aim = TurretTargeting.CombatAimPoint(target, weapons.transform.position);
+                    foreach (var profile in leadProfiles)
+                    {
+                        Vector3 point;
+                        if (profile.beam)
+                        {
+                            point = aim;
+                            if ((point - profile.muzzle).sqrMagnitude > profile.beamRange * profile.beamRange) continue;
+                        }
+                        else if (!leadMotion.TryLead(aim, profile.muzzle, profile.speed, profile.lifetime, out point)) continue;
+                        // Check the real prediction before smoothing: lost or off-screen solutions hide immediately.
+                        if (!Project(cam, point, origin, centre, out var p, out _)) continue;
+                        var smoothed = leadDisplay.Smooth(profile, targetPosition, point, dt, remote);
+                        if (Project(cam, smoothed, origin, centre, out var filtered, out _)) p = filtered;
+                        else leadDisplay.Forget(profile); // fall back to the visible raw point; do not carry stale history
+                        VisualElement marker;
+                        if (used == leadMarkers.Count)
+                        {
+                            marker = NewImage();
+                            marker.style.width = marker.style.height = 20f;
+                            marker.style.borderTopWidth = marker.style.borderBottomWidth = marker.style.borderLeftWidth = marker.style.borderRightWidth = 2f;
+                            marker.style.borderTopLeftRadius = marker.style.borderTopRightRadius = marker.style.borderBottomLeftRadius = marker.style.borderBottomRightRadius = 10f;
+                            leadMarkers.Add(marker);
+                        }
+                        else marker = leadMarkers[used];
+                        Color tint = profile.beam ? new Color(0.98f, 0.82f, 0.35f) : new Color(0.35f, 0.95f, 0.86f);
+                        marker.style.borderTopColor = marker.style.borderBottomColor = marker.style.borderLeftColor = marker.style.borderRightColor = tint;
+                        Place(marker, p.x - 10f, p.y - 10f);
+                        Show(marker, true);
+                        marker.BringToFront();
+                        used++;
+                    }
+                }
+                leadDisplay.EndFrame();
+            }
+            else { leadMotion.Reset(); leadDisplay.Reset(); }
+            HideLeadMarkers(used);
         }
 
         Texture2D RaceTex(int race) => race >= 0 && race <= 3 || race == 8 || race == 9 ? Tex($"race_{race}") : null;
@@ -551,7 +626,7 @@ namespace GoF2Remake.UI
             m.empFill.style.width = Mathf.Clamp01(emp) * 110f;
         }
 
-        /// <summary>Remake (multiplayer): another player's shield bar 11 px above their hull bar, and the hull bar in the status
+        /// <summary>Remake: a ship's shield bar 11 px above its hull bar, and the hull bar in the status
         /// bar's red with their armor over it in yellow (Player::damage takes shield, then armor, then hull). A pool of -1 isn't
         /// there; with neither the marker stays as DrawShip drew it.</summary>
         void DrawPools(Marker m, float shield, float armor, bool locked)
@@ -609,6 +684,9 @@ namespace GoF2Remake.UI
             bool onScreen = Project(cam, world, origin, centre, out var p, out bool near);
             Show(m.bar, false); Show(m.fill, false); Show(m.distance, false); Show(m.bracket, false);
             Show(m.emp, false); Show(m.empFill, false);
+            // The dying ship's marker is reused for cargo until the explosion. Hide every ship-only pool.
+            HidePools(m);
+            if (m.pilot != null) Show(m.pilot, false);
             Show(m.dot, onScreen || !Vr.VrMode.Enabled);   // VR: no off-screen boxes on the ellipse
             var tex = !onScreen ? Tex(voidCrate ? "crate_off_void" : "crate_off") : near ? Tex("bracket") : Tex("crate_dot");
             Image(m.dot, tex);
@@ -621,6 +699,8 @@ namespace GoF2Remake.UI
         {
             bool onScreen = Project(cam, world, origin, centre, out var p, out _);
             Show(m.bar, false); Show(m.fill, false); Show(m.bracket, false); Show(m.emp, false); Show(m.empFill, false);
+            HidePools(m);
+            if (m.pilot != null) Show(m.pilot, false);
             bool dot = onScreen || (offScreen && !Vr.VrMode.Enabled);
             Show(m.dot, dot);
             Show(m.distance, onScreen && locked);

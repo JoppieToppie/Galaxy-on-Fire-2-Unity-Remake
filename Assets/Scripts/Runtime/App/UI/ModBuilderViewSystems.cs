@@ -225,6 +225,14 @@ namespace GoF2Remake.UI
             if (isNew) SystemOwnerField(s);   // a game race or a mod's own (ModBuilderViewRaces)
             Segments(systemPage, T("mbSecurity", "Security"), SecurityNames.Select(n => T("mbSec" + n, n)).ToArray(), s.Security, n => { s.Security = n; SystemEdited(); });
             SystemRaceLists(s);   // locals, raiders, mods' traffic only
+            Heading(systemPage, T("mbPopulation", "Ambient NPC population"));
+            Float(systemPage, T("mbPopulationScale", "Traffic multiplier (0 = none, 1 = normal, 2 = double)"), s.AmbientPopulation, 0f, 4f,
+                  v => { s.AmbientPopulation = v; SystemEdited(false); });
+            Note(systemPage, T("mbPopulationNote", "Scales randomly generated ambient traffic and ambient special encounters. Mission and explicitly scripted encounters are not affected."));
+            var derelicts = new Toggle(T("mbDerelictFreighters", "Random derelict freighters")) { value = s.DerelictFreighters };
+            derelicts.RegisterValueChangedCallback(e => { s.DerelictFreighters = e.newValue; SystemEdited(); });
+            systemPage.Add(derelicts);
+            Note(systemPage, T("mbDerelictFreightersNote", "Independently allows random derelict freighters in this system. The global gameplay option also gates vanilla random wrecks."));
             var vrow = Row(systemPage);
             FlagButton(vrow, T("mbVisible", "On the map from the start"), s.Visible, v => s.Visible = v, () => SystemEdited());
             // systems.json "available" (ModUnlocks): on the map only while it holds, e.g. quest(name) == 1 while a quest runs.

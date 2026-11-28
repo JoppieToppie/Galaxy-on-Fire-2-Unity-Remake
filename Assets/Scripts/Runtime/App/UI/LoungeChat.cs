@@ -179,7 +179,7 @@ namespace GoF2Remake.Data
                 switch (a.offer)
                 {
                     case AgentOffer.SmallTalk: return false;
-                    case AgentOffer.Diplomat: return Standing.IsEnemy(a.Side);
+                    case AgentOffer.Diplomat: return AgentGenerator.CanUseDiplomat(a.Side);
                     case AgentOffer.Mission: case AgentOffer.Purchase: return a.HasMission;
                     case AgentOffer.SellMod: return ModForSale(a.sellMod);   // at its cap on this hull: 858
                     case AgentOffer.EventMission: return EventMissions.OfferOf(a) != null;
@@ -307,10 +307,11 @@ namespace GoF2Remake.Data
                 }
                 case AgentOffer.Wingmen:
                     // With all medals the "fans" pay the player (782-784).
+                    if (a.wingmen.Count > 2) return $"{a.wingmen.Count + 1} wingmen available. " + (Achievements.WingmenPayPlayer ? "Payment: " : "Hiring cost: ") + C(a.costs);
                     return T((Achievements.WingmenPayPlayer ? 782 : 779) + a.wingmen.Count).Replace("#C", C(a.costs)).Replace("#W", a.wingmen.Count > 0 ? a.wingmen[0] : "");
                 case AgentOffer.Diplomat:
                 {
-                    if (!Standing.IsEnemy(a.Side)) return T(883);
+                    if (!AgentGenerator.CanUseDiplomat(a.Side)) return T(883);
                     a.costs = AgentGenerator.DiplomatCosts(a.Side);
                     // remake mods: a mod race's diplomat (ModRaces)
                     if (a.modRace >= 0)
@@ -517,7 +518,7 @@ namespace GoF2Remake.Data
                     return Outcome.Confirm;
                 }
                 case AgentOffer.Wingmen:
-                    if (Session.Wingmen.Count > 0) return Refuse(T(785));
+                    if (!Wingmen.CanHire(a)) return Refuse(!Modding.ModWingmen.MultipleGroups && Wingmen.Hired ? T(785) : $"Wingman capacity: {Session.Wingmen.Count}/{Modding.ModWingmen.MaxTotal}. This group cannot be hired.");
                     if (Achievements.WingmenPayPlayer) { ConfirmText = T(867).Replace("#C", C(a.costs)); return Outcome.Confirm; }
                     if (a.costs > Session.Credits) return Refuse(T(203).Replace("#C", C(a.costs - Session.Credits)));
                     ConfirmText = T(866).Replace("#Q", (a.wingmen.Count + 1).ToString()).Replace("#C", C(a.costs));
@@ -525,6 +526,10 @@ namespace GoF2Remake.Data
                 case AgentOffer.Diplomat:
                     if (a.costs > Session.Credits) return Refuse(T(203).Replace("#C", C(a.costs - Session.Credits)));
                     ConfirmText = T(885).Replace("#C", C(a.costs));
+                    if (Modding.ModPvpPiracy.Enabled && NetProfileClient.Active && !NetProfileClient.Guest)
+                        ConfirmText += "\nThis deal clears NPC kills with this faction and revokes pirate status.";
+                    if (Standing.Independent && Standing.PiracyLocked)
+                        ConfirmText += "\nOnly this faction restores your standing. Other factions remain at -100.";
                     return Outcome.Confirm;
                 case AgentOffer.SellShip:
                 {
@@ -584,6 +589,13 @@ namespace GoF2Remake.Data
         public void Confirm()
         {
             var a = Agent;
+            if (a.offer == AgentOffer.SellBlueprint && Modding.ModContent.IsBlueprintRestricted(a.sellBlueprint))
+            {
+                Text = Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.");
+                closing = true;
+                SetChoices();
+                return;
+            }
             string thanks = T(850 + Random.Range(0, 3));
             switch (a.offer)
             {
@@ -599,13 +611,26 @@ namespace GoF2Remake.Data
                     thanks += " " + (a.mission.type == MissionType.Challenge ? T(856) : T(853 + Random.Range(0, 3)));
                     break;
                 case AgentOffer.Wingmen:
+                    if (!Wingmen.CanHire(a) || a.accepted || (!Achievements.WingmenPayPlayer && a.costs > Session.Credits)) break;
                     Session.Credits += Achievements.WingmenPayPlayer ? a.costs : -a.costs;
                     Wingmen.Hire(a);
                     a.accepted = true;
                     break;
                 case AgentOffer.Diplomat:
+                    if (a.accepted || Session.Credits < a.costs)
+                    {
+                        thanks = Localization.Extra("mpDiplomacyUnavailable", "The diplomacy deal is unavailable right now.");
+                        break;
+                    }
+                    if (Modding.ModPvpPiracy.Enabled && NetProfileClient.Active && !NetProfileClient.Guest)
+                    {
+                        thanks = NetState.Instance.RequestNpcDiplomacy(station, a.Side, a.costs)
+                            ? "The diplomat is waiting for the server to confirm the deal."
+                            : "The diplomacy deal is unavailable right now. Try again shortly.";
+                        break;
+                    }
                     Session.Credits -= a.costs;
-                    Rehabilitate(a.Side);
+                    Standing.Rehabilitate(a.Side);
                     a.accepted = true;
                     break;
                 case AgentOffer.SellSystem:
@@ -701,16 +726,6 @@ namespace GoF2Remake.Data
                         : a.offer == AgentOffer.SellItem || a.offer == AgentOffer.SellShip ? T(305)
                         : a.offer == AgentOffer.Diplomat ? T(884) : "";
             return (a.name, role);
-        }
-
-        /// <summary>Standing::rehabilitate 0x14289c: the race's axis just inside the neutral band (+-35).</summary>
-        static void Rehabilitate(int race)
-        {
-            if (Modding.ModRaces.Is(race)) { Modding.ModRaces.SetStanding(race, 0); return; }   // remake mods: a mod race back to neutral
-            if (race == 0) Session.Standing[0] = -35;
-            else if (race == 1) Session.Standing[0] = 35;
-            else if (race == 2) Session.Standing[1] = -35;
-            else if (race == 3) Session.Standing[1] = 35;
         }
 
         /// <summary>Bought items go to the hold; secondaries join a mounted stack of the same item.</summary>

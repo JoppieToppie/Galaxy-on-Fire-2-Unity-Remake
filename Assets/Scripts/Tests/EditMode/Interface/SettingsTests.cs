@@ -546,6 +546,19 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void SmepFighterAiIsAnIndependentSessionOptIn()
+        {
+            AllDefaults();
+            Assert.IsFalse(Settings.SmepFighterAi);
+            Settings.NpcDogfight = SessionRules.DogfightEs2All;
+            Settings.SmepFighterAi = true;
+            Assert.AreEqual(SessionRules.SmepFighterAi, Settings.LocalRules() & SessionRules.SmepFighterAi);
+            Assert.AreEqual(SessionRules.DogfightEs2All, SessionRules.DogfightOf(Settings.LocalRules()));
+            Settings.SmepFighterAi = false;
+            Assert.AreEqual(0, Settings.LocalRules() & SessionRules.SmepFighterAi);
+        }
+
+        [Test]
         public void Es2AimingIsAnOptionOfItsOwn()
         {
             AllDefaults();

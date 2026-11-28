@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using GoF2Remake.Data;
+using GoF2Remake.Modding;
 using UnityEngine;
 
 namespace GoF2Remake.Multiplayer
@@ -58,10 +59,142 @@ namespace GoF2Remake.Multiplayer
             public readonly Dictionary<int, int> rareTarget = new Dictionary<int, int>();   // item -> the units it restocks to
             public readonly Dictionary<int, int> resale = new Dictionary<int, int>();       // item -> units players sold into it (no VAT bought back)
             public float rareNext;
+
         }
 
         static readonly Dictionary<int, Entry> stocks = new Dictionary<int, Entry>();   // the host's
         static Database db;
+        static Dictionary<string, string> localSave;
+        static readonly Dictionary<(int station, int item), (int basis, int stock, int target, int pressure, int hops)> quotes =
+            new Dictionary<(int, int), (int, int, int, int, int)>();
+        static readonly Dictionary<int, (int amount, int target, int pressure, int hops)> marketQuotes =
+            new Dictionary<int, (int, int, int, int)>();
+
+        static bool priceTradePending;
+        static long priceTradeSequence;
+        static int priceTradeStation, priceTradeItem;
+        internal static bool PriceTradePending => priceTradePending;
+
+        public static bool ManagedPricing(int station, int item) =>
+            ModAdvancedEconomy.DynamicPricing && NetState.Instance?.ProfilesOn == true &&
+            Shared(station) && ModAdvancedEconomy.At(station)?.ContainsKey(item) == true;
+
+        public static int? DisplayBuyQuote(int station, int item) =>
+            TryPrice(station, item, true, out int price) ? price : (int?)null;
+
+        public static bool TryPrice(int station, int item, bool buy, out int price)
+        {
+            price = 0;
+            if (!ManagedPricing(station, item) || !quotes.TryGetValue((station, item), out var q)) return false;
+            int listPrice = UnitPrice(q.basis, q.stock, q.target, q.pressure, q.hops, buy);
+            price = buy ? NetFactionsClient.BuyPrice(station, listPrice) : NetFactionsClient.SellPrice(station, listPrice);
+            return true;
+        }
+
+        static int UnitPrice(int basis, int stock, int target, int pressure, int hops, bool buy) =>
+            ModAdvancedEconomy.TradeUnitPrice(basis, stock, target, pressure, hops,
+                ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
+                ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread, buy);
+
+        // Managed multiplayer commodities retain the authoritative transaction RPC; other
+        // goods and hulls retain their existing stock/purchase protocols.
+        public static int? NpcMarketPrice(int station, int item, int basis, bool buy)
+        {
+            if (!ModAdvancedEconomy.DynamicPricing || !ModAdvancedEconomy.Enabled ||
+                Shop.UsesPlayerMarketplace(station) || KaamoClub.StorageAt(station) || item == Freelance.Documents)
+                return null;
+            if (!NetGame.Active && !AdvancedEconomyLedger.LocalActive || CoopCampaign.Active)
+                return null;
+
+            int amount = 0, target = 0, pressure = 0, hops = 0;
+            long weightedHops = 0;
+            var database = Database.Shared;
+            if (AdvancedEconomyLedger.LocalActive)
+            {
+                EnsureLocalSession();
+                if (database == null) return null;
+                pressure = ModAdvancedEconomy.Pressure(database, station);
+                var rules = ModAdvancedEconomy.At(station);
+                if (item >= 0 && rules != null && rules.TryGetValue(item, out var own) &&
+                    ModAdvancedEconomy.Eligible(database, item))
+                {
+                    var b = AdvancedEconomyLedger.Get(station, own);
+                    return UnitPrice(basis, b.Amount, own.Target, pressure, b.ImportHops, buy);
+                }
+                if (rules != null)
+                    foreach (var rule in rules.Values)
+                    {
+                        if (!ModAdvancedEconomy.Eligible(database, rule.Item)) continue;
+                        var b = AdvancedEconomyLedger.Get(station, rule);
+                        amount += b.Amount; target += rule.Target;
+                        weightedHops += (long)b.Amount * b.ImportHops;
+                    }
+                hops = amount > 0 ? (int)Math.Round(weightedHops / (double)amount) : 0;
+            }
+            else
+            {
+                if (!Shared(station)) return null;
+                if (item >= 0 && quotes.TryGetValue((station, item), out var own))
+                    return UnitPrice(basis, own.stock, own.target, own.pressure, own.hops, buy);
+                if (marketQuotes.TryGetValue(station, out var market))
+                    (amount, target, pressure, hops) = market;
+                else if (database != null)
+                    pressure = ModAdvancedEconomy.Pressure(database, station);
+            }
+            return ModAdvancedEconomy.MarketUnitPrice(basis, amount, target, pressure, hops,
+                ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
+                ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread, buy);
+        }
+
+        static bool TryTotal(int station, int item, int units, bool buy, out long total)
+        {
+            total = 0;
+            if (!ManagedPricing(station, item) || !quotes.TryGetValue((station, item), out var q) ||
+                units < 1 || units > 500 || (buy && units > q.stock)) return false;
+            for (int i = 0; i < units; i++)
+            {
+                int list = UnitPrice(q.basis, q.stock + (buy ? -i : i), q.target, q.pressure, q.hops, buy);
+                total += buy ? NetFactionsClient.BuyPrice(station, list) : NetFactionsClient.SellPrice(station, list);
+            }
+            return true;
+        }
+
+        public static string EconomyInfo(int station, int item)
+        {
+            if (!quotes.TryGetValue((station, item), out var q) ||
+                !TryPrice(station, item, true, out int buy) || !TryPrice(station, item, false, out int sell)) return "";
+            string supply = q.stock < q.target ? $"Shortage {q.target - q.stock:N0} t" : q.stock > q.target ? $"Surplus {q.stock - q.target:N0} t" : "Balanced";
+            return $"Next unit: Buy {buy:N0} / Sell {sell:N0} cr • Stock {q.stock:N0}/{q.target:N0} t • {supply} • War {q.pressure}% • Import {q.hops} hops";
+        }
+
+        public static bool RequestPricedTrade(int station, int item, int units, bool buy)
+        {
+            units = Math.Min(500, units);
+            if (!Ready || priceTradePending || !TryTotal(station, item, units, buy, out long quote)) return false;
+            int sequence = NetGame.IsServer && NetGame.PersistentHost ? 0 : NetProfileClient.UploadForStationStorage();
+            if (sequence == 0 && !(NetGame.IsServer && NetGame.PersistentHost)) return false;
+            priceTradePending = true;
+            priceTradeStation = station; priceTradeItem = item;
+            NetState.Instance.EconomyTradeRpc(station, item, units, buy, quote, sequence, ++priceTradeSequence);
+            return true;
+        }
+
+        internal static void PriceTradeResult(int station, int item, int delta, long credits, string result, long request)
+        {
+            if (!priceTradePending || request != priceTradeSequence || station != priceTradeStation || item != priceTradeItem) return;
+            priceTradePending = false;
+            if (!(NetGame.IsServer && NetGame.PersistentHost) && delta != 0)
+            {
+                if (delta > 0) Shop.AddToCargo(item, delta); else Shop.RemoveFromCargo(item, -delta);
+                Session.Credits = Math.Max(0L, Session.SaturatingAdd(Session.Credits, credits));
+            }
+            if (!string.IsNullOrEmpty(result)) NetChat.Notice(result);
+            Changed?.Invoke(station);
+            GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+        }
+        static float nextEconomyTick, nextFreightPulse, nextFreightDispatch;
+        static bool economyDiagnosticStarted;
+        static float nextEconomyDiagnosticWarning;
         static readonly List<Action> pending = new List<Action>();
         /// <summary>A player's: each station's clocks as the last list said (seconds left, -1 = none) and when it arrived.</summary>
         static readonly Dictionary<int, (float at, int reset, int rare)> clocks = new Dictionary<int, (float, int, int)>();
@@ -76,12 +209,21 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Is 'station's stock the shared one (in a session, not the owned Kaamo Club's storage)? Not in a co-op
         /// campaign: the story stocks one set for each player (Var Hastra's free starter gear before step 7, Kappa's free
         /// EMP bombs at step 20), so a shared list left the second pilot an empty shop (a Discord report, 2026-11-11).</summary>
-        public static bool Shared(int station) => NetGame.Active && !CoopCampaign.Active && !KaamoClub.StorageAt(station);
+        public static bool Shared(int station) => NetGame.Active && !CoopCampaign.Active &&
+            !KaamoClub.StorageAt(station) && !Shop.UsesPlayerMarketplace(station);
 
         /// <summary>A new session: the host's lists start empty.</summary>
         public static void Reset()
         {
+            localSave = null;
             stocks.Clear();
+            quotes.Clear(); marketQuotes.Clear(); priceTradePending = false;
+            nextEconomyTick = nextFreightPulse = nextFreightDispatch = 0;
+            economyDiagnosticStarted = false;
+            nextEconomyDiagnosticWarning = 0;
+            db = null;
+            AdvancedEconomyLedger.Reset();
+            AdvancedEconomyRoutes.ResetCache();
             pending.Clear();
             reservations.Clear();
             clocks.Clear();
@@ -113,6 +255,12 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Shop.EnterStation: ask the host for the shared stock (it replaces this list when it arrives).</summary>
         public static void OnEnterStation(StationStock stock)
         {
+            if (AdvancedEconomyLedger.LocalActive)
+            {
+                EnsureLocalSession();
+                ApplyLocalStock(stock);
+                return;
+            }
             if (!Ready || stock == null || !Shared(stock.station)) return;
             // Nothing to trade until the host's list is here (Apply); the bar's agents stay.
             stock.items.Clear();
@@ -123,7 +271,17 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Hangar.Buy / Sell: one unit of 'item' out (-1, bought for 'price') or in (+1).</summary>
         public static void ItemChanged(int station, int item, int delta, int price = 0)
         {
-            if (!Ready || !Shared(station)) return;
+            if (AdvancedEconomyLedger.LocalActive)
+            {
+                EnsureLocalSession();
+                if (LocalParticipates(station) && ModAdvancedEconomy.At(station)?.TryGetValue(item, out var rule) == true && ModAdvancedEconomy.Eligible(db, item))
+                {
+                    var balance = AdvancedEconomyLedger.Get(station, rule);
+                    AdvancedEconomyLedger.Set(station, rule, balance.Amount + delta, balance.Resale + delta);
+                }
+                return;
+            }
+            if (!Ready) return;
             if (item == Freelance.Documents)
             {
                 // The Stolen goods documents aren't stock: bought, they are gone for the squad (NetMissions.OnStatus).
@@ -134,7 +292,7 @@ namespace GoF2Remake.Multiplayer
                 }
                 return;
             }
-            NetState.Instance.StockItemRpc(station, item, delta, price);
+            if (Shared(station)) NetState.Instance.StockItemRpc(station, item, delta, price);
         }
 
         /// <summary>NetState: the host had no unit left of 'count' units this player bought at 'price' each (someone was first):
@@ -191,6 +349,31 @@ namespace GoF2Remake.Multiplayer
             var stock = Session.RecentStations.Find(s => s.station == station);
             if (stock == null || !Shared(station)) return;
             Decode(text, out var items, out var ships, out int reset, out int rare);
+            var oldQuotes = new List<(int station, int item)>();
+            foreach (var key in quotes.Keys) if (key.station == station) oldQuotes.Add(key);
+            foreach (var key in oldQuotes) quotes.Remove(key);
+            marketQuotes.Remove(station);
+            var parts = text.Split('|');
+            int marketAmount = 0, marketTarget = 0, marketPressure = 0;
+            long marketWeightedHops = 0;
+            if (parts.Length >= 5)
+                foreach (string entry in parts[4].Split(','))
+                {
+                    var fields = entry.Split(':');
+                    if (fields.Length == 6 && int.TryParse(fields[0], out int item) && int.TryParse(fields[1], out int basis) &&
+                        int.TryParse(fields[2], out int amount) && int.TryParse(fields[3], out int target) &&
+                        int.TryParse(fields[4], out int pressure) && int.TryParse(fields[5], out int hops))
+                    {
+                        quotes[(station, item)] = (basis, amount, target, pressure, hops);
+                        marketAmount += Math.Max(0, amount);
+                        marketTarget += Math.Max(0, target);
+                        marketPressure = Math.Max(marketPressure, pressure);
+                        marketWeightedHops += (long)Math.Max(0, amount) * Math.Max(0, hops);
+                    }
+                }
+            if (marketTarget > 0)
+                marketQuotes[station] = (marketAmount, marketTarget, marketPressure,
+                    marketAmount > 0 ? (int)Math.Round(marketWeightedHops / (double)marketAmount) : 0);
             clocks[station] = (Time.unscaledTime, reset, rare);
             stock.items.Clear();
             stock.items.AddRange(items);
@@ -231,7 +414,7 @@ namespace GoF2Remake.Multiplayer
             HostExtras(station, e.items);
             ThinForVat(station, e);
             foreach (var r in e.items) if (IsRare(r.item)) e.rareTarget[r.item] = r.amount;
-            if (old == null) return e;   // a first list: full
+            if (old == null) { CarryEconomy(station, e); return e; }   // a first list: full
             e.items.RemoveAll(r => IsRare(r.item));
             foreach (var r in old.items)
             {
@@ -241,7 +424,317 @@ namespace GoF2Remake.Multiplayer
             }
             e.rareNext = old.rareNext;
             e.rareDue = old.rareDue;
+            CarryEconomy(station, e);
             return e;
+        }
+
+        // Only explicitly managed commodity rows survive the normal shipment replacement.
+        // The remaining goods and dealer ships still use the vanilla generator and rare-goods clock.
+        static void CarryEconomy(int station, Entry entry)
+        {
+            if (!AdvancedEconomyLedger.Active) return;
+            var rules = ModAdvancedEconomy.At(station);
+            if (rules == null) return;
+            foreach (var rule in rules.Values)
+            {
+                entry.rareTarget.Remove(rule.Item);
+                entry.items.RemoveAll(r => r.item == rule.Item);
+                entry.resale.Remove(rule.Item);
+                if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                var balance = AdvancedEconomyLedger.Get(station, rule);
+                SetEconomyRow(entry, rule.Item, balance.Amount);
+                if (balance.Resale > 0) entry.resale[rule.Item] = balance.Resale;
+            }
+        }
+
+        static void SetEconomyRow(Entry entry, int item, int amount)
+        {
+            var row = entry.items.Find(r => r.item == item);
+            if (amount <= 0)
+            {
+                if (row != null) entry.items.Remove(row);
+                entry.resale.Remove(item);
+                return;
+            }
+            if (row != null) row.amount = amount;
+            else
+            {
+                int at = entry.items.FindIndex(r => r.item > item);
+                entry.items.Insert(at < 0 ? entry.items.Count : at, new ItemStack(item, amount));
+            }
+            if (entry.resale.TryGetValue(item, out int resale) && resale > amount) entry.resale[item] = amount;
+        }
+
+        static void EnsureLocalSession()
+        {
+            if (!ReferenceEquals(localSave, Session.ScriptData))
+            {
+                Reset();
+                localSave = Session.ScriptData;
+            }
+            db = Database.Shared;
+        }
+
+        static bool LocalParticipates(int station) => !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
+            (ModAdvancedEconomy.SimulateUnvisitedStations || Session.VisitedStations.Contains(station) || station == Session.StationIndex);
+
+        static void ApplyLocalStock(StationStock stock)
+        {
+            if (stock == null || !LocalParticipates(stock.station)) return;
+            var rules = ModAdvancedEconomy.At(stock.station);
+            if (rules == null) return;
+            foreach (var rule in rules.Values)
+            {
+                if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                stock.items.RemoveAll(r => r.item == rule.Item);
+                int amount = AdvancedEconomyLedger.Get(stock.station, rule).Amount;
+                if (amount > 0) Shop.InsertStock(stock, new ItemStack(rule.Item, amount));
+            }
+        }
+
+        public static void TickLocal()
+        {
+            if (!AdvancedEconomyLedger.LocalActive || Time.timeScale <= 0f || Modding.ModBuilder.Active) return;
+            EnsureLocalSession();
+            TickEconomy(null);
+        }
+
+        internal static void SaveLocal()
+        {
+            if (!AdvancedEconomyLedger.LocalActive) return;
+            EnsureLocalSession();
+            AdvancedEconomyLedger.Flush(true);
+        }
+
+        // One batch for the entire configured network; unopened shops need no generated dealer or item lists.
+        static void TickEconomy(NetState state)
+        {
+            if (!ModAdvancedEconomy.Enabled) return;
+            bool local = state == null;
+            float now = local ? Time.time : Time.unscaledTime;
+            bool active = AdvancedEconomyLedger.Active;
+            bool blocked = !local && NetPlayerStations.ProfileWritesBlocked;
+            if (!active || blocked || !AdvancedEconomyLedger.RetryFreightLosses())
+            {
+                if (now >= nextEconomyDiagnosticWarning)
+                {
+                    nextEconomyDiagnosticWarning = now + 60f;
+                    Debug.LogWarning($"[AdvancedEconomy] paused: ledgerActive={active}, profileWritesBlocked={blocked}, profiles={NetProfiles.Enabled}");
+                }
+                return;
+            }
+            if (!economyDiagnosticStarted)
+            {
+                economyDiagnosticStarted = true;
+                int stations = 0, rows = 0;
+                foreach (int station in ModAdvancedEconomy.Stations)
+                { stations++; rows += ModAdvancedEconomy.At(station)?.Count ?? 0; }
+                Debug.Log($"[AdvancedEconomy] active: stations={stations}, rows={rows}, tickSeconds={ModAdvancedEconomy.TickSeconds}, saved={ModAdvancedEconomy.SaveInventory}, pricing={ModAdvancedEconomy.DynamicPricing}, freight={ModAdvancedEconomy.PhysicalFreight}");
+                if (rows == 0) Debug.LogWarning("[AdvancedEconomy] no managed stock rules; NPC commodity stock remains vanilla.");
+            }
+            bool freightClock = AdvancedEconomyLedger.IndependentFreightClock;
+            if (nextEconomyTick <= 0) nextEconomyTick = now + ModAdvancedEconomy.TickSeconds;
+            if (freightClock && nextFreightPulse <= 0) nextFreightPulse = now + 1f;
+            if (freightClock && nextFreightDispatch <= 0) nextFreightDispatch = now + ModAdvancedEconomy.FreightDispatchSeconds;
+            bool economyDue = now >= nextEconomyTick;
+            bool freightDue = freightClock && now >= nextFreightPulse;
+            bool dispatchDue = freightClock && now >= nextFreightDispatch;
+            if (economyDue || freightDue || dispatchDue)
+            {
+                if (economyDue) nextEconomyTick = now + ModAdvancedEconomy.TickSeconds;
+                if (freightDue) nextFreightPulse = now + 1f;
+                if (dispatchDue) nextFreightDispatch = now + ModAdvancedEconomy.FreightDispatchSeconds;
+                if (db == null) db = Database.Load();
+                bool Participates(int station) => !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
+                    (local ? LocalParticipates(station) : ModAdvancedEconomy.SimulateUnvisitedStations || stocks.ContainsKey(station));
+                var pressures = new Dictionary<int, int>();
+                int Pressure(int station)
+                {
+                    if (!pressures.TryGetValue(station, out int p))
+                        pressures[station] = p = ModAdvancedEconomy.Pressure(db, station);
+                    return p;
+                }
+                var changed = new HashSet<int>();
+                var diagnosticTimer = economyDue || dispatchDue ? System.Diagnostics.Stopwatch.StartNew() : null;
+                int diagnosticRows = 0, diagnosticShort = 0, diagnosticEmpty = 0;
+                long diagnosticNetFlow = 0;
+                if (economyDue) foreach (int station in ModAdvancedEconomy.Stations)
+                {
+                    if (!Participates(station)) continue;
+                    foreach (var rule in ModAdvancedEconomy.At(station).Values)
+                    {
+                        if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                        var balance = AdvancedEconomyLedger.Get(station, rule);
+                        int next = rule.Advance(balance.Amount, ModAdvancedEconomy.Production, ModAdvancedEconomy.Consumption, Pressure(station));
+                        diagnosticRows++;
+                        if (next < rule.Target) diagnosticShort++;
+                        if (next == 0) diagnosticEmpty++;
+                        diagnosticNetFlow += (long)next - balance.Amount;
+                        if (next == balance.Amount) continue;
+                        int before = balance.Amount;
+                        AdvancedEconomyLedger.Set(station, rule, next, balance.Resale);
+                        if (next > before) balance.ImportHops = (int)Math.Round((long)before * balance.ImportHops / (double)next);
+                        changed.Add(station);
+                    }
+                }
+                if (local && (economyDue || dispatchDue)) PirateReports.Refresh(db);
+                var graph = ModAdvancedEconomy.RegionalTrade ? AdvancedEconomyRoutes.Cached(db) : null;
+                var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed, graph,
+                    advance: freightClock ? freightDue : economyDue, dispatch: freightClock ? dispatchDue : economyDue);
+                if (economyDue && !local)
+                {
+                    var autoGraph = ModAdvancedEconomy.AutomaticRoutes ? graph : null;
+                    TickPlayerMarket(Participates, Pressure, changed, incoming, autoGraph);
+                    TickNpcConstruction(Participates, Pressure, changed, autoGraph);
+                }
+                // Price-only refreshes are needed for open shops; undocked shops
+                // get a fresh quote on their next request. Actual stock mutations
+                // still update every affected generated shop below.
+                if (economyDue && !local && ModAdvancedEconomy.DynamicPricing)
+                    foreach (var player in NetPlayer.All)
+                        if (player != null && player.IsSpawned && player.InHangar &&
+                            stocks.ContainsKey(player.Station) && ModAdvancedEconomy.At(player.Station) != null && Participates(player.Station))
+                            changed.Add(player.Station);
+                foreach (int station in changed)
+                    if (local)
+                    {
+                        var stock = Session.RecentStations.Find(s => s.station == station);
+                        if (stock != null) { ApplyLocalStock(stock); Changed?.Invoke(station); }
+                    }
+                    else if (stocks.TryGetValue(station, out var entry))
+                    {
+                        CarryEconomy(station, entry);
+                        state.BroadcastStock(station);
+                    }
+                if (diagnosticTimer != null)
+                {
+                    diagnosticTimer.Stop();
+                    Debug.Log($"[AdvancedEconomy] tick: productionDue={economyDue}, dispatchDue={dispatchDue}, rows={diagnosticRows}, preTradeShort={diagnosticShort}, preTradeEmpty={diagnosticEmpty}, netLocalFlow={diagnosticNetFlow}, changedStations={changed.Count}, ms={diagnosticTimer.Elapsed.TotalMilliseconds:F2}");
+                }
+            }
+            AdvancedEconomyLedger.Flush();
+        }
+
+        // Supply only from surplus, after ordinary NPC routes and procurement have run.
+        static void TickNpcConstruction(Func<int, bool> participates, Func<int, int> pressureAt, HashSet<int> changed, AdvancedEconomyRoutes graph)
+        {
+            if (!ModAdvancedEconomy.NpcConstructionSupply || !NetProfiles.Enabled ||
+                NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
+                NetPlayerStations.Stations == null) return;
+            int remaining = ModAdvancedEconomy.NpcConstructionUnits;
+            var sources = new List<int>(ModAdvancedEconomy.Stations);
+            sources.Sort();
+            var projects = new List<PlayerStationRecord>(NetPlayerStations.Stations);
+            projects.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
+            foreach (var project in projects)
+            {
+                if (project?.buyOrders == null || project.retired || project.destroyed || project.wreckClaimOpen ||
+                    project.offeredForClaimUtc > 0) continue;
+                foreach (var order in new List<PlayerStationBuyOrder>(project.buyOrders))
+                {
+                    if (order == null || order.remaining <= 0 || order.unitPrice <= 0 ||
+                        !ModAdvancedEconomy.Eligible(db, order.item)) continue;
+                    foreach (int station in sources)
+                    {
+                        if (remaining <= 0 || NetPlayerStations.ProfileWritesBlocked) return;
+                        if (order.remaining <= 0 || project.buyOrders == null || !project.buyOrders.Contains(order)) break;
+                        if (!participates(station) || !ModAdvancedEconomy.At(station).TryGetValue(order.item, out var rule)) continue;
+                        int system = Shop.SystemOf(db, station);
+                        int distance = system == project.system ? 0 : graph?.Distance(system, project.system) ?? -1;
+                        if (distance < 0 || distance > ModAdvancedEconomy.MaxAutoHops) continue;
+                        var balance = AdvancedEconomyLedger.Get(station, rule);
+                        int count = ModAdvancedEconomy.ConstructionSupplyAmount(balance.Amount, rule.Target,
+                            order.remaining, NetPlayerStations.NpcConstructionRemaining(project, order.item), remaining);
+                        if (count == 0) continue;
+                        int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
+                        int pressure = pressureAt(station);
+                        // Require the bid to cover the most expensive marginal unit, including delivery distance.
+                        while (count > 0 && order.unitPrice < UnitPrice(basis, balance.Amount - count + 1,
+                            rule.Target, pressure, balance.ImportHops + distance, true)) count--;
+                        if (count == 0 || basis <= 0) continue;
+                        int old = balance.Amount, resale = balance.Resale, hops = balance.ImportHops;
+                        int shipped = NetPlayerStations.SupplyNpcConstruction(project, order, count,
+                            () => AdvancedEconomyLedger.Set(station, rule, old - count, Math.Max(0, resale - count)),
+                            () => { AdvancedEconomyLedger.Set(station, rule, old, resale); balance.ImportHops = hops; });
+                        if (shipped > 0) { changed.Add(station); remaining -= shipped; }
+                    }
+                }
+            }
+        }
+
+        // Player listings supply local NPC demand only after the ordinary shipment pass.
+        // This cannot touch personal storage, factories, ships, or construction escrow.
+        static void TickPlayerMarket(Func<int, bool> participates, Func<int, int> pressureAt, HashSet<int> changed,
+            IReadOnlyDictionary<(int station, int item), int> incoming, AdvancedEconomyRoutes graph)
+        {
+            if (!ModAdvancedEconomy.PlayerMarketTrade || !NetProfiles.Enabled ||
+                NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
+                NetPlayerStations.Stations == null) return;
+            long budget = ModAdvancedEconomy.PlayerMarketBudget;
+            int remainingUnits = ModAdvancedEconomy.PlayerMarketUnits;
+            if (budget <= 0 || remainingUnits <= 0) return;
+            // Regional automatic routing also opts in to abstract cross-system procurement.
+            var markets = new List<PlayerStationRecord>(NetPlayerStations.Stations);
+            markets.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
+            // Snapshot and sort each reachable market at most once per procurement pass.
+            // Listing objects remain live: successful purchases reduce their amounts and
+            // the settlement path still checks membership before transferring escrow.
+            var byMarket = new Dictionary<PlayerStationRecord, Dictionary<int, List<PlayerStationListing>>>();
+            foreach (int station in ModAdvancedEconomy.Stations)
+            {
+                if (!participates(station)) continue;
+                int system = Shop.SystemOf(db, station);
+                foreach (var rule in ModAdvancedEconomy.At(station).Values)
+                {
+                    if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                    var balance = AdvancedEconomyLedger.Get(station, rule);
+                    incoming.TryGetValue((station, rule.Item), out int reserved);
+                    if (balance.Amount + reserved >= rule.Target) continue;
+                    int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
+                    int pressure = pressureAt(station);
+                    foreach (var market in markets)
+                    {
+                        if (market == null || !market.npcEconomyPurchases || market.listings == null) continue;
+                        int distance = market.system == system ? 0 : graph?.Distance(market.system, system) ?? -1;
+                        if (distance < 0 || distance > ModAdvancedEconomy.MaxAutoHops) continue;
+                        if (!byMarket.TryGetValue(market, out var byItem))
+                        {
+                            byMarket[market] = byItem = new Dictionary<int, List<PlayerStationListing>>();
+                            var sorted = new List<PlayerStationListing>(market.listings);
+                            sorted.Sort((a, b) => (a?.unitPrice ?? long.MaxValue).CompareTo(b?.unitPrice ?? long.MaxValue));
+                            foreach (var offer in sorted)
+                            {
+                                if (offer == null) continue;
+                                if (!byItem.TryGetValue(offer.item, out var offers))
+                                    byItem[offer.item] = offers = new List<PlayerStationListing>();
+                                offers.Add(offer);
+                            }
+                        }
+                        if (!byItem.TryGetValue(rule.Item, out var listings)) continue;
+                        foreach (var listing in listings)
+                        {
+                            if (listing.amount <= 0) continue;
+                            int need = Math.Min(remainingUnits, rule.Target - balance.Amount - reserved);
+                            if (need <= 0) break;
+                            int ceiling = HostQuote(basis, pressure, rule, balance).buy;
+                            int old = balance.Amount, resale = balance.Resale, hops = balance.ImportHops;
+                            int count = NetPlayerStations.PurchaseForNpcEconomy(market, listing, need, ceiling, budget,
+                                units =>
+                                {
+                                    AdvancedEconomyLedger.Set(station, rule, old + units, resale + units);
+                                    balance.ImportHops = (int)Math.Round(((long)old * hops + (long)units * distance) / (double)(old + units));
+                                },
+                                () =>
+                                {
+                                    AdvancedEconomyLedger.Set(station, rule, old, resale);
+                                    balance.ImportHops = hops;
+                                }, out long spent);
+                            if (count > 0) { changed.Add(station); budget -= spent; remainingUnits -= count; }
+                            if (NetPlayerStations.ProfileWritesBlocked || budget <= 0 || remainingUnits <= 0) return;
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>A faction station's VAT thins its goods: every row keeps (100 - rate) % of its units (at least 1), the dealer
@@ -306,6 +799,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A dealer ship's reservation: taken from the host's list (false = none left: another pilot has it).</summary>
         internal static bool HostReserveShip(int station, int ship)
         {
+            if (Shop.UsesPlayerMarketplace(station)) return false;
             var e = Get(station);
             int row = e.ships.IndexOf(ship);
             if (row < 0) return false;
@@ -314,7 +808,74 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>The stock of 'station' (made now if there is none), encoded for the RPC.</summary>
-        internal static string HostGet(int station) => Encode(Get(station));
+        internal static string HostGet(int station)
+        {
+            if (Shop.UsesPlayerMarketplace(station)) return "||0|-1";
+            var e = Get(station);
+            if (ModAdvancedEconomy.DynamicPricing && AdvancedEconomyLedger.Active) CarryEconomy(station, e);
+            return Encode(e, station);
+        }
+
+        internal static bool HostManagedPricing(int station, int item) =>
+            AdvancedEconomyLedger.Active && NetProfiles.Enabled && ModAdvancedEconomy.DynamicPricing &&
+            !Shop.UsesPlayerMarketplace(station) && !KaamoClub.StorageAt(station) &&
+            ModAdvancedEconomy.At(station)?.ContainsKey(item) == true;
+
+        static (int buy, int sell, int pressure) HostQuote(int basis, int pressure, ModAdvancedEconomy.Rule rule, AdvancedEconomyLedger.Balance balance)
+        {
+            var quote = ModAdvancedEconomy.Quote(basis, balance.Amount, rule.Target, pressure, balance.ImportHops,
+                ModAdvancedEconomy.ScarcityMarkup, ModAdvancedEconomy.SurplusDiscount, ModAdvancedEconomy.WarMarkup,
+                ModAdvancedEconomy.TransportCosts ? ModAdvancedEconomy.TransportPerHop : 0, ModAdvancedEconomy.SellSpread);
+            return (quote.buy, quote.sell, pressure);
+        }
+
+        internal static string HostPricedTrade(ulong client, int station, int item, int units, bool buy, long expected,
+            int uploadSequence, out int delta, out long credits)
+        {
+            delta = 0; credits = 0;
+            if (!HostManagedPricing(station, item) || !NetProfiles.Controls(client) ||
+                NetPlayerStations.ProfileWritesBlocked || !AdvancedEconomyLedger.CanJournal ||
+                !(NetGame.PersistentHost && client == NetGame.LocalId) && !NetProfiles.ConsumeActionUpload(client, uploadSequence))
+                return "Economy unavailable or profile not synchronized. Try again.";
+            var pilot = NetSquad.Find(client);
+            string account = NetProfiles.AccountOf(client);
+            if (pilot == null || !NetGuard.DockedAt(client, station) || string.IsNullOrEmpty(account) ||
+                units < 1 || units > 500) return "Invalid commodity trade.";
+            var entry = Get(station);
+            if (!ModAdvancedEconomy.Eligible(db, item) || !NetProfiles.EconomySaleable(client, item))
+                return "This commodity cannot be traded.";
+            var rule = ModAdvancedEconomy.At(station)[item];
+            var balance = AdvancedEconomyLedger.Get(station, rule);
+            int basis = Shop.PriceList(db, station, new[] { item })[0];
+            int pressure = ModAdvancedEconomy.Pressure(db, station);
+            if (buy && (units > balance.Amount || units > NetProfiles.WreckSalvageCargoRoom(pilot, account)))
+                return "Not enough stock or cargo capacity.";
+            if (!buy && (units > rule.Maximum - balance.Amount || units > NetProfiles.CargoAmount(account, item)))
+                return "Not enough cargo or station capacity.";
+            long total = 0, tax = 0;
+            string faction = null;
+            for (int i = 0; i < units; i++)
+            {
+                int list = UnitPrice(basis, balance.Amount + (buy ? -i : i), rule.Target, pressure, balance.ImportHops, buy);
+                total += NetFactions.EconomyPrice(client, station, list, buy, buy && i >= balance.Resale ? 1 : 0,
+                    out string owner, out long unitTax);
+                if (unitTax > 0) { faction = owner; tax += unitTax; }
+            }
+            if (total != expected) return "The market price has changed. Review the new quote.";
+            if (buy && NetProfiles.CreditAmount(account) < total) return "Not enough credits.";
+            int old = balance.Amount, oldResale = balance.Resale;
+            int moved = buy ? units : -units;
+            long creditChange = buy ? -total : total;
+            AdvancedEconomyLedger.Set(station, rule, old - moved, buy ? Math.Max(0, oldResale - units) : oldResale + units);
+            if (!NetPlayerStations.CommitEconomyTrade(account, item, moved, creditChange, faction, tax, AdvancedEconomyLedger.Snapshot()))
+            {
+                AdvancedEconomyLedger.Set(station, rule, old, oldResale);
+                return "Trade could not be journalled. No transfer was committed.";
+            }
+            CarryEconomy(station, entry);
+            delta = moved; credits = creditChange;
+            return $"{(buy ? "Purchased" : "Sold")} {units:N0} t for {total:N0} credits.";
+        }
 
         /// <summary>One unit of 'item' bought (-1) or sold (+1) at 'station'; false = refused (no unit left to buy). (The
         /// clients only send what their own game shares: no Kaamo check here, the host's club isn't theirs.)</summary>
@@ -325,7 +886,7 @@ namespace GoF2Remake.Multiplayer
         internal static int HostItem(int station, int item, int delta, out int vatUnits)
         {
             vatUnits = 0;
-            if (delta == 0) return 0;
+            if (delta == 0 || Shop.UsesPlayerMarketplace(station)) return 0;
             var e = Get(station);
             var row = e.items.Find(r => r.item == item);
             if (delta < 0)
@@ -338,9 +899,28 @@ namespace GoF2Remake.Multiplayer
                 int fromResale = Math.Min(resold, granted);
                 if (fromResale > 0) e.resale[item] = resold - fromResale;
                 vatUnits = granted - fromResale;
+                var buyRules = AdvancedEconomyLedger.Active ? ModAdvancedEconomy.At(station) : null;
+                if (buyRules != null && buyRules.TryGetValue(item, out var buyRule))
+                    AdvancedEconomyLedger.Set(station, buyRule, row.amount, resold - fromResale);
                 return granted;
             }
             if (Shop.NotInSession(db, item)) return delta;   // a time extender sold: paid for, not on sale (Shop.NotInSession)
+            var managed = AdvancedEconomyLedger.Active ? ModAdvancedEconomy.At(station) : null;
+            if (managed != null && managed.TryGetValue(item, out var rule))
+            {
+                if (!ModAdvancedEconomy.Eligible(db, item)) return delta;
+                int have = row?.amount ?? 0;
+                int retained = (int)Math.Min((long)delta, Math.Max(0, rule.Maximum - have));
+                if (retained > 0)
+                {
+                    SetEconomyRow(e, item, have + retained);
+                    e.resale.TryGetValue(item, out int resoldUnits);
+                    e.resale[item] = Math.Min(have + retained, resoldUnits + retained);
+                    AdvancedEconomyLedger.Set(station, rule, have + retained, e.resale[item]);
+                }
+                // As with vanilla's row cap, overflow is sold but does not grow public stock.
+                return delta;
+            }
             e.resale.TryGetValue(item, out int sold);
             e.resale[item] = (int)Math.Min((long)sold + delta, MaxRowAmount);
             if (row != null) row.amount = Math.Min(row.amount + delta, MaxRowAmount);   // a seller can't grow a row without end
@@ -355,6 +935,7 @@ namespace GoF2Remake.Multiplayer
         /// <summary>A dealer trade at 'station': the row 'removed' becomes 'added' (in place), or goes / comes.</summary>
         internal static bool HostShip(int station, int removed, int added)
         {
+            if (Shop.UsesPlayerMarketplace(station)) return false;
             var e = Get(station);
             int row = removed >= 0 ? e.ships.IndexOf(removed) : -1;
             if (row >= 0 && added >= 0) e.ships[row] = added;
@@ -371,17 +952,21 @@ namespace GoF2Remake.Multiplayer
         /// rows restock a step (UpdateRare); the changed lists go to the players docked there.</summary>
         internal static void HostTick(NetState state)
         {
+            TickEconomy(state);
             if (stocks.Count == 0) return;
-            List<int> expired = null, restocked = null;
+            List<int> expired = null, restocked = null, playerStations = null;
             foreach (var kv in stocks)
             {
-                if (Time.unscaledTime >= kv.Value.due) (expired ??= new List<int>()).Add(kv.Key);
+                if (Shop.UsesPlayerMarketplace(kv.Key)) (playerStations ??= new List<int>()).Add(kv.Key);
+                else if (Time.unscaledTime >= kv.Value.due) (expired ??= new List<int>()).Add(kv.Key);
                 else if (UpdateRare(kv.Value)) (restocked ??= new List<int>()).Add(kv.Key);
             }
+            if (playerStations != null)
+                foreach (int station in playerStations) stocks.Remove(station);
             if (expired != null)
                 foreach (int station in expired)
                 {
-                    stocks[station] = Make(station, stocks[station]);   // the rare goods carried over (what is left)
+                    stocks[station] = Make(station, stocks[station]);   // the rare and managed goods carried over
                     state.BroadcastStock(station);
                 }
             if (restocked != null)
@@ -390,7 +975,7 @@ namespace GoF2Remake.Multiplayer
 
         // ---- the wire format: "item:amount,...|ship,..." --------------------------------------------------------
 
-        static string Encode(Entry e)
+        static string Encode(Entry e, int station)
         {
             var sb = new StringBuilder();
             foreach (var r in e.items)
@@ -417,6 +1002,24 @@ namespace GoF2Remake.Multiplayer
             }
             int rare = rareShort ? Mathf.Max(0, Mathf.CeilToInt(e.rareNext - Time.unscaledTime)) : -1;
             sb.Append('|').Append(reset).Append('|').Append(rare);
+            if (ModAdvancedEconomy.DynamicPricing && AdvancedEconomyLedger.Active)
+            {
+                sb.Append('|');
+                var rules = ModAdvancedEconomy.At(station);
+                bool first = true;
+                int pressure = rules != null ? ModAdvancedEconomy.Pressure(db, station) : 0;
+                if (rules != null)
+                    foreach (var rule in rules.Values)
+                    {
+                        if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
+                        var balance = AdvancedEconomyLedger.Get(station, rule);
+                        int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
+                        if (!first) sb.Append(',');
+                        first = false;
+                        sb.Append(rule.Item).Append(':').Append(basis).Append(':').Append(balance.Amount).Append(':')
+                            .Append(rule.Target).Append(':').Append(pressure).Append(':').Append(balance.ImportHops);
+                    }
+            }
             return sb.ToString();
         }
 

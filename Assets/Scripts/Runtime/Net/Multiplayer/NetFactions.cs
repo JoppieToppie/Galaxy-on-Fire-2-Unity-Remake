@@ -90,6 +90,22 @@ namespace GoF2Remake.Multiplayer
 
         /// <summary>Server: the VAT rate of the station's claim (0 = no holder or none).</summary>
         public static int VatAt(int station) => list == null ? 0 : Mathf.Clamp(ClaimAt(station)?.vat ?? 0, 0, MaxVat);
+
+        internal static int EconomyPrice(ulong client, int station, int basis, bool buy, int taxableUnits,
+            out string faction, out long tax)
+        {
+            faction = null; tax = 0;
+            var claim = ClaimAt(station);
+            if (claim == null || basis <= 0) return basis;
+            if (OfClient(client)?.id == claim.faction)
+                return Mathf.RoundToInt(basis * (100 - MemberDiscountPercent) / 100f);
+            if (!buy) return basis;
+            int rate = VatAt(station);
+            int price = VatMarkup(basis, rate);
+            faction = claim.faction;
+            tax = (long)Math.Round(price * (long)taxableUnits / (1.0 + rate / 1000.0) * rate / 100.0);
+            return price;
+        }
         const long SiegeDelaySeconds = 600, SiegeSeconds = 900, ProtectionHours = 24;
         const long SiegeMeetSeconds = 2 * 86400, SiegeForfeitSeconds = 60, StandoffSeconds = 3600, LapsedLockSeconds = 48 * 3600;
         const int MaxExtensions = 4, LapseFloorDays = 3;
@@ -128,8 +144,14 @@ namespace GoF2Remake.Multiplayer
         public static string TollText(int toll) => toll < 0 ? $"{-toll}%" : toll.ToString();
 
         /// <summary>What a pilot with 'credits' pays for the toll setting 'toll' (0 = none).</summary>
-        public static int TollFor(int toll, long credits) =>
-            toll >= 0 ? toll : (int)Math.Min(int.MaxValue, Math.Max(1L, Math.Max(0L, credits) * -toll / 100));
+        public static int TollFor(int toll, long credits)
+        {
+            if (toll >= 0) return toll;
+            long balance = Math.Max(0L, credits), rate = Math.Min(100L, -(long)toll);
+            // Split the multiplication to avoid overflowing a valid 64-bit credit balance.
+            long amount = balance / 100 * rate + (balance % 100) * rate / 100;
+            return (int)Math.Min(int.MaxValue, Math.Max(1L, amount));
+        }
         const int KaamoStation = 108, LomaSystem = 25;
 
         /// <summary>A claim's price from the bank (-claimcost), the claims per faction (-maxclaims), the days without a member
@@ -148,9 +170,23 @@ namespace GoF2Remake.Multiplayer
             LapseDays = Mathf.Max(1, lapseDays);
         }
 
+        internal static List<(string id, string name, string leader)> StationFactionDirectory()
+        {
+            var result = new List<(string, string, string)>();
+            if (list?.factions == null) return result;
+            foreach (var faction in list.factions)
+                if (faction != null && !string.IsNullOrEmpty(faction.id)) result.Add((faction.id, "[" + faction.tag + "] " + faction.name, faction.leader));
+            result.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Item2, b.Item2));
+            return result;
+        }
+
         [Serializable]
         public class Faction
         {
+            public List<string> bountyProtectedFactions, bountyProtectedPilots;
+            public List<string> piracyRivals, piracyHostilePilots;
+            public List<StationRaceAccessRule> jumpgateRaceAccess;
+            public List<StationFacilityRaceRule> stationRaceRules;
             public string id, name, tag, leader, created;
             public List<string> officers = new List<string>(), members = new List<string>();   // members include everyone
             public long bank;
@@ -206,7 +242,8 @@ namespace GoF2Remake.Multiplayer
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            list = null; invites.Clear(); charges.Clear(); claimTimer = siegeTimer = 0f; taxDirty = false;
+            bountyFile = null; bountyDirty = false;
+            list = null; invites.Clear(); charges.Clear(); deferredStationTax.Clear(); claimTimer = siegeTimer = 0f; taxDirty = false;
             ClaimCost = DefaultClaimCost; MaxClaims = DefaultMaxClaims; LapseDays = DefaultLapseDays;
             SiegeCost = DefaultSiegeCost; Toll = DefaultToll;
         }
@@ -219,6 +256,7 @@ namespace GoF2Remake.Multiplayer
         public static void Load()
         {
             invites.Clear();
+            deferredStationTax.Clear();
             try
             {
                 if (File.Exists(PathOf)) list = JsonUtility.FromJson<FactionList>(File.ReadAllText(PathOf));
@@ -250,10 +288,15 @@ namespace GoF2Remake.Multiplayer
                 if (x.started) x.armed = true;
             }
             charges.Clear();
+            LoadBounties();
             PublishClaims();
         }
 
-        static void Save() { if (list != null) NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true)); }
+        static bool Save() => list != null && NetProfiles.Write(PathOf, JsonUtility.ToJson(list, true));
+
+        /// <summary>Find a faction by its stable ID, null = unknown.</summary>
+        public static Faction FindById(string id) => string.IsNullOrEmpty(id) || list == null
+            ? null : list.factions.Find(c => c != null && string.Equals(c.id, id, StringComparison.Ordinal));
 
         /// <summary>The faction a profile belongs to, null = none.</summary>
         public static Faction Of(string account) => account == null || list == null ? null : list.factions.Find(c => c.members.Contains(account));

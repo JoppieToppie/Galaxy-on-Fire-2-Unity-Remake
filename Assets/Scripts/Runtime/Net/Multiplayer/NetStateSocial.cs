@@ -54,8 +54,12 @@ namespace GoF2Remake.Multiplayer
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Chat)) return;
             if (text == null || text.Length > NetChat.MaxLength * 4) { NetRateLimit.Reject(client, "an overlong chat line"); return; }
-            text = NetChat.Clean(text);
-            if (text.Length == 0) return;
+            // Station announcements and broadcasts have a longer body than an ordinary chat line.
+            string commandText = text.TrimStart();
+            bool stationNews = commandText.StartsWith("/station announce ", System.StringComparison.OrdinalIgnoreCase) ||
+                commandText.StartsWith("/station broadcast ", System.StringComparison.OrdinalIgnoreCase);
+            text = NetChat.Clean(text, stationNews ? NetChat.MaxCommandLength : NetChat.MaxLength);
+            if (text.Length == 0 || NetProfiles.IdentityPending(client)) return;
             var sender = NetSquad.Find(client);
             if (sender == null) return;
             // A command (the station window's buttons send them as chat lines, NetPanel.Command): run like a typed one
@@ -133,7 +137,7 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             var from = NetSquad.Find(client);
-            if (from == null) return;
+            if (from == null || NetProfiles.IdentityPending(client)) return;
             string reply = NetCommands.RunOnServer(name, args, from);
             if (!string.IsNullOrEmpty(reply)) NoticeToRpc(reply, RpcTarget.Single(from.OwnerClientId, RpcTargetUse.Temp));
         }
@@ -147,6 +151,20 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: an admin's order for player 'who''s game (NetAdmin: /kill, /heal, /give, /credits, /spawn, /ship...).</summary>
         internal void SendAdmin(ulong who, NetAdmin.Order order, int a, int b, int c, string text, string by) =>
             AdminRpc((byte)order, a, b, c, text ?? "", by, RpcTarget.Single(who, RpcTargetUse.Temp));
+        // One reliable 64-bit settlement message instead of splitting into Int32-sized admin orders.
+        internal void SendStationCreditDelta(ulong client, long delta, string reason)
+        {
+            if (IsServer && delta != 0) StationCreditDeltaRpc(delta, reason ?? "Station transaction", RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void StationCreditDeltaRpc(long delta, string reason, RpcParams rpc = default)
+        {
+            Session.Credits = System.Math.Max(0L, Session.SaturatingAdd(Session.Credits, delta));
+            NetChat.Notice($"{reason}: {delta:+#,0;-#,0;0} credits.");
+            GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+        }
+
         /// <summary>Only the server sends these (checked there: the admin's rights, the arguments).</summary>
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void AdminRpc(byte order, int a, int b, int c, string text, string by, RpcParams rpc = default)
@@ -178,6 +196,7 @@ namespace GoF2Remake.Multiplayer
         {
             if (!IsServer || from == null || to == null || NetSquad.Same(from, to)) return;
             if (!from.InHangar || !to.InHangar || from.Station != to.Station) return;
+            if (NetSquad.IsFull(from)) { NoticeTo(from, "Your squad is full (6/6)."); return; }
             invites[(from.OwnerClientId, to.OwnerClientId)] = Time.unscaledTime;
             InvitedRpc(from.OwnerClientId, from.DisplayName, RpcTarget.Single(to.OwnerClientId, RpcTargetUse.Temp));
         }
@@ -206,12 +225,13 @@ namespace GoF2Remake.Multiplayer
                 return;
             }
             invites.Remove((inviter, client));
-            JoinSquad(leader, joiner);
+            if (!JoinSquad(leader, joiner)) return;
             NetProfiles.SquadJoined(leader.OwnerClientId, joiner.OwnerClientId);   // both profiles remember it
         }
         /// <summary>'joiner' into 'leader''s squad (a new one if the leader has none).</summary>
-        void JoinSquad(NetPlayer leader, NetPlayer joiner)
+        bool JoinSquad(NetPlayer leader, NetPlayer joiner)
         {
+            if (NetSquad.IsFull(leader)) { NoticeTo(joiner, "The squad is full (6/6)."); return false; }
             if (leader.SquadId == 0) leader.SetSquad(nextSquad++);
             joiner.SetSquad(leader.SquadId);
             DissolveSingles();
@@ -223,6 +243,7 @@ namespace GoF2Remake.Multiplayer
                     if (p != null && p != joiner && p.IsSpawned && p.SquadId == leader.SquadId && p.MissionHeld != 0) { holder = p; break; }
             if (holder != null) SendMissionToRpc(joiner.OwnerClientId, RpcTarget.Single(holder.OwnerClientId, RpcTargetUse.Temp));
             SquadNoticeRpc(leader.SquadId, string.Format(Localization.Extra("mpSquadJoined", "{0} joined the squad."), joiner.DisplayName));
+            return true;
         }
         /// <summary>NetProfiles: a player signing in goes back into the squad their profile remembers ('mate' is online and
         /// in it). Unlike an invitation this works anywhere, docked or not.</summary>
@@ -354,11 +375,171 @@ namespace GoF2Remake.Multiplayer
             var victim = NetSquad.Find(client);
             var by = NetSquad.Find(killer);
             if (victim == null || by == null || !HitRecently(victim.NetworkObjectId, killer, 30f)) return;
+            if (ConsumeBountyCombat(victim, by, out bool initiated) && !NetArena.InMatch(client) && !NetArena.InMatch(killer))
+            {
+                pendingPiracyDeaths[victim.NetworkObjectId] = (by, victim.Station, initiated, Time.unscaledTime + 5f);
+                ProcessPiracyDeath(victim);
+            }
             NetArena.OnKill(victim.OwnerClientId, by.OwnerClientId);   // an arena match's score
             NetFactions.OnPilotKilled(victim, by);                     // a siege fight: the killer repaired
             NoticeRpc(string.Format(Localization.Extra("mpDestroyedBy", "{0} was destroyed by {1}."), victim.DisplayName, by.DisplayName));
             EventRunner.OnPlayerKilled(by, victim);   // an event's "on pvpkill"
         }
+        readonly Dictionary<ulong, (NetPlayer killer, int station, bool initiated, float deadline)> pendingPiracyDeaths =
+            new Dictionary<ulong, (NetPlayer, int, bool, float)>();
+        readonly Dictionary<ulong, (float deadline, string account)> uncreditedBountyDeaths = new Dictionary<ulong, (float, string)>();
+        readonly HashSet<ulong> registeredPiracyDeaths = new HashSet<ulong>();
+        readonly HashSet<ulong> attemptedBountyDrops = new HashSet<ulong>();
+        readonly HashSet<ulong> witnessedLiveFlight = new HashSet<ulong>();
+
+        void TickPiracyDeaths()
+        {
+            if (!Modding.ModPvpPiracy.Enabled || !NetProfiles.Enabled) return;
+            foreach (var pilot in NetPlayer.All)
+                if (pilot != null && pilot.IsSpawned) ProcessPiracyDeath(pilot);
+            if (pendingPiracyDeaths.Count > 0)
+            {
+                var expired = new List<ulong>();
+                foreach (var death in pendingPiracyDeaths)
+                    if (death.Value.deadline < Time.unscaledTime) expired.Add(death.Key);
+                foreach (ulong id in expired) pendingPiracyDeaths.Remove(id);
+            }
+            foreach (var entry in new List<KeyValuePair<ulong, (float deadline, string account)>>(uncreditedBountyDeaths))
+            {
+                if (entry.Value.deadline > Time.unscaledTime) continue;
+                uncreditedBountyDeaths.Remove(entry.Key);
+                if (registeredPiracyDeaths.Contains(entry.Key)) continue;
+                if (registeredPiracyDeaths.Add(entry.Key))
+                    NetFactions.ReduceWantedOnNonPlayerDeath(entry.Value.account);
+            }
+            registeredPiracyDeaths.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
+            attemptedBountyDrops.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
+            witnessedLiveFlight.RemoveWhere(id => !NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(id));
+        }
+
+        internal bool HasWitnessedFlight(NetPlayer victim) => victim != null && witnessedLiveFlight.Contains(victim.NetworkObjectId);
+
+        internal void FinishRecordedDeath(NetPlayer victim)
+        {
+            if (!IsServer || victim == null) return;
+            ulong id = victim.NetworkObjectId;
+            attemptedBountyDrops.Remove(id);
+            if (uncreditedBountyDeaths.TryGetValue(id, out var uncredited) && !registeredPiracyDeaths.Contains(id))
+                NetFactions.ReduceWantedOnNonPlayerDeath(uncredited.account);
+            uncreditedBountyDeaths.Remove(id);
+            registeredPiracyDeaths.Remove(id);
+            pendingPiracyDeaths.Remove(id);
+            witnessedLiveFlight.Remove(id);
+        }
+
+        internal void ObserveFatalHull(NetPlayer victim)
+        {
+            if (!IsServer || victim == null || !victim.InSpace || victim.Hull != 0f || !ProfilesOn ||
+                NetArena.InMatch(victim.OwnerClientId)) return;
+            // Record immediately, not on the next periodic scan: a reconnect or another
+            // owner pose must never erase a death the server already received.
+            victim.RecordDeathRespawn(victim.Station);
+            if (Modding.ModPvpPiracy.Enabled && NetProfiles.Enabled) ProcessPiracyDeath(victim);
+        }
+
+        void ProcessPiracyDeath(NetPlayer victim)
+        {
+            if (victim == null || !victim.IsSpawned) return;
+            ulong id = victim.NetworkObjectId;
+            if (victim.Hull > 0f)
+            {
+                if (victim.HasRecordedDeath) { EnsureDeathPenalty(victim); return; }
+                if (victim.InSpace && victim.HasCurrentWreckClaimPose) witnessedLiveFlight.Add(id);
+                else if (!victim.InSpace) witnessedLiveFlight.Remove(id);
+                registeredPiracyDeaths.Remove(id);
+                attemptedBountyDrops.Remove(id);
+                return;
+            }
+            if (victim.Hull != 0f || !victim.InSpace || NetArena.InMatch(victim.OwnerClientId) ||
+                (!witnessedLiveFlight.Contains(id) && !victim.HasCurrentWreckClaimPose)) return;
+            if (victim.HasCurrentWreckClaimPose && pendingPiracyDeaths.TryGetValue(id, out var death))
+            {
+                pendingPiracyDeaths.Remove(id);
+                if (death.killer != null && death.killer.IsSpawned && death.station == victim.Station &&
+                    death.deadline >= Time.unscaledTime && registeredPiracyDeaths.Add(id))
+                {
+                    uncreditedBountyDeaths.Remove(id);
+                    bool secure = NetFactions.SecureForBounties(death.station, victim.OwnerClientId);
+                    NetFactions.RecordPirateRecoveryPvpKill(victim, death.killer);
+                    if (death.initiated || secure) NetFactions.RecordBountyPvpKill(victim, death.killer, secure);
+                    if (victim.IsWanted || victim.IsPirate) NetFactions.ClaimBounties(victim, death.killer);
+                }
+            }
+            if (!registeredPiracyDeaths.Contains(id) && !uncreditedBountyDeaths.ContainsKey(id))
+                uncreditedBountyDeaths.Add(id, (Time.unscaledTime + 5f, NetFactions.WantedDeathAccount(victim)));
+            victim.RecordDeathRespawn(victim.Station);
+            EnsureDeathPenalty(victim);
+        }
+
+        internal bool EnsureDeathPenalty(NetPlayer victim, bool refresh = true)
+        {
+            if (!IsServer || victim == null || (!victim.HasRecordedDeath && victim.Hull != 0f)) return false;
+            if (NetArena.InMatch(victim.OwnerClientId)) return true;
+            if (!victim.HasRecordedDeath) victim.RecordDeathRespawn(victim.Station);
+            if (!victim.HasRecordedDeath) return false;
+            if (!victim.RecordedDeathRequiresPenalty) return true;
+            ulong id = victim.NetworkObjectId;
+            if (attemptedBountyDrops.Contains(id)) return true;
+            // A recorded death already passed the witnessed-flight check. It stays valid
+            // after the pose expires, the pilot disconnects or the client reports repaired hull.
+            // Mark in-flight to prevent re-entry when a successful profile refresh loads the station.
+            attemptedBountyDrops.Add(id);
+            if (BeginDeathRecovery(victim, refresh)) return true;
+            attemptedBountyDrops.Remove(id);
+            return false;
+        }
+
+        bool BeginDeathRecovery(NetPlayer victim, bool refresh)
+        {
+            int orbit = victim.Station;
+            bool pose = victim.CurrentPose(out var position, out var rotation, out _, out _);
+            if (!NetProfiles.BeginDeathRecovery(victim, refresh && cratePrefab != null && pose, out int item, refresh)) return false;
+            if (item < 0) return true;
+            var go = Instantiate(cratePrefab);
+            go.GetComponent<NetCrate>().InitBountyDrop(orbit, item, position, rotation);
+            var obj = go.GetComponent<NetworkObject>();
+            obj.CheckObjectVisibility = client => NetInterest.Sees(client, obj.OwnerClientId, orbit);
+            obj.Spawn(false);
+            Notify(victim.OwnerClientId, "One equipped item was lost and can be salvaged from your wreck.");
+            return true;
+        }
+
+        internal void SendDeathRecoveryItem(ulong client, bool kaamo, int item, int amount) =>
+            DeathRecoveryItemRpc(kaamo, item, amount, RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void DeathRecoveryItemRpc(bool kaamo, int item, int amount, RpcParams rpc = default)
+        {
+            if (kaamo) KaamoClub.AddToStorage(new[] { new ItemStack(item, amount) });
+            else Shop.AddToCargo(item, amount);
+            GoF2Remake.UI.UiHooks.StationCargoChanged?.Invoke();
+        }
+
+        internal void SendDeathRecoveryHull(ulong client, StoredShip hull) =>
+            DeathRecoveryHullRpc(JsonUtility.ToJson(hull), RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void DeathRecoveryHullRpc(string json, RpcParams rpc = default)
+        {
+            var hull = JsonUtility.FromJson<StoredShip>(json);
+            if (hull != null) Session.KaamoShips.Add(hull);
+        }
+
+        internal void SendDeathRecoveryCompleted(ulong client, string id, string notice) =>
+            DeathRecoveryCompletedRpc(id, notice, RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void DeathRecoveryCompletedRpc(string id, string notice, RpcParams rpc = default)
+        {
+            Session.DeathRecoveries.RemoveAll(x => x != null && x.id == id);
+            NetChat.Notice(notice);
+        }
+
         [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
         void NoticeRpc(string text) => NetChat.Notice(text);
         /// <summary>A player's answer to an event's question (EventScreen): checked and run by the server (EventRunner.OnAnswer).</summary>
@@ -379,7 +560,17 @@ namespace GoF2Remake.Multiplayer
         {
             if (IsServer && !string.IsNullOrEmpty(text)) FactionLineRpc(from, text, own, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
-        /// <summary>Server: a notice in one player's chat.</summary>
+        /// <summary>Server: a private in-flight radio popup, never a chat message.</summary>
+        internal void SendFreightDistress(ulong client, string title, string text, int race)
+        {
+            if (IsServer && !string.IsNullOrEmpty(text)) FreightDistressRpc(title, text, race, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightDistressRpc(string title, string text, int race, RpcParams rpc = default)
+        {
+            NetOrbit.Current?.FreightDistressRadio(title, text, race);
+        }
+
         internal void Notify(ulong client, string text)
         {
             if (IsServer && !string.IsNullOrEmpty(text)) NoticeToRpc(text, RpcTarget.Single(client, RpcTargetUse.Temp));
@@ -392,23 +583,172 @@ namespace GoF2Remake.Multiplayer
         }
         /// <summary>Server: a profile to one player: the header (its new token, if any; its role), then the gzipped chunks
         /// (none = a fresh start). Reliable RPCs to one client arrive in order.</summary>
-        internal void SendProfile(ulong client, string token, bool controller, bool guest, string json, int home)
+        internal void SendProfile(ulong client, string token, bool controller, bool guest, string json, int home, bool identityRequired, string savedRace, string savedPortrait)
         {
             if (!IsServer) return;
             var parts = NetProfiles.Pack(json);
             int seq = ++profileSeq;
-            ProfileHeaderRpc(seq, parts.Count, token ?? "", controller, guest, home, RpcTarget.Single(client, RpcTargetUse.Temp));
+            ProfileHeaderRpc(seq, parts.Count, token ?? "", controller, guest, home, identityRequired, savedRace ?? "", savedPortrait ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
             for (int i = 0; i < parts.Count; i++) ProfileChunkRpc(seq, i, parts[i], RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
-        void ProfileHeaderRpc(int seq, int count, string token, bool controller, bool guest, int home, RpcParams rpc = default)
-            => NetProfileClient.OnProfileHeader(seq, count, token, controller, guest, home);
+        void ProfileHeaderRpc(int seq, int count, string token, bool controller, bool guest, int home, bool identityRequired, string savedRace, string savedPortrait, RpcParams rpc = default)
+            => NetProfileClient.OnProfileHeader(seq, count, token, controller, guest, home, identityRequired, savedRace, savedPortrait);
+
+        [Rpc(SendTo.Server)]
+        internal void ChoosePlayerIdentityRpc(string race, string portrait, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!IsServer || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
+            IdentityResultRpc(NetProfiles.CompleteIdentity(client, race, portrait), RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.Server)]
+        internal void LinkIdentityRpc(string code, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!IsServer || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
+            IdentityResultRpc(NetProfiles.LinkDuringIdentity(client, code), RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void IdentityResultRpc(string result, RpcParams rpc = default) => NetProfileClient.OnIdentityResult(result);
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void ProfileChunkRpc(int seq, int part, byte[] data, RpcParams rpc = default) => NetProfileClient.OnProfileChunk(seq, part, data);
         /// <summary>A player's profile, a chunk at a time (NetProfileClient.Upload).</summary>
         [Rpc(SendTo.Server)]
-        public void UploadChunkRpc(int seq, int part, int count, byte[] data, RpcParams rpc = default)
-            => NetProfiles.OnUploadChunk(rpc.Receive.SenderClientId, seq, part, count, data);
+        public void UploadChunkRpc(int seq, int part, int count, long economyRevision, byte[] data, RpcParams rpc = default)
+            => NetProfiles.OnUploadChunk(rpc.Receive.SenderClientId, seq, part, count, economyRevision, data);
+
+        internal void SendEconomyRevision(ulong client, long revision) =>
+            EconomyRevisionRpc(revision, RpcTarget.Single(client, RpcTargetUse.Temp));
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void EconomyRevisionRpc(long revision, RpcParams rpc = default) => NetProfileClient.OnEconomyRevision(revision);
+        // The request follows its profile snapshot on this same reliable network object.
+        [Rpc(SendTo.Server)]
+        public void RequestModJumpRpc(int origin, int destination, int drive, int sequence, RpcParams rpc = default)
+        {
+            if (!IsServer) return;
+            ulong client = rpc.Receive.SenderClientId;
+            GameHooks.ModJumpResult? result = null;
+            if (NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) && !NetArena.InMatch(client))
+                result = NetProfiles.CommitModJump(client, origin, destination, drive, sequence);
+            var outcome = result.GetValueOrDefault();
+            ModJumpResultRpc(sequence, result.HasValue, outcome.Station, outcome.Cells, outcome.LostItem,
+                outcome.HullLimit, outcome.Misjump, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void ModJumpResultRpc(int sequence, bool accepted, int station, int cells, int lostItem, int hullLimit,
+            bool misjump, RpcParams rpc = default)
+        {
+            NetProfileClient.ReceiveModJump(sequence, accepted
+                ? new GameHooks.ModJumpResult(station, cells, lostItem, hullLimit, misjump)
+                : (GameHooks.ModJumpResult?)null);
+        }
+
+        internal void SendReputationPenalty(ulong client, string snapshot, string revision, bool penalty = true)
+        {
+            if (IsServer) ReputationPenaltyRpc(snapshot, revision, penalty, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void ReputationPenaltyRpc(string snapshot, string revision, bool penalty, RpcParams rpc = default)
+        {
+            if (!Flight.Standing.Independent) return;
+            foreach (var entry in snapshot.Split(';'))
+            {
+                int eq = entry.LastIndexOf('=');
+                if (eq > 0 && int.TryParse(entry.Substring(eq + 1), out int value))
+                    Modding.ModRaces.SetStandingKey(entry.Substring(0, eq), value);
+            }
+            Session.ReputationRevision = revision;
+            if (penalty) NetChat.Notice("Reputation reduced with all NPC factions.");
+        }
+
+        // This owner-simulated event can only reduce the sender's own reputation.
+        // It cannot grant standing or change another profile.
+        [Rpc(SendTo.Server)]
+        public void ReportReputationDelictRpc(int race, int amount, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (amount <= 0 || amount > 100 || !NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) ||
+                !NetProfiles.Controls(client)) return;
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || !pilot.InSpace || NetProfiles.IsHostClient(client)) return;
+            NetFactions.RecordReputationMove(client, race,
+                -amount * NetProfiles.ReputationDifficultyMultiplier(NetProfiles.AccountOf(client)));
+        }
+
+        float npcDiplomacyReplyDeadline;
+
+        public bool RequestNpcDiplomacy(int station, int race, int price)
+        {
+            if (!IsSpawned || !NetProfileClient.Controller || Time.realtimeSinceStartup < npcDiplomacyReplyDeadline) return false;
+            int uploadSequence = IsHost && NetGame.PersistentHost ? 0 : NetProfileClient.UploadForStationStorage();
+            if (uploadSequence == 0 && !(IsHost && NetGame.PersistentHost)) return false;
+            npcDiplomacyReplyDeadline = Time.realtimeSinceStartup + 8f;
+            RequestNpcDiplomacyRpc(station, race, price, uploadSequence);
+            return true;
+        }
+
+        // The purchase follows its profile upload on the same reliable network object.
+        [Rpc(SendTo.Server)]
+        void RequestNpcDiplomacyRpc(int station, int race, int quote, int uploadSequence, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command)) return;
+            bool accepted = NetFactions.TryCompleteNpcDiplomacy(NetSquad.Find(client), station, race, quote, uploadSequence,
+                out int price, out int forgiven, out string refusal, out string reputationRevision);
+            NpcDiplomacyResultRpc(accepted, race, price, forgiven, refusal ?? "", reputationRevision ?? "", RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void NpcDiplomacyResultRpc(bool accepted, int race, int price, int forgiven, string refusal, string reputationRevision, RpcParams rpc = default)
+        {
+            npcDiplomacyReplyDeadline = 0f;
+            if (!accepted) { NetChat.Notice(refusal); return; }
+            if (!Flight.Standing.Independent || Session.ReputationRevision != reputationRevision)
+                Session.Credits = System.Math.Max(0L, Session.Credits - price);
+            if (Flight.Standing.Independent || Flight.Standing.RawToward(race) <= -71) Flight.Standing.Rehabilitate(race);
+            if (Flight.Standing.Independent) Session.ReputationRevision = reputationRevision;
+            GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke();
+            NetChat.Notice(forgiven > 0
+                ? $"Diplomacy deal completed. {forgiven} NPC kills forgiven."
+                : "Diplomacy deal completed.");
+        }
+
+        // Keep this request on the same reliable network object as UploadChunkRpc.
+        [Rpc(SendTo.Server)]
+        public void RequestWreckSalvageRpc(int orbit, int room, bool jumpgate, int uploadSequence, RpcParams rpc = default)
+        {
+            if (!IsServer) return;
+            ulong client = rpc.Receive.SenderClientId;
+            if (NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) &&
+                NetProfiles.ConsumeActionUpload(client, uploadSequence))
+            {
+                var pilot = NetPlayer.All.Find(value => value != null && value.IsSpawned && value.OwnerClientId == client);
+                NetPlayerStations.CollectWreckSalvage(pilot, orbit, room, jumpgate);
+            }
+            AcknowledgeWreckSalvageRpc(uploadSequence, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        // Send on the same reliable network object as UploadChunkRpc so the upload
+        // reaches the server before the station transaction that consumes it.
+        [Rpc(SendTo.Server)]
+        internal void RequestStationStorageRpc(int sequence, string args, int uploadSequence, RpcParams rpc = default)
+        {
+            if (!IsServer) return;
+            ulong client = rpc.Receive.SenderClientId;
+            var pilot = NetPlayer.All.Find(player => player != null && player.IsSpawned && player.OwnerClientId == client);
+            pilot?.ReceiveStationStorageCommand(sequence, args, uploadSequence);
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void AcknowledgeWreckSalvageRpc(int sequence, RpcParams rpc = default) =>
+            NetProfileClient.AcknowledgeWreckSalvage(sequence);
+
         /// <summary>Server: this player's device controls its profile now, or watches.</summary>
         internal void SendRole(ulong client, bool controller)
         {
@@ -439,6 +779,43 @@ namespace GoF2Remake.Multiplayer
         {
             if (NetRateLimit.Allow(rpc.Receive.SenderClientId, NetRateLimit.Kind.Mission)) NetFactions.OnCharged(rpc.Receive.SenderClientId, token, paid);
         }
+        public NetFactions.PlayerWantedSnapshot PlayerWanted { get; private set; } = new NetFactions.PlayerWantedSnapshot();
+        public int PlayerWantedRevision { get; private set; }
+        string playerWantedJson;
+
+        [Rpc(SendTo.Server)]
+        public void PlayerWantedRequestRpc(RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            var pilot = NetSquad.Find(client);
+            if (!IsServer || !ProfilesOn || pilot == null || !NetGuard.DockedAt(client, pilot.Station) ||
+                !NetRateLimit.Allow(client, NetRateLimit.Kind.Request)) return;
+            string json = JsonUtility.ToJson(NetFactions.PlayerWantedBoard(pilot.Station, NetProfiles.AccountOf(client)));
+            PlayerWantedReplyRpc(json, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.Server)]
+        public void AcceptPlayerBountyRpc(string issuer, string pilotName, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!IsServer || !ProfilesOn || !NetRateLimit.Allow(client, NetRateLimit.Kind.Request) ||
+                string.IsNullOrEmpty(issuer) || issuer.Length > 256 || string.IsNullOrEmpty(pilotName) || pilotName.Length > 128) return;
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || !NetGuard.DockedAt(client, pilot.Station)) return;
+            Notify(client, NetFactions.AcceptFactionBountyContract(client, issuer, pilotName));
+            PlayerWantedReplyRpc(JsonUtility.ToJson(NetFactions.PlayerWantedBoard(pilot.Station, NetProfiles.AccountOf(client))),
+                RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void PlayerWantedReplyRpc(string json, RpcParams rpc = default)
+        {
+            if (json == playerWantedJson) return;
+            PlayerWanted = JsonUtility.FromJson<NetFactions.PlayerWantedSnapshot>(json) ?? new NetFactions.PlayerWantedSnapshot();
+            playerWantedJson = json;
+            PlayerWantedRevision++;
+        }
+
         // ---- the station's Faction / Arena / Profile window (NetPanel) ----------------------------------------
         /// <summary>The window asks for its snapshot.</summary>
         [Rpc(SendTo.Server)]

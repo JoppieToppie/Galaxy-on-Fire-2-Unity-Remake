@@ -27,6 +27,8 @@ namespace GoF2Remake.Modding
         public const int MaxSmokePoints = 4;
         public const float MinExplosion = 0.25f, MaxExplosion = 20f;
         public const float DefaultOrbitDistance = 3800f, MinOrbitDistance = 1500f, MaxOrbitDistance = 70000f;
+        public const float LargeShipMinOrbitDistance = 50000f;
+        public const float MaxCrosshairOffset = 1000f;
 
         /// <summary>The original's chase camera (TargetFollowCamera): distance, height, look height, look ahead.</summary>
         public static readonly float[] DefaultCamera = { 1338f, 600f, 600f, -650f };
@@ -36,6 +38,14 @@ namespace GoF2Remake.Modding
         /// <summary>ModContent.ParseShips: the fields are readable (errors with file and line).</summary>
         public static void CheckShip(JObject o, string where, ModInfo mod, string file)
         {
+            foreach (var key in new[] { "crosshairOffsetX", "crosshairOffsetY" })
+            {
+                if (!(ModJson.Get(o, key) is JToken value)) continue;
+                if (!IsNumber(value) || float.IsNaN((float)value) || float.IsInfinity((float)value))
+                    throw new ModJsonException($"{ModJson.Where(value, file)}: {key} must be a finite number");
+                if (Mathf.Abs((float)value) > MaxCrosshairOffset)
+                    mod.Warnings.Add($"{ModJson.Where(value, file)}: {key} outside +/-{MaxCrosshairOffset} metres (clamped)");
+            }
             if (ModJson.Get(o, "camera") is JToken c)
             {
                 if (!(c is JObject co)) throw new ModJsonException($"{where}: \"camera\" must be an object {{ \"distance\": 2400, \"height\": 900 }}");
@@ -59,6 +69,13 @@ namespace GoF2Remake.Modding
                         mod.Warnings.Add($"{ModJson.Where(od, file)}: \"orbitDistance\" {(float)od} is outside {MinOrbitDistance}..{MaxOrbitDistance} (clamped)");
                 }
             }
+            if (ModJson.Get(o, "cockpitModel") is JToken interior)
+            {
+                if (interior.Type != JTokenType.String) throw new ModJsonException($"{where}: cockpitModel must be a GLB path or an empty string");
+                string path = (string)interior;
+                if (!string.IsNullOrEmpty(path) && !mod.Source.Exists(path))
+                    throw new ModJsonException($"{where}: cockpit model {path} is not in the mod");
+            }
             if (ModJson.Get(o, "cockpit") is JToken k && !TryPoint(k, out _))
                 throw new ModJsonException($"{ModJson.Where(k, file)}: \"cockpit\" must be a point [x, y, z]");
             if (ModJson.Get(o, "smoke") is JToken s)
@@ -81,6 +98,10 @@ namespace GoF2Remake.Modding
         /// what an earlier mod gave).</summary>
         public static void ApplyShip(ShipData s, JObject o)
         {
+            if (ModJson.Get(o, "crosshairOffsetX") is JToken x && IsNumber(x))
+                s.crosshairOffset.x = Mathf.Clamp((float)x, -MaxCrosshairOffset, MaxCrosshairOffset);
+            if (ModJson.Get(o, "crosshairOffsetY") is JToken y && IsNumber(y))
+                s.crosshairOffset.y = Mathf.Clamp((float)y, -MaxCrosshairOffset, MaxCrosshairOffset);
             if (ModJson.Get(o, "camera") is JObject c)
             {
                 var cam = (float[])(s.chaseCamera ?? DefaultCamera).Clone();
@@ -102,8 +123,17 @@ namespace GoF2Remake.Modding
             if (ModJson.Get(o, "explosionScale") is JToken e && IsNumber(e)) s.explosionScale = Mathf.Clamp((float)e, MinExplosion, MaxExplosion);
         }
 
-        /// <summary>The free-look orbit's default radius in game units; absent = the original's 3800.</summary>
-        public static float OrbitDistance(ShipData s) => s?.orbitCameraDistance ?? DefaultOrbitDistance;
+        /// <summary>Ship-local targeting offset; cockpit retains its original gun-line reference.</summary>
+        public static Vector2 CrosshairOffset(ShipData s, bool firstPerson = false) =>
+            firstPerson || s == null ? Vector2.zero : s.crosshairOffset;
+
+        /// <summary>Large class hulls default to at least 50,000; unclassified and small ships retain their configured radius.</summary>
+        public static float OrbitDistance(ShipData s) => ShipClassRules.IsLargeShipClass(s)
+            ? Mathf.Max(LargeShipMinOrbitDistance, s.orbitCameraDistance) : s?.orbitCameraDistance ?? DefaultOrbitDistance;
+
+        /// <summary>Classified ships use camera-centered targeting only on large hulls. Vanilla behavior stays unchanged.</summary>
+        public static bool FreeLookTargeting(ShipData s, bool vanillaSetting) => ShipClassRules.ClassOf(s) == null
+            ? vanillaSetting : ShipClassRules.IsLargeShipClass(s);
 
         /// <summary>The chase camera's offsets in the ship's frame (metres; game units x 'metersPerUnit'): the ship's own
         /// "camera", else the original's.</summary>

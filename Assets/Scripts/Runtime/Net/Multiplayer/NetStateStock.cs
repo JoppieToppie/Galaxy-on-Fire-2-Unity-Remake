@@ -12,6 +12,65 @@ namespace GoF2Remake.Multiplayer
 {
     public partial class NetState
     {
+        [Rpc(SendTo.Server)]
+        internal void RequestFreightRpc(int orbit, uint epoch, bool ships, bool wrecks, bool initial, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || !NetRateLimit.Allow(client, NetRateLimit.Kind.FreightRequest) ||
+                !NetGuard.InOrbit(client, orbit) || NetArena.IsArenaOrbit(orbit)) return;
+            if (ships && RunnerOf(orbit)?.OwnerClientId == client)
+            {
+                var manifest = AdvancedEconomyLedger.FreightManifest(orbit);
+                if (manifest != null) FreightManifestRpc(orbit, epoch, initial, manifest, RpcTarget.Single(client, RpcTargetUse.Temp));
+            }
+            // Salvage remains visible to every player; do not rebuild it for every initial ship retry.
+            if (wrecks)
+            {
+                var manifest = AdvancedEconomyLedger.FreightWreckManifest(orbit);
+                if (manifest != null) FreightWreckManifestRpc(orbit, epoch, manifest, RpcTarget.Single(client, RpcTargetUse.Temp));
+            }
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightManifestRpc(int orbit, uint epoch, bool initial, string manifest, RpcParams rpc = default)
+        {
+            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ReceiveFreightManifest(epoch, initial, manifest);
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightWreckManifestRpc(int orbit, uint epoch, string manifest, RpcParams rpc = default)
+        {
+            if (NetOrbit.Current?.Station == orbit) NetOrbit.Current.ReceiveFreightWreckManifest(epoch, manifest);
+        }
+
+        [Rpc(SendTo.Server)]
+        internal void RequestFreightClaimRpc(int tag, ulong proxyId, int room, int sequence, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            int amount = 0, item = -1;
+            var pilot = NetSquad.Find(client);
+            if (sequence > 0 && NetRateLimit.Allow(client, NetRateLimit.Kind.Claim) &&
+                NetProfiles.Controls(client) && pilot != null && pilot.InSpace && pilot.Hull > 0f &&
+                pilot.HasCurrentWreckClaimPose && !NetArena.IsArenaOrbit(pilot.Station) &&
+                (NetGame.PersistentHost && client == NetGame.LocalId || NetProfiles.ConsumeActionUpload(client, sequence)))
+            {
+                NetProxy proxy = null;
+                bool valid = proxyId == ulong.MaxValue;
+                if (!valid && NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(proxyId, out var obj))
+                {
+                    proxy = obj.GetComponent<NetProxy>();
+                    valid = proxy != null;
+                }
+                if (valid)
+                    amount = AdvancedEconomyLedger.ClaimFreight(pilot, NetProfiles.AccountOf(client), tag, proxy, room, out item);
+            }
+            FreightClaimResultRpc(sequence, item, amount, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void FreightClaimResultRpc(int sequence, int item, int amount, RpcParams rpc = default) =>
+            NetProfileClient.ApplyFreightClaim(sequence, item, amount);
+
         /// <summary>A player docked at 'station': the host's stock there (made now if it has none).</summary>
         [Rpc(SendTo.Server)]
         public void StockRequestRpc(int station, RpcParams rpc = default)
@@ -33,6 +92,11 @@ namespace GoF2Remake.Multiplayer
                 NetRateLimit.Reject(client, $"a trade of {delta} x item {item} at {station}");
                 return;
             }
+            if (NetStock.HostManagedPricing(station, item))
+            {
+                NetRateLimit.Reject(client, "legacy stock RPC for a server-priced commodity");
+                return;
+            }
             int done = NetStock.HostItem(station, item, delta, out int vatUnits);
             NetAudit.Trade(client, station, item, delta < 0 ? -done : done, price);   // the money log: what was granted
             if (delta < 0 && done < -delta)
@@ -40,6 +104,25 @@ namespace GoF2Remake.Multiplayer
             if (delta < 0 && vatUnits > 0 && NetProfiles.Enabled) NetFactions.OnPurchase(client, station, item, price, vatUnits);   // a faction station's VAT
             dirtyStock.Add(station);
         }
+        [Rpc(SendTo.Server)]
+        public void EconomyTradeRpc(int station, int item, int units, bool buy, long quote, int sequence, long request, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            int delta = 0; long credits = 0;
+            string result = "Invalid or rate-limited commodity trade.";
+            if (NetRateLimit.Allow(client, NetRateLimit.Kind.Trade) && NetGuard.Station(station) &&
+                NetGuard.Item(item) && NetGuard.DockedAt(client, station))
+            {
+                result = NetStock.HostPricedTrade(client, station, item, units, buy, quote, sequence, out delta, out credits);
+                dirtyStock.Add(station);
+            }
+            EconomyTradeResultRpc(station, item, delta, credits, result, request, RpcTarget.Single(client, RpcTargetUse.Temp));
+        }
+
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        void EconomyTradeResultRpc(int station, int item, int delta, long credits, string result, long request, RpcParams rpc = default) =>
+            NetStock.PriceTradeResult(station, item, delta, credits, result, request);
+
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void ItemRefusedRpc(int station, int item, int price, int count, RpcParams rpc = default) => NetStock.ItemRefused(station, item, price, count);
         /// <summary>A player docked at 'station' wants the dealer's ship 'ship': theirs if it is still there (then off the list).</summary>
@@ -90,10 +173,14 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Host: the stock of 'station' for every player docked there.</summary>
         internal void BroadcastStock(int station)
         {
-            string text = NetStock.HostGet(station);
+            string text = null;
             foreach (var p in NetPlayer.All)
                 if (p != null && p.IsSpawned && p.InHangar && p.Station == station)
+                {
+                    // Build the shared payload only if a player is actually docked here.
+                    text ??= NetStock.HostGet(station);
                     StockRpc(station, text, RpcTarget.Single(p.OwnerClientId, RpcTargetUse.Temp));
+                }
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void StockRpc(int station, string text, RpcParams rpc = default) => NetStock.Apply(station, text);
@@ -171,6 +258,7 @@ namespace GoF2Remake.Multiplayer
             var oldHits = new List<(ulong, ulong)>();
             foreach (var kv in hits) if (now - kv.Value > 60f) oldHits.Add(kv.Key);
             foreach (var k in oldHits) hits.Remove(k);
+            PruneBountyCombat(now);
             var oldInvites = new List<(ulong, ulong)>();
             foreach (var kv in invites) if (now - kv.Value > NetSquad.InviteSeconds + InviteGraceSeconds) oldInvites.Add(kv.Key);
             foreach (var k in oldInvites) invites.Remove(k);

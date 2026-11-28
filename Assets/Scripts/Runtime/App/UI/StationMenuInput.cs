@@ -160,7 +160,9 @@ namespace GoF2Remake.UI
             if (GoF2Remake.Multiplayer.NetChat.Typing) return;
             pointerDriven = false;
             if (root.focusController?.focusedElement != null) return;
-            if (missions != null && missions.IsOpen) Select(missions.NavItems()[0]);
+            if (stationManagement?.IsOpen == true) stationManagement.FocusFirst();
+            else if (dryDock != null && dryDock.IsOpen) Select(dryDock.NavItems()[0]);
+            else if (missions != null && missions.IsOpen) Select(missions.NavItems()[0]);
             else if (lounge != null && lounge.ChatOpen) lounge.FocusFirst();
             else Select(DefaultFocus());
         }
@@ -216,13 +218,15 @@ namespace GoF2Remake.UI
                 root.focusController?.IgnoreEvent(e);
                 return;
             }
-            var stationItems = new VisualElement[] { hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, customizeButton, launchButton };
+            var stationItems = new VisualElement[] { hangarButton, loungeButton, mapButton, missionsButton, statusButton, stationManagement?.MenuButton, inspectButton, customizeButton, root.Q<Button>("netButton"), launchButton };
             VisualElement[] items;
             // A squad invitation / trade request (SquadView): its Accept and Decline, like a dialog's Yes and No.
             bool squadPopup = !DialogOpen && SquadView.PopupOpen;
             if (DialogOpen) items = new VisualElement[] { dialogYes, dialogNo };
             else if (squadPopup) items = SquadView.PopupButtons;
             else if (SystemMenuOpen) items = SystemMenuItems();
+            else if (stationManagement?.IsOpen == true) { items = stationManagement.NavItems(); vertical |= horizontal; }
+            else if (dryDock != null && dryDock.IsOpen) { items = dryDock.NavItems(); vertical |= horizontal; }
             else if (missions != null && missions.IsOpen) { items = missions.NavItems(); vertical |= horizontal; }
             else if (status != null && status.IsOpen) { items = status.NavItems(); vertical |= horizontal; }
             else if (lounge != null && lounge.ChatOpen) items = lounge.NavItems();
@@ -298,7 +302,8 @@ namespace GoF2Remake.UI
             }
             var focusedNow = root.focusController?.focusedElement as VisualElement;
             int index = System.Array.IndexOf(items, focusedNow);
-            bool mainView = !DialogOpen && !squadPopup && !SystemMenuOpen && !(missions != null && missions.IsOpen) && !(status != null && status.IsOpen)
+            bool mainView = !DialogOpen && !squadPopup && !SystemMenuOpen && stationManagement?.IsOpen != true &&
+                            !(dryDock != null && dryDock.IsOpen) && !(missions != null && missions.IsOpen) && !(status != null && status.IsOpen)
                             && !(lounge != null && lounge.ChatOpen);
             if (mainView && index >= 0 && focusedNow != launchButton) lastSideItem = focusedNow;
             if (mainView && horizontal && InputMode.Current == InputKind.Gamepad)
@@ -328,6 +333,22 @@ namespace GoF2Remake.UI
             string T(string key, string english) => Localization.Extra(key, english);
             // Modified: the system menu (MENU) shows no hints under it any more (its own Back, the keys as in every menu).
             if (SystemMenuOpen) return;
+            if (dryDock != null && dryDock.IsOpen)
+            {
+                if (kind == InputKind.KeyboardMouse)
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Key("W"), InputGlyph.Key("S"));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Key("ENTER", true));
+                    Hint(T("hudBack", "BACK"), InputGlyph.Key("ESC"));
+                }
+                else if (kind == InputKind.Gamepad)
+                {
+                    Hint(T("hudSelect", "SELECT"), InputGlyph.Pad(PadButton.DPad));
+                    Hint(T("hudConfirm", "CONFIRM"), InputGlyph.Pad(PadButton.A));
+                    Hint(T("hudBack", "BACK"), InputGlyph.Pad(PadButton.B));
+                }
+                return;
+            }
             if (HangarOpen)
             {
                 bool store = hangarWindow != null && hangarWindow.StorageMode;   // the Kaamo Club's storage
@@ -345,7 +366,9 @@ namespace GoF2Remake.UI
                 string sellShip = T("kaamoSellShip", "SELL SHIP");
                 // Remake: the Ship tab's X moves a mounted item to its next slot (HangarWindow.SecondaryAction).
                 bool shipTab = hangarWindow != null && hangarWindow.ShipTab;
-                string move = T("shopMoveSlot", "MOVE");
+                bool allocationNav = hangarWindow != null && hangarWindow.DistributionNavigation;
+                string move = allocationNav ? T("secondaryAllocationApplyHint", "APPLY") : shipTab && Modding.ModContent.MultipleSecondaryMountsEnabled ? T("secondaryAllocationMoveHint", "MOVE / DISTRIBUTE") : T("shopMoveSlot", "MOVE");
+                if (allocationNav) confirm = T("secondaryAllocationToggleHint", "TOGGLE MOUNT");
                 string info = Localization.Get(390).UiCaps();   // the details window's "Info" (ItemInfoWindow)
                 if (kind == InputKind.KeyboardMouse)
                 {

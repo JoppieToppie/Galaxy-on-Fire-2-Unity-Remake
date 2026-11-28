@@ -278,7 +278,14 @@ namespace GoF2Remake.World
             // Modified: not when the station opens from a loaded save (Session.ArrivedByLoad): only a docking autosaves; loading
             // a manual slot wrote it straight over the autosave.
             if (!Session.ArrivedByLoad && Story.AutosaveAllowed(station)) Session.Autosave();
-            BarRace = StationTables.BarRace(interior >= 0 ? interior : Layout.raceId);
+            int preset = GameHooks.PlayerStationModel?.Invoke(station) ?? -1;
+            int barOrbit = preset >= 0 ? preset : station;
+            int barInterior = Modding.ModWorld.InteriorRace(barOrbit);
+            int barSystem = db.Stations.Find(entry => entry.index == barOrbit)?.system ?? Layout.systemIndex;
+            int barSystemRace = db.Systems.Find(entry => entry.index == barSystem)?.raceId ?? Layout.raceId;
+            BarRace = StationTables.BarRace(barInterior >= 0 ? barInterior : barSystemRace);
+            if (preset >= 0 && customBar == null && !Modding.ModBuilder.Active)
+                customBar = Modding.ModInteriors.BarOf(preset);
             if (mainCamera == null) mainCamera = Camera.main;
             if (orbitDocked)
             {

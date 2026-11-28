@@ -7,6 +7,7 @@
 // without a cargo list, nothing when every entry is empty); the remake-only attribute numbers (ItemStats).
 
 using System.Collections.Generic;
+using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Flight;
 using GoF2Remake.Modding;
@@ -19,14 +20,89 @@ namespace GoF2Remake.Tests
         static List<ItemStack> Hold => new List<ItemStack> { new ItemStack(0, 0), new ItemStack(105, 5), new ItemStack(106, 2) };
 
         [Test]
+        public void RemakeItemStatsHaveDistinctRuntimeIds()
+        {
+            var collisions = ItemStats.Readable().Where(p => p.Value >= 100)
+                .GroupBy(p => p.Value).Where(g => g.Count() > 1)
+                .Select(g => g.Key + ": " + string.Join(", ", g.Select(p => p.Key))).ToArray();
+            Assert.IsEmpty(collisions, string.Join("; ", collisions));
+            Assert.AreEqual(189, ItemStats.IdOf("coreYield"));
+            Assert.AreEqual(209, ItemStats.IdOf("pitchTurnRate"));
+            Assert.AreEqual(210, ItemStats.IdOf("yawTurnRate"));
+            Assert.AreEqual(211, ItemStats.IdOf("rollTurnRate"));
+            Assert.AreEqual(212, ItemStats.IdOf("pitchTurnAcceleration"));
+            Assert.AreEqual(213, ItemStats.IdOf("yawTurnAcceleration"));
+            Assert.AreEqual(214, ItemStats.IdOf("rollTurnAcceleration"));
+            Assert.AreEqual(215, ItemStats.IdOf("strafeAcceleration"));
+            Assert.AreEqual(216, ItemStats.IdOf("hoverSpeed"));
+            Assert.AreEqual(217, ItemStats.IdOf("hoverAcceleration"));
+            Assert.AreEqual(218, ItemStats.IdOf("reverseSpeed"));
+            Assert.AreEqual(219, ItemStats.IdOf("reverseAcceleration"));
+            Assert.AreEqual(220, ItemStats.IdOf("forwardAcceleration"));
+            Assert.AreEqual(191, ItemStats.IdOf("strictShipClass"));
+            Assert.AreEqual(192, ItemStats.IdOf("fixedBeam"));
+            Assert.AreEqual(193, ItemStats.IdOf("turretDefenseRole"));
+            Assert.AreEqual(PointDefense.TurretRoleAttribute, ItemStats.IdOf("turretDefenseRole"));
+            Assert.AreEqual(194, ItemStats.IdOf("scannerRange"));
+            Assert.AreEqual(195, ItemStats.IdOf("scanLead"));
+            Assert.AreEqual(208, ItemStats.IdOf("structuralDamage"));
+        }
+
+        [Test]
+        public void NativeStatsAndFlightBonusesLoadIndependently()
+        {
+            WriteMod("native_stats", "t_native_stats", "1.0", "", ("items.json", @"[
+                { 'id': 'combined', 'base': 84, 'name': 'Combined', 'stats': {
+                    'strictShipClass': 1, 'fixedBeam': 1, 'turretDefenseRole': 3, 'scannerRange': 100000,
+                    'scanLead': 1, 'structuralDamage': 1, 'coreYield': 4,
+                    'pitchTurnRate': 11, 'yawTurnRate': 12, 'rollTurnRate': 13,
+                    'pitchTurnAcceleration': 14, 'yawTurnAcceleration': 15, 'rollTurnAcceleration': 16,
+                    'strafeAcceleration': 17, 'hoverSpeed': 18, 'hoverAcceleration': 19,
+                    'reverseSpeed': 20, 'reverseAcceleration': 21, 'forwardAcceleration': 22
+                }},
+                { 'id': 'structural', 'base': 84, 'name': 'Structural only', 'stats': { 'structuralDamage': 2 }},
+                { 'id': 'mining', 'base': 84, 'name': 'Mining only', 'stats': { 'coreYield': 4 }}
+            ]"));
+            ScanAndEnable("t_native_stats");
+            Assert.IsFalse(Installed("t_native_stats").Broken, AllMessages(Installed("t_native_stats")));
+            var db = Database.Load();
+            var combined = db.Item(ModContent.ItemIndexOf("t_native_stats:combined"));
+            Assert.AreEqual(1, combined.Attr(ItemStats.StrictShipClassAttr));
+            Assert.AreEqual(1, combined.Attr(ItemStats.FixedBeamAttr));
+            Assert.AreEqual(3, combined.Attr(PointDefense.TurretRoleAttribute));
+            Assert.AreEqual(100000, combined.Attr(CombatRadar.ScannerRangeAttr));
+            Assert.IsTrue(CombatRadar.ScannerHasLead(combined));
+            Assert.AreEqual(1, combined.Attr(ItemStats.StructuralDamageAttr));
+            Assert.AreEqual(4, combined.CoreYield);
+            Assert.AreEqual(11, combined.Attr(ModFlight.PitchTurnRate));
+            Assert.AreEqual(12, combined.Attr(ModFlight.YawTurnRate));
+            Assert.AreEqual(13, combined.Attr(ModFlight.RollTurnRate));
+            Assert.AreEqual(14, combined.Attr(ModFlight.PitchTurnAcceleration));
+            Assert.AreEqual(15, combined.Attr(ModFlight.YawTurnAcceleration));
+            Assert.AreEqual(16, combined.Attr(ModFlight.RollTurnAcceleration));
+            Assert.AreEqual(17, combined.Attr(ModFlight.StrafeAcceleration));
+            Assert.AreEqual(18, combined.Attr(ModFlight.HoverSpeed));
+            Assert.AreEqual(19, combined.Attr(ModFlight.HoverAcceleration));
+            Assert.AreEqual(20, combined.Attr(ModFlight.ReverseSpeed));
+            Assert.AreEqual(21, combined.Attr(ModFlight.ReverseAcceleration));
+            Assert.AreEqual(22, combined.Attr(ModFlight.ForwardAcceleration));
+            var structural = db.Item(ModContent.ItemIndexOf("t_native_stats:structural"));
+            var mining = db.Item(ModContent.ItemIndexOf("t_native_stats:mining"));
+            Assert.AreEqual(1, structural.CoreYield, "structural damage must not modify mining yield");
+            Assert.AreEqual(0, mining.Attr(ItemStats.StructuralDamageAttr), "mining yield must not grant structural damage");
+        }
+
+        [Test]
         public void TheScannerStatsHaveTheirNumbers()
         {
             Assert.AreEqual(CombatRadar.ScanShipAttr, ItemStats.IdOf("scanShip"));
             Assert.AreEqual(CombatRadar.ScanHitpointsAttr, ItemStats.IdOf("scanHitpoints"));
             Assert.AreEqual(CombatRadar.ScanWeaponsAttr, ItemStats.IdOf("scanWeapons"));
+            Assert.AreEqual(CombatRadar.ScannerRangeAttr, ItemStats.IdOf("scannerRange"));
+            Assert.AreEqual(CombatRadar.ScanLeadAttr, ItemStats.IdOf("scanLead"));
 
             WriteMod("scan", "t_scan", "1.0", "", ("items.json", @"[
-                { 'id': 'deep', 'base': 84, 'name': 'Deep Scan', 'stats': { 'scanShip': 1, 'scanHitpoints': 1, 'scanWeapons': 1, 'radarShowsCargo': 2 } }
+                { 'id': 'deep', 'base': 84, 'name': 'Deep Scan', 'stats': { 'scanShip': 1, 'scanHitpoints': 1, 'scanWeapons': 1, 'radarShowsCargo': 2, 'scannerRange': 100000, 'scanLead': 1 } }
             ]"));
             ScanAndEnable("t_scan");
             Assert.IsFalse(Installed("t_scan").Broken, AllMessages(Installed("t_scan")));
@@ -35,6 +111,65 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(1, deep.Attr(CombatRadar.ScanHitpointsAttr));
             Assert.AreEqual(1, deep.Attr(CombatRadar.ScanWeaponsAttr));
             Assert.AreEqual(2, deep.Attr(31));
+            Assert.AreEqual(100000, deep.Attr(CombatRadar.ScannerRangeAttr));
+            Assert.AreEqual(1, deep.Attr(CombatRadar.ScanLeadAttr));
+            Assert.AreEqual(0, deep.Attr(ModFlight.PitchTurnAcceleration));
+            Assert.AreEqual(0, deep.Attr(ModFlight.YawTurnAcceleration));
+        }
+
+        [TestCase(100, 4999f, true)]
+        [TestCase(100, 5000f, true)]
+        [TestCase(100, 5001f, false)]
+        [TestCase(50, 2500f, true)]
+        [TestCase(50, 2501f, false)]
+        [TestCase(200, 10000f, true)]
+        [TestCase(200, 10001f, false)]
+        public void DetectionRangeUsesTargetSignature(int percent, float metres, bool expected)
+        {
+            Assert.AreEqual(expected, CombatRadar.WithinScannerRange(metres * metres, 100000, percent));
+        }
+
+        [TestCase(100, 12000f)]
+        [TestCase(80, 9600f)]
+        [TestCase(60, 7200f)]
+        [TestCase(50, 6000f)]
+        public void NpcDefaultScannerRangeUsesTwelveKilometreBaseline(int signature, float reach)
+        {
+            Assert.AreEqual(240000, CombatRadar.DefaultNpcScannerRangeUnits);
+            Assert.IsTrue(CombatRadar.WithinScannerRange((reach - 1f) * (reach - 1f), CombatRadar.DefaultNpcScannerRangeUnits, signature));
+            Assert.IsFalse(CombatRadar.WithinScannerRange((reach + 1f) * (reach + 1f), CombatRadar.DefaultNpcScannerRangeUnits, signature));
+        }
+
+        [Test]
+        public void PipPredictsRealInterceptAndRejectsUnreachableShots()
+        {
+            var r = new UnityEngine.Vector3(100, 0, 0);
+            var v = new UnityEngine.Vector3(0, 20, 0);
+            var zero = UnityEngine.Vector3.zero;
+            Assert.IsTrue(TurretTargeting.TryIntercept(r, v, zero, 100, 2, out var point));
+            Assert.AreEqual(100f, point.x, 0.001f);
+            Assert.AreEqual(20.4124f, point.y, 0.01f);
+            Assert.IsFalse(TurretTargeting.TryIntercept(r, v, zero, 100, 1, out _));
+            Assert.IsFalse(TurretTargeting.TryIntercept(r, new UnityEngine.Vector3(110, 0, 0), zero, 100, 10, out _));
+            Assert.IsTrue(TurretTargeting.TryIntercept(r, zero, zero, 100, 1, out point));
+            Assert.AreEqual(r, point);
+        }
+
+        [TestCase("light_fighter", 100, true, 80)]
+        [TestCase("light_fighter", 100, false, 100)]
+        [TestCase("stealth_fighter", 50, true, 50)]
+        [TestCase("stealth_bomber", 60, true, 60)]
+        [TestCase("carrier", 200, true, 160)]
+        [TestCase(null, 100, true, 80)]
+        public void GeneratorSignatureDoesNotStackWithStealthHull(string cls, int signature, bool fitted, int expected)
+        {
+            Assert.AreEqual(expected, CombatRadar.EffectiveDetectionPercent(cls, signature, fitted, 80));
+        }
+
+        [Test]
+        public void LegacyScannersRemainUnlimited()
+        {
+            Assert.IsTrue(CombatRadar.WithinScannerRange(float.MaxValue, 0, 50));
         }
 
         [Test]

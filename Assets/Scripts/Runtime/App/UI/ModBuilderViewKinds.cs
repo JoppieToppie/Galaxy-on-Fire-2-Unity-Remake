@@ -110,6 +110,8 @@ namespace GoF2Remake.UI
             root.EnableInClassList("mbv-root--bar", !flies);   // no Test fly: the right panel reaches the bottom
             // The script editor takes the 3D view's place: its panel as wide as the screen allows.
             root.EnableInClassList("mbv-root--scripts", k == ModBuilder.Kind.Scripts);
+            root.EnableInClassList("mbv-root--infrastructure", k == ModBuilder.Kind.PlayerInfrastructure);
+            if (k == ModBuilder.Kind.PlayerInfrastructure) ShowPlayerInfrastructure();
             if (was == ModBuilder.Kind.Scripts && k != ModBuilder.Kind.Scripts) SaveScript();
             if (k == ModBuilder.Kind.Scripts) ShowScripts();
             uiEngines.style.display = turntable ? StyleKeyword.Null : DisplayStyle.None;
@@ -158,6 +160,7 @@ namespace GoF2Remake.UI
             if (kind == ModBuilder.Kind.Systems) { RebuildSystems(); BuildSystemPage(); RefreshMap(); }
             if (kind == ModBuilder.Kind.Races) { RebuildModRaces(); BuildModRacePage(); RefreshMap(); }
             if (kind == ModBuilder.Kind.Interiors) { RebuildInteriors(); BuildInteriorPage(); }
+            if (kind == ModBuilder.Kind.PlayerInfrastructure) RefreshPlayerInfrastructure();
         }
         protected override Action BeforeUndo()
         {

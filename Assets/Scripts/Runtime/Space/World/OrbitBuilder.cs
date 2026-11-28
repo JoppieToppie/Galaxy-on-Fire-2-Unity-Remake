@@ -378,12 +378,41 @@ namespace GoF2Remake.World
             }
             // A mod's own station model (ModStations), once built; else (and for the rest) the original it names ("looksLike",
             // Modding.ModWorld.StationLook).
+            int preset = GameHooks.PlayerStationModel?.Invoke(layout.stationIndex) ?? -1;
+            if (preset >= 0)
+            {
+                var source = db.Stations.Find(s => s != null && s.index == preset);
+                if (source != null && StationPresetAssembly(db, source) is string chosen) return chosen;
+            }
             var own = Modding.ModWorld.ModelOf(layout.stationIndex);
             if (own != null && Modding.ModStations.Built(own.station)) return own.Assembly;
-            string prefix = $"station_{StationLook(layout.stationIndex):000}_";
+            return StockStationAssembly(db, StationLook(layout.stationIndex), layout.raceId);
+        }
+
+        internal static string StationPresetAssembly(Database db, StationData station)
+        {
+            int index = station.index;
+            var model = Modding.ModWorld.ModelOf(index);
+            int race = db.Systems.Find(system => system != null && system.index == station.system)?.raceId ?? -1;
+            string assembly = model != null && Modding.ModStations.Built(index) ? model.Assembly : index switch
+            {
+                100 => "v_station_deep_science",
+                101 => "v_station_battlestation_anim",
+                108 => "station_kaamo_club",
+                109 => StockStationAssembly(db, 114, race),
+                110 => StockStationAssembly(db, 115, race),
+                111 => "station_111_luur_intact_mission_89",
+                _ => StockStationAssembly(db, StationLook(index), race)
+            };
+            return assembly != null && db.AssemblyByName(assembly) != null ? assembly : null;
+        }
+
+        static string StockStationAssembly(Database db, int index, int race)
+        {
+            string prefix = $"station_{index:000}_";
             var entry = db.Assemblies.Find(a => a.category == "stations" && (a.name.StartsWith(prefix)
                                                   || a.name.StartsWith("v_" + prefix) || a.name.StartsWith("sn_" + prefix)));
-            return entry != null ? entry.name : layout.raceId == 1 ? "station_vossk" : null;   // Vossk: no collision entry
+            return entry != null ? entry.name : race == 1 ? "station_vossk" : null;   // Vossk: no collision entry
         }
 
         /// <summary>Modified: Luur's game rotation, as the burning station of its missions (createStaticObject's (0, -2.356, 0)).</summary>
@@ -414,6 +443,8 @@ namespace GoF2Remake.World
             // from the usual (0, pi, 0), -45 deg about Unity's up), every model of it (a player's request).
             var gameRotation = layout.stationIndex == 111 ? LuurRotation : new Vector3(0f, Mathf.PI, 0f);
             var go = Spawn(db, name, Vector3.zero, OrbitLayout.RotationToUnity(gameRotation), "Station", parent);
+            if (go != null) go.transform.SetPositionAndRotation(SpaceHooks.StationPosition(layout.stationIndex),
+                SpaceHooks.PlayerStationRotation?.Invoke(layout.stationIndex) ?? go.transform.rotation);
             // Remake, experimental (OrbitScale): Options > Gameplay "Station scale".
             if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
             // Remake: the station's opacity keys play like the engine's (the blinking lights of the Nivelian, Midorian, pirate,
@@ -485,14 +516,14 @@ namespace GoF2Remake.World
             {
                 var o = station.AddComponent<GoF2Remake.Flight.Obstacle>();
                 o.landmark = o.isStation = true;
-                var own = Modding.ModWorld.ModelOf(layout.stationIndex);
-                o.volumes = own != null && Modding.ModStations.Built(own.station) ? Modding.ModStations.Volumes(own, station)   // a mod's model
-                          : GoF2Remake.Flight.CollisionVolume.ForStation(KotharDamaged(layout) ? KotharDamagedCollision
-                                                                         : StationLook(layout.stationIndex), layout.systemIndex < 0,
-                                                                         layout.alienOrbit && Story.Dlc1Won);
-                // OrbitScale: the volumes grow with the hull, about the station's centre (copies: the Void station's extras
-                // are shared).
-                if (layout.Scaled) o.volumes = GoF2Remake.Flight.CollisionVolume.Scaled(o.volumes, layout.StationScale);
+                int preset = GameHooks.PlayerStationModel?.Invoke(layout.stationIndex) ?? -1;
+                var own = Modding.ModWorld.ModelOf(preset >= 0 ? preset : layout.stationIndex);
+                o.volumes = own != null && Modding.ModStations.Built(own.station)
+                    ? Modding.ModStations.Volumes(own, station, layout.StationScale)
+                    : GoF2Remake.Flight.CollisionVolume.Scaled(
+                        GoF2Remake.Flight.CollisionVolume.ForStation(KotharDamaged(layout) ? KotharDamagedCollision
+                            : StationLook(layout.stationIndex), layout.systemIndex < 0, layout.alienOrbit && Story.Dlc1Won),
+                        layout.StationScale);
                 // PlayerStation+0x150: the transform's bounding radius (Transform+0xe0, about the station's own origin)
                 // + 5000 units. A radius from the origin, not the bounds' half size: a lopsided station (Tornard, 57,
                 // towers 3.4 km out on one side) had its far tower outside the cube, so nothing collided there.
@@ -516,7 +547,7 @@ namespace GoF2Remake.World
             }
         }
 
-        public static GameObject SpawnJumpgate(Database db, OrbitLayout layout, Transform parent = null)
+        public static GameObject SpawnJumpgate(Database db, OrbitLayout layout, Transform parent = null, bool forcePlayerGate = false)
         {
             if (!layout.hasJumpgate) return null;
             // OrbitScale: the gate where the scaled orbit has it, grown like the stations (its radius with it: JumpgateRadius).
@@ -530,9 +561,19 @@ namespace GoF2Remake.World
             if (go != null)
                 foreach (var pa in go.GetComponentsInChildren<PartAnimation>(true))
                     if (pa.gameObject.name.EndsWith("_anim_add") && !pa.gameObject.name.EndsWith("_jump_anim_add")) pa.applyMaterialChannels = true;
-            if (go != null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
-            if (go != null && layout.Scaled) go.transform.localScale *= layout.StationScale;
-            if (go != null) PortalRefraction.AttachIfPortal(go);   // (a mod gate's Chorus portal bends the scene behind it)
+            if (go != null && layout.ModJumpgateAssembly == null && layout.JumpgateAssembly == TerranGate) PlayTerranGateRing(go);
+            if (go != null) go.transform.localScale *= layout.JumpgateScale;
+            if (go != null && SpaceHooks.PlayerJumpgateRotation?.Invoke(layout.stationIndex) is Quaternion gateRotation) go.transform.rotation = gateRotation;
+            if (go != null) PortalRefraction.AttachIfPortal(go);
+            // Only independently constructed player gates opt into exact mesh geometry in Original mode.
+            // This does not attach a combat Target yet: the server must validate weapon hits before
+            // the gate is allowed to receive structural damage.
+            if (go != null && (forcePlayerGate || GameHooks.HasPlayerJumpgate?.Invoke(layout.stationIndex) == true ||
+                GameHooks.HasPlayerJumpgateWreck?.Invoke(layout.stationIndex) == true))
+            {
+                var hull = GoF2Remake.Flight.HullCollision.Attach(go, null, null, forceExact: true);
+                if (hull != null) hull.playerJumpgateOrbit = layout.stationIndex;
+            }   // (a mod gate's Chorus portal bends the scene behind it)
             return go;
         }
 
@@ -643,9 +684,9 @@ namespace GoF2Remake.World
                 // PlayerAsteroid: hit radius = meshRadius * scale * 0.7, HP = scale * 100 + 30.
                 var target = go.AddComponent<GoF2Remake.Flight.Target>();
                 target.isAsteroid = true;
-                GoF2Remake.Flight.AsteroidTargetGrid.Register(target);
                 target.radius = (isMagma ? MagmaMeshRadius : layout.AsteroidMeshRadius) * scale * 0.7f * M;
                 target.maxHp = target.hp = scale * 100f + 30f;
+                GoF2Remake.Flight.AsteroidTargetGrid.Register(target);
                 target.explosionPrefab = isMagma ? magmaExplosion : explosion;
                 target.explosionScale = scale;
                 target.explosionTexture = isMagma ? null : explosionTexture;

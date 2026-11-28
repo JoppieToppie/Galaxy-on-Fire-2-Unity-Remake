@@ -55,6 +55,8 @@ namespace GoF2Remake.World
         IEnumerable<ulong> Aggressors { get; }
         /// <summary>The ship as a spawn of this game's traffic at 'gamePosition' (ship -1 = not a ship).</summary>
         SpawnSpec AdoptSpec(Vector3 gamePosition);
+        /// <summary>Restore the adopted NPC's shield state and recharge delay from this proxy.</summary>
+        void RestoreShield(NpcShip adopted);
         /// <summary>This game took it over: the old copy goes, here and in the other games.</summary>
         void Adopt();
     }
@@ -96,6 +98,8 @@ namespace GoF2Remake.World
     public delegate bool StationPoseQuery(int station, out Vector3 position, out Quaternion rotation);
     public delegate bool StarMapOpener(Database db, StarMapMode mode, bool jumpDrive, Action<StarMapResult> closed, int promptStation, bool askVoid);
 
+    public enum InfrastructureContactKind { Station, Jumpgate, OrbitalStructure }
+
     [Unity.Scripting.LifecycleManagement.NoAutoStaticsCleanup]
     public static class SpaceHooks
     {
@@ -109,6 +113,23 @@ namespace GoF2Remake.World
         /// <summary>Point defense shot down another game's mirrored shot (source object, shot id): ask the server to cancel it
         /// (NetPlayer.InterceptMirrorShot), so the shot's later hit counts for nothing.</summary>
         public static Action<ulong, uint> InterceptMirrorShot;
+        public static Func<int, Vector3> PlayerStationPosition;
+        public static Func<int, Quaternion?> PlayerStationRotation, PlayerJumpgateRotation;
+        public static Func<int, bool> PlayerJumpgateOffline, CanUsePlayerJumpgate;
+        public static Func<string> PlayerJumpgateRefusalMessage;
+        public static Func<int, Action<int>, bool> RequestPlayerJumpgateTravel;
+        public static Action<InfrastructureContactKind, int, int, uint, Vector3, Vector3, bool> ReportInfrastructureContact;
+        public static Func<string> PlayerInfrastructureSnapshot;
+        public static Func<Database, int, IEnumerable<(int id, string name, string assembly, Vector3 position, float scale, float radius)>> PlayerOrbitalModels;
+        public static Func<int, IEnumerable<Vector3>> PlayerDockArms;
+        public static Func<int, IEnumerable<(Vector3 position, Quaternion rotation)>> PlayerDockArmPoses;
+        public static Func<int, int, Quaternion> PlayerPlacedModelRotation;
+        public static Func<int, int, bool> PlayerModuleDestroyed;
+        public static Func<int, bool, IReadOnlyList<(int item, int amount)>> PlayerWreckSalvage;
+        public static Func<int, bool, Vector3> PlayerWreckSalvagePosition;
+        public static Action<int, bool, int> CollectPlayerWreckSalvage;
+
+        public static Vector3 StationPosition(int orbit) => PlayerStationPosition?.Invoke(orbit) ?? Vector3.zero;
 
         /// <summary>The players' games in the session (this one's included); none outside one.</summary>
         public static IEnumerable<IOrbitPeer> Peers => PeersProvider != null ? PeersProvider() : Array.Empty<IOrbitPeer>();
@@ -126,6 +147,27 @@ namespace GoF2Remake.World
         /// <summary>The race used to choose a bar visitor's silhouette (agent, station index). Mods may override it
         /// before the prefab is selected; the default preserves the game's Midorian-with-Nivelian-face exception.</summary>
         public static Func<Agent, int, int> VisitorRace;
+
+        // Native rule storage lives in GoF2.Game so Lua registration and flight checks share one registry.
+        public static Action RegisterMiningRestriction(string shipClass, string message) =>
+            Modding.ModInteractionRules.RegisterMiningRestriction(shipClass, message);
+
+        public static Action RegisterDerelictBoardingRestriction(string shipClass, string message) =>
+            Modding.ModInteractionRules.RegisterDerelictBoardingRestriction(shipClass, message);
+
+        public static Action RegisterLoungeWeight(string system, string race, float chance) =>
+            Modding.ModInteractionRules.RegisterLoungeWeight(system, race, chance);
+
+        public static string MiningClassRefusal(int shipIndex) =>
+            Modding.ModInteractionRules.MiningClassRefusal(shipIndex);
+
+        public static string DerelictBoardingClassRefusal(int shipIndex, NpcShip target) =>
+            target != null && target.IsFreighter && target.DockingType == ObjectDocking.Hackable
+                ? Modding.ModInteractionRules.DerelictBoardingClassRefusal(shipIndex) : null;
+
+        public static int? WeightedLoungeRace(Database db, int stationIndex) =>
+            Modding.ModInteractionRules.WeightedLoungeRace(db, stationIndex);
+
         /// <summary>No other player is in that orbit (NetState.OrbitEmpty): this game builds its traffic.</summary>
         public static Func<int, bool> OrbitEmpty;
         /// <summary>A point out of the other players' sight (NetOrbit.OutOfSight), game units.</summary>
@@ -136,15 +178,16 @@ namespace GoF2Remake.World
         public static Action<int> SiegeWon;
         /// <summary>A pirate sighting's event is destroyed (id, killer's client id; NetState.PirateSightingDoneRpc).</summary>
         public static Action<int, ulong> PirateSightingDone;
+        public static Action<int, int> PirateEscaped;
         /// <summary>The player hacked a wreck in this orbit (station, the wreck's name): an event's or quest's "on hacked"
         /// (EventRunner.OnWreckHacked; in a session through NetState.WreckHackedRpc).</summary>
         public static Action<int, string> WreckHacked;
         /// <summary>Remake mods: the player docked at a station's pad outside (station): an event's or quest's "on pad"
         /// (EventRunner.OnPadDocked; in a session through NetState.PadDockedRpc).</summary>
         public static Action<int> PadDocked;
-        /// <summary>Remake mods: the player's scanner locked a ship in this orbit (station, the ship's plate name): an event's or
+        /// <summary>Remake mods: the player's scanner locked a ship in this orbit (station, target): an event's or
         /// quest's "on scanned" (EventRunner.OnShipScanned; in a session through NetState.ShipScannedRpc).</summary>
-        public static Action<int, string> ShipScanned;
+        public static Action<int, Target> ShipScanned;
         /// <summary>A line in the multiplayer chat as a notice (NetChat.Notice).</summary>
         public static Action<string> Notice;
 

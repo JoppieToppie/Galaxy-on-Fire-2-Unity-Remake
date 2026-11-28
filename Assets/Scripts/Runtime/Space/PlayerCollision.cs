@@ -160,7 +160,7 @@ namespace GoF2Remake.Flight
             for (int i = 0; i < all.Count; i++)
             {
                 var o = all[i];
-                if (o == null || o.landmark != landmarks || !o.Active || o.UsesHull) continue;   // a hull: CheckHulls
+                if (o == null || o.landmark != landmarks || !o.Active || (o.UsesHull && !o.isStation)) continue;   // station volumes supplement the mesh hull
                 if (ignoreGate && o.cubeIsContact) continue;
                 // Remake: the object being docked at doesn't block its own approach (the original's autopilot could pin the
                 // ship on a hull face when it started beside the object; from afar it comes in over the top anyway).
@@ -169,8 +169,9 @@ namespace GoF2Remake.Flight
                         // ... nor the station a docking target stands in for (102: Tadram's pads)
                         || (o.isStation && (o.transform.position - docking.Target.transform.position).sqrMagnitude < 1f))) continue;
                 var pos = transform.position;
-                if (!o.Touches(pos, out _)) continue;
-                transform.position = o.PushOut(pos);
+                float radius = o.isStation ? ProbeRadius() : 0f;
+                if (o.isStation ? !o.TouchesSphere(pos, radius, out _) : !o.Touches(pos, out _)) continue;
+                transform.position = o.isStation ? o.PushOutSphere(pos, radius) : o.PushOut(pos);
                 Ram(transform.position - pos);
                 if (o.isStation) TouchingStation = true;
                 scraping = true;
@@ -352,24 +353,60 @@ namespace GoF2Remake.Flight
         /// <summary>PlayerEgo::calcCollision: an asteroid touched (the volatile goods' +0.2).</summary>
         public event System.Action AsteroidHit;
 
-        /// <summary>The asteroid part: the asteroid is destroyed, the player takes 20. Remake (after a contributor's version,
-        /// 2026-10-11): its cube grown by the ship's probe sphere, so the ship touches it with its hull, not only its centre.</summary>
+        // Reusable scratch buffers for broadphase candidates and measured hull boxes.
+        readonly System.Collections.Generic.List<Target> nearbyAsteroids = new System.Collections.Generic.List<Target>();
+        readonly System.Collections.Generic.List<AsteroidHullContact.Box> asteroidHull = new System.Collections.Generic.List<AsteroidHullContact.Box>(8);
+
         void CheckAsteroids()
         {
             var pos = transform.position;
             float probeR = ProbeRadius();
-            var all = Target.All;
-            for (int i = all.Count - 1; i >= 0; i--)
+            // Follow the session's existing collision mode. Original retains the legacy probe.
+            // Mixed/Exact reuse the same measured slice boxes as the station/ship collision code,
+            // including when there are no mesh obstacles in this orbit.
+            asteroidHull.Clear();
+            Vector3 movement = hasLastPosition ? pos - lastPosition : Vector3.zero;
+            if (movement.sqrMagnitude > MaxSweepMeters * MaxSweepMeters) movement = Vector3.zero;
+            float reach = probeR;
+            if (HullCollision.Mode != GoF2Remake.Data.SessionRules.CollisionOriginal)
             {
-                var t = all[i];
-                if (t == null || !t.isAsteroid || !t.Alive) continue;
-                if (!TouchesAsteroid(t, pos, probeR)) continue;
-                t.Damage(9999f);
-                if (GoF2Remake.Data.Settings.CollisionDamage) Ram(pos - t.transform.position);
+                EnsureHullBoxes();
+                foreach (var box in hullBoxes)
+                {
+                    if (box == null) continue;
+                    var t = box.transform;
+                    var centre = t.TransformPoint(box.center);
+                    var half = AsteroidHullContact.Abs(Vector3.Scale(box.size * 0.5f, t.lossyScale));
+                    asteroidHull.Add(new AsteroidHullContact.Box(centre, half, t.rotation));
+                    reach = Mathf.Max(reach, (centre - pos).magnitude + half.magnitude);
+                }
+            }
+
+            // The spatial query includes the whole hull and its translation, not its capped central probe.
+            // Reuse scratch lists: no allocations or scan of every target on ordinary flight frames.
+            if (asteroidHull.Count == 0) movement = Vector3.zero;
+            nearbyAsteroids.Clear();
+            AsteroidTargetGrid.Query(pos - movement * 0.5f, reach + movement.magnitude * 0.5f, nearbyAsteroids);
+            foreach (var asteroid in nearbyAsteroids)
+            {
+                if (asteroid == null || !asteroid.isAsteroid || !asteroid.Alive) continue;
+                Vector3 normal = pos - asteroid.transform.position;
+                bool hit = false;
+                if (asteroidHull.Count == 0) hit = TouchesAsteroid(asteroid, pos, probeR);
+                else
+                {
+                    foreach (var box in asteroidHull)
+                        if (AsteroidHullContact.Touches(box, asteroid, movement, out normal))
+                        { hit = true; break; }
+                }
+                if (!hit) continue;
+                asteroid.Damage(9999f);
+                if (GoF2Remake.Data.Settings.CollisionDamage) Ram(normal);
                 else if (!health.invulnerable) health.Target.Damage(20f);
                 AsteroidHit?.Invoke();   // volatile goods: +0.2 (VolatileCargo)
                 Hit();
-                Haptics.Play(Haptics.Impact);   // remake
+                Haptics.Play(Haptics.Impact);
+                if (health.Dead) break;
             }
         }
     }

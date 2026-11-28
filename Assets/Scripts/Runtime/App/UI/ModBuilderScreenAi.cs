@@ -163,20 +163,20 @@ namespace GoF2Remake.UI
 
         // ---- the tools' hooks ------------------------------------------------------------------------------------
 
-        internal void ExternalSaveNow() => SaveNow();
+        internal bool ExternalSaveNow() => TrySaveNow();
 
         /// <summary>An edit of the project's JSON (ModProject.CaptureState): 'edit' changes the state or returns why not. Saved,
         /// an undo step, the screen refreshed like after an undo, the game reads the project again.</summary>
         internal string ExternalEdit(Func<JObject, string> edit, string what)
         {
             if (Project == null) return "No project is open.";
-            SaveNow();
+            if (!TrySaveNow()) return "Could not save or refresh the project. See the builder status for details.";
             var state = Project.CaptureState();
             string error = edit(state);
             if (error != null) return error;
             var restore = BeforeUndo();
             Project.RestoreState(state);
-            Project.Save();
+            if (!TrySaveNow()) return "Could not save the edit. The builder retains the pending changes; see its status for details.";
             ModBuilder.History?.Commit();
             restore?.Invoke();
             RequestReload(false);
@@ -185,21 +185,23 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>Files of the project changed (write_file): read again, an undo step once saved.</summary>
-        internal void ExternalFilesChanged(string what)
+        internal bool ExternalFilesChanged(string what)
         {
-            SaveNow();
+            if (!TrySaveNow()) return false;
             RequestReload(false);
             Status(string.Format(T("mbAiChanged", "AI: {0}"), what), false);
+            return true;
         }
 
         /// <summary>The game reads the project again (validate).</summary>
-        internal void ExternalReload() { SaveNow(); RequestReload(false); }
+        internal bool ExternalReload() { if (!TrySaveNow()) return false; RequestReload(false); return true; }
+        internal void ExternalShowAdvancedEconomy() => ShowAdvancedEconomyRules();
 
         internal bool ExternalUndo(bool redo)
         {
             var h = ModBuilder.History;
             if (h == null || Project == null) return false;
-            SaveNow();
+            if (!TrySaveNow()) return false;
             var restore = BeforeUndo();
             if (!(redo ? h.Redo() : h.Undo())) return false;
             restore?.Invoke();

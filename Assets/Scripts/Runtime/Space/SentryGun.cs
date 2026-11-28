@@ -98,6 +98,8 @@ namespace GoF2Remake.Flight
             core.SetAnimations(anims);
             picking = new TurretTargeting(TurretTargeting.Rule.Retarget, RangeUnits)
             {
+                accelerationLead = true,
+                Sensor = t => !CombatRadar.NpcSensorsEnabled(db) || CombatRadar.DetectsFrom(db, transform.position, RangeUnits, t),
                 Candidate = t => t.isShip && t.hostileToPlayer && t.Alive && !t.untargetable && !t.cloaked && t.isActiveAndEnabled,
             };
 
@@ -149,7 +151,8 @@ namespace GoF2Remake.Flight
             if (ageMs < InvulnerableMs) return;
             var target = picking.Update(dtMs, Target.All, transform.position);
             if (target == null) return;
-            if (core.StepToward(picking.LeadPoint(target, core.GunPosition, core.Gun.speedUnitsPerMs, core.Gun.lifetimeMs), dtMs) && core.Fire() >= 0
+            if (core.StepToward(Settings.TurretLeadAim && core.Gun.isBeam ? TurretTargeting.CombatAimPoint(target, core.GunPosition) :
+                picking.LeadPoint(target, core.GunPosition, core.Gun.speedUnitsPerMs, core.Gun.lifetimeMs), dtMs) && core.Fire() >= 0
                 && lookFx != null && lookFx.shot != null) Sfx.PlayAt(lookFx.Shot, transform.position, 0.6f);
         }
 

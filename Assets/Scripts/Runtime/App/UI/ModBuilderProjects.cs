@@ -52,6 +52,7 @@ namespace GoF2Remake.UI
         {
             ("mbShips", "Ships", "New ships from a .glb model or a game model, or changes to the game's ships: stats, hardpoints, test flights. In the hangar.", ModBuilder.Kind.Ships),
             ("mbItems", "Items", "New weapons and equipment, or changes to the game's items. In the hangar.", ModBuilder.Kind.Items),
+            ("mbPlayerInfrastructure", "Player-built stations & gates", "Configure player construction, gate access, race policies, and orbital defenses.", ModBuilder.Kind.PlayerInfrastructure),
             ("mbFx", "Weapon fx", "Projectiles, muzzle flashes, impacts and shot sounds, on a firing range in space.", ModBuilder.Kind.WeaponFx),
             ("mbSkins", "Skins", "New textures for the game's ships: hull paint, lights and engine glow, for one ship or all that share them.", ModBuilder.Kind.Skins),
             ("mbKits", "Ship kits", "Customizable ships: parts (.glb) the players combine in the hangar's Customize screen, with colours and stats. In the hangar.", ModBuilder.Kind.Kits),

@@ -29,6 +29,28 @@ namespace GoF2Remake.Tests
             Assert.AreEqual(extreme, Session.IsExtreme);
         }
 
+        [TestCase(0, 0.5f, 0f)]
+        [TestCase(2, 1f, 0f)]
+        [TestCase(3, 1f, 1f / 14f)]
+        [TestCase(9, 1f, 0.5f)]
+        [TestCase(9, 2f, 0.7f)]
+        [TestCase(16, 1f, 1f)]
+        [TestCase(20, 0.5f, 1f)]
+        public void FighterShieldPresenceScales(int rank, float difficulty, float expected)
+        {
+            Assert.AreEqual(expected, NpcTables.FighterShieldChance(rank, difficulty), 1e-5f);
+        }
+
+        [TestCase(0, 100, 12)]
+        [TestCase(10, 200, 52)]
+        [TestCase(20, 400, 160)]
+        [TestCase(20, 800, 320)]
+        [TestCase(20, 0, 0)]
+        public void FighterShieldCapacityScalesFromHull(int rank, int hull, int expected)
+        {
+            Assert.AreEqual(expected, NpcTables.FighterShieldCapacity(rank, hull));
+        }
+
         // ---- hull ----------------------------------------------------------------------------------------------
 
         [TestCase(0, 100, 500, 2500)]

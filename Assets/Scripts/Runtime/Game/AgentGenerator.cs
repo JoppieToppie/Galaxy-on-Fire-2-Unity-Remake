@@ -105,6 +105,9 @@ namespace GoF2Remake.Data
 
         // ---- agents -----------------------------------------------------------------------------------------
 
+        internal static bool IsMerchantOffer(int offer) =>
+            offer is AgentOffer.SellItem or AgentOffer.SellShip or AgentOffer.SellBlueprint or AgentOffer.Purchase;
+
         /// <summary>Generator::createAgents 0xa1fd0 for 'station' (not in supernova systems).</summary>
         public static List<Agent> CreateAgents(Database db, int station)
         {
@@ -147,7 +150,7 @@ namespace GoF2Remake.Data
             if (R(100) < 35)
                 foreach (int race in new[] { 2, 3, 0, 1 })
                 {
-                    if (!Standing.IsEnemy(race)) continue;
+                    if (!CanUseDiplomat(race)) continue;
                     int i = agents.FindIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat);
                     if (i < 0) continue;
                     agents[i] = new Agent { name = RandomName(race, true), race = race, station = station, offer = AgentOffer.Diplomat,
@@ -161,9 +164,12 @@ namespace GoF2Remake.Data
                 var a = agents.Find(x => x.offer == AgentOffer.Mission && x.HasMission && x.mission.reward < 50000);
                 if (a != null) a.mission.reward = Math.Min(a.mission.reward * 10, 50000);
             }
-            AddCustomShipSellers(db, station, agents);
-            AddModBlueprintSellers(db, station, agents);
-            AddStoryBlueprintSellers(db, station, agents);
+            if (!Shop.UsesPlayerMarketplace(station))
+            {
+                AddCustomShipSellers(db, station, agents);
+                AddModBlueprintSellers(db, station, agents);
+                AddStoryBlueprintSellers(db, station, agents);
+            }
             return agents;
         }
 
@@ -179,7 +185,8 @@ namespace GoF2Remake.Data
             int systemRace = Sys(db, SystemOf(db, station))?.raceId ?? -1;
             foreach (var (product, at) in StoryBlueprints)
             {
-                if (at != station || Blueprints.IsUnlocked(product) || db.Item(product) == null) continue;
+                if (at != station || Blueprints.IsUnlocked(product) || db.Item(product) == null
+                    || !Modding.ModContent.ItemAvailableFor(product, "blueprints") || Modding.ModContent.IsBlueprintRestricted(product)) continue;
                 if (agents.Exists(a => a.offer == AgentOffer.SellBlueprint && a.sellBlueprint == product)) continue;
                 int race = systemRace >= 0 && systemRace <= 3 ? systemRace : 0;
                 bool male = race == 0 ? R(100) < 60 : true;
@@ -270,8 +277,13 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>SpaceLounge::startChat, diplomat: int(|standing axis| / 100 * 16000) (a mod race: its own standing).</summary>
+        public static bool CanUseDiplomat(int race) => Standing.IsEnemy(race) || GameHooks.LocalPilotIsPirate?.Invoke() == true;
+
         public static int DiplomatCosts(int race) =>
-            (int)(Math.Abs(Modding.ModRaces.Is(race) ? Modding.ModRaces.Standing(race) : Session.Standing[race <= 1 ? 0 : 1]) / 100f * 16000f);
+            DiplomatCostsForStanding(Standing.RawToward(race), GameHooks.LocalPilotIsPirate?.Invoke() == true);
+
+        public static int DiplomatCostsForStanding(int standing, bool pirate) =>
+            pirate && standing > -71 ? 16000 : (int)(Math.Abs(standing) / 100f * 16000f);
 
         /// <summary>Remake mods: in the lounges of a mod race's system, like the game's diplomats (35 %, replacing the first
         /// generic visitor), one for each mod race of that mod the player is hostile with whose "diplomats" allow it: talking
@@ -282,7 +294,7 @@ namespace GoF2Remake.Data
             if (owner == null || R(100) >= 35) return;
             foreach (var f in Modding.ModRaces.All)
             {
-                if (f.mod != owner.mod || !f.diplomats || f.hostile || !Standing.IsEnemy(f.race)) continue;
+                if (f.mod != owner.mod || !f.diplomats || f.hostile || !CanUseDiplomat(f.race)) continue;
                 int i = agents.FindIndex(x => !x.IsStory && x.offer != AgentOffer.Diplomat);
                 if (i < 0) return;
                 agents[i] = new Agent { name = RandomName(f.look, true), race = f.look, modRace = f.race, station = station, offer = AgentOffer.Diplomat,
@@ -311,7 +323,9 @@ namespace GoF2Remake.Data
         static bool StorySellerAvailable(StoryAgentData s)
         {
             if (s.sellMod >= 0 && !Session.KaamoUpgradesEnabled) return false;
-            if (s.sellBlueprint < 0 || Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
+            if (s.sellBlueprint < 0) return true;
+            if (Modding.ModContent.IsBlueprintRestricted(s.sellBlueprint)) return false;
+            if (Session.UnlockedBlueprints.Contains(s.sellBlueprint)) return true;
             var mod = Modding.ModBlueprints.Of(s.sellBlueprint);
             return mod == null || Modding.ModBlueprints.Available(mod);
         }
@@ -357,12 +371,14 @@ namespace GoF2Remake.Data
         public static Agent CreateAgent(Database db, int station)
         {
             int campaign = Session.CampaignMission;
-            int race = Standing.Look(Sys(db, SystemOf(db, station))?.raceId ?? 0);   // (a mod race's system: its look race's visitors)
+            int owner = NpcFactionWar.OrbitOwner(Sys(db, SystemOf(db, station)), station);
+            int race = Standing.Look(owner >= 0 ? owner : 0);   // (a mod race's system: its look race's visitors)
             if (R(100) < 20) race = R(8);
             int offer;
             do offer = R(7); while ((race == 1 && offer == AgentOffer.Wingmen) || offer == 3 || offer == 4);   // Vossk never offer wingmen
             if (R(100) < 33) offer = AgentOffer.Mission;
             else if ((offer == AgentOffer.Purchase || offer == AgentOffer.Wingmen) && campaign < 16) offer = AgentOffer.Mission;
+            if (Shop.UsesPlayerMarketplace(station) && IsMerchantOffer(offer)) offer = AgentOffer.SmallTalk;
             bool male = race == 0 && offer != AgentOffer.Wingmen ? R(100) < 60 : true;   // only Terrans can be female
 
             var a = new Agent { race = race, male = male, station = station, offer = offer };
@@ -370,7 +386,7 @@ namespace GoF2Remake.Data
             a.portrait = CreatePortrait(male, race);
             if (offer == AgentOffer.Wingmen)
             {
-                int friends = R(3);
+                int friends = Modding.ModWingmen.MinGroupSize - 1 + R(Modding.ModWingmen.MaxGroupSize - Modding.ModWingmen.MinGroupSize + 1);
                 for (int i = 0; i < friends; i++) a.wingmen.Add(RandomName(race, true));
                 a.costs = (R(1300) + 700) * (friends + 1) * (Session.IsExtreme ? 7 : 1);
                 // remake mods (wingmen.json): now and then a mod's crew, in its ships
@@ -384,7 +400,7 @@ namespace GoF2Remake.Data
                 do it = db.Items[R(db.Items.Count)];
                 while ((NotForSale.Contains(it.index) || it.blueprint.Count > 0 || SinglePrice(it) == 0 || it.occurrence == 0
                         || !Modding.ModCampaigns.ItemAllowed(db, it.index) || !Modding.ModUnlocks.ItemAvailable(it.index)
-                        || Shop.NotInSession(db, it.index)) && ++tries < 5000);
+                        || !Modding.ModContent.ItemAvailableFor(it.index, "shops") || Shop.NotInSession(db, it.index)) && ++tries < 5000);
                 // remake mods: a campaign's own items, and a mod item only once its "available" condition holds
                 a.sellItem = it.index;
                 a.sellQuantity = it.TypeId <= 3 && it.TypeId != 1 ? 1 : R(15) + 5;   // primary, turret, equipment: 1
@@ -465,6 +481,21 @@ namespace GoF2Remake.Data
                 }
             }
 
+            // Modded orbits may define fewer than three ores, including an explicitly empty table.
+            // Keep the vanilla top-three roll where possible; never offer mining where no ore can spawn.
+            var miningOres = new List<int>();
+            if (type == MissionType.OreMining)
+            {
+                var layout = World.OrbitLayout.Build(db, currentStation);
+                if (layout != null)
+                {
+                    var ores = World.OrbitLayout.OreProbabilities(db, layout);
+                    for (int i = 0; i < Math.Min(3, ores.Count); i++)
+                        if (ores[i].p > 0 && db.Item(ores[i].item) != null) miningOres.Add(ores[i].item);
+                }
+                if (miningOres.Count == 0) type = MissionType.Defense;
+            }
+
             var m = new FreelanceMission
             {
                 type = type, target = target, clientName = agent.name, clientRace = agent.race, clientMale = agent.male,
@@ -477,6 +508,7 @@ namespace GoF2Remake.Data
                 do it = db.Items[97 + R(db.Items.Count - 97)];
                 while (it.occurrence == 0 || SinglePrice(it) == 0 || NotForPurchase.Contains(it.index) || it.blueprint.Count > 0
                        || !Modding.ModUnlocks.ItemAvailable(it.index)    // remake mods: not a mod item no shop may stock yet
+                       || !Modding.ModContent.ItemAvailableFor(it.index, "shops")
                        || Shop.NotInSession(db, it.index));             // remake: nor the time extender in multiplayer
                 m.good = it.index;
                 m.amount = R(15) + 5;
@@ -496,7 +528,7 @@ namespace GoF2Remake.Data
                     case MissionType.Wanted: m.targetName = RandomName(0, true); break;   // name args lost: Terran assumed
                     case MissionType.OreMining:
                         // One of this station's 3 asteroid ores (Galaxy::getAsteroidProbabilities, nextInt(3)), nextInt(90)+30 t.
-                        m.good = World.OrbitLayout.OreProbabilities(db, World.OrbitLayout.Build(db, currentStation))[R(3)].item;
+                        m.good = miningOres[R(miningOres.Count)];
                         m.amount = R(90) + 30;
                         break;
                 }

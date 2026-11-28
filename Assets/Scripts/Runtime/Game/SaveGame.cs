@@ -39,6 +39,13 @@ namespace GoF2Remake.Data
         /// the Cronus: the row was added before the flag existed).</summary>
         public int khadorCronusGift = -1;
         public List<ItemStack> equipment, cargo;
+        public bool deathLoaner;
+        // Creation-only intent: consumed before the server completes a new pilot identity.
+        public bool originStartAsPirate;
+        public List<DeathRecovery> deathRecoveries;
+        public string lastDeathPenaltyId;
+        public string reputationRevision;
+        public List<string> factionWarRewardReceipts;
         public List<StationStock> recentStations;
         public List<int> seenItems, visitedStations, attackedStations;
         public List<KnownPrice> lowestPrices, highestPrices;
@@ -68,9 +75,12 @@ namespace GoF2Remake.Data
         public bool informerKilled, informerFailed;
         public List<string> wingmen;
         public List<int> wingmanShips;   // remake mods: a mod crew's ships (Session.WingmanShips)
+        public List<int> wingmanRaces;
         public int wingmanRace;
         public float wingmanContractMs;
+        public List<int> wingmanContractPrices;
         public int[] wingmanPortrait;
+        public string playerIdentityRace, playerIdentityPortrait;
         public int wingmenHired;
         public List<int> unlockedBlueprints, shipMods;
         public List<BlueprintState> blueprints;
@@ -123,6 +133,7 @@ namespace GoF2Remake.Data
         public List<string> fixedLootTaken;
         // (remake, no version of its own: older saves have none) the script mods' game.saved tables (Session.ScriptData)
         public List<Modding.SaveScriptData> scriptData;
+        public string npcFactionWar;
         // (remake, no version of its own: older saves have none) the repeatable quests finished, "name|playing seconds"
         public List<string> graphQuestRepeats;
         // (remake, no version of its own: older saves have none) the Kaamo Club VIP Card bought (KaamoClub.VipDiscount)
@@ -291,7 +302,12 @@ namespace GoF2Remake.Data
             return best;
         }
 
-        public static bool Save(int slot)
+        public static bool Save(int slot) => Save(slot, null);
+
+        /// <summary>Save the current live progress at a valid respawn station without changing the dying orbit or its scene.</summary>
+        public static bool SaveProtectedDeath(int station) => Save(AutoSaveSlot, station);
+
+        static bool Save(int slot, int? protectedRespawn)
         {
             // Multiplayer: a session is a separate free-play game; it never overwrites the single-player saves (also not
             // after its connection went, while its game is still loaded); the co-op campaign's host saves its own (HostSaves).
@@ -303,6 +319,12 @@ namespace GoF2Remake.Data
             // Hardcore: only the auto-save (no slot to go back to after a death).
             if (Session.Hardcore && slot != AutoSaveSlot) return false;
             var s = Capture();
+            if (protectedRespawn.HasValue)
+            {
+                s.previousStation = s.station;
+                s.station = s.lastDockedStation = protectedRespawn.Value;
+                s.lastArrivalHullPercent = 100;
+            }
             if (HostSaves) { s.difficulty = hostDifficulty; s.economy = hostEconomy; s.savedGameRules = hostSavedGameRules; }   // the game's own, not the session's
             Modding.ModSaves.Record(s, Database.Load());
             try
@@ -497,6 +519,7 @@ namespace GoF2Remake.Data
 
         static SaveData Capture()
         {
+            GameHooks.BeforeSave?.Invoke();
             Modding.ModScripts.CaptureSaved();   // the script mods' game.saved tables into Session.ScriptData
             static List<SaveData.KnownPrice> Prices(Dictionary<int, (int price, int system)> d)
             {
@@ -519,6 +542,7 @@ namespace GoF2Remake.Data
                 graphQuests = new List<GraphQuestState>(Session.GraphQuests),
                 graphQuestsDone = new List<string>(Session.GraphQuestsDone),
                 fixedLootTaken = new List<string>(Session.FixedLootTaken),
+                npcFactionWar = Session.NpcFactionWarJson,
                 scriptData = Session.ScriptData.Select(kv => new Modding.SaveScriptData { id = kv.Key, json = kv.Value }).ToList(),
                 graphQuestRepeats = Session.GraphQuestRepeats.Select(kv => kv.Key + "|" + kv.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(),
                 modCampaign = Session.ModCampaign ?? "",
@@ -538,6 +562,11 @@ namespace GoF2Remake.Data
                 lastDockedStation = Session.LastDockedStation,
                 khadorCronusGift = Session.KhadorCronusGift ? 1 : 0,
                 ship = Session.ShipIndex,
+                deathLoaner = Session.DeathLoaner,
+                lastDeathPenaltyId = Session.LastDeathPenaltyId,
+                reputationRevision = Session.ReputationRevision,
+                factionWarRewardReceipts = new List<string>(Session.FactionWarRewardReceipts),
+                deathRecoveries = new List<DeathRecovery>(Session.DeathRecoveries),
                 credits = Session.Credits,
                 equipment = Session.Equipment.ConvertAll(e => e.Clone()),
                 cargo = Session.Cargo.ConvertAll(e => e.Clone()),
@@ -570,8 +599,9 @@ namespace GoF2Remake.Data
                 passengers = Session.Passengers,
                 usedMissionTypes = Session.UsedMissionTypes,
                 informerKilled = Session.InformerKilled,
-                wingmen = Session.Wingmen, wingmanShips = Session.WingmanShips, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs,
+                wingmen = Session.Wingmen, wingmanShips = Session.WingmanShips, wingmanRaces = Session.WingmanRaces, wingmanRace = Session.WingmanRace, wingmanContractMs = Session.WingmanContractMs, wingmanContractPrices = Session.WingmanContractPrices,
                 wingmanPortrait = Session.WingmanPortrait, wingmenHired = Session.WingmenHired,
+                playerIdentityRace = Session.PlayerIdentityRace, playerIdentityPortrait = Session.PlayerIdentityPortrait,
                 unlockedBlueprints = new List<int>(Session.UnlockedBlueprints), shipMods = Session.ShipMods,
                 blueprints = Session.Blueprints, pendingProducts = Session.PendingProducts, goodsProduced = Session.GoodsProduced,
                 medals = Session.Medals, asteroidsDestroyed = Session.AsteroidsDestroyed, oreMined = Session.OreMined, coresMined = Session.CoresMined,
@@ -699,8 +729,11 @@ namespace GoF2Remake.Data
                 return d;
             }
             Session.ResetNewGame();
+            Session.PlayerIdentityRace = s.playerIdentityRace;
+            Session.PlayerIdentityPortrait = s.playerIdentityPortrait;
             Session.Hardcore = s.hardcore;
             Session.NoMedals = s.noMedals;
+            Session.NpcFactionWarJson = s.npcFactionWar;
             if (!string.IsNullOrEmpty(s.runId)) Session.RunId = s.runId;   // an older save keeps the new id ResetNewGame made
             Session.PlaySeconds = s.playSeconds;
             Session.Campaign = (Campaign)s.campaign;
@@ -712,10 +745,16 @@ namespace GoF2Remake.Data
             Settings.KaamoVipMode = campaignRules.VipAvailable && Session.KaamoUpgradesEnabled ? Settings.KaamoVipCard : Settings.KaamoVipOff;
             Session.Economy = SaveEconomy(s);
             Session.CampaignMission = s.campaignMission;
+            Session.SkipRespawnDockingFine = false;
             Session.StationIndex = s.station;
             Session.PreviousStationIndex = s.previousStation;
             Session.LastDockedStation = s.lastDockedStation;
             Session.ShipIndex = s.ship;
+            Session.DeathLoaner = s.deathLoaner;
+            Session.LastDeathPenaltyId = s.lastDeathPenaltyId;
+            Session.ReputationRevision = s.reputationRevision;
+            Session.FactionWarRewardReceipts = s.factionWarRewardReceipts ?? new List<string>();
+            Session.DeathRecoveries = s.deathRecoveries ?? new List<DeathRecovery>();
             Session.Credits = s.credits;
             Session.Equipment = s.equipment ?? new List<ItemStack>();
             Session.Cargo = s.cargo ?? new List<ItemStack>();
@@ -817,7 +856,9 @@ namespace GoF2Remake.Data
                 Session.Wingmen = s.wingmen ?? new List<string>();
                 Session.WingmanShips = s.wingmanShips ?? new List<int>();   // (a ship no longer there: the game's way, Traffic.SpawnWingmen)
                 Session.WingmanRace = s.wingmanRace;
+                Session.WingmanRaces = s.wingmanRaces ?? new List<int>();
                 Session.WingmanContractMs = s.wingmanContractMs;
+                Session.WingmanContractPrices = s.wingmanContractPrices ?? new List<int>();
                 if (s.wingmanPortrait != null && s.wingmanPortrait.Length == 5) Session.WingmanPortrait = s.wingmanPortrait;
                 Session.WingmenHired = s.wingmenHired;
                 Session.UnlockedBlueprints = new HashSet<int>(s.unlockedBlueprints ?? new List<int>());

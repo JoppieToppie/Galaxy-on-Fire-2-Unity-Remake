@@ -32,6 +32,9 @@ namespace GoF2Remake.UI
         // ---- entry kinds ----------------------------------------------------------------------------------------
 
         /// <summary>The entry kinds: the CaptureState key, the mod file, how an entry is named, the builder kind that shows it.</summary>
+        const string InfrastructureKind = "playerInfrastructure";
+        const string EconomyKind = "advancedEconomy";
+
         static readonly (string kind, string file, string ident, ModBuilder.Kind show)[] Kinds =
         {
             ("ships", "ships.json", "id or override (a game / other mod's ship number or key)", ModBuilder.Kind.Ships),
@@ -48,6 +51,8 @@ namespace GoF2Remake.UI
             ("gameOptions", "gameoptions.json", "id", ModBuilder.Kind.Campaigns),
             ("missions", "events/<name>.gof2mission", "name (the file name: letters, digits, _)", ModBuilder.Kind.Quests),
             ("campaign", "campaign.json", "(one per mod)", ModBuilder.Kind.Campaigns),
+            (InfrastructureKind, ModPlayerInfrastructure.FileName, "(one per mod; empty inherits the active rules)", ModBuilder.Kind.PlayerInfrastructure),
+            (EconomyKind, ModAdvancedEconomy.File, "(one per mod)", ModBuilder.Kind.PlayerInfrastructure),
             ("manifest", "mod.json", "(the mod itself: name, description, version, author, website, credits, dependencies)", ModBuilder.Kind.Ships),
         };
 
@@ -113,7 +118,7 @@ namespace GoF2Remake.UI
             new Tool
             {
                 name = "put_entry", title = "Write an entry",
-                description = "Adds an entry or replaces the one with the same identity, in the mod files' own JSON (Modding guide; missions: mission.schema.json). ships / items / systems / stations: \"id\" for new content, \"override\" for a change to the game's (or another mod's); characters, interiors, races, blueprints, gameOptions: \"id\"; missions: give 'name' and the .gof2mission object; campaign: the campaign.json object; manifest: mod.json's fields (the id stays). It becomes an undo step; the answer lists the problems the game finds.",
+                description = "Adds an entry or replaces the one with the same identity, in the mod files' own JSON (Modding guide; missions: mission.schema.json). ships / items / systems / stations: \"id\" for new content, \"override\" for a change to the game's (or another mod's); characters, interiors, races, blueprints, gameOptions: \"id\"; missions: give 'name' and the .gof2mission object; campaign: the campaign.json object; playerInfrastructure: the player-built station and gate rules object; advancedEconomy: the advanced economy rules object; manifest: mod.json's fields (the id stays). It becomes an undo step; the answer lists the problems the game finds.",
                 input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("entry", new JObject { ["type"] = "object" }, "the entry's JSON", true),
                               ("name", "string", "missions only: its name (the file name)", false)),
                 run = PutEntry, timeoutSeconds = 60f, ask = a =>
@@ -131,7 +136,7 @@ namespace GoF2Remake.UI
                               "{\"op\": \"insert\", \"path\": \"steps/3\", \"value\": {step}} (into a list before that index, \"-\" at the end), {\"op\": \"remove\", \"path\": ...}, " +
                               "{\"op\": \"move\", \"from\": ..., \"path\": ...} (the target path read after the removal), {\"op\": \"test\", \"path\": ..., \"value\": ...} (fails the patch unless equal: guards against editing the wrong step). " +
                               "Paths are slash-separated keys and list indices into the entry (get_entries with 'path' reads a part). A mission's step inserted without \"pos\" gets a place in its column. One undo step; the answer lists the problems the game finds.",
-                input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("id", "string", "an id, \"override:<n>\", a mission's name (campaign / manifest: none)", false),
+                input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("id", "string", "an id, \"override:<n>\", a mission's name (campaign / manifest / playerInfrastructure / advancedEconomy: none)", false),
                               ("ops", new JObject { ["type"] = "array", ["items"] = new JObject { ["type"] = "object" } }, "the operations", true)),
                 run = PatchEntry, timeoutSeconds = 60f,
                 ask = a => $"edit {Str(a, "kind") ?? "an entry"}{(Str(a, "id") != null ? $" \"{Str(a, "id")}\"" : "")} ({((a["ops"] as JArray)?.Count ?? 0)} change(s))",
@@ -140,7 +145,7 @@ namespace GoF2Remake.UI
             {
                 name = "delete_entry", title = "Remove an entry", destructive = true,
                 description = "Removes an entry (asks the player in the builder first; an undo step).",
-                input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("id", "string", "an id, \"override:<n>\" or a mission's name", true)),
+                input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("id", "string", "an id, \"override:<n>\" or a mission's name (not needed for singleton configurations)", false)),
                 run = DeleteEntry, timeoutSeconds = 30f, permitsItself = true,
             },
             new Tool
@@ -159,7 +164,7 @@ namespace GoF2Remake.UI
             {
                 name = "write_file", title = "Write a file",
                 description = "Writes a file into the project (folders: models, textures, icons, portraits, fx, sky, cards, music, sounds, voices, text, events, scripts (Lua, scripts/main.lua and the others: read_guide scripting.md; the answer names a syntax error); images png / jpg / tga / bmp / dds / aei, models .glb or the game's own .aem (converted to .glb: the answer gives the .glb's path and its length for modelLength), audio ogg / wav / mp3, texts json / txt). Give 'text' for a text file or 'base64' for a binary one. " +
-                              "A texture named like a game texture (textures/<name>.png) replaces it everywhere, textures/<assembly>/<name>.png on that model only, textures/ships/<ship id>/<name>.png on a new ship of the project that uses a game model (\"gof2:...\") alone. music/<name>.ogg named like a game track (search_content kind music) replaces it, any other name is a new track. sounds/<name>.ogg named like a game sound (kind sound) replaces it everywhere, any other name is a new sound for a quest's Sound step. voices/<clip>.ogg is a voice line in every language, voices/<language>/<clip>.ogg in one (en, de, fr, es, it, nl, pl, ru, pt, zh, hi); named like a game line (kind voice) it replaces that line, the story's included. Entries (ships.json...) go through put_entry instead.",
+                              "A texture named like a game texture (textures/<name>.png) replaces it everywhere, textures/<assembly>/<name>.png on that model only, textures/ships/<ship id>/<name>.png on a new ship of the project that uses a game model (\"gof2:...\") alone. music/<name>.ogg named like a game track (search_content kind music) replaces it, any other name is a new track. sounds/<name>.ogg named like a game sound (kind sound) replaces it everywhere, any other name is a new sound for a quest's Sound step. voices/<clip>.ogg is a voice line in every language, voices/<language>/<clip>.ogg in one (en, de, fr, es, it, nl, pl, ru, pt, zh, hi); named like a game line (kind voice) it replaces that line, the story's included. Use playerInfrastructure.json to edit the player-built station and gate rules. Use root piracy.json and raceOrigins.json for piracy and racial origins. Use npc-faction-war.json to edit NPC warfare rules. Use advanced-economy.json or kind advancedEconomy to edit economy rules. Other entries (ships.json...) go through put_entry instead.",
                 input = Input(("path", "string", "its path in the project, e.g. portraits/vega.png", true), ("text", "string", "a text file's content", false),
                               ("base64", "string", "a binary file's content", false)),
                 run = WriteFile, timeoutSeconds = 60f, ask = a => $"write the file {Str(a, "path")} into the project",
@@ -325,6 +330,7 @@ namespace GoF2Remake.UI
         {
             int k = KindIndex(a);
             if (Project == null) { c.Fail("The Mod Builder isn't open."); return; }
+            Project.RefreshProtectedConfigurations();
             var state = Project.CaptureState();
             var list = new JArray();
             string kind = Kinds[k].kind;
@@ -332,6 +338,14 @@ namespace GoF2Remake.UI
                 foreach (var p in ((JObject)state["quests"]).Properties())
                     list.Add(new JObject { ["name"] = p.Name, ["title"] = p.Value["title"], ["kind"] = p.Value["kind"] ?? "quest", ["steps"] = (p.Value["steps"] as JArray)?.Count ?? 0 });
             else if (kind == "campaign") { if (state["campaign"] is JObject camp) list.Add(new JObject { ["name"] = camp["name"] }); }
+            else if (kind == InfrastructureKind)
+            {
+                if (Project.PlayerInfrastructure.HasValues) list.Add(new JObject { ["name"] = "Player-built stations & gates" });
+            }
+            else if (kind == EconomyKind)
+            {
+                if (state[kind] is JObject) list.Add(new JObject { ["name"] = "Advanced economy" });
+            }
             else if (kind == "manifest") list.Add(new JObject { ["id"] = Project.Id, ["name"] = Project.Name });
             else
                 foreach (var e in ((JArray)state[kind]).OfType<JObject>())
@@ -344,6 +358,7 @@ namespace GoF2Remake.UI
             int k = KindIndex(a);
             if (Project == null) { c.Fail("The Mod Builder isn't open."); return; }
             var ids = (a["ids"] as JArray)?.Select(t => (string)t).Where(s => !string.IsNullOrEmpty(s)).ToList() ?? new List<string>();
+            Project.RefreshProtectedConfigurations();
             var state = Project.CaptureState();
             string kind = Kinds[k].kind;
             JToken result;
@@ -355,15 +370,16 @@ namespace GoF2Remake.UI
                 result = o;
             }
             else if (kind == "campaign") result = state["campaign"];
-            else if (kind == "manifest") result = state["manifest"];
+            else if (kind == "manifest" || kind == InfrastructureKind || kind == EconomyKind) result = state[kind] as JObject ?? new JObject();
             else result = new JArray(((JArray)state[kind]).OfType<JObject>().Where(e => ids.Count == 0 || ids.Contains(Ident(e))));
             string path = Str(a, "path");
             if (!string.IsNullOrEmpty(path))
             {
-                JToken one = kind == "missions" || kind == "campaign" || kind == "manifest"
-                    ? (kind == "missions" ? (result as JObject)?.Properties().FirstOrDefault()?.Value : result)
+                bool single = kind == "campaign" || kind == "manifest" || kind == InfrastructureKind || kind == EconomyKind;
+                JToken one = single ? result
+                    : kind == "missions" ? (result as JObject)?.Properties().FirstOrDefault()?.Value
                     : (result as JArray)?.FirstOrDefault();
-                if (ids.Count != 1 && kind != "campaign" && kind != "manifest") { c.Fail("path: give exactly one id."); return; }
+                if (ids.Count != 1 && !single) { c.Fail("path: give exactly one id."); return; }
                 if (one == null || one.Type == JTokenType.Null) { c.Fail($"No {kind} entry \"{ids.FirstOrDefault()}\"."); return; }
                 var part = EntryPatch.Get(one, path, out string err);
                 if (part == null) { c.Fail(err); return; }
@@ -373,7 +389,7 @@ namespace GoF2Remake.UI
             c.Json(result, $"{kind}{(ids.Count > 0 ? " " + string.Join(", ", ids) : "")}");
         }
 
-        static readonly string[] ManifestFields = { "name", "description", "version", "author", "website", "credits", "dependencies", "preview" };
+        static readonly string[] ManifestFields = { "name", "description", "version", "author", "website", "credits", "dependencies", "preview", "multipleSecondaryMounts", "fighterNpcShields", "shieldRechargeDelayMs", "scannerClassDetectionPercent", "scannerGeneratorDetectionPercent", "npcScannerDetection", "npcScannerRangeUnits", "squadFriendlyFire" };
 
         static void PutEntry(JObject a, Call c)
         {
@@ -383,6 +399,8 @@ namespace GoF2Remake.UI
             if (!(a["entry"] is JObject entry)) throw new ArgumentException("entry: the entry's JSON object.");
             entry = (JObject)entry.DeepClone();
             string kind = Kinds[k].kind, name = Str(a, "name"), label = null;
+            if (kind == InfrastructureKind) { WriteInfrastructure(c, screen, entry); return; }
+            if (kind == EconomyKind) { WriteEconomy(c, screen, entry); return; }
             List<string> questProblems = null;
             string error = screen.ExternalEdit(state =>
             {
@@ -504,8 +522,10 @@ namespace GoF2Remake.UI
                         put = v => state["campaign"] = v;
                         break;
                     case "manifest":
-                        target = state["manifest"];
-                        put = v => state["manifest"] = v;
+                    case InfrastructureKind:
+                    case EconomyKind:
+                        target = state[kind] as JObject ?? new JObject();
+                        put = v => state[kind] = v;
                         break;
                     default:
                     {
@@ -521,7 +541,17 @@ namespace GoF2Remake.UI
                 if (patched == null) return err;
                 if (!(patched is JObject po)) return "The entry must stay an object.";
                 // Its identity stays (a new id is a new entry: put_entry).
-                if (kind != "missions" && kind != "campaign" && kind != "manifest" && Ident(po) != id) return "The id / override can't change by a patch: put_entry the new entry (and delete_entry the old one).";
+                if (kind == InfrastructureKind)
+                {
+                    string invalid = ValidateInfrastructure(po);
+                    if (invalid != null) return invalid;
+                }
+                else if (kind == EconomyKind)
+                {
+                    string invalid = ValidateEconomy(po);
+                    if (invalid != null) return invalid;
+                }
+                else if (kind != "missions" && kind != "campaign" && kind != "manifest" && Ident(po) != id) return "The id / override can't change by a patch: put_entry the new entry (and delete_entry the old one).";
                 if (kind == "manifest")
                     foreach (var p in po.Properties())
                         if (!JToken.DeepEquals(p.Value, target[p.Name]) && !ManifestFields.Contains(p.Name)) return $"mod.json: {p.Name} can't be changed here (the fields: {string.Join(", ", ManifestFields)}).";
@@ -555,18 +585,22 @@ namespace GoF2Remake.UI
             if (screen == null) { c.Fail(why); return; }
             string kind = Kinds[k].kind, id = Str(a, "id");
             if (kind == "manifest") { c.Fail("mod.json can't be removed."); return; }
+            Project.RefreshProtectedConfigurations();
             var state = Project.CaptureState();
             bool exists = kind == "missions" ? ((JObject)state["quests"])[id ?? ""] != null
                         : kind == "campaign" ? state["campaign"] is JObject
+                        : kind == InfrastructureKind || kind == EconomyKind ? state[kind] is JObject
                         : ((JArray)state[kind]).OfType<JObject>().Any(e => Ident(e) == id);
             if (!exists) { c.Fail($"No {kind} entry \"{id}\"."); return; }
-            string what = kind == "campaign" ? "the campaign" : $"{kind} \"{id}\"";
+            string what = kind == EconomyKind ? "the advanced economy rules" : kind == InfrastructureKind ? "the player infrastructure rules"
+                : kind == "campaign" ? "the campaign" : $"{kind} \"{id}\"";
             ModBuilderMcp.Permit(c, "remove " + what + " from the project (Undo brings it back)", true, () =>
             {
                 string error = screen.ExternalEdit(st =>
                 {
                     if (kind == "missions") ((JObject)st["quests"]).Remove(id);
                     else if (kind == "campaign") st["campaign"] = JValue.CreateNull();
+                    else if (kind == InfrastructureKind || kind == EconomyKind) st[kind] = JValue.CreateNull();
                     else ((JArray)st[kind]).OfType<JObject>().First(e => Ident(e) == id).Remove();
                     return null;
                 }, "removed " + what);
@@ -587,7 +621,7 @@ namespace GoF2Remake.UI
             if (write)
             {
                 string folder = rel.Split('/')[0];
-                if (!FileFolders.Contains(folder)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
+                if (!FileFolders.Contains(folder) && !string.Equals(rel, ModWingmen.File, StringComparison.OrdinalIgnoreCase) && !string.Equals(rel, ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase) && !string.Equals(rel, GoF2Remake.Multiplayer.PlayerIdentity.OriginsFile, StringComparison.OrdinalIgnoreCase)) { why = $"Files go into one of: {string.Join(", ", FileFolders)} (entries such as ships.json through put_entry)."; return null; }
                 if (!FileExtensions.Contains(ext)) { why = $"Not a file type a mod uses: {ext}"; return null; }
             }
             string full = Path.GetFullPath(Path.Combine(Project.Folder, rel));
@@ -619,13 +653,57 @@ namespace GoF2Remake.UI
             c.Text(File.ReadAllText(full));
         }
 
+        static string ValidateInfrastructure(JObject rules)
+        {
+            try { ModPlayerInfrastructure.Parse(rules); return null; }
+            catch (Exception error) when (error is ModJsonException || error is JsonException || error is FormatException || error is OverflowException)
+            { return error.Message; }
+        }
+
+        static void WriteInfrastructure(Call c, ModBuilderScreen screen, JObject rules)
+        {
+            string error = ValidateInfrastructure(rules);
+            if (error == null)
+                error = screen.ExternalEdit(state =>
+                {
+                    state[InfrastructureKind] = rules;
+                    return null;
+                }, ModPlayerInfrastructure.FileName);
+            if (error != null) { c.Fail(error); return; }
+            AnswerAfterReload(c, screen, ModPlayerInfrastructure.FileName, null, null);
+        }
+
+        static string ValidateEconomy(JObject rules)
+        {
+            try { ModAdvancedEconomy.ValidateConfiguration(Database.Shared, ModManager.BuilderProject, rules); return null; }
+            catch (Exception error) when (error is ModJsonException || error is JsonException || error is FormatException || error is OverflowException)
+            { return error.Message; }
+        }
+
+        static void WriteEconomy(Call c, ModBuilderScreen screen, JObject rules)
+        {
+            string error = screen.ExternalEdit(state =>
+            {
+                string invalid = ValidateEconomy(rules);
+                if (invalid != null) return invalid;
+                state[EconomyKind] = rules;
+                return null;
+            }, ModAdvancedEconomy.File);
+            if (error != null) { c.Fail(error); return; }
+            AnswerAfterReload(c, screen, ModAdvancedEconomy.File, null, null);
+        }
+
         static void WriteFile(JObject a, Call c)
         {
             var screen = Screen(out string why);
             if (screen == null) { c.Fail(why); return; }
             string rel = Str(a, "path");
-            string full = ProjectPath(rel, true, out why);
-            if (full == null) { c.Fail(why); return; }
+            bool infrastructure = string.Equals(rel?.Trim(), ModPlayerInfrastructure.FileName, StringComparison.OrdinalIgnoreCase);
+            bool factionWar = string.Equals(rel?.Trim(), ModNpcFactionWar.File, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rel?.Trim().Replace('\\', '/').TrimStart('/'), ModNpcFactionWar.StagedFile, StringComparison.OrdinalIgnoreCase);
+            bool economy = string.Equals(rel?.Trim(), ModAdvancedEconomy.File, StringComparison.OrdinalIgnoreCase);
+            string full = infrastructure || factionWar || economy ? null : ProjectPath(rel, true, out why);
+            if (!infrastructure && !factionWar && !economy && full == null) { c.Fail(why); return; }
             byte[] bytes;
             if (a["text"] is JValue t && t.Type == JTokenType.String) bytes = Encoding.UTF8.GetBytes((string)t);
             else if (a["base64"] is JValue b && b.Type == JTokenType.String)
@@ -635,16 +713,60 @@ namespace GoF2Remake.UI
             }
             else { c.Fail("Give 'text' or 'base64'."); return; }
             if (bytes.Length > 64 * 1024 * 1024) { c.Fail("Over 64 MB."); return; }
+            if (economy)
+            {
+                JObject rules;
+                try { rules = JObject.Parse(Encoding.UTF8.GetString(bytes)); }
+                catch (JsonException error) { c.Fail("Not a JSON object: " + error.Message); return; }
+                WriteEconomy(c, screen, rules);
+                return;
+            }
+            if (factionWar)
+            {
+                JObject rules;
+                try { rules = JObject.Parse(Encoding.UTF8.GetString(bytes)); }
+                catch (JsonException error) { c.Fail("Not a JSON object: " + error.Message); return; }
+                string errorMessage = screen.ExternalEdit(state =>
+                {
+                    state["npcFactionWar"] = rules;
+                    return null;
+                }, ModNpcFactionWar.File);
+                if (errorMessage != null) { c.Fail(errorMessage); return; }
+                AnswerAfterReload(c, screen, ModNpcFactionWar.File, null, null);
+                return;
+            }
+            if (infrastructure)
+            {
+                JObject rules;
+                try { rules = JObject.Parse(Encoding.UTF8.GetString(bytes)); }
+                catch (JsonException error) { c.Fail("Not a JSON object: " + error.Message); return; }
+                WriteInfrastructure(c, screen, rules);
+                return;
+            }
+            if (!screen.ExternalSaveNow()) { c.Fail("Could not save or refresh the project; no file was written."); return; }
             string ext = Path.GetExtension(full).ToLowerInvariant();
             if (ext == ".aem") { WriteAem(c, screen, rel, bytes); return; }   // the game's own model: kept as .glb
             if (ext == ".glb" && (bytes.Length < 4 || bytes[0] != 'g' || bytes[1] != 'l' || bytes[2] != 'T' || bytes[3] != 'F')) { c.Fail("Not a glTF binary (.glb)."); return; }
+            if (string.Equals(rel?.Trim(), ModPvpPiracy.File, StringComparison.OrdinalIgnoreCase))
+            {
+                try { ModPvpPiracy.Validate(JObject.Parse(Encoding.UTF8.GetString(bytes))); }
+                catch (Exception error) when (error is JsonException || error is ModJsonException || error is FormatException || error is OverflowException)
+                { c.Fail(error.Message); return; }
+            }
+            if (string.Equals(rel?.Trim(), GoF2Remake.Multiplayer.PlayerIdentity.OriginsFile, StringComparison.OrdinalIgnoreCase))
+            {
+                try { GoF2Remake.Multiplayer.PlayerIdentity.ValidateOrigins(JObject.Parse(Encoding.UTF8.GetString(bytes))); }
+                catch (Exception error) when (error is JsonException || error is ModJsonException || error is FormatException || error is OverflowException)
+                { c.Fail(error.Message); return; }
+            }
             if (ext == ".json" || ext == ".gof2event")
             {
                 if (ext == ".json") try { JToken.Parse(Encoding.UTF8.GetString(bytes)); } catch (Exception e) { c.Fail("Not JSON: " + e.Message); return; }
             }
             Directory.CreateDirectory(Path.GetDirectoryName(full));
-            File.WriteAllBytes(full, bytes);
-            screen.ExternalFilesChanged("wrote " + rel);
+            ModProject.SafeWriteBytes(full, bytes);
+            if (!screen.ExternalFilesChanged("wrote " + rel))
+            { c.Fail("The file was atomically written, but project saving failed; pending project edits were retained."); return; }
             c.Wait(() => !screen.ReloadBusy, () =>
             {
                 var o = new JObject { ["ok"] = true, ["path"] = rel.Replace('\\', '/'), ["bytes"] = bytes.Length };
@@ -688,7 +810,7 @@ namespace GoF2Remake.UI
         {
             if (Project == null) { c.Fail("The Mod Builder isn't open."); return; }
             var screen = ModBuilder.PlayTesting ? null : Screen(out _);
-            screen?.ExternalReload();
+            if (screen != null && !screen.ExternalReload()) { c.Fail("Could not save or refresh the project; see builder status."); return; }
             c.Wait(() => screen == null || !screen.ReloadBusy, () =>
             {
                 var mod = ModManager.BuilderProject;
@@ -699,6 +821,8 @@ namespace GoF2Remake.UI
                     ["errors"] = new JArray(mod?.Errors ?? new List<string>()),
                     ["warnings"] = new JArray(mod?.Warnings ?? new List<string>()),
                 };
+                string economyError = ValidateEconomy(Project.AdvancedEconomyRules);
+                if (economyError != null) ((JArray)o["errors"]).Add(economyError);
                 var quests = new JObject();
                 foreach (var q in Project.Quests)
                 {
@@ -728,7 +852,7 @@ namespace GoF2Remake.UI
             var screen = Screen(out string why);
             if (screen == null) { c.Fail(why); return; }
             string mode = Str(a, "mode") ?? "station";
-            screen.ExternalSaveNow();
+            if (!screen.ExternalSaveNow()) { c.Fail("Could not save the project; play test not started."); return; }
             if (mode == "mission")
             {
                 string name = Str(a, "mission");
@@ -800,6 +924,7 @@ namespace GoF2Remake.UI
             int k = KindIndex(a);
             var screen = Screen(out string why);
             if (screen == null) { c.Fail(why); return; }
+            if (Kinds[k].kind == EconomyKind) { screen.ExternalShowAdvancedEconomy(); c.Text("The builder shows advanced economy."); return; }
             var show = Kinds[k].show;
             screen.ExternalSelect(show);
             // Another scene's kind loads it: answered once the builder is back.

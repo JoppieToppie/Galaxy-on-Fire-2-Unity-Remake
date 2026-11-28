@@ -52,14 +52,14 @@ namespace GoF2Remake.Modding
     public static class ModFlight
     {
         public const int ScopeAttr = 110, ScopeBoth = 0, ScopeOriginal = 1, ScopeFree = 2;
-        // (2026-11-19: the per-axis ones were 170-181, which the Chorus stack's weapon and device stats already had; 191-202)
+        // (2026-11-19: the per-axis ones were 170-181, which the Chorus stack's weapon and device stats already had; 209-220)
         const int TopSpeed = 111, TurnRate = 112, StrafeSpeed = 113, OrigTopSpeed = 114, OrigTurnRate = 115, OrigStrafeSpeed = 116,
                   FreeTopSpeed = 117, FreeTurnRate = 118, FreeStrafeSpeed = 119, FreeAcceleration = 120, FreeBoostFactor = 121,
                   FullStopDamage = 138, LowSpeedResistance = 139;
-        public const int PitchTurnRate = 191, YawTurnRate = 192, RollTurnRate = 193,
-                  PitchTurnAcceleration = 194, YawTurnAcceleration = 195, RollTurnAcceleration = 196,
-                  StrafeAcceleration = 197, HoverSpeed = 198, HoverAcceleration = 199,
-                  ReverseSpeed = 200, ReverseAcceleration = 201, ForwardAcceleration = 202;
+        public const int PitchTurnRate = 209, YawTurnRate = 210, RollTurnRate = 211,
+                  PitchTurnAcceleration = 212, YawTurnAcceleration = 213, RollTurnAcceleration = 214,
+                  StrafeAcceleration = 215, HoverSpeed = 216, HoverAcceleration = 217,
+                  ReverseSpeed = 218, ReverseAcceleration = 219, ForwardAcceleration = 220;
 
         /// <summary>ships.json's "flight" fields (also inside its "original" / "free" objects).</summary>
         static readonly HashSet<string> BonusFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -263,7 +263,8 @@ namespace GoF2Remake.Modding
         /// order, then the ship's own "rules". FlightRules.Default itself when nothing changes it.</summary>
         public static FlightRules RulesFor(ShipData ship)
         {
-            FlightRules rules = null;
+            FlightRules rules = ShipClassRules.IsCanonicalClass(ShipClassRules.ClassOf(ship)) ? FlightRules.Default.Clone() : null;
+            if (rules != null) rules.equalDirectionalTopSpeed = true;
             foreach (var mod in ModManager.Active)
                 if (ModContent.Parse(mod).flightRules is Dictionary<string, float> g && g.Count > 0)
                     (rules ??= FlightRules.Default.Clone()).Apply(g);

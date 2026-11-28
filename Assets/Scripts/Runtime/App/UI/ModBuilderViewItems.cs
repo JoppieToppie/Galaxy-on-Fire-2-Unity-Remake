@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
 using UnityEngine;
@@ -102,6 +103,7 @@ namespace GoF2Remake.UI
             if (it == null) { Note(itemPage, T("mbPickItem", "Add an item on the left to start.")); return; }
             JsonButton(itemPage, it.Json, () => { ItemEdited(); RebuildItems(); BuildItemPage(); },
                        T("mbJsonItemNote", "Also in items.json: attributes by number, defaultEconomy, fx, available."));
+            if (it.Json["jumpFx"] is JObject jumpFx) BuildJumpCinematics(jumpFx);
             var db = Database.Shared;
             var original = it.Original >= 0 ? db.Item(it.Original) : null;
             bool isNew = !it.IsOverride;
@@ -227,6 +229,107 @@ namespace GoF2Remake.UI
             Note(itemPage, original.TypeId <= 3
                 ? T("mbFitNote", "Mounts it on the ship being built; then press Test fly.")
                 : T("mbCommodityNote", "Commodities are bought and sold in shops; they can't be mounted."));
+        }
+
+        void BuildJumpCinematics(JObject fx)
+        {
+            Heading(itemPage, "Jump cinematics");
+            Note(itemPage, "Optional camera controls. Offsets are game units (20 = 1 metre), drift is units/ms, angles are degrees. Leave unset for the original cinematic.");
+            foreach (string key in new[] { "departureCamera", "arrivalCamera" })
+            {
+                string label = key == "departureCamera" ? "Departure camera" : "Arrival camera";
+                var row = Add(itemPage, new VisualElement(), "mbv-row");
+                if (!(fx[key] is JObject camera))
+                {
+                    Act(row, "Add " + label, () => { fx[key] = new JObject(); ItemEdited(); BuildItemPage(); });
+                    continue;
+                }
+                Add(row, new Label(label), "mbv-inline-label");
+                Act(row, "Reset", () => { fx.Remove(key); ItemEdited(); BuildItemPage(); });
+                JsonButton(itemPage, camera, () => { ItemEdited(); BuildItemPage(); }, "Edit all camera settings and keyframes.");
+                var spec = ModJumpFx.ReadCinematic(camera);
+                void Vec(string field, string title, Vector3 fallback)
+                {
+                    var v = field == "cameraOffset" ? spec.offset ?? fallback : field == "cameraDrift" ? spec.drift ?? fallback : field == "cameraLookOffset" ? spec.lookOffset ?? fallback : field == "cameraRotation" ? spec.rotation ?? fallback : spec.shipRotation ?? fallback;
+                    var xyz = Add(itemPage, new VisualElement(), "mbv-row", "mbv-xyz");
+                    Add(xyz, new Label(title), "mbv-inline-label");
+                    Act(xyz, "Reset", () => { camera.Remove(field); ItemEdited(); BuildItemPage(); });
+                    for (int axis = 0; axis < 3; axis++)
+                    {
+                        int i = axis;
+                        var input = new FloatField(new[] { "X", "Y", "Z" }[i]) { value = v[i], isDelayed = true };
+                        xyz.Add(input);
+                        input.RegisterValueChangedCallback(e =>
+                        {
+                            if (float.IsNaN(e.newValue) || float.IsInfinity(e.newValue)) { input.SetValueWithoutNotify(v[i]); return; }
+                            v[i] = Mathf.Clamp(e.newValue, -1000000f, 1000000f);
+                            input.SetValueWithoutNotify(v[i]);
+                            camera[field] = new JArray(v.x, v.y, v.z);
+                            ItemEdited();
+                        });
+                    }
+                }
+                void Num(string field, string title, float fallback)
+                {
+                    float value = field == "cameraFov" ? spec.fov ?? fallback : field == "shipSpeed" ? spec.shipSpeed ?? fallback : spec.durationMs ?? fallback;
+                    var input = new FloatField(title) { value = value, isDelayed = true };
+                    itemPage.Add(input);
+                    Act(itemPage, "Reset " + title, () => { camera.Remove(field); ItemEdited(); BuildItemPage(); });
+                    input.RegisterValueChangedCallback(e =>
+                    {
+                        if (float.IsNaN(e.newValue) || float.IsInfinity(e.newValue)) { input.SetValueWithoutNotify(value); return; }
+                        value = Mathf.Clamp(e.newValue, field == "cameraFov" ? 10f : 0f, field == "cameraFov" ? 150f : field == "shipSpeed" ? 100f : 120000f);
+                        input.SetValueWithoutNotify(value); camera[field] = value; ItemEdited();
+                    });
+                }
+                bool departure = key == "departureCamera";
+                Vec("cameraOffset", "Offset", departure ? new Vector3(2000, 300, -2000) : new Vector3(1000, 500, 7000));
+                Vec("cameraDrift", "Drift", departure ? new Vector3(-5, 2, -5) : Vector3.zero);
+                Vec("cameraLookOffset", "Look offset", Vector3.zero);
+                Vec("cameraRotation", "Fixed rotation (optional)", Vector3.zero);
+                Num("cameraFov", "Horizontal FOV", 70f);
+                Num("durationMs", "Minimum duration (ms)", 0f);
+                if (departure)
+                {
+                    Num("shipSpeed", "Ship speed (units/ms)", 2f);
+                    Vec("shipRotation", "Ship rotation", Vector3.zero);
+                    var turn = new Toggle("Allow ship turning") { value = spec.allowShipTurning };
+                    itemPage.Add(turn);
+                    turn.RegisterValueChangedCallback(e => { camera["allowShipTurning"] = e.newValue; ItemEdited(); });
+                    var look = new DropdownField("Look at", new List<string> { "ship", "effect", "custom" }, 0);
+                    look.SetValueWithoutNotify(new[] { "ship", "effect", "custom" }.Contains(spec.lookAt) ? spec.lookAt : "ship");
+                    itemPage.Add(look);
+                    look.RegisterValueChangedCallback(e => { camera["cameraLookAt"] = e.newValue; ItemEdited(); });
+                }
+                var frames = camera["cameraKeyframes"] as JArray;
+                Note(itemPage, "Camera keyframes override offset and drift. Rotation overrides look-at when specified in JSON.");
+                var slider = new Slider("Preview time (ms)", 0f, Mathf.Max(3000f, spec.MinimumDuration));
+                var sample = new Label();
+                void Sample(float time)
+                {
+                    var pos = ModJumpFx.ReadCinematic(camera).Position(time, departure ? new Vector3(2000, 300, -2000) : new Vector3(1000, 500, 7000), departure ? new Vector3(-5, 2, -5) : Vector3.zero);
+                    sample.text = $"{time:0} ms: offset {pos}";
+                }
+                itemPage.Add(slider); itemPage.Add(sample);
+                slider.RegisterValueChangedCallback(e => Sample(e.newValue)); Sample(0f);
+                Act(itemPage, "Add camera keyframe at preview time", () =>
+                {
+                    if (!(camera["cameraKeyframes"] is JArray list)) { list = new JArray(); camera["cameraKeyframes"] = list; }
+                    var pos = ModJumpFx.ReadCinematic(camera).Position(slider.value, departure ? new Vector3(2000, 300, -2000) : new Vector3(1000, 500, 7000), departure ? new Vector3(-5, 2, -5) : Vector3.zero);
+                    for (int i = list.Count - 1; i >= 0; i--) if (list[i] is JObject k && (float?)k["ms"] == slider.value) list.RemoveAt(i);
+                    list.Add(new JObject { ["ms"] = slider.value, ["offset"] = new JArray(pos.x, pos.y, pos.z) });
+                    ItemEdited(); BuildItemPage();
+                });
+                if (frames != null)
+                    for (int i = 0; i < frames.Count; i++)
+                    {
+                        if (!(frames[i] is JObject frame)) continue;
+                        var fr = Add(itemPage, new VisualElement(), "mbv-row");
+                        Add(fr, new Label($"{frame["ms"]} ms: {frame["offset"]}"), "mbv-inline-label");
+                        JsonButton(fr, frame, () => { ItemEdited(); BuildItemPage(); }, "Keyframe time and offset");
+                        Act(fr, "Remove", () => { frame.Remove(); ItemEdited(); BuildItemPage(); });
+                    }
+            }
         }
 
         void ItemEdited()

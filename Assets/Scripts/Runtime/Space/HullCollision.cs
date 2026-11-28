@@ -17,11 +17,11 @@
 // their real shapes, 2026-10-17; HullBody.Collides, Mode): Exact as above; Mixed (default) leaves the flyable ships' hulls
 // out (HullBody.flyableShip): shots hit fighters, the player's ship and other players' ships on the original's hit cube,
 // and the player meets another player's ship on its sphere, while freighters, the battleship, the capital ships,
-// stations, gates, turrets and objects keep their hulls; Original leaves every hull out: the original's boxes, spheres and
-// cubes everywhere (CollisionVolume obstacles, Target cubes / boxes). Under Original no hull is built (Attach only notes
-// the model, `pending`: no cooking at the spawns, no kinematic bodies to sync every frame; Original is Android's default,
-// 2026-10-22); the mode leaving Original builds the noted ones (Mode), so switching is still at once.
-// Untouched: NPC fighters steering round stations and freighters (Obstacle volumes), the original's rules for what can be
+// stations, gates, turrets and objects keep their hulls; Original leaves hulls out of player / weapon collision: legacy
+// boxes, spheres and cubes still apply (CollisionVolume obstacles, Target cubes / boxes). Obstacle-owned hulls are retained
+// as navigation-only geometry so NPCs steer by the same exact shape under every player collision mode; other hulls remain
+// deferred in `pending` under Original to avoid spawn-time cooking.
+// Untouched: the original's rules for what can be
 // hit (stations never, a ship's own shots never) and for what the player slides along (landmarks and freighters, not
 // fighters), asteroids (their cube), crates. The physics simulation isn't used: the bodies are kinematic, the queries read
 // the transforms synced once a frame (Sync).
@@ -40,8 +40,27 @@ namespace GoF2Remake.Flight
 
         static readonly Dictionary<Collider, HullBody> bodies = new Dictionary<Collider, HullBody>();
         static readonly HashSet<Mesh> baked = new HashSet<Mesh>();
-        static readonly RaycastHit[] hits = new RaycastHit[64];
+        static RaycastHit[] hits = new RaycastHit[64];
+
+        // NonAlloc results are unordered; a full buffer may omit the nearest eligible hull.
+        // Grow only on saturation and reuse the larger buffer for subsequent queries.
+        static int QuerySweep(Vector3 from, float radius, Vector3 direction, float distance)
+        {
+            while (true)
+            {
+                int count = Physics.SphereCastNonAlloc(from, radius, direction, hits, distance, HullMask, QueryTriggerInteraction.Ignore);
+                if (count < hits.Length) return count;
+                Array.Resize(ref hits, checked(hits.Length * 2));
+            }
+        }
+
+        static void InvalidateGeometry()
+        {
+            syncedFrame = -1;
+            sweptFrame = -1;
+        }
         static readonly List<Renderer> lowLods = new List<Renderer>();
+        static SphereCollider avoidanceProbe;
         static int syncedFrame = -1;
 
         // The last sweep in 'hits' (ShotSweep): a shot asks twice along the same path, CastScenery for the station and
@@ -56,7 +75,7 @@ namespace GoF2Remake.Flight
         {
             int frame = Time.frameCount;
             if (frame == sweptFrame && radius == sweptRadius && from.Equals(sweptFrom) && to.Equals(sweptTo)) return sweptCount;
-            sweptCount = Physics.SphereCastNonAlloc(from, radius, dir, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            sweptCount = QuerySweep(from, radius, dir, len);
             sweptFrame = Application.isPlaying ? frame : -1;
             sweptFrom = from;
             sweptTo = to;
@@ -79,10 +98,13 @@ namespace GoF2Remake.Flight
         {
             bodies.Clear();
             baked.Clear();
-            syncedFrame = -1;
+            InvalidateGeometry();
+            sweptCount = 0;
             Suppressed = false;
             modeFrame = -1;
             pending.Clear();
+            avoidanceProbe = null;
+            forcedExact.Clear();
         }
 
         /// <summary>Options > Gameplay "Ship collision" (SessionRules.CollisionExact / Mixed / Original; the session's in
@@ -121,20 +143,30 @@ namespace GoF2Remake.Flight
         /// <summary>Some hull exists (a quick skip for the shot tests).</summary>
         public static bool Any => bodies.Count > 0;
 
+        /// <summary>Exact gate hulls remain available regardless of the global ship collision preference.</summary>
+        public static bool IsForcedExact(HullBody body) => body != null && forcedExact.Contains(body);
+        static readonly HashSet<HullBody> forcedExact = new HashSet<HullBody>();
+        internal static IEnumerable<HullBody> ForcedExactBodies => forcedExact;
+        internal static void ForgetBody(HullBody body) => forcedExact.Remove(body);
+
         /// <summary>The hull of 'model' (its root gets the HullBody); 'target' what shots on it hit, 'obstacle' what the
         /// player slides along (either may be null); 'flyableShip' a ship a player can fly (HullBody.flyableShip: Mixed
         /// ship collision leaves it out). Null when the model has no readable hull mesh.</summary>
-        public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false)
+        public static HullBody Attach(GameObject model, Target target, Obstacle obstacle, bool flyableShip = false, bool forceExact = false)
         {
             if (model == null || Suppressed) return null;
+            // Read Mode before looking up the body: a mode change can materialize deferred hulls.
+            bool defer = obstacle == null && !forceExact && Application.isPlaying
+                && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal;
             var body = model.GetComponent<HullBody>();
-            if (body == null && Application.isPlaying && Mode == GoF2Remake.Data.SessionRules.CollisionOriginal)
+            // An immediate attachment supersedes any deferred registration for this model.
+            if (pending.Count > 0) pending.RemoveAll(p => p.model == null || p.model == model);
+            if (body == null && defer)
             {
-                pending.RemoveAll(p => p.model == null || p.model == model);
                 pending.Add((model, target, obstacle, flyableShip));
                 return null;
             }
-            if (body == null)
+            if (body == null || body.colliders.Count == 0)
             {
                 lowLods.Clear();
                 foreach (var g in model.GetComponentsInChildren<LODGroup>(true))
@@ -149,7 +181,7 @@ namespace GoF2Remake.Flight
                 var meshes = new List<MeshFilter>();
                 foreach (var mf in model.GetComponentsInChildren<MeshFilter>(true)) if (IsHullMesh(mf)) meshes.Add(mf);
                 if (meshes.Count == 0) return null;
-                body = model.AddComponent<HullBody>();
+                if (body == null) body = model.AddComponent<HullBody>();
                 var rb = model.GetComponent<Rigidbody>();
                 if (rb == null) rb = model.AddComponent<Rigidbody>();
                 rb.isKinematic = true;
@@ -166,7 +198,9 @@ namespace GoF2Remake.Flight
                     body.colliders.Add(c);
                     bodies[c] = body;
                 }
+                InvalidateGeometry();
             }
+            if (forceExact) forcedExact.Add(body);
             body.target = target;
             body.obstacle = obstacle;
             body.flyableShip = flyableShip;
@@ -209,7 +243,10 @@ namespace GoF2Remake.Flight
             return false;
         }
 
-        internal static void Forget(Collider c) => bodies.Remove(c);
+        internal static void Forget(Collider c)
+        {
+            if (bodies.Remove(c)) InvalidateGeometry();
+        }
 
         /// <summary>No hull for 'target' any more (its colliders gone): what the original never hits (a fighter's turret,
         /// radius 0).</summary>
@@ -218,8 +255,10 @@ namespace GoF2Remake.Flight
             if (target != null) pending.RemoveAll(p => p.target == target);
             var b = target != null ? target.hull : null;
             if (b == null) return;
+            forcedExact.Remove(b);
             foreach (var c in b.colliders) if (c != null) { bodies.Remove(c); UnityEngine.Object.Destroy(c.gameObject); }
             b.colliders.Clear();
+            InvalidateGeometry();
             target.hull = null;
             if (b.obstacle != null && b.obstacle.hull == b) b.obstacle.hull = null;
         }
@@ -238,6 +277,7 @@ namespace GoF2Remake.Flight
             c.sharedMesh = mesh;
             body.colliders.Add(c);
             bodies[c] = body;
+            InvalidateGeometry();
         }
 
         public static HullBody BodyOf(Collider c) => c != null && bodies.TryGetValue(c, out var b) ? b : null;
@@ -265,10 +305,10 @@ namespace GoF2Remake.Flight
 
         /// <summary>The queries read the transforms as of this frame's first query (the hulls moved since the last physics
         /// step: their kinematic bodies aren't simulated).</summary>
-        static void Sync()
+        internal static void Sync()
         {
-            if (syncedFrame == Time.frameCount) return;
-            syncedFrame = Time.frameCount;
+            if (Application.isPlaying && syncedFrame == Time.frameCount) return;
+            syncedFrame = Application.isPlaying ? Time.frameCount : -1;
             Physics.SyncTransforms();
         }
 
@@ -298,8 +338,13 @@ namespace GoF2Remake.Flight
 
         /// <summary>Modified: the first shown hull with no target along 'from' -> 'to' (the orbit's station and jumpgate,
         /// SpaceLevel.AddObstacles): where a shot stops on it (Gun.TestHits; the original's shots pass them).</summary>
-        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point)
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point) =>
+            CastScenery(from, to, radius, out point, out _);
+
+        /// <summary>Like CastScenery, returning the actual mesh owner that the shot first struck.</summary>
+        public static bool CastScenery(Vector3 from, Vector3 to, float radius, out Vector3 point, out HullBody body)
         {
+            body = null;
             point = to;
             var d = to - from;
             float len = d.magnitude;
@@ -313,6 +358,7 @@ namespace GoF2Remake.Flight
                 var b = BodyOf(hits[i].collider);
                 if (b == null || b.target != null || !b.Collides || !Shown(hits[i].collider)) continue;
                 best = hits[i].distance;
+                body = b;
                 point = hits[i].distance > 0f ? hits[i].point : from;
             }
             return best < float.MaxValue;
@@ -328,7 +374,7 @@ namespace GoF2Remake.Flight
             if (len < 1e-4f) return false;
             Sync();
             sweptFrame = -1;   // (the shared buffer is written)
-            int n = Physics.SphereCastNonAlloc(from, radius, d / len, hits, len, HullMask, QueryTriggerInteraction.Ignore);
+            int n = QuerySweep(from, radius, d / len, len);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
@@ -371,7 +417,7 @@ namespace GoF2Remake.Flight
             if (bodies.Count == 0 || reach <= 0f) return float.MaxValue;
             Sync();
             sweptFrame = -1;   // (the shared buffer is written)
-            int n = Physics.SphereCastNonAlloc(from, radius, dir, hits, reach, HullMask, QueryTriggerInteraction.Ignore);
+            int n = QuerySweep(from, radius, dir, reach);
             float best = float.MaxValue;
             for (int i = 0; i < n; i++)
             {
@@ -382,6 +428,53 @@ namespace GoF2Remake.Flight
                 best = hits[i].distance;
             }
             return best;
+        }
+
+        /// <summary>
+        /// NPC obstacle avoidance against the same mesh hull used by Exact ship collision. Resolve existing overlap with
+        /// a clearance sphere, otherwise sweep it forward so traffic steers before reaching the mesh. Navigation deliberately
+        /// ignores HullBody.Collides: it is independent of the player's collision preference.
+        /// </summary>
+        public static bool TryNpcAvoidance(Obstacle obstacle, Vector3 position, Vector3 forward, float clearance,
+            float lookAhead, out Vector3 away)
+        {
+            away = Vector3.zero;
+            var body = obstacle != null ? obstacle.hull : null;
+            if (body == null || !body.NavigationActive) return false;
+            Sync();
+            if (avoidanceProbe == null)
+            {
+                var go = new GameObject("NPC hull avoidance probe") { hideFlags = HideFlags.HideAndDontSave, layer = ProbeLayer };
+                avoidanceProbe = go.AddComponent<SphereCollider>();
+                avoidanceProbe.isTrigger = true;
+            }
+            avoidanceProbe.radius = Mathf.Max(0.1f, clearance);
+            float deepest = 0f;
+            foreach (var c in body.colliders)
+            {
+                if (!Shown(c)) continue;
+                if (Physics.ComputePenetration(avoidanceProbe, position, Quaternion.identity, c,
+                    c.transform.position, c.transform.rotation, out var direction, out float distance) && distance > deepest)
+                {
+                    deepest = distance;
+                    away = direction;
+                }
+            }
+            if (deepest > 0f) return away.sqrMagnitude > 1e-6f;
+
+            float reach = Mathf.Max(0f, lookAhead);
+            if (reach <= 0.01f || forward.sqrMagnitude < 1e-6f) return false;
+            sweptFrame = -1;
+            int n = QuerySweep(position, Mathf.Max(0.1f, clearance * 0.65f), forward.normalized, reach);
+            float nearest = float.MaxValue;
+            for (int i = 0; i < n; i++)
+            {
+                var c = hits[i].collider;
+                if (hits[i].distance >= nearest || BodyOf(c) != body || !Shown(c)) continue;
+                nearest = hits[i].distance;
+                away = hits[i].normal;
+            }
+            return nearest < float.MaxValue && away.sqrMagnitude > 1e-6f;
         }
 
         /// <summary>The hull colliders within 'radius' of 'centre' into 'buffer'; their count.</summary>

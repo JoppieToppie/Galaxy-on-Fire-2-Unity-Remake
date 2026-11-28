@@ -27,7 +27,10 @@
 // mission's reward), with numbers, indices and texts in range. The messages for the players (notices, results, stock,
 // teleports...) may only come from the server (InvokePermission.Server): a client can't send them to the others.
 
+using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using GoF2Remake.Data;
 using Unity.Collections;
 using Unity.Netcode;
@@ -59,6 +62,14 @@ namespace GoF2Remake.Multiplayer
         readonly NetworkVariable<bool> profilesOn = new NetworkVariable<bool>();     // the server keeps player profiles (NetProfiles)
         readonly NetworkVariable<bool> freePvp = new NetworkVariable<bool>();        // players may fight anywhere (else only in arenas)
         readonly NetworkVariable<FixedString4096Bytes> claims = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' territory
+        // Player stations can outgrow one NetworkVariable. Each entry carries its snapshot revision and position;
+        // clients apply only a complete, internally consistent set of chunks.
+        const int PlayerStationChunkBytes = 2800, MaxPlayerStationChunks = 1024;
+        readonly NetworkList<FixedString4096Bytes> playerStationChunks = new NetworkList<FixedString4096Bytes>(null, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        int playerStationRevision;
+        int appliedPlayerStationRevision;
+        bool playerStationSnapshotDirty;
+        string playerStationJson = "";
         readonly NetworkVariable<FixedString4096Bytes> sieges = new NetworkVariable<FixedString4096Bytes>();   // NetFactions' sieges
         readonly NetworkVariable<FixedString4096Bytes> pirateBoard = new NetworkVariable<FixedString4096Bytes>();   // PirateReports' board (JSON)
         readonly NetworkVariable<int> toll = new NetworkVariable<int>();   // NetFactions.Toll
@@ -142,6 +153,97 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The factions' claimed stations, "station|TAG|Name|VAT %" per line (NetFactions, NetFactionsClient).</summary>
         public string Claims => claims.Value.ToString();
 
+        /// <summary>The latest complete player-station registry snapshot.</summary>
+        public string PlayerStations => playerStationJson;
+
+        /// <summary>Publish a versioned, chunked player-station snapshot. The registry is UTF-8 encoded before splitting so
+        /// a multi-byte character may safely cross a chunk boundary; base64 keeps each network entry independently valid.</summary>
+        internal static bool FitsPlayerStationSnapshot(string json) =>
+            Encoding.UTF8.GetByteCount(json ?? "") <= PlayerStationChunkBytes * MaxPlayerStationChunks;
+
+        internal bool PublishPlayerStations(string json)
+        {
+            if (!IsServer || !IsSpawned) return false;
+            json ??= "";
+            if (playerStationChunks.Count > 0 && string.Equals(playerStationJson, json, StringComparison.Ordinal)) return true;
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            int count = Math.Max(1, (bytes.Length + PlayerStationChunkBytes - 1) / PlayerStationChunkBytes);
+            if (count > MaxPlayerStationChunks)
+            {
+                Debug.LogWarning($"NetState: player station snapshot needs {count} chunks (limit {MaxPlayerStationChunks}); it was saved but cannot be replicated.");
+                return false;
+            }
+
+            unchecked { playerStationRevision++; }
+            if (playerStationRevision <= 0) playerStationRevision = 1;
+            playerStationChunks.Clear();
+            for (int index = 0; index < count; index++)
+            {
+                int offset = index * PlayerStationChunkBytes;
+                int length = Math.Min(PlayerStationChunkBytes, bytes.Length - offset);
+                string payload = length > 0 ? Convert.ToBase64String(bytes, offset, length) : "";
+                string entry = $"{playerStationRevision}:{index}:{count}:{payload}";
+                playerStationChunks.Add(new FixedString4096Bytes(entry));
+            }
+            playerStationJson = json;
+            return true;
+        }
+
+        // Each chunk was encoded independently and may end with Base64 padding.
+        internal static string DecodePlayerStationChunks(string[] payloads)
+        {
+            if (payloads == null || payloads.Length < 1 || payloads.Length > MaxPlayerStationChunks)
+                throw new FormatException("Invalid station snapshot chunk count.");
+            using var bytes = new System.IO.MemoryStream();
+            for (int i = 0; i < payloads.Length; i++)
+            {
+                var part = Convert.FromBase64String(payloads[i]);
+                if (part.Length > PlayerStationChunkBytes || (i < payloads.Length - 1 && part.Length != PlayerStationChunkBytes))
+                    throw new FormatException("Invalid station snapshot chunk length.");
+                bytes.Write(part, 0, part.Length);
+            }
+            return Encoding.UTF8.GetString(bytes.GetBuffer(), 0, checked((int)bytes.Length));
+        }
+
+        void TryApplyPlayerStationSnapshot()
+        {
+            if (IsServer || playerStationChunks.Count == 0) return;
+            int revision = -1, count = -1;
+            string[] payloads = null;
+            foreach (var value in playerStationChunks)
+            {
+                string entry = value.ToString();
+                int a = entry.IndexOf(':');
+                int b = a < 0 ? -1 : entry.IndexOf(':', a + 1);
+                int d = b < 0 ? -1 : entry.IndexOf(':', b + 1);
+                if (a <= 0 || b <= a + 1 || d <= b + 1) return;
+                if (!int.TryParse(entry.Substring(0, a), NumberStyles.None, CultureInfo.InvariantCulture, out int itemRevision) ||
+                    !int.TryParse(entry.Substring(a + 1, b - a - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int index) ||
+                    !int.TryParse(entry.Substring(b + 1, d - b - 1), NumberStyles.None, CultureInfo.InvariantCulture, out int itemCount)) return;
+                if (itemRevision <= 0 || itemCount < 1 || itemCount > MaxPlayerStationChunks || index < 0 || index >= itemCount) return;
+                if (revision < 0)
+                {
+                    if (itemRevision == appliedPlayerStationRevision || playerStationChunks.Count != itemCount) return;
+                    revision = itemRevision; count = itemCount; payloads = new string[count];
+                }
+                if (revision != itemRevision || count != itemCount || payloads[index] != null) return;
+                payloads[index] = entry.Substring(d + 1);
+            }
+            if (count != payloads.Length) return;
+            for (int i = 0; i < count; i++) if (payloads[i] == null) return;
+            try
+            {
+                string snapshot = DecodePlayerStationChunks(payloads);
+                NetPlayerStations.ReceiveSnapshot(snapshot);
+                playerStationJson = snapshot;
+                appliedPlayerStationRevision = revision;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"NetState: player station snapshot {revision} could not be decoded ({e.Message}).");
+            }
+        }
+
         /// <summary>Server: the claims (cut at a whole line to fit the network variable's 4 KB).</summary>
         internal void SetClaims(string text)
         {
@@ -207,7 +309,7 @@ namespace GoF2Remake.Multiplayer
                 kaamoLevel.Value = (byte)NetRules.HostKaamoLevel;
                 flightModel.Value = (byte)(NetRules.HostFlight + 2);
                 NetFactions.OnStateSpawned();   // the claims, now that this object exists
-                PirateReports.ServerReset();   // the Pirate activity board starts empty (filled by the next sweep)
+                LoadPirateBoard();
                 sessionMods.Value = NetMods.SessionList;
                 coop.Value = NetGame.CoopSession;
                 economy.Value = NetSession.EconomyCode(NetSession.Economy);
@@ -217,6 +319,13 @@ namespace GoF2Remake.Multiplayer
                 cratePrefab = Resources.Load<GameObject>($"{NetGame.PrefabFolder}/NetCrate");
                 NetRateLimit.Reset();
                 NetTrade.Reset();
+                PublishPlayerStations(NetPlayerStations.Snapshot);
+                EnsureFactionWar();
+            }
+            if (!IsServer)
+            {
+                playerStationChunks.OnListChanged += _ => playerStationSnapshotDirty = true;
+                TryApplyPlayerStationSnapshot();
             }
             // The session's Pirate activity board on every game (the host's too), now and whenever the server changes it.
             pirateBoard.OnValueChanged += (_, now) => PirateReports.ApplyShared(now.ToString());
@@ -231,7 +340,8 @@ namespace GoF2Remake.Multiplayer
                 // A session mod's scripts this player hasn't allowed: the join ends here, before anything of it runs.
                 refuseJoin = NetMods.ScriptRefusal(sessionMods.Value.ToString());
                 if (refuseJoin != null) return;
-                NetMods.ApplyFromServer(sessionMods.Value.ToString());   // the session's mods before the world is built
+                NetMods.ApplyFromServer(sessionMods.Value.ToString());
+                if (Modding.ModNpcFactionWar.Enabled) RequestFactionWarSnapshotRpc();   // the session's mods before the world is built
                 if (coop.Value) NetCoop.OnJoined(coopStory.Value.ToString());   // a co-op guest: the crew's story before the profile
                 // A server with profiles: the world waits for this player's profile (NetProfileClient.Begin -> EnterWorld).
                 if (profilesOn.Value) NetProfileClient.Begin(serverId.Value.ToString(), seed.Value);
@@ -241,7 +351,15 @@ namespace GoF2Remake.Multiplayer
 
         public override void OnNetworkDespawn()
         {
-            if (Instance == this) Instance = null;
+            if (Instance == this) { Instance = null; NetProfileClient.ClearIdentitySetup(); }
+            retryWarSaveAt = 0f;
+            FlushFactionWar();
+            AdvancedEconomyLedger.Flush(force: true);
+            NpcFactionWar.SetNetworkCampaign(null);
+            playerStationJson = "";
+            appliedPlayerStationRevision = 0;
+            playerStationSnapshotDirty = false;
+            NetPlayerStations.EndSession();
         }
 
         /// <summary>No other player is in this orbit: the arriving player builds its traffic (only then: the players already
@@ -302,7 +420,7 @@ namespace GoF2Remake.Multiplayer
         sealed class MissionRecord
         {
             public readonly HashSet<ulong> members = new HashSet<ulong>();
-            public int reward, wager, amount;
+            public int reward, wager, amount, clientRace;
             public bool ended;   // its result went out (two members delivering at once: the second is dropped)
             public float endedAt;
             public int MaxShare => (int)System.Math.Min(2L * reward + 50L, MaxMissionPay);   // the reward + a standing bonus of up to 100 %
@@ -348,12 +466,20 @@ namespace GoF2Remake.Multiplayer
         void Update()
         {
             if (refuseJoin != null) { string why = refuseJoin; refuseJoin = null; NetGame.RefuseJoin(why); return; }
+            // NetworkList emits one callback for every chunk. Decode at most once per frame,
+            // and only when all chunks of a revision have arrived.
+            if (!IsServer && IsSpawned && playerStationSnapshotDirty)
+            {
+                playerStationSnapshotDirty = false;
+                TryApplyPlayerStationSnapshot();
+            }
             NetStock.Flush();   // the shared stock that arrived, applied between frames (every player)
             NetTradeClient.Tick();   // this player's trade offer goes out, kept within the hold
             NetCoop.Tick(this);   // a co-op campaign: the leader's story out, a guest's catch-up and progress
             if (!IsServer || !IsSpawned) return;
             NetTrade.Tick();      // trade requests and trades that ran out, sides that left the hangar
             NetAudit.Tick();      // the shop runs that stopped, into the money log
+            NetPlayerStations.Tick(); // persistent jumpgate and dry-dock construction timers
             NetProfiles.Tick();   // link codes and handovers that ran out
             NetArena.Tick();      // queues, countdowns, time limits
             if (NetProfiles.Enabled) NetFactions.Tick();   // claims kept by docking members, lapses, stale deposits
@@ -368,12 +494,17 @@ namespace GoF2Remake.Multiplayer
             EventRunner.Tick();   // a running event
             if ((sweepTimer -= Time.unscaledDeltaTime) > 0f) return;
             sweepTimer = SweepSeconds;
+            TickFactionWar();
+            FlushFactionWar();
+            NetFactions.RefreshPiracyFlags();
+            TickPiracyDeaths();
             NetRateLimit.Tick();   // the clients that kept flooding go
             NetStock.HostTick(this);   // the stock resets
             if ((pirateTimer -= SweepSeconds) <= 0f)
             {
                 pirateTimer = PirateSeconds;
-                PirateReports.ServerTick(Database.Shared, SetPirateBoard);   // the Pirate activity board kept full
+                PirateReports.ServerTick(Database.Shared, SetPirateBoard, WarOrbitOccupied);
+                FlushPirateBoard();   // the Pirate activity board kept full
             }
             DissolveSingles();   // a squadmate who disconnected
             if ((pruneTimer -= SweepSeconds) <= 0f) { pruneTimer = PruneSeconds; Prune(); }
@@ -383,13 +514,14 @@ namespace GoF2Remake.Multiplayer
             RespawnEmptyAsteroidFields(owners);
             var stale = new List<NetworkObject>();
             owned.Clear();
+            var sightingNpcs = new List<NetProxy>();
             foreach (var obj in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
                 int station;
                 var proxy = obj.GetComponent<NetProxy>();
                 var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
-                if (proxy != null) station = proxy.Station;
-                else if (crate != null) station = crate.Station;
+                if (proxy != null) { station = proxy.Station; sightingNpcs.Add(proxy); }
+                else if (crate != null && !crate.IsBountyDrop) station = crate.Station;
                 else continue;
                 owned.TryGetValue(obj.OwnerClientId, out var n);
                 if (proxy != null) n.proxies++; else n.crates++;
@@ -407,6 +539,7 @@ namespace GoF2Remake.Multiplayer
                 float grace = proxy != null && proxy.IsWingman ? 5f : 20f;   // (a handover that didn't happen: never kept for ever)
                 if (!watched || Time.unscaledTime - since > grace) stale.Add(obj);
             }
+            NetFactions.TrackWantedSightings(sightingNpcs);
             foreach (var obj in stale) { staleSince.Remove(obj.NetworkObjectId); if (obj.IsSpawned) obj.Despawn(); }
         }
 

@@ -67,6 +67,9 @@ namespace GoF2Remake.UI
         Button hangarButton, loungeButton, mapButton, missionsButton, statusButton, inspectButton, launchButton, dialogYes, dialogNo;
         Button customizeButton;   // remake mods: a customizable ship's Customize screen (ShipCustomizePanel)
         StatusWindow status;
+        DryDockWindow dryDock;
+        internal void OpenPlayerDryDock() => dryDock?.Open();
+        StationManagementWindow stationManagement;
         LoungePanel lounge;
         bool safeAreaHidden;
         MissionsWindow missions;
@@ -121,6 +124,8 @@ namespace GoF2Remake.UI
             InputMode.Changed -= ApplyInputMode;
             Localization.Changed -= RefreshTexts;
             if (level != null) level.ViewChanged -= OnViewChanged;
+            dryDock?.Dispose();
+            stationManagement?.Dispose();
         }
 
         void OnApplicationFocus(bool focused)
@@ -199,6 +204,10 @@ namespace GoF2Remake.UI
             SetupTicker();
             missions = new MissionsWindow(this, level, root);
             status = new StatusWindow(this, level, root);
+            dryDock?.Dispose();
+            dryDock = new DryDockWindow(this, level, root);
+            stationManagement?.Dispose();
+            stationManagement = new StationManagementWindow(this, level, root);
             root.Q("storyDialogue").pickingMode = PickingMode.Ignore;
             if (voiceSource == null)
             {
@@ -405,7 +414,7 @@ namespace GoF2Remake.UI
 
         // MenuTouchWindow mode 2 (the station's Menu): 28 Start new game, 29 Load game, 30 Save game, 31 Options,
         // 43 About, 522 Back to Main Menu (the language, iPad only, is in Options; the original has no Back button).
-        enum SysPage { Main, Save, Load, Options, Debug }
+        enum SysPage { Main, Save, Load, Options, Debug, Handbook }
         SysPage sysPage;
         Button newGameButton, loadGameButton, optionsButton, aboutButton, optionsBack, debugButton;
         /// <summary>The Debug page's scroll list (remake-only cheats, CheatsCatalog).</summary>
@@ -506,6 +515,12 @@ namespace GoF2Remake.UI
         void Update()
         {
             if (root == null || level == null) return;
+            var dockedStation = level.Station;
+            string ownerName = dockedStation == null ? null : GameHooks.PlayerStationName?.Invoke(dockedStation.index);
+            if (ownerName != displayedPlayerStationName) RefreshStationTitle(dockedStation, ownerName);
+            dryDock?.Update();
+            stationManagement?.Update();
+            UpdateStationButtonTexts();
             // The layout first: the Mod Builder's screen below shares this panel and its scale.
             if (lastScreen != ScreenSize() || lastSafeArea != Screen.safeArea || lastLayout != UiLayout.Revision) UpdateLayout();
             if (builderView != null) { builderView.Update(); return; }   // the Mod Builder's hangar
@@ -616,7 +631,7 @@ namespace GoF2Remake.UI
             // laid out a frame after it appears (a focus set before that doesn't take), so it is tried again until it
             // lands; Select itself does nothing while the mouse is the one in use.
             bool popupNow = SquadView.PopupOpen;
-            bool canFocusPopup = !HangarOpen && !DialogOpen && !SystemMenuOpen && !MultiplayerWindow.IsOpenAny
+            bool canFocusPopup = !HangarOpen && !DialogOpen && !SystemMenuOpen && !MultiplayerWindow.IsOpenAny && !(dryDock != null && dryDock.IsOpen) && !(stationManagement != null && stationManagement.IsOpen)
                                  && InputMode.Current != InputKind.Touch && !InputMode.MousePointing;
             if (popupNow != squadPopupShown)
             {
@@ -640,6 +655,16 @@ namespace GoF2Remake.UI
             if ((kb != null && kb.escapeKey.wasPressedThisFrame) || (pad != null && pad.buttonEast.wasPressedThisFrame)) { Back(); return; }
             if (infoWindow != null && infoWindow.IsOpen) { infoWindow.Tick(); return; }   // it takes all input
             if (MultiplayerWindow.IsOpenAny) return;   // the faction window's buttons and text fields take the input
+            if (dryDock != null && dryDock.IsOpen) return; // the dry-dock panel owns its navigation while open
+            if (stationManagement?.IsOpen == true)
+            {
+                if (root.focusController?.focusedElement == null && MenuFocus.NavPressed(pad, kb))
+                {
+                    SetTouchMode(false);
+                    stationManagement.FocusFirst();
+                }
+                return;
+            }
             if (pad != null && pad.startButton.wasPressedThisFrame && !DialogOpen)
             {
                 Play(buttonRelease);
@@ -658,7 +683,9 @@ namespace GoF2Remake.UI
                 && (InputMode.Current == InputKind.Gamepad || MenuFocus.NavPressed(pad, kb)))
             {
                 SetTouchMode(false);
-                var target = missions != null && missions.IsOpen ? MenuFocus.First(missions.NavItems())
+                var target = stationManagement != null && stationManagement.IsOpen ? MenuFocus.First(stationManagement.NavItems())
+                            : dryDock != null && dryDock.IsOpen ? MenuFocus.First(dryDock.NavItems())
+                           : missions != null && missions.IsOpen ? MenuFocus.First(missions.NavItems())
                            : status != null && status.IsOpen ? MenuFocus.First(status.NavItems())
                            : lounge != null && lounge.ChatOpen ? MenuFocus.First(lounge.NavItems())
                            : DefaultFocus();
@@ -723,7 +750,7 @@ namespace GoF2Remake.UI
                 else if (kb != null && kb.digit3Key.wasPressedThisFrame) { Play(buttonPush); hangarWindow.SelectTabNumber(3); }
                 // Kaamo storage tools (HangarWindowKaamoVip): 4 = the last visible tab, F / the right stick press = search
                 // (a controller's keyboard), R / the left stick press = the next sort order.
-                else if (kb != null && kb.digit4Key.wasPressedThisFrame && hangarWindow.VipTools) { Play(buttonPush); hangarWindow.SelectTabNumber(4); }
+                else if (kb != null && kb.digit4Key.wasPressedThisFrame && hangarWindow.HasFourthTab) { Play(buttonPush); hangarWindow.SelectTabNumber(4); }
                 else if (kb != null && kb.fKey.wasPressedThisFrame) hangarWindow.FocusSearch(false);
                 else if (pad != null && pad.rightStickButton.wasPressedThisFrame) hangarWindow.FocusSearch(true);
                 else if ((kb != null && kb.rKey.wasPressedThisFrame) || (pad != null && pad.leftStickButton.wasPressedThisFrame))

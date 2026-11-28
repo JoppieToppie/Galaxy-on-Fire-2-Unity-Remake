@@ -242,3 +242,30 @@
     background-color: var(--button-focus-fill);
     color: #FFFFFF;
 }
+
+.profile-portrait {
+    width: 160px;
+    height: 200px;
+    flex-shrink: 0;
+    overflow: hidden;
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+.profile-portrait .portrait-layers,
+.profile-portrait .portrait-frame {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 160px;
+    height: 200px;
+}
+
+.profile-portrait.portrait--mirrored .portrait-layers {
+    scale: -1 1;
+}
+
+.profile-portrait .portrait-part {
+    position: absolute;
+    left: 0;
+    -unity-background-scale-mode: stretch-to-fill;
+}

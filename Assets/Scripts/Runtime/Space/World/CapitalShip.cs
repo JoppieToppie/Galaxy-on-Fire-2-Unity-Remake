@@ -108,7 +108,8 @@ namespace GoF2Remake.World
             // Every enhanced host carries a crate (the Terran battleship had only a freighter's roll). Remake mods: a type's own
             // "loot" was rolled with its spec (TrafficPlan.RollNpcLoot), the game's crate added only with "keep".
             var loot = host.Spec.npcType?.loot;
-            if (loot == null) host.SetLoot(CapitalShips.RollLoot(db, out c.gearLoot));
+            if (host.Spec.noLoot && NpcFactionWar.IsWarTag(host.Spec.eventTag)) host.SetLoot(new List<ItemStack>());
+            else if (loot == null) host.SetLoot(CapitalShips.RollLoot(db, out c.gearLoot));
             else if (loot.keep)
             {
                 var all = CapitalShips.RollLoot(db, out c.gearLoot);
@@ -167,7 +168,7 @@ namespace GoF2Remake.World
             if (sinceAttackMs < float.MaxValue) sinceAttackMs += dtMs;
             if (ship.Spec.fleetBattle) UpdateBattle(dtMs);
             if (ship.Spec.npcType == null || ship.Spec.npcType.Missiles) UpdateMissiles(dtMs);   // remake mods: "missiles": false
-            if (!CapitalShips.HasDeck(ship.Spec) || launched >= CapitalShips.LaunchTotal(ship.Spec) || pads.Count == 0) return;
+            if (NpcFactionWar.IsWarTag(ship.Spec.eventTag) || !CapitalShips.HasDeck(ship.Spec) || launched >= CapitalShips.LaunchTotal(ship.Spec) || pads.Count == 0) return;
             if (sinceAttackMs >= CapitalShips.UnderAttackMs) return;
             waveMs -= dtMs;
             if (waveMs > 0f) return;
@@ -392,7 +393,7 @@ namespace GoF2Remake.World
         {
             if (!missilesTried) SetupMissiles();
             if (missiles == null) return;
-            var lockTarget = missileTarget != null && missileTarget.Alive && !missileTarget.cloaked ? missileTarget : null;
+            var lockTarget = missileTarget != null && missileTarget.Alive && !missileTarget.cloaked && ship.Detects(missileTarget) ? missileTarget : null;
             missiles.Update(dtMs, ship.HitTargets, lockTarget);   // a boost shakes off the missiles in flight (Gun, Target.boosting)
             missileRig.UpdateVisuals(dtMs, Camera.main, ship.transform.up);
             // ...and calls off the rest of the salvo at that ship.
@@ -426,7 +427,7 @@ namespace GoF2Remake.World
             foreach (var s in traffic.Ships)
             {
                 if (s == null || s.IsTurret || s.Spec.capital != 0 || !s.Target.Alive || s.Current != NpcShip.State.Fly || s.Target.cloaked) continue;
-                if (!Standing.RacesHostile(s.Race, ship.Race)) continue;
+                if (!Standing.RacesHostile(s.Race, ship.Race) || !ship.Detects(s.Target)) continue;
                 if ((ship.Target.NearestPoint(s.transform.position) - s.transform.position).sqrMagnitude > reach * reach) continue;
                 fighters.Add(s.Target);
             }
@@ -458,13 +459,13 @@ namespace GoF2Remake.World
         /// (the player only while hostile to it).</summary>
         Target PickMissileTarget()
         {
-            if (foe != null && foe.Target.Alive && foe.Current == NpcShip.State.Fly && !foe.Gone)
+            if (foe != null && foe.Target.Alive && foe.Current == NpcShip.State.Fly && !foe.Gone && ship.Detects(foe.Target))
                 return foe.Target;
             Target best = null;
             float bestD = CapitalShips.MissileRangeUnits * M;
             foreach (var e in ship.enemies)
             {
-                if (e == null || !e.Targetable || e.cloaked) continue;
+                if (e == null || !e.Targetable || e.cloaked || !ship.Detects(e)) continue;
                 bool hostile = e.isPlayer ? ship.Target.hostileToPlayer : e.isShip && e.race >= 0 && Standing.RacesHostile(e.race, ship.Race);
                 if (!hostile) continue;
                 float d = (ship.Target.NearestPoint(e.transform.position) - e.transform.position).magnitude;
@@ -475,7 +476,7 @@ namespace GoF2Remake.World
             if (remote != null && NpcShip.HostileToRemote != null)
                 foreach (var r in remote)
                 {
-                    if (r == null || !r.Alive || !r.isActiveAndEnabled || r.cloaked || !NpcShip.HostileToRemote(ship, r)) continue;
+                    if (r == null || !r.Alive || !r.isActiveAndEnabled || r.cloaked || !NpcShip.HostileToRemote(ship, r) || !ship.Detects(r)) continue;
                     float d = (ship.Target.NearestPoint(r.transform.position) - r.transform.position).magnitude;
                     if (d < bestD) { bestD = d; best = r; }
                 }
@@ -496,8 +497,8 @@ namespace GoF2Remake.World
             missileRig?.HideAll();
             missiles?.RemoveAll();
             if (ship.Spec.fleetBattle) BattleOver(t);
-            if (CapitalShips.Killable(ship.Spec)) traffic.DestroyCapitalTurrets(ship.Spec);
-            if (t.killedByNpc) return;
+            if (CapitalShips.Killable(ship.Spec) || NpcFactionWar.IsWarTag(ship.Spec.eventTag)) traffic.DestroyCapitalTurrets(ship.Spec);
+            if (t.killedByNpc || NpcFactionWar.IsWarTag(ship.Spec.eventTag)) return;
             if (CapitalShips.Killable(ship.Spec))
             {
                 Standing.ApplyDelict(ship.Race, 20);

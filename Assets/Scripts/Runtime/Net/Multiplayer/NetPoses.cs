@@ -51,6 +51,7 @@ namespace GoF2Remake.Multiplayer
         static readonly HashSet<ulong> othersHere = new HashSet<ulong>(), othersBefore = new HashSet<ulong>();
         static readonly List<Vector3> otherPositions = new List<Vector3>();
         static readonly Dictionary<ulong, int> lastSequence = new Dictionary<ulong, int>();
+        static readonly Dictionary<ulong, int> lastServerSequence = new Dictionary<ulong, int>();
         static int sequence;
         static float nextSend;
         /// <summary>The send clock: everything due goes in one batch at most this often (each packet costs ~40 bytes of
@@ -64,6 +65,7 @@ namespace GoF2Remake.Multiplayer
         {
             objects.Clear();
             lastSequence.Clear();
+            lastServerSequence.Clear();
             othersBefore.Clear();
             sequence = 0;
             nextSend = 0f;
@@ -151,13 +153,17 @@ namespace GoF2Remake.Multiplayer
             var manager = NetworkManager.Singleton;
             if (manager == null || data == null || data.Length > PoseBatch.MaxBytes + 64) return false;
             decoded.Clear();
-            if (!PoseBatch.Decode(data, out _, out int clock, decoded) || decoded.Count == 0) return false;
+            if (!PoseBatch.Decode(data, out int seq, out _, decoded) || decoded.Count == 0) return false;
+            // Drop reordered unreliable packets without treating normal packet reordering as cheating.
+            // Equal sequences are valid: one send can be split across several packets.
+            if (lastServerSequence.TryGetValue(sender, out int last) && PoseBatch.Newer(last, seq)) return true;
             foreach (var e in decoded)
             {
                 if (!manager.SpawnManager.SpawnedObjects.TryGetValue(e.id, out var obj) || obj == null || obj.OwnerClientId != sender) return false;
                 var o = obj.GetComponent<INetPosed>();
                 if (o == null || o.PoseStation != station || !NetGuard.Position(e.position)) return false;
             }
+            lastServerSequence[sender] = seq;
             foreach (var e in decoded)
             {
                 var o = manager.SpawnManager.SpawnedObjects[e.id].GetComponent<INetPosed>();
@@ -194,6 +200,10 @@ namespace GoF2Remake.Multiplayer
         }
 
         /// <summary>A sender left the session: its sequence starts over if it comes back.</summary>
-        public static void Forget(ulong sender) => lastSequence.Remove(sender);
+        public static void Forget(ulong sender)
+        {
+            lastSequence.Remove(sender);
+            lastServerSequence.Remove(sender);
+        }
     }
 }

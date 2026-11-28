@@ -20,7 +20,7 @@ namespace GoF2Remake.UI
             var me = NetPlayer.Local;
             sb.Append(me != null ? $"{me.SquadId}|{me.Station}|{me.InHangar}|{me.InSpace}|{NetDistress.Active}|{NetFollow.Following}" : "-");
             foreach (var m in NetSquad.Members()) sb.Append('|').Append(m.OwnerClientId).Append(m.DisplayName).Append(NetCommands.WhereText(m)).Append(m.Distress);
-            foreach (var i in NetSquad.Invites) sb.Append("|i").Append(i.from);
+            foreach (var i in NetSquad.Invites) sb.Append("|i").Append(i.from).Append(NetSquad.IsFull(NetSquad.Find(i.from)));
             foreach (var p in NetPlayer.All)
                 if (p != null && p.IsSpawned && !p.IsOwner && p.InHangar && me != null && p.Station == me.Station)
                     sb.Append("|p").Append(p.OwnerClientId).Append(p.DisplayName).Append(p.SquadId).Append(NetSquad.WasInvited(p));
@@ -34,14 +34,15 @@ namespace GoF2Remake.UI
             {
                 var row = Line(string.Format(Localization.Extra("mpSquadInvited", "{0} invites you to their squad."), inv.name), Good);
                 var invite = inv;
-                row.Add(Btn(Localization.Extra("mpAccept", "Accept"), () => { NetSquad.Accept(invite); squadKey = ""; }, "squad-button--accept"));
+                if (NetSquad.IsFull(NetSquad.Find(inv.from))) row.Add(Text("Squad full (6/6)", 14, Dim));
+                else row.Add(Btn(Localization.Extra("mpAccept", "Accept"), () => { NetSquad.Accept(invite); squadKey = ""; }, "squad-button--accept"));
                 row.Add(Btn(Localization.Extra("mpDecline", "Decline"), () => { NetSquad.Decline(invite); squadKey = ""; }, null));
                 body.Add(row);
             }
             if (NetSquad.Invites.Count > 0 && NetMissions.AbandonWarning() is string warn && warn.Length > 0) body.Add(Text(warn, 14, Bad));
 
             var members = NetSquad.Members();
-            Section(Localization.Extra("mpSquadTitle", "Your squad"));
+            Section(Localization.Extra("mpSquadTitle", "Your squad") + $" ({members.Count}/{NetSquad.MaxMembers})");
             if (members.Count == 0)
                 body.Add(Text(Localization.Extra("mpSquadEmptyHint", "Not in a squad. Invite a pilot docked here, or accept an invitation."), 15, Dim));
             else
@@ -80,6 +81,7 @@ namespace GoF2Remake.UI
                 var row = Line(p.DisplayName, Color.white);
                 var target = p;
                 if (NetSquad.Same(p, me)) row.Add(Text(Localization.Extra("mpInYourSquad", "In your squad"), 14, Good));
+                else if (NetSquad.IsFull(me)) row.Add(Text("Squad full", 14, Dim));
                 else if (NetSquad.WasInvited(p)) row.Add(Text(Localization.Extra("mpInvited", "Invited"), 14, Dim));
                 else row.Add(Btn(Localization.Extra("mpInvite", "Invite"), () => { NetSquad.InviteTo(target); squadKey = ""; }, "squad-button--accept"));
                 body.Add(row);

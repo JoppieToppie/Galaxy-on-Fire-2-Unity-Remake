@@ -12,6 +12,40 @@ namespace GoF2Remake.Tests
 {
     public class HitpointsTests
     {
+        [TestCase(100)]
+        [TestCase(1000)]
+        public void AppliedHullDamageReportsOnlyActualHullFraction(int maxHull)
+        {
+            var go = new UnityEngine.GameObject("fleet damage target");
+            try
+            {
+                var target = go.AddComponent<Target>();
+                target.customDeath = true;
+                target.hitpoints = new Hitpoints(maxHull, 40, 20);
+                double playerDamage = 0d, npcDamage = 0d;
+                target.HullDamageApplied += (_, fraction, byNpc) =>
+                {
+                    if (byNpc) npcDamage += fraction;
+                    else playerDamage += fraction;
+                };
+                target.Damage(40);
+                target.Damage(20);
+                Assert.AreEqual(0d, playerDamage, 1e-9d, "shields and armor are not hull");
+                target.Damage(maxHull / 4);
+                Assert.AreEqual(0.25d, playerDamage, 1e-9d);
+                target.Damage(maxHull / 4, true);
+                Assert.AreEqual(0.25d, npcDamage, 1e-9d);
+                target.Damage(maxHull * 10);
+                Assert.AreEqual(0.75d, playerDamage, 1e-9d, "only remaining hull counts, not overkill");
+                target.Damage(maxHull);
+                Assert.AreEqual(0.75d, playerDamage, 1e-9d, "dead targets cannot count twice");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
         [Test]
         public void NewPoolsAreFull()
         {
@@ -131,6 +165,48 @@ namespace GoF2Remake.Tests
         }
 
         // ---- shield regen, repair bots ------------------------------------------------------------------------------
+
+        [TestCase(DamageType.None)]
+        [TestCase(DamageType.Energy)]
+        [TestCase(DamageType.Ballistic)]
+        public void ShieldRegenWaitsAfterDamage(DamageType type)
+        {
+            var h = new Hitpoints(100, 50) { shieldRechargeDelayMs = 5000 };
+            h.Damage(10, 1f, type);
+            float charge = h.shield;
+            h.RegenerateShield(4999f, 20000);
+            Assert.AreEqual(charge, h.shield);
+            h.RegenerateShield(1f, 20000);
+            Assert.AreEqual(charge, h.shield);
+            h.RegenerateShield(101f, 20000);
+            Assert.Greater(h.shield, charge);
+        }
+
+        [Test]
+        public void HullDamageResetsDelayEvenWithEmptyShield()
+        {
+            var h = new Hitpoints(100, 10) { shieldRechargeDelayMs = 5000 };
+            h.Damage(20);
+            h.RegenerateShield(4000f, 20000);
+            h.Damage(1);
+            h.RegenerateShield(4999f, 20000);
+            Assert.AreEqual(0f, h.shield);
+            Assert.AreEqual(1f, h.ShieldRechargeRemainingMs);
+            h.RegenerateShield(102f, 20000);
+            Assert.Greater(h.shield, 0f);
+        }
+
+        [Test]
+        public void RechargeCooldownUsesElapsedTimeAndCanBeRestored()
+        {
+            var h = new Hitpoints(100, 50) { shieldRechargeDelayMs = 5000, shield = 10 };
+            h.RestoreShieldRechargeDelay(3000f);
+            h.RegenerateShield(0f, 20000, 3000f);
+            Assert.AreEqual(0f, h.ShieldRechargeRemainingMs);
+            Assert.AreEqual(10f, h.shield);
+            h.RegenerateShield(101f, 20000);
+            Assert.Greater(h.shield, 10f);
+        }
 
         [Test]
         public void ShieldRegenKeepsRemainderAndCatchesUp()

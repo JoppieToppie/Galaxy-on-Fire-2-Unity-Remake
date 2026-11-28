@@ -7,6 +7,8 @@
 
 using GoF2Remake.Data;
 using System.Linq;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using GoF2Remake.Events;
 using GoF2Remake.World;
 using UnityEngine;
@@ -15,6 +17,16 @@ namespace GoF2Remake.Multiplayer
 {
     public static class NetHooksInstaller
     {
+        static readonly ConditionalWeakTable<IReadOnlyList<PlayerStationMaterial>, (int item, int amount)[]> wreckSalvage =
+            new ConditionalWeakTable<IReadOnlyList<PlayerStationMaterial>, (int, int)[]>();
+
+        static IReadOnlyList<(int item, int amount)> WreckSalvageAt(int orbit, bool jumpgate)
+        {
+            var materials = jumpgate ? NetPlayerStations.JumpgateSalvageAt(orbit) : NetPlayerStations.StationSalvageAt(orbit);
+            return materials == null ? null : wreckSalvage.GetValue(materials,
+                entries => entries.Where(entry => entry != null && entry.required > 0).Select(entry => (entry.item, entry.required)).ToArray());
+        }
+
         static void ChatToScripts(NetChat.Message m) => Modding.ModScripts.Raise("chat", m.from, m.text, m.own);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -27,6 +39,8 @@ namespace GoF2Remake.Multiplayer
             NetSession.DbProvider = () => NetGame.Db;
             NetSession.LocalIdProvider = () => NetGame.LocalId;
             NetSession.OrbitSeedProvider = NetGame.OrbitSeed;
+            NetSession.WarNewsProvider = (station, headline) =>
+                NetNews.Post(NetNews.Kind.War, headline + NetNews.Place(station) + ".", station);
             NetSession.ServerTimeProvider = () =>
             {
                 var nm = Unity.Netcode.NetworkManager.Singleton;
@@ -68,18 +82,33 @@ namespace GoF2Remake.Multiplayer
 
             GameHooks.StockShared = NetStock.Shared;
             GameHooks.StockEntered = NetStock.OnEnterStation;
+            GameHooks.BeforeSave = NetStock.SaveLocal;
+            GameHooks.AdvancedPricedItem = NetStock.ManagedPricing;
+            GameHooks.AdvancedBuyQuote = NetStock.DisplayBuyQuote;
+            GameHooks.AdvancedSellQuote = (station, item) => NetStock.TryPrice(station, item, false, out int price) ? price : (int?)null;
+            GameHooks.NpcMarketPrice = NetStock.NpcMarketPrice;
             GameHooks.StockItemChanged = (station, item, delta, price) => NetStock.ItemChanged(station, item, delta, price);
             GameHooks.StockShipChanged = NetStock.ShipChanged;
             GameHooks.FactionBuyPrice = NetFactionsClient.BuyPrice;
             GameHooks.FactionSellPrice = NetFactionsClient.SellPrice;
             GameHooks.FactionShipBuyPrice = NetFactionsClient.ShipBuyPrice;
             GameHooks.ProfileUpload = () => NetProfileClient.Upload();
+            GameHooks.CanResolveModJump = () => NetProfileClient.CanResolveModJump;
+            GameHooks.ResolveModJump = NetProfileClient.RequestModJump;
+            GameHooks.LocalPilotIsPirate = () => NetPlayer.Local != null && NetPlayer.Local.IsPirate;
+            GameHooks.ServerOwnsReputation = () => NetProfileClient.Active && NetProfileClient.Controller && !NetProfileClient.Guest &&
+                !(NetGame.PersistentHost && NetGame.LocalId == Unity.Netcode.NetworkManager.ServerClientId);
+            GameHooks.ReportReputationDelict = (race, amount) => NetState.Instance?.ReportReputationDelictRpc(race, amount);
             GameHooks.SharedPirateBoard = () => NetState.Instance != null ? NetState.Instance.PirateBoardJson : null;
             GameHooks.SessionRule = NetRules.TryGet;
             GameHooks.RuleChangedByHost = NetRules.HostChanged;
             GameHooks.SessionKaamoLevel = NetRules.TryGetKaamoLevel;
             GameHooks.KaamoLevelChangedByHost = NetRules.HostKaamoLevelChanged;
             GameHooks.SessionFlightStyle = NetRules.TryGetFlight;
+            // Single-player uses static reciprocal routes. Multiplayer also considers live
+            // player-built gates and their construction, EMP and destruction state.
+            GameHooks.JumpgateLinkOperational = (from, to) => !NetGame.Active ||
+                NetPlayerStations.JumpgateLinkOperational(from, to);
             GameHooks.EventFlightStyle = () => Events.EventFlight.Forced;   // PR #87: the Set Flight Model node, /flightstyle
 
             // The co-op campaign (NetCoop; CoopCampaign).
@@ -92,11 +121,68 @@ namespace GoF2Remake.Multiplayer
             GameHooks.CoopPublish = NetCoop.Publish;
             GameHooks.CoopFreelanceDone = NetCoop.ReportFreelance;
 
+            GameHooks.ApplyPlayerStations = NetPlayerStations.Apply;
+            GameHooks.IsPlayerStation = NetPlayerStations.IsPlayerStation;
+            GameHooks.PlayerStationName = NetPlayerStations.DisplayNameAt;
+            GameHooks.PlayerStationTraffic = NetPlayerStations.PlayerStationTraffic;
+            GameHooks.StationSceneryPresent = NetPlayerStations.StationSceneryPresent;
+            GameHooks.StationConstructionPlaceholder = orbit => NetPlayerStations.StationAt(orbit) is PlayerStationRecord project &&
+                project.underConstruction && !project.reconstructing && !project.destroyed && !project.retired && !project.wreckClaimOpen;
+            GameHooks.StationClosedByCombat = NetPlayerStations.StationClosedByCombat;
+            GameHooks.HasDryDockAtStation = NetPlayerStations.HasDryDockAtStation;
+            GameHooks.HasPlayerJumpgate = NetPlayerStations.HasJumpgateAtStation;
+            GameHooks.HasPlayerJumpgateWreck = NetPlayerStations.HasJumpgateWreckAtStation;
+            GameHooks.PlayerStationModel = NetPlayerStations.LooksLike;
+            GameHooks.PlayerJumpgateDestination = NetPlayerStations.JumpgateDestinationStation;
+            GameHooks.PlayerJumpgateModelPreset = orbit => NetPlayerStations.FindJumpgate(orbit)?.modelPreset ?? 0;
+            GameHooks.PlayerJumpgateModelReference = orbit => NetPlayerStations.FindJumpgate(orbit)?.modelReference;
+            GameHooks.ResolvePlayerJumpgateModel = NetPlayerStations.ResolveJumpgateModel;
+
             InstallSpace();
         }
 
         static void InstallSpace()
         {
+            SpaceHooks.PlayerStationPosition = NetPlayerStations.StationPosition;
+            SpaceHooks.PlayerStationRotation = NetPlayerStations.StationRotation;
+            SpaceHooks.PlayerJumpgateRotation = NetPlayerStations.JumpgateRotation;
+            SpaceHooks.PlayerJumpgateOffline = NetPlayerStations.JumpgateOffline;
+            SpaceHooks.CanUsePlayerJumpgate = orbit => NetPlayerStations.CanUseJumpgate(NetPlayer.Local, orbit);
+            SpaceHooks.PlayerJumpgateRefusalMessage = () => NetPlayer.Local?.LastPlayerGateRefusal;
+            SpaceHooks.RequestPlayerJumpgateTravel = (orbit, done) => NetPlayer.Local?.RequestPlayerJumpgateTravel(orbit, done) == true;
+            SpaceHooks.PlayerInfrastructureSnapshot = () => NetState.Instance?.PlayerStations;
+            SpaceHooks.PlayerDockArms = NetPlayerStations.PlacedDockArms;
+            SpaceHooks.PlayerDockArmPoses = NetPlayerStations.PlacedDockArmPoses;
+            SpaceHooks.PlayerPlacedModelRotation = NetPlayerStations.PlacedModelRotation;
+            SpaceHooks.PlayerModuleDestroyed = NetPlayerStations.StructuralModuleDestroyed;
+            SpaceHooks.PlayerOrbitalModels = (db, orbit) => (NetPlayerStations.OrbitalStructures ?? System.Array.Empty<PlayerOrbitalStructure>())
+                .Where(structure => structure != null && structure.orbit == orbit && structure.operational)
+                .Select(structure => (structure.id, structure.name,
+                    NetPlayerStations.OrbitalStructureAssembly(structure.assembly, structure.stationModel, db),
+                    NetPlayerStations.OrbitalStructurePosition(structure), structure.modelScale, structure.hitRadius))
+                .Concat(NetPlayerStations.PlacedModuleModels(db, orbit)).ToArray();
+            SpaceHooks.PlayerWreckSalvage = WreckSalvageAt;
+            SpaceHooks.PlayerWreckSalvagePosition = (orbit, jumpgate) =>
+                jumpgate ? NetPlayerStations.JumpgateSalvagePosition(orbit) : NetPlayerStations.StationSalvagePosition(orbit);
+            SpaceHooks.CollectPlayerWreckSalvage = (orbit, jumpgate, room) => NetPlayer.Local?.RequestWreckSalvage(orbit, room, jumpgate);
+            SpaceHooks.ReportInfrastructureContact = (kind, id, item, shot, point, surface, blast) =>
+            {
+                var pilot = NetPlayer.Local;
+                if (pilot == null) return;
+                switch (kind)
+                {
+                    case InfrastructureContactKind.Station:
+                        pilot.ReportPlayerStationContact(id, item, shot, point, surface, blast);
+                        break;
+                    case InfrastructureContactKind.OrbitalStructure:
+                        pilot.ReportOrbitalStructureContact(id, item, shot, point, surface, blast);
+                        break;
+                    case InfrastructureContactKind.Jumpgate:
+                        if (blast) pilot.ReportJumpgateBlast(id, item, shot, point, surface);
+                        else pilot.ReportJumpgateImpact(id, item, shot, point);
+                        break;
+                }
+            };
             SpaceHooks.GuestAssembly = NetHangar.GuestAssembly;   // PR #87: guests' customizable ships
             SpaceHooks.GuestShipY = NetHangar.GuestShipY;
             SpaceHooks.GuestBuild = NetHangar.GuestBuild;
@@ -106,7 +192,12 @@ namespace GoF2Remake.Multiplayer
             SpaceHooks.ProxiesProvider = () => Object.FindObjectsByType<NetProxy>();
             SpaceHooks.CratesProvider = () => Object.FindObjectsByType<NetCrate>();
             SpaceHooks.SharedOrbitProvider = () => NetGame.Active ? NetOrbit.Current : null;
-            SpaceHooks.LevelBuilt = level => { if (NetGame.Active) level.gameObject.AddComponent<NetOrbit>().Setup(level); };
+            SpaceHooks.LevelBuilt = level =>
+            {
+                if (NetGame.Active) level.gameObject.AddComponent<NetOrbit>().Setup(level);
+                else if (AdvancedEconomyLedger.LocalActive && !Modding.ModBuilder.Active)
+                    level.gameObject.AddComponent<NetOrbit>().SetupLocalFreight(level);
+            };
             SpaceHooks.StationBuilt = level => { if (NetGame.Active) level.gameObject.AddComponent<NetHangar>().Setup(level); };
             SpaceHooks.OrbitEmpty = NetState.OrbitEmpty;
             SpaceHooks.OutOfSight = NetOrbit.OutOfSight;
@@ -117,15 +208,20 @@ namespace GoF2Remake.Multiplayer
                 if (s != null && s.IsSpawned) s.SiegeWonRpc(station);
             };
             SpaceHooks.PirateSightingDone = (id, killer) => NetState.Instance?.PirateSightingDoneRpc(id, killer);
+            SpaceHooks.PirateEscaped = (id, station) => NetState.Instance?.PirateEscapedRpc(id, station);
             SpaceHooks.WreckHacked = (station, name) =>
             {
                 if (EventHost.Local) EventRunner.OnWreckHacked(LocalPilot.Instance, station, name);
                 else NetState.Instance?.WreckHackedRpc(station, name ?? "");
             };
-            SpaceHooks.ShipScanned = (station, name) =>
+            SpaceHooks.ShipScanned = (station, target) =>
             {
-                if (EventHost.Local) EventRunner.OnShipScanned(LocalPilot.Instance, station, name);
-                else NetState.Instance?.ShipScannedRpc(station, name ?? "");
+                if (EventHost.Local) EventRunner.OnShipScanned(LocalPilot.Instance, station, Flight.CombatRadar.PlateName(target));
+                else
+                {
+                    ulong id = NetShots.TargetId(target);
+                    if (id != NetShots.NoTarget) NetState.Instance?.ShipScannedRpc(station, id);
+                }
             };
             SpaceHooks.PadDocked = station =>
             {

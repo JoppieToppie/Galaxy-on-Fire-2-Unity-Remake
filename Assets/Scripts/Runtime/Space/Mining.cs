@@ -41,6 +41,8 @@ namespace GoF2Remake.Flight
 
         /// <summary>Optional mod rule: why the current ship cannot mine (null = allowed).</summary>
         public static Func<int, string> MineRefusal = ship => null;
+        static string MiningRefusal(int ship) =>
+            GoF2Remake.World.SpaceHooks.MiningClassRefusal(ship) ?? MineRefusal?.Invoke(ship);
 
         const float M = 0.05f;
         const float CrosshairDistanceMeters = 22000f * M;   // same aim point as the HUD crosshair
@@ -217,7 +219,7 @@ namespace GoF2Remake.Flight
         void UpdateLock(float dtMs)
         {
             // A class rule blocks both ordinary drilling and the beam: remove the asteroid lock before either can start.
-            string refusal = MineRefusal?.Invoke(Session.ShipIndex);
+            string refusal = MiningRefusal(Session.ShipIndex);
             if (!string.IsNullOrEmpty(refusal))
             {
                 if (!miningBlockedNoticeShown) Say(refusal);
@@ -305,7 +307,7 @@ namespace GoF2Remake.Flight
         {
             if (State == Phase.Idle)
             {
-                string refusal = MineRefusal?.Invoke(Session.ShipIndex);
+                string refusal = MiningRefusal(Session.ShipIndex);
                 if (!string.IsNullOrEmpty(refusal)) { Say(refusal); return false; }
             }
             switch (State)
@@ -624,7 +626,7 @@ namespace GoF2Remake.Flight
         /// locked asteroid (the nose on it, in reach, room in the hold). Otherwise the press stays the guns': a far or missed
         /// asteroid or a full hold no longer silences them (a locked asteroid behind an enemy did, mid-fight).</summary>
         bool BeamClaimsFire() =>
-            BeamMode && State == Phase.Idle && string.IsNullOrEmpty(MineRefusal?.Invoke(Session.ShipIndex))
+            BeamMode && State == Phase.Idle && string.IsNullOrEmpty(MiningRefusal(Session.ShipIndex))
             && (beamOn || (Locked != null && Locked.Alive && !beamRefused && StartRefusal(Locked) == null));
 
         /// <summary>The radius of the rock's visible surface in metres: about 0.85 of the mesh's bounding radius (the hit radius

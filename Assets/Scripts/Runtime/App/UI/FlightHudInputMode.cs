@@ -197,7 +197,7 @@ namespace GoF2Remake.UI
                 if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
                 CockpitHint(pad);
                 if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
-                if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
+                if (nav != null && (nav.MenuEntries(true).Count > 0 || MultiplayerWindow.CanOpenOrbitManagementAny)) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
                 Hint(T("hudMenu", "MENU"), menuKey);
                 return;
             }
@@ -221,7 +221,7 @@ namespace GoF2Remake.UI
             if (HasManualTurret()) Hint(T("hudTurretView", "TURRET VIEW"), GameControls.TurretView);
             CockpitHint(pad);
             if (!SupernovaChallenge.Active) Hint(Localization.Get(571).UiCaps(), GameControls.AutopilotMenu);   // no autopilot menu there (0xb7)
-            if (nav != null && nav.MenuEntries(true).Count > 0) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
+            if (nav != null && (nav.MenuEntries(true).Count > 0 || MultiplayerWindow.CanOpenOrbitManagementAny)) Hint(T("hudActions", "ACTIONS"), GameControls.ActionsMenu);
             Hint(T("hudMenu", "MENU"), menuKey);
         }
         /// <summary>The cockpit view's own key (F2), or with a controller the camera button held (FreeLookCamera.ToggleCockpit;

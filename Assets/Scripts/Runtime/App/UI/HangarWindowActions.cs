@@ -26,6 +26,12 @@ namespace GoF2Remake.UI
                 return moved;
             }
             if (selected == null || selected.kind != RowKind.ShopItem) return false;
+            if (PlayerMarketplace && (selected.item != Freelance.Documents || PlayerStorageTab))
+                return TradePlayerMarket(direction, units);
+            if (PlayerMarketplace && direction < 0) return false;
+            if (GoF2Remake.Multiplayer.NetStock.PriceTradePending) return false;
+            if (!PlayerMarketplace && !hangar.Storage && GoF2Remake.Multiplayer.NetStock.ManagedPricing(hangar.Station, selected.item))
+                return GoF2Remake.Multiplayer.NetStock.RequestPricedTrade(hangar.Station, selected.item, units, direction > 0);
             bool changed = false;
             for (int n = 0; n < units; n++)
             {
@@ -53,8 +59,45 @@ namespace GoF2Remake.UI
             Rebuild();
             return true;
         }
+        int PlayerStorageTransferLimit(int direction)
+        {
+            var storage = playerMarket?.storage;
+            if (storage == null || selected?.kind != RowKind.ShopItem ||
+                (direction < 0 ? !storage.canDeposit : !storage.canWithdraw)) return 0;
+            int units = direction < 0 ? hangar.CargoOf(selected.item) : selected.stationUnits;
+            int room = direction < 0 ? storage.capacity - storage.used :
+                Math.Min(storage.cargoRoom, hangar.MaxLoad - hangar.Load);
+            return Math.Max(0, Math.Min(500, Math.Min(units, room)));
+        }
+
+        bool TradePlayerMarket(int direction, int units)
+        {
+            if (playerMarket == null) return false;
+            int id = playerMarket.stationId;
+            int item = selected.item;
+            if (PlayerStorageTab)
+            {
+                int amount = Math.Min(PlayerStorageTransferLimit(direction), units);
+                return amount > 0 && SendPlayerMarketCommand($"{(direction < 0 ? "deposit" : "withdraw")} {id} {item} {amount}");
+            }
+            if (direction < 0)
+            {
+                if (selected.ownListing) return SendPlayerMarketCommand($"cancel-listing {id} {selected.listingId}");
+                if (!playerMarket.canListGoods || hangar.CargoOf(item) <= 0 || !Hangar.IsSaleable(item)) return false;
+                menu.OpenMarketplaceListing(item);
+                return true;
+            }
+            int count = Math.Min(500, Math.Min(selected.stationUnits, units));
+            return selected.listingId > 0 && !selected.ownListing && count > 0 &&
+                SendPlayerMarketCommand($"buy-listing {id} {selected.listingId} {count}");
+        }
+
         /// <summary>Enter / A / the action button: mount, demount or buy the selected ship; on a shop row buy one unit.</summary>
-        public void Action() => Action(false);
+        public void Action()
+        {
+            if (DistributionNavigation) { ToggleDistributionSlot(distributionCursor); return; }
+            Action(false);
+        }
 
         void Action(bool shipDestinationChosen)
         {
@@ -64,11 +107,19 @@ namespace GoF2Remake.UI
             {
                 // Remake (#24): A / Enter buys (takes, adds) one unit like the right arrow, X sells (stores) one like the left;
                 // the original only has the arrows, and a confirm that did nothing on a shop row read as a dead button.
+                case RowKind.MarketAction:
+                    selected.marketAction?.Invoke();
+                    break;
+                case RowKind.ShopItem when PlayerStorageTab:
+                    int direction = PlayerStorageTransferLimit(1) > 0 ? 1 : -1;
+                    Trade(direction, units: PlayerStorageTransferLimit(direction));
+                    break;
                 case RowKind.ShopItem:
                 case RowKind.Ingredient:
                     Trade(1);
                     break;
                 case RowKind.Blueprint:
+                    if (Blueprints.IsRestricted(selected.item)) { menu.ShowToast(Localization.Extra("bpRestricted", "This blueprint is unavailable in this multiplayer session.")); break; }
                     // Edit (283) -> tab 4, the ingredients.
                     menu.PlayRelease();
                     editing = selected.item;
@@ -139,6 +190,15 @@ namespace GoF2Remake.UI
                 case RowKind.ShopShip:
                 {
                     int ship = selected.ship;
+                    if (PlayerMarketplace)
+                    {
+                        if (playerMarket == null) break;
+                        int marketStation = playerMarket.stationId, listing = selected.listingId;
+                        if (selected.ownListing) SendPlayerMarketCommand($"delist-ship {marketStation} {listing}");
+                        else menu.ShowDialog($"Buy {ItemInfo.ShipName(ship)} for {ItemInfo.Credits(selected.listingPrice)}? The ship will go to your personal fleet.",
+                            () => SendPlayerMarketCommand($"buy-ship {marketStation} {listing}"));
+                        break;
+                    }
                     if (KaamoClub.Owned && !NetSession.Active && !shipDestinationChosen)
                     {
                         menu.ShowDialog(Localization.Get(304), () => menu.ShowChoice(
@@ -172,13 +232,13 @@ namespace GoF2Remake.UI
                     }, SoldOut);
                     void TradeIn() => Reserved(() => hangar.BuyShip(ship));
                     // Remake (#60): the question says what happens to the old ship (the original's 304 doesn't): it is traded in.
-                    int oldPrice = hangar.ShipPrice(Session.ShipIndex), difference = hangar.BuyShipPrice(ship) - oldPrice;
+                    int oldPrice = hangar.CurrentShipTradeValue, difference = hangar.BuyShipPrice(ship) - oldPrice;
                     string tradeIn = Localization.Get(304) + "\n\n" + string.Format(difference >= 0
                             ? Localization.Extra("shopTradeInNote", "Your {0} is traded in for {1}, so you pay {2}.")
                             : Localization.Extra("shopTradeInRefund", "Your {0} is traded in for {1}, so you get {2} back."),
                         ItemInfo.ShipName(Session.ShipIndex), ItemInfo.Credits(oldPrice), ItemInfo.Credits(Mathf.Abs(difference)))
                         + "\n\n" + Localization.Extra("shopGearToHold", "Your equipment goes into the cargo hold.");
-                    if (!KaamoClub.Owned) { menu.ShowDialog(tradeIn, TradeIn); break; }
+                    if (!KaamoClub.Owned || Session.DeathLoaner) { menu.ShowDialog(tradeIn, TradeIn); break; }
                     // 304, then 327 "sell your old ship or keep it and have it brought to your station?" (330 / 331).
                     void ChooseOldShip() => menu.ShowChoice(Localization.Get(327), Localization.Get(330), Localization.Get(331), TradeIn, () =>
                     {
@@ -226,6 +286,12 @@ namespace GoF2Remake.UI
         /// <summary>The second row button (X / controller X): Sell a stored hull (330 -> 334).</summary>
         public void SecondaryAction()
         {
+            if (BeginOrApplyDistributionNavigation()) return;
+            if (PlayerStorageTab && selected?.kind == RowKind.ShopItem)
+            {
+                Trade(-1, units: PlayerStorageTransferLimit(-1));
+                return;
+            }
             // Remake: X / the left arrow (an ingredient's TAKE).
             if (selected != null && (selected.kind == RowKind.ShopItem || selected.kind == RowKind.Ingredient)) { Trade(-1); return; }
             // Remake (players' feedback): a mounted item's MOVE, to the next slot of its type (the last one to the first).
@@ -357,6 +423,12 @@ namespace GoF2Remake.UI
             heldMs = 0f;
             holdDone = 1;
             holdTotal = 1;
+            if (PlayerMarketplace && selected?.kind == RowKind.ShopItem)
+            {
+                Trade(direction);
+                ReleaseArrow();
+                return;
+            }
             if (selected != null && selected.kind == RowKind.ShopItem)
             {
                 holdTotal = direction < 0 ? hangar.CargoOf(selected.item)
@@ -389,6 +461,8 @@ namespace GoF2Remake.UI
                 MoveSelection(vertical);
             }
 
+            // While selecting hardpoints, horizontal input must never start a trade hold.
+            if (DistributionNavigation) { if (heldPointer == KeyHold) ReleaseArrow(); keyDirection = horizontal; return; }
             // A new press starts a hold (repeated in Update); a failed trade ends it until the key is pressed again.
             if (horizontal == keyDirection) return;
             keyDirection = horizontal;

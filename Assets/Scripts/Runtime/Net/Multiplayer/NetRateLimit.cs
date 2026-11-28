@@ -21,7 +21,7 @@ namespace GoF2Remake.Multiplayer
         public enum Kind
         {
             ProxySpawn, CrateSpawn, Despawn, Adopt, Asteroid, Request, Chat, Command, Invite, Squad, Mission, Trade, Reserve,
-            Hangar, Hit, Shot, Fx, Claim, Kill, Siege, PlayerTrade, Pose, Count
+            Hangar, Hit, Shot, Fx, Claim, Kill, Siege, PlayerTrade, Pose, FreightRequest, Count
         }
 
         /// <summary>Per kind: the burst a client may send at once, the refill per second, and how much a dropped one counts
@@ -50,6 +50,7 @@ namespace GoF2Remake.Multiplayer
             (3f, 0.05f, 1f),    // Siege: the Kaamo siege's win
             (30f, 5f, 1f),      // PlayerTrade: a trade between players (offers, accepts, payments)
             (120f, 60f, 0.05f), // Pose: the pose stream's batches (NetPoses: up to 20 a second, a busy orbit's split in a few)
+            (8f, 5f, 1f),       // FreightRequest: initial ship manifest retries at 4/s, plus occasional salvage
         };
 
         /// <summary>Weighted drops within a minute that get a client kicked.</summary>
@@ -86,12 +87,25 @@ namespace GoF2Remake.Multiplayer
             return client == NetworkManager.ServerClientId && m != null && m.IsHost;   // the host's own player is the server
         }
 
+        // Large opt-in battles need headroom for their initial proxy burst and runner handover.
+        // Keep the sustained rate and default capacity unchanged for ordinary configurations.
+        static float Capacity(Kind kind)
+        {
+            float capacity = Limits[(int)kind].capacity;
+            if (kind == Kind.ProxySpawn || kind == Kind.Adopt || kind == Kind.Despawn)
+            {
+                var extra = Modding.ModNpcFactionWar.Enabled ? Mathf.Max(0, Modding.ModNpcFactionWar.ShipsPerSide - 24) * 2 : 0;
+                capacity += extra;
+            }
+            return capacity;
+        }
+
         static Client Get(ulong client)
         {
             if (clients.TryGetValue(client, out var c)) return c;
             c = new Client { windowStart = Time.unscaledTime };
             float now = Time.unscaledTime;
-            for (int i = 0; i < (int)Kind.Count; i++) { c.tokens[i] = Limits[i].capacity; c.stamp[i] = now; }
+            for (int i = 0; i < (int)Kind.Count; i++) { c.tokens[i] = Capacity((Kind)i); c.stamp[i] = now; }
             clients[client] = c;
             return c;
         }
@@ -105,7 +119,7 @@ namespace GoF2Remake.Multiplayer
             int k = (int)kind;
             float now = Time.unscaledTime;
             var limit = Limits[k];
-            c.tokens[k] = Mathf.Min(limit.capacity, c.tokens[k] + (now - c.stamp[k]) * limit.perSecond);
+            c.tokens[k] = Mathf.Min(Capacity(kind), c.tokens[k] + (now - c.stamp[k]) * limit.perSecond);
             c.stamp[k] = now;
             if (c.tokens[k] >= 1f) { c.tokens[k] -= 1f; return true; }
             // Over the limit: dropped. A client that keeps it up for a minute is kicked (Tick).

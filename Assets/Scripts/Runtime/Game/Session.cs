@@ -93,11 +93,14 @@ namespace GoF2Remake.Data
         /// <summary>Remake mods (Modding.ModWingmen): the ship each of them flies (the same order), -1 or none = the game's way
         /// (a fighter of their race picked by the name).</summary>
         public static List<int> WingmanShips = new List<int>();
+        public static List<int> WingmanRaces = new List<int>();
         public static int WingmanRace;
         public static float WingmanContractMs;
+        public static List<int> WingmanContractPrices = new List<int>();
         /// <summary>Status+0x28: the hiring agent's portrait (the goodbye dialogue); +0xd4 wingmen hired (statistic, medal 27);
         /// +0xf8 the menu shows "Use EMP blaster" (reset on every station visit, not saved).</summary>
         public static int[] WingmanPortrait = new int[5];
+        public static string PlayerIdentityRace, PlayerIdentityPortrait;
         public static int WingmenHired;
         public static bool WingmanShowEmp = true;
         /// <summary>Blueprints the player owns (BluePrint::unlock), by product item index.</summary>
@@ -114,6 +117,7 @@ namespace GoF2Remake.Data
         /// ("station:entry", World.LootContainer), so each comes once.</summary>
         public static HashSet<string> FixedLootTaken = new HashSet<string>();
         /// <summary>Remake mods (2026-11-14): each script mod's game.saved table as JSON, by mod id (Modding.ModScripts).</summary>
+        public static string NpcFactionWarJson;
         public static Dictionary<string, string> ScriptData = new Dictionary<string, string>();
         /// <summary>Remake: the repeatable quests finished ("mission repeat"), each with the playing time (PlaySeconds) from which
         /// it may start again (EventRunner.CheckQuestStarts).</summary>
@@ -336,6 +340,12 @@ namespace GoF2Remake.Data
 
         /// <summary>Player ship index (ships.json), Status+0x18c.</summary>
         public static int ShipIndex = 10;
+        // Emergency hulls are not owned assets: they cannot be kept or sold for a trade-in credit.
+        public static bool DeathLoaner;
+        public static string LastDeathPenaltyId;
+        public static string ReputationRevision;
+        public static List<string> FactionWarRewardReceipts = new List<string>();
+        public static List<DeathRecovery> DeathRecoveries = new List<DeathRecovery>();
 
         /// <summary>Mounted items (Ship+0x6c), one entry per occupied slot; secondaries carry their ammo as the amount.</summary>
         public static List<ItemStack> Equipment = StartEquipment();
@@ -386,6 +396,7 @@ namespace GoF2Remake.Data
         /// <summary>Modified: the arrival of a mod jump drive's jump (failed or not; ModJumpFx "arrivalFx"): the ship comes in
         /// with the 2D hyper_drive fx in the drive's own texture (SpaceLevel.BeginDriveArrival).</summary>
         public static bool DriveArrival;
+        public static GoF2Remake.Modding.ModJumpFx.Spec DriveArrivalSpec;
 
         /// <summary>Set by the station's launch button: the flight level starts with the launch camera
         /// (LevelScript: a fixed camera 9000 units ahead watches the ship fly past for 7 s).</summary>
@@ -406,6 +417,8 @@ namespace GoF2Remake.Data
         /// <summary>The station was opened by loading a save (ModStation::setGameLoaded, +0xac): no docking fine then
         /// (StationMenu.CheckDockingFine takes and clears it; SpaceLevel clears it too).</summary>
         public static bool ArrivedByLoad;
+        /// <summary>A protected death is a respawn, not a fresh voluntary docking. Do autosave but do not charge a docking fine.</summary>
+        public static bool SkipRespawnDockingFine;
 
         /// <summary>Arrived through a jumpgate or the Khador Drive: the arrival camera shows the orbit information
         /// (Hud::drawOrbitInformation, not after a planet jump).</summary>
@@ -585,6 +598,11 @@ namespace GoF2Remake.Data
 
         public static void ResetNewGame()
         {
+            DeathLoaner = false;
+            LastDeathPenaltyId = null;
+            ReputationRevision = null;
+            FactionWarRewardReceipts = new List<string>();
+            DeathRecoveries = new List<DeathRecovery>();
             PlaySeconds = 0f;
             StationIndex = 78;
             PreviousStationIndex = -1;
@@ -604,9 +622,12 @@ namespace GoF2Remake.Data
             InformerKilled = InformerFailed = false;
             Wingmen = new List<string>();
             WingmanShips = new List<int>();
+            WingmanRaces = new List<int>();
             WingmanRace = 0;
             WingmanContractMs = 0f;
+            WingmanContractPrices = new List<int>();
             WingmanPortrait = new int[5];
+            PlayerIdentityRace = PlayerIdentityPortrait = null;
             WingmenHired = 0;
             WingmanShowEmp = true;
             UnlockedBlueprints = new HashSet<int>();
@@ -622,6 +643,8 @@ namespace GoF2Remake.Data
             ShipBuilds = new Dictionary<string, string>();
             GraphQuestsDone = new HashSet<string>();
             FixedLootTaken = new HashSet<string>();
+            NpcFactionWarJson = null;
+            NpcFactionWar.ResetLocal();
             ScriptData = new Dictionary<string, string>();
             Modding.ModScripts.RestoreSaved(false);   // the running scripts' game.saved: empty again
             GraphQuestRepeats = new Dictionary<string, float>();
@@ -696,6 +719,7 @@ namespace GoF2Remake.Data
             Es2StartDocked = false;
             Es2NoRedirect = false;
             ArrivedByLoad = false;
+            SkipRespawnDockingFine = false;
             ArrivedBySystemJump = false;
             SystemVisible = null;
             SystemShown = new Dictionary<int, bool>();

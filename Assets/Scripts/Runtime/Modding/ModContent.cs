@@ -33,6 +33,44 @@ namespace GoF2Remake.Modding
         /// and disabled / inactive mods cannot turn this on; an unmodified game therefore keeps its original mount rules.</summary>
         public static bool MultipleSecondaryMountsEnabled => HasMultipleSecondaryMounts(ModManager.Active);
 
+        public static bool SquadFriendlyFireEnabled => HasSquadFriendlyFire(ModManager.Active);
+
+        public static bool HasSquadFriendlyFire(IEnumerable<ModInfo> mods)
+        {
+            if (mods == null) return false;
+            foreach (var mod in mods)
+                if (mod != null && !mod.IsBase && mod.Manifest?.squadFriendlyFire == true) return true;
+            return false;
+        }
+
+        /// <summary>Opt-in; disabled mods and base content cannot change vanilla NPC health.</summary>
+        /// <summary>Shared recharge delay, opt-in; strongest active mod's setting wins.</summary>
+        public static int ShieldRechargeDelayMs
+        {
+            get
+            {
+                int delay = 0;
+                foreach (var mod in ModManager.Active)
+                    if (mod != null && !mod.IsBase && mod.Manifest != null)
+                    {
+                        var manifest = mod.Manifest;
+                        delay = Math.Max(delay, manifest.shieldRechargeDelayMs >= 0
+                            ? manifest.shieldRechargeDelayMs : manifest.fighterNpcShields ? 5000 : 0);
+                    }
+                return delay;
+            }
+        }
+
+        public static bool FighterNpcShieldsEnabled
+        {
+            get
+            {
+                foreach (var mod in ModManager.Active)
+                    if (mod != null && !mod.IsBase && mod.Manifest?.fighterNpcShields == true) return true;
+                return false;
+            }
+        }
+
         /// <summary>Pure form used by the feature tests and the active-mod property above.</summary>
         public static bool HasMultipleSecondaryMounts(IEnumerable<ModInfo> mods)
         {
@@ -109,6 +147,7 @@ namespace GoF2Remake.Modding
             public readonly List<ModRaces.Def> races = new List<ModRaces.Def>();
             public readonly List<ModEncounters.Def> encounters = new List<ModEncounters.Def>();   // a cruise drive's encounters
             public readonly List<ModNpcShips.Def> npcShips = new List<ModNpcShips.Def>();   // npcships.json: capital ships, freighters, bosses
+            public ModPlayerInfrastructure playerInfrastructure;
             public Dictionary<string, float> flightRules;   // flight.json: FlightRules for every ship (ModFlight), null = none
             public readonly Dictionary<string, Dictionary<string, string>> text =
                 new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);   // language -> key -> text
@@ -121,6 +160,7 @@ namespace GoF2Remake.Modding
         static int originalItems = -1;
         static readonly Dictionary<string, int> itemIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<int, ItemDef> itemDefAt = new Dictionary<int, ItemDef>();
+        static readonly HashSet<int> multiplayerBlueprintRestricted = new HashSet<int>();
         static readonly Dictionary<int, string> placeholderItems = new Dictionary<int, string>();
         static readonly Dictionary<int, int> itemLook = new Dictionary<int, int>();
         static readonly Dictionary<int, ItemDef> itemRenames = new Dictionary<int, ItemDef>();   // overrides with a name / description
@@ -128,6 +168,9 @@ namespace GoF2Remake.Modding
         static int originalShips = -1;
         static readonly Dictionary<string, int> shipIndex = new Dictionary<string, int>(StringComparer.Ordinal);
         static readonly Dictionary<int, ShipDef> shipDefAt = new Dictionary<int, ShipDef>();
+        // Save a content key rather than a session-assigned numeric custom ship index.
+        public static string FreightShipKey(int ship) => shipDefAt.TryGetValue(ship, out var def) && !string.IsNullOrEmpty(def.key)
+            ? def.key : ship.ToString(System.Globalization.CultureInfo.InvariantCulture);
         static readonly Dictionary<int, string> placeholderShips = new Dictionary<int, string>();
         static readonly Dictionary<int, ShipDef> shipRenames = new Dictionary<int, ShipDef>();
 
@@ -138,6 +181,7 @@ namespace GoF2Remake.Modding
             mappedRevision = -1;
             originalItems = -1;
             originalShips = -1;
+            multiplayerBlueprintRestricted.Clear();
         }
 
         public static void ClearParsed() { parsed.Clear(); mappedRevision = -1; }
@@ -161,6 +205,7 @@ namespace GoF2Remake.Modding
                 ModNpcShips.Parse(mod, p.npcShips);
                 ModWorld.Parse(mod, p.systems, p.stations);
                 p.flightRules = ModFlight.ParseFile(mod);
+                p.playerInfrastructure = ModPlayerInfrastructure.Read(mod);
                 foreach (var f in mod.Source.FilesIn("text", ".json"))
                 {
                     string lang = System.IO.Path.GetFileNameWithoutExtension(f);
@@ -178,7 +223,7 @@ namespace GoF2Remake.Modding
         {
             "id", "override", "base", "name", "description", "techLevel", "occurrence", "stock", "minPrice", "maxPrice", "price",
             "lowestPriceSystem", "highestPriceSystem", "vosskOnly", "alwaysSoldAt", "stats", "attributes", "defaultEconomy", "fx", "icon",
-            "available", "tractorColor", "jumpFx",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
+            "available", "tractorColor", "jumpFx", "jumpRules", "availability", "multiplayerBlueprintRestricted",   // Modified: "jumpFx", a jump drive's own effect (ModJumpFx)
             "allowedClasses", "excludedClasses",   // the ship classes / tags that may / may not mount it (ShipClassRules)
         };
 
@@ -239,6 +284,18 @@ namespace GoF2Remake.Modding
             }
         }
 
+        /// <summary>Whether an item’s blueprint is restricted during a multiplayer session (solo play is unchanged).</summary>
+        public static bool IsBlueprintRestricted(int product) => (NetSession.Active || NetSession.SessionGame) && multiplayerBlueprintRestricted.Contains(product);
+
+        /// <summary>ModContentMerging applies this per-item flag in mod load order; an explicit false clears an earlier mod restriction.</summary>
+        public static void SetBlueprintRestricted(int product, bool restricted)
+        {
+            if (restricted) multiplayerBlueprintRestricted.Add(product);
+            else multiplayerBlueprintRestricted.Remove(product);
+        }
+
+        public static void ClearBlueprintRestrictions() => multiplayerBlueprintRestricted.Clear();
+
         public const string ShipsFile = "ships.json";
 
         static readonly HashSet<string> ShipFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -251,7 +308,7 @@ namespace GoF2Remake.Modding
             "addParts",   // the original's additive layers beside the hull: lights, engine glows (ModShipBuilder)
             "sounds",     // the ship's own engine and boost sounds (ModShipSounds)
             "integrated", // a built-in Khador Drive / cloak (ApplyIntegrated)
-            "camera", "cockpit", "smoke", "explosionScale",   // how the ship is seen (ModShipView)
+            "camera", "cockpit", "cockpitModel", "smoke", "explosionScale", "crosshairOffsetX", "crosshairOffsetY",   // how the ship is seen (ModShipView)
             "subsystems", "shieldMaterial", "shieldedDamage", "shieldBlocks", "hullDamage", "engineStyle", "es2Engine", "hullFactor", "hullRegen", "retreat",   // a capital ship's subsystems (World.CapitalSubsystems)
             "crate", "crateSize", "wreck", "deathFx", "deathThroes", "warpIn",   // its loot container's and wreck's models (ModCrates, World.WreckBreakup)
             "wingmanDevice",   // a hired wingman's device in it (ModWingmen, Flight.WingmanDevice)
@@ -440,6 +497,8 @@ namespace GoF2Remake.Modding
             // "stock": how many units a shop holds (Shop.ModStock), a number or [least, most].
             if (Range(o, "stock", out int smin, out int smax) && (smin < 1 || smax < smin || smax > Shop.MaxStock))
                 mod.Warnings.Add($"{where}: \"stock\" {smin} to {smax} must be 1 to {Shop.MaxStock}, least first (clamped)");
+            if (ModJson.Has(o, "multiplayerBlueprintRestricted"))
+                ModJson.Bool(o, "multiplayerBlueprintRestricted", false, ItemsFile);
             if (ModJson.Get(o, "tractorColor") is JToken tc && TractorColorValue(tc) < 0)
                 mod.Warnings.Add($"{where}: \"tractorColor\" must be \"#rrggbb\" or [r, g, b] (0-255): ignored");
             if (ModJson.Get(o, "stats") is JToken st)

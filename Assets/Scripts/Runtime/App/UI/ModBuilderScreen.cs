@@ -58,6 +58,7 @@ namespace GoF2Remake.UI
         static readonly (string key, string english, ModBuilder.Kind kind)[] KindTabs =
         {
             ("mbShips", "Ships", ModBuilder.Kind.Ships), ("mbItems", "Items", ModBuilder.Kind.Items), ("mbFx", "Weapon fx", ModBuilder.Kind.WeaponFx),
+            ("mbPlayerInfrastructure", "Player-built stations & gates", ModBuilder.Kind.PlayerInfrastructure),
             ("mbSkins", "Skins", ModBuilder.Kind.Skins), ("mbKits", "Ship kits", ModBuilder.Kind.Kits), ("mbBlueprints", "Blueprints", ModBuilder.Kind.Blueprints),
             ("mbCharacters", "Characters", ModBuilder.Kind.Characters), ("mbQuests", "Missions", ModBuilder.Kind.Quests), ("mbAudio", "Audio", ModBuilder.Kind.Audio),
             ("mbSystems", "Systems", ModBuilder.Kind.Systems), ("mbModRaces", "Races", ModBuilder.Kind.Races), ("mbStations", "Stations", ModBuilder.Kind.Stations), ("mbNpcShips", "NPC ships", ModBuilder.Kind.NpcShips),
@@ -458,7 +459,7 @@ namespace GoF2Remake.UI
         {
             if (k != ModBuilder.Kind.AiTools && !EditsHere(k))   // the AI tools' tab is shown wherever the builder is
             {
-                SaveNow();
+                if (!TrySaveNow()) return;
                 if (ModBuilder.GoTo(k)) return;
             }
             var was = kind;
@@ -495,11 +496,24 @@ namespace GoF2Remake.UI
             saveAtMs = nowMs + 400f;
         }
 
-        protected void SaveNow()
+        protected void SaveNow() => TrySaveNow();
+
+        bool TrySaveNow()
         {
-            saveDirty = false;
-            Project?.Save();
-            ModBuilder.History?.Commit();   // a save point is an undo step (when anything changed)
+            try
+            {
+                Project?.Save();
+                ModBuilder.History?.Commit();   // a save point is an undo step (when anything changed)
+                saveDirty = false;
+                return true;
+            }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            {
+                saveDirty = true;
+                saveAtMs = nowMs + 2000f;
+                Status("Could not save the project: " + e.Message + " (will retry).", true);
+                return false;
+            }
         }
 
         /// <summary>The game reads the project again soon ('soon': a structural change, half a second after the last one).</summary>
@@ -538,7 +552,7 @@ namespace GoF2Remake.UI
         {
             var h = ModBuilder.History;
             if (h == null || Project == null || Dragging) return;
-            SaveNow();
+            if (!TrySaveNow()) return;
             var restore = BeforeUndo();
             if (!(redo ? h.Redo() : h.Undo()))
             {
@@ -672,8 +686,17 @@ namespace GoF2Remake.UI
             modal.AddToClassList("mbv-modal--shown");
         }
 
+        int configurationModalRevision = -1;
+        void CheckConfigurationModal()
+        {
+            if (configurationModalRevision < 0 || Project == null || configurationModalRevision == Project.ConfigurationRevision) return;
+            CloseModal();
+            Status("Configuration changed outside this editor. Reopen it to see the current values.", true);
+        }
+
         protected void CloseModal()
         {
+            configurationModalRevision = -1;
             DropPendingAsk();
             modal.RemoveFromClassList("mbv-modal--shown");
             modal.RemoveFromClassList("mbv-modal--options");
@@ -849,12 +872,1083 @@ namespace GoF2Remake.UI
             Act(box, Localization.Get(31), ShowOptions, "mbv-menu-item");   // Options
             Act(box, T("mbDependencies", "Dependencies"), ShowDependencies, "mbv-menu-item");
             Act(box, T("mbModDetails", "Mod details"), ShowModDetails, "mbv-menu-item");
+            Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-menu-item");
             Act(box, T("mbFlightRules", "Flight rules"), ShowFlightRules, "mbv-menu-item");
+            Act(box, T("mbNpcFactionWar", "NPC faction warfare"), ShowNpcFactionWarRules, "mbv-menu-item");
+            Act(box, T("mbAdvancedEconomy", "Advanced economy"), ShowAdvancedEconomyRules, "mbv-menu-item");
             Act(box, T("mbTranslations", "Translations"), () => ShowTranslations(ModProject.TextLanguages[0]), "mbv-menu-item");
             Act(box, T("mbOptimize", "Optimize models and textures"), () => OpenOptimize(), "mbv-menu-item");
-            Act(box, T("mbSave", "Save"), () => { SaveNow(); CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
-            Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { CloseModal(); SaveNow(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
+            Act(box, T("mbSave", "Save"), () => { if (!TrySaveNow()) return; CloseModal(); Status(T("mbSaved", "Saved."), false); }, "mbv-menu-item");
+            Act(box, T("mbExitBuilder", "Exit the Mod Builder"), () => { if (!TrySaveNow()) return; CloseModal(); ModBuilder.End(); }, "mbv-menu-item", "mbv-danger");
             modal.AddToClassList("mbv-modal--shown");
+        }
+
+        // Documentation uses the same read-only source as MCP read_guide. Load only when opened;
+        // never reparse the full reference during a builder update or in space.
+        VisualElement DocumentationBox(string heading)
+        {
+            CloseModal();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, heading);
+            modal.AddToClassList("mbv-modal--shown");
+            return box;
+        }
+
+        ScrollView DocumentationScroll(VisualElement box)
+        {
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            new DragScroll(scroll);
+            return scroll;
+        }
+
+        void ShowModdingDocumentation()
+        {
+            ModdingGuide.Preload();
+            var box = DocumentationBox(T("mbModDocumentation", "Modding documentation"));
+            Note(box, T("mbModDocumentationIntro", "The bundled modding guide. The same files and sections are available to an MCP assistant through read_guide."));
+            var query = Add(box, new TextField { maxLength = 200 }, "mbv-field", "mbv-search");
+            Act(box, T("mbModDocumentationSearch", "Search documentation"), () => ShowModdingGuideSearch(query.value), "mbv-step");
+            var scroll = DocumentationScroll(box);
+            foreach (var (file, about) in ModdingGuide.Files)
+            {
+                if (!ModdingGuide.Has(file)) continue;
+                string selected = file;
+                Act(scroll, file, () => ShowModdingGuideFile(selected), "mbv-menu-item");
+                Note(scroll, about);
+            }
+            if (!ModdingGuide.Files.Any(f => ModdingGuide.Has(f.file)))
+                Note(scroll, T("mbModDocumentationUnavailable", "This build does not contain the modding guide."));
+            Act(box, T("mbBack", "Back"), ShowMenu, "mbv-step");
+        }
+
+        void ShowModdingGuideSearch(string query)
+        {
+            var box = DocumentationBox(T("mbModDocumentationSearch", "Search documentation"));
+            Note(box, query ?? "");
+            var scroll = DocumentationScroll(box);
+            var hits = ModdingGuide.Search(query, null, 40);
+            if (hits.Count == 0) Note(scroll, T("mbModDocumentationNoResults", "No matches. Try fewer or different words."));
+            foreach (var (file, line, heading, text) in hits)
+            {
+                string selected = file;
+                int from = line;
+                Act(scroll, $"{file}:{line}  {heading}", () => ShowModdingGuidePage(selected, from), "mbv-menu-item");
+                Note(scroll, text);
+            }
+            if (hits.Count == 40)
+                Note(scroll, T("mbModDocumentationMoreMatches", "First 40 matches shown. Narrow your search for more specific results."));
+            Act(box, T("mbBack", "Back"), ShowModdingDocumentation, "mbv-step");
+        }
+
+        void ShowModdingGuideFile(string file)
+        {
+            var box = DocumentationBox(file);
+            var scroll = DocumentationScroll(box);
+            Act(scroll, T("mbModDocumentationBeginning", "Read from beginning"), () => ShowModdingGuidePage(file, 1), "mbv-menu-item");
+            foreach (var (line, level, title) in ModdingGuide.Headings(file))
+            {
+                int from = line;
+                Act(scroll, new string(' ', (level - 1) * 2) + title, () => ShowModdingGuidePage(file, from), "mbv-menu-item");
+            }
+            Act(box, T("mbBack", "Back"), ShowModdingDocumentation, "mbv-step");
+        }
+
+        void ShowModdingGuidePage(string file, int line)
+        {
+            // Bounded pages keep the large original-data reference usable on phones.
+            // Track the actual lines included so a long table never skips entries.
+            string all = ModdingGuide.Text(file);
+            if (all == null) { ShowModdingDocumentation(); return; }
+            var lines = all.Split('\n');
+            int start = Mathf.Clamp(line - 1, 0, lines.Length - 1), end = start, size = 0;
+            while (end < lines.Length && end - start < 60 &&
+                (end == start || size + lines[end].Length + 1 <= 16000))
+                size += lines[end++].Length + 1;
+            var box = DocumentationBox(file);
+            Note(box, $"{start + 1}–{end} / {lines.Length}");
+            var scroll = DocumentationScroll(box);
+            Add(scroll, new TextField
+            {
+                value = string.Join("\n", lines, start, end - start),
+                multiline = true,
+                isReadOnly = true
+            }, "mbv-field", "mbv-script");
+            var row = Row(box);
+            if (start > 0)
+            {
+                int previous = start, previousSize = 0;
+                while (previous > 0 && start - previous < 60 &&
+                    (previous == start || previousSize + lines[previous - 1].Length + 1 <= 16000))
+                    previousSize += lines[--previous].Length + 1;
+                // End the previous page at the current start rather than skipping text.
+                Act(row, T("mbModDocumentationPrevious", "Previous"), () => ShowModdingGuidePage(file, previous + 1), "mbv-step");
+            }
+            if (end < lines.Length)
+                Act(row, T("mbModDocumentationNext", "Next"), () => ShowModdingGuidePage(file, end + 1), "mbv-step");
+            Act(row, T("mbModDocumentationContents", "Contents"), () => ShowModdingGuideFile(file), "mbv-step");
+            Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-step");
+        }
+
+        int economyTab, economyStockPage, economyRoutePage, economyFleetPage;
+        int economyFaction = -1, economyBulkField, economyBulkValue;
+        string economyCommodity;
+        readonly List<string> economySystems = new List<string>();
+        const int EconomyPageSize = 20;
+
+        List<JObject> EconomyPage(VisualElement parent, List<JObject> all, int page, Action<int> set)
+        {
+            int pages = Math.Max(1, (all.Count + EconomyPageSize - 1) / EconomyPageSize);
+            page = Math.Clamp(page, 0, pages - 1);
+            var bar = Row(parent);
+            var previous = Act(bar, "Previous", () => { set(page - 1); ShowAdvancedEconomyRules(); }, "mbv-step");
+            previous.SetEnabled(page > 0);
+            Add(bar, new Label($"Page {page + 1} / {pages} ({all.Count} matching)"), "mbv-inline-label");
+            var next = Act(bar, "Next", () => { set(page + 1); ShowAdvancedEconomyRules(); }, "mbv-step");
+            next.SetEnabled(page + 1 < pages);
+            return all.Skip(page * EconomyPageSize).Take(EconomyPageSize).ToList();
+        }
+
+        int EconomySystem(string reference, bool station)
+        {
+            if (string.IsNullOrEmpty(reference)) return -1;
+            if (!station)
+                return ModWorld.TryResolveSystem(reference, out int system) ||
+                    ModWorld.TryResolveSystem(Project.Id + ":" + reference, out system) ? system : -1;
+            if (!ModWorld.TryResolveStation(reference, out int id) &&
+                !ModWorld.TryResolveStation(Project.Id + ":" + reference, out id)) return -1;
+            return Database.Shared.Stations.Find(st => st.index == id)?.system ?? -1;
+        }
+
+        void ShowAdvancedEconomyRules()
+        {
+            if (Project == null) return;
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            configurationModalRevision = Project.ConfigurationRevision;
+            modal.Clear();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, T("mbAdvancedEconomy", "Advanced economy"));
+            Segments(box, null, new[] { "General", "Production", "Freight", "Pricing", "Routes" }, economyTab,
+                v => { economyTab = v; ShowAdvancedEconomyRules(); });
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            var rules = Project.AdvancedEconomyRules;
+            bool Bool(string key, bool fallback = false) => rules[key]?.Type == JTokenType.Boolean ? (bool)rules[key] : fallback;
+            int Number(string key, int fallback) => int.TryParse(rules[key]?.ToString(), out int n) ? n : fallback;
+            void Flag(string key, string label, bool fallback = false) => FlagButton(Row(scroll), label, Bool(key, fallback),
+                v => rules[key] = v, ShowAdvancedEconomyRules);
+            void Option(string key, string label, int fallback, int min, int max) => Int(scroll, label, Number(key, fallback), min, max, v => { rules[key] = v; MarkDirty(); });
+            if (economyTab == 0)
+            {
+                Flag("enabled", "Enable advanced economy");
+                Flag("persistentInventory", "Persistent commodity stock (multiplayer session)");
+                Flag("saveInventory", "Save stock across persistent server restarts");
+                Flag("simulateUnvisitedStations", "Simulate unvisited configured stations");
+                Note(scroll, "Only explicitly configured commodities are managed. Unconfigured shops retain vanilla behavior.");
+            }
+            if (economyTab == 2)
+            {
+                Flag("regionalTrade", "Regional trade");
+                Flag("physicalFreight", "Physical freight (requires regional trade and saved inventory)");
+                Option("rhinoCapacity", "Rhino freight capacity (t)", 2500, 1, ModAdvancedEconomy.MaxStock);
+                Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
+                Option("nativeFreighterCapacity", "Native racial freighter capacity (t)", Number("rhinoCapacity", 2500), 1, ModAdvancedEconomy.MaxStock);
+                Option("nativeFreighterSpeedPercent", "Native racial freighter speed (%)", 100, 10, 500);
+                Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
+                Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
+                Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Heading(scroll, "Freight dispatch rules");
+                Flag("freightMixedShipments", "Consolidate mixed commodity shipments", true);
+                Option("freightMinimumShipment", "Minimum shipment (t)", ModAdvancedEconomy.DefaultFreightMinimumShipment, 1, ModAdvancedEconomy.MaxStock);
+                Option("freightMinimumUtilizationPercent", "Minimum hull utilization (%)", ModAdvancedEconomy.DefaultFreightMinimumUtilization, 0, 100);
+                Flag("freightEmergencyDispatch", "Allow smaller emergency shipments", true);
+                if (Bool("freightEmergencyDispatch", true))
+                    Option("freightCriticalStockPercent", "Critical destination stock (% of target)", ModAdvancedEconomy.DefaultFreightCriticalStock, 0, 100);
+                Note(scroll, "Applies to native racial and custom freight hulls. Mixing combines up to 16 commodities with the same supplier and destination; thresholds apply to total cargo. Each commodity retains its route cap. Minimums are capped by feasible route, target and hull capacity. Emergency checks include inbound cargo. Disabling mixing affects only new shipments.");
+                Option("freightTravelMinSeconds", "Abstract jump minimum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightTravelMaxSeconds", "Abstract jump maximum (seconds)", 90, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightUnloadMinSeconds", "Unloading minimum (seconds)", 15, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightUnloadMaxSeconds", "Unloading maximum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightWreckLifetimeSeconds", "Freight wreck lifetime (seconds)", 300, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("rhinoFreightSpeedPercent", "Rhino speed (% of normal freighter speed)", 75, 10, 500);
+                Option("cormorantFreightSpeedPercent", "Cormorant speed (% of normal freighter speed)", 125, 10, 500);
+                RefField(scroll, "Default Terran bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
+                {
+                    rules["rhinoShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
+                }, "Rhino (default)");
+                RefField(scroll, "Default Terran light freighter hull", RefKind.Ship, rules["cormorantShip"]?.ToString(), value =>
+                {
+                    rules["cormorantShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
+                }, "Cormorant (default)");
+                Heading(scroll, "Economy traffic fleets by race");
+                Note(scroll, "A race with custom entries uses only those entries. Other races use their native freight model; Terrans additionally use the default light and bulk hulls. Use native for the racial cargo ship, or select any ship from the content picker.");
+                var fleets = rules["freightFleets"] as JArray ?? new JArray();
+                foreach (var entry in EconomyPage(scroll, fleets.OfType<JObject>().ToList(), economyFleetPage, v => economyFleetPage = v))
+                {
+                    string race = entry["race"]?.ToString() ?? "terran";
+                    string ship = entry["ship"]?.ToString() ?? "native";
+                    Heading(scroll, race + " / " + (ship == "native" ? "Native racial freighter" : RefLabel(RefKind.Ship, ship, "Unknown hull")));
+                    Text(scroll, "Race (game race name, number or mod_id:race_id)", race, 256,
+                        v => { entry["race"] = v.Trim(); MarkDirty(); });
+                    RefField(scroll, "Economy hull", RefKind.Ship, ship == "native" ? null : ship, v =>
+                    {
+                        entry["ship"] = string.IsNullOrEmpty(v) ? "native" : v;
+                        MarkDirty(); ShowAdvancedEconomyRules();
+                    }, "Native racial freighter");
+                    Act(scroll, "Use native racial freighter", () =>
+                    {
+                        entry["ship"] = "native"; MarkDirty(); ShowAdvancedEconomyRules();
+                    }, "mbv-step");
+                    int FleetNumber(string key, int fallback) => int.TryParse(entry[key]?.ToString(), out int n) ? n : fallback;
+                    Int(scroll, "Cargo capacity (t)", FleetNumber("capacity", Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500))), 1, ModAdvancedEconomy.MaxStock,
+                        v => { entry["capacity"] = v; MarkDirty(); });
+                    Int(scroll, "Relative selection weight", FleetNumber("weight", 1), 1, 1000,
+                        v => { entry["weight"] = v; MarkDirty(); });
+                    Int(scroll, "Flight speed (%)", FleetNumber("speedPercent", 100), 10, 500,
+                        v => { entry["speedPercent"] = v; MarkDirty(); });
+                    Act(scroll, "Remove fleet entry", () =>
+                    {
+                        entry.Remove(); MarkDirty(); ShowAdvancedEconomyRules();
+                    }, "mbv-step");
+                }
+                Act(scroll, "+ Economy fleet hull", () =>
+                {
+                    if (rules["freightFleets"] == null) rules["freightFleets"] = fleets;
+                    fleets.Add(new JObject { ["race"] = "terran", ["ship"] = "native", ["capacity"] = Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500)),
+                        ["weight"] = 1, ["speedPercent"] = 100 });
+                    MarkDirty(); ShowAdvancedEconomyRules();
+                }, "mbv-add");
+            }
+            if (economyTab == 4)
+            {
+                Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
+                Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
+                Flag("restrictedGateRouting", "Use restricted gates only with explicit owner NPC permission");
+                Flag("tradeDisruption", "War-related shipment losses");
+                Option("automaticRouteCapacity", "Automatic route cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
+                Option("automaticRouteWarLossPercent", "Automatic route max wartime loss (%)", 0, 0, 100);
+                Option("ticksPerHop", "Minimum ticks per gate hop (legacy abstract trade)", 1, 1, 12);
+                Option("maxAutomaticHops", "Maximum automatic route hops", 8, 1, 8);
+            }
+            if (economyTab == 3)
+            {
+                Flag("dynamicPricing", "Dynamic server prices (requires saved inventory and profiles)");
+                Flag("transportCosts", "Import transport costs in dynamic prices");
+                Flag("playerMarketTrade", "Allow opt-in NPC purchases from player marketplaces");
+                Flag("npcConstructionSupply", "Allow NPC surplus to fill funded construction buy orders");
+                Option("npcConstructionUnitsPerTick", "NPC construction supply units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
+                Option("playerMarketBudgetPerTick", "NPC player-market credits per tick", 0, 0, 1000000000);
+                Option("playerMarketUnitsPerTick", "NPC player-market units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
+                Option("scarcityMarkupPercent", "Maximum scarcity markup (%)", 100, 0, 500);
+                Option("surplusDiscountPercent", "Maximum surplus discount (%)", 30, 0, 90);
+                Option("warMarkupPercent", "Maximum war price markup (%)", 50, 0, 500);
+                Option("transportCostPerHopPercent", "Import cost per hop (%)", 5, 0, 100);
+                Option("sellSpreadPercent", "Buy/sell spread (%)", 10, 1, 99);
+            }
+            if (economyTab == 1)
+            {
+                Flag("stationProduction", "Station production");
+                Flag("stationConsumption", "Station consumption");
+                Flag("warPressure", "Frontline commodity demand");
+                Option("frontlinePressurePercent", "Frontline pressure (%)", 50, 0, 100);
+                Option("battlePressurePercent", "Active battle pressure (%)", 100, 0, 100);
+                Int(scroll, "Station production / consumption tick (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
+                    v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
+                Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
+                var rows = rules["stockRules"] as JArray ?? new JArray();
+                Heading(scroll, "Commodity stock rules");
+                var factions = Database.Shared.Systems.Select(system => (int)system.raceId).Where(id => id >= 0).Distinct().OrderBy(id => id).ToList();
+                factions.Insert(0, -1);
+                var factionLabels = factions.Select(id => id == -1 ? "All factions" : ModRaces.Name(id) + " (" + id + ")").ToList();
+                var factionPicker = Add(scroll, new DropdownField("System faction", factionLabels, Math.Max(0, factions.IndexOf(economyFaction))), "mbv-field");
+                factionPicker.RegisterValueChangedCallback(e =>
+                {
+                    economyFaction = factions[factionLabels.IndexOf(e.newValue)];
+                    economyStockPage = 0; ShowAdvancedEconomyRules();
+                });
+                Note(scroll, economySystems.Count == 0 ? "All systems (select one or more to narrow the filter)." : "Selected systems:");
+                foreach (string reference in economySystems.ToList())
+                {
+                    var line = Row(scroll);
+                    Add(line, new Label(RefLabel(RefKind.System, reference, reference)), "mbv-inline-label");
+                    Act(line, "×", () => { economySystems.Remove(reference); economyStockPage = 0; ShowAdvancedEconomyRules(); }, "mbv-step");
+                }
+                Act(scroll, "+ Select system", () => PickRef(RefKind.System, "Add system to filter", picked =>
+                {
+                    if (picked != null && !economySystems.Contains(picked.value)) economySystems.Add(picked.value);
+                    economyStockPage = 0; ShowAdvancedEconomyRules();
+                }), "mbv-add");
+                RefField(scroll, "Commodity filter", RefKind.Item, economyCommodity, value =>
+                {
+                    economyCommodity = value; economyStockPage = 0; ShowAdvancedEconomyRules();
+                }, "All commodities", filter: entry => entry.type == 4);
+                var systemIds = new HashSet<int>(economySystems.Select(reference => EconomySystem(reference, false)).Where(id => id >= 0));
+                bool ResolveCommodity(string reference, out int id) => ModContent.TryResolveItem(reference, out id) ||
+                    ModContent.TryResolveItem(Project.Id + ":" + reference, out id);
+                bool Matches(JObject row)
+                {
+                    if (economySystems.Count == 0 && economyFaction == -1 && string.IsNullOrEmpty(economyCommodity)) return true;
+                    int system = EconomySystem((row["system"] ?? row["station"])?.ToString(), row["system"] == null);
+                    if (economySystems.Count > 0 && !systemIds.Contains(system)) return false;
+                    if (economyFaction != -1 && Database.Shared.Systems.Find(x => x.index == system)?.raceId != economyFaction) return false;
+                    if (string.IsNullOrEmpty(economyCommodity)) return true;
+                    string item = row["item"]?.ToString();
+                    return string.Equals(item, economyCommodity, StringComparison.OrdinalIgnoreCase) ||
+                        (item != null && ResolveCommodity(item, out int a) && ResolveCommodity(economyCommodity, out int b) && a == b);
+                }
+                var matching = rows.OfType<JObject>().Where(Matches).ToList();
+                var bulkKeys = new[] { "targetStock", "maximumStock", "initialStock", "productionPerTick", "consumptionPerTick", "warDemandPerTick" };
+                var bulkLabels = new List<string> { "Target stock", "Maximum stock", "Initial stock", "Production per tick", "Consumption per tick", "Extra war demand" };
+                var bulkPicker = Add(scroll, new DropdownField("Bulk field", bulkLabels, economyBulkField), "mbv-field");
+                bulkPicker.RegisterValueChangedCallback(e => economyBulkField = bulkLabels.IndexOf(e.newValue));
+                Int(scroll, "Bulk value", economyBulkValue, 0, ModAdvancedEconomy.MaxStock, value => economyBulkValue = value);
+                var bulk = Act(scroll, $"Apply bulk value to {matching.Count} matching rules (all pages)", () =>
+                {
+                    if (economySystems.Count == 0 && economyFaction == -1 && string.IsNullOrEmpty(economyCommodity))
+                    { Status("Select a system, faction or commodity filter before bulk editing.", true); return; }
+                    string key = bulkKeys[economyBulkField];
+                    int value = economyBulkValue;
+                    var draft = (JObject)rules.DeepClone();
+                    var draftRows = (JArray)draft["stockRules"];
+                    foreach (var row in matching) ((JObject)draftRows[rows.IndexOf(row)])[key] = value;
+                    try
+                    {
+                        foreach (var row in draftRows.OfType<JObject>())
+                        {
+                            int target = ModJson.Int(row, "targetStock", 100, ModAdvancedEconomy.File);
+                            int maximum = ModJson.Int(row, "maximumStock", target, ModAdvancedEconomy.File);
+                            int initial = ModJson.Int(row, "initialStock", target, ModAdvancedEconomy.File);
+                            if (target < 1 || maximum < target || maximum > ModAdvancedEconomy.MaxStock || initial < 0 || initial > maximum)
+                                throw new ModJsonException("Bulk edit would create invalid stock limits. Adjust maximum, target or initial stock first.");
+                        }
+                        ModAdvancedEconomy.ValidateConfiguration(Database.Shared, ModManager.BuilderProject, draft);
+                    }
+                    catch (Exception e) { Status("Bulk edit rejected: " + e.Message, true); return; }
+                    foreach (var row in matching) row[key] = value;
+                    MarkDirty(); ShowAdvancedEconomyRules();
+                    Status($"Updated {matching.Count} stock rules.", false);
+                }, "mbv-step");
+                bulk.SetEnabled(matching.Count > 0);
+                foreach (var row in EconomyPage(scroll, matching, economyStockPage, v => economyStockPage = v))
+                {
+                    int Value(string key, int fallback) => int.TryParse(row[key]?.ToString(), out int n) ? n : fallback;
+                    void Field(string key, string label, int fallback, int min) =>
+                        Int(scroll, label, Value(key, fallback), min, ModAdvancedEconomy.MaxStock,
+                            v => { row[key] = v; MarkDirty(); });
+                    bool systemRule = row["system"] != null;
+                    string location = (systemRule ? row["system"] : row["station"])?.ToString();
+                    string commodity = row["item"]?.ToString();
+                    Heading(scroll, $"{RefLabel(systemRule ? RefKind.System : RefKind.Station, location, "Unknown location")} / {RefLabel(RefKind.Item, commodity, "Unknown commodity")}");
+                    Field("targetStock", "Target stock", 100, 1);
+                    Field("maximumStock", "Maximum stock", 100, 1);
+                    Field("initialStock", "Initial stock", 100, 0);
+                    Field("productionPerTick", "Production per tick", 0, 0);
+                    Field("consumptionPerTick", "Consumption per tick", 0, 0);
+                    Field("warDemandPerTick", "Extra demand at maximum war pressure", 0, 0);
+                    Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+                }
+                void AddStockRule(RefKind kind, string key)
+                {
+                    PickRef(kind, kind == RefKind.System ? "Select system" : "Select station", location =>
+                    {
+                        if (location == null) { ShowAdvancedEconomyRules(); return; }
+                        PickRef(RefKind.Item, "Select commodity", item =>
+                        {
+                            if (item != null && !rows.OfType<JObject>().Any(r =>
+                                r[key]?.ToString() == location.value && r["item"]?.ToString() == item.value))
+                            {
+                                rows.Add(new JObject { [key] = ProjectEntry.RefToken(location.value),
+                                    ["item"] = ProjectEntry.RefToken(item.value), ["initialStock"] = 100,
+                                    ["targetStock"] = 100, ["maximumStock"] = 200,
+                                    ["productionPerTick"] = 0, ["consumptionPerTick"] = 0, ["warDemandPerTick"] = 0 });
+                                if (rules["stockRules"] != rows) rules["stockRules"] = rows;
+                                MarkDirty();
+                            }
+                            ShowAdvancedEconomyRules();
+                        }, e => e.type == 4);
+                    });
+                }
+                Act(scroll, "+ Station commodity rule", () => AddStockRule(RefKind.Station, "station"), "mbv-add");
+                Act(scroll, "+ System commodity profile", () => AddStockRule(RefKind.System, "system"), "mbv-add");
+                Note(scroll, "System rules apply to NPC stations in the selected system. Explicit station rules override the same commodity's system rule within this mod.");
+            }
+            if (economyTab == 4)
+            {
+                Heading(scroll, "Trade routes");
+                var routes = rules["tradeRoutes"] as JArray ?? new JArray();
+                foreach (var route in EconomyPage(scroll, routes.OfType<JObject>().ToList(), economyRoutePage, v => economyRoutePage = v))
+                {
+                    string from = RefLabel(RefKind.Station, route["source"]?.ToString(), "Unknown source");
+                    string to = RefLabel(RefKind.Station, route["destination"]?.ToString(), "Unknown destination");
+                    string item = RefLabel(RefKind.Item, route["item"]?.ToString(), "Unknown commodity");
+                    Heading(scroll, $"{from} → {to}: {item}");
+                    void RouteField(string key, string label, int fallback, int min, int max) =>
+                        Int(scroll, label, int.TryParse(route[key]?.ToString(), out int n) ? n : fallback, min, max,
+                            v => { route[key] = v; MarkDirty(); });
+                    RouteField("capacity", "Cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
+                    RouteField("travelTicks", "Travel time (legacy economy ticks)", 1, 1, 96);
+                    RouteField("warLossPercent", "Maximum war loss (%)", 0, 0, 100);
+                    Act(scroll, "Remove route", () => { route.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+                }
+                Act(scroll, "+ Trade route", () => PickRef(RefKind.Station, "Select source station", source =>
+                {
+                    if (source == null) { ShowAdvancedEconomyRules(); return; }
+                    PickRef(RefKind.Station, "Select destination station", destination =>
+                    {
+                        if (destination == null) { ShowAdvancedEconomyRules(); return; }
+                        PickRef(RefKind.Item, "Select commodity", commodity =>
+                        {
+                            if (commodity != null && !routes.OfType<JObject>().Any(r =>
+                                r["source"]?.ToString() == source.value && r["destination"]?.ToString() == destination.value &&
+                                r["item"]?.ToString() == commodity.value))
+                            {
+                                routes.Add(new JObject { ["source"] = ProjectEntry.RefToken(source.value),
+                                    ["destination"] = ProjectEntry.RefToken(destination.value), ["item"] = ProjectEntry.RefToken(commodity.value),
+                                    ["capacity"] = 100, ["travelTicks"] = 1, ["warLossPercent"] = 0 });
+                                if (rules["tradeRoutes"] != routes) rules["tradeRoutes"] = routes;
+                                MarkDirty();
+                            }
+                            ShowAdvancedEconomyRules();
+                        }, e => e.type == 4);
+                    }, e => e.value != source.value);
+                }), "mbv-add");
+                Note(scroll, "Routes require managed stock for the commodity at both stations and an operational path through the jumpgate network. Invalid routes are reported on reload. Dynamic pricing requires durable inventory saving on a profile server.");
+            }
+            Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
+            modal.AddToClassList("mbv-modal--shown");
+        }
+
+        void ShowNpcFactionWarRules()
+        {
+            if (Project == null) return;
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            configurationModalRevision = Project.ConfigurationRevision;
+            modal.Clear();
+            var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
+            Heading(box, T("mbNpcFactionWar", "NPC faction warfare"));
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            var rules = Project.NpcFactionWarRules;
+            bool Bool(string key, bool fallback) => rules[key]?.Type == JTokenType.Boolean ? (bool)rules[key] : fallback;
+            int Number(string key, int fallback) => int.TryParse(rules[key]?.ToString(), out int n) ? n : fallback;
+            FlagButton(Row(scroll), T("mbNpcWarEnabled", "Enable NPC faction warfare"), Bool("enabled", false),
+                v => rules["enabled"] = v, ShowNpcFactionWarRules);
+            FlagButton(Row(scroll), T("mbDynamicFrontlines", "Dynamic frontlines"), Bool("dynamicFrontlines", true),
+                v => rules["dynamicFrontlines"] = v, ShowNpcFactionWarRules);
+            Note(scroll, "When off, only explicitly selected frontlines can host battles. Exclusions and core protection win.");
+            FlagButton(Row(scroll), T("mbGateOnlyFrontlines", "Gate-only frontlines"), Bool("gateOnlyFrontlines", false),
+                v => rules["gateOnlyFrontlines"] = v, ShowNpcFactionWarRules);
+            Note(scroll, "When enabled, nearby systems without gate links cannot create a frontier. Captured footholds still count.");
+            Int(scroll, "Ships per side", Number("shipsPerSide", 12), 4, NpcFactionWar.MaxShipsPerSide, v => { rules["shipsPerSide"] = v; MarkDirty(); });
+            Int(scroll, "Interval (seconds)", Number("intervalSeconds", 1200), 60, 86400, v => { rules["intervalSeconds"] = v; MarkDirty(); });
+            Int(scroll, "Battle time (seconds)", Number("battleSeconds", 480), 60, 3600, v => { rules["battleSeconds"] = v; MarkDirty(); });
+            Heading(scroll, "Faction wars and battleships");
+            var pairs = rules["warPairs"] as JArray ?? new JArray();
+            FlagButton(Row(scroll), "Include original faction wars", Bool("includeDefaultWars", true), v => { rules["includeDefaultWars"] = v; rules["warPairs"] = pairs; }, ShowNpcFactionWarRules);
+            foreach (var pair in pairs.OfType<JArray>().Where(p => p.Count == 2).ToList())
+            {
+                Text(scroll, "Faction A (name or mod_id:race_id)", pair[0].ToString(), 256, v => { pair[0] = v.Trim(); MarkDirty(); });
+                Text(scroll, "Faction B (name or mod_id:race_id)", pair[1].ToString(), 256, v => { pair[1] = v.Trim(); MarkDirty(); });
+                Act(scroll, "Remove war pair", () => { pair.Remove(); MarkDirty(); ShowNpcFactionWarRules(); }, "mbv-step");
+            }
+            Act(scroll, "+ War pair", () => { if (rules["warPairs"] == null) rules["warPairs"] = pairs; pairs.Add(new JArray("terran", "vossk")); MarkDirty(); ShowNpcFactionWarRules(); }, "mbv-add");
+            var capitals = rules["battleships"] as JObject ?? new JObject();
+            foreach (var faction in new[] { ("0", "Terran"), ("1", "Vossk"), ("2", "Nivelian"), ("3", "Midorian"), ("4", "Octopod"), ("5", "Cyborg"), ("6", "Bobolian"), ("7", "Grey"), ("8", "Pirates"), ("9", "Void"), ("10", "Specters") }.Concat(ModRaces.All.Select(d => (d.key, ModRaces.Name(d.race)))))
+            {
+                string key = faction.Item1;
+                var fleet = capitals[key] as JObject ?? new JObject();
+                var hulls = fleet["hulls"] as JArray ?? new JArray();
+                Heading(scroll, faction.Item2 + " battleships");
+                void AttachFleet() { fleet["hulls"] = hulls; capitals[key] = fleet; rules["battleships"] = capitals; MarkDirty(); }
+                Int(scroll, "Spawn chance (%)", (int?)fleet["chancePercent"] ?? 0, 0, 100, v => { fleet["chancePercent"] = v; AttachFleet(); });
+                foreach (var hull in hulls.ToList())
+                {
+                    string ship = hull is JObject obj ? obj["ship"]?.ToString() : hull.ToString();
+                    var row = Row(scroll);
+                    Add(row, new Label(ship == "native_terran" || ship == "native_vossk" ? ship : RefLabel(RefKind.Ship, ship, "Unknown hull")), "mbv-inline-label");
+                    if (hull is JObject weighted) Int(row, "Weight", (int?)weighted["weight"] ?? 1, 1, 1000, v => { weighted["weight"] = v; MarkDirty(); });
+                    Act(row, "×", () => { hull.Remove(); AttachFleet(); ShowNpcFactionWarRules(); }, "mbv-step");
+                }
+                void AddHull(string ship) { if (hulls.Count >= 64) return; hulls.Add(new JObject { ["ship"] = ship, ["weight"] = 1 }); if (fleet["chancePercent"] == null) fleet["chancePercent"] = 80; AttachFleet(); ShowNpcFactionWarRules(); }
+                Act(scroll, "+ Select hull", () => PickRef(RefKind.Ship, "Choose battleship hull", e => { if (e != null) AddHull(e.value); else ShowNpcFactionWarRules(); }), "mbv-add");
+                Act(scroll, "+ Native Terran battleship", () => AddHull("native_terran"), "mbv-add");
+                Act(scroll, "+ Native Vossk battleship", () => AddHull("native_vossk"), "mbv-add");
+            }
+            Heading(scroll, "Victory rewards");
+            Int(scroll, "Double-sided damage threshold (%)", Number("doubleSidedDamageThresholdPercent", ModNpcFactionWar.DefaultDoubleSidedDamageThresholdPercent),
+                0, ModNpcFactionWar.MaxDoubleSidedDamageThresholdPercent,
+                v => { rules["doubleSidedDamageThresholdPercent"] = v; MarkDirty(); });
+            Note(scroll, "Disqualify a pilot who deals at least this much hull damage to each fleet. 100% is one ship's full hull; 0 disables this exclusion.");
+            Note(scroll, "Choose legacy (shared credits, full loot), split (both shared), or flat (both per player). Personal bonuses apply after distribution. Rewards are collected by docking at the captured station.");
+            var rewards = rules["rewards"] as JObject ?? new JObject();
+            RewardSection("default", "Default victory rewards");
+            RewardSection("0", "Terran victory");
+            RewardSection("1", "Vossk victory");
+            RewardSection("2", "Nivelian victory");
+            RewardSection("3", "Midorian victory");
+            for (int race = 4; race <= 10; race++) RewardSection(race.ToString(), GoF2Remake.Flight.Standing.RaceName(race) + " victory");
+            foreach (var race in ModRaces.All) RewardSection(race.key, ModRaces.Name(race.race) + " victory");
+
+            void RewardSection(string key, string title)
+            {
+                Heading(scroll, title);
+                bool isDefault = key == "default";
+                var section = rewards[key] as JObject ?? new JObject();
+                var fallback = rewards["default"] as JObject;
+                int inherited = int.TryParse(fallback?["credits"]?.ToString(), out int pool) ? pool : 100000;
+                int credits = int.TryParse(section["credits"]?.ToString(), out int n) ? n : inherited;
+                void Attach()
+                {
+                    if (rewards[key] != section) rewards[key] = section;
+                    if (rules["rewards"] != rewards) rules["rewards"] = rewards;
+                    MarkDirty();
+                }
+                string Mode() => section["distribution"]?.ToString() ?? fallback?["distribution"]?.ToString() ?? "legacy";
+                Act(scroll, "Distribution: " + Mode(), () =>
+                {
+                    section["distribution"] = Mode() == "legacy" ? "split" : Mode() == "split" ? "flat" : "legacy";
+                    Attach(); ShowNpcFactionWarRules();
+                }, "mbv-add");
+                foreach (var option in new[] { ("reputationBonusPercent", "Bonus at 100 reputation (%)", 0), ("participationBonusPercent", "Bonus per prior victory (%)", 0), ("participationBonusCapPercent", "Prior victory bonus cap (%)", 100) })
+                {
+                    int value = int.TryParse(section[option.Item1]?.ToString() ?? fallback?[option.Item1]?.ToString(), out int configured) ? configured : option.Item3;
+                    Int(scroll, option.Item2, value, 0, 1000, v => { section[option.Item1] = v; Attach(); });
+                }
+                bool scaleLoot = (bool?)(section["scaleLoot"] ?? fallback?["scaleLoot"]) ?? false;
+                FlagButton(Row(scroll), "Apply bonuses to equipment", scaleLoot, v => { section["scaleLoot"] = v; Attach(); }, ShowNpcFactionWarRules);
+                if (!isDefault) Act(scroll, "Inherit default distribution and bonuses", () =>
+                {
+                    foreach (string field in new[] { "distribution", "reputationBonusPercent", "participationBonusPercent", "participationBonusCapPercent", "scaleLoot" }) section.Remove(field);
+                    Attach(); ShowNpcFactionWarRules();
+                }, "mbv-add");
+                Int(scroll, "Base credit reward", credits, 0, int.MaxValue, value =>
+                {
+                    section["credits"] = value;
+                    Attach();
+                });
+                if (!isDefault)
+                    Act(scroll, "Inherit default credits", () =>
+                    {
+                        section.Remove("credits"); Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+
+                var loot = section["loot"] as JArray;
+                if (loot == null && !isDefault)
+                {
+                    Note(scroll, "Loot inherits the default list.");
+                    Act(scroll, "Override loot", () =>
+                    {
+                        section["loot"] = fallback?["loot"]?.DeepClone() as JArray ?? new JArray();
+                        Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+                    return;
+                }
+                loot ??= new JArray();
+                foreach (var entry in loot.OfType<JObject>().ToList())
+                {
+                    var row = Row(scroll);
+                    string reference = entry["item"]?.ToString();
+                    Add(row, new Label(RefLabel(RefKind.Item, reference, "Unknown item")), "mbv-inline-label");
+                    int amount = int.TryParse(entry["amount"]?.ToString(), out int count) ? count : 1;
+                    Int(row, "Base quantity", amount, 1, 10000, value => { entry["amount"] = value; Attach(); });
+                    Act(row, "×", () => { entry.Remove(); Attach(); ShowNpcFactionWarRules(); }, "mbv-step");
+                    foreach (var field in new[] {
+                        ("chancePercent", "Base drop chance (%)", 100, 0, 100),
+                        ("minReputation", "Minimum faction reputation", -100, -100, 100),
+                        ("minPriorVictories", "Minimum prior victories", 0, 0, int.MaxValue),
+                        ("reputationChanceBonusPercent", "Chance bonus at 100 reputation (points)", 0, 0, 100),
+                        ("victoryChanceBonusPercent", "Chance bonus per prior victory (points)", 0, 0, 100),
+                        ("victoryChanceCapPercent", "Prior victory chance bonus cap (points)", 100, 0, 100) })
+                    {
+                        int value = int.TryParse(entry[field.Item1]?.ToString(), out int configured) ? configured : field.Item3;
+                        Int(scroll, field.Item2, value, field.Item4, field.Item5, v => { entry[field.Item1] = v; Attach(); });
+                    }
+                    string quantityMode = entry["scaleQuantity"]?.Type == JTokenType.Boolean ? ((bool)entry["scaleQuantity"] ? "On" : "Off") : "Inherit";
+                    Act(scroll, "Quantity bonus: " + quantityMode, () =>
+                    {
+                        if (quantityMode == "Inherit") entry["scaleQuantity"] = true;
+                        else if (quantityMode == "On") entry["scaleQuantity"] = false;
+                        else entry.Remove("scaleQuantity");
+                        Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+                }
+                if (loot.Count < 32)
+                    Act(scroll, "+ Equipment", () => PickRef(RefKind.Item, "Select victory loot", entry =>
+                    {
+                        if (entry != null)
+                        {
+                            loot.Add(new JObject { ["item"] = ProjectEntry.RefToken(entry.value), ["amount"] = 1 });
+                            if (section["loot"] != loot) section["loot"] = loot;
+                            Attach();
+                        }
+                        ShowNpcFactionWarRules();
+                    }), "mbv-add");
+                if (!isDefault)
+                    Act(scroll, "Inherit default loot", () =>
+                    {
+                        section.Remove("loot"); Attach(); ShowNpcFactionWarRules();
+                    }, "mbv-add");
+            }
+
+            Heading(scroll, "Pirate activity");
+            Int(scroll, "Bounty movement minimum (seconds)", Number("pirateMoveMin", 600), 60, 3600, v => { rules["pirateMoveMin"] = v; MarkDirty(); });
+            Int(scroll, "Bounty movement maximum (seconds)", Number("pirateMoveMax", 1200), 60, 7200, v => { rules["pirateMoveMax"] = v; MarkDirty(); });
+            Int(scroll, "Escape charge (seconds)", Number("pirateEscapeSeconds", 12), 3, 120, v => { rules["pirateEscapeSeconds"] = v; MarkDirty(); });
+            Int(scroll, "Outpost defenders (0 = tier default)", Number("pirateGuardCount", 0), 0, 24, v => { rules["pirateGuardCount"] = v; MarkDirty(); });
+            Int(scroll, "Optional pirate capital ship ID (-1 = none)", Number("pirateCapitalShip", -1), -1, 1000000, v => { rules["pirateCapitalShip"] = v; MarkDirty(); });
+            SystemList("frontlineSystems", "Explicit frontline systems");
+            SystemList("excludedSystems", "Excluded systems");
+            SystemList("coreSystems", "Protected core systems");
+            SystemList("unprotectedDefaultCores", "Default cores with protection removed");
+            Note(scroll, "Explicit frontlines can override built-in hub protection, but not an explicit core, exclusion or maximum security.");
+            Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
+            modal.AddToClassList("mbv-modal--shown");
+
+            void SystemList(string key, string title)
+            {
+                Heading(scroll, title);
+                var values = rules[key] as JArray ?? new JArray();
+                foreach (var token in values.ToList())
+                {
+                    var row = Row(scroll);
+                    string reference = token.ToString();
+                    Add(row, new Label(RefLabel(RefKind.System, reference, reference)), "mbv-inline-label");
+                    Act(row, "×", () => { token.Remove(); MarkDirty(); ShowNpcFactionWarRules(); }, "mbv-step");
+                }
+                Act(scroll, "+ System", () => PickRef(RefKind.System, title, entry =>
+                {
+                    if (entry != null)
+                    {
+                        if (!values.Any(t => t.ToString() == entry.value)) values.Add(ProjectEntry.RefToken(entry.value));
+                        if (rules[key] != values) rules[key] = values;
+                        MarkDirty();
+                    }
+                    ShowNpcFactionWarRules();
+                }), "mbv-add");
+            }
+        }
+
+        JObject displayedInfrastructure;
+
+        protected void RefreshPlayerInfrastructure()
+        {
+            if (Project != null && !JToken.DeepEquals(displayedInfrastructure, Project.PlayerInfrastructure))
+                ShowPlayerInfrastructure();
+        }
+
+        protected void ShowPlayerInfrastructure()
+        {
+            if (Project == null) return;
+            displayedInfrastructure = (JObject)Project.PlayerInfrastructure.DeepClone();
+            var original = (JObject)displayedInfrastructure.DeepClone();
+            var draft = (JObject)displayedInfrastructure.DeepClone();
+            var box = rightGroups[(int)ModBuilder.Kind.PlayerInfrastructure];
+            box.Clear();
+            Heading(box, T("mbPlayerInfrastructure", "Player-built stations & gates"));
+            ModPlayerInfrastructure settings;
+            try { settings = ModPlayerInfrastructure.Parse(draft); }
+            catch (ModJsonException error)
+            {
+                Note(box, error.Message);
+                Act(box, "Repair rules JSON", () => EditJson(draft, () =>
+                {
+                    try { ModPlayerInfrastructure.Parse(draft); }
+                    catch (ModJsonException invalid) { Status(invalid.Message, true); return; }
+                    SaveInfrastructure(draft, original);
+                }, "Repair the player infrastructure rules"));
+                return;
+            }
+
+            var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
+            if (!draft.HasValues) Note(scroll, "This project inherits its player infrastructure rules until you apply a configuration.");
+            Heading(scroll, "Construction and models");
+            var enabled = Add(scroll, new Toggle("Allow new player station projects") { value = settings.Enabled }, "mbv-field");
+            var gates = Add(scroll, new Toggle("Allow new sponsored jumpgate projects") { value = settings.JumpgatesEnabled }, "mbv-field");
+            var stockStations = Add(scroll, new Toggle("Offer original station models") { value = settings.IncludeStockStations }, "mbv-field");
+            var stockGates = Add(scroll, new Toggle("Offer original jumpgate models") { value = settings.IncludeStockJumpgates }, "mbv-field");
+            Heading(scroll, "Construction duration");
+            var stationBuildSeconds = Add(scroll, new IntegerField("Stations (seconds)") { value = settings.StationBuildSeconds }, "mbv-field");
+            var jumpgateBuildSeconds = Add(scroll, new IntegerField("Jumpgates (seconds)") { value = settings.JumpgateBuildSeconds }, "mbv-field");
+            var moduleBuildFields = new Dictionary<string, IntegerField>();
+            foreach (string kind in ModPlayerInfrastructure.TimedModules)
+                moduleBuildFields.Add(kind, Add(scroll, new IntegerField(kind + " (seconds)") { value = settings.ModuleBuildSeconds(kind) }, "mbv-field"));
+            Note(scroll, "Timers start once the project is fully funded. A duration of 0 completes it immediately.");
+            var refineryRecipes = Add(scroll, new TextField("Refinery recipe overrides (JSON)") { multiline = true,
+                value = draft["refineryRecipes"]?.ToString() ?? "" }, "mbv-field");
+            Note(scroll, "Leave blank for stock recipes. Entries use input, output, inputUnits and outputUnits item IDs and quantities.");
+            var factoryRecipes = Add(scroll, new TextField("Factory recipe overrides (JSON)") { multiline = true,
+                value = draft["factoryRecipes"]?.ToString() ?? "" }, "mbv-field");
+            Note(scroll, "Factory entries use id, output, outputUnits and a materials list with item and amount. Server station-economy overrides take precedence.");
+            Note(scroll, "Author dry-dock designs in blueprints.json. Pilots can start eligible jobs from the shipyard.");
+            Heading(scroll, "Storage and station economy");
+            var storageCapacity = Add(scroll, new IntegerField("Storage units per level") { value = settings.StorageCapacityPerLevel }, "mbv-field");
+            var storageTypes = Add(scroll, new IntegerField("Distinct item types per station") { value = settings.StorageItemTypes }, "mbv-field");
+            var plotClaimPrice = Add(scroll, new IntegerField("New station plot claim price (CR)") { value = settings.StationPlotClaimPrice }, "mbv-field");
+            Note(scroll, "Paid from the builder’s personal credits when reserving a vacant orbit. Zero disables the fee.");
+            var claimPrice = Add(scroll, new IntegerField("Public station claim price (CR)") { value = settings.StationClaimPrice }, "mbv-field");
+            var renamePrice = Add(scroll, new IntegerField("Station rename price (CR)") { value = settings.StationRenamePrice }, "mbv-field");
+            Note(scroll, "Capacity: 1–1,000,000; item types: 1–4,096; prices: 0–2,147,483,647. Lowering storage limits never deletes existing property.");
+            Heading(scroll, "Siege respawning");
+            var siegeOfficers = Add(scroll, new Toggle("Allow defending faction officers") { value = settings.SiegeRespawnFactionOfficers }, "mbv-field");
+            var siegeAdmins = Add(scroll, new Toggle("Allow station administrators with operations permission") { value = settings.SiegeRespawnStationAdministrators }, "mbv-field");
+            var siegeBuilders = Add(scroll, new Toggle("Allow original builders with retained rights") { value = settings.SiegeRespawnOriginalBuilders }, "mbv-field");
+            Note(scroll, "Owners and defending faction leaders retain their respawn privileges. Ordinary defenders must use permitted fallback stations.");
+            Heading(scroll, "Race policies and player identity");
+            var stationRaceMarketLimit = Add(scroll, new IntegerField("Race marketplace adjustment cap (%)")
+                { value = settings.StationRaceMarketLimitPercent }, "mbv-field");
+            var stationRaceRevenue = Add(scroll, new Toggle("Pay race marketplace fees to the station owner or faction")
+                { value = settings.StationRaceRevenueToOwner }, "mbv-field");
+            Note(scroll, "A cap of 0 disables adjustments. When fee payout is off, fees leave the economy.");
+            var stationRacePolicies = Add(scroll, new Toggle("Enable station race policies")
+                { value = settings.StationRacePoliciesEnabled }, "mbv-field");
+            var stationRaceExemptions = Add(scroll, new Toggle("Allow station ownership authorities to grant race exemptions")
+                { value = settings.StationRaceExemptionsEnabled }, "mbv-field");
+            var playerIdentity = Add(scroll, new Toggle("Allow players to choose a race and portrait")
+                { value = settings.PlayerIdentityEnabled }, "mbv-field");
+            var gateRacePolicies = Add(scroll, new Toggle("Enable jumpgate race policies")
+                { value = settings.JumpgateRacePoliciesEnabled }, "mbv-field");
+            var gateRaceExemptions = Add(scroll, new Toggle("Allow gate managers to grant race exemptions")
+                { value = settings.JumpgateRaceExemptionsEnabled }, "mbv-field");
+            Heading(scroll, "Station and jumpgate models");
+            var integrity = Add(scroll, new FloatField("Fresh scrap integrity") { value = settings.ScrapIntegrity }, "mbv-field");
+            var stationScale = Add(scroll, new FloatField("Minimum station scale") { value = settings.MinimumStationScale }, "mbv-field");
+            var jumpgateScale = Add(scroll, new FloatField("Minimum jumpgate scale") { value = settings.MinimumJumpgateScale }, "mbv-field");
+            Note(scroll, $"Scales apply to stock and player-built structures in solo and modded multiplayer. Enter 1–{ModPlayerInfrastructure.MaxStructureScale}.");
+            Note(scroll, "Use one mod_id:id reference per line. Gate references point to systems with a custom jumpgate.");
+            var stationModels = Add(scroll, new TextField("Additional station models")
+                { multiline = true, value = string.Join("\n", settings.StationModels) }, "mbv-field");
+            Note(scroll, "Optional model thumbnails: one station reference = image ID or mod-relative image path per line.");
+            var modelImages = Add(scroll, new TextField("Station model thumbnail IDs") { multiline = true,
+                value = string.Join("\n", settings.StationModelImages.Select(entry => entry.Key + " = " + entry.Value)) }, "mbv-field");
+            var gateModels = Add(scroll, new TextField("Additional jumpgate models")
+                { multiline = true, value = string.Join("\n", settings.JumpgateModels) }, "mbv-field");
+
+            AddInfrastructureModelPicker(scroll, "Add a project station", stationModels, Project.Stations
+                .Where(station => !string.IsNullOrEmpty(station.Model)).Select(station =>
+                    (station.Name, station.IsOverride ? station.OverrideRef : Project.Key(station.LocalId))));
+            AddInfrastructureModelPicker(scroll, "Add a project gate", gateModels, Project.Systems
+                .Where(system => system.ToJson()["jumpgate"] is JObject gate && gate["model"] != null).Select(system =>
+                    (system.Name, system.IsOverride ? system.OverrideRef : Project.Key(system.LocalId))));
+
+            Heading(scroll, "Orbital defenses and structures");
+            var stockDefense = Add(scroll, new Toggle("Offer the stock orbital defense")
+                { value = (bool?)draft["includeStockOrbitalDefense"] ?? true }, "mbv-field");
+            var defenseLimit = Add(scroll, new IntegerField("Defense limit per orbit")
+                { value = settings.OrbitalDefenseLimit }, "mbv-field");
+            Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOrbitalDefenseLimit}. Build orders reserve a slot. A limit of 0 blocks new defense orders.");
+            var otherStructureLimit = Add(scroll, new IntegerField("Other structure limit per orbit")
+                { value = settings.OtherOrbitalStructureLimit }, "mbv-field");
+            Note(scroll, $"Enter 0–{ModPlayerInfrastructure.MaxOtherOrbitalStructureLimit} for structures without weapons.");
+            Heading(scroll, "Stock sentry maintenance");
+            var stockMaintenance = Add(scroll, new IntegerField("Maintenance interval (seconds)") { value = settings.StockDefenseMaintenanceSeconds }, "mbv-field");
+            var stockDecay = Add(scroll, new FloatField("Overdue integrity loss (% maximum per day)") { value = settings.StockDefenseDecayPercentPerDay }, "mbv-field");
+            var stockFloor = Add(scroll, new FloatField("Minimum integrity from decay (%)") { value = settings.StockDefenseMinimumIntegrityPercent }, "mbv-field");
+            Note(scroll, "Stock sentries require upkeep. Interval: 60–31,536,000 seconds; decay: 0.001–100%; floor: 15–99%. New sentries use these values; existing maintained sentries keep their saved contract.");
+            Heading(scroll, "Orbital structure catalogue");
+            Note(scroll, "Configure each preset using the fields below. Advanced JSON remains available for additional fields.");
+            Note(scroll, "Use the example buttons to create a defense or a non-combat structure.");
+            Note(scroll, "Add maintenance with intervalSeconds and materials for upkeep. Optional decayPercentPerDay defaults to 1. Optional minimumIntegrityPercent defaults to 15 and can be set from 15 to 100.");
+            var structures = Add(scroll, new TextField("Orbital structure presets") { multiline = true,
+                value = draft["orbitalStructures"]?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "[]" }, "mbv-field");
+            void AddPreset(bool defense)
+            {
+                try
+                {
+                    var entries = JArray.Parse(structures.value);
+                    string prefix = defense ? "custom-defense" : "custom-structure";
+                    string id = prefix;
+                    for (int i = 2; entries.OfType<JObject>().Any(entry => string.Equals((string)entry["id"], id, StringComparison.OrdinalIgnoreCase)); i++)
+                        id = prefix + "-" + i;
+                    var preset = new JObject
+                    {
+                        ["id"] = id, ["name"] = defense ? "Custom defense" : "Custom structure",
+                        ["assembly"] = "turret_002_static", ["defense"] = defense,
+                        ["modelScale"] = 1f, ["hitRadius"] = 250f, ["integrity"] = 12000f,
+                        ["buildSeconds"] = 0, ["materials"] = new JArray(new JObject { ["item"] = 156, ["amount"] = 200 })
+                    };
+                    if (defense)
+                    {
+                        preset["targetPlayers"] = true; preset["targetNpcs"] = true;
+                        preset["range"] = 5000; preset["damage"] = 120; preset["fireIntervalSeconds"] = 3;
+                        preset["maintenance"] = new JObject { ["intervalSeconds"] = 86400, ["decayPercentPerDay"] = 1,
+                            ["minimumIntegrityPercent"] = 15, ["materials"] = new JArray(new JObject { ["item"] = 156, ["amount"] = 10 }) };
+                    }
+                    entries.Add(preset);
+                    structures.value = entries.ToString(Newtonsoft.Json.Formatting.Indented);
+                }
+                catch (Newtonsoft.Json.JsonException e) { Status("Repair the preset JSON first: " + e.Message, true); }
+            }
+            var templates = Row(scroll);
+            Act(templates, "+ Defense preset", () => AddPreset(true));
+            Act(templates, "+ Other structure", () => AddPreset(false));
+            var graphical = Add(scroll, new VisualElement());
+            var errorLabel = Add(box, new Label(), "mbv-note", "mbv-warn");
+            void RenderPresets()
+            {
+                graphical.Clear();
+                JArray entries;
+                try
+                {
+                    entries = JArray.Parse(structures.value);
+                    // A malformed value should be repairable in the raw editor, not crash its graphical view.
+                    ModPlayerInfrastructure.Parse(new JObject { ["orbitalStructures"] = entries.DeepClone() });
+                }
+                catch (Exception e) when (e is Newtonsoft.Json.JsonException || e is ModJsonException || e is FormatException || e is OverflowException)
+                { Note(graphical, "Repair the advanced JSON: " + e.Message); return; }
+                void Sync() => structures.SetValueWithoutNotify(entries.ToString(Newtonsoft.Json.Formatting.Indented));
+                void MaterialEditor(VisualElement parent, JObject owner, string heading)
+                {
+                    Heading(parent, heading);
+                    var costs = owner["materials"] as JArray;
+                    if (costs == null) { costs = new JArray(); owner["materials"] = costs; }
+                    foreach (var token in costs.ToList())
+                    {
+                        if (!(token is JObject cost)) continue;
+                        var line = Add(parent, new VisualElement(), "mbv-panel");
+                        int item = (int?)cost["item"] ?? 156;
+                        var choices = Database.Shared.Items.Where(entry => entry != null && entry.index >= 0)
+                            .OrderBy(entry => entry.name).ToList();
+                        var labels = choices.Select(entry => entry.name + " [#" + entry.index + "]").ToList();
+                        int current = choices.FindIndex(entry => entry.index == item);
+                        if (current < 0) { labels.Insert(0, "Unresolved item #" + item); }
+                        var pick = Add(line, new DropdownField("Material", labels, Math.Max(0, current)), "mbv-field");
+                        bool unresolved = current < 0;
+                        pick.RegisterValueChangedCallback(_ =>
+                        {
+                            int index = pick.index - (unresolved ? 1 : 0);
+                            if (index < 0 || index >= choices.Count) return;
+                            int chosen = choices[index].index;
+                            if (costs.OfType<JObject>().Any(other => other != cost && (int?)other["item"] == chosen))
+                            { errorLabel.text = "A preset cannot repeat a material item."; RenderPresets(); return; }
+                            cost["item"] = chosen; Sync();
+                        });
+                        Int(line, "Units", (int?)cost["amount"] ?? 1, 1, 100000, value => { cost["amount"] = value; Sync(); });
+                        if (costs.Count > 1) Act(line, "Remove material", () => { cost.Remove(); Sync(); RenderPresets(); });
+                    }
+                    Act(parent, "+ Material", () =>
+                    {
+                        if (costs.Count >= 32) { errorLabel.text = "At most 32 material entries are allowed."; return; }
+                        int item = Database.Shared.Items.Find(entry => entry != null && entry.index >= 0 &&
+                            !costs.OfType<JObject>().Any(cost => (int?)cost["item"] == entry.index))?.index ?? -1;
+                        if (item < 0) return;
+                        costs.Add(new JObject { ["item"] = item, ["amount"] = 1 });
+                        Sync(); RenderPresets();
+                    });
+                }
+                foreach (var token in entries.ToList())
+                {
+                    if (!(token is JObject preset)) { Note(graphical, "Invalid preset: expected an object."); continue; }
+                    var group = Add(graphical, new VisualElement(), "mbv-panel");
+                    Heading(group, (string)preset["name"] ?? "Unnamed preset");
+                    Text(group, "Preset ID", (string)preset["id"], 48, value => { preset["id"] = value.Trim(); Sync(); });
+                    Text(group, "Display name", (string)preset["name"], 64, value => { preset["name"] = value.Trim(); Sync(); });
+                    bool defense = (bool?)preset["defense"] ?? false;
+                    var defenseToggle = Add(group, new Toggle("Armed defense") { value = defense }, "mbv-field");
+                    defenseToggle.RegisterValueChangedCallback(e =>
+                    {
+                        preset["defense"] = e.newValue;
+                        if (!e.newValue) preset.Remove("maintenance");
+                        Sync(); RenderPresets();
+                    });
+                    if (defense)
+                    {
+                        var sentries = ModPlayerInfrastructure.SentryAssemblies.ToList();
+                        int index = sentries.IndexOf(ModPlayerInfrastructure.DefenseAssembly((string)preset["assembly"]));
+                        var model = Add(group, new DropdownField("Deployable sentry model", sentries, index), "mbv-field");
+                        model.RegisterValueChangedCallback(_ =>
+                        {
+                            if (model.index < 0) return;
+                            preset.Remove("stationModel");
+                            preset["assembly"] = sentries[model.index];
+                            Sync();
+                        });
+                        Note(group, "Defense models are 35 times the deployed sentry size.");
+                    }
+                    else
+                    {
+                        var modelType = Add(group, new DropdownField("Model source", new List<string> { "Assembly", "Station reference" },
+                            preset["stationModel"] == null ? 0 : 1), "mbv-field");
+                        modelType.RegisterValueChangedCallback(_ =>
+                        {
+                            if (modelType.index == 0) { preset.Remove("stationModel"); preset["assembly"] = "turret_002_static"; }
+                            else { preset.Remove("assembly"); preset["stationModel"] = "70"; }
+                            Sync(); RenderPresets();
+                        });
+                        string modelKey = preset["stationModel"] == null ? "assembly" : "stationModel";
+                        Text(group, modelKey == "assembly" ? "Assembly name" : "Station model reference", (string)preset[modelKey], 128,
+                            value => { preset[modelKey] = value.Trim(); Sync(); });
+                        if (modelKey == "assembly")
+                        {
+                            var assemblies = Database.Shared.Assemblies.Where(entry => entry != null && !string.IsNullOrEmpty(entry.name))
+                                .Select(entry => entry.name).Distinct().OrderBy(name => name).ToList();
+                            if (assemblies.Count > 0)
+                            {
+                                var options = new List<string> { "Choose an assembly…" }; options.AddRange(assemblies);
+                                var pick = Add(group, new DropdownField("Available models", options, 0), "mbv-field");
+                                pick.RegisterValueChangedCallback(_ =>
+                                {
+                                    if (pick.index > 0) { preset["assembly"] = options[pick.index]; Sync(); RenderPresets(); }
+                                });
+                            }
+                        }
+                    }
+                    Text(group, "Allowed sponsor races (one reference per line; empty = all)",
+                        string.Join("\n", (preset["sponsorRaces"] as JArray)?.Values<string>() ?? Enumerable.Empty<string>()), 4096,
+                        value => { preset["sponsorRaces"] = InfrastructureReferences(value); Sync(); }, true);
+                    void Number(string key, string label, float fallback, float min, float max) =>
+                        Float(group, label, (float?)preset[key] ?? fallback, min, max, value => { preset[key] = value; Sync(); });
+                    void Whole(string key, string label, int fallback, int min, int max) =>
+                        Int(group, label, (int?)preset[key] ?? fallback, min, max, value => { preset[key] = value; Sync(); });
+                    if (!defense) Number("modelScale", "Model scale", 1, 0.01f, 10);
+                    Number("hitRadius", "Hit radius (m)", 250, 10, 2000);
+                    Number("integrity", "Maximum integrity", 12000, 1, 10000000);
+                    Whole("buildSeconds", "Build duration (seconds)", 0, 0, 2592000);
+                    MaterialEditor(group, preset, "Construction materials");
+                    if (defense)
+                    {
+                        foreach (string target in new[] { "targetPlayers", "targetNpcs" })
+                        {
+                            var flag = Add(group, new Toggle(target == "targetPlayers" ? "Target hostile players" : "Target hostile NPCs")
+                                { value = (bool?)preset[target] ?? true }, "mbv-field");
+                            flag.RegisterValueChangedCallback(e => { preset[target] = e.newValue; Sync(); });
+                        }
+                        Number("range", "Weapon range (m)", 5000, 50, 20000);
+                        Number("damage", "Damage per shot", 120, 1, 10000);
+                        Whole("fireIntervalSeconds", "Fire interval (seconds)", 3, 1, 120);
+                        var upkeep = Add(group, new Toggle("Require maintenance") { value = preset["maintenance"] is JObject }, "mbv-field");
+                        upkeep.RegisterValueChangedCallback(e =>
+                        {
+                            if (e.newValue) preset["maintenance"] = new JObject { ["intervalSeconds"] = 86400, ["decayPercentPerDay"] = 1,
+                                ["minimumIntegrityPercent"] = 15, ["materials"] = new JArray(new JObject { ["item"] = 156, ["amount"] = 10 }) };
+                            else preset.Remove("maintenance");
+                            Sync(); RenderPresets();
+                        });
+                        if (preset["maintenance"] is JObject maintenance)
+                        {
+                            Int(group, "Maintenance interval (seconds)", (int?)maintenance["intervalSeconds"] ?? 86400, 60, 31536000,
+                                value => { maintenance["intervalSeconds"] = value; Sync(); });
+                            Float(group, "Overdue integrity decay (% per day)", (float?)maintenance["decayPercentPerDay"] ?? 1, 0, 100,
+                                value => { maintenance["decayPercentPerDay"] = value; Sync(); });
+                            Float(group, "Minimum remaining integrity (%)", (float?)maintenance["minimumIntegrityPercent"] ?? 15, 15, 100,
+                                value => { maintenance["minimumIntegrityPercent"] = value; Sync(); });
+                            MaterialEditor(group, maintenance, "Maintenance materials");
+                        }
+                    }
+                    Act(group, "Remove preset", () => { preset.Remove(); Sync(); RenderPresets(); }, "mbv-danger");
+                }
+            }
+            structures.isDelayed = true;
+            structures.RegisterValueChangedCallback(_ => RenderPresets());
+            RenderPresets();
+            var actions = Row(box);
+            Act(actions, T("mbApply", "Apply"), () =>
+            {
+                draft["enabled"] = enabled.value;
+                draft["jumpgatesEnabled"] = gates.value;
+                draft["storageCapacityPerLevel"] = storageCapacity.value;
+                draft["storageItemTypes"] = storageTypes.value;
+                draft["stationPlotClaimPrice"] = plotClaimPrice.value;
+                draft["stationClaimPrice"] = claimPrice.value;
+                draft["stationRenamePrice"] = renamePrice.value;
+                draft["siegeRespawnFactionOfficers"] = siegeOfficers.value;
+                draft["siegeRespawnStationAdministrators"] = siegeAdmins.value;
+                draft["siegeRespawnOriginalBuilders"] = siegeBuilders.value;
+                draft["stockDefenseMaintenanceSeconds"] = stockMaintenance.value;
+                draft["stockDefenseDecayPercentPerDay"] = stockDecay.value;
+                draft["stockDefenseMinimumIntegrityPercent"] = stockFloor.value;
+                draft["stationBuildSeconds"] = stationBuildSeconds.value;
+                draft["jumpgateBuildSeconds"] = jumpgateBuildSeconds.value;
+                var moduleTimes = new JObject();
+                foreach (var module in moduleBuildFields) moduleTimes[module.Key] = module.Value.value;
+                draft["moduleBuildSeconds"] = moduleTimes;
+                draft["includeStockStations"] = stockStations.value;
+                draft["includeStockJumpgates"] = stockGates.value;
+                draft["scrapIntegrity"] = integrity.value;
+                draft["minimumStationScale"] = stationScale.value;
+                draft["minimumJumpgateScale"] = jumpgateScale.value;
+                draft["stationRaceMarketLimitPercent"] = stationRaceMarketLimit.value;
+                draft["stationRaceRevenueToOwner"] = stationRaceRevenue.value;
+                draft["stationRacePoliciesEnabled"] = stationRacePolicies.value;
+                draft["stationRaceExemptionsEnabled"] = stationRaceExemptions.value;
+                draft["playerIdentityEnabled"] = playerIdentity.value;
+                draft["jumpgateRacePoliciesEnabled"] = gateRacePolicies.value;
+                draft["jumpgateRaceExemptionsEnabled"] = gateRaceExemptions.value;
+                draft["stationModels"] = InfrastructureReferences(stationModels.value);
+                draft["jumpgateModels"] = InfrastructureReferences(gateModels.value);
+                draft["includeStockOrbitalDefense"] = stockDefense.value;
+                draft["orbitalDefenseLimit"] = defenseLimit.value;
+                draft["otherOrbitalStructureLimit"] = otherStructureLimit.value;
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(refineryRecipes.value)) draft.Remove("refineryRecipes");
+                    else draft["refineryRecipes"] = JArray.Parse(refineryRecipes.value);
+                    if (string.IsNullOrWhiteSpace(factoryRecipes.value)) draft.Remove("factoryRecipes");
+                    else draft["factoryRecipes"] = JArray.Parse(factoryRecipes.value);
+                    var images = new JObject();
+                    foreach (string line in (modelImages.value ?? "").Split('\n'))
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        int split = line.IndexOf('=');
+                        if (split <= 0 || split == line.Length - 1) throw new ModJsonException("Use station reference = image ID for each thumbnail.");
+                        string reference = line.Substring(0, split).Trim();
+                        if (images[reference] != null) throw new ModJsonException("Duplicate thumbnail reference: " + reference);
+                        images.Add(reference, line.Substring(split + 1).Trim());
+                    }
+                    draft["stationModelImages"] = images;
+                    draft["orbitalStructures"] = JArray.Parse(structures.value);
+                    ModPlayerInfrastructure.Parse(draft);
+                }
+                catch (Exception error) when (error is ModJsonException || error is Newtonsoft.Json.JsonException)
+                {
+                    errorLabel.text = error.Message;
+                    return;
+                }
+                SaveInfrastructure(draft, original);
+            });
+            Act(actions, "Use inherited rules", () => SaveInfrastructure(new JObject(), original, true));
+            Act(actions, "Discard changes", ShowPlayerInfrastructure);
+        }
+
+        void SaveInfrastructure(JObject rules, JObject original, bool inherit = false)
+        {
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            if (!JToken.DeepEquals(original, Project.PlayerInfrastructure))
+            {
+                Status("Player infrastructure changed on disk while this draft was open. Discard/reopen the draft before applying it.", true);
+                return;
+            }
+            if (inherit) Project.RemovePlayerInfrastructureConfiguration();
+            else Project.PlayerInfrastructure = rules;
+            MarkDirty();
+            if (!TrySaveNow()) return;
+            RequestReload(false);
+            RefreshPlayerInfrastructure();
+            Status(T("mbSaved", "Saved."), false);
+        }
+
+        static JArray InfrastructureReferences(string text) => new JArray((text ?? "").Split('\n')
+            .Select(reference => reference.Trim()).Where(reference => !string.IsNullOrEmpty(reference)));
+
+        void AddInfrastructureModelPicker(VisualElement panel, string title, TextField field,
+            IEnumerable<(string name, string reference)> models)
+        {
+            var choices = models.Where(model => !string.IsNullOrEmpty(model.reference)).ToList();
+            if (choices.Count == 0) return;
+            var labels = choices.Select(model => (string.IsNullOrEmpty(model.name) ? model.reference : model.name)
+                + " [" + model.reference + "]").ToList();
+            labels.Insert(0, "Choose a model");
+            var picker = Add(panel, new DropdownField(title, labels, 0), "mbv-field");
+            picker.RegisterValueChangedCallback(_ =>
+            {
+                if (picker.index <= 0) return;
+                string reference = choices[picker.index - 1].reference;
+                if (!InfrastructureReferences(field.value).Values<string>().Contains(reference, StringComparer.OrdinalIgnoreCase))
+                    field.value = string.IsNullOrWhiteSpace(field.value) ? reference : field.value.TrimEnd() + "\n" + reference;
+                picker.SetValueWithoutNotify(labels[0]);
+            });
         }
 
         void ShowOptions()
@@ -998,9 +2092,10 @@ namespace GoF2Remake.UI
             UpdateLayoutClasses();
             nowMs += dt;
             if (saveDirty && nowMs >= saveAtMs) SaveNow();
+            CheckConfigurationModal();
             UpdateOptimize();
             UpdateUndoButtons();
-            if (reloadPending && nowMs >= reloadAtMs && CanReload)
+            if (reloadPending && !saveDirty && nowMs >= reloadAtMs && CanReload)
             {
                 reloadPending = false;
                 reloading = true;

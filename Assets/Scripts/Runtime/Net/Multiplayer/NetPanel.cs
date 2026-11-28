@@ -21,12 +21,15 @@ namespace GoF2Remake.Multiplayer
             // Profile (NetProfiles).
             public bool profiles;            // the server keeps profiles (factions, the leaderboard and /link need them)
             public string profileId = "";
+            public bool playerIdentityEnabled;
+            public string playerRace, playerPortrait;
             public int devices;
             public bool controller = true, guest;
             // Faction (NetFactions).
             public bool inFaction;
             public string factionTag = "", factionName = "";
             public long bank;
+            public long factionBroadcastReadyUtc;
             public int home = -1, rank;      // rank: 0 member, 1 officer, 2 leader
             public List<Member> members = new List<Member>();
             public List<ClaimRow> claims = new List<ClaimRow>();
@@ -113,7 +116,15 @@ namespace GoF2Remake.Multiplayer
                                              inMatch = NetArena.IsArenaOrbit(other.Station), self = other.OwnerClientId == client });
             NetProfiles.FillPanel(client, s);
             NetModeration.FillPanel(client, s);   // roles and the Admin tab (a fresh hosted session: the host's)
-            if (NetProfiles.Enabled) NetFactions.FillPanel(client, s);
+            if (NetProfiles.Enabled)
+            {
+                NetFactions.FillPanel(client, s);
+                if (s.rank >= 1)
+                {
+                    var faction = NetFactions.OfClient(client);
+                    if (faction != null) s.factionBroadcastReadyUtc = NetNews.OfficialReadyUtc("faction:" + faction.id);
+                }
+            }
             NetArena.FillPanel(client, s);
             var parts = NetProfiles.Pack(JsonUtility.ToJson(s));
             int seq = ++outSeq;

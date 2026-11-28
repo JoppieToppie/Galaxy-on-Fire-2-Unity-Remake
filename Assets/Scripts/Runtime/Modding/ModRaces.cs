@@ -136,6 +136,7 @@ namespace GoF2Remake.Modding
         public static int GameRaceWord(string w) => (w ?? "").Trim().ToLowerInvariant() switch
         {
             "terran" or "terrans" => 0, "vossk" => 1, "nivelian" or "nivelians" => 2, "midorian" or "midorians" => 3,
+            "octopod" or "multipod" => 4, "cyborg" => 5, "bobolian" or "bobolan" => 6, "grey" or "gray" => 7,
             "pirate" or "pirates" => 8, "void" => 9, "specter" or "specters" => 10, _ => -1,
         };
 
@@ -280,14 +281,25 @@ namespace GoF2Remake.Modding
         {
             var d = Get(race);
             if (d == null) return 0;
-            return standings != null && standings.TryGetValue(d.key, out int v) ? v : d.start;
+            if (standings != null && standings.TryGetValue(d.key, out int v)) return v;
+            if (Flight.Standing.Independent && standings != null &&
+                standings.TryGetValue(Flight.Standing.PiracyHistoryKey, out int history) && history > 0) return -100;
+            return d.start;
         }
 
         public static void SetStanding(int race, int value)
         {
             var d = Get(race);
             if (d == null) return;
-            Session.ModRaceStanding[d.key] = Mathf.Clamp(value, -100, 100);
+            if (Flight.Standing.PiracyLocked || Flight.Standing.ServerManaged) return;
+            SetStandingKey(d.key, value);
+        }
+
+        internal static void SetStandingKey(string key, int value)
+        {
+            value = Mathf.Clamp(value, -100, 100);
+            if (Session.ModRaceStanding.TryGetValue(key, out int prior) && prior == value) return;
+            Session.ModRaceStanding[key] = value;
             StandingRevision++;
         }
 

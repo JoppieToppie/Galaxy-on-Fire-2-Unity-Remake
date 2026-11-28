@@ -67,7 +67,7 @@ namespace GoF2Remake.Modding
             Directory.CreateDirectory(dir);
             var o = new JObject();
             foreach (var kv in d.OrderBy(k => k.Key, StringComparer.Ordinal)) o[kv.Key] = kv.Value;
-            File.WriteAllText(f, o.ToString(Formatting.Indented));
+            SafeWriteBytes(f, new System.Text.UTF8Encoding(false).GetBytes(o.ToString(Formatting.Indented)));
         }
         static string Str(JObject o, string key) => o[key] is JValue v && v.Type == JTokenType.String ? (string)v : null;
         // ---- the list ----------------------------------------------------------------------------------------------
@@ -139,6 +139,7 @@ namespace GoF2Remake.Modding
         {
             try
             {
+                lock (saveLock) RecoverPendingSave(folder);
                 var p = new ModProject { Folder = folder };
                 p.manifest = JObject.Parse(File.ReadAllText(Path.Combine(folder, ModManifest.FileName)));
                 p.Id = Str(p.manifest, "id") ?? Path.GetFileName(folder);
@@ -177,12 +178,7 @@ namespace GoF2Remake.Modding
                     try { p.Campaign = new ProjectCampaign(JObject.Parse(File.ReadAllText(campaign))); }
                     catch (Exception e) { p.LoadError ??= $"{CampaignFile}: {e.Message}"; }
                 }
-                string flight = Path.Combine(folder, ModFlight.File);
-                if (File.Exists(flight))
-                {
-                    try { p.FlightRules = JObject.Parse(File.ReadAllText(flight)); }
-                    catch (Exception e) { p.LoadError ??= $"{ModFlight.File}: {e.Message}"; }
-                }
+                p.LoadProtectedConfigurations();
                 string events = Path.Combine(folder, ProjectQuest.Folder);
                 if (Directory.Exists(events))
                     foreach (var f in Directory.GetFiles(events, "*." + ProjectQuest.Extension).Concat(Directory.GetFiles(events, "*." + ProjectQuest.LegacyExtension))
@@ -213,7 +209,210 @@ namespace GoF2Remake.Modding
             catch (Exception e) { LoadError ??= $"{file}: {e.Message}"; }
         }
         /// <summary>Writes mod.json, ships.json, items.json, characters.json and builder.json (each through a .tmp file).</summary>
+        static readonly object saveLock = new object();
+
+        // Separate the last saved values from the mutable editor objects.
+        readonly Dictionary<string, JObject> configBaseline = new Dictionary<string, JObject>();
+        readonly HashSet<string> configRemovals = new HashSet<string>();
+        readonly HashSet<string> configCreates = new HashSet<string>();
+        readonly Dictionary<string, byte[]> protectedDisk = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        readonly List<string> saveFailures = new List<string>();
+        bool collectingSaveFailures;
+        readonly Dictionary<string, byte[]> savePlan = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        readonly List<Action> saveCompleted = new List<Action>();
+        public int ConfigurationRevision { get; private set; }
+
+        IEnumerable<(string file, Func<JObject> get, Action<JObject> set)> ProtectedConfigurations()
+        {
+            yield return (ModFlight.File, () => FlightRules, value => FlightRules = value);
+            yield return (ModPlayerInfrastructure.FileName, () => PlayerInfrastructure, value => PlayerInfrastructure = value);
+            yield return (ModNpcFactionWar.File, () => NpcFactionWarRules, value => NpcFactionWarRules = value);
+            yield return (ModAdvancedEconomy.File, () => AdvancedEconomyRules, value => AdvancedEconomyRules = value);
+        }
+
+        string ConfigurationPath(string file)
+        {
+            string path = Path.Combine(Folder, file);
+            if (file == ModNpcFactionWar.File && !File.Exists(path))
+            {
+                string staged = Path.Combine(Folder, ModNpcFactionWar.StagedFile);
+                if (File.Exists(staged)) return staged;
+            }
+            return path;
+        }
+
+        JObject ReadConfiguration(string file)
+        {
+            try { return JObject.Parse(File.ReadAllText(ConfigurationPath(file))); }
+            catch (FileNotFoundException) { return null; }
+            catch (DirectoryNotFoundException) { return null; }
+            catch (JsonException e) { throw new IOException(file + ": invalid external JSON: " + e.Message, e); }
+        }
+
+        void LoadProtectedConfigurations()
+        {
+            foreach (var config in ProtectedConfigurations())
+            {
+                try
+                {
+                    var disk = ReadConfiguration(config.file);
+                    configBaseline[config.file] = disk;
+                    config.set(disk == null ? new JObject() : (JObject)disk.DeepClone());
+                }
+                catch (Exception e) { LoadError ??= config.file + ": " + e.Message; }
+            }
+        }
+
+        public void RefreshProtectedConfigurations()
+        {
+            lock (saveLock)
+            {
+                var pending = new List<Action>();
+                var snapshot = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+                foreach (var config in ProtectedConfigurations())
+                {
+                    configBaseline.TryGetValue(config.file, out var baseline);
+                    string canonical = Path.GetFullPath(Path.Combine(Folder, config.file));
+                    byte[] bytes = ReadSaveBytes(canonical);
+                    snapshot[canonical] = bytes;
+                    if (config.file == ModNpcFactionWar.File)
+                    {
+                        string staged = Path.GetFullPath(Path.Combine(Folder, ModNpcFactionWar.StagedFile));
+                        byte[] stagedBytes = ReadSaveBytes(staged);
+                        snapshot[staged] = stagedBytes;
+                        if (bytes == null) bytes = stagedBytes;
+                    }
+                    JObject disk;
+                    try
+                    {
+                        if (bytes == null) disk = null;
+                        else
+                        {
+                            using var reader = new StreamReader(new MemoryStream(bytes), System.Text.Encoding.UTF8, true);
+                            disk = JObject.Parse(reader.ReadToEnd());
+                        }
+                    }
+                    catch (JsonException e) { throw new IOException(config.file + ": invalid external JSON: " + e.Message, e); }
+                    var local = config.get();
+                    bool dirty = configRemovals.Contains(config.file) || configCreates.Contains(config.file) ||
+                        !JToken.DeepEquals(local, baseline ?? new JObject());
+                    if (JToken.DeepEquals(disk, baseline)) continue;
+                    if (dirty && !JToken.DeepEquals(disk, configRemovals.Contains(config.file) ? null : local))
+                        throw new IOException(config.file + ": external changes conflict with unsaved builder edits. Neither version was overwritten.");
+                    pending.Add(() =>
+                    {
+                        configBaseline[config.file] = disk;
+                        configRemovals.Remove(config.file);
+                        configCreates.Remove(config.file);
+                        // Detach stale editor callbacks from the new configuration.
+                        config.set(disk == null ? new JObject() : (JObject)disk.DeepClone());
+                    });
+                }
+                foreach (var update in pending) update();
+                protectedDisk.Clear();
+                foreach (var pair in snapshot) protectedDisk.Add(pair.Key, pair.Value);
+                if (pending.Count > 0) ConfigurationRevision++;
+            }
+        }
+
+        public void RemovePlayerInfrastructureConfiguration()
+        {
+            PlayerInfrastructure = RestoreConfiguration(ModPlayerInfrastructure.FileName, JValue.CreateNull());
+            ConfigurationRevision++;
+        }
+
+        JToken CaptureConfiguration(string file, JObject value)
+        {
+            configBaseline.TryGetValue(file, out var baseline);
+            return (configRemovals.Contains(file) && !value.HasValues) || (baseline == null && !configCreates.Contains(file) && !value.HasValues)
+                ? JValue.CreateNull() : value.DeepClone();
+        }
+
+        JObject RestoreConfiguration(string file, JToken value)
+        {
+            configBaseline.TryGetValue(file, out var baseline);
+            configRemovals.Remove(file);
+            configCreates.Remove(file);
+            if (value is JObject obj)
+            {
+                if (baseline == null) configCreates.Add(file);
+                return (JObject)obj.DeepClone();
+            }
+            if (baseline != null) configRemovals.Add(file);
+            return new JObject();
+        }
+
+        void SaveProtectedConfigurations()
+        {
+            foreach (var config in ProtectedConfigurations())
+            {
+                string file = config.file;
+                var local = config.get();
+                configBaseline.TryGetValue(file, out var baseline);
+                bool remove = configRemovals.Contains(file) && !local.HasValues;
+                if (!remove && !configCreates.Contains(file) && JToken.DeepEquals(local, baseline ?? new JObject())) continue;
+                TrySaveFile(file, () =>
+                {
+                    string path = Path.GetFullPath(Path.Combine(Folder, file));
+                    if (file == ModNpcFactionWar.File && protectedDisk[path] == null)
+                    {
+                        string staged = Path.GetFullPath(Path.Combine(Folder, ModNpcFactionWar.StagedFile));
+                        if (protectedDisk[staged] != null) path = staged;
+                    }
+                    if (remove)
+                    {
+                        if (file == ModNpcFactionWar.File)
+                            QueueSaveFile(Path.Combine(Folder, ModNpcFactionWar.StagedFile), null);
+                        QueueSaveFile(Path.Combine(Folder, file), null);
+                    }
+                    else QueueSaveFile(path, new System.Text.UTF8Encoding(false).GetBytes(local.ToString(Formatting.Indented)));
+                    saveCompleted.Add(() =>
+                    {
+                        configBaseline[file] = remove ? null : (JObject)local.DeepClone();
+                        configRemovals.Remove(file);
+                        configCreates.Remove(file);
+                    });
+                });
+            }
+        }
+
+        void TrySaveFile(string file, Action action)
+        {
+            try { action(); }
+            catch (Exception e) when (collectingSaveFailures && (e is IOException || e is UnauthorizedAccessException))
+            { saveFailures.Add(file + ": " + e.Message); }
+        }
+
         public void Save()
+        {
+            lock (saveLock)
+            {
+                if (LoadError != null) throw new IOException("Project not saved: " + LoadError);
+                RecoverPendingSave(Folder);
+                RefreshProtectedConfigurations();
+                saveFailures.Clear();
+                savePlan.Clear();
+                saveCompleted.Clear();
+                collectingSaveFailures = true;
+                try
+                {
+                    SaveLocked();
+                    if (saveFailures.Count > 0)
+                        throw new IOException("Could not prepare project save: " + string.Join("; ", saveFailures));
+                    CommitSavePlan();
+                    foreach (var complete in saveCompleted) complete();
+                    Modified = DateTime.UtcNow;
+                }
+                finally
+                {
+                    collectingSaveFailures = false;
+                    savePlan.Clear();
+                    saveCompleted.Clear();
+                }
+            }
+        }
+
+        void SaveLocked()
         {
             if (LoadError != null) { Debug.LogWarning($"Mod Builder: {Id} not saved: {LoadError}"); return; }
             Directory.CreateDirectory(Folder);
@@ -227,7 +426,7 @@ namespace GoF2Remake.Modding
             WriteList(ModWorld.StationsFile, Stations.Select(c => c.ToJson()));
             WriteList(InteriorsFile, Interiors.Select(c => c.ToJson()));
             WriteList(ModRaces.File, Races.Select(c => c.ToJson()));
-            if (File.Exists(Path.Combine(Folder, ModRaces.OldFile))) File.Delete(Path.Combine(Folder, ModRaces.OldFile));   // the old name, now races.json
+            if (File.Exists(Path.Combine(Folder, ModRaces.OldFile))) DeleteSavedFile(Path.Combine(Folder, ModRaces.OldFile));   // the old name, now races.json
             WriteList(ModBlueprints.File, Blueprints.Select(c => c.ToJson()));
             WriteList(ProjectKit.File, Kits.Select(c => c.ToJson()));
             WriteList(ModContent.WeaponEffectsFile, WeaponEffects.Select(c => c.ToJson()));
@@ -235,13 +434,129 @@ namespace GoF2Remake.Modding
             WriteList(ModNpcShips.File, NpcShips.Select(c => c.ToJson()));
             string campaign = Path.Combine(Folder, CampaignFile);
             if (Campaign != null) Write(CampaignFile, Campaign.ToJson().ToString(Formatting.Indented));
-            else if (File.Exists(campaign)) File.Delete(campaign);
-            string flight = Path.Combine(Folder, ModFlight.File);
-            if (FlightRules.Count > 0) Write(ModFlight.File, FlightRules.ToString(Formatting.Indented));
-            else if (File.Exists(flight)) File.Delete(flight);
+            else if (File.Exists(campaign)) DeleteSavedFile(campaign);
+            SaveProtectedConfigurations();
             WriteQuests();
             Write(BuilderFile, builder.ToString(Formatting.Indented));
-            Modified = DateTime.UtcNow;
+        }
+
+        // Journal is outside the exported project. A crash or failed rollback leaves it in place,
+        // with both byte versions, so the next save/load can recover without guessing.
+        static string SaveJournal(string folder) => Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + ".save-recovery.json";
+
+        static byte[] ReadSaveBytes(string path)
+        {
+            try { return File.ReadAllBytes(path); }
+            catch (FileNotFoundException) { return null; }
+            catch (DirectoryNotFoundException) { return null; }
+        }
+
+        static bool SameSaveBytes(byte[] a, byte[] b) =>
+            a == null ? b == null : b != null && a.SequenceEqual(b);
+
+        void QueueSaveFile(string path, byte[] bytes) => savePlan[Path.GetFullPath(path)] = bytes;
+
+        static JToken JournalBytes(byte[] bytes) => bytes == null ? JValue.CreateNull() : new JValue(Convert.ToBase64String(bytes));
+        static byte[] FromJournalBytes(JToken token) => token == null || token.Type == JTokenType.Null ? null : Convert.FromBase64String((string)token);
+
+        static void ReplaceSaveBytes(string path, byte[] bytes)
+        {
+            if (bytes == null) RetryFileOperation(() => File.Delete(path));
+            else SafeWriteBytes(path, bytes);
+        }
+
+        static string JournalPath(string folder, string relative)
+        {
+            string root = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            string path = Path.GetFullPath(Path.Combine(root, relative));
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new IOException("Invalid save recovery path: " + relative);
+            return path;
+        }
+
+        static void RecoverPendingSave(string folder)
+        {
+            string journal = SaveJournal(folder);
+            if (!File.Exists(journal)) return;
+            JArray entries;
+            try { entries = JArray.Parse(File.ReadAllText(journal)); }
+            catch (JsonException e) { throw new IOException("Invalid recovery journal: " + journal, e); }
+            var failures = new List<string>();
+            foreach (var entry in entries.Reverse())
+            {
+                string relative = (string)entry["path"];
+                try
+                {
+                    string path = JournalPath(folder, relative);
+                    byte[] before = FromJournalBytes(entry["before"]), after = FromJournalBytes(entry["after"]);
+                    byte[] disk = ReadSaveBytes(path);
+                    if (SameSaveBytes(disk, before)) continue;
+                    if (!SameSaveBytes(disk, after))
+                        throw new IOException("file changed outside the interrupted save; manual recovery required");
+                    ReplaceSaveBytes(path, before);
+                }
+                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                { failures.Add(relative + ": " + e.Message); }
+            }
+            if (failures.Count > 0)
+                throw new IOException("Save recovery incomplete. Original and intended data retained in " + journal + ": " + string.Join("; ", failures));
+            RetryFileOperation(() => File.Delete(journal));
+        }
+
+        void CommitSavePlan()
+        {
+            var entries = new JArray();
+            // Protected files may have changed after the editor snapshot was taken.
+            foreach (var pair in protectedDisk)
+                TrySaveFile(pair.Key, () =>
+                {
+                    if (!SameSaveBytes(ReadSaveBytes(pair.Key), pair.Value))
+                        throw new IOException("configuration changed during save");
+                });
+            string folder = Path.GetFullPath(Folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            foreach (var change in savePlan)
+            {
+                string relative = change.Key.Substring(folder.Length);
+                TrySaveFile(relative, () =>
+                {
+                    byte[] before = ReadSaveBytes(change.Key);
+                    if (protectedDisk.TryGetValue(change.Key, out var expected) && !SameSaveBytes(before, expected))
+                        throw new IOException("configuration changed during save");
+                    if (SameSaveBytes(before, change.Value)) return;
+                    // Probe sharing conflicts before any live file changes. This does not
+                    // eliminate a later race with an external process, so commit also rolls back.
+                    if (before != null)
+                        RetryFileOperation(() => { using var stream = new FileStream(change.Key, FileMode.Open, FileAccess.ReadWrite, FileShare.None); });
+                    entries.Add(new JObject { ["path"] = relative, ["before"] = JournalBytes(before), ["after"] = JournalBytes(change.Value) });
+                });
+            }
+            if (saveFailures.Count > 0)
+                throw new IOException("Project save not published; pending edits retained: " + string.Join("; ", saveFailures));
+            if (entries.Count == 0) return;
+            string journal = SaveJournal(Folder);
+            SafeWriteBytes(journal, new System.Text.UTF8Encoding(false).GetBytes(entries.ToString(Formatting.None)));
+            try
+            {
+                foreach (var entry in entries)
+                {
+                    string relative = (string)entry["path"];
+                    string path = JournalPath(Folder, relative);
+                    try
+                    {
+                        if (!SameSaveBytes(ReadSaveBytes(path), FromJournalBytes(entry["before"])))
+                            throw new IOException("file changed during save");
+                        ReplaceSaveBytes(path, FromJournalBytes(entry["after"]));
+                    }
+                    catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                    { throw new IOException(relative + ": " + e.Message, e); }
+                }
+                RetryFileOperation(() => File.Delete(journal));
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                try { RecoverPendingSave(Folder); }
+                catch (Exception recovery) { throw new IOException("Save failed: " + e.Message + "; " + recovery.Message, recovery); }
+                throw new IOException("Project save rolled back: " + e.Message, e);
+            }
         }
     }
 }

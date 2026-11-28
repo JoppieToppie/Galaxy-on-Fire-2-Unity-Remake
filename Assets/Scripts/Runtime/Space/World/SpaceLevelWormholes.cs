@@ -217,12 +217,105 @@ namespace GoF2Remake.World
             MovePlayer(position, rotation);
             return true;
         }
+        /// <summary>The server has committed destruction. Keep the hull as reclaimable scenery,
+        /// but remove its navigation and travel functionality; later reclamation may rebuild it.</summary>
+        bool playerJumpgateWreck, playerJumpgateExplosionPlayed, playerJumpgatePermanentlyDestroyed;
+        long playerJumpgateEmpUntilUtc;
+
+        public bool PlayerJumpgateEmpDisabled =>
+            playerJumpgateEmpUntilUtc > System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        public void OnPlayerJumpgateEmpShutdown(long untilUtc)
+        {
+            if (Layout == null || Jumpgate == null) return;
+            playerJumpgateEmpUntilUtc = System.Math.Max(playerJumpgateEmpUntilUtc, untilUtc);
+            // Keep the visual model, physical obstacle, and targeting marker intact.
+            // SystemJump.GateBlocked refuses interactions until the server's deadline.
+        }
+
+        public void OnPlayerJumpgateDestroyed(bool permanent = false)
+        {
+            if (permanent) playerJumpgateExplosionPlayed = false;
+            SetPlayerJumpgateWreck(true);
+            if (permanent && Jumpgate != null)
+            {
+                // A rebuilt gate's second destruction ends the lifecycle. Scrap is recoverable,
+                // but permanent destruction leaves no obstructing gate model in the orbit.
+                Destroy(Jumpgate);
+                Jumpgate = null;
+                if (Layout != null) Layout.hasJumpgate = false;
+                playerJumpgateWreck = false;
+                playerJumpgatePermanentlyDestroyed = true;
+            }
+        }
+
+        /// <summary>Also used when entering an orbit that already contains a persisted scrap hull.
+        /// Only a fresh server destruction event plays the explosion.</summary>
+        void SetPlayerJumpgateWreck(bool explode)
+        {
+            if (Jumpgate == null || Layout == null || Navigation == null) return;
+            if (explode && !playerJumpgateExplosionPlayed)
+            {
+                Explosion.Spawn(Jumpgate.transform.position, 7f);
+                playerJumpgateExplosionPlayed = true;
+            }
+            if (playerJumpgateWreck) return;
+            playerJumpgateWreck = true;
+            Navigation.SetAutopilot(null);
+            Navigation.Targets.RemoveAll(t => t.kind == Navigation.Kind.Jumpgate);
+            SystemJump?.SetJumpgate(null);
+            // The first destruction leaves visible collidable scrap until reclamation.
+        }
+
+        /// <summary>Reconstruction is confirmed by the persistent server, not inferred from
+        /// a client's potentially stale station registry snapshot.</summary>
+        public void OnPlayerJumpgateRestored(Vector3 gatePosition, int modelPreset, string modelReference)
+        {
+            if (Layout == null || Navigation == null || SystemJump == null) return;
+            Layout.jumpgate = gatePosition;
+            Layout.ConfirmedPlayerGatePreset = modelPreset;
+            Layout.ConfirmedPlayerGateReference = modelReference;
+            playerJumpgateWreck = false;
+            playerJumpgatePermanentlyDestroyed = false;
+            playerJumpgateExplosionPlayed = false;
+            if (Jumpgate != null)
+            {
+                Jumpgate.SetActive(false);
+                Destroy(Jumpgate);
+                Jumpgate = null;
+            }
+            Layout.hasJumpgate = true;
+            UpdatePlayerJumpgate(true);
+        }
+
+        /// <summary>
+        /// A timed player-built gate can finish while its orbit is already loaded. Materialize the same gate model,
+        /// collision and navigation landmark that a fresh orbit load would create.
+        /// </summary>
+        void UpdatePlayerJumpgate(bool serverConfirmed = false)
+        {
+            if (Layout == null || Navigation == null || SystemJump == null ||
+                playerJumpgateWreck || playerJumpgatePermanentlyDestroyed ||
+                (!serverConfirmed && GameHooks.HasPlayerJumpgate?.Invoke(Layout.stationIndex) != true)) return;
+            if (Jumpgate != null) return;
+            var refreshed = serverConfirmed ? Layout : OrbitLayout.Build(db, Layout.stationIndex);
+            if (refreshed == null || !refreshed.hasJumpgate) return;
+            Layout.hasJumpgate = true;
+            Layout.jumpgate = refreshed.jumpgate;
+            Jumpgate = OrbitBuilder.SpawnJumpgate(db, Layout, forcePlayerGate: serverConfirmed);
+            if (Jumpgate == null) return;
+            OrbitBuilder.AddObstacles(Layout, null, Jumpgate);
+            HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>(), forceExact: true);
+            Navigation.AddPlayerJumpgateTarget();
+            SystemJump.SetJumpgate(Jumpgate);
+        }
+
         /// <summary>The station's volumes (collision.json) and the visible jumpgate's sphere (see Obstacle).</summary>
         void AddObstacles()
         {
             OrbitBuilder.AddObstacles(Layout, Station, Jumpgate);
             // Remake: the player slides along their real shapes (HullCollision); shots pass them as in the original.
-            if (Station != null) HullCollision.Attach(Station, null, Station.GetComponent<Obstacle>());
+            if (Station != null) AttachStationHull();
             if (Jumpgate != null) HullCollision.Attach(Jumpgate, null, Jumpgate.GetComponent<Obstacle>());
             // Remake mods: a station of its own model sizes the dock range and the launch point.
             var own = Modding.ModWorld.ModelOf(Layout.stationIndex);
@@ -322,7 +415,7 @@ namespace GoF2Remake.World
             }
             else
                 root.transform.SetPositionAndRotation(
-                    OrbitScale.ToUnity(UndockPoint),
+                    OrbitScale.ToUnity(UndockPoint) + SpaceHooks.StationPosition(Layout.stationIndex),
                     OrbitLayout.RotationToUnity(new Vector3(0f, (Random.value < 0.5f ? 1 : -1) * OrbitLayout.UndockYaw / 65536f * 2f * Mathf.PI, 0f)));
             // Modified: at Luur the station is turned -45 deg (OrbitBuilder.SpawnStation), and the undock point with it, about the
             // station (a player's request): out of its hangar, in front of it as at any other station. Arrivals stay as they were.
@@ -366,7 +459,8 @@ namespace GoF2Remake.World
             // of the station, the gate and the asteroids, facing the station. With "arrivalFx" the drive's jump (failed or not)
             // ends with the 2D hyper_drive fx bringing the ship in (BeginDriveArrival).
             var jumpDriveSpec = (Session.DriveArrival || Session.DriveFailArrival) && Session.ArrivedByTravel && !Layout.interstellar && !warpArrival
-                ? Modding.ModJumpFx.ActiveDrive() : null;
+                ? (Session.DriveArrivalSpec ?? Modding.ModJumpFx.ActiveDrive()) : null;
+            Session.DriveArrivalSpec = null;
             bool driveFailed = jumpDriveSpec != null && Session.DriveFailArrival;
             bool driveArrival = jumpDriveSpec != null && jumpDriveSpec.arrivalFx;
             Session.DriveArrival = Session.DriveFailArrival = false;
@@ -468,7 +562,8 @@ namespace GoF2Remake.World
             if (challengeFlyIn) Session.ArrivedByTravel = true;
             if (warpArrival) { launchTravel = true; Session.LaunchedFromStation = Session.ArrivedByTravel = false; }
             else if (Session.LaunchedFromStation || Session.ArrivedByTravel) StartLaunchCamera();
-            if (driveArrival) BeginDriveArrival(driveFailed);
+            if (driveArrival || jumpDriveSpec?.arrivalCamera?.HasCamera == true || (jumpDriveSpec?.arrivalCamera?.MinimumDuration ?? 0f) > 0f)
+                BeginDriveArrival(driveFailed, jumpDriveSpec, driveArrival);
         }
 
         // Modified: a mod drive's arrival (ModJumpFx "arrivalFx"; IntroCutscenes' time jump end, steps 10 / 11): sound 159, the
@@ -477,6 +572,7 @@ namespace GoF2Remake.World
         const float DriveFailMinUnits = 60000f, DriveShowMs = 2500f;
         float driveArrivalMs = -1f, driveArrivalLength;
         bool driveHolding;
+        Modding.ModJumpFx.Cinematic arrivalCinematic;
         GameObject driveFx;
         readonly System.Collections.Generic.List<Material> driveFxMaterials = new System.Collections.Generic.List<Material>();
         /// <summary>A mod drive's arrival fx is still running (the ship invulnerable, the arrival camera waiting).</summary>
@@ -511,10 +607,17 @@ namespace GoF2Remake.World
             return true;
         }
 
-        void BeginDriveArrival(bool failed)
+        void BeginDriveArrival(bool failed, Modding.ModJumpFx.Spec drive, bool withFx)
         {
             driveArrivalMs = 0f;
             driveArrivalLength = 3000f;
+            arrivalCinematic = drive?.arrivalCamera;
+            if (!withFx)
+            {
+                driveArrivalLength = Mathf.Max(DriveShowMs, arrivalCinematic.MinimumDuration);
+                driveHolding = false;
+                return;
+            }
             driveHolding = true;
             Player.externalControl = true;
             Player.ExternalSpeedMetersPerSecond = 0f;
@@ -525,7 +628,6 @@ namespace GoF2Remake.World
             driveFx = Instantiate(assets.hyperDrive, Player.transform.position, mainCamera.transform.rotation * Quaternion.Euler(0f, 180f, 0f));
             // The mounted mod drive's own texture: its "texture", or "failTexture" after a failure (the game's own, purple,
             // when it names none); copies of the fx's materials before PartAnimation copies them for the fades.
-            var drive = Modding.ModJumpFx.ActiveDrive();
             string path = drive == null ? null : failed ? drive.failTexture : drive.texture;
             var tex = string.IsNullOrEmpty(path) ? null : Modding.ModMaterials.Texture(drive.mod, path, false);
             if (tex != null) tex.wrapMode = TextureWrapMode.Repeat;   // the hyper_drive meshes map past 0..1 (AssetImport.FxRepeats)
@@ -547,6 +649,17 @@ namespace GoF2Remake.World
         {
             if (driveArrivalMs < 0f) return;
             driveArrivalMs += Time.deltaTime * 1000f;
+            if (arrivalCinematic?.HasCamera == true && mainCamera != null && launchCameraMs > 0f && Settings.LaunchCamera && !chase.scriptCamera)
+            {
+                var frame = Player.transform;
+                var offset = arrivalCinematic.Position(driveArrivalMs, new Vector3(1000f, 500f, 7000f));
+                mainCamera.transform.position = frame.TransformPoint(offset * M);
+                var aim = frame.TransformPoint((arrivalCinematic.lookOffset ?? Vector3.zero) * M);
+                var direction = aim - mainCamera.transform.position;
+                if (arrivalCinematic.rotation.HasValue) mainCamera.transform.rotation = frame.rotation * Quaternion.Euler(arrivalCinematic.rotation.Value);
+                else if (direction.sqrMagnitude > 1e-6f) mainCamera.transform.rotation = Quaternion.LookRotation(direction, frame.up);
+                if (arrivalCinematic.fov.HasValue) mainCamera.fieldOfView = Aspect.VerticalFov(arrivalCinematic.fov.Value, mainCamera.aspect);
+            }
             if (driveFx != null) driveFx.transform.rotation = mainCamera.transform.rotation * Quaternion.Euler(0f, 180f, 0f);   // +z at the viewer
             if (driveHolding && driveArrivalMs >= DriveShowMs)
             {
@@ -554,12 +667,13 @@ namespace GoF2Remake.World
                 if (Player.visualModel != null) Player.visualModel.gameObject.SetActive(true);
                 Player.externalControl = false;
             }
-            if (driveArrivalMs < Mathf.Max(driveArrivalLength, DriveShowMs)) return;
+            if (driveArrivalMs < Mathf.Max(Mathf.Max(driveArrivalLength, DriveShowMs), arrivalCinematic?.MinimumDuration ?? 0f)) return;
             if (driveFx != null) Destroy(driveFx);
             driveFx = null;
             foreach (var m in driveFxMaterials) if (m != null) Destroy(m);
             driveFxMaterials.Clear();
             driveArrivalMs = -1f;
+            arrivalCinematic = null;
         }
         /// <summary>Level::init with initStreamOutPosition (space_level_setup.md 4): into the gate orbit at the hidden gate
         /// (landmark 2); else 4 x the planet billboard (-20000 * dir) of the station the player came from, or (0, 0, 100000)

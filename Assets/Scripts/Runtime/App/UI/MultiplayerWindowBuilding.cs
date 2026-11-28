@@ -15,6 +15,8 @@ namespace GoF2Remake.UI
     {
         void Build(VisualElement parent)
         {
+            orbitManagement?.Dispose();
+            orbitManagement = null;
             sosButton?.RemoveFromHierarchy();
             sosButton = null;
             plate?.RemoveFromHierarchy();
@@ -114,7 +116,8 @@ namespace GoF2Remake.UI
 
             // A click / tap (or the "Multiplayer window" binding, N) opens it; never the focus (Space or a controller's A on a
             // focused button pressed it again in flight).
-            if (plateButton != null) plateButton.focusable = false;
+            // In flight avoid accidental activation; docked players need keyboard/controller access.
+            if (plateButton != null) plateButton.focusable = !flight;
 
             window = new VisualElement { name = "factionWindow" };
             if (sheet != null) window.styleSheets.Add(sheet);
@@ -182,6 +185,7 @@ namespace GoF2Remake.UI
             scrim.RegisterCallback<PointerDownEvent>(e => { Close(); e.StopPropagation(); });
             parent.Add(scrim);
             parent.Add(window);
+            if (flight) orbitManagement = new StationManagementWindow(null, null, parent, true);
             BuildTabs();
         }
         void LookLike(Button chatTab, Button neighbour)
@@ -196,15 +200,16 @@ namespace GoF2Remake.UI
             tabs.Clear();
             int role = NetPanel.Latest != null ? NetPanel.Latest.role : 0;
             shownRole = role;
-            if (tab == Tab.Admin && role < NetModeration.Op) tab = Tab.Faction;
+            if (!TabAvailable(tab, role)) tab = Tab.Faction;
             foreach (Tab t in Enum.GetValues(typeof(Tab)))
             {
-                if (t == Tab.Admin && role < NetModeration.Op) continue;   // the moderation tab: ops and admins only
+                if (!TabAvailable(t, role)) continue;
                 var name = t == Tab.Faction ? Localization.Extra("mpTabFaction", "Faction") : t == Tab.Arena ? Localization.Extra("mpTabArena", "Arena")
                          : t == Tab.Profile ? Localization.Extra("mpTabProfile", "Profile") : Localization.Extra("mpTabAdmin", "Admin");
                 if (t == Tab.Chat) name = Localization.Extra("mpChat", "Chat");
                 if (t == Tab.Squad) name = Localization.Extra("mpTabSquad", "Squad");
                 if (t == Tab.Trade) name = Localization.Extra("mpTabTrade", "Trade");
+                if (t == Tab.OrbitProjects) name = Localization.Extra("mpTabOrbitProjects", "Orbit projects");
                 // Rework (docs/UI-DESIGN.md "Tabs"): the shared tab look (it was a row of small boxed buttons).
                 var b = new Button(() => SelectTab(t)) { text = name.UiCaps() };
                 b.AddToClassList("tab-button");
@@ -215,6 +220,9 @@ namespace GoF2Remake.UI
             }
             if (isOpen && FocusesItself) FocusLater(currentTabButton);
         }
+        bool TabAvailable(Tab t, int role) =>
+            (t != Tab.Admin || role >= NetModeration.Op) && (t != Tab.OrbitProjects || flight);
+
         void SelectTab(Tab t)
         {
             tab = t;
@@ -228,7 +236,7 @@ namespace GoF2Remake.UI
         {
             var shown = new List<Tab>();
             int role = NetPanel.Latest != null ? NetPanel.Latest.role : 0;
-            foreach (Tab t in Enum.GetValues(typeof(Tab))) if (t != Tab.Admin || role >= NetModeration.Op) shown.Add(t);
+            foreach (Tab t in Enum.GetValues(typeof(Tab))) if (TabAvailable(t, role)) shown.Add(t);
             int i = Mathf.Max(0, shown.IndexOf(tab));
             SelectTab(shown[(i + dir + shown.Count) % shown.Count]);
         }

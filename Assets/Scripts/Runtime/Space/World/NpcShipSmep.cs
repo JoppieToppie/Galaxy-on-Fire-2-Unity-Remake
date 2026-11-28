@@ -1,5 +1,5 @@
 // NpcShipSmep.cs
-// NpcShip, part: the optional SMEP fighter flight mode (a mod hull's traffic.ai = "smep").
+// NpcShip, part: optional session-wide or per-hull SMEP fighter flight mode.
 // Eligible NPCs use authoritative 6DOF translation, with native ES2 flight reserved for controller fallback.
 // ES2 aim and combat assist, acceleration-aware lead and native collision avoidance remain integrated.
 // Mobile small-ship targets use conventional flight; large player hulls have platform parity.
@@ -17,14 +17,18 @@ namespace GoF2Remake.World
     /// <summary>Pure SMEP policy shared by runtime and regression tests.</summary>
     public static class SmepAiRules
     {
-        /// <summary>An explicit per-hull SMEP request is independent of global dogfight presets.</summary>
+        /// <summary>Explicit per-hull opt-in; independent of the global dogfight preset.</summary>
         public static bool RequestedByMod(string ai)
             => string.Equals(ai, "smep", System.StringComparison.OrdinalIgnoreCase);
 
-        /// <summary>SMEP is opt-in on mobile builds; desktop retains the mod hull's normal opt-in behaviour.</summary>
+        /// <summary>Mobile builds require explicit hull opt-in for the per-hull setting.</summary>
         public static bool EnabledOnPlatform(bool mobilePlatform, bool mobileOptIn) => !mobilePlatform || mobileOptIn;
 
-        /// <summary>Mobile player targets always use conventional flight regardless of mod opt-in.</summary>
+        /// <summary>The session-wide opt-in retains its existing behavior. A mod hull may independently opt in.</summary>
+        public static bool RequestedForSession(bool sessionEnabled, string ai, bool mobilePlatform, bool mobileOptIn)
+            => sessionEnabled || (RequestedByMod(ai) && EnabledOnPlatform(mobilePlatform, mobileOptIn));
+
+        /// <summary>Protected mobile targets use fallback regardless of the hull opt-in.</summary>
         public static bool EnabledForTarget(bool mobileTarget, bool mobileOptIn) => !mobileTarget;
 
         /// <summary>Excluded NPC hull classes; the target's class is never consulted.</summary>
@@ -96,17 +100,25 @@ namespace GoF2Remake.World
         float smepPathMs, smepPathSpeed = 1f;
         Vector3 smepPathWanted, smepPathDirection;
         bool smepPathStraight = true;
-        float smepHullTopSpeed, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
-        // Player flight rules are resolved once at spawn, never in the movement loop.
+        readonly List<Obstacle> smepPathObstacles = new List<Obstacle>(16);
+        float smepHullBaseSpeed, smepHullSpeedFactor, smepAccelerationForward, smepAccelerationReverse, smepAccelerationStrafe, smepAccelerationHover;
+
+        // Resolve only this hull's flight overrides once at spawn. Stock hulls keep their NPC speed and use default 6DOF acceleration.
         void SetupSmepHullFlight(ShipData ship)
         {
-            var stats = Database.BuildFlightStats(ship, null);
-            var rules = stats.rules ?? FlightRules.Default;
-            var bonus = stats.free?.bonus ?? new FlightBonus();
-            float handling = Mathf.Max(5f, stats.handling / 100f * 20f);
+            var rules = FlightRules.Default;
+            var hullRules = ship?.flightRules;
+            if (hullRules != null && hullRules.Count != 0)
+            {
+                rules = rules.Clone();
+                rules.Apply(hullRules);
+            }
+            var bonus = new FlightBonus().Add(ship?.flightBoth).Add(ship?.flightFree);
+            float handling = Mathf.Max(5f, (ship?.handling ?? 100f) / 100f * 20f);
             float handlingFactor = Mathf.Pow(handling / 20f, rules.freeAccelHandlingExponent)
                                    * FlightBonus.Scale(bonus.acceleration);
-            smepHullTopSpeed = rules.baseSpeed * FlightBonus.Scale(bonus.topSpeed);
+            smepHullBaseSpeed = hullRules?.ContainsKey("baseSpeed") == true ? rules.baseSpeed : 0f;
+            smepHullSpeedFactor = FlightBonus.Scale(bonus.topSpeed);
             smepAccelerationForward = rules.freeAccelForward * handlingFactor * FlightBonus.Scale(bonus.forwardAcceleration);
             smepAccelerationReverse = (rules.freeAccelReverse > 0f ? rules.freeAccelReverse : rules.freeAccelSide)
                                       * handlingFactor * FlightBonus.Scale(bonus.reverseAcceleration);
@@ -119,10 +131,6 @@ namespace GoF2Remake.World
         Vector3 smepPreviousSteerPosition, smepObservedVelocity;
         int smepPreviousSteerFrame = -1;
         SmepDogfightState smepDogfightState;
-        Target smepMotionTarget;
-        Vector3 smepMotionPosition, smepMotionVelocity, smepMotionAcceleration, smepMotionSampleVelocity;
-        double smepMotionTime;
-        bool smepMotionInitialized;
         Vector3 smepReciprocalLastPosition;
         bool smepReciprocalHasPosition;
         static PlayerCollision smepPlayerCollision;
@@ -157,17 +165,13 @@ namespace GoF2Remake.World
             public bool retreating;
         }
 
-        bool SmepMobileOptIn => Spec != null && (db?.Ship(Spec.ship) as CustomShipData)?.traffic?.mobileAi == true;
-
-        // A mod opted-in fighter keeps its flight controller even when it is an
-        // escort, scripted ship or under an order. Fixed structures, freighters
-        // and capital hulls were excluded at initialization.
+        // Check runtime state as well as the spawn-time filter for non-fighters.
         bool SmepHullEligible => smepFighterAi && Spec != null && !IsFreighter && !IsFixed && !IsTurret
                                  && Spec.capital == 0 && !Spec.capitalPart && !Spec.modCapital && !Spec.stationary
                                  && !Spec.structure && !Spec.stationPort && !Spec.eventWreck && Spec.eventTag == 0
                                  && !IsStructure(Spec);
         // Mobile protection applies only to non-capital player hulls.
-        bool SmepEnabledForTarget => SmepHullEligible && SmepAiRules.EnabledForTarget(ProtectedMobileTarget(target), SmepMobileOptIn);
+        bool SmepEnabledForTarget => SmepHullEligible && !ProtectedMobileTarget(target);
         bool SmepEligible => SmepEnabledForTarget;
 
         static bool MobilePlatformTarget(Target t)
@@ -204,7 +208,7 @@ namespace GoF2Remake.World
                 bool mobile = ProtectedMobileTarget(candidate);
                 if (desktopOnly && mobile) continue;
                 float distance = (candidate.transform.position - origin).sqrMagnitude;
-                if (distance > detectSq || !SmepAiRules.PreferPlayerTarget(mobile, distance, best != null, bestMobile, bestDistance))
+                if ((!UsesScannerDetection && distance > detectSq) || !SmepAiRules.PreferPlayerTarget(mobile, distance, best != null, bestMobile, bestDistance))
                     continue;
                 best = candidate;
                 bestMobile = mobile;
@@ -244,99 +248,18 @@ namespace GoF2Remake.World
             if (picked != null) SetSmepRemoteTarget(picked);
         }
 
-        /// <summary>SMEP's acceleration-aware ballistic lead. Target samples are rate-limited and smoothed per fighter.</summary>
+        /// <summary>Share target motion with the turret controller instead of sampling every fighter separately.</summary>
         Vector3 SmepAccelerationLead(Vector3 aimPoint, Vector3 from, Vector3 nativeLead)
         {
             if (target == null || !target.Alive) return nativeLead;
-            SampleSmepTargetMotion(out var velocity, out var acceleration);
             var firing = gun;
-            if (firing == null || firing.isBeam || firing.IsMissile || firing.Homing || firing.Guided) return nativeLead;
-            float projectileSpeed = firing.speedUnitsPerMs * M * 1000f;
-            if (projectileSpeed <= 1e-3f) return nativeLead;
-            var relative = aimPoint - from;
-            float linear = Es2Aim.InterceptTime(relative.x, relative.y, relative.z,
-                                                 velocity.x, velocity.y, velocity.z, projectileSpeed);
-            if (linear <= 0f || linear > 6f) return nativeLead;
-            float time = SmepAccelerationIntercept(relative, velocity, acceleration, projectileSpeed, linear);
-            if (time <= 0f) return nativeLead;
-            return aimPoint + velocity * time + acceleration * (0.5f * time * time);
-        }
-
-        void SampleSmepTargetMotion(out Vector3 velocity, out Vector3 acceleration)
-        {
-            var motionTarget = target;
-            var position = motionTarget.hull != null ? motionTarget.hull.transform.position : motionTarget.transform.position;
-            double now = Time.timeAsDouble;
-            if (!smepMotionInitialized || smepMotionTarget != motionTarget)
-            {
-                smepMotionInitialized = true;
-                smepMotionTarget = motionTarget;
-                smepMotionPosition = position;
-                smepMotionTime = now;
-                smepMotionVelocity = smepMotionAcceleration = smepMotionSampleVelocity = Vector3.zero;
-                velocity = acceleration = Vector3.zero;
-                return;
-            }
-
-            double elapsedD = now - smepMotionTime;
-            if (elapsedD < 0.04)
-            {
-                velocity = smepMotionVelocity;
-                acceleration = smepMotionAcceleration;
-                return;
-            }
-            float elapsed = (float)elapsedD;
-            var sampleVelocity = Vector3.ClampMagnitude((position - smepMotionPosition) / elapsed, 1500f);
-            if (elapsedD > 0.5)
-            {
-                smepMotionVelocity = Vector3.zero;
-                smepMotionAcceleration = Vector3.zero;
-                smepMotionSampleVelocity = Vector3.zero;
-                smepMotionPosition = position;
-                smepMotionTime = now;
-                velocity = smepMotionVelocity;
-                acceleration = Vector3.zero;
-                return;
-            }
-            var sampleAcceleration = Vector3.ClampMagnitude((sampleVelocity - smepMotionSampleVelocity) / elapsed, 3000f);
-            smepMotionVelocity = Vector3.Lerp(smepMotionVelocity, sampleVelocity, 0.65f);
-            smepMotionAcceleration = Vector3.Lerp(smepMotionAcceleration, sampleAcceleration, 0.3f);
-            smepMotionSampleVelocity = sampleVelocity;
-            smepMotionPosition = position;
-            smepMotionTime = now;
-            velocity = smepMotionVelocity;
-            acceleration = smepMotionAcceleration;
-        }
-
-        static float SmepAccelerationIntercept(Vector3 relative, Vector3 velocity, Vector3 acceleration, float speed, float fallback)
-        {
-            float searchEnd = Mathf.Min(6f, Mathf.Max(0.5f, fallback * 1.5f));
-            float sampleStep = searchEnd / 12f;
-            float previousTime = 0f;
-            float low = 0f, high = 0f;
-            bool bracketed = false;
-            for (int i = 1; i <= 12; i++)
-            {
-                float time = i * sampleStep;
-                float error = (relative + velocity * time + acceleration * (0.5f * time * time)).magnitude - speed * time;
-                if (error <= 0f)
-                {
-                    low = previousTime;
-                    high = time;
-                    bracketed = true;
-                    break;
-                }
-                previousTime = time;
-            }
-            if (!bracketed) return 0f;
-            for (int i = 0; i < 10; i++)
-            {
-                float middle = (low + high) * 0.5f;
-                float error = (relative + velocity * middle + acceleration * (0.5f * middle * middle)).magnitude - speed * middle;
-                if (error > 0f) low = middle; else high = middle;
-            }
-            float result = (low + high) * 0.5f;
-            return result > 0f && result <= 6f ? result : 0f;
+            if (firing == null || firing.IsMissile || firing.Homing || firing.Guided) return nativeLead;
+            if (firing.isBeam) return aimPoint;
+            float speed = firing.speedUnitsPerMs * M * 1000f;
+            float lifetime = Mathf.Min(6f, firing.lifetimeMs * 0.001f);
+            if (lifetime <= 0f) return nativeLead;
+            return TurretTargeting.TryPredictedLead(target, aimPoint, from, speed, lifetime, out var predicted)
+                ? predicted : nativeLead;
         }
 
         /// <summary>Predicts candidate 6DOF trajectories from actual velocity, not nose heading.</summary>
@@ -349,7 +272,13 @@ namespace GoF2Remake.World
             float reach = (Mathf.Max(topSpeed, currentVelocity.magnitude) * 1000f
                            * Es2NpcFlight.PredictionS * M) + r;
             Es2GatherAsteroids(transform.position, reach);
-            if (es2Near.Count == 0 && !Es2ObstacleNear(transform.position, reach)) return;
+            smepPathObstacles.Clear();
+            int frame = Time.frameCount;
+            var origin = transform.position;
+            foreach (var obstacle in Obstacle.All)
+                if (obstacle != null && (target == null || obstacle.transform != target.transform) &&
+                    obstacle.MayReach(origin, reach, frame)) smepPathObstacles.Add(obstacle);
+            if (es2Near.Count == 0 && smepPathObstacles.Count == 0) return;
             if (SmepPathClear(currentVelocity, wanted, topSpeed, r)) return;
 
             var side = Vector3.Cross(wanted, Mathf.Abs(Vector3.Dot(wanted, Vector3.up)) > 0.95f
@@ -357,7 +286,8 @@ namespace GoF2Remake.World
             foreach (var (cone, speedFactor) in Es2NpcFlight.Candidates)
             {
                 if (cone < 0.01f && speedFactor >= 1f) continue; // already tested the direct route
-                const int directions = 8;
+                // A zero cone has only one distinct direction, even at reduced speed.
+                int directions = cone == 0f ? 1 : 8;
                 for (int i = 0; i < directions; i++)
                 {
                     var axis = Quaternion.AngleAxis(i * 360f / directions, wanted) * side;
@@ -384,10 +314,11 @@ namespace GoF2Remake.World
             float dtMs = 1000f / Es2NpcFlight.SamplesPerS;
             int frames = Mathf.CeilToInt(Es2NpcFlight.PredictionS * Es2NpcFlight.SamplesPerS);
             int frame = Time.frameCount;
-            var all = Obstacle.All;
+            var all = smepPathObstacles;
+            var rotation = transform.rotation;
             for (int i = 0; i < frames; i++)
             {
-                velocity = SmepAiRules.StepVelocity(velocity, targetVelocity, transform.rotation, topSpeed,
+                velocity = SmepAiRules.StepVelocity(velocity, targetVelocity, rotation, topSpeed,
                                                     dtMs, smepAccelerationForward, smepAccelerationReverse,
                                                     smepAccelerationStrafe, smepAccelerationHover);
                 pos += velocity * dtMs * M;
@@ -399,9 +330,10 @@ namespace GoF2Remake.World
                 for (int k = 0; k < all.Count; k++)
                 {
                     var obstacle = all[k];
-                    if ((object)obstacle == null || (target != null && obstacle.transform == target.transform)
-                        || !obstacle.MayTouch(pos, frame)) continue;
-                    if (obstacle.Touches(pos, out _)) return false;
+                    if (obstacle == null || (target != null && obstacle.transform == target.transform)
+                        || !obstacle.MayReach(pos, radius, frame)) continue;
+                    // Keep legacy gate-cube contacts and account for the fighter's full clearance.
+                    if (obstacle.Touches(pos, out _) || obstacle.TouchesSphere(pos, radius, out _)) return false;
                 }
             }
             return true;
@@ -425,6 +357,7 @@ namespace GoF2Remake.World
 
             if (smepDogfightState == null || smepDogfightState.target != target)
             {
+                smepPathInitialized = false;
                 float now = Time.time;
                 smepDogfightState = new SmepDogfightState
                 {
@@ -536,7 +469,10 @@ namespace GoF2Remake.World
                 {
                     smepPathWanted = wanted;
                     SmepPathTest(state.velocity, wanted, Mathf.Max(0f, effectiveTopSpeed));
-                    smepPathMs = Es2NpcFlight.ForceUpdateS * 1000f * (smepPathStraight ? 2f : 1f);
+                    // Shorten (never extend) the existing refresh interval by a stable per-ship
+                    // phase to distribute expensive trajectory probes across frames.
+                    float phase = 0.85f + (unchecked((uint)GetEntityId().GetHashCode()) % 16u) * 0.01f;
+                    smepPathMs = Es2NpcFlight.ForceUpdateS * 1000f * (smepPathStraight ? 2f : 1f) * phase;
                     smepPathInitialized = true;
                 }
                 if (!smepPathStraight)

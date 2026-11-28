@@ -25,6 +25,7 @@ namespace GoF2Remake.Multiplayer
             {
                 case "/link":
                     return words.Length == 1 ? NewLinkCode(login) : UseLinkCode(login, words[1], words.Length > 2 && words[2].ToLowerInvariant() == "force");
+                case "/appearance": return SetOwnAppearance(login, words);
                 case "/control":
                     return TakeControl(login);
                 case "/profile": case "/whoami":
@@ -35,6 +36,92 @@ namespace GoF2Remake.Multiplayer
                     return Localization.Extra("mpCommands", "Commands: /duel <name>, /accept, /decline, /ffa, /leave, /arena, /top; /faction (help: /faction help), /f <text>; /link (a code for another device), /link CODE, /control, /profile; /staff (ops: /kick, /tempban, /unban, /bans; admins: /ban, /op, /deop).");
             }
         }
+        static string SetOwnAppearance(Login login, string[] words)
+        {
+            if (!NetGame.IsServer || !Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled)
+                return "Player race and portrait selection is disabled.";
+            if (login.account == null || !login.controller) return "Take control of a persistent profile first.";
+            if (NetPlayerStations.ProfileWritesBlocked) return "Profile changes are paused during station transaction recovery.";
+            if (words.Length != 3 || !PlayerIdentity.TryResolveSelectableRace(words[1], out int race) ||
+                !PlayerIdentity.TryResolveSelectionPortrait(race, words[2], out _, out _))
+                return "Choose a playable race and a matching portrait. Void and Specters are not playable.";
+            string raceKey = PlayerIdentity.RaceKey(race);
+            string savedRace = login.account.stationPolicyRace;
+            if (!PlayerIdentity.IsComplete(savedRace, login.account.playerPortrait) &&
+                !PlayerIdentity.TryResolveSelectableRace(savedRace, out _)) savedRace = null;
+            if (!PlayerIdentity.CanChoose(savedRace, login.account.playerPortrait, raceKey))
+                return "Your pilot identity is permanent and cannot be changed.";
+            // Only a genuinely new profile gets origin benefits. Persist before completing identity,
+            // so a disconnect cannot reroll the origin or receive it again.
+            if (!NetGame.CoopSession)
+            {
+                try
+                {
+                    string path = ProfilePath(login.account.id);
+                    if (!File.Exists(path) && !File.Exists(path + ".bak") && login.account.playSeconds <= 0f)
+                    {
+                        var initial = PlayerIdentity.CreateOriginProfile(NetGame.Db, race, words[2]);
+                        if (initial != null)
+                        {
+                            string json = JsonUtility.ToJson(initial, false);
+                            if (!SaveGame.TryParse(json, NetGame.Db, out _, out string problem))
+                                return "Race origin profile is invalid: " + problem;
+                            if (!Write(path, json)) return "Could not persist your starting profile. Try again.";
+                            if (initial.originStartAsPirate && !NetFactions.GrantStartingPiracy(login.account.id))
+                                return "Starting pirate status could not be saved. Try again.";
+                            login.account.worth = Worth(initial);
+                            login.account.originCompletedMissions = initial.graphQuestsDone ?? new List<string>();
+                        }
+                    }
+                    else if (File.Exists(path))
+                    {
+                        var prior = ReadSave(login.account.id);
+                        if (prior != null && prior.playSeconds <= 0f &&
+                            !string.IsNullOrEmpty(prior.playerIdentityRace) &&
+                            !string.Equals(prior.playerIdentityRace, raceKey, StringComparison.Ordinal))
+                            return "Your starting profile has already been assigned a different race.";
+                        if (prior != null && prior.playSeconds <= 0f && prior.playerIdentityRace == raceKey)
+                        {
+                            if (prior.originStartAsPirate && !NetFactions.GrantStartingPiracy(login.account.id))
+                                return "Starting pirate status could not be saved. Try again.";
+                            login.account.originCompletedMissions = prior.graphQuestsDone ?? new List<string>();
+                        }
+                    }
+                }
+                catch (Exception error)
+                {
+                    Debug.LogWarning("Race origin: " + error.Message);
+                    return "Race origin configuration could not be applied: " + error.Message;
+                }
+            }
+            if (!SavePlayerIdentity(login.account, raceKey, words[2])) return "Pilot appearance could not be saved. Try again.";
+            foreach (var device in logins.Values)
+                if (device.account == login.account)
+                {
+                    SetObserverFlag(device.client, !device.controller);
+                    SendProfile(device, null);
+                }
+            NetFactions.RefreshPiracyFlags();
+            return "Pilot identity saved permanently.";
+        }
+
+        // These requests are authenticated by the connection and do not require a spawned pilot.
+        internal static string CompleteIdentity(ulong client, string race, string portrait)
+        {
+            if (!logins.TryGetValue(client, out var login)) return "Not signed in yet.";
+            if (string.IsNullOrEmpty(race) || string.IsNullOrEmpty(portrait) || race.Length > 128 || portrait.Length > 256)
+                return "Choose a valid race and portrait.";
+            return SetOwnAppearance(login, new[] { "/appearance", race, portrait });
+        }
+
+        internal static string LinkDuringIdentity(ulong client, string code)
+        {
+            if (!logins.TryGetValue(client, out var login) || !NeedsIdentity(login.account)) return "No pending profile setup.";
+            if (NetPlayerStations.ProfileWritesBlocked) return "Profile recovery is pending.";
+            if (string.IsNullOrWhiteSpace(code) || code.Length > 16) return "Enter a valid link code.";
+            return UseLinkCode(login, code, false);
+        }
+
         static string NewLinkCode(Login login)
         {
             if (login.account == null) return Localization.Extra("mpGuestNoLink", "A guest has no profile to link.");
@@ -60,6 +147,8 @@ namespace GoF2Remake.Multiplayer
             var target = index.accounts.Find(a => a.id == link.account);
             if (target == null) { links.Remove(code); return Localization.Extra("mpLinkUnknown", "That link code is unknown or ran out."); }
             if (target == login.account) return Localization.Extra("mpLinkSame", "This device already uses that profile.");
+            if (NeedsIdentity(target) && !NeedsIdentity(login.account))
+                return "Complete the target profile's identity on its original device before linking it.";
             var own = login.account;
             if (own != null)
             {
@@ -78,7 +167,7 @@ namespace GoF2Remake.Multiplayer
             login.acceptedAt = Time.realtimeSinceStartup;
             target.lastSeen = Now();
             SaveIndex();
-            SetObserverFlag(login.client, !login.controller);
+            SetObserverFlag(login.client, !login.controller || NeedsIdentity(login.account));
             SendProfile(login, token);
             Debug.Log($"Server: client {login.client} linked to profile {target.id} ({target.devices.Count} devices).");
             if (login.controller) RestoreSquad(login);
@@ -143,7 +232,14 @@ namespace GoF2Remake.Multiplayer
             {
                 s.guest = l.account == null;
                 s.controller = l.controller;
-                if (l.account != null) { s.profileId = l.account.id; s.devices = l.account.devices.Count; }
+                if (l.account != null)
+                {
+                    s.profileId = l.account.id;
+                    s.devices = l.account.devices.Count;
+                    s.playerIdentityEnabled = Modding.ModPlayerInfrastructure.Current.PlayerIdentityEnabled;
+                    s.playerRace = l.account.stationPolicyRace;
+                    s.playerPortrait = l.account.playerPortrait;
+                }
             }
             s.top = Leaderboard();
         }

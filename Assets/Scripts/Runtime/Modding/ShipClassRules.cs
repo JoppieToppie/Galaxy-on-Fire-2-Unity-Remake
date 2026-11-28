@@ -97,17 +97,61 @@ namespace GoF2Remake.Modding
         public static bool Fits(ItemData item, ShipData ship)
         {
             if (item == null) return true;
+            // Optional ship-specific primary lock; tags use the fully qualified item key.
+            if (item.TypeId == 0 && ship?.classTags != null)
+            {
+                bool locked = false, allowed = false;
+                foreach (string tag in ship.classTags)
+                {
+                    if (tag == null || !tag.StartsWith("primaryOnly:", StringComparison.OrdinalIgnoreCase)) continue;
+                    locked = true;
+                    if (string.Equals(item.modKey, tag.Substring("primaryOnly:".Length), StringComparison.OrdinalIgnoreCase)) allowed = true;
+                }
+                if (locked && !allowed) return false;
+            }
             var allow = item.allowedClasses;
             var deny = item.excludedClasses;
             bool hasAllow = allow != null && allow.Length > 0, hasDeny = deny != null && deny.Length > 0;
             if (!hasAllow && !hasDeny) return true;   // the common case: nothing to check
-            if (!IsClassified(ship)) return true;     // unclassified: the lists don't engage
+            if (!IsClassified(ship)) return item.Attr(ItemStats.StrictShipClassAttr) == 0 || !hasAllow;     // unclassified: the lists don't engage
             if (hasDeny && Matches(ship, deny)) return false;
             return !hasAllow || Matches(ship, allow);
         }
 
+        /// <summary>Optional hardpoint reservations encoded in ship class tags:
+        /// secondarySlot:7:mod:item reserves S7 for that item; a reserved item may only use its reserved slots.
+        /// S1 is the first player-fittable slot; integrated hull weapons are separate, additional mounts.
+        /// Existing untagged ships are unchanged.</summary>
+        public static bool HasSecondaryReservations(ShipData ship)
+        {
+            if (ship?.classTags == null) return false;
+            foreach (string tag in ship.classTags)
+                if (tag != null && tag.StartsWith("secondarySlot:", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        public static bool SecondarySlotFits(ItemData item, ShipData ship, int slot)
+        {
+            if (item == null || ship?.classTags == null) return true;
+            bool reservedItem = false, matchesSlot = false;
+            foreach (string tag in ship.classTags)
+            {
+                const string prefix = "secondarySlot:";
+                if (tag == null || !tag.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                int separator = tag.IndexOf(':', prefix.Length);
+                if (separator < 0 || !int.TryParse(tag.Substring(prefix.Length, separator - prefix.Length), out int number)) continue;
+                bool matches = string.Equals(item.modKey, tag.Substring(separator + 1), StringComparison.OrdinalIgnoreCase);
+                if (number == slot && !matches) return false;
+                if (matches) { reservedItem = true; if (number == slot) matchesSlot = true; }
+            }
+            return !reservedItem || matchesSlot;
+        }
+
         /// <summary>The ship's class id (the machine identity), null for a ship without one (tags alone are not a class).</summary>
         public static string ClassOf(ShipData ship) => string.IsNullOrEmpty(ship?.shipClass) ? null : ship.shipClass;
+
+        /// <summary>Canonical large hull roles; tags alone cannot grant capital-only capabilities.</summary>
+        public static bool IsLargeShipClass(ShipData ship) => ClassOf(ship)?.ToLowerInvariant() is Frigate or Freighter or Cruiser or Carrier;
 
         /// <summary>The class as a scanner shows it: the mod's display text, else the id with its words capitalised
         /// ("light_fighter" = "Light Fighter"); null for a ship without a class.</summary>

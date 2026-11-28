@@ -293,7 +293,7 @@ namespace GoF2Remake.World
                 foreach (var s in traffic.Ships)
                 {
                     if (s == this || s.Gone || s.IsWingman || s.Current != State.Fly || s.Hidden) continue;
-                    if (s.Target.Alive && s.Target.hostileToPlayer) { target = s.Target; attacking = true; break; }
+                    if (s.Target.Alive && s.Target.hostileToPlayer && Detects(s.Target)) { target = s.Target; attacking = true; break; }
                 }
             // Multiplayer: another game's hostile ship here (the orbit's authority runs them).
             if (!attacking && wingCommand != 3 && gun != null && GoF2Remake.Data.NetSession.Active)
@@ -303,7 +303,8 @@ namespace GoF2Remake.World
             if (player == null) { targetPos = transform.position + transform.forward; return; }
             // Formation point (per frame a one-point route).
             Vector3 f = player.forward, r = player.right, u = player.up;
-            Vector3 off = wingSlot == 0 ? -r * 4000f - f * 3000f : wingSlot == 1 ? r * 4000f - f * 3000f : u * 2000f - f * 2000f;
+            int lane = wingSlot % 3;
+            Vector3 off = (lane == 0 ? -r * 4000f - f * 3000f : lane == 1 ? r * 4000f - f * 3000f : u * 2000f - f * 2000f) - f * (wingSlot / 3 * 2200f);
             targetPos = player.position + off * M;
             followingWaypoint = true;
         }

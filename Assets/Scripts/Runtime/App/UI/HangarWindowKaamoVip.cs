@@ -178,7 +178,8 @@ namespace GoF2Remake.UI
             tabShip.tooltip = "1";
             tabShop.tooltip = "2";
             tabShips.tooltip = "3";
-            tabBlueprints.tooltip = on ? "4" : "3";
+            tabBlueprints.tooltip = HasFourthTab ? "4" : "3";
+            tabStorage.tooltip = "3";
             RefreshVipTexts();
         }
 
@@ -217,16 +218,18 @@ namespace GoF2Remake.UI
             ? new[] { Tab.Ship, Tab.Shop, Tab.Ships, Tab.Blueprints }
             : new[] { Tab.Ship, Tab.Shop, Tab.Blueprints };
 
+        Tab[] CurrentTabOrder() => HasPlayerStorage ? new[] { Tab.Ship, Tab.Shop, Tab.Storage, Tab.Blueprints } : VisibleTabOrder(VipTools);
+
         /// <summary>Numeric shortcuts follow visible order; the ordinary three-tab layout keeps 1/2/3.</summary>
         public void SelectTabNumber(int number)
         {
-            var order = VisibleTabOrder(VipTools);
+            var order = CurrentTabOrder();
             if (number >= 1 && number <= order.Length) SetTab(order[number - 1]);
         }
 
         Tab StepTab(int step)
         {
-            var order = VisibleTabOrder(VipTools);
+            var order = CurrentTabOrder();
             int i = Array.IndexOf(order, tab);
             if (i < 0) i = 1;
             return order[(i + step + order.Length) % order.Length];

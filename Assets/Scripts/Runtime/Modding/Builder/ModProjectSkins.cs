@@ -112,7 +112,7 @@ namespace GoF2Remake.Modding
             {
                 string f = Path.Combine(Folder, "backdrop.json");
                 if (value == null || !value.HasValues) { try { if (File.Exists(f)) File.Delete(f); } catch { } return; }
-                File.WriteAllText(f, value.ToString(Formatting.Indented));
+                SafeWriteBytes(f, new System.Text.UTF8Encoding(false).GetBytes(value.ToString(Formatting.Indented)));
             }
         }
         public void AddSkin(int ship)

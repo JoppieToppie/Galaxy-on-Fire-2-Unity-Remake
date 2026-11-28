@@ -22,6 +22,12 @@ This file is the format reference with the rules; next to it:
 - `guide.md`: the full modders' guide, every field of every file with more detail and examples than this file. When a
   field or behaviour isn't covered here, look it up there.
 
+For native infrastructure, ship cameras, equipment attributes, fighter AI, race origins, NPC faction warfare, sensors,
+jump drives and other extended features, read `NATIVE_FEATURES.md` and the relevant specialist manuals.
+When connected to the Mod Builder, use `read_guide` without a filename to discover the available documents, then
+read the relevant section or search for its field name. Offline, these specialist files live in the repository's
+`Modding/` directory and should be attached separately. Do not invent unsupported fields or attribute IDs.
+
 If you can't open them, ask the user to paste the part you need (or to attach it).
 
 ## How to work

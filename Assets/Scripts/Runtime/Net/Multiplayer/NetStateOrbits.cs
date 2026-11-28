@@ -100,7 +100,7 @@ namespace GoF2Remake.Multiplayer
                 if (obj == null || !obj.IsSpawned) continue;
                 var proxy = obj.GetComponent<NetProxy>();
                 var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
-                if (proxy == null && crate == null) continue;
+                if ((proxy == null && crate == null) || (crate != null && crate.IsBountyDrop)) continue;
                 int station = proxy != null ? proxy.Station : crate.Station;
                 if (!orbitRunners.TryGetValue(station, out ulong runner) || !here.TryGetValue(station, out var players)) continue;
                 bool ownerHere = players.Exists(p => p.OwnerClientId == obj.OwnerClientId);
@@ -136,6 +136,51 @@ namespace GoF2Remake.Multiplayer
         /// <summary>Server: 'shooter' hit 'target' within the last 'seconds'.</summary>
         internal bool HitRecently(ulong target, ulong shooter, float seconds) =>
             hits.TryGetValue((target, shooter), out float t) && Time.unscaledTime - t <= seconds;
+        const float BountyCombatTimeout = NetAggression.HostileSeconds;
+        readonly Dictionary<(ulong first, ulong second), (ulong aggressor, int station, float lastHit)> bountyCombat =
+            new Dictionary<(ulong, ulong), (ulong, int, float)>();
+
+        static (ulong first, ulong second) BountyCombatKey(NetPlayer a, NetPlayer b)
+        {
+            ulong first = a.NetworkObjectId, second = b.NetworkObjectId;
+            return first < second ? (first, second) : (second, first);
+        }
+
+        internal void NoteBountyCombatHit(NetPlayer target, NetPlayer by)
+        {
+            if (!IsServer || !NetProfiles.Enabled || !Modding.ModPvpPiracy.Enabled) return;
+            var key = BountyCombatKey(target, by);
+            float now = Time.unscaledTime;
+            if (!bountyCombat.TryGetValue(key, out var combat) || combat.station != target.Station || now - combat.lastHit > BountyCombatTimeout)
+                combat = (by.NetworkObjectId, target.Station, now);
+            combat.lastHit = now;
+            bountyCombat[key] = combat;
+        }
+
+        bool ConsumeBountyCombat(NetPlayer victim, NetPlayer killer, out bool initiated)
+        {
+            var key = BountyCombatKey(victim, killer);
+            bool registeredDeath = bountyCombat.TryGetValue(key, out var combat) &&
+                combat.station == victim.Station && Time.unscaledTime - combat.lastHit <= BountyCombatTimeout;
+            initiated = registeredDeath && combat.aggressor == killer.NetworkObjectId;
+            if (!registeredDeath) return false;
+            // The same hit evidence cannot support another bounty report, even with a different killer.
+            var ended = new List<(ulong, ulong)>();
+            foreach (var pair in bountyCombat.Keys)
+                if (pair.first == victim.NetworkObjectId || pair.second == victim.NetworkObjectId) ended.Add(pair);
+            foreach (var pair in ended) bountyCombat.Remove(pair);
+            return true;
+        }
+
+        void PruneBountyCombat(float now)
+        {
+            if (bountyCombat.Count == 0) return;
+            var expired = new List<(ulong, ulong)>();
+            foreach (var pair in bountyCombat)
+                if (now - pair.Value.lastHit > BountyCombatTimeout) expired.Add(pair.Key);
+            foreach (var pair in expired) bountyCombat.Remove(pair);
+        }
+
         // ---- asteroids --------------------------------------------------------------------------------------
         /// <summary>A player destroyed asteroid 'index' of 'station' (shot, mined, rammed): only a player flying there (else
         /// one client could empty every field of the session).</summary>
@@ -176,7 +221,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetRateLimit.Allow(client, crate ? NetRateLimit.Kind.CrateSpawn : NetRateLimit.Kind.ProxySpawn)) return;
             if (localId < 0 || !NetGuard.Orbit(station) || NetSquad.Find(client) == null) { NetRateLimit.Reject(client, $"a spawn {localId} in orbit {station}"); return; }
             owned.TryGetValue(client, out var n);
-            if (crate ? n.crates >= MaxCrates : n.proxies >= MaxProxies) { NetRateLimit.Reject(client, crate ? "too many crates" : "too many ships"); return; }
+            if (crate ? n.crates >= MaxCrates : n.proxies >= MaxProxies + (Modding.ModNpcFactionWar.Enabled ? 2 * Mathf.Max(0, Modding.ModNpcFactionWar.ShipsPerSide - 24) : 0)) { NetRateLimit.Reject(client, crate ? "too many crates" : "too many ships"); return; }
             var request = new SpawnRequest { client = client, station = station, localId = localId, crate = crate, time = Time.unscaledTime };
             if (NetGuard.InOrbit(client, station)) Spawn(request);
             else if (pendingSpawns.Count < MaxPendingSpawns) pendingSpawns.Add(request);
@@ -235,6 +280,7 @@ namespace GoF2Remake.Multiplayer
             if (!NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(objectId, out var obj) || obj == null || !obj.IsSpawned) return;
             var proxy = obj.GetComponent<NetProxy>();
             var crate = proxy == null ? obj.GetComponent<NetCrate>() : null;
+            if (crate != null && crate.IsBountyDrop) return;
             if (proxy == null && crate == null) { NetRateLimit.Reject(client, "a takeover of no ship or crate"); return; }
             int station = proxy != null ? proxy.Station : crate.Station;
             ulong creator = proxy != null ? proxy.Creator : obj.OwnerClientId;

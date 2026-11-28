@@ -1504,3 +1504,71 @@
 .row-badge-text {
     color: #FFB35C;
 }
+
+/* Opt-in secondary fitting: the normal list rows are the selector; use existing theme tokens. */
+.secondary-allocation {
+    flex-shrink: 0;
+    margin-top: var(--space-s);
+    margin-bottom: var(--space-s);
+    padding: var(--space-s) var(--space-m);
+    border-width: 1px;
+    border-color: var(--gof-line);
+    background-color: var(--gof-cyan-faint);
+}
+.secondary-allocation-heading {
+    color: var(--gof-cyan);
+    font-size: var(--text-body);
+    letter-spacing: 2px;
+    margin-bottom: var(--space-s);
+}
+.secondary-allocation-metric {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+.secondary-allocation-label { font-size: var(--text-caption); color: var(--gof-text-dim); flex-shrink: 1; white-space: normal; }
+.secondary-allocation-value { font-size: var(--text-label); color: var(--gof-text); flex-shrink: 0; }
+.secondary-allocation-total { color: var(--gof-cyan); font-size: var(--text-subhead); }
+.secondary-allocation-actions { flex-direction: row; margin-top: var(--space-xs); }
+.secondary-allocation-button {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 3px;
+    padding: var(--space-xs) var(--space-s);
+    min-height: 38px;
+    font-size: var(--text-caption);
+    letter-spacing: 1px;
+    white-space: normal;
+}
+.secondary-allocation-apply { flex-grow: 0; flex-basis: auto; min-height: 44px; }
+.secondary-allocation-status { color: var(--gof-text-dim); font-size: var(--text-caption); white-space: normal; }
+.secondary-allocation-toggle {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    margin: 0 6px 0 0;
+    padding: 0;
+    font-size: var(--text-subhead);
+    color: var(--gof-text);
+    background-color: var(--gof-cyan-faint);
+    border-width: var(--button-border);
+    border-color: var(--gof-line);
+    border-radius: var(--button-radius);
+}
+.secondary-allocation-toggle--selected { border-color: var(--gof-cyan); color: var(--gof-cyan); }
+.secondary-allocation-toggle:disabled { opacity: 0.35; }
+.list-row--allocation-selected { background-color: var(--gof-cyan-faint); }
+.list-row--allocation-selected .row-sub-text { color: var(--gof-cyan); }
+.list-row--allocation-cursor { border-left-color: var(--gof-amber); border-right-width: 2px; border-right-color: var(--gof-amber); }
+.list-row--allocation .row-icon { width: 84px; }
+.list-row--allocation .row-texts { margin-left: var(--space-s); }
+.list-row--allocation .row-sub-text { font-size: var(--text-caption); white-space: normal; }
+.layout-phone .list-row--allocation .row-icon { width: 64px; }
+.layout-phone .secondary-allocation-toggle { width: 48px; height: 48px; }
+
+/* Compact the allocation controls on phone layouts; preserve the existing item header and description. */
+.layout-phone .secondary-allocation { margin-top: 2px; margin-bottom: 2px; padding: 3px 6px; }
+.layout-phone .secondary-allocation-heading { margin-bottom: 2px; letter-spacing: 1px; }
+.layout-phone .secondary-allocation-button { margin: 2px; min-height: 38px; }
+.layout-phone .secondary-allocation-actions { margin-top: 0; }
+.list-row--allocation .row-sub-text { flex-shrink: 1; }

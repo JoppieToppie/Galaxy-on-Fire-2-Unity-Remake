@@ -40,6 +40,7 @@ namespace GoF2Remake.World
 
         Vector3 AimAt(Target t, float dtMs)
         {
+            if (t != null && t.isShip) return TurretTargeting.CombatAimPoint(t, transform.position);
             if (t != aimFor || (aimMs -= dtMs) <= 0f)
             {
                 aimFor = t;
@@ -63,7 +64,7 @@ namespace GoF2Remake.World
                 smepObservedVelocity = Vector3.zero;
             smepPreviousSteerPosition = smepBeforePosition;
             smepPreviousSteerFrame = Time.frameCount;
-            // Turned and fired at a spot on the target's model (AimAt); the break-off range measured to its centre.
+            // Turn and fire at the class-appropriate combat aim point; the break-off range remains measured to its centre.
             var aimPos = attacking && !followingWaypoint && target != null ? AimAt(target, dtMs) : targetPos;
             // remake option (NpcShipEs2): EVERSPACE 2's aim, a reticule on the lead that settles by the difficulty
             bool es2Aimed = Es2Aiming;
@@ -103,7 +104,7 @@ namespace GoF2Remake.World
 
             if (attacking && !followingWaypoint && target != null)
             {
-                if (target.untargetable || target.cloaked) attacking = false;   // a cloaked ship: chased, never fired at
+                if (target.untargetable || target.cloaked || !Detects(target)) attacking = false;   // a cloaked ship: chased, never fired at
                 else if (RoleFires && !dogHold && !(es2Aimed && Es2Suppressed))   // (remake: the support drones and the detonator hold their guns, NpcShipRoles; GoF3's runs; ES2's director)
                 {
                     // ES2's way of fighting flies elsewhere than it shoots: the guns go off when the nose is on the reticule
@@ -139,10 +140,11 @@ namespace GoF2Remake.World
             float topSpeed = speed * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;   // (remake mods: a pursuer's pace)   // units a ms (remake: a rift's)
             bool useSmepFlight = SmepAiRules.UseCustomFlight(SmepHullEligible, ProtectedMobileTarget(target), Hp.empDisabled, slow.CanTurn, noSteer);
             if (useSmepFlight)
-                // Preserve native boost/pacing as a ratio, but use the modded player hull's top speed.
-                // One shared speed cap applies to forward, reverse, sideways and hover.
-                topSpeed = smepHullTopSpeed * (speed / Mathf.Max(0.01f, baseSpeed))
-                           * slow.SpeedFactor * roleSpeedFactor * dogSpeed * RolePace;
+            {
+                // A hull can override its base speed while retaining NPC boost and pacing, and every axis shares the cap.
+                topSpeed *= smepHullSpeedFactor;
+                if (smepHullBaseSpeed > 0f) topSpeed *= smepHullBaseSpeed / Mathf.Max(0.01f, baseSpeed);
+            }
             // SMEP owns movement and steering when active. ES2 is only the fallback controller.
             bool useEs2Flight = es2Flight && !useSmepFlight;
             if (!useSmepFlight)
@@ -311,6 +313,16 @@ namespace GoF2Remake.World
                 {
                     var t = o.target;
                     if (t == null || !t.Alive || !t.gameObject.activeInHierarchy) { FinishOrder(); return false; }
+                    if (!Detects(t))
+                    {
+                        // Keep the explicit attack order, but do not track the unseen ship's live position.
+                        target = null; attacking = false; followingWaypoint = true;
+                        targetPos = transform.position + transform.forward * (20000f * M);
+                        Steer(dtMs);
+                        Avoid(true, dtMs);
+                        Avoid(false, dtMs);
+                        return true;
+                    }
                     target = t;
                     targetPos = t.transform.position;
                     attacking = true;
@@ -441,8 +453,21 @@ namespace GoF2Remake.World
                 var o = all[i];
                 // Obstacle.All holds only enabled obstacles; MayTouch is a distance test against a sphere measured once a frame.
                 if ((object)o == null || o.landmark != landmarks || !o.MayTouch(pos, frame)) continue;
-                if (!o.Touches(pos, out int index)) continue;
-                var p = o.ProjectionVector(pos, index);
+                Vector3 p;
+                if (o.hull != null && o.hull.NavigationActive)
+                {
+                    // Use the same model geometry as exact collision. A small clearance sphere represents the NPC hull;
+                    // the forward sweep gives it time to turn before the centre reaches the obstacle.
+                    float clearance = 10f;
+                    float lookAhead = Mathf.Max(30f, speed * dtMs * M * 4f);
+                    if (!HullCollision.TryNpcAvoidance(o, pos, transform.forward, clearance, lookAhead, out p)) continue;
+                }
+                else
+                {
+                    // Models without a readable hull keep the original collision-volume steering.
+                    if (!o.Touches(pos, out int index)) continue;
+                    p = o.ProjectionVector(pos, index);
+                }
                 if (p == Vector3.zero) continue;
                 var fwd = transform.forward;
                 var dir = (fwd + (p - fwd) * speed * 0.03f).normalized;
@@ -478,7 +503,22 @@ namespace GoF2Remake.World
         {
             speed *= Mathf.Pow(1.1f, dtMs / OriginalFrame.Ms);
             transform.position += transform.forward * speed * dtMs * M;
-            if (speed > 100f) SetDead();
+            if (speed > 100f)
+            {
+                if (Spec.pirateEvent == SpawnSpec.EventBoss && Spec.sightingId >= 0)
+                {
+                    if (NetSession.Active) SpaceHooks.PirateEscaped?.Invoke(Spec.sightingId, traffic.StationIndex);
+                    else if (!PirateReports.Escape(Database.Shared, PirateReports.Find(Spec.sightingId),
+                        Session.PirateSightings, st => st == traffic.StationIndex))
+                    {
+                        Current = State.Fly;
+                        speed = baseSpeed;
+                        bountyEscapeCharge = 0f;
+                        return;
+                    }
+                }
+                SetDead();
+            }
         }
     }
 }

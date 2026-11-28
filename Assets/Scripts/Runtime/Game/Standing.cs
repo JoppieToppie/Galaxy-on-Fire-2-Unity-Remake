@@ -25,6 +25,54 @@ namespace GoF2Remake.Flight
         public const int Pirate = 8, Void = 9, Specter = 10;
         static readonly int[] EnemyRace = { 1, 0, 3, 2 };   // DAT_00252020, Standing::getEnemyRace
 
+        public static bool Independent => Modding.ModPvpPiracy.IndependentReputation;
+        public static bool PiracyLocked => Independent && GameHooks.LocalPilotIsPirate?.Invoke() == true;
+        public static bool CanGainFromKills(int race) => !PiracyLocked && RawToward(race) > -71;
+        public static bool ReputationRace(int race) => race >= 0 && race < 4 || Modding.ModRaces.Get(race) is Modding.ModRaces.Def d && !d.hostile;
+        public static bool ServerManaged => Independent && GameHooks.ServerOwnsReputation?.Invoke() == true;
+
+        // Shared by single-player and the server's checked NPC-death path. The supplied
+        // read/write functions belong to the relevant profile, never another local pilot.
+        internal static void IndependentKill(int race, int systemRace, bool signature, int multiplier,
+            System.Func<int, int> read, System.Action<int, int> write)
+        {
+            if (ReputationRace(race))
+            {
+                write(race, Mathf.Clamp(read(race) - 5 * multiplier, -100, 100));
+                foreach (int ally in ReputationRaces())
+                    if (ally != race && RacesHostile(ally, race) && read(ally) > -71)
+                        write(ally, Mathf.Clamp(read(ally) + 5 * multiplier, -100, 100));
+            }
+            else if ((race == Pirate || Modding.ModRaces.Get(race)?.hostile == true) && !signature &&
+                     ReputationRace(systemRace) && RacesHostile(race, systemRace) && read(systemRace) > -71)
+                write(systemRace, Mathf.Clamp(read(systemRace) + multiplier, -100, 100));
+        }
+        public const string PiracyHistoryKey = "__piracy_reputation_history";
+        public static string ReputationKey(int race) => Modding.ModRaces.Get(race)?.key ?? ("__base_standing_" + race);
+        public static IEnumerable<int> ReputationRaces()
+        {
+            for (int race = 0; race < 4; race++) yield return race;
+            foreach (var d in Modding.ModRaces.All) if (!d.hostile) yield return d.race;
+        }
+        internal static void StoreIndependent(int race, int value) =>
+            Modding.ModRaces.SetStandingKey(ReputationKey(race), value);
+        public static void EnforcePiracyLock()
+        {
+            if (!Independent) return;
+            Modding.ModRaces.SetStandingKey(PiracyHistoryKey, 1);
+            foreach (int race in ReputationRaces()) StoreIndependent(race, -100);
+        }
+        public static int EarnedWith(int race, int axis0, int axis1, IReadOnlyDictionary<string, int> standings)
+        {
+            if (Independent && (race >= 0 && race < 4 || Modding.ModRaces.Is(race)) && standings != null)
+            {
+                if (standings.TryGetValue(ReputationKey(race), out int value)) return Mathf.Clamp(value, -100, 100);
+                if (standings.TryGetValue(PiracyHistoryKey, out int history) && history > 0) return -100;
+            }
+            if (Modding.ModRaces.Is(race)) return Modding.ModRaces.StandingIn(race, standings);
+            return race switch { 0 => axis0, 1 => -axis0, 2 => axis1, 3 => -axis1, _ => 0 };
+        }
+
         /// <summary>The mounted signature's race (items 189-192: Terran, Vossk, Nivelian, Midorian), -1 = none.</summary>
         public static int SignatureRace
         {
@@ -46,40 +94,38 @@ namespace GoF2Remake.Flight
         }
 
         /// <summary>The value toward 'race' (positive = liked), races 0..3; a signature overrides it (Standing::getStanding).</summary>
-        public static int Toward(int race) => TowardWith(race, Session.Standing[0], Session.Standing[1], SignatureRace);
+        public static int Toward(int race) => PiracyLocked && (race >= 0 && race < 4 || Modding.ModRaces.Is(race)) ? -100 : TowardWith(race, Session.Standing[0], Session.Standing[1], SignatureRace, Session.ModRaceStanding);
 
         /// <summary>Toward with given axes, signature and mod race standings (multiplayer: another player's, NetPlayer;
         /// mod races null = this game's, Session.ModRaceStanding).</summary>
         public static int TowardWith(int race, int axis0, int axis1, int signature, IReadOnlyDictionary<string, int> modRaces = null)
         {
-            if (Modding.ModRaces.Is(race)) return Modding.ModRaces.StandingIn(race, modRaces ?? Session.ModRaceStanding);
-            if (signature >= 0 && race >= 0 && race <= 3) return race == signature ? 100 : race == EnemyRace[signature] ? -100 : 70;
-            return race switch { 0 => axis0, 1 => -axis0, 2 => axis1, 3 => -axis1, _ => 0 };
+            var standings = modRaces ?? Session.ModRaceStanding;
+            int earned = EarnedWith(race, axis0, axis1, standings);
+            if (Modding.ModRaces.Is(race)) return earned;
+            if (Independent && earned <= -71) return earned;
+            if (signature >= 0 && signature < EnemyRace.Length && race >= 0 && race <= 3) return race == signature ? 100 : race == EnemyRace[signature] ? -100 : 70;
+            return earned;
         }
 
         /// <summary>IsEnemy / IsFriend with given axes, signature and mod race standings (multiplayer: another player's).</summary>
         public static bool IsEnemyWith(int race, int axis0, int axis1, int signature, IReadOnlyDictionary<string, int> modRaces = null) =>
             Modding.ModRaces.Is(race) ? ModRaceEnemy(race, modRaces ?? Session.ModRaceStanding)
-            : race == Pirate || race == Void || (race >= 0 && race <= 3 && TowardWith(race, axis0, axis1, signature) <= -71);
+            : race == Pirate || race == Void || (race >= 0 && race <= 3 && TowardWith(race, axis0, axis1, signature, modRaces) <= -71);
         public static bool IsFriendWith(int race, int axis0, int axis1, int signature, IReadOnlyDictionary<string, int> modRaces = null) =>
             Modding.ModRaces.Is(race) ? ModRaceFriend(race, modRaces ?? Session.ModRaceStanding)
-            : race >= 0 && race <= 3 && TowardWith(race, axis0, axis1, signature) >= 71;
+            : race >= 0 && race <= 3 && TowardWith(race, axis0, axis1, signature, modRaces) >= 71;
 
         /// <summary>A mod race is the player's enemy: always if "hostile", else at -71 and below.</summary>
         static bool ModRaceEnemy(int race, IReadOnlyDictionary<string, int> modRaces) =>
-            Modding.ModRaces.Get(race) is var d && d != null && (d.hostile || Modding.ModRaces.StandingIn(race, modRaces) <= -71);
+            Modding.ModRaces.Get(race) is var d && d != null && (d.hostile || EarnedWith(race, 0, 0, modRaces) <= -71);
         static bool ModRaceFriend(int race, IReadOnlyDictionary<string, int> modRaces) =>
-            Modding.ModRaces.Get(race) is var d && d != null && !d.hostile && Modding.ModRaces.StandingIn(race, modRaces) >= 71;
+            Modding.ModRaces.Get(race) is var d && d != null && !d.hostile && EarnedWith(race, 0, 0, modRaces) >= 71;
 
         /// <summary>The standing axes themselves (the Status window, mission bonuses).</summary>
-        public static int RawToward(int race) => Modding.ModRaces.Is(race) ? Modding.ModRaces.Standing(race) : race switch
-        {
-            0 => Session.Standing[0],
-            1 => -Session.Standing[0],
-            2 => Session.Standing[1],
-            3 => -Session.Standing[1],
-            _ => 0,
-        };
+        public static int RawToward(int race) =>
+            PiracyLocked && (race >= 0 && race < 4 || Modding.ModRaces.Is(race)) ? -100 :
+            EarnedWith(race, Session.Standing[0], Session.Standing[1], Session.ModRaceStanding);
 
         /// <summary>Remake (/standing, the quests' Standing step): the value toward race 0..3 moved by 'amount' (positive =
         /// liked more) or set to it, on its axis, -100..100; no Extreme doubling (no delict). Mods' mod races:
@@ -87,20 +133,48 @@ namespace GoF2Remake.Flight
         public static void Move(int race, int amount, bool set)
         {
             if (race < 0 || race > 3 || Session.Standing == null) return;
+            if (Independent)
+            {
+                if (!PiracyLocked && !ServerManaged) StoreIndependent(race, set ? amount : RawToward(race) + amount);
+                return;
+            }
             int axis = race / 2, sign = race % 2 == 0 ? 1 : -1;   // 0 / 2 the axis's + end, 1 / 3 its - end
             int toward = set ? amount : RawToward(race) + amount;
             Session.Standing[axis] = Mathf.Clamp(sign * Mathf.Clamp(toward, -100, 100), -100, 100);
         }
 
+        /// <summary>Restore diplomatic relations to the neutral band.</summary>
+        public static void Rehabilitate(int race)
+        {
+            if (Independent) { StoreIndependent(race, Modding.ModRaces.Is(race) ? 0 : -35); return; }
+            if (Modding.ModRaces.Is(race)) Modding.ModRaces.SetStanding(race, 0);
+            else Move(race, -35, true);
+        }
+
         /// <summary>Standing::isEnemy (plus the always-hostile pirates and Void).</summary>
-        public static bool IsEnemy(int race) => Modding.ModRaces.Is(race) ? ModRaceEnemy(race, Session.ModRaceStanding) : race == Pirate || race == Void || (race >= 0 && race <= 3 && Toward(race) <= -71);
+        public static bool IsEnemy(int race) => Modding.ModRaces.Is(race) ? (PiracyLocked || ModRaceEnemy(race, Session.ModRaceStanding)) : race == Pirate || race == Void || (race >= 0 && race <= 3 && Toward(race) <= -71);
 
         /// <summary>Standing::isFriend.</summary>
-        public static bool IsFriend(int race) => Modding.ModRaces.Is(race) ? ModRaceFriend(race, Session.ModRaceStanding) : race >= 0 && race <= 3 && Toward(race) >= 71;
+        public static bool IsFriend(int race) => Modding.ModRaces.Is(race) ? (!PiracyLocked && ModRaceFriend(race, Session.ModRaceStanding)) : race >= 0 && race <= 3 && Toward(race) >= 71;
+
+        /// <summary>Docking fines follow the current owner. Friendly owners waive both reputation and attack fines.</summary>
+        public static bool RequiresDockingFine(bool ownFaction, bool ownerFriendly, bool ownerEnemy, bool attacked) =>
+            !ownFaction && !ownerFriendly && (ownerEnemy || attacked);
 
         /// <summary>Standing::applyDelict: moves the race's axis away from it by p (x2 on Extreme).</summary>
         public static void ApplyDelict(int race, int p)
         {
+            if (Independent)
+            {
+                if (PiracyLocked || !ReputationRace(race)) return;
+                if (ServerManaged)
+                {
+                    if (p > 0) GameHooks.ReportReputationDelict?.Invoke(race, p);
+                    return; // positive mission rewards are issued by the server's mission result
+                }
+                StoreIndependent(race, RawToward(race) - p * (Session.IsExtreme ? 2 : 1));
+                return;
+            }
             if (Modding.ModRaces.Is(race))
             {
                 // a mod race: its standing down by p (x2 on Extreme), like one end of a game axis
@@ -118,6 +192,13 @@ namespace GoF2Remake.Flight
         /// <summary>A kill by the player: race 0..3 -> delict 5; a pirate -> 1 toward the system race.</summary>
         public static void ApplyKill(int race, int systemRace)
         {
+            if (Independent)
+            {
+                if (PiracyLocked) return;
+                if (ServerManaged) return;
+                IndependentKill(race, systemRace, SignatureRace >= 0, Session.IsExtreme ? 2 : 1, RawToward, StoreIndependent);
+                return;
+            }
             if (Modding.ModRaces.Get(race) is Modding.ModRaces.Def f)
             {
                 // a hostile mod race's ship, like a pirate: +1 with the system's mod race when it is that mod race's enemy; any
@@ -144,9 +225,10 @@ namespace GoF2Remake.Flight
 
         /// <summary>NPC vs NPC: do ships of races a and b fight each other? (The player's ship counts as race 0.)</summary>
         public static bool RacesHostile(int a, int b) =>
-            Modding.ModRaces.Is(a) || Modding.ModRaces.Is(b) ? Modding.ModRaces.Relation(a, b) == Modding.ModRaces.Enemy :
+            (Modding.ModNpcFactionWar.Enabled && Modding.ModNpcFactionWar.AtWar(a, b)) ||
+            (Modding.ModRaces.Is(a) || Modding.ModRaces.Is(b) ? Modding.ModRaces.Relation(a, b) == Modding.ModRaces.Enemy :
             (a == Pirate) != (b == Pirate) || (a == Void) != (b == Void) || (a == Specter) != (b == Specter)
-            || (a == 0 && b == 1) || (a == 1 && b == 0) || (a == 2 && b == 3) || (a == 3 && b == 2);
+            || (a == 0 && b == 1) || (a == 1 && b == 0) || (a == 2 && b == 3) || (a == 3 && b == 2));
 
         /// <summary>A race by its word ("vossk", "pirates", or the language's race name), -1 = none (the admin commands, mods' characters).</summary>
         public static int RaceWord(string w)

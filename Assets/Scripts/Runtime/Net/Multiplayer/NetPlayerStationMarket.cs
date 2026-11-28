@@ -1,0 +1,866 @@
+using System;
+using System.Collections.Generic;
+using GoF2Remake.Data;
+
+namespace GoF2Remake.Multiplayer
+{
+    [Serializable]
+    public sealed class PlayerStationMarketRule
+    {
+        public string account, operation, reason;
+        public int percent;
+    }
+
+    public static partial class NetPlayerStations
+    {
+        const int MaxStationListings = 64;
+        const long MaxStationUnitPrice = 1000000000L;
+
+        const int MaxConstructionBuyOrders = 32;
+
+        internal static void NormalizeConstructionOrderIds(PlayerStationRecord record)
+        {
+            if (record?.buyOrders == null) return;
+            int next = Math.Max(1, record.nextConstructionOrderId);
+            foreach (var order in record.buyOrders)
+                if (order != null && order.id >= next) next = order.id == int.MaxValue ? int.MaxValue : order.id + 1;
+            var used = new HashSet<int>();
+            foreach (var order in record.buyOrders)
+            {
+                if (order == null || (order.id > 0 && used.Add(order.id))) continue;
+                if (next < int.MaxValue) { order.id = next++; used.Add(order.id); }
+                else order.id = 0;
+            }
+            record.nextConstructionOrderId = next;
+        }
+
+        internal static string SettleConstructionOrderById(NetPlayer by, int stationId, int orderId, int amount, bool cancel)
+        {
+            int index = orderId <= 0 ? -1 : Find(stationId)?.buyOrders?.FindIndex(order => order != null && order.id == orderId) ?? -1;
+            if (index < 0) return "This construction order is no longer available. Refresh the project.";
+            return cancel ? CancelConstructionBuyOrder(by, stationId, index) : FulfilConstructionBuyOrder(by, stationId, index, amount);
+        }
+
+        internal static string CreateConstructionBuyOrder(NetPlayer by, int id, int item, int amount, long unitPrice)
+        {
+            var record = Find(id);
+            var materials = ProcurementMaterials(record);
+            if (materials == null) return "That construction project is not accepting orders.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || (!by.InHangar && !CanDeliverAtConstructionSite(by, record)) ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at a station or the active construction site using a controlled profile to create a construction buy order.";
+            if (!NetGuard.Item(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice ||
+                unitPrice > int.MaxValue / (long)Math.Max(1, amount))
+                return "Use a valid material, 1–500 units, and a supported positive unit price.";
+            var material = materials.Find(x => x != null && x.item == item);
+            if (material == null || amount > material.required - material.delivered)
+                return "The order exceeds the project's remaining requirement for that material.";
+            long ordered = 0;
+            foreach (var pending in record.buyOrders ?? new List<PlayerStationBuyOrder>())
+                if (pending != null && pending.item == item && pending.remaining > 0) ordered += pending.remaining;
+            if (amount + ordered > material.required - material.delivered)
+                return "Existing buy orders already cover part or all of that requirement.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (string.IsNullOrEmpty(account)) return "Your player profile is unavailable.";
+            string fundingProfile = null, fundingFaction = null;
+            long available;
+            if (record.ownershipType == PlayerStationOwnershipType.Faction)
+            {
+                if (!IsFactionManager(record, account)) return "Only the owning faction leader or an officer may spend its treasury.";
+                fundingFaction = record.ownerFactionId;
+                available = NetFactions.BankAmount(fundingFaction);
+            }
+            else
+            {
+                if (!string.Equals(account, record.ownerProfile, StringComparison.Ordinal))
+                    return "Only the individual station owner may fund its construction buy orders.";
+                fundingProfile = record.ownerProfile;
+                available = NetProfiles.CreditAmount(fundingProfile);
+            }
+            long reserve = unitPrice * amount;
+            if (available < 0) return "The station funding account is unavailable.";
+            if (available < reserve) return $"The order needs {reserve:N0} credits in escrow; only {available:N0} are available.";
+            record.buyOrders ??= new List<PlayerStationBuyOrder>();
+            if (record.buyOrders.Count >= MaxConstructionBuyOrders) return "This project has reached its active buy-order limit.";
+            NormalizeConstructionOrderIds(record);
+            if (record.nextConstructionOrderId >= int.MaxValue) return "The construction order ID limit has been reached.";
+            int orderId = record.nextConstructionOrderId++;
+            var order = new PlayerStationBuyOrder { id = orderId, item = item, remaining = amount, unitPrice = unitPrice, reservedCredits = reserve,
+                fundedByProfile = fundingProfile, fundedByFactionId = fundingFaction, createdBy = account,
+                createdUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
+            record.buyOrders.Add(order);
+            var credits = fundingProfile != null ? new List<(string account, long delta)> { (fundingProfile, -reserve) } : null;
+            var banks = fundingFaction != null ? new List<(string factionId, long delta)> { (fundingFaction, -reserve) } : null;
+            if (!CommitProfileTransaction(null, credits, banks))
+            {
+                record.buyOrders.Remove(order);
+                record.nextConstructionOrderId = orderId;
+                return "The order could not be journalled; no funds were reserved.";
+            }
+            if (fundingProfile != null)
+                NotifyProfileCreditChange(fundingProfile, -reserve, "Construction buy order escrow");
+            return $"Construction buy order #{order.id} created for {amount} x {NetGame.Db?.Item(item)?.name ?? ("Item " + item)} at {unitPrice:N0} each. {reserve:N0} credits escrowed.";
+        }
+
+        internal static string FulfilConstructionBuyOrder(NetPlayer by, int id, int orderIndex, int amount)
+        {
+            var record = Find(id);
+            var materials = ProcurementMaterials(record);
+            if (materials == null) return "That construction project is not accepting deliveries.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Use a controlled profile to sell materials into a construction order.";
+            if (!record.underConstruction && (!by.InHangar || by.Station != record.stationIndex))
+                return "Dock at the station commissioning this module to sell its materials.";
+            string locationError = ConstructionDeliveryError(by, record);
+            if (locationError != null) return locationError;
+            if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
+                return "No construction buy order exists at that index.";
+            var order = record.buyOrders[orderIndex];
+            if (order == null || order.remaining < 1 || order.unitPrice < 1 || !NetGuard.Item(order.item) ||
+                order.unitPrice > long.MaxValue / order.remaining ||
+                order.reservedCredits < order.unitPrice * (long)order.remaining)
+                return "That construction buy order is invalid.";
+            if (amount < 1 || amount > 500 || amount > order.remaining) return "Choose 1–500 units, up to the order's remaining quantity.";
+            var material = materials.Find(x => x != null && x.item == order.item);
+            if (material == null || amount > material.required - material.delivered)
+                return "The project no longer needs that quantity of this material.";
+            string seller = NetProfiles.AccountOf(by.OwnerClientId);
+            if (!AllowsFacilityUse(record, seller, "market")) return FacilityUseRefusal(record, seller, "market", "Station race policy restricts this sale.");
+            int cargo = NetProfiles.CargoAmount(seller, order.item);
+            long total = order.unitPrice * amount, balance = NetProfiles.CreditAmount(seller);
+            if (string.IsNullOrEmpty(seller) || cargo < amount) return "Your saved profile does not have enough of that material.";
+            if (total > int.MaxValue || balance < 0 || balance > long.MaxValue - total) return "Your profile cannot receive this payment.";
+
+            bool stationProject = record.underConstruction;
+            PlayerStationContribution receipt = null;
+            if (stationProject)
+            {
+                record.constructionContributions ??= new List<PlayerStationContribution>();
+                receipt = record.constructionContributions.Find(entry => entry != null && entry.procurement &&
+                    entry.contributorProfile == seller && entry.item == order.item);
+                if (receipt != null && (receipt.amount < 0 || receipt.amount > int.MaxValue - amount ||
+                    receipt.paidCredits < 0 || receipt.paidCredits > long.MaxValue - total))
+                    return "The construction procurement ledger has an invalid total.";
+            }
+            var oldOrders = new List<PlayerStationBuyOrder>();
+            foreach (var pending in record.buyOrders)
+                oldOrders.Add(pending == null ? null : new PlayerStationBuyOrder { id = pending.id, item = pending.item, remaining = pending.remaining,
+                    unitPrice = pending.unitPrice, reservedCredits = pending.reservedCredits, fundedByProfile = pending.fundedByProfile,
+                    fundedByFactionId = pending.fundedByFactionId, createdBy = pending.createdBy, createdUtc = pending.createdUtc });
+            int oldDelivered = material.delivered;
+            Action rollbackCompletion = null;
+            material.delivered += amount;
+            order.remaining -= amount;
+            order.reservedCredits -= total;
+            if (order.remaining == 0) record.buyOrders.RemoveAt(orderIndex);
+            bool complete = true;
+            foreach (var resource in materials)
+                if (resource != null && resource.delivered < resource.required) { complete = false; break; }
+            var credits = new List<(string account, long delta)> { (seller, total) };
+            var banks = new List<(string factionId, long delta)>();
+            var profileRefunds = new List<(string account, long amount)>();
+            if (complete)
+            {
+                if (!StageConstructionEscrowRefunds(record.buyOrders, credits, banks, profileRefunds))
+                {
+                    material.delivered = oldDelivered;
+                    record.buyOrders = oldOrders;
+                    return "An outstanding buy order has invalid escrow. The order was preserved for administrator recovery.";
+                }
+                rollbackCompletion = stationProject ? FundStationConstruction(record) :
+                    FundModuleConstruction(record, record.moduleConstructionKind);
+                record.buyOrders.Clear();
+            }
+            bool newReceipt = stationProject && receipt == null;
+            int oldReceiptAmount = receipt?.amount ?? 0;
+            long oldReceiptPaid = receipt?.paidCredits ?? 0, oldReceiptUtc = receipt?.paidUtc ?? 0;
+            if (stationProject)
+            {
+                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (newReceipt)
+                {
+                    receipt = new PlayerStationContribution { contributorProfile = seller, procurement = true, item = order.item, contributedUtc = now };
+                    record.constructionContributions.Add(receipt);
+                }
+                receipt.amount += amount;
+                receipt.paidCredits += total;
+                receipt.paidUtc = now;
+            }
+            if (!CommitProfileTransaction(new List<(string account, int item, int delta)> { (seller, order.item, -amount) }, credits, banks))
+            {
+                if (newReceipt) record.constructionContributions.Remove(receipt);
+                else if (receipt != null) { receipt.amount = oldReceiptAmount; receipt.paidCredits = oldReceiptPaid; receipt.paidUtc = oldReceiptUtc; }
+                material.delivered = oldDelivered;
+                rollbackCompletion?.Invoke();
+                record.buyOrders = oldOrders;
+                return "The sale could not be journalled; no cargo or credits were transferred.";
+            }
+            if (complete && stationProject) Apply(NetGame.Db);
+
+            if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, order.item, amount, 0, "", "Construction buy order");
+            NotifyProfileCreditChange(seller, total, "Construction buy order");
+            foreach (var refund in profileRefunds)
+                NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
+            return $"Sold {amount} x {NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item)} into construction order #{order.id} for {total:N0} credits." +
+                (complete ? " Project funded; remaining order escrow was refunded." : " Materials were added to the construction project.");
+        }
+
+        // NPC suppliers consume existing escrow, not a player account or faction treasury.
+        // All project, stock and refund mutations are recorded in the same durable journal.
+        internal static int NpcConstructionRemaining(PlayerStationRecord project, int item)
+        {
+            var material = ProcurementMaterials(project)?.Find(x => x != null && x.item == item);
+            return material == null ? 0 : Math.Max(0, material.required - material.delivered);
+        }
+
+        internal static int SupplyNpcConstruction(PlayerStationRecord record, PlayerStationBuyOrder order,
+            int units, Action stageStock, Action rollbackStock)
+        {
+            if (!NetGame.IsServer || !NetProfiles.Enabled || ProfileWritesBlocked ||
+                !Modding.ModAdvancedEconomy.NpcConstructionSupply || !AdvancedEconomyLedger.CanJournal ||
+                record == null || order == null || record.buyOrders == null ||
+                !record.buyOrders.Contains(order) || units <= 0 || units > 500 || units > order.remaining ||
+                order.unitPrice <= 0 || order.unitPrice > long.MaxValue / order.remaining ||
+                order.reservedCredits != order.unitPrice * order.remaining ||
+                string.IsNullOrEmpty(order.fundedByProfile) == string.IsNullOrEmpty(order.fundedByFactionId) ||
+                (!record.underConstruction && StationClosedByCombat(record.stationIndex))) return 0;
+            var materials = ProcurementMaterials(record);
+            var material = materials?.Find(x => x != null && x.item == order.item);
+            if (material == null || material.delivered < 0 || units > material.required - material.delivered) return 0;
+            int oldDelivered = material.delivered, oldRemaining = order.remaining;
+            long oldEscrow = order.reservedCredits;
+            var oldOrders = new List<PlayerStationBuyOrder>(record.buyOrders);
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            var refunds = new List<(string account, long amount)>();
+            material.delivered += units;
+            order.remaining -= units;
+            order.reservedCredits -= order.unitPrice * units;
+            if (order.remaining == 0) record.buyOrders.Remove(order);
+            bool complete = materials.TrueForAll(x => x != null && x.delivered >= x.required);
+            bool stationProject = record.underConstruction;
+            Action rollbackCompletion = null;
+            if (complete)
+            {
+                if (!StageConstructionEscrowRefunds(record.buyOrders, credits, banks, refunds))
+                {
+                    material.delivered = oldDelivered;
+                    order.remaining = oldRemaining; order.reservedCredits = oldEscrow;
+                    record.buyOrders = oldOrders;
+                    return 0;
+                }
+                rollbackCompletion = stationProject ? FundStationConstruction(record) :
+                    FundModuleConstruction(record, record.moduleConstructionKind);
+                record.buyOrders.Clear();
+            }
+            stageStock();
+            if (!CommitProfileTransaction(null, credits, banks, registryOnly: true, economyJson: AdvancedEconomyLedger.Snapshot()))
+            {
+                rollbackStock();
+                rollbackCompletion?.Invoke();
+                material.delivered = oldDelivered;
+                order.remaining = oldRemaining; order.reservedCredits = oldEscrow;
+                record.buyOrders = oldOrders;
+                return 0;
+            }
+            if (complete && stationProject) Apply(NetGame.Db);
+            foreach (var refund in refunds)
+                NotifyProfileCreditChange(refund.account, refund.amount, "Construction buy order escrow refund");
+            return units;
+        }
+
+        static bool StageConstructionEscrowRefunds(List<PlayerStationBuyOrder> orders,
+            List<(string account, long delta)> credits, List<(string factionId, long delta)> banks,
+            List<(string account, long amount)> profileRefunds)
+        {
+            if (orders == null) return true;
+            foreach (var order in orders)
+            {
+                if (order == null || order.reservedCredits == 0) continue;
+                bool personal = !string.IsNullOrEmpty(order.fundedByProfile);
+                bool faction = !string.IsNullOrEmpty(order.fundedByFactionId);
+                if (order.reservedCredits < 0 || personal == faction) return false;
+                if (personal)
+                {
+                    credits.Add((order.fundedByProfile, order.reservedCredits));
+                    profileRefunds.Add((order.fundedByProfile, order.reservedCredits));
+                }
+                else banks.Add((order.fundedByFactionId, order.reservedCredits));
+            }
+            return true;
+        }
+
+        internal static string CancelConstructionBuyOrder(NetPlayer by, int id, int orderIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "Construction orders are paused until the station is claimed.";
+            if (!NetGame.IsServer || by == null || !by.IsSpawned || (!by.InHangar && !CanDeliverAtConstructionSite(by, record)) ||
+                !NetProfiles.Enabled || !NetProfiles.Controls(by.OwnerClientId))
+                return "Dock at a station or the active construction site using a controlled profile to cancel a construction order.";
+            if (orderIndex < 0 || record.buyOrders == null || orderIndex >= record.buyOrders.Count)
+                return "No construction buy order exists at that index.";
+            string account = NetProfiles.AccountOf(by.OwnerClientId);
+            if (record.ownershipType == PlayerStationOwnershipType.Faction
+                ? !IsFactionManager(record, account)
+                : !string.Equals(account, record.ownerProfile, StringComparison.Ordinal))
+                return "Only the station owner, or the owning faction's leader/officer, may cancel this order.";
+            var order = record.buyOrders[orderIndex];
+            if (order == null || order.reservedCredits < 0)
+                return "That order has invalid escrow and cannot be cancelled automatically.";
+
+            // A positive escrow balance must have exactly one recorded funding identity. Legacy orders
+            // without one (or malformed orders naming both) stay intact for administrator recovery.
+            bool hasProfileFunder = !string.IsNullOrEmpty(order.fundedByProfile);
+            bool hasFactionFunder = !string.IsNullOrEmpty(order.fundedByFactionId);
+            if (order.reservedCredits > 0 && hasProfileFunder == hasFactionFunder)
+                return "This order's escrow owner cannot be identified safely. The order and its escrow were preserved for administrator recovery.";
+
+            record.buyOrders.RemoveAt(orderIndex);
+            var credits = hasProfileFunder && order.reservedCredits > 0
+                ? new List<(string account, long delta)> { (order.fundedByProfile, order.reservedCredits) } : null;
+            var banks = hasFactionFunder && order.reservedCredits > 0
+                ? new List<(string factionId, long delta)> { (order.fundedByFactionId, order.reservedCredits) } : null;
+            if (!CommitProfileTransaction(null, credits, banks))
+            {
+                record.buyOrders.Insert(orderIndex, order);
+                return "The cancellation could not be journalled; the order and escrow remain active.";
+            }
+            if (!string.IsNullOrEmpty(order.fundedByProfile) && order.reservedCredits > 0)
+                NotifyProfileCreditChange(order.fundedByProfile, order.reservedCredits, "Construction buy order refund");
+            return $"Construction buy order cancelled. {order.reservedCredits:N0} unspent escrow credits were returned.";
+        }
+
+
+        internal static bool CanManageMarketPolicy(PlayerStationRecord station, string account) =>
+            IsOwnershipAuthority(station, account) || HasStationPermission(station, account, PlayerStationPermission.Finance);
+
+        static PlayerStationMarketRule PilotMarketRule(PlayerStationRecord station, string account, string operation) =>
+            station.marketplacePilotRules?.Find(rule => rule != null && rule.account == account && rule.operation == operation);
+
+        internal static bool CanTradeAtMarket(PlayerStationRecord station, string account) =>
+            AllowsFacilityUse(station, account, "market") && PilotMarketRule(station, account, "access") == null &&
+            FindPermissionOverride(station, account, PlayerStationPermission.Marketplace)?.state != PlayerStationPermissionState.Deny;
+
+        internal static string MarketRefusal(PlayerStationRecord station, string account, string fallback) =>
+            WithBlacklistReason(FacilityUseRefusal(station, account, "market", fallback), PilotMarketRule(station, account, "access")?.reason);
+
+        internal static int PilotMarketLimit => Math.Max(10, Modding.ModPlayerInfrastructure.Current.StationRaceMarketLimitPercent);
+
+        internal static string PilotMarketRulesStatus(NetPlayer by, int id)
+        {
+            var station = Find(id);
+            if (!IsStationContext(by, station, out string account))
+                return "Dock at the station to view marketplace rules.";
+            bool finance = CanManageMarketPolicy(station, account);
+            bool security = HasStationPermission(station, account, PlayerStationPermission.Security);
+            if (!finance && !security) return "Marketplace rules require finance or security authority.";
+            var directory = NetProfiles.StationPilotDirectory();
+            var lines = new List<string> { "Pilot marketplace rules" };
+            foreach (var rule in station.marketplacePilotRules ?? new List<PlayerStationMarketRule>())
+            {
+                if (rule == null || (rule.operation == "access" ? !security : !finance)) continue;
+                string name = directory.Find(pilot => pilot.id == rule.account).name ?? rule.account;
+                string setting = rule.operation == "access" ? "Denied" : $"{rule.operation} {rule.percent}%";
+                lines.Add(WithBlacklistReason(name + " · " + setting, rule.reason));
+                if (lines.Count >= 21) break;
+            }
+            if (lines.Count == 1) lines.Add("No pilot overrides.");
+            return string.Join("\n", lines);
+        }
+
+        internal static string SetPilotMarketRule(NetPlayer by, int id, string target, string operation, string value, string reason = null)
+        {
+            var station = Find(id);
+            bool access = operation == "access";
+            if (!IsStationContext(by, station, out string account) ||
+                (access ? !IsOwnershipAuthority(station, account) && !HasStationPermission(station, account, PlayerStationPermission.Security) :
+                    !CanManageMarketPolicy(station, account)))
+                return access ? "Dock at the station with security authority to manage marketplace access." :
+                    "Dock at the station with finance authority to set pilot taxes.";
+            string pilot = ResolveStationAccount(target);
+            if (string.IsNullOrEmpty(pilot)) return "Choose a valid pilot.";
+            if (!access && operation != "purchase" && operation != "sale") return "Choose purchase or sale.";
+            bool inherit = value == "inherit";
+            reason = NormalizeBlacklistReason(reason);
+            if (access && !inherit && (value != "deny" || string.IsNullOrEmpty(reason)))
+                return "A marketplace denial requires a reason.";
+            int percent = 0;
+            int limit = PilotMarketLimit;
+            if (!access && !inherit && (!int.TryParse(value, out percent) || percent < (operation == "purchase" ? -limit : 0) || percent > limit))
+                return "Choose a percentage within the supported limits.";
+            var previous = station.marketplacePilotRules;
+            var rules = previous == null ? new List<PlayerStationMarketRule>() : new List<PlayerStationMarketRule>(previous);
+            rules.RemoveAll(rule => rule != null && rule.account == pilot && rule.operation == operation);
+            if (!inherit) rules.Add(new PlayerStationMarketRule { account = pilot, operation = operation, percent = percent, reason = reason });
+            station.marketplacePilotRules = rules.Count == 0 ? null : rules;
+            if (Save()) return access ? "Pilot marketplace access updated." : "Pilot tax rule updated.";
+            station.marketplacePilotRules = previous;
+            return "The pilot tax rule could not be saved.";
+        }
+
+        internal static string DonateStationCredits(NetPlayer pilot, int id, long amount)
+        {
+            var station = Find(id);
+            if (!IsStationContext(pilot, station, out string account) || station.underConstruction || station.retired || station.destroyed || station.offeredForClaimUtc > 0)
+                return "Dock at an operational station with a controlled profile to donate credits.";
+            if (amount <= 0 || amount > int.MaxValue || NetProfiles.CreditAmount(account) < amount)
+                return "Choose a positive donation within your available credits.";
+            long previous = station.stationBankCredits;
+            if (previous < 0 || previous > long.MaxValue - amount) return "The station bank cannot accept that amount.";
+            station.stationBankCredits += amount;
+            if (!CommitProfileTransaction(null, new List<(string account, long delta)> { (account, -amount) }, null))
+            {
+                station.stationBankCredits = previous;
+                return "The donation could not be committed.";
+            }
+            if (!ProfileWritesBlocked) NotifyProfileCreditChange(account, -amount, "Station bank donation");
+            UnityEngine.Debug.Log($"Server: audit station bank {DateTime.UtcNow:O}: station {id}; profile {account}; donation {amount}; balance {station.stationBankCredits}");
+            return $"Donated {amount:N0} credits to {station.name}'s station bank.";
+        }
+
+        internal static string WithdrawStationCredits(NetPlayer pilot, int id, long amount)
+        {
+            var station = Find(id);
+            if (!IsStationContext(pilot, station, out string account) || station.underConstruction ||
+                station.retired || station.destroyed || station.reconstructing || station.wreckClaimOpen || station.offeredForClaimUtc > 0 ||
+                !CanManageMarketPolicy(station, account))
+                return "Dock at an operational station with finance authority to withdraw credits.";
+            if (ProfileWritesBlocked) return "A pending transaction is being recovered. Try again later.";
+            long previous = station.stationBankCredits;
+            if (amount <= 0 || amount > int.MaxValue || previous < amount)
+                return "Choose a positive withdrawal within the station bank balance.";
+            long balance = NetProfiles.CreditAmount(account);
+            if (balance < 0 || balance > long.MaxValue - amount)
+                return "Your profile cannot accept this withdrawal.";
+            station.stationBankCredits -= amount;
+            if (!CommitProfileTransaction(null, new List<(string account, long delta)> { (account, amount) }, null))
+            {
+                station.stationBankCredits = previous;
+                return "The withdrawal could not be committed.";
+            }
+            if (!ProfileWritesBlocked) NotifyProfileCreditChange(account, amount, "Station bank withdrawal");
+            UnityEngine.Debug.Log($"Server: audit station bank {DateTime.UtcNow:O}: station {id}; profile {account}; withdrawal {amount}; balance {station.stationBankCredits}");
+            return $"Withdrew {amount:N0} credits from {station.name}'s station bank.";
+        }
+
+        internal static string SetNpcEconomyPurchases(NetPlayer by, int id, bool enabled)
+        {
+            if (!Modding.ModAdvancedEconomy.PlayerMarketTrade) return "NPC market procurement is disabled by the server's mod configuration.";
+            var station = Find(id);
+            if (!IsStationContext(by, station, out string account) || !CanManageMarketPolicy(station, account))
+                return "Dock with finance authority to change NPC market procurement.";
+            bool previous = station.npcEconomyPurchases;
+            if (previous == enabled) return enabled ? "NPC purchases are already enabled." : "NPC purchases are already disabled.";
+            station.npcEconomyPurchases = enabled;
+            if (Save()) return enabled ? "NPC purchases enabled for public commodity listings." : "NPC purchases disabled.";
+            station.npcEconomyPurchases = previous;
+            return "The setting could not be saved.";
+        }
+
+        // Optional, budgeted NPC demand. Only existing escrow listings are bought;
+        // the owner's market prices and seller rights are never overridden.
+        internal static int PurchaseForNpcEconomy(PlayerStationRecord station, PlayerStationListing listing,
+            int units, int ceiling, long budget, Action<int> stageStock, Action rollbackStock, out long spent)
+        {
+            spent = 0;
+            if (!NetGame.IsServer || !NetProfiles.Enabled || ProfileWritesBlocked ||
+                !Modding.ModAdvancedEconomy.PlayerMarketTrade || !AdvancedEconomyLedger.CanJournal ||
+                station == null || !station.npcEconomyPurchases || station.retired || station.destroyed ||
+                station.underConstruction || station.reconstructing || station.offeredForClaimUtc > 0 ||
+                StationClosedByCombat(station.stationIndex) || station.listings == null ||
+                listing == null || listing.amount <= 0 || listing.unitPrice <= 0 ||
+                string.IsNullOrEmpty(listing.sellerProfile) || units <= 0 || ceiling <= 0 || budget <= 0 ||
+                !NetGuard.Item(listing.item)) return 0;
+            int index = station.listings.IndexOf(listing);
+            if (index < 0 || listing.unitPrice > ceiling) return 0;
+            units = Math.Min(500, Math.Min(units, listing.amount));
+            // Include ordinary sales tax in the NPC's willingness-to-pay and budget.
+            long total = 0, tax = 0, charge = 0, proceeds = 0;
+            while (units > 0)
+            {
+                total = listing.unitPrice * units;
+                tax = (total * Math.Clamp(station.marketplaceTaxPercent, 0, 10) + 99) / 100;
+                var settlement = StationMarketSettlement(station, null, listing.sellerProfile, total, tax);
+                charge = settlement.charge; proceeds = settlement.proceeds; tax = settlement.ownerRevenue;
+                if (charge > 0 && charge <= budget && charge <= (long)ceiling * units) break;
+                units--;
+            }
+            if (units <= 0 || tax < 0 || proceeds < 0 || station.stationBankCredits > long.MaxValue - tax) return 0;
+            var credits = new List<(string account, long delta)>();
+            var banks = new List<(string factionId, long delta)>();
+            if (proceeds > 0)
+            {
+                if (!string.IsNullOrEmpty(listing.payoutFactionId)) banks.Add((listing.payoutFactionId, proceeds));
+                else credits.Add((listing.sellerProfile, proceeds));
+            }
+            long oldBank = station.stationBankCredits;
+            int oldAmount = listing.amount;
+            station.stationBankCredits += tax;
+            listing.amount -= units;
+            if (listing.amount == 0) station.listings.RemoveAt(index);
+            stageStock(units);
+            if (!CommitProfileTransaction(null, credits, banks, registryOnly: true, economyJson: AdvancedEconomyLedger.Snapshot()))
+            {
+                rollbackStock();
+                station.stationBankCredits = oldBank;
+                listing.amount = oldAmount;
+                if (!station.listings.Contains(listing)) station.listings.Insert(index, listing);
+                return 0;
+            }
+            if (proceeds > 0 && string.IsNullOrEmpty(listing.payoutFactionId))
+                NotifyProfileCreditChange(listing.sellerProfile, proceeds, "NPC marketplace purchase");
+            spent = charge;
+            return units;
+        }
+
+        internal static string SetMarketplaceTax(NetPlayer by, int id, int percent)
+        {
+            var station = Find(id);
+            if (percent < 0 || percent > 10) return "Choose a marketplace tax from 0% to 10%.";
+            if (!IsStationContext(by, station, out string account) || !CanManageMarketPolicy(station, account))
+                return "Dock at the station with finance authority to set marketplace tax.";
+            if (station.marketplaceTaxPercent == percent) return $"Marketplace tax is already {percent}%.";
+            int previous = station.marketplaceTaxPercent;
+            station.marketplaceTaxPercent = percent;
+            if (Save()) return $"Marketplace tax is now {percent}%.";
+            station.marketplaceTaxPercent = previous;
+            return "The new tax rate could not be saved.";
+        }
+
+        internal static string MarketStatus(int id)
+        {
+            if (!NetGame.Active) return "Join a multiplayer session first.";
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
+            var lines = new List<string> { "Marketplace at " + record.name + ":",
+                $"Sales tax: {Math.Clamp(record.marketplaceTaxPercent, 0, 10)}% added at checkout." };
+            if (record.buyOrders != null && record.buyOrders.Count > 0)
+            {
+                lines.Add("Construction buy orders:");
+                for (int i = 0; i < record.buyOrders.Count; i++)
+                {
+                    var order = record.buyOrders[i];
+                    if (order == null || order.remaining <= 0) continue;
+                    string name = NetGame.Db?.Item(order.item)?.name ?? ("Item " + order.item);
+                    lines.Add($"Buy #{i}: {name} x{order.remaining:N0} at {order.unitPrice:N0} each ({order.reservedCredits:N0} credits escrowed)");
+                }
+            }
+            AddShipMarketplaceListings(record, lines);
+            if ((record.listings?.Count ?? 0) == 0 && (record.shipListings?.Count ?? 0) == 0)
+                lines.Add("No active listings.");
+            for (int i = 0; i < (record.listings?.Count ?? 0); i++)
+            {
+                var listing = record.listings[i];
+                if (listing == null || listing.amount <= 0) continue;
+                string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
+                lines.Add($"#{i}: {itemName} x{listing.amount:N0} — {listing.unitPrice:N0} credits each" +
+                    (!string.IsNullOrEmpty(listing.payoutFactionId) ? " (faction treasury)" : " (seller)"));
+            }
+            return string.Join("\n", lines);
+        }
+
+        internal static string CreateListing(NetPlayer by, int id, int item, int amount, long unitPrice, bool payFactionTreasury = false, bool fromCargo = false)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            bool allowed = fromCargo ? IsStationContext(by, record, out string account) : CanManageStorage(by, record, out account);
+            if (!allowed) return "Dock at this station using an authorised profile to list your own goods.";
+            if (!CanTradeAtMarket(record, account)) return MarketRefusal(record, account, "Station policy restricts marketplace listings.");
+            if (record.underConstruction) return "Finish station construction before opening listings.";
+            if (StorageCapacity(record) <= 0) return "Install a storage module before listing station goods.";
+            if (!NetGuard.Item(item) || !Hangar.IsSaleable(item) || amount < 1 || amount > 500 || unitPrice < 1 || unitPrice > MaxStationUnitPrice)
+                return "Use a saleable item, 1–500 units, and a unit price from 1 to 1,000,000,000 credits.";
+            record.listings ??= new List<PlayerStationListing>();
+            if (record.listings.Count >= MaxStationListings) return "This station has reached its listing limit.";
+            NormalizeItemListingIds(record);
+            if (record.nextItemListingId >= int.MaxValue) return "The item listing ID limit has been reached.";
+            string payoutFactionId = null;
+            if (payFactionTreasury)
+            {
+                var sellerFaction = NetFactions.Of(account);
+                if (sellerFaction == null) return "Join a faction before directing listing proceeds to its treasury.";
+                payoutFactionId = sellerFaction.id;
+            }
+            if (fromCargo)
+            {
+                if (NetProfiles.CargoAmount(account, item) < amount) return "Your cargo hold does not have enough of this item.";
+                int next = record.nextItemListingId++;
+                var listing = new PlayerStationListing { id = next, item = item, amount = amount, unitPrice = unitPrice,
+                    sellerProfile = account, payoutFactionId = payoutFactionId };
+                record.listings.Add(listing);
+                if (!CommitCargoTransaction(account, (item, -amount)))
+                {
+                    record.listings.Remove(listing);
+                    record.nextItemListingId = next;
+                    return "The listing could not be saved. Your cargo was kept.";
+                }
+                if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Take, item, amount, 0, "", "Marketplace listing");
+                return $"Listing #{next} created. {amount} units are held in marketplace escrow.";
+            }
+            record.storage ??= new List<PlayerStationStorage>();
+            EnsureStorageLots(record);
+            var stock = record.storage.Find(x => x != null && x.item == item);
+            if (stock == null || stock.amount < amount) return "The station does not have enough stock to escrow that listing.";
+            if (OwnedStorageAmount(record, account, item) < amount)
+                return "Those goods belong to another contributor; only their owner can list them.";
+
+            var previousLots = CloneStorageLots(record);
+            RemoveStorageLots(record, account, item, amount);
+            stock.amount -= amount;
+            if (stock.amount == 0) record.storage.Remove(stock);
+            int listingId = record.nextItemListingId++;
+            record.listings.Add(new PlayerStationListing { id = listingId, item = item, amount = amount, unitPrice = unitPrice, sellerProfile = account, payoutFactionId = payoutFactionId });
+            if (!Save())
+            {
+                record.listings.RemoveAt(record.listings.Count - 1);
+                record.nextItemListingId = listingId;
+                record.storageLots = previousLots;
+                if (stock.amount == 0) record.storage.Add(stock);
+                stock.amount += amount;
+                return "The listing could not be saved; the goods were returned to storage where possible.";
+            }
+            return "Listing #" + (record.listings.Count - 1) + " created. " + amount + " units are held in marketplace escrow.";
+        }
+
+        static void NormalizeItemListingIds(PlayerStationRecord station)
+        {
+            if (station?.listings == null) return;
+            int next = Math.Max(1, station.nextItemListingId);
+            foreach (var listing in station.listings)
+                if (listing != null && listing.id >= next) next = listing.id == int.MaxValue ? int.MaxValue : listing.id + 1;
+            var used = new HashSet<int>();
+            foreach (var listing in station.listings)
+            {
+                if (listing == null) continue;
+                if (listing.id > 0 && used.Add(listing.id)) continue;
+                if (next < int.MaxValue) { listing.id = next++; used.Add(listing.id); }
+                else listing.id = 0;
+            }
+            station.nextItemListingId = next;
+        }
+
+        internal static string BuyItemListingById(NetPlayer by, int stationId, int listingId, int amount, bool cancel)
+        {
+            var station = Find(stationId);
+            if (listingId <= 0) return "Choose an active item listing.";
+            int index = station?.listings?.FindIndex(listing => listing != null && listing.id == listingId) ?? -1;
+            if (index < 0) return "That listing is no longer available. Refresh the marketplace.";
+            return cancel ? CancelListing(by, stationId, index) : BuyListing(by, stationId, index, amount);
+        }
+
+        [Serializable] internal sealed class MarketUiRow
+        {
+            public int id, item, amount;
+            public long price, quotedPrice;
+            public bool hull, mine;
+        }
+        [Serializable] internal sealed class MarketUiCatalogue
+        {
+            public int stationId, page, pageCount;
+            public bool canListGoods, canListHulls;
+            public string accessMessage;
+            public StorageUiSnapshot storage;
+            public List<MarketUiRow> rows = new List<MarketUiRow>();
+        }
+        internal static MarketUiCatalogue MarketCatalogueFor(NetPlayer pilot, int stationId, int page)
+        {
+            var result = new MarketUiCatalogue { stationId = stationId };
+            var station = Find(stationId);
+            if (!IsStationContext(pilot, station, out string account, recoverProperty: true) || station.underConstruction)
+            {
+                result.accessMessage = "The marketplace is closed or your profile lacks access.";
+                return result;
+            }
+            bool canTrade = CanTradeAtMarket(station, account);
+            if (!canTrade) result.accessMessage = MarketRefusal(station, account, "Station policy restricts marketplace access.");
+            result.canListGoods = canTrade && IsStationContext(pilot, station, out _);
+            result.canListHulls = result.canListGoods && HasStationPermission(station, account, PlayerStationPermission.Marketplace);
+            result.storage = StorageSnapshotFor(pilot, stationId);
+            long Quote(long price, string seller) => StationMarketSettlement(station, account, seller, price,
+                (price * Math.Clamp(station.marketplaceTaxPercent, 0, 10) + 99) / 100).charge;
+            const int pageSize = 64;
+            // Count the visible rows without allocating quotes or row objects. Preserve the
+            // existing goods-then-hulls order, including clamping an out-of-range page.
+            int count = 0;
+            bool VisibleGoods(PlayerStationListing listing) => listing != null && listing.id > 0 &&
+                listing.amount > 0 && (canTrade || listing.sellerProfile == account);
+            bool VisibleHull(PlayerStationShipListing listing) => listing?.hull != null && listing.id > 0 &&
+                (canTrade || listing.sellerProfile == account);
+            if (station.listings != null)
+                foreach (var listing in station.listings) if (VisibleGoods(listing)) count++;
+            if (station.shipListings != null)
+                foreach (var listing in station.shipListings) if (VisibleHull(listing)) count++;
+            result.pageCount = Math.Max(1, (count + pageSize - 1) / pageSize);
+            result.page = Math.Clamp(page, 0, result.pageCount - 1);
+            int skip = result.page * pageSize;
+            result.rows = new List<MarketUiRow>(Math.Min(pageSize, count - skip));
+            if (station.listings != null)
+                foreach (var listing in station.listings)
+                {
+                    if (!VisibleGoods(listing)) continue;
+                    if (skip > 0) { skip--; continue; }
+                    result.rows.Add(new MarketUiRow { id = listing.id, item = listing.item, amount = listing.amount,
+                        price = listing.unitPrice, quotedPrice = Quote(listing.unitPrice, listing.sellerProfile), mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                    if (result.rows.Count == pageSize) return result;
+                }
+            if (station.shipListings != null)
+                foreach (var listing in station.shipListings)
+                {
+                    if (!VisibleHull(listing)) continue;
+                    if (skip > 0) { skip--; continue; }
+                    result.rows.Add(new MarketUiRow { id = listing.id, item = listing.hull.ship, amount = 1,
+                        price = listing.price, quotedPrice = Quote(listing.price, listing.sellerProfile), hull = true, mine = string.Equals(account, listing.sellerProfile, StringComparison.Ordinal) });
+                    if (result.rows.Count == pageSize) break;
+                }
+            return result;
+        }
+
+        internal static string BuyListing(NetPlayer by, int id, int listingIndex, int amount)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
+            if (!IsStationContext(by, record, out string buyer))
+                return "Dock at this station with visitor permission and use a controlled player profile to buy goods.";
+            if (!CanTradeAtMarket(record, buyer)) return MarketRefusal(record, buyer, "Station policy restricts marketplace purchases.");
+            if (record.underConstruction) return "This station is not operational yet.";
+            if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
+                return "No listing exists at that index.";
+            var listing = record.listings[listingIndex];
+            if (listing == null || listing.amount < 1 || !NetGuard.Item(listing.item) ||
+                !Hangar.IsSaleable(listing.item) || listing.unitPrice < 1 ||
+                string.IsNullOrEmpty(listing.sellerProfile))
+                return "That listing is invalid and cannot be purchased.";
+            if (amount < 1 || amount > 500 || amount > listing.amount)
+                return "Choose an amount between 1 and 500, up to the available listing stock.";
+
+            string seller = listing.sellerProfile;
+            if (string.IsNullOrEmpty(buyer)) return "Your player profile is unavailable.";
+            if (string.Equals(buyer, seller, StringComparison.Ordinal))
+                return "You cannot purchase your own listing.";
+            if (listing.unitPrice > int.MaxValue / (long)amount)
+                return "That purchase exceeds the marketplace's per-transaction credit limit.";
+            long total = listing.unitPrice * amount;
+            long tax = (total * Math.Clamp(record.marketplaceTaxPercent, 0, 10) + 99) / 100;
+            var (charge, proceeds, ownerRevenue) = StationMarketSettlement(record, buyer, seller, total, tax);
+            tax = ownerRevenue;
+            if (charge > int.MaxValue) return "The purchase including tax exceeds the per-transaction credit limit.";
+            long credits = NetProfiles.CreditAmount(buyer);
+            if (credits < charge) return "Your saved profile does not have enough credits for the purchase and tax.";
+            int cargo = NetProfiles.CargoAmount(buyer, listing.item);
+            if (cargo < 0 || (long)cargo + amount > int.MaxValue)
+                return "Your saved cargo could not accept this purchase.";
+            // Inventory limits are not the same as physical hold capacity.
+            // Validate before touching escrow, credits, or the station registry.
+            if (NetProfiles.WreckSalvageCargoRoom(by, buyer) < amount)
+                return "Your ship does not have enough free cargo space for this purchase.";
+
+            long previousBank = record.stationBankCredits;
+            if (tax < 0 || previousBank < 0 || previousBank > long.MaxValue - tax) return "The station bank cannot accept this tax.";
+            record.stationBankCredits += tax;
+            bool removeListing = amount == listing.amount;
+            if (removeListing) record.listings.RemoveAt(listingIndex);
+            else listing.amount -= amount;
+            bool paidToFaction = !string.IsNullOrEmpty(listing.payoutFactionId);
+            var payments = new List<(string account, long delta)> { (buyer, -charge) };
+            var banks = new List<(string factionId, long delta)>();
+            if (proceeds > 0)
+            {
+                if (paidToFaction) banks.Add((listing.payoutFactionId, proceeds));
+                else payments.Add((seller, proceeds));
+            }
+            bool committed = CommitProfileTransaction(
+                new List<(string account, int item, int delta)> { (buyer, listing.item, amount) }, payments, banks);
+            if (!committed)
+            {
+                record.stationBankCredits = previousBank;
+                if (removeListing) record.listings.Insert(listingIndex, listing);
+                else listing.amount += amount;
+                return "The purchase could not be journalled; no credits or goods were transferred.";
+            }
+
+            bool buyerIsHost = NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId;
+            if (!buyerIsHost)
+            {
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Credits,
+                    -(int)charge, 0, 0, "", "Station marketplace");
+                NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, amount, 0, "", "Station marketplace");
+            }
+
+            foreach (ulong client in (paidToFaction || proceeds == 0 ? new List<ulong>() : NetProfiles.ClientsOf(seller)))
+            {
+                if (!NetProfiles.Controls(client)) continue;
+                if (!(NetGame.PersistentHost && client == NetGame.LocalId))
+                    NetState.Instance?.SendAdmin(client, NetAdmin.Order.Credits, (int)proceeds, 0, 0, "", "Station marketplace");
+                break;
+            }
+
+            string itemName = NetGame.Db?.Item(listing.item)?.name ?? ("Item " + listing.item);
+            return "Purchased " + amount + " x " + itemName + " for " + charge.ToString("N0") +
+                " credits" +
+                " from " + record.name + (paidToFaction ? "; proceeds credited to faction treasury." : "; proceeds credited to the seller.") ;
+        }
+
+        internal static string CancelListing(NetPlayer by, int id, int listingIndex)
+        {
+            var record = Find(id);
+            if (record == null) return "No player station with that id exists.";
+            if (record.offeredForClaimUtc > 0) return "This facility is closed until the station is claimed.";
+            if (!IsStationContext(by, record, out string account, recoverProperty: true))
+                return "Dock at this station using an authorised controlled profile to cancel a listing.";
+            if (listingIndex < 0 || record.listings == null || listingIndex >= record.listings.Count)
+                return "No listing exists at that index.";
+            var listing = record.listings[listingIndex];
+            if (listing == null || !string.Equals(listing.sellerProfile, account, StringComparison.Ordinal))
+                return "Only the original seller can cancel and reclaim this listing.";
+            if (listing.amount <= 0 || !NetGuard.Item(listing.item))
+                return "That listing is invalid and cannot be returned automatically.";
+            if (!CanManageStorage(by, record, out _))
+            {
+                // Escrow recovery can return property to the seller's ship without granting storage access.
+                if (NetProfiles.WreckSalvageCargoRoom(by, account) < listing.amount)
+                    return "Clear cargo space to reclaim this listing. Your profile lacks station storage access.";
+                record.listings.RemoveAt(listingIndex);
+                if (!CommitCargoTransaction(account, (listing.item, listing.amount)))
+                {
+                    record.listings.Insert(listingIndex, listing);
+                    return "The cancellation could not be saved; the listing remains active.";
+                }
+                if (!(NetGame.PersistentHost && by.OwnerClientId == NetGame.LocalId))
+                    NetState.Instance?.SendAdmin(by.OwnerClientId, NetAdmin.Order.Give, listing.item, listing.amount, 0, "", "Marketplace cancellation");
+                return $"Listing cancelled and {listing.amount} units returned to your cargo hold.";
+            }
+            EnsureStorageLots(record);
+            var stock = record.storage.Find(x => x != null && x.item == listing.item);
+            int capacity = StorageCapacity(record);
+            long stored = 0;
+            foreach (var stack in record.storage) if (stack != null) stored += Math.Max(0, stack.amount);
+            if (stock == null && record.storage.Count >= MaxStorageItemTypes)
+                return "Storage has reached its item-type limit; free a slot before cancelling this listing.";
+            if (stock != null && stock.amount > int.MaxValue - listing.amount)
+                return "The returned item stack has reached its maximum supported quantity.";
+            if (stored + listing.amount > capacity)
+                return "Storage has insufficient room to return this listing; withdraw or clear space first.";
+
+            var previousLots = CloneStorageLots(record);
+            if (stock == null) record.storage.Add(stock = new PlayerStationStorage { item = listing.item });
+            stock.amount += listing.amount;
+            AddStorageLot(record, account, listing.item, listing.amount);
+            record.listings.RemoveAt(listingIndex);
+            if (!Save())
+            {
+                stock.amount -= listing.amount;
+                record.storageLots = previousLots;
+                if (stock.amount == 0) record.storage.Remove(stock);
+                record.listings.Insert(listingIndex, listing);
+                return "The cancellation could not be saved; the listing remains active.";
+            }
+            return "Listing cancelled and " + listing.amount + " units returned to station storage.";
+        }
+    }
+}

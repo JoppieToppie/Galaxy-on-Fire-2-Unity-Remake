@@ -440,18 +440,24 @@ remake's own. The original's attributes without a name: 56, 57, 58, 59 (set only
 | 188 | missileDefenseCapacity |  |
 | 189 | coreYield |  |
 | 190 | damageType |  |
-| 191 | pitchTurnRate |  |
-| 192 | yawTurnRate |  |
-| 193 | rollTurnRate |  |
-| 194 | pitchTurnAcceleration |  |
-| 195 | yawTurnAcceleration |  |
-| 196 | rollTurnAcceleration |  |
-| 197 | strafeAcceleration |  |
-| 198 | hoverSpeed |  |
-| 199 | hoverAcceleration |  |
-| 200 | reverseSpeed |  |
-| 201 | reverseAcceleration |  |
-| 202 | forwardAcceleration |  |
+| 191 | strictShipClass |  |
+| 192 | fixedBeam |  |
+| 193 | turretDefenseRole |  |
+| 194 | scannerRange |  |
+| 195 | scanLead |  |
+| 208 | structuralDamage |  |
+| 209 | pitchTurnRate |  |
+| 210 | yawTurnRate |  |
+| 211 | rollTurnRate |  |
+| 212 | pitchTurnAcceleration |  |
+| 213 | yawTurnAcceleration |  |
+| 214 | rollTurnAcceleration |  |
+| 215 | strafeAcceleration |  |
+| 216 | hoverSpeed |  |
+| 217 | hoverAcceleration |  |
+| 218 | reverseSpeed |  |
+| 219 | reverseAcceleration |  |
+| 220 | forwardAcceleration |  |
 
 ## Blueprints
 

@@ -35,6 +35,28 @@ namespace GoF2Remake.UI
                 if (t.disabled) b.AddToClassList("autopilot-menu-item--disabled");
                 autopilotMenuItems.Add(b);
                 menuButtons.Add((b, target));
+                menuActions.Add(null);
+            }
+            if (actions && MultiplayerWindow.CanOpenOrbitManagementAny)
+            {
+                System.Action open = () =>
+                {
+                    CloseAutopilotMenu();
+                    touch?.ReleaseAll();
+                    ship?.SetSteer(Vector2.zero);
+                    ship?.SetTouchFree(Vector2.zero, 0f, false);
+                    weapons?.SetPrimaryHeld(false);
+                    MultiplayerWindow.OpenOrbitManagementAny();
+                    UpdateMouseSteering();
+                };
+                var button = new Button { text = MenuLabel(menuButtons.Count, "Station management") };
+                button.AddToClassList("autopilot-menu-item");
+                button.AddToClassList("gof-semibold");
+                button.focusable = false;
+                button.clicked += open;
+                autopilotMenuItems.Add(button);
+                menuButtons.Add((button, null));
+                menuActions.Add(open);
             }
             if (actions) AddEnergyCellCount();
             menuIndex = 0;
@@ -390,6 +412,21 @@ namespace GoF2Remake.UI
         /// <summary>Remake: scans, target notices and cargo gains replace each other on the plate (HudMessageQueue).</summary>
         void OnKindMessage(string text, HudMessageKind kind) => miningView?.ShowMessage(text, 0, kind);
         void OnRadarMessage(string text, int colour, HudMessageKind kind) => miningView?.ShowMessage(text, colour, kind);
+        /// <summary>Show a mod tutorial only when the normal flight interface is ready.</summary>
+        public bool TryModTutorial(string title, string text, System.Action acknowledged = null)
+        {
+            if (root == null || root.panel == null || level == null || pauseMenu == null || pauseMenu.IsOpen
+                || level.Leaving || !level.StartSequenceOver || level.Dialogue || level.Cutscene
+                || level.Navigation == null || level.Navigation.Jumping || level.Navigation.MenuOpen
+                || level.Navigation.PauseMenuOpen || StarMap.IsOpen || MultiplayerWindow.IsOpenAny
+                || (level.SystemJump != null && level.SystemJump.Cinematic)
+                || (health != null && health.Dead) || Time.timeScale <= 0f) return false;
+            // A networked universe does not pause. Never seize flight controls for a tutorial.
+            if (NetSession.Active) return false;
+            pauseMenu.Ask(level, GoF2Remake.World.FlightHints.KeyTokens(title + "\n\n" + text), "ACKNOWLEDGE", "LATER", acknowledged, null);
+            return true;
+        }
+
         /// <summary>A ChoiceWindow in flight (MGame+0x90): the pause menu's choice page, the game paused.</summary>
         void OnChoiceRequested(string text, string yes, string no, System.Action onYes, System.Action onNo)
             => pauseMenu?.Ask(level, text, yes, no, onYes, onNo, traffic != null ? traffic.ChoiceTitle : null);   // Modified: its title

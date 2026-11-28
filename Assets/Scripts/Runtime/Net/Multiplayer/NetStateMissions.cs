@@ -15,12 +15,49 @@ namespace GoF2Remake.Multiplayer
         /// <summary>The session's Pirate activity board as published (JSON; empty = none).</summary>
         public string PirateBoardJson => pirateBoard.Value.ToString();
         /// <summary>Server: the board as everyone's games read it (cut short only past 4096 bytes: 5 reports take ~1 KB).</summary>
+        string PirateSavePath => NetProfiles.Enabled ? System.IO.Path.Combine(NetProfiles.Folder, "pirate-board.json") : null;
+        bool pirateSaveDirty;
+        void LoadPirateBoard()
+        {
+            PirateReports.ServerReset();
+            try
+            {
+                if (PirateSavePath != null && System.IO.File.Exists(PirateSavePath))
+                    PirateReports.ServerRestore(System.IO.File.ReadAllText(PirateSavePath));
+            }
+            catch (System.Exception e) { Debug.LogWarning("Pirate board load failed: " + e.Message); }
+            pirateBoard.Value = PirateReports.ServerBoardJson();
+        }
+
+        void FlushPirateBoard()
+        {
+            if (pirateSaveDirty && (PirateSavePath == null || NetProfiles.Write(PirateSavePath, PirateReports.ServerSnapshot())))
+                pirateSaveDirty = false;
+        }
+
+        [Rpc(SendTo.Server)]
+        public void PirateEscapedRpc(int id, int station, RpcParams rpc = default)
+        {
+            ulong client = rpc.Receive.SenderClientId;
+            var pilot = NetSquad.Find(client);
+            if (pilot == null || !pilot.OrbitAuthority || !NetGuard.InOrbit(client, station) ||
+                !NetRateLimit.Allow(client, NetRateLimit.Kind.Kill)) return;
+            PirateReports.ServerEscape(Database.Shared, id, station, WarOrbitOccupied, SetPirateBoard);
+        }
+
+        internal void RecordPirateDefender(NetProxy proxy)
+        {
+            if (!IsServer || proxy == null || proxy.Spec?.spec == null) return;
+            PirateReports.ServerDefenderLoss(proxy.Spec.spec.sightingId, proxy.EventTag - 700000,
+                station => station == proxy.Station, SetPirateBoard);
+        }
+
         void SetPirateBoard(string json)
         {
             if (!IsServer) return;
             json ??= "";
             if (System.Text.Encoding.UTF8.GetByteCount(json) > 4000) return;
-            if (pirateBoard.Value.ToString() != json) pirateBoard.Value = json;
+            if (pirateBoard.Value.ToString() != json) { pirateBoard.Value = json; pirateSaveDirty = true; FlushPirateBoard(); }
         }
         /// <summary>The orbit's authority: report 'id' destroyed; 'killer' = the client whose kill it was (the sender itself
         /// for its own kill or an NPC's). Checked against the server's board and the sender's orbit. The bounty is paid here,
@@ -37,16 +74,49 @@ namespace GoF2Remake.Multiplayer
             var pilot = GoF2Remake.Events.EventHost.Find(client);
             if (pilot != null) GoF2Remake.Events.EventRunner.OnWreckHacked(pilot, station, name);
         }
+        // The radar has no finite ship-lock range. Use a generous network sanity bound,
+        // rather than imposing the tractor beam's much shorter range on ship scans.
+        public const float ScanMaxDistanceMeters = 100000f;
+
+        public static bool ScanDistanceValid(Vector3 from, Vector3 to) =>
+            NetGuard.Position(from) && NetGuard.Position(to) &&
+            (from - to).sqrMagnitude <= ScanMaxDistanceMeters * ScanMaxDistanceMeters;
+
         [Rpc(SendTo.Server)]
-        public void ShipScannedRpc(int station, string name, RpcParams rpc = default)
+        public void ShipScannedRpc(int station, ulong targetId, RpcParams rpc = default)
         {
-            // A player's scanner locked a ship in its orbit: the events' "on scanned" (checked: the sender is in that orbit).
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill) || !NetGuard.InOrbit(client, station)) return;
-            name = name ?? "";
+            var sender = NetSquad.Find(client);
+            if (sender == null || !sender.HasCurrentWreckClaimPose || sender.Hull <= 0f ||
+                !NetProfiles.HasScanEquipment(sender) || targetId == NetShots.NoTarget ||
+                NetworkManager == null || NetworkManager.SpawnManager == null ||
+                !NetworkManager.SpawnManager.SpawnedObjects.TryGetValue(targetId, out var obj) ||
+                obj == null || !obj.IsSpawned) return;
+
+            string name;
+            var player = obj.GetComponent<NetPlayer>();
+            if (player != null)
+            {
+                if (player == sender || !player.InSpace || player.Station != station ||
+                    !player.ScanVisible || !ScanDistanceValid(sender.Position, player.Position)) return;
+                name = player.TaggedName;
+            }
+            else
+            {
+                var proxy = obj.GetComponent<NetProxy>();
+                if (proxy == null || proxy.Station != station || !proxy.ScanVisible ||
+                    !ScanDistanceValid(sender.Position, proxy.WorldPosition)) return;
+                bool team = !proxy.IsMissionShip || NetSquad.SameClient(proxy.OwnerClientId, sender);
+                name = team && !string.IsNullOrEmpty(proxy.Label)
+                    ? NetNews.Safe(proxy.Label) : GameNames.Race(proxy.Race);
+            }
+            name ??= "";
             if (name.Length > 64) name = name.Substring(0, 64);
-            var pilot = GoF2Remake.Events.EventHost.Find(client);
-            if (pilot != null) GoF2Remake.Events.EventRunner.OnShipScanned(pilot, station, name);
+            // Identity and eligibility are checked, but a client still reports lock completion.
+            // Do not treat this event alone as proof of aim or uninterrupted lock duration.
+            var pilot = EventHost.Find(client);
+            if (pilot != null) EventRunner.OnShipScanned(pilot, station, name);
         }
         [Rpc(SendTo.Server)]
         public void PadDockedRpc(int station, RpcParams rpc = default)
@@ -64,23 +134,35 @@ namespace GoF2Remake.Multiplayer
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Kill)) return;
             int bounty = PirateReports.ServerDone(id, station => NetGuard.InOrbit(client, station), SetPirateBoard);
             if (bounty <= 0) return;
-            if (!NetworkManager.ConnectedClients.ContainsKey(killer)) killer = client;
+            if (!NetworkManager.ConnectedClients.ContainsKey(killer))
+            {
+                // Do not reassign an ineligible/disconnected hunter's reward to the orbit authority.
+                if (Modding.ModPvpPiracy.Enabled) return;
+                killer = client;
+            }
             var team = new List<ulong>();
             var who = NetPlayer.All.Find(p => p != null && p.IsSpawned && p.OwnerClientId == killer);
-            if (who != null && who.SquadId != 0)
+            // Resolve the report even when a pirate kills it, but do not pay that bounty.
+            if (who == null || NetFactions.PirateHunter(who)) return;
+            if (who.SquadId != 0)
                 foreach (var p in NetPlayer.All)
                     if (p != null && p.IsSpawned && p.SquadId == who.SquadId && NetworkManager.ConnectedClients.ContainsKey(p.OwnerClientId))
                         team.Add(p.OwnerClientId);
             if (team.Count == 0) team.Add(killer);
             int share = Mathf.Max(1, bounty / team.Count);
-            foreach (ulong c in team) PirateBountyRpc(share, team.Count, RpcTarget.Single(c, RpcTargetUse.Temp));
+            foreach (ulong c in team)
+            {
+                var recipient = NetSquad.Find(c);
+                if (recipient != null && !NetFactions.PirateHunter(recipient))
+                    PirateBountyRpc(share, team.Count, RpcTarget.Single(c, RpcTargetUse.Temp));
+            }
         }
         /// <summary>A reported pirate's bounty (or this player's share of it, 'shares' > 1: the squad's): the flight HUD's bounty
         /// line in flight, a chat notice for a share.</summary>
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         void PirateBountyRpc(int amount, int shares, RpcParams rpc = default)
         {
-            if (amount <= 0) return;
+            if (amount <= 0 || (Modding.ModPvpPiracy.Enabled && NetPlayer.Local?.IsPirate == true)) return;
             var traffic = FindAnyObjectByType<GoF2Remake.World.Traffic>();
             if (traffic != null) traffic.PayBounty(amount);
             else { Session.Credits += amount; GoF2Remake.UI.UiHooks.RefreshStationCredits?.Invoke(); }
@@ -145,7 +227,7 @@ namespace GoF2Remake.Multiplayer
         {
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Command) || !NetGuard.Station(station)) return;
-            string offers = EventMissions.Offers(station);
+            string offers = EventMissions.Offers(station, client: client);
             if (offers.Length > 0 && offers.Length < 16000) EventOffersRpc(station, offers, RpcTarget.Single(client, RpcTargetUse.Temp));
         }
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
@@ -209,7 +291,7 @@ namespace GoF2Remake.Multiplayer
             int reward = Mathf.Clamp(m.reward, 0, MaxMissionPay);
             record = new MissionRecord
             {
-                reward = reward, wager = m.type == MissionType.Challenge ? reward : 0, amount = Mathf.Clamp(m.amount, 0, 1023),
+                reward = reward, wager = m.type == MissionType.Challenge ? reward : 0, amount = Mathf.Clamp(m.amount, 0, 1023), clientRace = m.clientRace,
             };
             record.members.Add(from.OwnerClientId);
             list.Add(record);
@@ -230,8 +312,14 @@ namespace GoF2Remake.Multiplayer
             ulong client = rpc.Receive.SenderClientId;
             if (!NetRateLimit.Allow(client, NetRateLimit.Kind.Mission)) return;
             var from = NetSquad.Find(client);
-            if (from == null || from.SquadId == 0) return;
+            if (from == null) return;
             if (!ParseMission(json, out var m)) { NetRateLimit.Reject(client, "a malformed mission"); return; }
+            if (from.SquadId == 0)
+            {
+                if (Flight.Standing.Independent && NetProfiles.Controls(client) && isNew && from.Where == NetPlayer.Place.Hangar)
+                    Register(m, from);
+                return;
+            }
             long netId = m.netId;
             if (isNew)
             {
@@ -297,6 +385,17 @@ namespace GoF2Remake.Multiplayer
             }
             record.ended = true;
             record.endedAt = Time.unscaledTime;
+            if (Flight.Standing.Independent && result == NetMissions.Success)
+            {
+                void Award(NetPlayer p)
+                {
+                    if (p == null || NetProfiles.IsHostClient(p.OwnerClientId) || !record.members.Contains(p.OwnerClientId)) return;
+                    NetFactions.RecordReputationMove(p.OwnerClientId, record.clientRace,
+                        5 * NetProfiles.ReputationDifficultyMultiplier(NetProfiles.AccountOf(p.OwnerClientId)));
+                }
+                Award(from);
+                foreach (var p in MissionTeam(from, netId, record)) Award(p);
+            }
             foreach (var p in MissionTeam(from, netId, record))
                 MissionResultToRpc(netId, result, share, from.DisplayName, RpcTarget.Single(p.OwnerClientId, RpcTargetUse.Temp));
         }

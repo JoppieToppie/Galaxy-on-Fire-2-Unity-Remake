@@ -23,7 +23,7 @@ namespace GoF2Remake.UI
 {
     public partial class PauseMenu
     {
-        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug, Report, ReportBusy, ReportDone, Recording }
+        enum Page { Main, Missions, Cargo, Jettison, Options, Quit, Photo, Choice, Debug, Report, ReportBusy, ReportDone, Handbook, Recording }
 
         bool MovieAvailable => OpenMovie != null && MovieMode.Available(level);
 
@@ -476,6 +476,7 @@ namespace GoF2Remake.UI
                     if (cm >= 16) Item(T(129), () => Show(Page.Missions));
                     if (cm >= 2) Item(T(166), () => Show(Page.Cargo));
                     Item(T(31), () => Show(Page.Options));
+                    if (Modding.ModScripts.HandbookArticles().Length > 0) Item(Modding.ModScripts.HandbookTitle(), () => Show(Page.Handbook));
                     // Remake: the Debug page once the main menu's Debug panel has been opened (Cheats); in multiplayer only
                     // when the session allows it.
                     if (Cheats.PageShown) Item(Localization.Extra("debugTitle", "Debug").UiCaps(), () => Show(Page.Debug));
@@ -499,6 +500,10 @@ namespace GoF2Remake.UI
                     if (Settings.OriginalUi)
                         for (int i = 0; i < items.Count; i++)
                             if (items[i] is Button nb) nb.text = $"{i + 1}. {nb.text}";
+                    break;
+                case Page.Handbook:
+                    title.text = Modding.ModScripts.HandbookTitle();
+                    BuildHandbook();
                     break;
                 case Page.Photo:
                     backdrop.RemoveFromClassList("pause-backdrop--shown");
@@ -642,6 +647,48 @@ namespace GoF2Remake.UI
         }
 
         /// <summary>The "‹ Back" entry, with B on it for a controller (InputGlyph.PadPrompt).</summary>
+        string handbookSearch = "";
+        void BuildHandbook()
+        {
+            var search = new TextField { value = handbookSearch };
+            search.label = "Search";
+            body.Add(search);
+            var results = new VisualElement();
+            body.Add(results);
+            void Refresh()
+            {
+                results.Clear();
+                items.Clear();
+                actions.Clear();
+                foreach (var article in Modding.ModScripts.HandbookArticles(handbookSearch))
+                {
+                    var a = article;
+                    var label = new Label(a.title + (string.IsNullOrEmpty(a.category) ? "" : " | " + a.category));
+                    label.style.whiteSpace = WhiteSpace.Normal;
+                    results.Add(label);
+                    var content = new Label(World.FlightHints.KeyTokens(a.text));
+                    content.style.whiteSpace = WhiteSpace.Normal;
+                    results.Add(content);
+                    var ack = new Button { text = Modding.ModScripts.HandbookArticleSeen(a.mod, a.id) ? "ACKNOWLEDGED" : "ACKNOWLEDGE" };
+                    Action acknowledge = () => { Modding.ModScripts.AcknowledgeHandbookArticle(a.mod, a.id); ack.text = "ACKNOWLEDGED"; };
+                    ack.clicked += acknowledge;
+                    ack.AddToClassList("autopilot-menu-item");
+                    results.Add(ack);
+                    items.Add(ack);
+                    actions.Add(acknowledge);
+                }
+                var back = new Button(() => Show(Page.Main)) { text = "BACK" };
+                back.AddToClassList("autopilot-menu-item");
+                results.Add(back);
+                items.Add(back);
+                actions.Add(() => Show(Page.Main));
+                index = 0;
+                Highlight();
+            }
+            search.RegisterValueChangedCallback(e => { handbookSearch = e.newValue; Refresh(); });
+            Refresh();
+        }
+
         void BackItem(Action action)
         {
             Item("‹  " + T(170), action);
@@ -1152,6 +1199,8 @@ namespace GoF2Remake.UI
             }
             var kb = GoF2Remake.Multiplayer.NetChat.Keys;
             var pad = Gamepad.current;
+            if (page == Page.Handbook && (root.focusController?.focusedElement is VisualElement handbookFocus && (handbookFocus is TextField || handbookFocus.GetFirstAncestorOfType<TextField>() != null)) &&
+                (kb == null || !kb.escapeKey.wasPressedThisFrame)) return;
             if (page == Page.Options && options != null)
             {
                 if ((kb != null && (kb.escapeKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame))

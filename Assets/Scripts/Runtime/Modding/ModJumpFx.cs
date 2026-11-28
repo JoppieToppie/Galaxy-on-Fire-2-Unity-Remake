@@ -68,6 +68,78 @@ namespace GoF2Remake.Modding
             }
         }
 
+        // Cinematic offsets are in Unity-oriented game units, drift in game units/ms.
+        public sealed class Cinematic
+        {
+            public Vector3? offset, drift, lookOffset, rotation, shipRotation;
+            public float? fov, shipSpeed, durationMs;
+            public bool allowShipTurning = true;
+            public string lookAt = "ship";
+            public readonly List<CameraKey> keys = new List<CameraKey>();
+            public bool HasCamera => offset.HasValue || drift.HasValue || lookOffset.HasValue || rotation.HasValue || fov.HasValue || lookAt != "ship" || keys.Count > 0;
+            public float MinimumDuration => Mathf.Max(durationMs ?? 0f, keys.Count == 0 ? 0f : keys[keys.Count - 1].ms);
+            public Vector3 Position(float ms, Vector3 fallback, Vector3 defaultDrift = default)
+            {
+                if (keys.Count == 0) return (offset ?? fallback) + (drift ?? defaultDrift) * ms;
+                if (ms <= keys[0].ms) return keys[0].offset;
+                for (int i = 1; i < keys.Count; i++)
+                    if (ms <= keys[i].ms)
+                        return Vector3.Lerp(keys[i - 1].offset, keys[i].offset,
+                            Mathf.InverseLerp(keys[i - 1].ms, keys[i].ms, ms));
+                return keys[keys.Count - 1].offset;
+            }
+        }
+
+        public struct CameraKey { public float ms; public Vector3 offset; }
+
+        static float? Number(JToken t, float min, float max)
+        {
+            if (t == null || (t.Type != JTokenType.Float && t.Type != JTokenType.Integer)) return null;
+            float v = (float)t;
+            return float.IsNaN(v) || float.IsInfinity(v) ? (float?)null : Mathf.Clamp(v, min, max);
+        }
+
+        static Vector3? Vector(JToken t)
+        {
+            if (!(t is JArray a) || a.Count != 3) return null;
+            var x = Number(a[0], -1000000f, 1000000f);
+            var y = Number(a[1], -1000000f, 1000000f);
+            var z = Number(a[2], -1000000f, 1000000f);
+            return x.HasValue && y.HasValue && z.HasValue ? new Vector3(x.Value, y.Value, z.Value) : (Vector3?)null;
+        }
+
+        public static Cinematic ReadCinematic(JObject o)
+        {
+            if (o == null) return null;
+            var c = new Cinematic
+            {
+                offset = Vector(o["cameraOffset"]), drift = Vector(o["cameraDrift"]),
+                lookOffset = Vector(o["cameraLookOffset"]), rotation = Vector(o["cameraRotation"]),
+                shipRotation = Vector(o["shipRotation"]), fov = Number(o["cameraFov"], 10f, 150f),
+                shipSpeed = Number(o["shipSpeed"], 0f, 100f),
+                durationMs = Number(o["durationMs"], 0f, 120000f),
+                allowShipTurning = o["allowShipTurning"]?.Type != JTokenType.Boolean || (bool)o["allowShipTurning"],
+                lookAt = o["cameraLookAt"]?.Type == JTokenType.String ? (string)o["cameraLookAt"] : "ship"
+            };
+            if (o["cameraKeyframes"] is JArray frames)
+                foreach (var entry in frames)
+                {
+                    if (!(entry is JObject k)) continue;
+                    var time = Number(k["ms"], 0f, 120000f);
+                    var offset = Vector(k["offset"]);
+                    if (time.HasValue && offset.HasValue)
+                    {
+                        int existing = c.keys.FindIndex(k => k.ms == time.Value);
+                        var frame = new CameraKey { ms = time.Value, offset = offset.Value };
+                        if (existing >= 0) c.keys[existing] = frame;
+                        else if (c.keys.Count < 512) c.keys.Add(frame);
+                    }
+                }
+            if (c.lookAt != "effect" && c.lookAt != "custom") c.lookAt = "ship";
+            c.keys.Sort((a, b) => a.ms.CompareTo(b.ms));
+            return c;
+        }
+
         public sealed class Spec
         {
             public ModInfo mod;
@@ -78,13 +150,37 @@ namespace GoF2Remake.Modding
             public float cellsFactor = 1f;
             public float failChance, failMax = 1f, failNoRoute, failMs = 16500f, failRumbleFromMs = 5500f, failRumble = 1f;
             public float failHandling = 1f, failRadiusKm = 20f;
+            // Optional jumpRules live separately from the legacy jumpFx failure settings.
+            // Defaults preserve the original drive and existing mods.
+            public bool hasJumpRules, fixedUnconnectedFailure, requireConnectedFailureDestination, showFailureChance;
+            public float failHullDamage, failMinimumHull = 0.1f, failEquipmentLossChance;
+            public bool failEquipmentIncludesDrive = true;
             public string failTexture;
             public string failVoice;                               // Modified: a story voice line as a failure starts
             public float failVoiceChance = 1f, failVoiceMs;
             public int failLine = -1, failSpeaker;                // Modified: the line's text in the radio box, and its face
             public float scale = 0.5f, glow = 2.5f, meetMs = 2300f, meetDepth = 8200f;
             public float lengthMs;
+            public Cinematic departureCamera, arrivalCamera;
             public List<Part> parts;
+        }
+
+        /// <summary>Pure, nonlethal damage calculation. A hull already at/below its floor is unchanged.</summary>
+        public static int HullAfterFailure(int current, int maximum, float damageFraction, float minimumFraction)
+        {
+            if (maximum <= 0) return current;
+            int floor = Mathf.CeilToInt(maximum * Mathf.Clamp01(minimumFraction));
+            if (current <= floor) return current;
+            int damage = Mathf.RoundToInt(maximum * Mathf.Clamp01(damageFraction));
+            return Mathf.Max(floor, current - damage);
+        }
+
+        /// <summary>Route-aware risk for the opt-in framework and legacy jumpFx drives.</summary>
+        public static float FailureProbability(Spec drive, int gateSegments, bool connected, bool extreme)
+        {
+            if (drive == null) return 0f;
+            if (!connected) return drive.failNoRoute;
+            return Mathf.Min(drive.failMax, drive.failChance * Mathf.Max(0, gateSegments) * (extreme ? 2 : 1));
         }
 
         static readonly Dictionary<int, Spec> cache = new Dictionary<int, Spec>();
@@ -94,22 +190,42 @@ namespace GoF2Remake.Modding
         static void ResetStatics() { cache.Clear(); revision = -1; }
 
         /// <summary>The jump effect of the first mounted jump drive that has one, null = the Khador Drive's own.</summary>
-        public static Spec Mounted()
+        public static Spec Mounted() => Mounted(Session.Equipment);
+
+        static Spec Mounted(List<ItemStack> equipment)
         {
-            foreach (var e in Session.Equipment)
+            foreach (var entry in equipment)
             {
-                var s = For(e.item);
-                if (s != null) return s;
+                if (entry == null || entry.amount <= 0 || !ModContent.ItemAvailableFor(entry.item, "equipment")) continue;
+                var spec = For(entry.item);
+                if (spec != null) return spec;
             }
             return null;
         }
 
         /// <summary>The mod drive that jumps: the first mounted one with a "jumpFx", unless the Khador Drive itself (85) or a ship
         /// with the drive built in is aboard (then null: the Khador Drive's rules and effect).</summary>
-        public static Spec ActiveDrive()
+        public static Spec ActiveDrive() => ActiveDrive(Session.ShipIndex, Session.Equipment);
+
+        public static Spec ActiveDrive(int ship, List<ItemStack> equipment)
         {
-            if (GalaxyMap.HasIntegratedDrive(Session.ShipIndex) || Session.Equipment.Exists(e => e.item == GalaxyMap.KhadorDriveItem)) return null;
-            return Mounted();
+            if (equipment == null || GalaxyMap.HasIntegratedDrive(ship) ||
+                equipment.Exists(e => e != null && e.amount > 0 && e.item == GalaxyMap.KhadorDriveItem &&
+                    ModContent.ItemAvailableFor(e.item, "equipment"))) return null;
+            var drive = Mounted(equipment);
+            return drive != null && !ShipClassRules.Fits(Database.Shared?.Item(drive.item), Database.Shared?.Ship(ship)) ? null : drive;
+        }
+
+        /// <summary>Do not fall through to the original drive when a mod drive is present but incompatible.
+        /// Story jumps and a genuinely installed or integrated Khador Drive remain available.</summary>
+        public static bool IncompatibleMountedDrive()
+        {
+            int ship = Session.ShipIndex;
+            if (GalaxyMap.HasIntegratedDrive(ship) || Session.Equipment == null ||
+                Session.Equipment.Exists(e => e != null && e.amount > 0 && e.item == GalaxyMap.KhadorDriveItem &&
+                    ModContent.ItemAvailableFor(e.item, "equipment"))) return false;
+            var drive = Mounted(Session.Equipment);
+            return drive != null && !ShipClassRules.Fits(Database.Shared?.Item(drive.item), Database.Shared?.Ship(ship));
         }
 
         /// <summary>Modified: Ship::hasVolatileGoods's refusal (text 612) with the drive that would jump by its own name: 612
@@ -130,7 +246,7 @@ namespace GoF2Remake.Modding
             s = null;
             if (ModContent.ItemEntry(item, out var mod, out var json, out string where) && json["jumpFx"] is JObject o)
             {
-                try { s = Read(mod, o, where); s.item = item; }
+                try { s = Read(mod, o, json["jumpRules"] as JObject, where); s.item = item; }
                 catch (ModJsonException e) { Warn(mod, e.Message); }
                 catch (Exception e) when (ModFileException.IsFileError(e)) { Warn(mod, e.Message); }
             }
@@ -138,9 +254,11 @@ namespace GoF2Remake.Modding
             return s;
         }
 
-        static Spec Read(ModInfo mod, JObject o, string where)
+        static Spec Read(ModInfo mod, JObject o, JObject rules, string where)
         {
             var s = new Spec { mod = mod, where = where };
+            s.departureCamera = ReadCinematic(o["departureCamera"] as JObject);
+            s.arrivalCamera = ReadCinematic(o["arrivalCamera"] as JObject);
             s.data = (string)o["data"];
             s.texture = (string)o["texture"];
             s.sound = (string)o["sound"];
@@ -151,6 +269,21 @@ namespace GoF2Remake.Modding
             s.failChance = Mathf.Clamp01((float?)o["failChance"] ?? 0f);
             s.failMax = Mathf.Clamp01((float?)o["failMax"] ?? 1f);
             s.failNoRoute = Mathf.Clamp01((float?)o["failNoRoute"] ?? s.failChance);
+            if (rules != null)
+            {
+                s.hasJumpRules = true;
+                s.cellsFactor = Mathf.Max(0f, (float?)rules["energyCellsMultiplier"] ?? s.cellsFactor);
+                s.failChance = Mathf.Clamp01((float?)rules["connectedFailurePerSegment"] ?? s.failChance);
+                s.failMax = Mathf.Clamp01((float?)rules["connectedFailureMaximum"] ?? s.failMax);
+                s.failNoRoute = Mathf.Clamp01((float?)rules["unconnectedFailureChance"] ?? s.failNoRoute);
+                s.fixedUnconnectedFailure = (bool?)rules["fixedUnconnectedFailure"] ?? false;
+                s.requireConnectedFailureDestination = (bool?)rules["requireConnectedFailureDestination"] ?? false;
+                s.showFailureChance = (bool?)rules["showFailureChance"] ?? false;
+                s.failHullDamage = Mathf.Clamp01((float?)rules["catastrophicHullDamage"] ?? 0f);
+                s.failMinimumHull = Mathf.Clamp01((float?)rules["minimumHullRemaining"] ?? 0.1f);
+                s.failEquipmentLossChance = Mathf.Clamp01((float?)rules["equipmentLossChance"] ?? 0f);
+                s.failEquipmentIncludesDrive = (bool?)rules["equipmentLossIncludesDrive"] ?? true;
+            }
             s.failMs = Mathf.Max(0f, (float?)o["failMs"] ?? s.failMs);
             s.failRumbleFromMs = Mathf.Max(0f, (float?)o["failRumbleFromMs"] ?? s.failRumbleFromMs);
             s.failTexture = (string)o["failTexture"];

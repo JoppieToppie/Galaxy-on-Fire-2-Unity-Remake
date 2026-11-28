@@ -6,6 +6,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Newtonsoft.Json.Linq;
+using GoF2Remake.Modding;
+using GoF2Remake.Multiplayer;
 using GoF2Remake.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -20,6 +24,402 @@ namespace GoF2Remake.UI
 {
     public partial class MainMenu
     {
+        VisualElement identityOverlay, identityRacePicker, identityPortraitPicker;
+        Label identityFeedback, identitySelection;
+        Button identityConfirm, identityLink;
+        Toggle identityConsent;
+        TextField identityCode, identityPortraitSearch;
+        List<(string Key, string Name)> identityRaces, identityPortraits;
+        string identityRace, identityPortrait, identityPreset;
+        bool identityController;
+        VisualElement identityBriefing;
+        int identityBriefingIndex;
+        bool identityBriefingComplete;
+        Action<string, string> singlePlayerIdentity;
+
+        bool UpdatePlayerIdentitySetup()
+        {
+            bool local = singlePlayerIdentity != null;
+            if (!local && (!NetGame.Active || !NetProfileClient.IdentityRequired))
+            {
+                identityOverlay?.RemoveFromHierarchy();
+                identityOverlay = null;
+                identityBriefing = null;
+                identityBriefingIndex = 0;
+                identityBriefingComplete = false;
+                return false;
+            }
+            if (identityOverlay == null || identityOverlay.parent != root || (!local &&
+                (identityPreset != NetProfileClient.IdentityRace || identityController != NetProfileClient.Controller))) BuildIdentitySetup();
+            identityOverlay.BringToFront();
+            if (identityBriefing != null)
+            {
+                if (InputMode.Current == InputKind.Gamepad &&
+                    (root.focusController?.focusedElement is not VisualElement briefingFocus || !identityBriefing.Contains(briefingFocus)))
+                    identityBriefing.Q<Button>("briefingContinue")?.Focus();
+                return true;
+            }
+            bool pending = !local && NetProfileClient.IdentitySubmitting;
+            identityFeedback.text = local ? "" : NetProfileClient.IdentityMessage ?? "";
+            identityConsent.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityPortrait));
+            identityCode.SetEnabled(!pending);
+            identityConfirm.SetEnabled(identityController && !pending && identityConsent.value &&
+                !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait));
+            identityLink.SetEnabled(!pending && !string.IsNullOrWhiteSpace(identityCode.value));
+            identityRacePicker.SetEnabled(identityController && !pending && string.IsNullOrEmpty(identityPreset));
+            identityPortraitPicker.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityRace));
+            identityPortraitSearch.SetEnabled(identityController && !pending && !string.IsNullOrEmpty(identityRace));
+            if (InputMode.Current == InputKind.Gamepad &&
+                (root.focusController?.focusedElement is not VisualElement focused || !identityOverlay.Contains(focused) || !focused.enabledInHierarchy))
+                FocusIdentityChoice();
+            return true;
+        }
+
+        void FocusIdentityChoice()
+        {
+            var first = identityRacePicker.enabledInHierarchy ? identityRacePicker.Q<Button>() : null;
+            if (first == null && identityPortraitPicker.enabledInHierarchy) first = identityPortraitPicker.Q<Button>();
+            if (first != null) first.Focus();
+            else if (identityCode.enabledInHierarchy) identityCode.Focus();
+            else Focusables(identityOverlay).Find(element => element is Button)?.Focus();
+        }
+
+        static void HighlightIdentityChoice(Button button, bool selected, bool focused = false)
+        {
+            button.AddToClassList("identity-choice");
+            button.EnableInClassList("identity-choice--selected", selected);
+            button.EnableInClassList("identity-choice--focused", focused);
+            if (Settings.OriginalUi)
+            {
+                button.style.backgroundColor = StyleKeyword.Null;
+                button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = StyleKeyword.Null;
+                button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = StyleKeyword.Null;
+                return;
+            }
+            var border = focused ? Color.white : selected ? new Color(0.52f, 0.87f, 1f) : new Color(0.20f, 0.34f, 0.44f);
+            button.style.backgroundColor = selected ? new Color(0.12f, 0.29f, 0.39f) : new Color(0.045f, 0.10f, 0.15f);
+            button.style.borderTopColor = button.style.borderBottomColor = button.style.borderLeftColor = button.style.borderRightColor = border;
+            button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = 2;
+            button.style.color = Color.white;
+        }
+
+        static Label IdentityLabel(string value, int size)
+        {
+            var label = new Label(value);
+            label.style.fontSize = size;
+            label.style.whiteSpace = WhiteSpace.Normal;
+            label.style.color = Color.white;
+            label.style.marginBottom = 8;
+            label.style.flexShrink = 0;
+            return label;
+        }
+
+        void BuildIdentitySetup()
+        {
+            identityOverlay?.RemoveFromHierarchy();
+            identityBriefing = null;
+            bool local = singlePlayerIdentity != null;
+            identityPreset = local ? null : NetProfileClient.IdentityRace;
+            identityController = local || NetProfileClient.Controller;
+            identityRace = string.IsNullOrEmpty(identityPreset) ? null : identityPreset;
+            identityPortrait = null;
+            identityOverlay = new VisualElement { name = "firstJoinIdentity" };
+            identityOverlay.style.position = Position.Absolute;
+            identityOverlay.style.left = identityOverlay.style.right = identityOverlay.style.top = identityOverlay.style.bottom = 0;
+            if (!Settings.OriginalUi) identityOverlay.style.backgroundColor = new Color(0.025f, 0.06f, 0.10f, 0.99f);
+            identityOverlay.style.alignItems = Align.Center;
+            identityOverlay.style.justifyContent = Justify.Center;
+            root.Add(identityOverlay);
+
+            // Explicit dimensions: max-height alone allowed the ScrollView to collapse to its minimum layout size.
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { name = "identitySetupScroll" };
+            scroll.style.width = Length.Percent(96);
+            scroll.style.height = Length.Percent(94);
+            scroll.style.maxWidth = 1600;
+            scroll.style.flexShrink = 0;
+            scroll.AddManipulator(new DragScroll(scroll));
+            scroll.contentContainer.style.paddingLeft = scroll.contentContainer.style.paddingRight = 20;
+            scroll.contentContainer.style.paddingTop = scroll.contentContainer.style.paddingBottom = 12;
+            identityOverlay.Add(scroll);
+            scroll.Add(IdentityLabel("CREATE YOUR PILOT", 32));
+            scroll.Add(IdentityLabel(identityController
+                ? (local ? "Choose your race, then a portrait for this game." : "Choose your race, then a portrait. Both choices are permanent on this server and affect station and jumpgate policies.")
+                : "This profile is being set up on another device. Wait for confirmation, link an existing profile, or disconnect.", 18));
+
+            identityRaces = ModRefs.RaceWords.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: PlayerIdentity.RaceKey(race.race), Name: race.name))
+                .Concat(ModRaces.All.Where(race => PlayerIdentity.IsSelectableRace(race.race)).Select(race => (Key: race.key, Name: ModRaces.Name(race.race))))
+                .GroupBy(race => race.Key).Select(group => group.First()).ToList();
+            var split = new VisualElement();
+            split.style.flexDirection = FlexDirection.Row;
+            split.style.flexShrink = 0;
+            scroll.Add(split);
+            var races = new VisualElement();
+            races.style.width = 270;
+            races.style.flexShrink = 0;
+            races.style.marginRight = 20;
+            races.Add(IdentityLabel("1. CHOOSE RACE", 21));
+            identityRacePicker = new VisualElement { name = "identityRaceChoices" };
+            identityRacePicker.style.flexDirection = FlexDirection.Column;
+            races.Add(identityRacePicker);
+            split.Add(races);
+
+            var portraits = new VisualElement();
+            portraits.style.flexGrow = 1;
+            portraits.style.flexBasis = 0;
+            portraits.style.minWidth = 0;
+            portraits.Add(IdentityLabel("2. CHOOSE PORTRAIT", 21));
+            identityPortraitSearch = new TextField { name = "identityPortraitSearch", label = "Filter portraits" };
+            identityPortraitSearch.style.minHeight = 38;
+            identityPortraitSearch.style.marginBottom = 8;
+            portraits.Add(identityPortraitSearch);
+            identityPortraitPicker = new VisualElement { name = "identityPortraitChoices" };
+            identityPortraitPicker.style.flexDirection = FlexDirection.Row;
+            identityPortraitPicker.style.flexWrap = Wrap.Wrap;
+            portraits.Add(identityPortraitPicker);
+            split.Add(portraits);
+
+            // On narrow windows, keep the portrait cards usable by stacking the two panels.
+            split.RegisterCallback<GeometryChangedEvent>(evt =>
+            {
+                bool narrow = evt.newRect.width < 720;
+                split.style.flexDirection = narrow ? FlexDirection.Column : FlexDirection.Row;
+                races.style.width = narrow ? new StyleLength(Length.Percent(100)) : new StyleLength(270f);
+                races.style.marginRight = narrow ? 0 : 20;
+                races.style.marginBottom = narrow ? 12 : 0;
+                identityRacePicker.style.flexDirection = narrow ? FlexDirection.Row : FlexDirection.Column;
+                identityRacePicker.style.flexWrap = narrow ? Wrap.Wrap : Wrap.NoWrap;
+                portraits.style.flexBasis = narrow ? new StyleLength(StyleKeyword.Auto) : new StyleLength(0f);
+            });
+
+            identitySelection = IdentityLabel("", 19);
+            identitySelection.style.marginTop = 14;
+            scroll.Add(identitySelection);
+            identityConsent = new Toggle("I understand that neither choice can be changed later.");
+            identityConsent.style.minHeight = 42;
+            scroll.Add(identityConsent);
+            identityConfirm = new Button(() =>
+            {
+                if (identityController && (local || !NetProfileClient.IdentitySubmitting) && identityConsent.value &&
+                    !string.IsNullOrEmpty(identityRace) && !string.IsNullOrEmpty(identityPortrait))
+                {
+                    if (singlePlayerIdentity != null)
+                    {
+                        var complete = singlePlayerIdentity;
+                        singlePlayerIdentity = null;
+                        identityOverlay?.RemoveFromHierarchy();
+                        identityOverlay = null;
+                        complete(identityRace, identityPortrait);
+                    }
+                    else NetProfileClient.ChooseIdentity(identityRace, identityPortrait);
+                }
+            }) { text = local ? "CONFIRM IDENTITY & START" : "CONFIRM PERMANENT IDENTITY & JOIN" };
+            scroll.Add(identityConfirm);
+            identityFeedback = IdentityLabel("", 16);
+            scroll.Add(identityFeedback);
+            var linkHint = IdentityLabel("Already have a profile on this server? Link it instead.", 16);
+            scroll.Add(linkHint);
+            identityCode = new TextField("Link code") { maxLength = 16 };
+            identityCode.style.minHeight = 40;
+            scroll.Add(identityCode);
+            identityLink = new Button(() => NetProfileClient.LinkIdentity(identityCode.value.Trim())) { text = "LINK EXISTING PROFILE" };
+            scroll.Add(identityLink);
+            if (local)
+            {
+                linkHint.style.display = DisplayStyle.None;
+                identityCode.style.display = DisplayStyle.None;
+                identityLink.style.display = DisplayStyle.None;
+            }
+            var cancel = new Button(() =>
+            {
+                if (singlePlayerIdentity != null)
+                {
+                    singlePlayerIdentity = null;
+                    identityOverlay?.RemoveFromHierarchy();
+                    identityOverlay = null;
+                }
+                else NetGame.RefuseJoin("Pilot setup cancelled.");
+            }) { text = local ? "BACK" : "DISCONNECT" };
+            scroll.Add(cancel);
+            foreach (var button in new[] { identityConfirm, identityLink, cancel })
+            {
+                button.style.minHeight = 46;
+                button.style.marginTop = 8;
+                button.style.whiteSpace = WhiteSpace.Normal;
+                button.style.flexShrink = 0;
+            }
+
+            void UpdateSelection()
+            {
+                var race = identityRaces.Find(entry => entry.Key == identityRace).Name;
+                var portrait = identityPortraits.Find(entry => entry.Key == identityPortrait).Name;
+                identitySelection.text = "Selected: " + (race ?? "No race") + " / " + (portrait ?? "No portrait");
+                foreach (var button in identityRacePicker.Query<Button>().ToList())
+                    HighlightIdentityChoice(button, (string)button.userData == identityRace, button.focusController?.focusedElement == button);
+                foreach (var button in identityPortraitPicker.Query<Button>().ToList())
+                    HighlightIdentityChoice(button, (string)button.userData == identityPortrait, button.focusController?.focusedElement == button);
+            }
+
+            void ShowPortraits(string filter)
+            {
+                identityPortraitPicker.Clear();
+                if (!PlayerIdentity.TryResolveRace(identityRace, out int race))
+                {
+                    identityPortraitPicker.Add(IdentityLabel("Select a race to display its available portraits.", 18));
+                    return;
+                }
+                foreach (var entry in identityPortraits)
+                {
+                    if (!string.IsNullOrWhiteSpace(filter) &&
+                        entry.Name.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) < 0 &&
+                        entry.Key.IndexOf(filter.Trim(), StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (!PlayerIdentity.TryResolveSelectionPortrait(race, entry.Key, out var parts, out var character)) continue;
+                    string key = entry.Key;
+                    var card = new Button(() =>
+                    {
+                        identityPortrait = key;
+                        identityConsent.SetValueWithoutNotify(false);
+                        UpdateSelection();
+                    }) { userData = key };
+                    card.style.width = 184;
+                    card.style.minHeight = 244;
+                    card.style.marginRight = card.style.marginBottom = 8;
+                    card.style.paddingTop = card.style.paddingBottom = 6;
+                    card.style.flexShrink = 0;
+                    card.style.flexDirection = FlexDirection.Column;
+                    card.style.alignItems = Align.Center;
+                    card.style.justifyContent = Justify.Center;
+                    var preview = new VisualElement { pickingMode = PickingMode.Ignore };
+                    preview.AddToClassList("portrait");
+                    preview.style.width = 160;
+                    preview.style.height = 200;
+                    preview.style.flexShrink = 0;
+                    card.Add(preview);
+                    if (character == null) Portrait.Show(preview, parts, false);
+                    else Portrait.ShowCharacter(preview, character, false);
+                    preview.Query<VisualElement>().ForEach(element => element.pickingMode = PickingMode.Ignore);
+                    var name = IdentityLabel(entry.Name, 16);
+                    name.pickingMode = PickingMode.Ignore;
+                    name.style.unityTextAlign = TextAnchor.MiddleCenter;
+                    name.style.alignSelf = Align.Stretch;
+                    card.Add(name);
+                    HighlightIdentityChoice(card, key == identityPortrait);
+                    card.RegisterCallback<FocusInEvent>(_ => HighlightIdentityChoice(card, key == identityPortrait, true));
+                    card.RegisterCallback<FocusOutEvent>(_ => HighlightIdentityChoice(card, key == identityPortrait));
+                    identityPortraitPicker.Add(card);
+                }
+                if (identityPortraitPicker.childCount == 0)
+                    identityPortraitPicker.Add(IdentityLabel("No matching portraits.", 18));
+            }
+
+            void UpdatePortraits()
+            {
+                identityPortrait = null;
+                identityConsent.SetValueWithoutNotify(false);
+                identityPortraits = PlayerIdentity.TryResolveRace(identityRace, out int race)
+                    ? PlayerIdentity.Portraits(race).ToList() : new List<(string, string)>();
+                identityPortraitSearch.SetValueWithoutNotify("");
+                ShowPortraits("");
+                UpdateSelection();
+            }
+
+            foreach (var entry in identityRaces)
+            {
+                string key = entry.Key;
+                var button = new Button(() =>
+                {
+                    if (identityRace == key) return;
+                    identityRace = key;
+                    UpdatePortraits();
+                }) { text = entry.Name, userData = key };
+                button.style.minHeight = 46;
+                button.style.minWidth = 130;
+                button.style.marginBottom = 6;
+                button.style.marginRight = 6;
+                button.style.fontSize = 18;
+                button.style.whiteSpace = WhiteSpace.Normal;
+                HighlightIdentityChoice(button, key == identityRace);
+                button.RegisterCallback<FocusInEvent>(_ => HighlightIdentityChoice(button, key == identityRace, true));
+                button.RegisterCallback<FocusOutEvent>(_ => HighlightIdentityChoice(button, key == identityRace));
+                identityRacePicker.Add(button);
+            }
+            identityPortraitSearch.RegisterValueChangedCallback(evt => ShowPortraits(evt.newValue));
+            UpdatePortraits();
+            identityRacePicker.SetEnabled(identityController && string.IsNullOrEmpty(identityPreset));
+            identityPortraitPicker.SetEnabled(identityController && !string.IsNullOrEmpty(identityRace));
+            identityPortraitSearch.SetEnabled(identityController && !string.IsNullOrEmpty(identityRace));
+            scroll.RegisterCallback<FocusInEvent>(evt =>
+            {
+                var content = scroll.contentContainer;
+                if (evt.target is VisualElement element && element != content && content.Contains(element))
+                    scroll.ScrollTo(element);
+            });
+            UiFocus.SkipScrollBars(identityOverlay);
+            identityOverlay.RegisterCallback<NavigationCancelEvent>(evt => evt.StopPropagation());
+            identityOverlay.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
+            if (identityController && string.IsNullOrEmpty(identityPreset) && !identityBriefingComplete)
+                BuildIdentityBriefing(scroll);
+            if (identityBriefing == null && InputMode.Current == InputKind.Gamepad) FocusIdentityChoice();
+        }
+
+        // These files are read from the active mod set before a pilot exists; no Lua approval or save state is needed.
+        const string IdentityBriefingFile = "tutorials/preIdentity.json";
+
+        void BuildIdentityBriefing(ScrollView identityScroll)
+        {
+            var pages = ModTutorialLayout.ReadPages(IdentityBriefingFile, singlePlayerIdentity != null);
+            if (pages.Count == 0) return;
+            identityBriefingIndex = Mathf.Clamp(identityBriefingIndex, 0, pages.Count - 1);
+            identityScroll.style.display = DisplayStyle.None;
+            identityBriefing = new VisualElement { name = "modIdentityBriefing" };
+            identityBriefing.style.width = Length.Percent(96);
+            identityBriefing.style.height = Length.Percent(94);
+            identityBriefing.style.maxWidth = 1100;
+            identityBriefing.style.paddingLeft = identityBriefing.style.paddingRight = 20;
+            identityBriefing.style.paddingTop = identityBriefing.style.paddingBottom = 12;
+            identityOverlay.Add(identityBriefing);
+
+            int visited = identityBriefingIndex;
+            void DrawPage()
+            {
+                identityBriefing.Clear();
+                ModTutorialLayout.DrawPage(identityBriefing, pages, identityBriefingIndex, visited,
+                    i => { identityBriefingIndex = i; DrawPage(); }, "gof-button");
+                var footer = new VisualElement();
+                footer.style.flexDirection = FlexDirection.Row;
+                footer.style.flexShrink = 0;
+                identityBriefing.Add(footer);
+                var back = new Button(() => { identityBriefingIndex--; DrawPage(); }) { text = "BACK" };
+                back.SetEnabled(identityBriefingIndex > 0);
+                var next = new Button(() =>
+                {
+                    if (identityBriefingIndex + 1 < pages.Count)
+                    {
+                        identityBriefingIndex++;
+                        visited = Mathf.Max(visited, identityBriefingIndex);
+                        DrawPage();
+                        return;
+                    }
+                    identityBriefingComplete = true;
+                    identityBriefing.RemoveFromHierarchy();
+                    identityBriefing = null;
+                    identityScroll.style.display = DisplayStyle.Flex;
+                    FocusIdentityChoice();
+                }) { name = "briefingContinue", text = identityBriefingIndex + 1 < pages.Count ? "CONTINUE" : "CONTINUE TO RACE SELECTION" };
+                var disconnect = new Button(() => NetGame.RefuseJoin("Pilot setup cancelled.")) { text = "DISCONNECT" };
+                foreach (var button in singlePlayerIdentity != null ? new[] { back, next } : new[] { back, next, disconnect })
+                {
+                    button.style.minHeight = 48;
+                    button.style.flexGrow = 1;
+                    button.style.whiteSpace = WhiteSpace.Normal;
+                    button.AddToClassList("gof-button");
+                    footer.Add(button);
+                }
+                UiFocus.SkipScrollBars(identityBriefing);
+                if (InputMode.Current == InputKind.Gamepad) next.Focus();
+            }
+            DrawPage();
+        }
+
         /// <summary>The name a public game is listed under: the Game name field, else "<pilot>'s universe".</summary>
         string SessionName()
         {
@@ -77,7 +477,7 @@ namespace GoF2Remake.UI
             var maxPlayers = root.Q<TextField>("mpMaxPlayers");
             if (maxPlayers != null)
             {
-                // The session's size, the host included (2..100, PlayerPrefs "mp_max_players"); shown clamped once left.
+                // The session's size, the host included (2..150, PlayerPrefs "mp_max_players"); shown clamped once left.
                 maxPlayers.maxLength = 3;
                 maxPlayers.keyboardType = TouchScreenKeyboardType.NumberPad;
                 GoF2Remake.Multiplayer.NetGame.MaxPlayers = PlayerPrefs.GetInt("mp_max_players", GoF2Remake.Multiplayer.NetGame.DefaultMaxPlayers);
@@ -878,4 +1278,292 @@ namespace GoF2Remake.UI
             catch (System.Exception e) { GoF2Remake.Multiplayer.NetGame.AbortStart(e); return false; }
         }
     }
+    // Shared, data-driven tutorial presentation for pilot setup and station management.
+    // The hosts own navigation, eligibility and acknowledgement; this class only reads and renders pages.
+    internal static class ModTutorialLayout
+    {
+        internal sealed class Page
+        {
+            internal string ModName;
+            internal ModInfo Mod;
+            internal JObject Data;
+            internal bool Contents;
+        }
+
+        static bool Text(JToken token, int max) => token != null && token.Type == JTokenType.String &&
+            !string.IsNullOrWhiteSpace((string)token) && ((string)token).Length <= max;
+
+        static bool Choice(JToken token, params string[] choices) =>
+            token == null || (token.Type == JTokenType.String && choices.Contains((string)token));
+
+        static bool Number(JToken token, int min, int max) => token == null ||
+            (token.Type == JTokenType.Integer && (double)token >= min && (double)token <= max);
+
+        internal static List<Page> ReadPages(string file, bool singlePlayerOnly = false)
+        {
+            var result = new List<Page>();
+            foreach (var mod in ModManager.Active)
+            {
+                if (mod.Broken) continue;
+                string path = mod.Source.Exists(file) ? file : "text/" + file;
+                if (!mod.Source.Exists(path)) continue;
+                try
+                {
+                    if (!(ModJson.Read(mod.Source, path) is JObject document) ||
+                        !(document["pages"] is JArray pages) || pages.Count > 20 ||
+                        !Choice(document["navigation"], "linear", "contents"))
+                        throw new ModJsonException("Expected a pages array with at most 20 entries.");
+                    if (singlePlayerOnly && (bool?)document["singlePlayer"] != true) continue;
+                    var parsed = new List<Page>();
+                    foreach (var entry in pages)
+                    {
+                        if (!(entry is JObject page) || !Text(page["title"], 120) ||
+                            !(page["sections"] is JArray sections) || sections.Count < 1 || sections.Count > 24 ||
+                            !Choice(page["layout"], "column", "cards", "grid") ||
+                            !Number(page["columns"], 1, 3) || !Number(page["gap"], 0, 32) ||
+                            !Number(page["titleSize"], 20, 40))
+                            throw new ModJsonException("Invalid tutorial page title, sections or layout.");
+                        foreach (var section in sections)
+                        {
+                            if (!(section is JObject block) ||
+                                !Choice(block["style"], "text", "card", "warning", "info", "divider") ||
+                                ((string)block["style"] != "divider" && !Text(block["text"], 2000)) ||
+                                (block["text"] != null && !Text(block["text"], 2000)) ||
+                                (block["heading"] != null && !Text(block["heading"], 120)) ||
+                                !Number(block["headingSize"], 14, 32) || !Number(block["textSize"], 12, 26) ||
+                                !Number(block["imageHeight"], 64, 480) ||
+                                (block["image"] != null && !Text(block["image"], 240)) ||
+                                !Choice(block["alignment"], "left", "center", "right") ||
+                                (block["fullWidth"] != null && block["fullWidth"].Type != JTokenType.Boolean))
+                                throw new ModJsonException("Invalid tutorial section.");
+                        }
+                        parsed.Add(new Page
+                        {
+                            ModName = mod.Name, Mod = mod, Data = page,
+                            Contents = (string)document["navigation"] == "contents"
+                        });
+                    }
+                    result.AddRange(parsed);
+                }
+                catch (Exception e) { Debug.LogWarning("Mod " + mod.Id + " " + path + ": " + e.Message); }
+            }
+            return result;
+        }
+
+        static Label LabelFor(string text, int size, string alignment = "left")
+        {
+            var label = new Label(text) { enableRichText = false };
+            label.style.fontSize = size;
+            label.style.whiteSpace = WhiteSpace.Normal;
+            label.style.color = Color.white;
+            label.style.flexShrink = 0;
+            label.style.marginBottom = 6;
+            label.style.unityTextAlign = alignment == "center" ? TextAnchor.UpperCenter :
+                alignment == "right" ? TextAnchor.UpperRight : TextAnchor.UpperLeft;
+            return label;
+        }
+
+        internal static void DrawPage(VisualElement host, List<Page> pages, int index, int visited,
+            Action<int> selectPage, string buttonClass)
+        {
+            if (!host.ClassListContains("mod-tutorial-keyboard"))
+            {
+                host.AddToClassList("mod-tutorial-keyboard");
+                host.RegisterCallback<KeyDownEvent>(e =>
+                {
+                    var view = host.Q<ScrollView>("modTutorialScroll");
+                    if (view == null) return;
+                    float step = view.contentViewport.layout.height * 0.85f;
+                    float max = Mathf.Max(0, view.contentContainer.layout.height - view.contentViewport.layout.height);
+                    float y = view.scrollOffset.y;
+                    switch (e.keyCode)
+                    {
+                        case KeyCode.PageUp: y -= step; break;
+                        case KeyCode.PageDown: y += step; break;
+                        case KeyCode.Home: y = 0; break;
+                        case KeyCode.End: y = max; break;
+                        default: return;
+                    }
+                    if (float.IsNaN(y) || float.IsNaN(max)) return;
+                    view.scrollOffset = new Vector2(0, Mathf.Clamp(y, 0, max));
+                    e.StopPropagation();
+                }, TrickleDown.TrickleDown);
+            }
+            var entry = pages[index];
+            var page = entry.Data;
+            var progress = LabelFor(entry.ModName + "  |  " + (index + 1) + " / " + pages.Count, 15);
+            host.Add(progress);
+            var title = LabelFor((string)page["title"], (int?)page["titleSize"] ?? 30);
+            title.AddToClassList("gof-semibold");
+            host.Add(title);
+
+            var workspace = new VisualElement();
+            workspace.style.flexGrow = 1;
+            workspace.style.flexBasis = 0;
+            workspace.style.minHeight = 0;
+            workspace.style.minWidth = 0;
+            workspace.style.flexDirection = FlexDirection.Column;
+            host.Add(workspace);
+
+            if (entry.Contents)
+            {
+                var contents = new ScrollView(ScrollViewMode.Horizontal)
+                {
+                    horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                    verticalScrollerVisibility = ScrollerVisibility.Hidden
+                };
+                contents.AddToClassList("gof-no-scroll-bar");
+                contents.AddManipulator(new DragScroll(contents));
+                contents.style.flexShrink = 0;
+                contents.style.height = 52;
+                contents.contentContainer.style.flexDirection = FlexDirection.Row;
+                workspace.Add(contents);
+                for (int i = 0; i < pages.Count; i++)
+                {
+                    int target = i;
+                    string caption = (string)pages[i].Data["title"];
+                    var button = new Button(() => selectPage(target))
+                    {
+                        text = (i + 1) + ". " + caption,
+                        tooltip = caption
+                    };
+                    button.AddToClassList(buttonClass);
+                    button.style.minHeight = 42;
+                    button.style.whiteSpace = WhiteSpace.Normal;
+                    button.style.flexShrink = 0;
+                    button.style.maxWidth = 212;
+                    button.style.marginBottom = 4;
+                    button.style.marginRight = 4;
+                    button.SetEnabled(i <= visited && i != index);
+                    if (i == index) button.style.backgroundColor = new Color(0.18f, 0.36f, 0.46f);
+                    contents.Add(button);
+                }
+                contents.RegisterCallback<FocusInEvent>(e =>
+                {
+                    if (!DragScroll.PointerActive && e.target is VisualElement target && contents.contentContainer.Contains(target))
+                        contents.ScrollTo(target);
+                });
+                workspace.RegisterCallback<GeometryChangedEvent>(e =>
+                {
+                    bool wide = e.newRect.width >= 760;
+                    workspace.style.flexDirection = wide ? FlexDirection.Row : FlexDirection.Column;
+                    contents.mode = wide ? ScrollViewMode.Vertical : ScrollViewMode.Horizontal;
+                    contents.style.width = wide ? new StyleLength(220) : new StyleLength(Length.Percent(100));
+                    contents.style.height = wide ? new StyleLength(StyleKeyword.Auto) : new StyleLength(52);
+                    contents.style.marginRight = wide ? 12 : 0;
+                    contents.contentContainer.style.flexDirection = wide ? FlexDirection.Column : FlexDirection.Row;
+                });
+            }
+
+            var body = new ScrollView(ScrollViewMode.Vertical)
+            {
+                name = "modTutorialScroll",
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Hidden
+            };
+            body.style.flexGrow = 1;
+            body.style.flexBasis = 0;
+            body.style.minHeight = 0;
+            body.style.minWidth = 0;
+            body.style.marginRight = 12;
+            body.AddManipulator(new DragScroll(body));
+            workspace.Add(body);
+            ScrollBars.Attach(body);
+            // Focused content stays visible; the game already handles right-stick scrolling.
+            body.RegisterCallback<FocusInEvent>(e =>
+            {
+                if (!DragScroll.PointerActive && e.target is VisualElement target && body.contentContainer.Contains(target))
+                    body.ScrollTo(target);
+            });
+            var sections = new VisualElement();
+            sections.style.flexShrink = 0;
+            sections.style.flexDirection = FlexDirection.Row;
+            sections.style.flexWrap = Wrap.Wrap;
+            sections.style.alignItems = Align.Stretch;
+            body.Add(sections);
+
+            string layout = (string)page["layout"] ?? "column";
+            int wanted = layout == "column" ? 1 : (int?)page["columns"] ?? 2;
+            int gap = (int?)page["gap"] ?? 10;
+            var panels = new List<(VisualElement panel, bool full)>();
+            foreach (JObject block in (JArray)page["sections"])
+            {
+                string style = (string)block["style"] ?? "text";
+                string alignment = (string)block["alignment"] ?? "left";
+                var panel = new VisualElement();
+                panel.style.flexShrink = 0;
+                panel.style.flexGrow = 0;
+                panel.style.minWidth = 0;
+                panel.style.marginBottom = gap;
+                if (style == "divider")
+                {
+                    panel.style.height = 1;
+                    panel.style.backgroundColor = new Color(0.35f, 0.5f, 0.6f);
+                }
+                else
+                {
+                    panel.style.paddingLeft = panel.style.paddingRight = style == "text" ? 4 : 14;
+                    panel.style.paddingTop = panel.style.paddingBottom = style == "text" ? 4 : 12;
+                    if (style != "text")
+                    {
+                        panel.AddToClassList(style == "warning" ? "identity-briefing-warning" : "identity-briefing-card");
+                        if (!Settings.OriginalUi)
+                            panel.style.backgroundColor = style == "warning" ? new Color(0.26f, 0.15f, 0.055f) :
+                                style == "info" ? new Color(0.09f, 0.22f, 0.30f) : new Color(0.07f, 0.17f, 0.23f);
+                    }
+                    if (block["heading"] != null)
+                    {
+                        var heading = LabelFor((string)block["heading"], (int?)block["headingSize"] ?? 22, alignment);
+                        heading.AddToClassList("gof-semibold");
+                        panel.Add(heading);
+                    }
+                    if (block["image"] != null)
+                    {
+                        string path = (string)block["image"];
+                        // Use the mod's own asset source and the game's managed texture cache, never an external URL.
+                        if (entry.Mod.Source.Exists(path))
+                        {
+                            try
+                            {
+                                var texture = ModMaterials.Texture(entry.Mod, path, false);
+                                if (texture != null)
+                                {
+                                    var illustration = new Image { image = texture, scaleMode = ScaleMode.ScaleToFit };
+                                    illustration.style.height = (int?)block["imageHeight"] ?? 180;
+                                    illustration.style.flexShrink = 0;
+                                    illustration.style.marginBottom = 8;
+                                    panel.Add(illustration);
+                                }
+                            }
+                            catch (Exception e) { Debug.LogWarning("Mod " + entry.Mod.Id + " tutorial image " + path + ": " + e.Message); }
+                        }
+                        else Debug.LogWarning("Mod " + entry.Mod.Id + " tutorial image missing: " + path);
+                    }
+                    panel.Add(LabelFor((string)block["text"], (int?)block["textSize"] ?? 18, alignment));
+                }
+                sections.Add(panel);
+                panels.Add((panel, style == "divider" || (bool?)block["fullWidth"] == true));
+            }
+            void Reflow(float width)
+            {
+                if (float.IsNaN(width) || width <= 0) return;
+                int columns = Mathf.Clamp(Mathf.FloorToInt((width + gap) / (280f + gap)), 1, wanted);
+                // Fixed widths keep grid cells aligned even on a partly filled last row.
+                float cell = Mathf.Max(1, (width - (columns - 1) * gap) / columns);
+                int column = 0;
+                foreach (var item in panels)
+                {
+                    bool full = item.full || columns == 1;
+                    // A full-width block starts a fresh row naturally under flex wrapping.
+                    item.panel.style.width = full ? width : cell;
+                    item.panel.style.marginRight = full || column == columns - 1 ? 0 : gap;
+                    column = full ? 0 : (column + 1) % columns;
+                }
+            }
+            // Give a safe single-column initial layout, then calculate columns from the actual viewport.
+            foreach (var item in panels) item.panel.style.width = Length.Percent(100);
+            sections.RegisterCallback<GeometryChangedEvent>(e => Reflow(e.newRect.width));
+        }
+    }
+
 }

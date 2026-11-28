@@ -14,6 +14,7 @@
 // hull takes the row) or sold (330 / 334, the ship's price, mods add nothing). Buying a ship elsewhere while owning the
 // club can keep the old hull (327 -> 331 Keep: 328 when that type is already stored, else the full price).
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -110,13 +111,33 @@ namespace GoF2Remake.Data
         public bool Storage => KaamoClub.StorageAt(Station);
         public int PriceOf(int item)
         {
-            // An item that joined the list after this opening (multiplayer: another player's sale) gets its price now.
-            if (!prices.ContainsKey(item)) { AddPrices(new List<int> { item }); PinPrices(); }
-            return Story.AdjustPrice(Station, item, prices.TryGetValue(item, out int p) ? p : 0);
+            if (!Storage && GameHooks.AdvancedBuyQuote?.Invoke(Station, item) is int quote) return quote;
+            return ItemMarketPrice(item, true);
         }
-        /// <summary>What buying one unit costs: 0 while the station has free units of it (StationStock.freeUnits), else
-        /// PriceOf. Selling stays at PriceOf.</summary>
-        public int BuyPriceOf(int item) => !Storage && Stock.FreeOf(item) > 0 ? 0 : PriceOf(item);
+
+        int ItemMarketPrice(int item, bool buy)
+        {
+            if (!prices.ContainsKey(item)) { AddPrices(new List<int> { item }); PinPrices(); }
+            int basis = prices.TryGetValue(item, out int p) ? p : 0;
+            int storyPrice = Story.AdjustPrice(Station, item, basis);
+            return !Storage && storyPrice == basis
+                ? GameHooks.NpcMarketPrice?.Invoke(Station, item, basis, buy) ?? basis : storyPrice;
+        }
+
+        public int BuyPriceOf(int item)
+        {
+            if (!Storage && Stock.FreeOf(item) > 0) return 0;
+            if (!Storage && GameHooks.AdvancedBuyQuote?.Invoke(Station, item) is int quote) return quote;
+            int price = ItemMarketPrice(item, true);
+            return !Storage ? GameHooks.FactionBuyPrice?.Invoke(Station, price) ?? price : price;
+        }
+
+        public int SellPriceOf(int item)
+        {
+            if (!Storage && GameHooks.AdvancedSellQuote?.Invoke(Station, item) is int quote) return quote;
+            int price = ItemMarketPrice(item, false);
+            return !Storage ? GameHooks.FactionSellPrice?.Invoke(Station, price) ?? price : price;
+        }
 
         /// <summary>Item::isSaleable: story items (Gunant's Drill, the Alien Remains...) can't be sold or demounted (323).</summary>
         public static bool IsSaleable(int item) => !Session.Unsaleable.Contains(item);
@@ -220,6 +241,8 @@ namespace GoF2Remake.Data
             int Slots(int type) => type switch { 0 => s.primary, 1 => s.secondary, 2 => s.turret, 3 => s.equipment + Session.ModLevel(2) + BaySlot(db, Session.ShipIndex, Session.Equipment), _ => int.MaxValue };
             int TypeOfItem(int item) => db.Item(item)?.TypeId ?? 4;
             PinSlots(db, Session.Equipment);
+            int forbiddenMoved = ReturnForbiddenFitted(db);
+            int reservedMoved = FitReservedSecondarySlots(db, s.secondary);
             var used = new int[5];
             foreach (var e in Session.Equipment) if (TakesSlot(db, e) && !IsSaleable(e.item)) used[Mathf.Clamp(TypeOfItem(e.item), 0, 4)]++;
             // In slot order, so what goes is what sits in the last slots (an item past them first takes an empty one below).
@@ -252,7 +275,8 @@ namespace GoF2Remake.Data
                     if (free <= Slots(type)) e.slot = free;
                 }
             }
-            return moved;
+            if (moved + reservedMoved + forbiddenMoved > 0) Session.SelectedSecondary = -1;
+            return moved + reservedMoved + forbiddenMoved;
         }
 
         /// <summary>Indices into Session.Equipment of the items mounted in slots of this type, in slot order.</summary>
@@ -349,7 +373,7 @@ namespace GoF2Remake.Data
             var e = Session.Equipment[equipmentIndex];
             if (!HasSlot(db, e)) return false;
             int type = TypeOf(e.item);
-            if (place < 0 || place >= SlotCount(type)) return false;
+            if (place < 0 || place >= SlotCount(type) || !CanMoveSecondary(equipmentIndex, place)) return false;
             PinSlots(db, Session.Equipment);
             if (e.slot == place + 1) return false;
             var other = Session.Equipment.Find(x => x != e && x.slot == place + 1 && HasSlot(db, x) && TypeOf(x.item) == type);
@@ -358,24 +382,47 @@ namespace GoF2Remake.Data
             return true;
         }
 
-        /// <summary>The slot after the one of the mounted item at 'equipmentIndex' (the last one wraps to the first); -1 when
-        /// its type has a single slot or the item has none (the Ship tab's MOVE).</summary>
-        public int NextSlot(int equipmentIndex)
+        bool CanMoveSecondary(int equipmentIndex, int place)
+        {
+            var e = Session.Equipment[equipmentIndex];
+            if (TypeOf(e.item) != 1) return true;
+            var ship = db.Ship(Session.ShipIndex);
+            if (!Modding.ShipClassRules.HasSecondaryReservations(ship)) return true;
+            if (!Modding.ShipClassRules.SecondarySlotFits(db.Item(e.item), ship, place + 1)) return false;
+            var positions = SlotPositions(db, Session.Equipment);
+            int from = positions[equipmentIndex];
+            for (int i = 0; i < positions.Length; i++)
+                if (positions[i] == place && TypeOf(Session.Equipment[i].item) == 1 &&
+                    !Modding.ShipClassRules.SecondarySlotFits(db.Item(Session.Equipment[i].item), ship, from + 1)) return false;
+            return true;
+        }
+
+        int NextLegalSlot(int equipmentIndex, int direction)
         {
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count) return -1;
             var e = Session.Equipment[equipmentIndex];
             int at = SlotPositions(db, Session.Equipment)[equipmentIndex], count = SlotCount(TypeOf(e.item));
-            return at < 0 || count <= 1 ? -1 : (at + 1) % count;
+            if (at < 0 || at >= count || count <= 1) return -1;
+            for (int i = 1; i < count; i++)
+            {
+                int to = (at + direction * i + count) % count;
+                if (CanMoveSecondary(equipmentIndex, to)) return to;
+            }
+            return -1;
+        }
+
+        /// <summary>The slot after the one of the mounted item at 'equipmentIndex' (the last one wraps to the first); -1 when
+        /// its type has a single slot or the item has none (the Ship tab's MOVE).</summary>
+        public int NextSlot(int equipmentIndex)
+        {
+            return NextLegalSlot(equipmentIndex, 1);
         }
 
         /// <summary>Modified: the slot before the one of the mounted item at 'equipmentIndex' (the first one wraps to the last);
         /// -1 as NextSlot (the Ship tab's up arrow).</summary>
         public int PrevSlot(int equipmentIndex)
         {
-            if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count) return -1;
-            var e = Session.Equipment[equipmentIndex];
-            int at = SlotPositions(db, Session.Equipment)[equipmentIndex], count = SlotCount(TypeOf(e.item));
-            return at < 0 || count <= 1 ? -1 : (at + count - 1) % count;
+            return NextLegalSlot(equipmentIndex, -1);
         }
 
         /// <summary>Indices into Session.Equipment of the flown ship's built-in items and of the fitted items in their places
@@ -415,22 +462,26 @@ namespace GoF2Remake.Data
         /// starting ammo; one kept keeps what is left, the shops' missiles of its type join it); so an item used up (an
         /// emergency system) is back at the next docking. Called where the flown ship can change and as levels start.
         /// Returns whether anything changed.</summary>
-        public static bool SyncBuiltIn(Database db)
+        static int ReturnForbiddenFitted(Database db)
         {
-            if (db == null || Session.Equipment == null) return false;
-            bool changed = false;
-            // A ship may have been loaded or swapped into a hull whose mod rules forbid some fitted equipment.
-            // Return those items to the hold; never silently delete them.
+            int moved = 0;
             for (int i = Session.Equipment.Count - 1; i >= 0; i--)
             {
                 var e = Session.Equipment[i];
-                if (e.builtIn) continue;
-                if (string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, e.item))) continue;
+                // Integrated hull equipment is separate from player-fittable hardpoints.
+                if (e.builtIn || string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, e.item))) continue;
                 int amount = UnitsOf(db, e);
                 Session.Equipment.RemoveAt(i);
                 if (amount > 0) Shop.AddToCargo(e.item, amount);
-                changed = true;
+                moved++;
             }
+            return moved;
+        }
+
+        public static bool SyncBuiltIn(Database db)
+        {
+            if (db == null || Session.Equipment == null) return false;
+            bool changed = ReturnForbiddenFitted(db) > 0;
             var want = db.BuiltInItems(Session.ShipIndex);
             var matched = new bool[want.Count];
             // A fitted item of the same one-per-ship kind has taken a built-in one's place: that one steps aside (counted as
@@ -458,6 +509,9 @@ namespace GoF2Remake.Data
                 Session.Equipment.Insert(at++, new ItemStack(want[j].item, want[j].amount) { builtIn = true });
                 changed = true;
             }
+            PinSlots(db, Session.Equipment);
+            var slots = Modding.KitRules.Slots(db.Ship(Session.ShipIndex));
+            if (slots != null && FitReservedSecondarySlots(db, slots.secondary) > 0) changed = true;
             if (changed) Session.SelectedSecondary = -1;
             PinSlots(db, Session.Equipment);   // the slots as they are now: an item used up in flight leaves its slot empty
             return changed;
@@ -484,7 +538,8 @@ namespace GoF2Remake.Data
         void Shared(int item, int delta, int price)
         {
             Modding.ModScripts.Raise("trade", item, -delta, price, Station);   // the mod scripts: +1 bought, -1 sold
-            if (!batching) { GameHooks.StockItemChanged?.Invoke(Station, item, delta, price); return; }
+            // Local ledger prices must see each unit before the next quote, including bulk trades.
+            if (!batching || !NetSession.Active && Modding.ModAdvancedEconomy.DynamicPricing) { GameHooks.StockItemChanged?.Invoke(Station, item, delta, price); return; }
             if (batchItem >= 0 && batchItem != item) { EndBatch(); batching = true; }   // (never in a shop's batch: one item)
             batchItem = item;
             batchDelta += delta;
@@ -495,11 +550,12 @@ namespace GoF2Remake.Data
         public Result Buy(int item, out int need)
         {
             need = 0;
+            if (!Storage && GameHooks.AdvancedPricedItem?.Invoke(Station, item) == true) return Result.NoStock;
+            if (!Storage && !Modding.ModContent.ItemAvailableFor(item, "shops")) return Result.NoStock;
             var row = Stock.items.Find(s => s.item == item && s.amount > 0);
             if (row == null) return Result.NoStock;
             bool free = !Storage && Stock.FreeOf(item) > 0;   // step 67's gifted mines (StationStock.freeUnits)
-            int price = Storage || Cheats.FreeShopping || free ? 0 : PriceOf(item);
-            if (GameHooks.FactionBuyPrice != null && !free) price = GameHooks.FactionBuyPrice(Station, price);   // multiplayer: a faction station's cut / tax
+            int price = Storage || Cheats.FreeShopping || free ? 0 : BuyPriceOf(item);
             if (Session.Credits < price) { need = (int)(price - Session.Credits); return Result.NoCredits; }
             row.amount--;
             if (row.amount <= 0) Stock.items.Remove(row);
@@ -515,9 +571,11 @@ namespace GoF2Remake.Data
         /// <summary>Sell one unit (Item::transaction(false)): same price as buying, the unit joins the station's stock.</summary>
         public Result Sell(int item)
         {
+            if (!Storage && GameHooks.AdvancedPricedItem?.Invoke(Station, item) == true) return Result.NothingToSell;
             var stack = Session.Cargo.Find(s => s.item == item && s.amount > 0);
             if (stack == null) return Result.NothingToSell;
             if (!IsSaleable(item)) return Result.NotSaleable;
+            int salePrice = Storage ? 0 : SellPriceOf(item);
             stack.amount--;
             if (stack.amount <= 0) Session.Cargo.Remove(stack);
             var row = Stock.items.Find(s => s.item == item);
@@ -528,7 +586,7 @@ namespace GoF2Remake.Data
                 Stock.items.Insert(at < 0 ? Stock.items.Count : at, new ItemStack(item, 1));   // the stock stays in index order
             }
             if (!Storage) Shared(item, 1, 0);   // multiplayer: the shared stock
-            if (!Storage) ChangeCredits(GameHooks.FactionSellPrice != null ? GameHooks.FactionSellPrice(Station, PriceOf(item)) : PriceOf(item));   // multiplayer: no more than a member pays
+            if (!Storage) ChangeCredits(salePrice);
             Session.SeenItems.Add(item);
             if (Session.IsBooze(item)) Session.BoozeTypes.Add(item);   // HangarWindow::selectItem: a committed booze trade
             return Result.Ok;
@@ -584,12 +642,48 @@ namespace GoF2Remake.Data
         public static bool DuplicateSecondaryMountAllowed(Database db, int item, IList<ItemStack> equipment, bool enabled) =>
             enabled && IsDuplicateSecondaryMount(db, item, equipment);
 
+        static int FitReservedSecondarySlots(Database db, int capacity)
+        {
+            var ship = db.Ship(Session.ShipIndex);
+            if (!Modding.ShipClassRules.HasSecondaryReservations(ship)) return 0;
+            var used = new HashSet<int>();
+            var invalid = new List<ItemStack>();
+            foreach (var e in Session.Equipment)
+            {
+                if (e.builtIn || db.Item(e.item)?.TypeId != 1) continue;
+                if (e.slot > 0 && e.slot <= capacity && Modding.ShipClassRules.SecondarySlotFits(db.Item(e.item), ship, e.slot) && used.Add(e.slot)) continue;
+                invalid.Add(e);
+            }
+            int removed = 0;
+            foreach (var e in invalid)
+            {
+                int free = 0;
+                for (int slot = 1; slot <= capacity; slot++)
+                    if (!used.Contains(slot) && Modding.ShipClassRules.SecondarySlotFits(db.Item(e.item), ship, slot)) { free = slot; break; }
+                if (free > 0) { e.slot = free; used.Add(free); continue; }
+                Session.Equipment.Remove(e);
+                if (e.amount > 0) Shop.AddToCargo(e.item, e.amount);
+                removed++;
+            }
+            return removed;
+        }
+
+        int FreeSecondarySlot(int item)
+        {
+            var places = SlotsOfType(1);
+            var ship = db.Ship(Session.ShipIndex);
+            for (int i = 0; i < SlotCount(1) && i < places.Length; i++)
+                if (places[i] < 0 && Modding.ShipClassRules.SecondarySlotFits(db.Item(item), ship, i + 1)) return i + 1;
+            return 0;
+        }
+
         /// <summary>Can a cargo item be mounted? Swap: a one-per-ship item of the same category is mounted at 'swapWith'.</summary>
         public Result CanMount(int item, out int swapWith)
         {
             swapWith = -1;
             var it = db.Item(item);
             if (it == null || CargoOf(item) <= 0) return Result.NothingToSell;
+            if (!Modding.ModContent.ItemAvailableFor(item, "equipment")) return Result.NotMountable;
             int type = it.TypeId;
             if (type > 3) return Result.NotMountable;
             if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Result.NotMountable;
@@ -612,10 +706,22 @@ namespace GoF2Remake.Data
                 // Remake: turrets (8) and plasma collectors (35) are one per turret slot, not one per ship, so a ship with
                 // two turret slots (a custom ship) takes a second one; the swap only once every turret slot is taken.
                 bool perSlot = type == 2 && SlotCount(2) > 1 && MountedOfType(2).Count < SlotCount(2);
-                swapWith = perSlot ? -1 : Session.Equipment.FindIndex(e => !e.builtIn && Shop.Replaces(it, db.Item(e.item)));
-                if (swapWith >= 0) return Result.Swap;
+                if (!perSlot)
+                {
+                    var positions = type == 1 ? SlotPositions(db, Session.Equipment) : null;
+                    for (int i = 0; i < Session.Equipment.Count; i++)
+                    {
+                        var e = Session.Equipment[i];
+                        if (e.builtIn || !IsSaleable(e.item) || !Shop.Replaces(it, db.Item(e.item))) continue;
+                        if (type == 1 && (positions[i] < 0 || positions[i] >= SlotCount(1) ||
+                            !Modding.ShipClassRules.SecondarySlotFits(it, db.Ship(Session.ShipIndex), positions[i] + 1))) continue;
+                        swapWith = i;
+                        return Result.Swap;
+                    }
+                }
             }
             if (BayTakes(db, Session.ShipIndex, item, Session.Equipment)) return Result.Ok;   // the cloak bay (remake option)
+            if (type == 1) return FreeSecondarySlot(item) > 0 ? Result.Ok : Result.NoFreeSlot;
             return MountedOfType(type).Count < SlotCount(type) ? Result.Ok : Result.NoFreeSlot;
         }
 
@@ -629,7 +735,7 @@ namespace GoF2Remake.Data
         {
             if (CanMount(item, out _) != Result.Ok) return false;
             PinSlots(db, Session.Equipment);
-            MountFromCargo(item);   // Ship::addEquipment: into the type's first empty slot
+            MountFromCargo(item, TypeOf(item) == 1 ? FreeSecondarySlot(item) : 0);   // Ship::addEquipment: into the type's first empty slot
             SyncBuiltIn(db);   // in a built-in one's place: that one steps aside
             return true;
         }
@@ -638,17 +744,18 @@ namespace GoF2Remake.Data
         public bool Swap(int equipmentIndex, int item)
         {
             if (equipmentIndex < 0 || equipmentIndex >= Session.Equipment.Count || CargoOf(item) <= 0 || Session.Equipment[equipmentIndex].builtIn) return false;
-            if (!string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return false;
+            if (CanMount(item, out int expected) != Result.Swap || expected != equipmentIndex ||
+                !IsSaleable(Session.Equipment[equipmentIndex].item)) return false;
             PinSlots(db, Session.Equipment);
             int slot = Session.Equipment[equipmentIndex].slot;
+            if (TypeOf(item) == 1 && !Modding.ShipClassRules.SecondarySlotFits(db.Item(item), db.Ship(Session.ShipIndex), slot)) return false;
             Demount(equipmentIndex);
-            MountFromCargo(item);
-            Session.Equipment[Session.Equipment.Count - 1].slot = slot;   // the new one in the old one's slot
+            MountFromCargo(item, slot);
             SyncBuiltIn(db);
             return true;
         }
 
-        void MountFromCargo(int item)
+        void MountFromCargo(int item, int slot = 0)
         {
             var stack = Session.Cargo.Find(s => s.item == item);
             int amount = Stacked(db, item) ? stack.amount : 1;
@@ -656,7 +763,7 @@ namespace GoF2Remake.Data
             if (stack.amount <= 0) Session.Cargo.Remove(stack);
             var mounted = Shop.IsConsumableDevice(db.Item(item)) ? Session.Equipment.Find(e => e.item == item) : null;
             if (mounted != null) { mounted.amount += amount; return; }   // remake: a consumable device's uses join the mounted stack
-            Session.Equipment.Add(new ItemStack(item, amount));
+            Session.Equipment.Add(new ItemStack(item, amount) { slot = slot });
             PinSlots(db, Session.Equipment);   // the new stack's slot: the first free one
             Session.SeenItems.Add(item);
         }
@@ -677,14 +784,106 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>autoEquipSecondaryWeapons: bought missiles of a mounted type join the mounted stack. Returns the items moved.</summary>
+        public const bool NativeSecondaryDistribution = true;
+
+        /// <summary>Eligible numbered secondary slots, occupied by this item or empty; never replace a different weapon.
+        /// A mod can reserve slots via ShipClassRules.SecondarySlotFits.</summary>
+        public int[] SecondaryDistributionSlots(int item)
+        {
+            if (!Modding.ModContent.MultipleSecondaryMountsEnabled || TypeOf(item) != 1 ||
+                !Modding.ModContent.ItemAvailableFor(item, "equipment") ||
+                !string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return Array.Empty<int>();
+            return DistributionSlots(db, item);
+        }
+
+        static int[] DistributionSlots(Database db, int item)
+        {
+            var ship = db.Ship(Session.ShipIndex);
+            int capacity = Modding.KitRules.Slots(ship)?.secondary ?? 0;
+            var positions = SlotPositions(db, Session.Equipment);
+            var occupied = new Dictionary<int, ItemStack>();
+            for (int i = 0; i < positions.Length; i++)
+                if (positions[i] >= 0 && db.Item(Session.Equipment[i].item)?.TypeId == 1)
+                    occupied[positions[i] + 1] = Session.Equipment[i];
+            var result = new List<int>();
+            for (int slot = 1; slot <= capacity; slot++)
+                if (Modding.ShipClassRules.SecondarySlotFits(db.Item(item), ship, slot) &&
+                    (!occupied.TryGetValue(slot, out var stack) || stack.item == item)) result.Add(slot);
+            return result.ToArray();
+        }
+
+        internal static ItemStack SecondaryReplenishmentTarget(Database db, int item)
+        {
+            var data = db.Item(item);
+            if (data?.TypeId != 1 || !Modding.ModContent.ItemAvailableFor(item, "equipment") ||
+                !string.IsNullOrEmpty(ClassRefusal(db, Session.ShipIndex, item))) return null;
+            var ship = db.Ship(Session.ShipIndex);
+            var positions = SlotPositions(db, Session.Equipment);
+            int capacity = Modding.KitRules.Slots(ship)?.secondary ?? 0;
+            ItemStack target = null;
+            for (int i = 0; i < Session.Equipment.Count; i++)
+            {
+                var e = Session.Equipment[i];
+                if (e.item != item) continue;
+                if (!e.builtIn && (positions[i] < 0 || positions[i] >= capacity ||
+                    !Modding.ShipClassRules.SecondarySlotFits(data, ship, positions[i] + 1))) continue;
+                target ??= e;
+            }
+            // Integrated weapons are not user-selectable fitting slots.
+            if (Modding.ModContent.MultipleSecondaryMountsEnabled &&
+                DistributionSlots(db, item).Length >= 2) return null;
+            return target;
+        }
+
+        /// <summary>Evenly allocate cargo and the rounds in only the selected slots. Revalidate on apply; no stock, money
+        /// or other weapon changes. The first slots receive the indivisible remainder.</summary>
+        public bool TryPreviewSecondaryDistribution(int item, IEnumerable<int> slots,
+            out Dictionary<int, int> allocation, out long cargo, out long mounted)
+        {
+            allocation = new Dictionary<int, int>();
+            cargo = Session.Cargo.Where(s => s.item == item && s.amount > 0).Sum(s => (long)s.amount);
+            mounted = 0;
+            if (slots == null) return false;
+            var chosen = slots.Distinct().OrderBy(x => x).ToArray();
+            var eligible = SecondaryDistributionSlots(item);
+            if (chosen.Length == 0 || chosen.Any(x => !eligible.Contains(x))) return false;
+            var places = SlotsOfType(1);
+            foreach (int slot in chosen)
+                if (places[slot - 1] >= 0) mounted += Math.Max(0, Session.Equipment[places[slot - 1]].amount);
+            long total = cargo + mounted;
+            if (total < chosen.Length || total > int.MaxValue) return false;
+            int each = (int)(total / chosen.Length), extra = (int)(total % chosen.Length);
+            for (int i = 0; i < chosen.Length; i++) allocation.Add(chosen[i], each + (i < extra ? 1 : 0));
+            return true;
+        }
+
+        public bool DistributeSecondaries(int item, IEnumerable<int> slots)
+        {
+            if (!TryPreviewSecondaryDistribution(item, slots, out var allocation, out long cargo, out _)) return false;
+            var places = SlotsOfType(1);
+            PinSlots(db, Session.Equipment);
+            if (cargo > 0) Shop.RemoveFromCargo(item, (int)cargo);
+            foreach (var pair in allocation.OrderBy(x => x.Key))
+            {
+                int existing = places[pair.Key - 1];
+                if (existing >= 0) Session.Equipment[existing].amount = pair.Value;
+                else Session.Equipment.Add(new ItemStack(item, pair.Value) { slot = pair.Key });
+            }
+            Session.SeenItems.Add(item);
+            Session.SelectedSecondary = -1;
+            return true;
+        }
+
         public List<int> AutoEquipSecondaries()
         {
             var moved = new List<int>();
             foreach (var stack in Session.Cargo.ToList())
             {
                 if (!Stacked(db, stack.item)) continue;   // (remake: a mounted consumable device's bought uses too)
-                var mounted = Session.Equipment.Find(e => e.item == stack.item);
-                if (mounted == null) continue;
+                var mounted = db.Item(stack.item)?.TypeId == 1
+                    ? SecondaryReplenishmentTarget(db, stack.item)
+                    : Session.Equipment.Find(e => e.item == stack.item);
+                if (mounted == null || stack.amount <= 0 || mounted.amount > int.MaxValue - stack.amount) continue;
                 mounted.amount += stack.amount;
                 Session.Cargo.Remove(stack);
                 moved.Add(stack.item);
@@ -694,12 +893,21 @@ namespace GoF2Remake.Data
 
         // ---- ships ---------------------------------------------------------------------------------------------
 
-        public int ShipPrice(int ship) => Shop.ShipPrice(db, ship, Station);
+        int HullMarketPrice(int ship, bool buy)
+        {
+            int basis = Shop.ShipPrice(db, ship, Station);
+            return Storage ? basis : GameHooks.NpcMarketPrice?.Invoke(Station, -1, basis, buy) ?? basis;
+        }
 
-        /// <summary>What a dealer ship costs here (multiplayer: a faction station's VAT markup for non-members); ShipPrice is
-        /// its value (a trade-in, the club's storage).</summary>
-        public int BuyShipPrice(int ship) => CronusGift(ship) ? 0
-            : Storage ? ShipPrice(ship) : (GameHooks.FactionShipBuyPrice != null ? GameHooks.FactionShipBuyPrice(Station, ShipPrice(ship)) : ShipPrice(ship));
+        public int ShipPrice(int ship) => HullMarketPrice(ship, false);
+        public int CurrentShipTradeValue => Session.DeathLoaner ? 0 : ShipPrice(Session.ShipIndex);
+
+        public int BuyShipPrice(int ship)
+        {
+            if (CronusGift(ship)) return 0;
+            int price = HullMarketPrice(ship, true);
+            return Storage ? price : GameHooks.FactionShipBuyPrice?.Invoke(Station, price) ?? price;
+        }
 
         /// <summary>#122: Khador's Cronus at Kothar during step 77, once (Session.KhadorCronusGift; ModStation::OnTouchEnd
         /// 0xea4ec's makeShip(37, 0)). Its value (ShipPrice, a later trade-in) stays the table's, as the original rebuilds the
@@ -712,8 +920,8 @@ namespace GoF2Remake.Data
         {
             need = 0;
             if (Session.Passengers > 0) return Result.Passengers;   // 336
-            if (ship == Session.ShipIndex) return Result.SameShip;
-            int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship) - ShipPrice(Session.ShipIndex);
+            if (ship == Session.ShipIndex && !Session.DeathLoaner) return Result.SameShip;
+            int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship) - CurrentShipTradeValue;
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
@@ -727,13 +935,18 @@ namespace GoF2Remake.Data
             if (CanBuyShip(ship, out _) != Result.Ok) return false;
             int old = Session.ShipIndex;
             var oldMods = new List<int>(Session.ShipMods ?? new List<int>());
-            if (!Cheats.FreeShopping) ChangeCredits(ShipPrice(old) - BuyShipPrice(ship));
+            bool loaner = Session.DeathLoaner;
+            if (!Cheats.FreeShopping) ChangeCredits(CurrentShipTradeValue - BuyShipPrice(ship));
             if (CronusGift(ship)) Session.KhadorCronusGift = false;   // the gift is taken: a row of it later is priced
             SwitchTo(ship, Stock.TakeMods(ship), dismount: true);
             int row = Stock.ships.IndexOf(ship);
-            if (row >= 0) Stock.ships[row] = old; else Stock.ships.Add(old);
-            Stock.PutMods(old, oldMods);
-            GameHooks.StockShipChanged?.Invoke(Station, ship, old);   // multiplayer: the shared dealer list
+            if (loaner) { if (row >= 0) Stock.ships.RemoveAt(row); }
+            else
+            {
+                if (row >= 0) Stock.ships[row] = old; else Stock.ships.Add(old);
+                Stock.PutMods(old, oldMods);
+            }
+            GameHooks.StockShipChanged?.Invoke(Station, ship, loaner ? -1 : old);   // multiplayer: the shared dealer list
             return true;
         }
 
@@ -754,9 +967,10 @@ namespace GoF2Remake.Data
                 int old = Session.ShipIndex;
                 var oldMods = new List<int>(Session.ShipMods ?? new List<int>());
                 string oldName = GameNames.Ship(old);
-                bool rebuilt = bp != null && bp.requiresShip >= 0 && bp.requiresShip == old;
+                bool rebuilt = !Session.DeathLoaner && bp != null && bp.requiresShip >= 0 && bp.requiresShip == old;
                 string how;
-                if (rebuilt) how = string.Format(Localization.Extra("bpShipRebuilt", "Your {0} was rebuilt into it."), oldName);
+                if (Session.DeathLoaner) how = "Your emergency loaner was returned.";
+                else if (rebuilt) how = string.Format(Localization.Extra("bpShipRebuilt", "Your {0} was rebuilt into it."), oldName);
                 else if (KaamoClub.Owned && !KaamoClub.HasShip(old))
                 {
                     KaamoClub.Store(old, 0, oldMods, EquipmentToStore());
@@ -807,24 +1021,29 @@ namespace GoF2Remake.Data
             if (bought) Session.ShipsBought.Add(Session.ShipRef(ship));
             var mounted = (mount ?? Session.Equipment).Where(e => !e.builtIn).ToList();   // the old hull's built-ins stay with it
             Session.ShipIndex = ship;
+            Session.DeathLoaner = false;
             Session.ShipMods = mods != null ? new List<int>(mods) : new List<int>();
             Session.Equipment = new List<ItemStack>();
             Session.SelectedSecondary = -1;
             // The flown ship's keep their slots' order on the new hull (what sits in the last slots goes to the hold), packed
             // below; a stored hull's gear goes in list order (the story's first).
             var at = SlotPositions(db, mounted);
-            for (int i = 0; i < mounted.Count; i++) mounted[i].slot = mount == null ? at[i] + 1 : 0;
+            bool reserved = Modding.ShipClassRules.HasSecondaryReservations(db.Ship(ship));
+            for (int i = 0; i < mounted.Count; i++)
+                mounted[i].slot = mount == null || (reserved && TypeOf(mounted[i].item) == 1) ? at[i] + 1 : 0;
             var listOrder = new List<ItemStack>(mounted);
             if (mount == null) mounted = Enumerable.Range(0, mounted.Count).OrderBy(i => at[i]).Select(i => listOrder[i]).ToList();
             foreach (var e in mounted)
             {
                 int type = TypeOf(e.item);
-                if ((!dismount || !IsSaleable(e.item)) && (MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
+                if ((!dismount || !IsSaleable(e.item)) && (reserved && type == 1 ||
+                    MountedOfType(type).Count < SlotCount(type) || BayTakes(db, ship, e.item, Session.Equipment))) Session.Equipment.Add(e);
                 else if (UnitsOf(db, e) > 0) AddToCargo(e.item, UnitsOf(db, e));
             }
             Session.Equipment = Session.Equipment.OrderBy(e => listOrder.IndexOf(e)).ToList();
             for (int type = 0; type <= 3; type++)
             {
+                if (reserved && type == 1) continue;
                 int n = 0;
                 foreach (var e in Session.Equipment.Where(x => HasSlot(db, x) && TypeOf(x.item) == type).OrderBy(x => x.slot).ToList()) e.slot = ++n;
             }
@@ -840,7 +1059,7 @@ namespace GoF2Remake.Data
             need = 0;
             if (Session.Passengers > 0) return Result.Passengers;   // 336
             if (ship == Session.ShipIndex) return Result.SameShip;
-            int cost = Cheats.FreeShopping ? 0 : price - ShipPrice(Session.ShipIndex);
+            int cost = Cheats.FreeShopping ? 0 : price - CurrentShipTradeValue;
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
             return Result.Ok;
         }
@@ -848,7 +1067,7 @@ namespace GoF2Remake.Data
         public bool BuyShipFor(int ship, int price)
         {
             if (CanBuyShipFor(ship, price, out _) != Result.Ok) return false;
-            if (!Cheats.FreeShopping) ChangeCredits(ShipPrice(Session.ShipIndex) - price);
+            if (!Cheats.FreeShopping) ChangeCredits(CurrentShipTradeValue - price);
             SwitchTo(ship, null, dismount: true);
             return true;
         }
@@ -856,6 +1075,7 @@ namespace GoF2Remake.Data
         public Result CanKeepAndBuyShipFor(int ship, int price, out int need)
         {
             need = 0;
+            if (Session.DeathLoaner) return Result.NotSaleable;
             if (Session.Passengers > 0) return Result.Passengers;
             if (ship == Session.ShipIndex) return Result.SameShip;
             if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328
@@ -921,6 +1141,7 @@ namespace GoF2Remake.Data
         public Result CanKeepAndBuyShip(int ship, out int need)
         {
             need = 0;
+            if (Session.DeathLoaner) return Result.NotSaleable;
             if (KaamoClub.HasShip(Session.ShipIndex)) return Result.AlreadyStored;   // 328 (the old ship's type)
             int cost = Cheats.FreeShopping ? 0 : BuyShipPrice(ship);
             if (Session.Credits < cost) { need = (int)(cost - Session.Credits); return Result.NoCredits; }
@@ -948,7 +1169,7 @@ namespace GoF2Remake.Data
         {
             if (index < 0 || index >= Session.KaamoShips.Count) return Result.NoStock;
             if (Session.Passengers > 0) return Result.Passengers;
-            if (Session.KaamoShips[index].ship == Session.ShipIndex) return Result.SameShip;
+            if (!Session.DeathLoaner && Session.KaamoShips[index].ship == Session.ShipIndex) return Result.SameShip;
             return Result.Ok;
         }
 
@@ -958,6 +1179,7 @@ namespace GoF2Remake.Data
         public bool UseStored(int index)
         {
             if (CanUseStored(index) != Result.Ok) return false;
+            bool loaner = Session.DeathLoaner;
             var stored = Session.KaamoShips[index];
             var storedGear = stored.equipment ?? new List<ItemStack>();
             var kept = EquipmentToStore();
@@ -968,7 +1190,12 @@ namespace GoF2Remake.Data
                 SwitchTo(stored.ship, stored.mods, bought: false);
                 KaamoClub.AddToStorage(storedGear);
             }
-            Session.KaamoShips[index] = old;
+            if (loaner)
+            {
+                if (kept != null) KaamoClub.AddToStorage(kept);
+                Session.KaamoShips.RemoveAt(index);
+            }
+            else Session.KaamoShips[index] = old;
             return true;
         }
 

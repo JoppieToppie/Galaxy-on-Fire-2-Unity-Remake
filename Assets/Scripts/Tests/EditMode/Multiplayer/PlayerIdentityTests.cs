@@ -1,0 +1,104 @@
+using System.Linq;
+using GoF2Remake.Modding;
+using GoF2Remake.Multiplayer;
+using NUnit.Framework;
+using Newtonsoft.Json.Linq;
+
+namespace GoF2Remake.Tests
+{
+    public class PlayerIdentityTests
+    {
+        [TestCase(true)]
+        [TestCase(false)]
+        public void PirateOriginAcceptsBoolean(bool enabled)
+        {
+            var options = new JObject { ["origins"] = new JObject
+                { ["pirates"] = new JObject { ["startingStation"] = 105, ["startAsPirate"] = enabled } } };
+            Assert.DoesNotThrow(() => PlayerIdentity.ValidateOrigins(options));
+        }
+
+        [Test]
+        public void PirateOriginRejectsNonBoolean()
+        {
+            var options = JObject.Parse("{\"origins\":{\"pirates\":{\"startAsPirate\":1}}}");
+            Assert.Throws<ModJsonException>(() => PlayerIdentity.ValidateOrigins(options));
+        }
+
+        [TestCase("{\"defaultStartingCredits\":-1}")]
+        [TestCase("{\"defaultStartingCredits\":\"25000\"}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingShip\":-1}}}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingCredits\":-1}}}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingEquipment\":{}}}}")]
+        [TestCase("{\"origins\":{\"terran\":{\"startingEquipment\":[{\"item\":50,\"amount\":0}]}}}")]
+        public void InvalidStarterAssetsAreRejected(string json)
+        {
+            Assert.Throws<ModJsonException>(() => PlayerIdentity.ValidateOrigins(JObject.Parse(json)));
+        }
+
+        [Test]
+        public void ValidStarterAssetsAreAccepted()
+        {
+            var options = JObject.Parse("{\"defaultStartingCredits\":25000,\"origins\":{\"terran\":{\"startingShip\":5,\"startingCredits\":0,\"startingEquipment\":[{\"item\":50,\"amount\":1}]}}}");
+            Assert.DoesNotThrow(() => PlayerIdentity.ValidateOrigins(options));
+        }
+
+        [Test]
+        public void EveryStockRaceHasAValidatedPortrait()
+        {
+            CollectionAssert.AreEquivalent(Enumerable.Range(0, 11), ModRefs.RaceWords.Select(entry => entry.race));
+            foreach (var entry in ModRefs.RaceWords)
+            {
+                Assert.AreEqual(entry.race, ModRaces.GameRaceWord(entry.word));
+                string raceKey = PlayerIdentity.RaceKey(entry.race);
+                Assert.IsTrue(PlayerIdentity.TryResolveRace(raceKey, out int race));
+                var portraits = PlayerIdentity.Portraits(race).Where(portrait => portrait.Key.StartsWith("stock/")).ToList();
+                Assert.IsNotEmpty(portraits);
+                foreach (var portrait in portraits)
+                {
+                    Assert.IsTrue(PlayerIdentity.TryResolvePortrait(race, portrait.Key, out var descriptor, out var mod));
+                    Assert.AreEqual(5, descriptor.Length);
+                    Assert.IsNull(mod);
+                    Assert.IsFalse(PlayerIdentity.TryResolvePortrait((race + 1) % 11, portrait.Key, out _, out _));
+                }
+            }
+        }
+
+        [Test]
+        public void VoidAndSpectersAreNotSelectableButRemainWorldRaces()
+        {
+            foreach (var entry in ModRefs.RaceWords)
+            {
+                string key = PlayerIdentity.RaceKey(entry.race);
+                Assert.IsTrue(PlayerIdentity.TryResolveRace(key, out _));
+                Assert.AreEqual(entry.race != 9 && entry.race != 10,
+                    PlayerIdentity.TryResolveSelectableRace(key, out _));
+            }
+        }
+
+        [Test]
+        public void CompleteIdentityIsImmutableEvenWhenRaceIsUnchanged()
+        {
+            Assert.IsTrue(PlayerIdentity.CanChoose(null, null, "4"));
+            Assert.IsFalse(PlayerIdentity.IsComplete("4", null));
+            Assert.IsTrue(PlayerIdentity.CanChoose("4", null, "4"));
+            Assert.IsFalse(PlayerIdentity.CanChoose("4", null, "6"));
+            Assert.IsTrue(PlayerIdentity.IsComplete("4", "stock/4/4-0"));
+            Assert.IsFalse(PlayerIdentity.CanChoose("4", "stock/4/4-0", "4"));
+            Assert.IsFalse(PlayerIdentity.CanChoose("4", "stock/4/4-0", "6"));
+            // Removing a portrait's mod does not make a previously saved identity editable.
+            Assert.IsFalse(PlayerIdentity.CanChoose("removed:race", "removed:portrait", "4"));
+        }
+
+        [TestCase("octopod", 4)]
+        [TestCase("bobolian", 6)]
+        [TestCase("grey", 7)]
+        public void MinorRacesUseTheirOwnPortraitBodies(string word, int body)
+        {
+            int race = ModRaces.GameRaceWord(word);
+            Assert.AreEqual(body, race);
+            var portrait = PlayerIdentity.Portraits(race).First();
+            Assert.IsTrue(PlayerIdentity.TryResolvePortrait(race, portrait.Key, out var descriptor, out _));
+            Assert.AreEqual(body, descriptor[0]);
+        }
+    }
+}

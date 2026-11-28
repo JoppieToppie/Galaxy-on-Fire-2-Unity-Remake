@@ -123,6 +123,13 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   `ShopStockTests`, `StoryRulesTests`; Play mode `ModderRequestsFlightTests` (an npcships.json capital on the battleship's
   hull with three hardpoints: three turret parts, one destroyed alone, the rest gone with the hull, its escorts; a loaner
   swapped in flight and back; the beam's materials tinted). Not tested in multiplayer.
+- **Ship classes and docking:** `ExternalDockingRules` uses `ShipClassRules.IsLargeShipClass`: frigates, freighters,
+  cruisers and carriers dock externally, with authored ship hardpoints and station attachments; other or unclassified
+  ships use the hangar, regardless of hull size. The legacy `dockingRole` field does not override eligibility.
+  `AsteroidVolumeCollision` applies volume-based asteroid collision to classified large NPC ships.
+- **Duplicate secondary mounts:** `multipleSecondaryMounts` is opt-in through the active mod manifest. Matching
+  mounted secondaries share an ammunition pool; restocking distributes only the rounds actually purchased or supplied,
+  including when individual stacks are saturated. Mounts remain individually configurable in the hangar.
 - **Built-in equipment and a steady engine glow** (remake, a modder's requests, 2026-10-16): ships.json `integrated` (new
   ships and overrides; `ModContent.ApplyIntegrated`): `khadorDrive` true / false (`Database.IntegratedDrives`, defaults
   37 / 38 / 40, `Ship::hasJumpDriveIntegrated`; read by `GalaxyMap.HasIntegratedDrive` through `Database.Shared`) and
@@ -325,14 +332,6 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   ship's own `engineFx` takes each mount's `outline` like an exhaust style (`EngineFx.CreateShaped`,
   `ModExhausts.OutlineOf`: the cards reach the nozzle's shape, the trails along its long side, centred on it); the GoF3
   capitals get GoF3's large engine on their nozzles, shaped to them (see Mobile stations).
-- **Big ships break asteroids** (PR #374, 2026-11-28): an NPC hull whose ships.json class is frigate / freighter / cruiser /
-  carrier (`ShipClassRules`) gets `World.AsteroidVolumeCollision`: every 30 frames it asks `AsteroidTargetGrid` (the
-  asteroids' spatial grid, registered in `Target.OnEnable` / `OrbitBuilder.SpawnField`) for the rocks in reach, and a rock
-  touching its `Obstacle` volumes dies (`Damage(9999)`, the usual death and crate). Unclassified hulls are unchanged.
-- **Several launchers of one secondary** (PR #376, 2026-11-28): mod.json `"multipleSecondaryMounts": true` (part of the
-  multiplayer signature) lets a ship mount the same secondary on more than one hardpoint (`Hangar.CanMount`); its rigs then
-  share one `SecondaryAmmoPool` over the mounted stacks (a restock is split evenly, so either can be unmounted with ammo).
-  Without such a mod each mount keeps its own stack, as before.
 - **Capital ship subsystems** (remake, 2026-10-24, the user's request: EVERSPACE 2's warships and its Dreadnought
   encounter; `World.CapitalSubsystems`, ships.json `"subsystems"` parsed by `ModContent.ApplySubsystems` into
   `Database.ShipSubsystems`, `Data.CapitalSubsystem`): Traffic.Create attaches it to a `modCapital` spec with
@@ -564,12 +563,6 @@ how-to `Modding/ai/README.md`), the examples `Modding/Examples/plasma_arsenal` (
   replacement flight model as a hangar ship while the additive Station scene was unloading, capping its drive and hiding
   boost effects. Hangar models keep their context when carried under the orbit's station hull; other orbit ships retain
   flight effects. Tests `EngineStationContextTests` cover flight inputs, hangar previews and all five effect components.
-  **External docking** (PR merged 2026-11-19, `SpaceLevelExternalDocks`, `ExternalDockingRules`): a ship with
-  `"dockingRole": "external"`, a slotType 8 hardpoint and a station's `orbit.externalDocks` point attaches to the hull
-  outside, never a hangar. Every other ship the player can own lands in the hangar whatever its size: the PR also refused
-  hulls over 150 m (`PlayerHull.Big`) there, which stranded big mod ships outside (Discord 2026-11-21, the UNSC
-  Savannah); taken out 2026-11-28, the hangar shrinks them (`PlayerHull.FitHangar`). Not done: changing equipment while
-  externally docked.
 - **Base content** (`ModManager.BaseContent`, `BaseContentSource`, `Resources/GoF2Base`, 2026-11-01): what the remake adds to the
   game itself, so far the Khador Slipstream, its blueprint and Khador at Thynome. Why not rows in `items.json`: the original
   tables are numbered 0..232 back to back with the text blocks (`GameNames`: 233 reads a medal's name), the mods' numbers start

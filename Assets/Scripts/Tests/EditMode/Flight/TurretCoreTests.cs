@@ -91,6 +91,32 @@ namespace GoF2Remake.Tests
             Assert.Less(Quaternion.Angle(mount.TurretTurn * Quaternion.Euler(0f, 180f, 0f), t.localRotation), 1e-3f, "the mount's turn on top of the model's");
         }
 
+        [TestCase("freighter", true)]
+        [TestCase("frigate", true)]
+        [TestCase("cruiser", true)]
+        [TestCase("CARRIER", true)]
+        [TestCase("heavy_fighter", false)]
+        [TestCase("heavy_privateer", false)]
+        [TestCase("hauler", false)]
+        [TestCase("interceptor", false)]
+        [TestCase(null, false)]
+        public void SurfaceAimIsReservedForFourTargetClasses(string shipClass, bool expected)
+        {
+            Assert.AreEqual(expected, TurretTargeting.UsesHullSurface(shipClass));
+        }
+
+        [Test]
+        public void UnclassifiedShipAimsAtCollisionCentreInsteadOfOriginOrNearestFace()
+        {
+            var t = NewTarget(new Vector3(100f, 20f, 300f));
+            t.boxes = new[] { new Bounds(new Vector3(10f, 0f, 0f), new Vector3(4f, 4f, 4f)),
+                              new Bounds(new Vector3(20f, 0f, 0f), new Vector3(4f, 4f, 4f)) };
+            t.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            var expected = t.transform.TransformPoint(new Vector3(15f, 0f, 0f));
+            Assert.Less(Vector3.Distance(expected, TurretTargeting.CombatAimPoint(t, Vector3.zero)), 1e-4f);
+            Assert.Less(Vector3.Distance(expected, TurretTargeting.CombatAimPoint(t, Vector3.one * 500f)), 1e-4f);
+        }
+
         // ---- aim ----------------------------------------------------------------------------------------------------
 
         [Test]
@@ -142,6 +168,39 @@ namespace GoF2Remake.Tests
             for (int i = 0; i < 100 && !hit; i++) { core.StepToward(below, 33f); hit = core.Aim.LimitHit; }
             Assert.IsTrue(hit);
             Assert.AreEqual(-100f * TurretAim.RadPerMs, core.Aim.Pitch, 1e-6f, "held at the limit");
+        }
+
+        [Test]
+        public void LeadServoUsesTheActualBarrelWhenItFacesBackwardsInItsPivot()
+        {
+            using (new SettingsScope<bool>(() => Settings.TurretLeadAim, v => Settings.TurretLeadAim = v))
+            {
+                Settings.TurretLeadAim = true;
+                var (_, pivot, gun) = Model();
+                gun.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                var aim = new TurretAim(pivot, gun);
+                var point = gun.position + Vector3.back * 100f;
+                Assert.IsTrue(aim.Step(point, 16f));
+                Assert.AreEqual(0f, aim.Yaw, 1e-4f);
+                Assert.IsFalse(aim.LimitHit);
+            }
+        }
+
+        [Test]
+        public void LeadServoDoesNotRejectTargetWhileYawIsStillTurning()
+        {
+            using (new SettingsScope<bool>(() => Settings.TurretLeadAim, v => Settings.TurretLeadAim = v))
+            {
+                Settings.TurretLeadAim = true;
+                var (_, pivot, gun) = Model();
+                var aim = new TurretAim(pivot, gun) { pitchMin = -0.1f, pitchMax = 0.8f };
+                Vector3 point = gun.position + new Vector3(0f, 20f, -100f);
+                Assert.IsFalse(aim.Step(point, 16f));
+                Assert.IsFalse(aim.LimitHit);
+                bool aligned = false;
+                for (int i = 0; i < 300 && !aligned; i++) aligned = aim.Step(point, 16f);
+                Assert.IsTrue(aligned);
+            }
         }
 
         // ---- shots --------------------------------------------------------------------------------------------------
@@ -227,6 +286,118 @@ namespace GoF2Remake.Tests
                 "60000 units is the reach");
         }
 
+        [TestCase(TurretTargeting.Rule.Retarget)]
+        [TestCase(TurretTargeting.Rule.Timed)]
+        public void TurretRequiresSensorContactToAcquireAndRetain(TurretTargeting.Rule rule)
+        {
+            var hidden = NewTarget(new Vector3(0f, 0f, 100f));
+            var visible = NewTarget(new Vector3(0f, 0f, 200f));
+            var outsideWeaponRange = NewTarget(new Vector3(0f, 0f, 2600f));
+            var pool = new List<Target> { hidden, visible, outsideWeaponRange };
+            var pick = new TurretTargeting(rule, 50000f) { Sensor = t => t != hidden };
+            Assert.AreSame(visible, pick.Update(3001f, pool, Vector3.zero));
+            pick.Sensor = t => t == outsideWeaponRange;
+            Assert.IsNull(pick.Update(16f, pool, Vector3.zero), "loss of contact is immediate even in timed mode; sensor does not extend gun range");
+            pick.Sensor = t => true;
+            Assert.AreSame(hidden, pick.Update(3001f, pool, Vector3.zero));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HudLeadSamplesAtRenderRateAndResetsOnDiscontinuity(bool remote)
+        {
+            var motion = new TurretTargeting.HudLeadMotion();
+            Assert.IsFalse(motion.SamplePose(Vector3.zero, 0d, remote));
+            Assert.IsTrue(motion.SamplePose(Vector3.right, 0.01d, remote));
+            Assert.AreEqual(100f, motion.Velocity.x, 0.001f);
+            Assert.IsTrue(motion.TryLead(Vector3.forward * 100f, Vector3.zero, 200f, 2f, out var lead));
+            Assert.Greater(lead.x, 0f);
+            Assert.IsTrue(motion.SamplePose(Vector3.zero, 0.02d, remote));
+            Assert.Less(motion.Velocity.x, 0f, "direction reversal before the old 80 ms interval");
+            Assert.IsTrue(motion.TryLead(Vector3.forward * 100f, Vector3.zero, 200f, 2f, out lead));
+            Assert.Less(lead.x, 0f);
+            Assert.IsFalse(motion.SamplePose(Vector3.right * 1000f, 0.03d, remote));
+            Assert.IsFalse(motion.TryLead(Vector3.forward * 100f, Vector3.zero, 200f, 2f, out _));
+        }
+
+        [Test]
+        public void HudLeadRequiresExplicitScannerOptIn()
+        {
+            Assert.IsFalse(CombatRadar.ScannerHasLead(null));
+            Assert.IsFalse(CombatRadar.ScannerHasLead(new ItemData { attrKeys = new[] { 29 }, attrValues = new[] { 1800 } }));
+            foreach (int value in new[] { 0, 1 })
+            {
+                var scanner = new ItemData { attrKeys = new[] { CombatRadar.ScanLeadAttr }, attrValues = new[] { value } };
+                Assert.AreEqual(value == 1, CombatRadar.ScannerHasLead(scanner));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HudLeadDisplayIsFrameRateIndependentAndTracksTargetTranslation(bool remote)
+        {
+            float Simulate(int fps)
+            {
+                var display = new TurretTargeting.HudLeadDisplay();
+                var profile = new WeaponSystem.LeadProfile { speed = 200f, lifetime = 2f };
+                display.BeginFrame();
+                display.Smooth(profile, Vector3.zero, Vector3.zero, 0f, remote);
+                display.EndFrame();
+                Vector3 result = Vector3.zero, target = Vector3.forward * 500f;
+                for (int i = 0; i < fps / 10; i++)
+                {
+                    display.BeginFrame();
+                    result = display.Smooth(profile, target, target + Vector3.right * 100f, 1f / fps, remote);
+                    Assert.AreEqual(target.z, result.z, 0.001f, "translation must not lag");
+                    display.EndFrame();
+                }
+                return result.x;
+            }
+            float at30 = Simulate(30), at120 = Simulate(120);
+            Assert.Greater(at30, 50f);
+            Assert.Less(at30, 95f);
+            Assert.AreEqual(at30, at120, 0.001f);
+        }
+
+        [Test]
+        public void HudLeadDisplayKeepsProfilesSeparateAndDropsMissingOrResetHistory()
+        {
+            var display = new TurretTargeting.HudLeadDisplay();
+            var a = new WeaponSystem.LeadProfile { speed = 200f, lifetime = 2f };
+            var b = new WeaponSystem.LeadProfile { speed = 400f, lifetime = 2f };
+            display.BeginFrame();
+            display.Smooth(a, Vector3.zero, Vector3.right * 100f, 0f, false);
+            display.Smooth(b, Vector3.zero, Vector3.left * 100f, 0f, false);
+            display.EndFrame();
+            display.BeginFrame();
+            Assert.Greater(display.Smooth(a, Vector3.zero, Vector3.zero, 0.01f, false).x, 0f);
+            display.EndFrame(); // B is not visible this frame
+            display.BeginFrame();
+            Assert.AreEqual(Vector3.zero, display.Smooth(b, Vector3.zero, Vector3.zero, 0.01f, false));
+            display.Reset(); // lock switch, cloak, teleport, or hidden HUD
+            Assert.AreEqual(Vector3.zero, display.Smooth(a, Vector3.zero, Vector3.zero, 0.01f, false));
+        }
+
+        [Test]
+        public void HudLeadAllowsAllVisiblePilotsRegardlessOfPvpProtection()
+        {
+            var t = NewTarget(Vector3.forward * 100f);
+            t.netPilot = true;
+            t.hostileToPlayer = false;
+            t.playerProof = false;
+            Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "legal neutral PvP target");
+            t.playerProof = true;
+            Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "protected pilot");
+            t.friendToPlayer = true;
+            Assert.IsTrue(TurretTargeting.HudLeadEligible(t), "protected squadmate");
+            t.playerProof = false;
+            t.cloaked = true;
+            Assert.IsFalse(TurretTargeting.HudLeadEligible(t));
+            t.cloaked = false;
+            t.untargetable = true;
+            Assert.IsFalse(TurretTargeting.HudLeadEligible(t));
+        }
+
         [Test]
         public void RetargetDropsALostTargetAtOnceAndSkipsTheUnreachable()
         {
@@ -289,6 +460,30 @@ namespace GoF2Remake.Tests
             };
             Assert.AreSame(hull, pick.Update(3001f, new List<Target> { hull, turret }, Vector3.zero), "listed after the nearer hull");
             Assert.AreSame(turret, pick.Update(3001f, new List<Target> { turret, hull }, Vector3.zero), "listed first: weighted");
+        }
+
+        [Test]
+        public void AccelerationLeadPredictsAReachableBoundedIntercept()
+        {
+            var relative = new Vector3(0f, 0f, 1000f);
+            var velocity = new Vector3(20f, 0f, 0f);
+            var acceleration = new Vector3(60f, 0f, 0f);
+            var linear = TurretTargeting.PredictIntercept(relative, velocity, Vector3.zero, 800f, 2f);
+            var predicted = TurretTargeting.PredictIntercept(relative, velocity, acceleration, 800f, 2f);
+            Assert.Greater(predicted.x, linear.x);
+            float time = predicted.magnitude / 800f;
+            float horizon = Mathf.Min(time, 1.25f);
+            Assert.Less(Vector3.Distance(predicted, relative + velocity * time + acceleration * (0.5f * horizon * horizon)), 0.1f);
+            Assert.LessOrEqual(Vector3.Distance(predicted, linear), 150f);
+        }
+
+        [Test]
+        public void PredictionRejectsUnreachableAndExpiredIntercepts()
+        {
+            var relative = new Vector3(0f, 0f, 1000f);
+            Assert.AreEqual(relative, TurretTargeting.PredictIntercept(relative, Vector3.forward * 900f, Vector3.right * 60f, 800f, 3f));
+            Assert.AreEqual(relative, TurretTargeting.PredictIntercept(relative, Vector3.right * 40f, Vector3.right * 60f, 800f, 0.5f));
+            Assert.AreEqual(relative, TurretTargeting.PredictIntercept(relative, Vector3.right * 40f, Vector3.right * 60f, 0f, 3f));
         }
 
         [Test]

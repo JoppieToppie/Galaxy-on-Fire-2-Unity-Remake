@@ -17,6 +17,11 @@ namespace GoF2Remake.UI
         /// <summary>The menu's "Flight rules": flight.json.</summary>
         void ShowFlightRules()
         {
+            if (Project == null) return;
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            configurationModalRevision = Project.ConfigurationRevision;
             modal.Clear();
             var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
             Heading(box, T("mbFlightRules", "Flight rules"));

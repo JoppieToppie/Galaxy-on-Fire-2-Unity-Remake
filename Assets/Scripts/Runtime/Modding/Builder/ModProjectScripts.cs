@@ -59,7 +59,7 @@ namespace GoF2Remake.Modding
             text ??= "";
             if (File.Exists(path) && File.ReadAllText(path) == text) return false;
             Directory.CreateDirectory(Path.GetDirectoryName(path));
-            File.WriteAllText(path, text, new UTF8Encoding(false));
+            SafeWriteBytes(path, new UTF8Encoding(false).GetBytes(text));
             return true;
         }
 

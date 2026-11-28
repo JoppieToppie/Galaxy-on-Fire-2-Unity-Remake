@@ -64,7 +64,7 @@ namespace GoF2Remake.EditorTools
             "set NAME=Galaxy on Fire 2 server\n" +
             "rem Leave PASSWORD empty for none.\n" +
             "set PASSWORD=\n" +
-            "rem At most 100.\n" +
+            "rem At most 150.\n" +
             "set MAXPLAYERS=16\n" +
             "rem 1 = the players may use the Debug menu (cheats, items, spawns); 0 = off.\n" +
             "set ALLOWDEBUG=0\n" +
@@ -102,7 +102,7 @@ namespace GoF2Remake.EditorTools
             "# It hosts online through Unity Relay and is listed in the server browser. Edit these:\n" +
             "NAME=\"Galaxy on Fire 2 server\"\n" +
             "PASSWORD=\"\"        # empty = none\n" +
-            "MAXPLAYERS=16      # at most 100\n" +
+            "MAXPLAYERS=16      # at most 150\n" +
             "ALLOWDEBUG=0       # 1 = the players may use the Debug menu (cheats, items, spawns)\n" +
             "PVP=0              # 1 = PvP: players may fight anywhere; 0 = PvE: only in arena matches and faction sieges\n" +
             "FLIGHT=player      # the flight model: player (each one's own Options choice), or gof2 (the game's) / es2 (EVERSPACE 2) for all\n" +

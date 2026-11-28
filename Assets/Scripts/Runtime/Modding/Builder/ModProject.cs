@@ -93,6 +93,9 @@ namespace GoF2Remake.Modding
         public ProjectCampaign Campaign;
         /// <summary>flight.json: FlightRules for every ship the player flies (ModFlight), by field name; empty = none.</summary>
         public JObject FlightRules = new JObject();
+        public JObject PlayerInfrastructure = new JObject();
+        public JObject NpcFactionWarRules = new JObject();
+        public JObject AdvancedEconomyRules = new JObject();
         public const string CampaignFile = "campaign.json", InteriorsFile = "interiors.json";
         JObject manifest = new JObject();
         JObject builder = new JObject();

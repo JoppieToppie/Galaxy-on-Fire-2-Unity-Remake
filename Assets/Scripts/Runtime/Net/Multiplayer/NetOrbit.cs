@@ -41,6 +41,8 @@ namespace GoF2Remake.Multiplayer
         public static NetOrbit Current { get; private set; }
 
         SpaceLevel level;
+        bool localFreight;
+        internal static NetOrbit LocalFreightOrbit { get; private set; }
         readonly Dictionary<int, Target> asteroids = new Dictionary<int, Target>();
         readonly Dictionary<Target, int> asteroidIndex = new Dictionary<Target, int>();
         readonly HashSet<int> requestedShips = new HashSet<int>();
@@ -68,6 +70,13 @@ namespace GoF2Remake.Multiplayer
         {
             var p = NetSquad.Find(client);
             return p != null && p.InSpace && p.Station == station;
+        }
+
+        internal void SetupLocalFreight(SpaceLevel spaceLevel)
+        {
+            level = spaceLevel;
+            localFreight = true;
+            LocalFreightOrbit = this;
         }
 
         public void Setup(SpaceLevel spaceLevel)
@@ -99,6 +108,12 @@ namespace GoF2Remake.Multiplayer
 
         void OnDestroy()
         {
+            if (localFreight)
+            {
+                if (LocalFreightOrbit == this) LocalFreightOrbit = null;
+                if (watchedTraffic != null) watchedTraffic.ShipDied -= OnLocalFreightDeath;
+                return;
+            }
             if (Current == this) Current = null;
             ClearNpcHooks();
             if (watchedTraffic != null) watchedTraffic.ShipDied -= OnShipDied;
@@ -199,6 +214,12 @@ namespace GoF2Remake.Multiplayer
                 return owner != null && owner.LocalTarget != null && HostileToRemote(ship, owner.LocalTarget);
             }
             int r = ship.Race;
+            if (p.IsPirate && !ship.IsWingman)
+            {
+                if (r != Standing.Pirate) return r >= 0;
+                foreach (var id in ship.aggressors) if (NetSquad.SameClient(id, p)) return true;
+                return ship.turnedEnemy && p == NetPlayer.Local;
+            }
             if (ship.alwaysNeutral && !ship.turnedEnemy)
             {
                 foreach (var id in ship.aggressors) if (NetSquad.SameClient(id, p)) return true;
@@ -218,7 +239,7 @@ namespace GoF2Remake.Multiplayer
         static int Territory(NpcShip ship, int station, string tag, int tollAt)
         {
             var orbit = Current;
-            if (orbit == null || orbit.level == null || orbit.level.Layout == null || ship.Race != orbit.level.Layout.raceId) return 0;
+            if (orbit == null || orbit.level == null || orbit.level.Layout == null || ship.Race != (orbit.level.Traffic?.SystemRace ?? orbit.level.Layout.raceId)) return 0;
             if (ship.Spec.eventTag == GarrisonTag || ship.Spec.eventTag == SiegeDefenderTag) return NetFactionsClient.GarrisonRelation(station, tag);
             return NetFactionsClient.Relation(station, tag, tollAt);
         }
@@ -482,6 +503,7 @@ namespace GoF2Remake.Multiplayer
 
         void Update()
         {
+            if (localFreight) { UpdateLocalFreight(); return; }
             var state = NetState.Instance;
             if (state == null || !state.IsSpawned) return;
             if (!requestedList) { requestedList = true; state.RequestDestroyedRpc(Station); }
@@ -489,6 +511,8 @@ namespace GoF2Remake.Multiplayer
             UpdateHeldAsteroids();
             UpdateGarrison();
             FollowRunner();
+            RequestFactionBattle(state);
+            RequestFreight(state);
             UpdateDerelictStandIns();
             // This player's own NPCs: the orbit's traffic (the authority) or a freelance mission's (anyone).
             bool ownNpcs = Authority || (level.Traffic != null && level.Traffic.Ships.Count > 0) || level.FreelanceOrbit != null
@@ -502,6 +526,340 @@ namespace GoF2Remake.Multiplayer
             ScanShips(state);
             ScanJunk(state);
             ScanCrates(state);
+        }
+
+        void OnLocalFreightDeath(NpcShip ship, bool byPlayer)
+        {
+            if (ship == null) return;
+            int tag = ship.Spec.eventTag;
+            if (Modding.ModAdvancedEconomy.IsFreightTag(tag))
+                AdvancedEconomyLedger.ReportFreightLoss(Station, tag, ship.Race, ship.transform.position);
+            else if (Modding.ModAdvancedEconomy.IsFreightRaidTag(tag))
+                AdvancedEconomyLedger.RecordFreightRaidDeath(Station, tag, byPlayer ? 0UL : ulong.MaxValue);
+        }
+
+        void UpdateLocalFreight()
+        {
+            if (!AdvancedEconomyLedger.LocalActive || level == null || level.Leaving || Time.timeScale <= 0f) return;
+            NetStock.TickLocal();
+            var traffic = level.Traffic;
+            if (traffic == null || level.Layout == null || level.Layout.interstellar || level.IsStoryOrbit || Station < 0) return;
+            if (watchedTraffic != traffic)
+            {
+                if (watchedTraffic != null) watchedTraffic.ShipDied -= OnLocalFreightDeath;
+                watchedTraffic = traffic;
+                traffic.ShipDied += OnLocalFreightDeath;
+            }
+            if (Time.time < freightRequestAt) return;
+            freightRequestAt = Time.time + 5f;
+            foreach (var ship in traffic.Ships)
+                if (ship != null && !ship.Gone && ship.Target != null && ship.Target.Alive &&
+                    Modding.ModAdvancedEconomy.IsFreightTag(ship.Spec.eventTag))
+                    AdvancedEconomyLedger.RecordFreightHull(Station, ship.Spec.eventTag,
+                        Mathf.Clamp(Mathf.RoundToInt(65535f * ship.Hp.hull / Mathf.Max(1, ship.Hp.maxHull)), 1, 65535));
+            string manifest = AdvancedEconomyLedger.FreightManifest(Station);
+            if (manifest != null) ApplyFreightManifest(manifest);
+            string wrecks = AdvancedEconomyLedger.FreightWreckManifest(Station);
+            if (wrecks != null) ApplyFreightWreckManifest(wrecks);
+        }
+
+        internal void LocalFreightLeg(int orbit, int tag, out bool materialized, out bool ready)
+        {
+            materialized = false; ready = true;
+            if (Station != orbit || level?.Traffic == null) return;
+            var ship = level.Traffic.Ships.Find(s => s != null && !s.Gone && s.Target != null &&
+                s.Target.Alive && s.Spec.eventTag == tag);
+            if (ship == null || ship.Current == NpcShip.State.JumpingOut) return;
+            materialized = true;
+            var route = ship.Spec.route;
+            if (route == null || route.points.Count == 0) { ready = false; return; }
+            Vector3 end = OrbitLayout.ToUnity(level.Layout.Place(route.points[0]));
+            ready = (ship.transform.position - end).sqrMagnitude < 500f * 500f;
+        }
+
+        const float FreightInitialRequestSeconds = 0.25f, FreightRefreshSeconds = 5f;
+        static uint nextFreightEpoch;
+        uint freightEpoch;
+        int freightOrbit = -1;
+        bool freightAuthority, freightManifestReceived;
+        float freightRequestAt, freightWreckRequestAt;
+        int freightAmbientReplacements;
+
+        internal void FreightDistressRadio(string title, string text, int race)
+        {
+            if (level?.Traffic == null) return;
+            // The existing portrait generator also respects custom races' configured appearance.
+            bool male = Standing.Look(race) != 0 || Random.value < 0.5f;
+            level.Traffic.Say(new Traffic.Chatter { text = text,
+                speaker = string.IsNullOrEmpty(title) ? "Freight distress" : title,
+                portrait = AgentGenerator.CreatePortrait(male, race) });
+        }
+
+        void RequestFreight(NetState state)
+        {
+            var me = NetPlayer.Local;
+            int orbit = Station;
+            if (!Modding.ModAdvancedEconomy.PhysicalFreight || level.Traffic == null || orbit < 0 ||
+                NetArena.IsArenaOrbit(orbit) || me == null || !me.InSpace || me.Station != orbit)
+            {
+                freightOrbit = -1;
+                freightAuthority = freightManifestReceived = false;
+                return;
+            }
+            // Local authority can be provisional on arrival. Wait for the server's runner assignment.
+            bool confirmed = Authority && NetState.RunnerOf(orbit) == me;
+            if (freightOrbit != orbit || freightAuthority != confirmed)
+            {
+                freightOrbit = orbit;
+                freightAuthority = confirmed;
+                freightManifestReceived = false;
+                freightEpoch = unchecked(++nextFreightEpoch);
+                freightRequestAt = freightWreckRequestAt = 0f;
+            }
+            float now = Time.unscaledTime;
+            bool ships = confirmed && now >= freightRequestAt;
+            bool wrecks = now >= freightWreckRequestAt;
+            if (!ships && !wrecks) return;
+            bool initial = ships && !freightManifestReceived;
+            // Set deadlines before the RPC: the host may receive its reply synchronously.
+            if (ships) freightRequestAt = now + (initial ? FreightInitialRequestSeconds : FreightRefreshSeconds);
+            if (wrecks) freightWreckRequestAt = now + FreightRefreshSeconds;
+            state.RequestFreightRpc(orbit, freightEpoch, ships, wrecks, initial);
+        }
+
+        bool CurrentFreightEpoch(uint epoch)
+        {
+            var me = NetPlayer.Local;
+            return !localFreight && epoch == freightEpoch && freightOrbit >= 0 && freightOrbit == Station &&
+                Modding.ModAdvancedEconomy.PhysicalFreight && me != null && me.InSpace && me.Station == Station;
+        }
+
+        internal void ReceiveFreightManifest(uint epoch, bool initial, string manifest)
+        {
+            // Ignore replies from an earlier visit/runner assignment and the remaining initial
+            // retry replies once the first snapshot has been applied.
+            if (!CurrentFreightEpoch(epoch) || !freightAuthority || !Authority ||
+                NetState.RunnerOf(Station) != NetPlayer.Local || level.Traffic == null || level.Layout == null ||
+                manifest == null || initial == freightManifestReceived) return;
+            ApplyFreightManifest(manifest);
+            freightManifestReceived = true; // An empty string is a valid authoritative snapshot.
+            freightRequestAt = Time.unscaledTime + FreightRefreshSeconds;
+        }
+
+        internal void ReceiveFreightWreckManifest(uint epoch, string manifest)
+        {
+            if (CurrentFreightEpoch(epoch) && level.Layout != null && manifest != null)
+                ApplyFreightWreckManifest(manifest);
+        }
+
+        internal void ApplyFreightManifest(string manifest)
+        {
+            var traffic = level?.Traffic;
+            if ((!Authority && !localFreight) || traffic == null || level.Layout == null) return;
+            var active = new HashSet<int>();
+            var activeRaiders = new HashSet<int>();
+            int slot = 0;
+            foreach (string row in (manifest ?? "").Split(';'))
+            {
+                string[] fields = row.Split(',');
+                if ((fields.Length != 10 && fields.Length != 12 && fields.Length != 13) || !int.TryParse(fields[0], out int tag) ||
+                    !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
+                    !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
+                    !int.TryParse(fields[7], out int race) || !int.TryParse(fields[8], out int ship) ||
+                    !int.TryParse(fields[9], out int speed) || speed < 10 || speed > 500 ||
+                    (race < 0 || (race > 10 && Modding.ModRaces.Get(race) == null)) || level.Database.Ship(ship) == null ||
+                    !int.TryParse(fields[6], out int hull) || hull < 1 || hull > 65535 ||
+                    !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
+                    amount > Modding.ModAdvancedEconomy.MaxStock || level.Database.Item(item) == null) continue;
+                var cargo = new List<ItemStack>();
+                if (fields.Length == 13)
+                {
+                    var kinds = new HashSet<int>();
+                    var entries = fields[12].Split('/');
+                    if (entries.Length < 2 || entries.Length > Modding.ModAdvancedEconomy.MaxFreightCargoKinds) continue;
+                    long sum = 0;
+                    foreach (string entry in entries)
+                    {
+                        var values = entry.Split(':');
+                        if (values.Length != 2 || !int.TryParse(values[0], out int cargoItem) ||
+                            !int.TryParse(values[1], out int quantity) || quantity <= 0 ||
+                            level.Database.Item(cargoItem) == null || !kinds.Add(cargoItem)) { cargo.Clear(); break; }
+                        cargo.Add(new ItemStack(cargoItem, quantity));
+                        sum += quantity;
+                    }
+                    if (cargo.Count != entries.Length || cargo[0].item != item || sum != amount) continue;
+                }
+                else cargo.Add(new ItemStack(item, amount));
+                if (!active.Add(tag)) continue;
+                int index = slot++;
+                int raidBase = 0, raidDead = 0;
+                if (fields.Length >= 12) { int.TryParse(fields[10], out raidBase); int.TryParse(fields[11], out raidDead); }
+                // Retain surviving raiders while the corresponding freight proxy is still being adopted.
+                if (Modding.ModAdvancedEconomy.IsFreightRaidTag(raidBase) && raidBase % 4 == 0)
+                    for (int i = 0; i < Modding.ModAdvancedEconomy.FreightRaidSize; i++)
+                        if ((raidDead & (1 << i)) == 0) activeRaiders.Add(raidBase + i);
+                // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
+                string hullName = ship == 13 || ship == 15 ? "Freighter" : GameNames.Ship(ship);
+                string label = hullName + (cargo.Count > 1 ? " Mixed Freight (" : " Freight (") + amount + " t)";
+                var existing = traffic.Ships.Find(x => x != null && x.Spec.eventTag == tag && !x.Gone);
+                if (existing != null)
+                {
+                    if (existing.Target != null && existing.Target.Alive)
+                    {
+                        bool differs = existing.CargoList.Count != cargo.Count;
+                        if (!differs)
+                            for (int i = 0; i < cargo.Count; i++)
+                                if (existing.CargoList[i].item != cargo[i].item || existing.CargoList[i].amount != cargo[i].amount)
+                                { differs = true; break; }
+                        if (differs) existing.SetLoot(cargo);
+                        existing.Spec.lootItem = item;
+                        existing.Spec.lootAmount = amount;
+                        existing.Target.displayName = existing.Spec.name = label;
+                    }
+                    if (existing.Target != null && existing.Target.Alive) ApplyFreightRaid(traffic, existing, raidBase, raidDead, activeRaiders);
+                    continue;
+                }
+                if (!localFreight && System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag)) continue;
+                // Freighters fly straight. Keep them in parallel lanes outside the station's hull.
+                Vector3 offset = new Vector3((index % 2 == 0 ? 1f : -1f) * (1800f + 800f * index),
+                    350f + index * 100f, 2300f);
+                Vector3 at = traffic.StationPosition + offset;
+                bool fromStation = source == Station;
+                bool toStation = destination == Station;
+                Vector3 gate = level.Layout.hasJumpgate ? OrbitLayout.ToUnity(level.Layout.Place(level.Layout.jumpgate)) :
+                    OrbitLayout.ToUnity(level.Layout.Place(level.Layout.hiddenJumpgate));
+                Vector3 direction = gate - traffic.StationPosition;
+                if (direction.sqrMagnitude < 10000f) direction = Vector3.forward * 10000f;
+                direction.Normalize();
+                Vector3 lateral = Vector3.Cross(Vector3.up, direction).normalized;
+                if (lateral.sqrMagnitude < 0.01f) lateral = Vector3.right;
+                Vector3 lane = lateral * offset.x + Vector3.up * offset.y;
+                if (fromStation) at = traffic.StationPosition + direction * 2200f + lane;
+                else if (toStation) at = gate + lane;
+                else at = gate - direction * 1800f + lane;
+                Vector3 end = toStation ? traffic.StationPosition + direction * 1800f + lane : gate + direction * 1800f + lane;
+                var freightRoute = new Route(false);
+                freightRoute.points.Add(level.Layout.Unplace(GamePosition(end)));
+                var npc = traffic.SpawnShip(new SpawnSpec
+                {
+                    group = NpcGroup.Freighter, race = race, ship = ship, freighter = true,
+                    eventTag = tag, noLoot = true, lootItem = item, lootAmount = amount,
+                    position = level.Layout.Unplace(GamePosition(at)), route = freightRoute,
+                    scale = 1f,
+                    hitpoints = NpcTables.Hull(1, ship), speed = NpcTables.FreighterSpeed * speed / 100f,
+                    name = label
+                });
+                npc.SetLoot(cargo);
+                if (localFreight) npc.Target.CollectFreight = room => AdvancedEconomyLedger.ClaimLocalFreight(Station, tag, room, false);
+                // Fly along the lane, not through the station; abstract gate travel remains server timed.
+                npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
+                npc.Target.hp = npc.Hp.hull = Mathf.Clamp(Mathf.RoundToInt(npc.Hp.maxHull * (hull / 65535f)), 1, npc.Hp.maxHull);
+                ApplyFreightRaid(traffic, npc, raidBase, raidDead, activeRaiders);
+            }
+            foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone && Modding.ModAdvancedEconomy.IsFreightRaidTag(x.Spec.eventTag)))
+                if (!activeRaiders.Contains(npc.Spec.eventTag) && npc.Target != null && npc.Target.Alive && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
+            foreach (var npc in traffic.Ships.FindAll(x => x != null && !x.Gone &&
+                Modding.ModAdvancedEconomy.IsFreightTag(x.Spec.eventTag) && x.Target != null && x.Target.Alive))
+                if (!active.Contains(npc.Spec.eventTag) && npc.Current != NpcShip.State.JumpingOut) npc.JumpOut();
+            // Remove only the same number of ordinary ambient freighters; mission and custom
+            // traffic are untouched, and no decorative ships are removed without economic traffic.
+            int ordinary = Modding.ModAdvancedEconomy.EconomyOnlyFreighters ? 0 : Mathf.Max(0, active.Count - freightAmbientReplacements);
+            foreach (var npc in traffic.Ships)
+            {
+                if (ordinary <= 0) break;
+                if (npc == null || npc.Gone || npc.Current != NpcShip.State.Fly || npc.Spec.group != NpcGroup.Freighter ||
+                    npc.Spec.eventTag != 0 || npc.Spec.convoyRole != 0 || (npc.Spec.ship != 13 && npc.Spec.ship != 15)) continue;
+                npc.JumpOut();
+                freightAmbientReplacements++;
+                ordinary--;
+            }
+            traffic.ConnectPlayers();
+        }
+
+        void ApplyFreightRaid(Traffic traffic, NpcShip freight, int raidBase, int dead, HashSet<int> active)
+        {
+            if (!Modding.ModAdvancedEconomy.IsFreightRaidTag(raidBase) || raidBase % 4 != 0) return;
+            for (int i = 0; i < Modding.ModAdvancedEconomy.FreightRaidSize; i++)
+            {
+                int tag = raidBase + i;
+                if ((dead & (1 << i)) != 0) continue;
+                active.Add(tag);
+                if (traffic.Ships.Exists(x => x != null && !x.Gone && x.Spec.eventTag == tag) ||
+                    (!localFreight && System.Array.Exists(FindObjectsByType<NetProxy>(), x => x != null && x.IsSpawned && x.Station == Station && x.EventTag == tag))) continue;
+                Vector3 at = freight.transform.position + new Vector3((i - 1) * 900f, 350f + i * 150f, -1200f);
+                var pirate = traffic.SpawnShip(new SpawnSpec { group = NpcGroup.Special, race = Standing.Pirate,
+                    ship = NpcTables.RandomFighter(Standing.Pirate), eventTag = tag, alwaysEnemy = true, noLoot = true,
+                    name = "Freight Raider", position = level.Layout.Unplace(GamePosition(at)) });
+                pirate.SetOrder(new NpcOrder { kind = NpcOrder.Kind.Attack, target = freight.Target });
+            }
+        }
+
+        readonly Dictionary<int, Crate> freightWrecks = new Dictionary<int, Crate>();
+        internal void ApplyFreightWreckManifest(string manifest)
+        {
+            var active = new HashSet<int>();
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (string row in (manifest ?? "").Split(';'))
+            {
+                string[] fields = row.Split(',');
+                if (fields.Length != 7 || !int.TryParse(fields[0], out int tag) ||
+                    !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
+                    !int.TryParse(fields[3], out int race) || !Modding.ModAdvancedEconomy.IsFreightTag(tag) ||
+                    amount <= 0 || level.Database.Item(item) == null ||
+                    !float.TryParse(fields[4], System.Globalization.NumberStyles.Float, culture, out float x) ||
+                    !float.TryParse(fields[5], System.Globalization.NumberStyles.Float, culture, out float y) ||
+                    !float.TryParse(fields[6], System.Globalization.NumberStyles.Float, culture, out float z) ||
+                    !active.Add(tag)) continue;
+                var position = new Vector3(x, y, z);
+                if (!NetGuard.Position(position)) continue;
+                if (!freightWrecks.TryGetValue(tag, out var crate) || crate == null)
+                {
+                    crate = GoF2Remake.Flight.Crate.Spawn(position, new[] { new ItemStack(item, amount) }, race, GoF2Remake.Flight.Crate.LookContainer);
+                    crate.transform.position = position;
+                    crate.remote = true;
+                    crate.keep = true;
+                    crate.name = "Freight salvage";
+                    crate.CollectStationSalvage = room =>
+                    {
+                        if (localFreight) AdvancedEconomyLedger.ClaimLocalFreight(Station, tag, room, true);
+                        else NetProfileClient.RequestFreightClaim(tag, ulong.MaxValue, room);
+                    };
+                    freightWrecks[tag] = crate;
+                }
+                else
+                {
+                    crate.loot.Clear();
+                    crate.loot.Add(new ItemStack(item, amount));
+                    if (!crate.pulled) crate.transform.position = position;
+                }
+            }
+            foreach (int tag in new List<int>(freightWrecks.Keys))
+            {
+                if (active.Contains(tag)) continue;
+                if (freightWrecks[tag] != null) Destroy(freightWrecks[tag].gameObject);
+                freightWrecks.Remove(tag);
+            }
+        }
+
+        float factionWarRequestAt;
+
+        void RequestFactionBattle(NetState state)
+        {
+            var me = NetPlayer.Local;
+            if (!Authority || level.Traffic?.CanHostFactionBattle != true || me == null || NetState.RunnerOf(Station) != me ||
+                Time.unscaledTime < factionWarRequestAt) return;
+            factionWarRequestAt = Time.unscaledTime + 20f;
+            state.RequestFactionBattleRpc(Station);
+        }
+
+        internal void BeginFactionBattle(NpcFactionWar.Battle battle, int[] casualties)
+        {
+            if (Authority && level.Traffic != null && battle.orbit == Station) level.Traffic.BeginFactionBattle(battle, casualties);
+        }
+
+        internal void EndFactionBattle(NpcFactionWar.Battle battle)
+        {
+            if (level.Traffic != null && battle.orbit == Station) level.Traffic.EndFactionBattle(battle);
         }
 
         /// <summary>The server's word on who runs this orbit (NetPlayer.RunsOrbit): this player takes it over when it is them,
@@ -642,9 +1000,11 @@ namespace GoF2Remake.Multiplayer
         /// EMP and (a capital ship) its waves.</summary>
         static void Restore(NpcShip ship, NetProxy proxy, ProxySpec p)
         {
+            proxy.RestoreShield(ship);
             var st = proxy.Status;
             foreach (var id in proxy.Aggressors) ship.aggressors.Add(id);   // still hostile to whom it was
-            if (p != null && p.cargo != null && p.spec != null && !p.spec.noLoot && p.spec.lootItem < 0)
+            if (p != null && p.cargo != null && p.spec != null &&
+                (Modding.ModAdvancedEconomy.IsFreightTag(p.spec.eventTag) || (!p.spec.noLoot && p.spec.lootItem < 0)))
             {
                 var cargo = new List<ItemStack>();
                 foreach (var c in p.cargo) if (c.amount > 0 && NetGuard.Item(c.item)) cargo.Add(new ItemStack(c.item, c.amount));

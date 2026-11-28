@@ -19,10 +19,21 @@ namespace GoF2Remake.UI
         string StationName(int station, bool suffix = true)
         {
             var st = db.Stations.Find(s => s.index == station);
-            if (st == null) return "";
-            return !suffix || st.index == 101 ? st.name : $"{st.name} {T(136)}";
+            return GameNames.Station(st, suffix);
         }
         int SystemOf(int station) => db.Stations.Find(s => s.index == station)?.system ?? -1;
+
+        /// <summary>Opt-in mod jump risk shown on the map and in the confirmation before cells are spent.</summary>
+        string DriveFailureRisk(int destinationSystem)
+        {
+            var drive = ModJumpFx.ActiveDrive();
+            if (drive == null || !drive.showFailureChance || destinationSystem < 0 || destinationSystem == currentSystem)
+                return null;
+            var path = GalaxyMap.SystemPath(db, currentSystem, destinationSystem);
+            float risk = ModJumpFx.FailureProbability(drive, path != null ? path.Count - 1 : 0, path != null, Session.IsExtreme);
+            return string.Format(Localization.Extra("modJumpRisk", "Jump drive failure risk: {0}%"),
+                Mathf.RoundToInt(risk * 100f));
+        }
         void Select(int system)
         {
             if (system != selected && system >= 0) Play(assets.selectSystem);
@@ -70,6 +81,16 @@ namespace GoF2Remake.UI
         void TryZoomIn()
         {
             if (selected < 0) return;
+            if (plannerSystemOnly && constructionSystemAllowed != null)
+            {
+                int systemId = selected;
+                if (!constructionSystemAllowed(systemId)) return;
+                var system = db.Systems.Find(entry => entry != null && entry.index == systemId);
+                var anchor = db.Stations.Find(entry => entry != null && entry.system == systemId && constructionOrbitAllowed?.Invoke(entry.index) == true);
+                if (system == null || anchor == null) return;
+                ShowDialog("Select " + system.name + " as the jumpgate destination?", () => Close(new StarMapResult { station = anchor.index }), null);
+                return;
+            }
             if (!jumpDrive && mode != StarMapMode.Mission && !GateReachable(selected)) { ShowDialog(T(420), null, null, true); return; }
             Play(assets.zoomIn);
             zoomSystem = selected;
@@ -130,6 +151,16 @@ namespace GoF2Remake.UI
         {
             int station = planets[k].station;
             if (builder != null) { builder.stationPicked?.Invoke(station); return; }
+            if (constructionSystemAllowed != null)
+            {
+                int constructionSystem = SystemOf(station);
+                if (!constructionSystemAllowed(constructionSystem) || constructionOrbitAllowed?.Invoke(station) != true)
+                { ShowDialog("This orbit is occupied, reserved or inaccessible.", null, null, true); return; }
+                string systemName = db.Systems.Find(system => system != null && system.index == constructionSystem)?.name ?? "this system";
+                ShowDialog(plannerPurpose == "jumpgate" ? "Select the orbit of " + StationName(station, false) + " in " + systemName + " for a jumpgate?" : "Reserve the vacant orbit of " + StationName(station, false) + " in " + systemName + " for a station project?",
+                    () => Close(new StarMapResult { station = station }), null);
+                return;
+            }
             if (mode == StarMapMode.Mission && !travel) { ShowDialog(StationName(station), null, null, true); return; }   // view only
             if (station == currentStation) { ShowDialog(T(419), null, null, true); return; }
             // Modified: StarMap::OnTouchEnd's campaign checks for the target station (the cabins of 91 / 94, step 142's plasma
@@ -148,6 +179,11 @@ namespace GoF2Remake.UI
             if (GateRoutes && !jumpDrive && otherSystem && !GateReachable(system)) { ShowDialog(T(420), null, null, true); return; }
             int gateJumps = GateRoutes && otherSystem ? GalaxyMap.GateJumps(db, currentSystem, system) : 0;
             string travelTo = DestinationText(station, gateJumps);
+            if (jumpDrive && otherSystem)
+            {
+                string risk = DriveFailureRisk(system);
+                if (risk != null) travelTo = risk + "\n" + travelTo;
+            }
             if (jumpDrive && otherSystem && GalaxyMap.HasVolatileGoods)
             {
                 // Ship::hasVolatileGoods: no Khador Drive; a gate neighbour (remake: any system on a gate route) is still

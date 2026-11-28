@@ -23,8 +23,6 @@ namespace GoF2Remake.UI
         VisualElement characterList, characterPage;
         ProjectCharacter currentCharacter;
 
-        static readonly string[] RaceWords = { "terran", "vossk", "nivelian", "midorian", "pirate", "void" };
-
         void BuildCharactersPanels(VisualElement left, VisualElement right)
         {
             Add(left, new Label(T("mbCharacters", "Characters").ToUpperInvariant()), "mbv-heading", "gof-semibold");
@@ -119,15 +117,17 @@ namespace GoF2Remake.UI
             // characters.json "frame" / "background": the game's scanline overlay and the dark backdrop behind the picture.
             CharacterFlag(toggles, T("mbScanlines", "Scanlines"), c.Frame, v => c.Frame = v);
             CharacterFlag(toggles, T("mbBackdrop", "Dark backdrop"), c.Background, v => c.Background = v);
+            CharacterFlag(toggles, "Player portrait", c.PlayerPortrait, v => c.PlayerPortrait = v);
+            Note(characterPage, "Player portraits require an explicit race and appear in the multiplayer profile picker.");
 
             Add(characterPage, new Label(T("mbRace", "Race").ToUpperInvariant()), "mbv-label");
             var races = Add(characterPage, new VisualElement(), "mbv-seg-row");
             Act(races, T("mbAuto", "Auto"), () => { c.Race = null; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg")
                 .EnableInClassList("mbv-seg--on", c.Race == null);
-            for (int i = 0; i < RaceWords.Length; i++)
+            foreach (var stock in ModRefs.RaceWords)
             {
-                string word = RaceWords[i];
-                var b = Act(races, T("race" + RaceNames[i], RaceNames[i]), () => { c.Race = word; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
+                string word = stock.word;
+                var b = Act(races, T("race" + stock.name, stock.name), () => { c.Race = word; CharacterEdited(); BuildCharacterPage(); }, "mbv-seg");
                 b.EnableInClassList("mbv-seg--on", string.Equals(c.Race, word, StringComparison.OrdinalIgnoreCase));
             }
             var projectRaceKeys = new HashSet<string>();

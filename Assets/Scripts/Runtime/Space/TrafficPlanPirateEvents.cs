@@ -74,7 +74,7 @@ namespace GoF2Remake.Flight
         static bool InStoryline(int station) => PirateEventRules.InStoryline(station);
         /// <param name="hasRaiders">The orbit already has a raider group: no unreported event on top of it (a reported
         /// sighting still comes; players' report 2026-10-16: on Extreme the two together overwhelmed a pilot on arrival).</param>
-        static void AddPirateEvent(List<SpawnSpec> list, Database db, int station, SystemData system, int secEff, bool story, int cm, bool baseSystem, bool hasRaiders = false)
+        static void AddPirateEvent(List<SpawnSpec> list, Database db, int station, SystemData system, int secEff, bool story, int cm, bool baseSystem, bool hasRaiders = false, bool allowUnreported = true)
         {
             // A reported sighting here (the Missions window's Pirate activity): its outpost or named boss, whatever this pilot's
             // rank (the rank only decides which reports are made: a session's board is the server's, its pilots start at 0).
@@ -83,7 +83,8 @@ namespace GoF2Remake.Flight
             if (InformerOrbit(station)) return;
             var sighting = PirateReports.At(station);
             if (sighting != null && PirateEventAllowed(db, station, system, true)) { AddPirateEventShips(list, !sighting.boss, sighting.tier, sighting); return; }
-            if (hasRaiders || !PirateEventAllowed(db, station, system)) return;
+            // A reported sighting is explicit content; only the random unreported roll is ambient.
+            if (hasRaiders || !allowUnreported || !PirateEventAllowed(db, station, system)) return;
             int sec = system.securityLevel;
             var chance = PirateReports.Enabled ? UnreportedChance : EventChance;
             if (Random.Range(0, 100) >= chance[sec]) return;
@@ -139,20 +140,31 @@ namespace GoF2Remake.Flight
                 };
                 list.Add(outpost);
                 int baseGuards = (int)((Session.Difficulty - 0.5f) * 5f + 5f);
-                int guards = Mathf.Max(1, baseGuards + OutpostGuardsAdd[t]);
+                int guards = Modding.ModNpcFactionWar.PirateGuardCount > 0 ? Modding.ModNpcFactionWar.PirateGuardCount : Mathf.Clamp(baseGuards + OutpostGuardsAdd[t], 1, 24);
                 for (int g = 0; g < guards; g++)
                 {
+                    if (sighting != null && (sighting.guardLossMask & (1 << g)) != 0) continue;
                     float S() => Random.value < 0.5f ? -1f : 1f;
                     list.Add(new SpawnSpec
                     {
                         group = NpcGroup.Guard, race = Standing.Pirate, ship = Fighter(), asleep = true, guard = true, pirateEvent = SpawnSpec.EventGuard,
+                        sightingId = sightingId, eventTag = sightingId >= 0 ? 700000 + g + 1 : 0,
                         placedOn = outpost,   // OrbitScale: parked round the grown outpost, out of its hull
                         position = at + new Vector3(S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000, S() * Random.Range(0, 20000) + 10000),
                     });
                 }
+                int capital = Modding.ModNpcFactionWar.PirateCapitalShip;
+                if (capital >= 0 && db.Ships.Exists(x => x.index == capital) && (sighting == null || (sighting.guardLossMask & (1 << 30)) == 0))
+                    list.Add(new SpawnSpec { group = NpcGroup.Guard, race = Standing.Pirate, ship = capital,
+                        modCapital = true, capital = SpawnSpec.CapitalMod, capitalEnhanced = true,
+                        position = at + new Vector3(25000f, 0f, 25000f), alwaysEnemy = true,
+                        pirateEvent = SpawnSpec.EventGuard, sightingId = sightingId, eventTag = sightingId >= 0 ? 700031 : 0 });
                 for (int i = 0; i < OutpostTurretCount[t] && i < OutpostTurrets.Length; i++)
                 {
+                    if (sighting != null && (sighting.guardLossMask & (1 << (24 + i))) != 0) continue;
                     var turret = Turret(0, at + OutpostTurrets[i].pos, OutpostTurrets[i].rot);
+                    turret.sightingId = sightingId;
+                    turret.eventTag = sightingId >= 0 ? 700025 + i : 0;
                     turret.race = Standing.Pirate;
                     turret.alwaysEnemy = true;
                     turret.pirateEvent = SpawnSpec.EventTurret;

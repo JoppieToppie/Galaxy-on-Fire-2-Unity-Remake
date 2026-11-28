@@ -22,6 +22,22 @@ namespace GoF2Remake.UI
         void OnNavigate(NavigationMoveEvent e)
         {
             pointerDriven = false;
+            if (identityOverlay != null && identityOverlay.parent == root)
+            {
+                var current = root.focusController?.focusedElement as VisualElement;
+                if (TextFieldKeys.IsTyping(e, current)) { Swallow(e); return; }
+                var choices = Focusables(identityOverlay).FindAll(element => element is Button || element is Toggle || element is TextField);
+                if (choices.Count > 0)
+                {
+                    int dx = e.direction == NavigationMoveEvent.Direction.Left ? -1 : e.direction == NavigationMoveEvent.Direction.Right ? 1 : 0;
+                    int dy = e.direction == NavigationMoveEvent.Direction.Up ? -1 : e.direction == NavigationMoveEvent.Direction.Down ? 1 : 0;
+                    var identityNext = current == null || !choices.Contains(current) ? choices[0] :
+                        (dx == 0 && dy == 0 ? current : SpatialNav.Next(choices, current, dx, dy));
+                    identityNext?.Focus();
+                }
+                Swallow(e);
+                return;
+            }
             if (screen != MenuState.Menu) return;
             var focused = root.focusController?.focusedElement as VisualElement;
             // Typing into a field (the address, the code, a name): W A S D and the side arrows are letters and the cursor.

@@ -2,7 +2,7 @@
 // Feature: CLAUDE.md "Multiplayer" > Sector news: the station ticker's multiplayer items, written in English on the
 // server; the players' own text (names, faction names, an admin's item) is made tag-free for the rich-text ticker
 // (NetNews.Safe: '<' and '>' swapped for look-alikes); "A", "A and B", "A, B and C", "A, B, C and N others"; places
-// "Var Hastra (Mido)", the Void; nothing is posted outside a session.
+// "Var Hastra (Mido)", the Void; local games persist their own news.
 // Expected values: the documented text forms, hand-written names; Var Hastra (78) in the Mido system (CLAUDE.md).
 
 using System.Collections.Generic;
@@ -14,6 +14,21 @@ namespace GoF2Remake.Tests
 {
     public class NetNewsTests : SandboxTest
     {
+        [Test]
+        public void FreightNewsRequiresMatchingValidSystem()
+        {
+            Assert.IsTrue(NetNews.VisibleInSystem(NetNews.Kind.Freight, 2, 2));
+            Assert.IsFalse(NetNews.VisibleInSystem(NetNews.Kind.Freight, 2, 3));
+            Assert.IsFalse(NetNews.VisibleInSystem(NetNews.Kind.Freight, -1, -1));
+            Assert.IsTrue(NetNews.VisibleInSystem(NetNews.Kind.Commerce, 2, 3));
+            Assert.IsTrue(NetNews.VisibleInSystem(NetNews.Kind.War, 2, 3));
+            Assert.IsTrue(NetNews.NeedsDestinationCopy(2, 3));
+            Assert.IsFalse(NetNews.NeedsDestinationCopy(2, 2));
+            Assert.IsFalse(NetNews.NeedsDestinationCopy(2, -1));
+            Assert.IsTrue(NetNews.IsLegacyFreight("Freight bound for Mido escaped a pirate attack near Nehébru. Player pirate kills: 2."));
+            Assert.IsFalse(NetNews.IsLegacyFreight("Market prices changed."));
+        }
+
         [Test]
         public void SafeTextHasNoTags()
         {
@@ -83,9 +98,83 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
-        public void NothingIsPostedOutsideASession()
+        public void LocalNewsDoesNotRequireAdvancedEconomy()
         {
-            Assert.IsFalse(NetNews.Post(NetNews.Kind.Galnet, "Test item"));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.Galnet, "Test item"));
+            StringAssert.Contains("Test item", NetNews.Ticker(78));
+            StringAssert.Contains("Test item", NetNews.Ticker(70));
+        }
+
+        [Test]
+        public void LocalFreightAndAnnouncementsAreStationSpecific()
+        {
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.Freight, "Shipment destroyed", 78));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.StationAnnouncement, "Docking closed", 78));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.War, "Fleet battle"));
+            StringAssert.Contains("Shipment destroyed", NetNews.Ticker(78));
+            StringAssert.Contains("Docking closed", NetNews.Ticker(78));
+            StringAssert.DoesNotContain("Shipment destroyed", NetNews.Ticker(70));
+            StringAssert.DoesNotContain("Docking closed", NetNews.Ticker(70));
+            StringAssert.Contains("Fleet battle", NetNews.Ticker(70));
+            Assert.IsFalse(NetNews.Post(NetNews.Kind.Freight, "Invalid destination", -1));
+        }
+
+        [Test]
+        public void DistressNewsKeepsLongTextInLocalHistoryAndNetworkPackets()
+        {
+            string text = NetNews.FreightDistressPrefix + new string('x', 600) + " Rescue reward: 20,000 credits.";
+            Assert.IsTrue(NetNews.PostFreightDistress(Database.Shared, 78, 200000004, text));
+            StringAssert.Contains(text, NetNews.Ticker(78));
+            Assert.AreEqual(text, NetNews.Unpack($"1|{(int)NetNews.Kind.Freight}|78|1|{text}").text);
+            string oversized = NetNews.FreightDistressPrefix + new string('x', 1100);
+            Assert.AreEqual(NetNews.FreightDistressTextLimit, NetNews.Unpack($"2|{(int)NetNews.Kind.Freight}|78|1|{oversized}").text.Length);
+        }
+
+        [Test]
+        public void StationNewsKeepsFullMessageAndAttribution()
+        {
+            string name = new string('s', NetPlayerStations.StationNameMaxLength);
+            string message = new string('x', NetNews.StationAnnouncementLimit);
+            string announcement = "[" + name + "] " + message;
+            string broadcast = name + ": " + message;
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.StationAnnouncement, announcement, 78));
+            StringAssert.Contains(announcement, NetNews.Ticker(78));
+            Assert.AreEqual(announcement, NetNews.Unpack($"1|{(int)NetNews.Kind.StationAnnouncement}|78|1|{announcement}").text);
+            Assert.AreEqual(broadcast, NetNews.Unpack($"2|{(int)NetNews.Kind.StationBroadcast}|78|1|{broadcast}").text);
+            foreach (var kind in new[] { NetNews.Kind.Galnet, NetNews.Kind.Freight, NetNews.Kind.FactionBroadcast })
+                Assert.AreEqual(NetNews.MaxTextLength, NetNews.Unpack($"3|{(int)kind}|78|1|{broadcast}").text.Length);
+        }
+
+        [Test]
+        public void LocalNewsPersistsThrottleAndMigratesFreight()
+        {
+            long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            Session.ScriptData["__native_freight_news"] =
+                "{\"items\":[{\"destination\":\"78\",\"text\":\"Legacy report\",\"time\":" + now + "}]}";
+            StringAssert.Contains("Legacy report", NetNews.Ticker(78));
+            Assert.IsTrue(NetNews.Post(NetNews.Kind.War, "New report <b>", 78, "test", 600));
+            Assert.IsFalse(NetNews.Post(NetNews.Kind.War, "Duplicate", 78, "test", 600));
+            Assert.IsFalse(Session.ScriptData.ContainsKey("__native_freight_news"));
+            var saved = new Dictionary<string, string>(Session.ScriptData);
+            Session.ResetNewGame();
+            Assert.IsEmpty(NetNews.Ticker(78));
+            Session.ScriptData = saved;
+            StringAssert.Contains("Legacy report", NetNews.Ticker(78));
+            StringAssert.Contains("New report ‹b›", NetNews.Ticker(78));
+            Assert.IsFalse(NetNews.Post(NetNews.Kind.War, "Duplicate", 78, "test", 600));
+        }
+
+        [Test]
+        public void RemoteSessionCannotPublishLocalNews()
+        {
+            var previous = NetSession.SessionGameProvider;
+            try
+            {
+                NetSession.SessionGameProvider = () => true;
+                Assert.IsFalse(NetNews.Post(NetNews.Kind.Galnet, "Client news"));
+                Assert.IsFalse(Session.ScriptData.ContainsKey("__native_news_v1"));
+            }
+            finally { NetSession.SessionGameProvider = previous; }
         }
 
         [Test]
