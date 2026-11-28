@@ -170,6 +170,7 @@ namespace GoF2Remake.Multiplayer
             nextEconomyDiagnosticWarning = 0;
             db = null;
             AdvancedEconomyLedger.Reset();
+            AdvancedEconomyRoutes.ResetCache();
             pending.Clear();
             reservations.Clear();
             clocks.Clear();
@@ -512,7 +513,7 @@ namespace GoF2Remake.Multiplayer
                     }
                 }
                 if (local && (economyDue || dispatchDue)) PirateReports.Refresh(db);
-                var graph = ModAdvancedEconomy.RegionalTrade ? AdvancedEconomyRoutes.Build(db) : null;
+                var graph = ModAdvancedEconomy.RegionalTrade ? AdvancedEconomyRoutes.Cached(db) : null;
                 var incoming = AdvancedEconomyLedger.TickTrade(db, Participates, Pressure, changed, graph,
                     advance: freightClock ? freightDue : economyDue, dispatch: freightClock ? dispatchDue : economyDue);
                 if (economyDue && !local)
@@ -605,6 +606,10 @@ namespace GoF2Remake.Multiplayer
             // Regional automatic routing also opts in to abstract cross-system procurement.
             var markets = new List<PlayerStationRecord>(NetPlayerStations.Stations);
             markets.Sort((a, b) => (a?.id ?? int.MaxValue).CompareTo(b?.id ?? int.MaxValue));
+            // Snapshot and sort each reachable market at most once per procurement pass.
+            // Listing objects remain live: successful purchases reduce their amounts and
+            // the settlement path still checks membership before transferring escrow.
+            var byMarket = new Dictionary<PlayerStationRecord, Dictionary<int, List<PlayerStationListing>>>();
             foreach (int station in ModAdvancedEconomy.Stations)
             {
                 if (!participates(station)) continue;
@@ -620,12 +625,23 @@ namespace GoF2Remake.Multiplayer
                         if (market == null || !market.npcEconomyPurchases || market.listings == null) continue;
                         int distance = market.system == system ? 0 : graph?.Distance(market.system, system) ?? -1;
                         if (distance < 0 || distance > ModAdvancedEconomy.MaxAutoHops) continue;
-                        // Sort by ask price; the original escrow list is not reordered.
-                        var listings = new List<PlayerStationListing>(market.listings);
-                        listings.Sort((a, b) => (a?.unitPrice ?? long.MaxValue).CompareTo(b?.unitPrice ?? long.MaxValue));
+                        if (!byMarket.TryGetValue(market, out var byItem))
+                        {
+                            byMarket[market] = byItem = new Dictionary<int, List<PlayerStationListing>>();
+                            var sorted = new List<PlayerStationListing>(market.listings);
+                            sorted.Sort((a, b) => (a?.unitPrice ?? long.MaxValue).CompareTo(b?.unitPrice ?? long.MaxValue));
+                            foreach (var offer in sorted)
+                            {
+                                if (offer == null) continue;
+                                if (!byItem.TryGetValue(offer.item, out var offers))
+                                    byItem[offer.item] = offers = new List<PlayerStationListing>();
+                                offers.Add(offer);
+                            }
+                        }
+                        if (!byItem.TryGetValue(rule.Item, out var listings)) continue;
                         foreach (var listing in listings)
                         {
-                            if (listing == null || listing.item != rule.Item) continue;
+                            if (listing.amount <= 0) continue;
                             int need = Math.Min(remainingUnits, rule.Target - balance.Amount - reserved);
                             if (need <= 0) break;
                             int ceiling = HostQuote(station, rule, balance).buy;
@@ -921,13 +937,13 @@ namespace GoF2Remake.Multiplayer
                 sb.Append('|');
                 var rules = ModAdvancedEconomy.At(station);
                 bool first = true;
+                int pressure = rules != null ? ModAdvancedEconomy.Pressure(db, station) : 0;
                 if (rules != null)
                     foreach (var rule in rules.Values)
                     {
                         if (!ModAdvancedEconomy.Eligible(db, rule.Item)) continue;
                         var balance = AdvancedEconomyLedger.Get(station, rule);
                         int basis = Shop.PriceList(db, station, new[] { rule.Item })[0];
-                        int pressure = ModAdvancedEconomy.Pressure(db, station);
                         if (!first) sb.Append(',');
                         first = false;
                         sb.Append(rule.Item).Append(':').Append(basis).Append(':').Append(balance.Amount).Append(':')
