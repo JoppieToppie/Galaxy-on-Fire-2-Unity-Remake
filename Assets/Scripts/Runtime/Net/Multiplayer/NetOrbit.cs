@@ -536,7 +536,7 @@ namespace GoF2Remake.Multiplayer
             foreach (string row in (manifest ?? "").Split(';'))
             {
                 string[] fields = row.Split(',');
-                if ((fields.Length != 10 && fields.Length != 12) || !int.TryParse(fields[0], out int tag) ||
+                if ((fields.Length != 10 && fields.Length != 12 && fields.Length != 13) || !int.TryParse(fields[0], out int tag) ||
                     !int.TryParse(fields[1], out int item) || !int.TryParse(fields[2], out int amount) ||
                     !int.TryParse(fields[3], out int source) || !int.TryParse(fields[4], out int destination) ||
                     !int.TryParse(fields[7], out int race) || !int.TryParse(fields[8], out int ship) ||
@@ -544,24 +544,50 @@ namespace GoF2Remake.Multiplayer
                     (race < 0 || (race > 10 && Modding.ModRaces.Get(race) == null)) || level.Database.Ship(ship) == null ||
                     !int.TryParse(fields[6], out int hull) || hull < 1 || hull > 65535 ||
                     !Modding.ModAdvancedEconomy.IsFreightTag(tag) || amount <= 0 ||
-                    level.Database.Item(item) == null || !active.Add(tag)) continue;
+                    amount > Modding.ModAdvancedEconomy.MaxStock || level.Database.Item(item) == null) continue;
+                var cargo = new List<ItemStack>();
+                if (fields.Length == 13)
+                {
+                    var kinds = new HashSet<int>();
+                    var entries = fields[12].Split('/');
+                    if (entries.Length < 2 || entries.Length > Modding.ModAdvancedEconomy.MaxFreightCargoKinds) continue;
+                    long sum = 0;
+                    foreach (string entry in entries)
+                    {
+                        var values = entry.Split(':');
+                        if (values.Length != 2 || !int.TryParse(values[0], out int cargoItem) ||
+                            !int.TryParse(values[1], out int quantity) || quantity <= 0 ||
+                            level.Database.Item(cargoItem) == null || !kinds.Add(cargoItem)) { cargo.Clear(); break; }
+                        cargo.Add(new ItemStack(cargoItem, quantity));
+                        sum += quantity;
+                    }
+                    if (cargo.Count != entries.Length || cargo[0].item != item || sum != amount) continue;
+                }
+                else cargo.Add(new ItemStack(item, amount));
+                if (!active.Add(tag)) continue;
                 int index = slot++;
                 int raidBase = 0, raidDead = 0;
-                if (fields.Length == 12) { int.TryParse(fields[10], out raidBase); int.TryParse(fields[11], out raidDead); }
+                if (fields.Length >= 12) { int.TryParse(fields[10], out raidBase); int.TryParse(fields[11], out raidDead); }
                 // Retain surviving raiders while the corresponding freight proxy is still being adopted.
                 if (Modding.ModAdvancedEconomy.IsFreightRaidTag(raidBase) && raidBase % 4 == 0)
                     for (int i = 0; i < Modding.ModAdvancedEconomy.FreightRaidSize; i++)
                         if ((raidDead & (1 << i)) == 0) activeRaiders.Add(raidBase + i);
                 // Handed-over proxies are adopted by the normal orbit takeover; never spawn a second hull.
                 string hullName = ship == 13 || ship == 15 ? "Freighter" : GameNames.Ship(ship);
-                string label = hullName + " Freight (" + amount + " t)";
+                string label = hullName + (cargo.Count > 1 ? " Mixed Freight (" : " Freight (") + amount + " t)";
                 var existing = traffic.Ships.Find(x => x != null && x.Spec.eventTag == tag && !x.Gone);
                 if (existing != null)
                 {
-                    if (existing.Target != null && existing.Target.Alive && existing.Spec.lootAmount != amount)
+                    if (existing.Target != null && existing.Target.Alive)
                     {
+                        bool differs = existing.CargoList.Count != cargo.Count;
+                        if (!differs)
+                            for (int i = 0; i < cargo.Count; i++)
+                                if (existing.CargoList[i].item != cargo[i].item || existing.CargoList[i].amount != cargo[i].amount)
+                                { differs = true; break; }
+                        if (differs) existing.SetLoot(cargo);
+                        existing.Spec.lootItem = item;
                         existing.Spec.lootAmount = amount;
-                        existing.SetLoot(new List<ItemStack> { new ItemStack(item, amount) });
                         existing.Target.displayName = existing.Spec.name = label;
                     }
                     if (existing.Target != null && existing.Target.Alive) ApplyFreightRaid(traffic, existing, raidBase, raidDead, activeRaiders);
@@ -597,6 +623,7 @@ namespace GoF2Remake.Multiplayer
                     hitpoints = NpcTables.Hull(1, ship), speed = NpcTables.FreighterSpeed * speed / 100f,
                     name = label
                 });
+                npc.SetLoot(cargo);
                 // Fly along the lane, not through the station; abstract gate travel remains server timed.
                 npc.transform.rotation = Quaternion.LookRotation(toStation ? -direction : direction);
                 npc.Target.hp = npc.Hp.hull = Mathf.Clamp(Mathf.RoundToInt(npc.Hp.maxHull * (hull / 65535f)), 1, npc.Hp.maxHull);
@@ -845,7 +872,8 @@ namespace GoF2Remake.Multiplayer
             proxy.RestoreShield(ship);
             var st = proxy.Status;
             foreach (var id in proxy.Aggressors) ship.aggressors.Add(id);   // still hostile to whom it was
-            if (p != null && p.cargo != null && p.spec != null && !p.spec.noLoot && p.spec.lootItem < 0)
+            if (p != null && p.cargo != null && p.spec != null &&
+                (Modding.ModAdvancedEconomy.IsFreightTag(p.spec.eventTag) || (!p.spec.noLoot && p.spec.lootItem < 0)))
             {
                 var cargo = new List<ItemStack>();
                 foreach (var c in p.cargo) if (c.amount > 0 && NetGuard.Item(c.item)) cargo.Add(new ItemStack(c.item, c.amount));

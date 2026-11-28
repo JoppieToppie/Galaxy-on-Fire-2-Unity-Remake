@@ -129,6 +129,31 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void MixedFreightMassConservesExactQuantity()
+        {
+            CollectionAssert.AreEqual(new[] { 25, 50, 25 }, AdvancedEconomyLedger.AllocateFreightMass(new[] { 100, 200, 100 }, 100));
+            CollectionAssert.AreEqual(new[] { 0, 0, 1 }, AdvancedEconomyLedger.AllocateFreightMass(new[] { 1, 1, 1 }, 1));
+            CollectionAssert.AreEqual(new[] { 5, 10 }, AdvancedEconomyLedger.AllocateFreightMass(new[] { 5, 10 }, 100));
+            CollectionAssert.AreEqual(new[] { 0, 0 }, AdvancedEconomyLedger.AllocateFreightMass(new[] { 5, 10 }, 0));
+            var native = new ModAdvancedEconomy.FreightHull(15, "native", 2500, 1, 100);
+            Assert.IsNull(ModAdvancedEconomy.PickDispatchHull(new[] { native }, 5, 800, 800, 50, 25, false, 0));
+            Assert.AreSame(native, ModAdvancedEconomy.PickDispatchHull(new[] { native }, 650, 800, 800, 50, 25, false, 0));
+        }
+
+        [Test]
+        public void MixedFreightSnapshotValidatesIndividualBalancesAndRouteOwnership()
+        {
+            const string start = "{\"version\":2,\"rows\":[],\"shipments\":[";
+            const string first = "{\"key\":\"s|d|a\",\"amount\":100,\"resale\":15,\"ticks\":1,\"cargo\":[{\"item\":\"a\",\"amount\":60,\"resale\":10},{\"item\":\"b\",\"amount\":40,\"resale\":5}]}";
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + first + "]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + first.Replace("\"amount\":40", "\"amount\":41") + "]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + first.Replace("\"item\":\"b\"", "\"item\":\"a\"") + "]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + first.Replace("\"resale\":5", "\"resale\":41") + "]}"));
+            const string duplicate = "{\"key\":\"s|d|b\",\"amount\":10,\"resale\":0,\"ticks\":1,\"cargo\":[{\"item\":\"b\",\"amount\":10,\"resale\":0}]}";
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + first + "," + duplicate + "]}"));
+        }
+
+        [Test]
         public void NativeFreightersRespectRaceAndDoNotShareWarTags()
         {
             Assert.AreEqual(13, ModAdvancedEconomy.NativeFreighter(1));

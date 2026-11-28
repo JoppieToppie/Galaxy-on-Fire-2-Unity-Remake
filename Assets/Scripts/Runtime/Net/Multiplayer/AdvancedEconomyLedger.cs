@@ -43,9 +43,17 @@ namespace GoF2Remake.Multiplayer
 
         static readonly Dictionary<Key, Balance> balances = new Dictionary<Key, Balance>();
         static readonly Dictionary<(int station, int item), Balance> live = new Dictionary<(int, int), Balance>();
+        sealed class CargoLine
+        {
+            public string Item;
+            public int Amount, Resale;
+            public CargoLine(string item, int amount, int resale) { Item = item; Amount = amount; Resale = resale; }
+            public CargoLine Copy() => new CargoLine(Item, Amount, Resale);
+        }
         sealed class Shipment
         {
             public int Amount, Resale, Ticks, Hops;
+            public List<CargoLine> Cargo;
             // The tag is a server-issued identity, never a cargo quantity supplied by an orbit client.
             public int FreightTag, Orbit = -1, TotalTicks;
             public bool Bulk;
@@ -62,6 +70,72 @@ namespace GoF2Remake.Multiplayer
             public readonly HashSet<string> RaidThieves = new HashSet<string>(StringComparer.Ordinal);
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
+
+        // The shipment key retains its initial route identity even when that commodity
+        // is stolen or unloaded first. Every line has a stable item reference.
+        static List<CargoLine> CargoRows(string key, Shipment ship)
+        {
+            if (ship.Cargo == null)
+                ship.Cargo = new List<CargoLine> { new CargoLine(key.Split('|')[2], ship.Amount, ship.Resale) };
+            return ship.Cargo;
+        }
+
+        static void SyncCargo(Shipment ship)
+        {
+            ship.Cargo.RemoveAll(c => c.Amount <= 0);
+            ship.Amount = ship.Cargo.Sum(c => c.Amount);
+            ship.Resale = ship.Cargo.Sum(c => c.Resale);
+        }
+
+        static string CargoRouteKey(string anchor, string item) =>
+            anchor.Substring(0, anchor.LastIndexOf('|') + 1) + item;
+
+        static HashSet<string> ActiveCargoRoutes()
+        {
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var pair in shipments)
+            {
+                keys.Add(pair.Key);
+                foreach (var line in CargoRows(pair.Key, pair.Value)) keys.Add(CargoRouteKey(pair.Key, line.Item));
+            }
+            return keys;
+        }
+
+        // Proportional allocation with exact mass conservation, including rounding.
+        internal static int[] AllocateFreightMass(IReadOnlyList<int> amounts, int requested)
+        {
+            var result = new int[amounts.Count];
+            long mass = amounts.Sum(a => (long)Math.Max(0, a));
+            int remaining = (int)Math.Min(Math.Max(0, requested), mass);
+            for (int i = 0; i < amounts.Count && mass > 0; i++)
+            {
+                int amount = Math.Max(0, amounts[i]);
+                result[i] = (int)((long)remaining * amount / mass);
+                remaining -= result[i];
+                mass -= amount;
+            }
+            return result;
+        }
+
+        static void ReduceCargo(string key, Shipment ship, int loss)
+        {
+            var lines = CargoRows(key, ship);
+            var removed = AllocateFreightMass(lines.Select(c => c.Amount).ToArray(), loss);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                lines[i].Amount -= removed[i];
+                lines[i].Resale = Math.Min(lines[i].Resale, lines[i].Amount);
+            }
+            SyncCargo(ship);
+        }
+
+        static void AdjustIncoming(Dictionary<(int station, int item), int> incoming, int station, int item, int delta)
+        {
+            var key = (station, item);
+            incoming.TryGetValue(key, out int old);
+            incoming[key] = (int)Math.Clamp((long)old + delta, 0L, ModAdvancedEconomy.MaxStock);
+        }
+
         static readonly List<(int station, int destination, string text)> freightNews = new List<(int, int, string)>();
         static readonly Dictionary<string, long> rescueRewards = new Dictionary<string, long>(StringComparer.Ordinal);
         static readonly Dictionary<int, HashSet<ulong>> distressSent = new Dictionary<int, HashSet<ulong>>();
@@ -141,7 +215,7 @@ namespace GoF2Remake.Multiplayer
         static Dictionary<Key, Balance> Read(string json)
         {
             var root = JObject.Parse(json);
-            if (root["version"]?.Type != JTokenType.Integer || (long)root["version"] != 1 ||
+            if (root["version"]?.Type != JTokenType.Integer || ((long)root["version"] != 1 && (long)root["version"] != 2) ||
                 !(root["rows"] is JArray rows))
                 throw new JsonException("Unsupported advanced economy snapshot.");
             var result = new Dictionary<Key, Balance>();
@@ -178,7 +252,7 @@ namespace GoF2Remake.Multiplayer
                     throw new JsonException("Invalid shipment.");
                 string key = (string)row["key"];
                 long amount = (long)row["amount"], resale = (long)row["resale"], ticks = (long)row["ticks"];
-                if (string.IsNullOrEmpty(key) || amount < 1 || amount > ModAdvancedEconomy.MaxStock ||
+                if (string.IsNullOrEmpty(key) || key.Split('|').Length != 3 || key.Split('|').Any(string.IsNullOrEmpty) || amount < 1 || amount > ModAdvancedEconomy.MaxStock ||
                     resale < 0 || resale > amount || ticks < 0 || ticks > 96 || result.ContainsKey(key))
                     throw new JsonException("Invalid shipment balance.");
                 int hops = row["hops"] == null ? 0 : (int)row["hops"];
@@ -227,6 +301,31 @@ namespace GoF2Remake.Multiplayer
                     Hull = hull, RemainingSeconds = remainingSeconds, FleetRace = fleetRace, FleetHull = fleetHull, FleetSpeed = fleetSpeed,
                     RaidSystem = raidSystem, RaidBase = raidBase, RaidDead = raidDead, RaidPlayerKills = raidKills, RaidObservationSeconds = raidObserved,
                     DelayReason = delayReason, DelaySeconds = delaySeconds });
+                if (row["cargo"] != null)
+                {
+                    if (!(row["cargo"] is JArray cargoRows) || cargoRows.Count < 1 ||
+                        cargoRows.Count > ModAdvancedEconomy.MaxFreightCargoKinds)
+                        throw new JsonException("Invalid mixed freight manifest.");
+                    var lines = new List<CargoLine>();
+                    var items = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var entry in cargoRows)
+                    {
+                        if (!(entry is JObject line) || line["item"]?.Type != JTokenType.String ||
+                            line["amount"]?.Type != JTokenType.Integer || line["resale"]?.Type != JTokenType.Integer)
+                            throw new JsonException("Invalid freight cargo line.");
+                        string item = (string)line["item"];
+                        long n = (long)line["amount"], r = (long)line["resale"];
+                        if (string.IsNullOrEmpty(item) || item.Length > 256 || item.Contains("|") ||
+                            !items.Add(item) || n < 1 || n > ModAdvancedEconomy.MaxStock || r < 0 || r > n)
+                            throw new JsonException("Invalid freight cargo balance.");
+                        lines.Add(new CargoLine(item, (int)n, (int)r));
+                    }
+                    if (lines.Sum(line => (long)line.Amount) != amount || lines.Sum(line => (long)line.Resale) != resale)
+                        throw new JsonException("Freight manifest totals do not match shipment.");
+                    result[key].Cargo = lines;
+                }
+                else if ((long)root["version"] == 2)
+                    throw new JsonException("Missing freight cargo manifest.");
                 result[key].RaidContributors.AddRange(contributors);
                 if (row["raidThieves"] != null)
                 {
@@ -279,9 +378,17 @@ namespace GoF2Remake.Multiplayer
 
         static void ValidateFreightIdentities(Dictionary<string, Shipment> cargo, Dictionary<int, FreightWreck> debris)
         {
-            foreach (var shipment in cargo.Values)
+            var routes = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var pair in cargo)
+            {
+                var shipment = pair.Value;
                 if (shipment.FreightTag != 0 && debris.ContainsKey(shipment.FreightTag))
                     throw new JsonException("A freight identity cannot be both in transit and wrecked.");
+                var ownRoutes = new HashSet<string>(StringComparer.Ordinal) { pair.Key };
+                foreach (var line in CargoRows(pair.Key, shipment)) ownRoutes.Add(CargoRouteKey(pair.Key, line.Item));
+                foreach (var route in ownRoutes)
+                    if (!routes.Add(route)) throw new JsonException("A commodity route cannot have two active freight shipments.");
+            }
         }
 
         static string RouteKey(ModAdvancedEconomy.Route route)
@@ -447,19 +554,21 @@ namespace GoF2Remake.Multiplayer
             }
             if (recipients.Count == 0) return;
             var rule = ModAdvancedEconomy.At(route.Destination);
-            string commodity = GameNames.Item(route.Item);
+            var lines = CargoRows(RouteKey(route), ship);
+            string commodity = lines.Count == 1 && ModContent.TryResolveItem(lines[0].Item, out int singleItem)
+                ? GameNames.Item(singleItem) : "mixed freight";
             int shortageWithout = 0, shortageWith = 0;
-            string impact = $"Losing this cargo will remove {ship.Amount} t from expected imports.";
-            if (rule != null && rule.TryGetValue(route.Item, out var row))
+            foreach (var line in lines)
             {
+                if (rule == null || !ModContent.TryResolveItem(line.Item, out int item) || !rule.TryGetValue(item, out var row)) continue;
                 int stock = Get(route.Destination, row).Amount;
-                int lostRelief = FreightLossShortfall(stock, row.Target, ship.Amount);
                 int deficit = Math.Max(0, row.Target - stock);
-                shortageWithout = deficit; shortageWith = deficit - lostRelief;
-                if (lostRelief > 0)
-                    impact = $"Without us, {destination.systemName}\\u2019s destination market remains {deficit} t below target instead of {deficit - lostRelief} t; scarcity may raise prices.";
-                else impact = $"Loss would cut expected imports by {ship.Amount} t; the destination currently has no additional target shortfall from this shipment alone.";
+                shortageWithout += deficit;
+                shortageWith += deficit - FreightLossShortfall(stock, row.Target, line.Amount);
             }
+            string impact = shortageWithout > shortageWith
+                ? $"Without us, the affected markets in {destination.systemName} remain {shortageWithout} t below target instead of {shortageWith} t; scarcity may raise prices."
+                : $"Losing this cargo will remove {ship.Amount} t from expected imports.";
             string reward = ModAdvancedEconomy.FreightRescueReward <= 0 ? "" :
                 $" Rescue reward: {ModAdvancedEconomy.FreightRescueReward:N0} credits ({ModAdvancedEconomy.FreightRescueRewardMode}).";
             int race = ModRaces.TryResolve(ship.FleetRace, null, out int owner) ? owner : OriginRace(db, route.Source);
@@ -562,9 +671,9 @@ namespace GoF2Remake.Multiplayer
             int result = ModAdvancedEconomy.FreightPirateRaids ? ModAdvancedEconomy.FreightRaidOutcome(UnityEngine.Random.Range(0, 10000),
                 ModAdvancedEconomy.FreightPirateTheftPercent, ModAdvancedEconomy.FreightPirateDestructionPercent,
                 ModAdvancedEconomy.FreightPirateKillRemainingPercent, ship.RaidPlayerKills) : 0;
-            if (result == 2) ship.Amount = 0;
-            else if (result == 1) ship.Amount -= Math.Min(ship.Amount, Math.Max(1, ship.Amount * UnityEngine.Random.Range(40, 101) / 100));
-            ship.Resale = Math.Min(ship.Resale, ship.Amount);
+            if (result == 2) ReduceCargo(RouteKey(route), ship, ship.Amount);
+            else if (result == 1) ReduceCargo(RouteKey(route), ship,
+                Math.Min(ship.Amount, Math.Max(1, ship.Amount * UnityEngine.Random.Range(40, 101) / 100)));
             if (result == 0 && ModAdvancedEconomy.FreightPirateRaids && ship.RaidPlayerKills > 0) QueueRescueReward(ship);
             ship.RaidContributors.Clear(); ship.RaidThieves.Clear();
             string outcome = result == 2 ? $"destroyed; {original} t lost" : result == 1 ? $"raided; {original - ship.Amount} t stolen, {ship.Amount} t remaining" : "escaped a pirate attack";
@@ -642,11 +751,22 @@ namespace GoF2Remake.Multiplayer
                 var ship = pair.Value;
                 if (ship.Orbit != orbit || ship.FreightTag == 0 || ship.Amount <= 0) continue;
                 var keys = pair.Key.Split('|');
-                if (keys.Length != 3 || !ModContent.TryResolveItem(keys[2], out int item) ||
-                    !ModWorld.TryResolveStation(keys[0], out int source) || !ModWorld.TryResolveStation(keys[1], out int destination)) continue;
+                if (keys.Length != 3 || !ModWorld.TryResolveStation(keys[0], out int source) ||
+                    !ModWorld.TryResolveStation(keys[1], out int destination)) continue;
+                var manifest = new List<string>();
+                int item = -1;
+                foreach (var line in CargoRows(pair.Key, ship))
+                {
+                    if (!ModContent.TryResolveItem(line.Item, out int resolved)) { manifest.Clear(); break; }
+                    if (item < 0) item = resolved;
+                    manifest.Add($"{resolved}:{line.Amount}");
+                }
+                if (manifest.Count == 0) continue;
                 if (!ResolveFleet(db, ship, source, out int race, out int hull)) continue;
                 EnsureFreightRaid(db, ship);
-                rows.Add($"{ship.FreightTag},{item},{ship.Amount},{source},{destination},{(ship.Bulk ? 1 : 0)},{ship.Hull},{race},{hull},{ship.FleetSpeed},{ship.RaidBase},{ship.RaidDead}");
+                // Retain the original wire format for single-commodity cargo.
+                string row = $"{ship.FreightTag},{item},{ship.Amount},{source},{destination},{(ship.Bulk ? 1 : 0)},{ship.Hull},{race},{hull},{ship.FleetSpeed},{ship.RaidBase},{ship.RaidDead}";
+                rows.Add(manifest.Count > 1 ? row + "," + string.Join("/", manifest) : row);
                 if (rows.Count >= ModAdvancedEconomy.FreightPerOrbit) break;
             }
             Flush(true);
@@ -696,11 +816,21 @@ namespace GoF2Remake.Multiplayer
             if (pair.Value == null) return false;
             string[] keys = pair.Key.Split('|');
             int recoverable = ModAdvancedEconomy.FreightSalvageAmount(pair.Value.Amount, ModAdvancedEconomy.FreightSalvagePercent);
-            bool hasWreck = recoverable > 0 && keys.Length == 3 && NetGuard.Position(position);
+            var lines = CargoRows(pair.Key, pair.Value);
+            var salvage = AllocateFreightMass(lines.Select(line => line.Amount).ToArray(), recoverable);
+            var created = new List<int>();
+            // All recoverable commodities get individual server-owned crates, committed
+            // atomically with the loss of the original shipment.
+            if (NetGuard.Position(position))
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    if (salvage[i] <= 0) continue;
+                    int wreckTag = created.Count == 0 ? tag : NewFreightTag();
+                    wrecks[wreckTag] = new FreightWreck { Orbit = orbit, Item = lines[i].Item, Amount = salvage[i], Race = race,
+                        Position = position, Expires = DateTime.UtcNow.AddSeconds(ModAdvancedEconomy.FreightWreckLifetimeSeconds).Ticks };
+                    created.Add(wreckTag);
+                }
             shipments.Remove(pair.Key);
-            if (hasWreck)
-                wrecks[tag] = new FreightWreck { Orbit = orbit, Item = keys[2], Amount = recoverable, Race = race,
-                    Position = position, Expires = DateTime.UtcNow.AddSeconds(ModAdvancedEconomy.FreightWreckLifetimeSeconds).Ticks };
             dirty = true;
             Flush(true);
             if (!dirty)
@@ -709,7 +839,7 @@ namespace GoF2Remake.Multiplayer
                     NetNews.Post(NetNews.Kind.Commerce, $"Freighter destroyed near {NetNews.Place(orbit)}: {pair.Value.Amount} t bound for {NetNews.Place(destination)} lost.", destination);
                 return true;
             }
-            if (hasWreck) wrecks.Remove(tag);
+            foreach (int wreckTag in created) wrecks.Remove(wreckTag);
             shipments.Add(pair.Key, pair.Value);
             return false;
         }
@@ -753,17 +883,22 @@ namespace GoF2Remake.Multiplayer
                 var pair = shipments.FirstOrDefault(p => p.Value.FreightTag == tag && p.Value.Orbit == orbit);
                 if (pair.Value == null) return 0;
                 var keys = pair.Key.Split('|');
-                if (keys.Length != 3 || !ModContent.TryResolveItem(keys[2], out item)) return 0;
                 var ship = pair.Value;
-                amount = ModAdvancedEconomy.FreightClaimAmount(ship.Amount, room, requested);
-                int oldAmount = ship.Amount, oldResale = ship.Resale;
-                bool newThief = amount > 0 && ship.RaidBase != 0 && ship.RaidThieves.Add(account);
-                ship.Amount -= amount; ship.Resale = Math.Min(ship.Resale, ship.Amount);
+                var lines = CargoRows(pair.Key, ship);
+                var line = lines.FirstOrDefault(row => ModContent.TryResolveItem(row.Item, out _));
+                if (line == null || !ModContent.TryResolveItem(line.Item, out item)) return 0;
+                // The existing claim RPC transfers one commodity per request.
+                amount = ModAdvancedEconomy.FreightClaimAmount(line.Amount, room, requested);
+                if (amount <= 0) return 0;
+                var oldCargo = lines.Select(row => row.Copy()).ToList();
+                bool newThief = ship.RaidBase != 0 && ship.RaidThieves.Add(account);
+                line.Amount -= amount; line.Resale = Math.Min(line.Resale, line.Amount);
+                SyncCargo(ship);
                 if (ship.Amount == 0) shipments.Remove(pair.Key);
                 dirty = true;
                 if (!NetPlayerStations.CommitEconomyTrade(account, item, amount, 0, null, 0, Snapshot()))
                 {
-                    ship.Amount = oldAmount; ship.Resale = oldResale; shipments[pair.Key] = ship;
+                    ship.Cargo = oldCargo; SyncCargo(ship); shipments[pair.Key] = ship;
                     if (newThief) ship.RaidThieves.Remove(account);
                     return 0;
                 }
@@ -826,6 +961,7 @@ namespace GoF2Remake.Multiplayer
             if (!dispatch && shipments.Count == 0) return new Dictionary<(int station, int item), int>();
             var routes = ModAdvancedEconomy.Routes.Where(r => dispatch || shipments.ContainsKey(RouteKey(r))).ToList();
             var keys = new HashSet<string>(routes.Select(RouteKey));
+            var configuredKeys = new HashSet<string>(ModAdvancedEconomy.Routes.Select(RouteKey));
             // Restore previously dispatched automatic routes even if they no longer have
             // a surplus. A disconnected route keeps its cargo until a path reopens.
             if (ModAdvancedEconomy.AutomaticRoutes)
@@ -881,14 +1017,15 @@ namespace GoF2Remake.Multiplayer
                 }
             }
             var incoming = new Dictionary<(int station, int item), int>();
-            foreach (var route in routes)
+            foreach (var pair in shipments)
             {
-                if (!participates(route.Source) || !participates(route.Destination)) continue;
-                if (!shipments.TryGetValue(RouteKey(route), out var shipment)) continue;
-                var key = (route.Destination, route.Item);
-                incoming.TryGetValue(key, out int total);
-                incoming[key] = (int)Math.Min(ModAdvancedEconomy.MaxStock, (long)total + shipment.Amount);
+                var endpoints = pair.Key.Split('|');
+                if (!ModWorld.TryResolveStation(endpoints[0], out int source) || !participates(source) ||
+                    !ModWorld.TryResolveStation(endpoints[1], out int destination) || !participates(destination)) continue;
+                foreach (var line in CargoRows(pair.Key, pair.Value))
+                    if (ModContent.TryResolveItem(line.Item, out int item)) AdjustIncoming(incoming, destination, item, line.Amount);
             }
+            var activeCargo = ActiveCargoRoutes();
             var systemPressure = new Dictionary<int, int>();
             bool physical = Physical;
             var freightProxies = advance && physical ? PhysicalFreightProxies() : null;
@@ -919,18 +1056,26 @@ namespace GoF2Remake.Multiplayer
                 incoming.TryGetValue(incomingKey, out int reserved);
                 if (shipment != null)
                 {
+                    var cargo = CargoRows(key, shipment);
+                    // A removed commodity rule or route freezes the manifest, rather
+                    // than silently destroying or redirecting the cargo.
+                    if (cargo.Any(line => !ModContent.TryResolveItem(line.Item, out int item) ||
+                        !ModAdvancedEconomy.Eligible(db, item) || !from.ContainsKey(item) || !to.ContainsKey(item) ||
+                        (!ModAdvancedEconomy.AutomaticRoutes && !configuredKeys.Contains(CargoRouteKey(key, line.Item))))) continue;
+                    bool unloadRoom = cargo.Any(line => ModContent.TryResolveItem(line.Item, out int item) &&
+                        Get(route.Destination, to[item]).Amount < to[item].Maximum);
                     if (physical)
                     {
                         int delay = freightProxies.TryGetValue((shipment.Orbit, shipment.FreightTag), out var freightProxy) && freightProxy.Status.Has(NetProxyStatus.EmpDisabled) ? 2 :
-                            shipment.Orbit == route.Destination && destination.Amount >= destinationRule.Maximum ? 3 : 0;
+                            shipment.Orbit == route.Destination && !unloadRoom ? 3 : 0;
                         ObserveFreightDelay(route, shipment, delay);
-                        int beforeRaid = shipment.Amount;
+                        var beforeRaid = cargo.Select(line => line.Copy()).ToArray();
                         bool arrived = AdvanceFreight(db, route, shipment, path, freightProxies);
-                        // A same-system destination counts as departure from transit only when unloading can start.
-                        if (arrived && shipment.Amount > 0 && shipment.Orbit == route.Destination && destination.Amount < destinationRule.Maximum)
+                        if (arrived && shipment.Amount > 0 && shipment.Orbit == route.Destination && unloadRoom)
                             ResolveFreightRaid(route, shipment);
-                        reserved = Math.Max(0, reserved - (beforeRaid - shipment.Amount));
-                        incoming[incomingKey] = reserved;
+                        foreach (var before in beforeRaid)
+                            if (ModContent.TryResolveItem(before.Item, out int item))
+                                AdjustIncoming(incoming, route.Destination, item, (cargo.Find(line => line.Item == before.Item)?.Amount ?? 0) - before.Amount);
                         if (shipment.Amount == 0) { shipments.Remove(key); dirty = true; continue; }
                         if (!arrived) continue;
                     }
@@ -940,25 +1085,28 @@ namespace GoF2Remake.Multiplayer
                         if (shipment.Ticks > 0) { shipment.Ticks--; dirty = true; }
                         if (shipment.Ticks > 0) continue;
                     }
-                    int delivered = Math.Min(shipment.Amount, destinationRule.Maximum - destination.Amount);
-                    if (delivered > 0)
+                    foreach (var line in cargo)
                     {
-                        int resale = Math.Min(delivered, shipment.Resale);
-                        int hops = (int)Math.Round(((long)destination.Amount * destination.ImportHops +
-                            (long)delivered * shipment.Hops) / (double)(destination.Amount + delivered));
-                        Set(route.Destination, destinationRule, destination.Amount + delivered, destination.Resale + resale);
-                        destination.ImportHops = hops;
-                        shipment.Amount -= delivered;
-                        shipment.Resale -= resale;
-                        incoming[incomingKey] = Math.Max(0, reserved - delivered);
+                        if (!ModContent.TryResolveItem(line.Item, out int item) || !to.TryGetValue(item, out var rule)) continue;
+                        var balance = Get(route.Destination, rule);
+                        int delivered = Math.Min(line.Amount, rule.Maximum - balance.Amount);
+                        if (delivered <= 0) continue;
+                        int resale = Math.Min(delivered, line.Resale);
+                        int hops = (int)Math.Round(((long)balance.Amount * balance.ImportHops +
+                            (long)delivered * shipment.Hops) / (double)(balance.Amount + delivered));
+                        Set(route.Destination, rule, balance.Amount + delivered, balance.Resale + resale);
+                        balance.ImportHops = hops;
+                        line.Amount -= delivered; line.Resale -= resale;
+                        AdjustIncoming(incoming, route.Destination, item, -delivered);
                         changed.Add(route.Destination);
                         dirty = true;
                     }
+                    SyncCargo(shipment);
                     if (shipment.Amount == 0) { shipments.Remove(key); dirty = true; }
-                    // Full destination holds the undelivered cargo in transit; no goods are duplicated or discarded.
+                    // A full market holds only its undelivered commodity aboard.
                     continue;
                 }
-                if (!dispatch) continue;
+                if (!dispatch || activeCargo.Contains(key) || (physical && ModAdvancedEconomy.FreightMixedShipments)) continue;
                 int routePressure = Math.Max(pressure(route.Source), pressure(route.Destination));
                 foreach (int system in path)
                 {
@@ -1010,7 +1158,100 @@ namespace GoF2Remake.Multiplayer
                     dirty = true;
                 }
             }
+            if (physical && dispatch && ModAdvancedEconomy.FreightMixedShipments)
+                DispatchMixedFreight(db, routes, participates, pressure, changed, graph, incoming, systemPressure);
             return incoming;
+        }
+
+        // Consolidate identical endpoints. Preserve individual source balances,
+        // destination deficits, route capacity and war losses.
+        static void DispatchMixedFreight(Database db, List<ModAdvancedEconomy.Route> routes,
+            Func<int, bool> participates, Func<int, int> pressure, HashSet<int> changed,
+            AdvancedEconomyRoutes graph, Dictionary<(int station, int item), int> incoming, Dictionary<int, int> systemPressure)
+        {
+            var active = ActiveCargoRoutes();
+            foreach (var group in routes.GroupBy(r => (source: r.Source, destination: r.Destination)))
+            {
+                int source = group.Key.source, destination = group.Key.destination;
+                if (!participates(source) || !participates(destination)) continue;
+                var from = ModAdvancedEconomy.At(source);
+                var to = ModAdvancedEconomy.At(destination);
+                if (from == null || to == null) continue;
+                var path = graph.Path(Shop.SystemOf(db, source), Shop.SystemOf(db, destination));
+                if (path == null || path.Count == 0) continue;
+
+                var candidates = new List<(ModAdvancedEconomy.Route route, ModAdvancedEconomy.Rule rule, int amount, bool critical, int possible, int need)>();
+                foreach (var route in group)
+                {
+                    if (active.Contains(RouteKey(route)) || !ModAdvancedEconomy.Eligible(db, route.Item) ||
+                        !from.TryGetValue(route.Item, out var sourceRule) || !to.TryGetValue(route.Item, out var targetRule)) continue;
+                    int stock = Get(destination, targetRule).Amount;
+                    incoming.TryGetValue((destination, route.Item), out int reserved);
+                    int amount = ModAdvancedEconomy.DispatchAmount(Get(source, sourceRule).Amount, sourceRule.Target,
+                        stock + reserved, targetRule.Target, route.Capacity);
+                    if (amount <= 0) continue;
+                    bool critical = ModAdvancedEconomy.FreightEmergencyDispatch &&
+                        ModAdvancedEconomy.FreightStockCritical(stock, reserved, targetRule.Target, ModAdvancedEconomy.FreightCriticalStock);
+                    int need = (int)((long)Math.Max(0, targetRule.Target - stock - reserved) * 100 / Math.Max(1, targetRule.Target));
+                    candidates.Add((route, sourceRule, amount, critical, Math.Min(route.Capacity, targetRule.Target), need));
+                }
+                var selected = candidates.OrderByDescending(x => x.critical).ThenByDescending(x => x.need)
+                    .ThenByDescending(x => x.amount).ThenBy(x => x.route.Item).Take(ModAdvancedEconomy.MaxFreightCargoKinds).ToArray();
+                if (selected.Length == 0) continue;
+                int requested = (int)Math.Min(ModAdvancedEconomy.MaxStock, selected.Sum(x => (long)x.amount));
+                int possible = (int)Math.Min(ModAdvancedEconomy.MaxStock, selected.Sum(x => (long)x.possible));
+                int race = OriginRace(db, source);
+                var fleet = ModAdvancedEconomy.FreightFleet(race).Where(h => db.Ship(h.Ship) != null).ToArray();
+                var hull = ModAdvancedEconomy.PickDispatchHull(fleet, requested, possible, possible,
+                    ModAdvancedEconomy.FreightMinimumShipment, ModAdvancedEconomy.FreightMinimumUtilization,
+                    selected.Any(x => x.critical), UnityEngine.Random.Range(0, int.MaxValue));
+                if (hull == null) continue;
+
+                int routePressure = Math.Max(pressure(source), pressure(destination));
+                foreach (int system in path)
+                {
+                    if (!systemPressure.TryGetValue(system, out int p))
+                        systemPressure[system] = p = ModAdvancedEconomy.SystemPressure(db, system);
+                    routePressure = Math.Max(routePressure, p);
+                }
+
+                // Emergency goods take precedence; remaining hold space is shared
+                // proportionally so a big commodity does not crowd out all smaller loads.
+                int room = Math.Min(requested, hull.Capacity);
+                var urgent = AllocateFreightMass(selected.Select(x => x.critical ? x.amount : 0).ToArray(), room);
+                var normal = AllocateFreightMass(selected.Select(x => x.critical ? 0 : x.amount).ToArray(), room - urgent.Sum());
+                var dispatched = new Shipment { Cargo = new List<CargoLine>(), Hops = Math.Min(96, path.Count - 1) };
+                ModAdvancedEconomy.Route anchor = null;
+                for (int i = 0; i < selected.Length; i++)
+                {
+                    var candidate = selected[i];
+                    int send = urgent[i] + normal[i];
+                    if (send <= 0) continue;
+                    var balance = Get(source, candidate.rule);
+                    int resale = Math.Min(send, balance.Resale);
+                    int survive = ModAdvancedEconomy.SurvivingCargo(send, candidate.route.WarLossPercent, routePressure);
+                    Set(source, candidate.rule, balance.Amount - send, balance.Resale - resale);
+                    changed.Add(source);
+                    if (survive <= 0) continue;
+                    if (anchor == null) anchor = candidate.route;
+                    dispatched.Cargo.Add(new CargoLine(StableKey(source, candidate.route.Item).Item, survive, Math.Min(resale, survive)));
+                    dispatched.Ticks = Math.Max(dispatched.Ticks, Math.Min(96, Math.Max(candidate.route.TravelTicks,
+                        Math.Max(1, path.Count - 1) * ModAdvancedEconomy.TicksPerHop)));
+                    active.Add(RouteKey(candidate.route));
+                    AdjustIncoming(incoming, destination, candidate.route.Item, survive);
+                }
+                if (anchor == null) continue;
+                SyncCargo(dispatched);
+                dispatched.FreightTag = NewFreightTag();
+                dispatched.Bulk = dispatched.Amount > ModAdvancedEconomy.CormorantCapacity;
+                dispatched.Orbit = source;
+                dispatched.RemainingSeconds = TravelSeconds();
+                AssignFleet(dispatched, race, hull);
+                shipments.Add(RouteKey(anchor), dispatched);
+                EnsureFreightRaid(db, dispatched);
+                SendDistress(db, anchor, dispatched);
+                dirty = true;
+            }
         }
 
         internal static Balance Get(int station, ModAdvancedEconomy.Rule rule)
@@ -1050,6 +1291,7 @@ namespace GoF2Remake.Multiplayer
             foreach (var pair in shipments)
                 cargo.Add(new JObject { ["key"] = pair.Key, ["amount"] = pair.Value.Amount,
                     ["resale"] = pair.Value.Resale, ["ticks"] = pair.Value.Ticks, ["hops"] = pair.Value.Hops, ["freightTag"] = pair.Value.FreightTag,
+                    ["cargo"] = new JArray(CargoRows(pair.Key, pair.Value).Select(line => new JObject { ["item"] = line.Item, ["amount"] = line.Amount, ["resale"] = line.Resale })),
                     ["orbit"] = pair.Value.Orbit, ["totalTicks"] = pair.Value.TotalTicks, ["bulk"] = pair.Value.Bulk, ["hull"] = pair.Value.Hull,
                     ["remainingSeconds"] = pair.Value.RemainingSeconds, ["fleetRace"] = pair.Value.FleetRace,
                     ["fleetHull"] = pair.Value.FleetHull, ["fleetSpeed"] = pair.Value.FleetSpeed,
@@ -1065,7 +1307,7 @@ namespace GoF2Remake.Multiplayer
                     ["race"] = w.Race, ["expires"] = w.Expires, ["x"] = w.Position.x, ["y"] = w.Position.y, ["z"] = w.Position.z });
             }
             var rewards = new JArray(rescueRewards.Select(pair => new JObject { ["account"] = pair.Key, ["credits"] = pair.Value }));
-            var root = new JObject { ["version"] = 1, ["rows"] = rows, ["shipments"] = cargo, ["freightWrecks"] = debris, ["rescueRewards"] = rewards };
+            var root = new JObject { ["version"] = 2, ["rows"] = rows, ["shipments"] = cargo, ["freightWrecks"] = debris, ["rescueRewards"] = rewards };
             return root.ToString(Formatting.None);
         }
 

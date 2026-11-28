@@ -1058,12 +1058,13 @@ namespace GoF2Remake.UI
                 Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
                 Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
                 Heading(scroll, "Freight dispatch rules");
+                Flag("freightMixedShipments", "Consolidate mixed commodity shipments", true);
                 Option("freightMinimumShipment", "Minimum shipment (t)", ModAdvancedEconomy.DefaultFreightMinimumShipment, 1, ModAdvancedEconomy.MaxStock);
                 Option("freightMinimumUtilizationPercent", "Minimum hull utilization (%)", ModAdvancedEconomy.DefaultFreightMinimumUtilization, 0, 100);
                 Flag("freightEmergencyDispatch", "Allow smaller emergency shipments", true);
                 if (Bool("freightEmergencyDispatch", true))
                     Option("freightCriticalStockPercent", "Critical destination stock (% of target)", ModAdvancedEconomy.DefaultFreightCriticalStock, 0, 100);
-                Note(scroll, "Applies to native racial and custom freight hulls. The minimum cannot exceed the route capacity, destination target or hull capacity. Emergency checks include cargo already inbound. Set 1 t and 0% to restore unrestricted dispatch.");
+                Note(scroll, "Applies to native racial and custom freight hulls. Mixing combines up to 16 commodities with the same supplier and destination; thresholds apply to total cargo. Each commodity retains its route cap. Minimums are capped by feasible route, target and hull capacity. Emergency checks include inbound cargo. Disabling mixing affects only new shipments.");
                 Option("freightTravelMinSeconds", "Abstract jump minimum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
                 Option("freightTravelMaxSeconds", "Abstract jump maximum (seconds)", 90, 1, ModAdvancedEconomy.MaxFreightSeconds);
                 Option("freightUnloadMinSeconds", "Unloading minimum (seconds)", 15, 1, ModAdvancedEconomy.MaxFreightSeconds);

@@ -32,6 +32,8 @@ namespace GoF2Remake.Modding
         public static int FreightMinimumShipment { get; private set; } = DefaultFreightMinimumShipment;
         public static int FreightMinimumUtilization { get; private set; } = DefaultFreightMinimumUtilization;
         public static bool FreightEmergencyDispatch { get; private set; } = true;
+        public static bool FreightMixedShipments { get; private set; } = true;
+        public const int MaxFreightCargoKinds = 16;
         public static int FreightCriticalStock { get; private set; } = DefaultFreightCriticalStock;
         public static bool FreightPirateRaids { get; private set; } = true;
         public static int FreightPirateAttemptPercent { get; private set; } = 80;
@@ -366,6 +368,7 @@ namespace GoF2Remake.Modding
             FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
             FreightMinimumShipment = DefaultFreightMinimumShipment; FreightMinimumUtilization = DefaultFreightMinimumUtilization;
             FreightEmergencyDispatch = true; FreightCriticalStock = DefaultFreightCriticalStock;
+            FreightMixedShipments = true;
             FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
             foreach (var mod in ModManager.Active)
             {
@@ -447,6 +450,7 @@ namespace GoF2Remake.Modding
             int minimumShipment = Math.Clamp(ModJson.Int(o, "freightMinimumShipment", DefaultFreightMinimumShipment, File), 1, MaxStock);
             int minimumUtilization = Math.Clamp(ModJson.Int(o, "freightMinimumUtilizationPercent", DefaultFreightMinimumUtilization, File), 0, 100);
             bool emergencyDispatch = ModJson.Bool(o, "freightEmergencyDispatch", true, File);
+            bool mixedShipments = ModJson.Bool(o, "freightMixedShipments", true, File);
             int criticalStock = Math.Clamp(ModJson.Int(o, "freightCriticalStockPercent", DefaultFreightCriticalStock, File), 0, 100);
             var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
                 ModJson.Int(o, "freightTravelMaxSeconds", 90, File));
@@ -632,6 +636,7 @@ namespace GoF2Remake.Modding
                 FreightDispatchSeconds = dispatchSeconds;
                 FreightMinimumShipment = minimumShipment; FreightMinimumUtilization = minimumUtilization;
                 FreightEmergencyDispatch = emergencyDispatch; FreightCriticalStock = criticalStock;
+                FreightMixedShipments = mixedShipments;
                 FreightPirateRaids = pirateRaids; FreightPirateAttemptPercent = raidAttempt;
                 FreightPirateTheftPercent = raidTheft; FreightPirateDestructionPercent = raidDestroy;
                 FreightPirateKillRemainingPercent = raidKill;
