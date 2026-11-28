@@ -149,6 +149,12 @@ namespace GoF2Remake.Multiplayer
                 economyJson: economyJson);
         }
 
+        internal static bool CommitFreightRescueReward(string account, long reward, string economyJson)
+        {
+            if (string.IsNullOrEmpty(account) || reward <= 0 || string.IsNullOrEmpty(economyJson) || ProfileWritesBlocked) return false;
+            return CommitProfileTransaction(null, new List<(string account, long delta)> { (account, reward) }, null, economyJson: economyJson);
+        }
+
         static bool CommitProfileTransaction(
             List<(string account, int item, int delta)> cargoChanges,
             List<(string account, long delta)> creditChanges,

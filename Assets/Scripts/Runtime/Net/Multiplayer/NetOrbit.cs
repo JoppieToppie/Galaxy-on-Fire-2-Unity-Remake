@@ -515,6 +515,8 @@ namespace GoF2Remake.Multiplayer
         float freightRequestAt;
         int freightAmbientReplacements;
 
+        internal void FreightDistressRadio(string text) => level?.Traffic?.Say(new Traffic.Chatter { text = text, speaker = "Freight distress", portrait = new int[0] });
+
         void RequestFreight(NetState state)
         {
             var me = NetPlayer.Local;

@@ -58,9 +58,14 @@ namespace GoF2Remake.Multiplayer
             public int RaidSystem = -1, RaidBase, RaidDead, RaidPlayerKills, RaidObservationSeconds;
             // Persistent delay notification state; ordinary travel time is not a delay.
             public int DelayReason, DelaySeconds;
+            public readonly List<string> RaidContributors = new List<string>();
         }
         static readonly Dictionary<string, Shipment> shipments = new Dictionary<string, Shipment>();
         static readonly List<(int station, string text)> freightNews = new List<(int, string)>();
+        static readonly Dictionary<string, long> rescueRewards = new Dictionary<string, long>(StringComparer.Ordinal);
+        static readonly Dictionary<int, HashSet<ulong>> distressSent = new Dictionary<int, HashSet<ulong>>();
+        static readonly Dictionary<ulong, float> nextDistress = new Dictionary<ulong, float>();
+        static float nextRescueSettlement;
         sealed class FreightWreck
         {
             public int Orbit, Amount, Race;
@@ -82,7 +87,7 @@ namespace GoF2Remake.Multiplayer
         {
             balances.Clear();
             live.Clear();
-            shipments.Clear(); freightNews.Clear();
+            shipments.Clear(); freightNews.Clear(); rescueRewards.Clear(); distressSent.Clear(); nextDistress.Clear(); nextRescueSettlement = 0;
             wrecks.Clear(); pendingFreightLosses.Clear(); nextLossRetry = 0;
             loaded = dirty = readFailed = false;
             path = null;
@@ -109,10 +114,12 @@ namespace GoF2Remake.Multiplayer
                     var parsed = Read(json);
                     var cargo = ReadShipments(JObject.Parse(json));
                     var debris = ReadWrecks(JObject.Parse(json));
+                    var rewards = ReadRescueRewards(JObject.Parse(json));
                     ValidateFreightIdentities(cargo, debris);
                     foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
                     foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
                     foreach (var pair in debris) wrecks.Add(pair.Key, pair.Value);
+                    foreach (var pair in rewards) rescueRewards.Add(pair.Key, pair.Value);
                     if (candidate != path)
                     {
                         Debug.LogWarning("Advanced economy: recovered the backup snapshot.");
@@ -202,12 +209,39 @@ namespace GoF2Remake.Multiplayer
                     raidObserved < 0 || raidObserved > 20 || (raidBase == 0 && (raidDead != 0 || raidKills != 0 || raidObserved != 0)) ||
                     (raidBase != 0 && (raidSystem < 0 || !ModAdvancedEconomy.IsFreightRaidTag(raidBase) || raidBase % 4 != 0 ||
                     result.Values.Any(s => s.RaidBase == raidBase)))) throw new JsonException("Invalid freight raid state.");
+                var contributors = new List<string>();
+                if (row["raidContributors"] != null)
+                {
+                    if (!(row["raidContributors"] is JArray accounts) || accounts.Count > raidKills) throw new JsonException("Invalid raid contributors.");
+                    foreach (var account in accounts)
+                    {
+                        string id = (string)account;
+                        if (account.Type != JTokenType.String || string.IsNullOrEmpty(id) || id.Length > 256) throw new JsonException("Invalid raid contributor.");
+                        contributors.Add(id);
+                    }
+                }
                 result.Add(key, new Shipment { Amount = (int)amount, Resale = (int)resale, Ticks = (int)ticks, Hops = hops,
                     FreightTag = tag, Orbit = orbit, TotalTicks = totalTicks,
                     Bulk = row["bulk"] == null ? amount > ModAdvancedEconomy.CormorantCapacity : (bool)row["bulk"],
                     Hull = hull, RemainingSeconds = remainingSeconds, FleetRace = fleetRace, FleetHull = fleetHull, FleetSpeed = fleetSpeed,
                     RaidSystem = raidSystem, RaidBase = raidBase, RaidDead = raidDead, RaidPlayerKills = raidKills, RaidObservationSeconds = raidObserved,
                     DelayReason = delayReason, DelaySeconds = delaySeconds });
+                result[key].RaidContributors.AddRange(contributors);
+            }
+            return result;
+        }
+
+        static Dictionary<string, long> ReadRescueRewards(JObject root)
+        {
+            var result = new Dictionary<string, long>(StringComparer.Ordinal);
+            if (root["rescueRewards"] == null) return result;
+            if (!(root["rescueRewards"] is JArray rows)) throw new JsonException("Invalid freight rescue rewards.");
+            foreach (var token in rows)
+            {
+                if (!(token is JObject row) || row["account"]?.Type != JTokenType.String || row["credits"]?.Type != JTokenType.Integer) throw new JsonException("Invalid freight rescue reward.");
+                string account = (string)row["account"]; long credits = (long)row["credits"];
+                if (string.IsNullOrEmpty(account) || account.Length > 256 || credits <= 0 || result.ContainsKey(account)) throw new JsonException("Invalid freight rescue reward balance.");
+                result.Add(account, credits);
             }
             return result;
         }
@@ -345,12 +379,12 @@ namespace GoF2Remake.Multiplayer
             if (!Physical) return;
             if (!ModAdvancedEconomy.FreightPirateRaids)
             {
-                if (ship.RaidBase != 0) { ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0; dirty = true; }
+                if (ship.RaidBase != 0) { distressSent.Remove(ship.RaidBase); ship.RaidContributors.Clear(); ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0; dirty = true; }
                 return;
             }
             int system = db.Stations.Find(s => s.index == ship.Orbit)?.system ?? -1;
             if (system < 0 || ship.RaidSystem == system || !PirateReports.ServerHasPresence(system)) return;
-            ship.RaidSystem = system; ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0;
+            ship.RaidSystem = system; ship.RaidContributors.Clear(); ship.RaidBase = ship.RaidDead = ship.RaidPlayerKills = ship.RaidObservationSeconds = 0;
             if (UnityEngine.Random.Range(0, 100) < ModAdvancedEconomy.FreightPirateAttemptPercent)
             {
                 int tag;
@@ -370,10 +404,104 @@ namespace GoF2Remake.Multiplayer
             var ship = shipments.Values.FirstOrDefault(s => s.Orbit == orbit && s.RaidBase == root);
             if (ship == null || (ship.RaidDead & bit) != 0) return;
             ship.RaidDead |= bit;
-            if (killer != ulong.MaxValue && NetGuard.InOrbit(killer, orbit)) ship.RaidPlayerKills++;
+            if (killer != ulong.MaxValue && NetGuard.InOrbit(killer, orbit))
+            {
+                ship.RaidPlayerKills++;
+                string account = NetProfiles.AccountOf(killer);
+                if (!string.IsNullOrEmpty(account) && NetProfiles.Controls(killer)) ship.RaidContributors.Add(account);
+            }
             dirty = true;
             Debug.Log($"[AdvancedEconomy] pirate raid casualty: freight={ship.FreightTag}, playerKills={ship.RaidPlayerKills}, deadMask={ship.RaidDead}");
             Flush(true);
+        }
+
+        // Compare actual destination stock against the expected delivery, not a speculative price forecast.
+        internal static int FreightLossShortfall(int stock, int target, int shipment) =>
+            Math.Max(0, target - Math.Max(0, stock)) - (int)Math.Max(0L, (long)target - Math.Max(0, stock) - Math.Max(0, shipment));
+
+        static void SendDistress(Database db, ModAdvancedEconomy.Route route, Shipment ship)
+        {
+            if (!ModAdvancedEconomy.FreightDistressCalls || ship.RaidBase == 0 || NetState.Instance == null || ship.RaidPlayerKills >= ModAdvancedEconomy.FreightRaidSize) return;
+            var station = db.Stations.Find(s => s.index == ship.Orbit);
+            var destination = db.Stations.Find(s => s.index == route.Destination);
+            if (station == null || destination == null) return;
+            if (!distressSent.TryGetValue(ship.RaidBase, out var sent)) distressSent[ship.RaidBase] = sent = new HashSet<ulong>();
+            var rule = ModAdvancedEconomy.At(route.Destination);
+            string commodity = GameNames.Item(route.Item);
+            string impact = $"Losing this cargo will remove {ship.Amount} t from expected imports.";
+            if (rule != null && rule.TryGetValue(route.Item, out var row))
+            {
+                int stock = Get(route.Destination, row).Amount;
+                int lostRelief = FreightLossShortfall(stock, row.Target, ship.Amount);
+                int deficit = Math.Max(0, row.Target - stock);
+                if (lostRelief > 0)
+                    impact = $"Without us, {destination.systemName}\\u2019s destination market remains {deficit} t below target instead of {deficit - lostRelief} t; scarcity may raise prices.";
+                else impact = $"Loss would cut expected imports by {ship.Amount} t; the destination currently has no additional target shortfall from this shipment alone.";
+            }
+            string reward = ModAdvancedEconomy.FreightRescueReward <= 0 ? "" :
+                $" Rescue reward: {ModAdvancedEconomy.FreightRescueReward:N0} credits ({ModAdvancedEconomy.FreightRescueRewardMode}).";
+            string message = $"Mayday! Pirates attacking us near {NetNews.Place(ship.Orbit)}. Carrying {ship.Amount} t of {commodity} to {NetNews.Place(route.Destination)}. {impact}{reward}";
+            foreach (var pilot in NetPlayer.All)
+            {
+                if (pilot == null || !pilot.IsSpawned || pilot.Station < 0) continue;
+                int system = db.Stations.Find(s => s.index == pilot.Station)?.system ?? -1;
+                ulong client = pilot.OwnerClientId;
+                if (system != station.system || sent.Contains(client) || (nextDistress.TryGetValue(client, out float next) && Time.unscaledTime < next)) continue;
+                NetState.Instance.SendFreightDistress(client, message);
+                sent.Add(client); nextDistress[client] = Time.unscaledTime + 15f;
+            }
+        }
+
+        internal static Dictionary<string, long> FreightRescueShares(IEnumerable<string> accounts, int reward, string mode)
+        {
+            var result = new Dictionary<string, long>(StringComparer.Ordinal);
+            if (reward <= 0 || accounts == null) return result;
+            var groups = accounts.Where(a => !string.IsNullOrEmpty(a)).GroupBy(a => a, StringComparer.Ordinal)
+                .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).ToList();
+            if (groups.Count == 0) return result;
+            mode = ModAdvancedEconomy.NormalizeFreightRewardMode(mode);
+            if (mode == "single") { result[groups[0].Key] = reward; return result; }
+            long weight = mode == "weighted" ? groups.Sum(g => g.Count()) : groups.Count;
+            long remaining = reward;
+            foreach (var g in groups)
+            {
+                long share = mode == "flat" ? reward : (long)reward * (mode == "weighted" ? g.Count() : 1) / weight;
+                if (share > 0) result[g.Key] = share;
+                remaining -= share;
+            }
+            if (mode != "flat" && remaining > 0)
+                foreach (var g in groups.Take((int)remaining)) result[g.Key] = (result.TryGetValue(g.Key, out long share) ? share : 0) + 1;
+            return result;
+        }
+
+        static void QueueRescueReward(Shipment ship)
+        {
+            foreach (var entry in FreightRescueShares(ship.RaidContributors, ModAdvancedEconomy.FreightRescueReward, ModAdvancedEconomy.FreightRescueRewardMode))
+            {
+                rescueRewards.TryGetValue(entry.Key, out long prior);
+                rescueRewards[entry.Key] = prior > long.MaxValue - entry.Value ? long.MaxValue : prior + entry.Value;
+            }
+        }
+
+        // Remove the pending reward in the same absolute journal snapshot that credits the profile.
+        // A restart cannot replay a paid reward, and disconnected contributors are still eligible.
+        static void SettleRescueRewards()
+        {
+            if (rescueRewards.Count == 0 || NetPlayerStations.ProfileWritesBlocked || Time.unscaledTime < nextRescueSettlement) return;
+            nextRescueSettlement = Time.unscaledTime + 10f;
+            foreach (var entry in rescueRewards.ToList())
+            {
+                if (NetPlayerStations.ProfileWritesBlocked) break;
+                rescueRewards.Remove(entry.Key);
+                if (!NetPlayerStations.CommitFreightRescueReward(entry.Key, entry.Value, Snapshot()))
+                {
+                    rescueRewards[entry.Key] = entry.Value;
+                    Debug.LogWarning("[AdvancedEconomy] freight rescue reward pending; profile settlement unavailable.");
+                    continue;
+                }
+                NetPlayerStations.NotifyProfileCreditChange(entry.Key, entry.Value, "Freight rescue reward");
+                Debug.Log($"[AdvancedEconomy] freight rescue reward committed: credits={entry.Value}");
+            }
         }
 
         static void ObserveFreightDelay(ModAdvancedEconomy.Route route, Shipment ship, int reason)
@@ -400,6 +528,7 @@ namespace GoF2Remake.Multiplayer
         static void ResolveFreightRaid(ModAdvancedEconomy.Route route, Shipment ship)
         {
             if (ship.RaidBase == 0) return;
+            distressSent.Remove(ship.RaidBase);
             int orbit = ship.Orbit, original = ship.Amount;
             int result = ModAdvancedEconomy.FreightPirateRaids ? ModAdvancedEconomy.FreightRaidOutcome(UnityEngine.Random.Range(0, 10000),
                 ModAdvancedEconomy.FreightPirateTheftPercent, ModAdvancedEconomy.FreightPirateDestructionPercent,
@@ -407,6 +536,8 @@ namespace GoF2Remake.Multiplayer
             if (result == 2) ship.Amount = 0;
             else if (result == 1) ship.Amount -= Math.Min(ship.Amount, Math.Max(1, ship.Amount * UnityEngine.Random.Range(40, 101) / 100));
             ship.Resale = Math.Min(ship.Resale, ship.Amount);
+            if (result == 0 && ModAdvancedEconomy.FreightPirateRaids && ship.RaidPlayerKills > 0) QueueRescueReward(ship);
+            ship.RaidContributors.Clear();
             string outcome = result == 2 ? $"destroyed; {original} t lost" : result == 1 ? $"raided; {original - ship.Amount} t stolen, {ship.Amount} t remaining" : "escaped a pirate attack";
             freightNews.Add((route.Destination, $"Freight bound for {NetNews.Place(route.Destination)} {outcome} near {NetNews.Place(orbit)}. Player pirate kills: {ship.RaidPlayerKills}."));
             Debug.Log($"[AdvancedEconomy] pirate raid resolved: freight={ship.FreightTag}, system={ship.RaidSystem}, outcome={result}, lost={original - ship.Amount}, playerKills={ship.RaidPlayerKills}");
@@ -425,6 +556,7 @@ namespace GoF2Remake.Multiplayer
             // Freeze physical progress if the saved hull or race was removed by a mod change.
             if (!ResolveFleet(db, ship, route.Source, out _, out _)) return false;
             EnsureFreightRaid(db, ship);
+            SendDistress(db, route, ship);
             bool unloading = ship.Orbit == route.Destination;
             bool materialized = proxies.ContainsKey((ship.Orbit, ship.FreightTag));
             bool ready = !materialized || FreightLegReady(db, ship, proxies);
@@ -747,7 +879,7 @@ namespace GoF2Remake.Multiplayer
                 var path = graph.Path(originStation.system, destinationStation.system);
                 if (path == null)
                 {
-                    if (physical && shipment != null) { EnsureFreightRaid(db, shipment); ObserveFreightDelay(route, shipment, 1); }
+                    if (physical && shipment != null) { EnsureFreightRaid(db, shipment); SendDistress(db, route, shipment); ObserveFreightDelay(route, shipment, 1); }
                     continue;
                 }
                 var source = Get(route.Source, sourceRule);
@@ -835,6 +967,7 @@ namespace GoF2Remake.Multiplayer
                         dispatched.RemainingSeconds = TravelSeconds();
                         AssignFleet(dispatched, fleetRace, fleetHull);
                         EnsureFreightRaid(db, dispatched);
+                        SendDistress(db, route, dispatched);
                     }
                     shipments[key] = dispatched;
                     incoming[incomingKey] = reserved + survive;
@@ -886,6 +1019,7 @@ namespace GoF2Remake.Multiplayer
                     ["fleetHull"] = pair.Value.FleetHull, ["fleetSpeed"] = pair.Value.FleetSpeed,
                     ["raidSystem"] = pair.Value.RaidSystem, ["raidBase"] = pair.Value.RaidBase,
                     ["raidDead"] = pair.Value.RaidDead, ["raidPlayerKills"] = pair.Value.RaidPlayerKills,
+                    ["raidContributors"] = new JArray(pair.Value.RaidContributors),
                     ["raidObservationSeconds"] = pair.Value.RaidObservationSeconds, ["delayReason"] = pair.Value.DelayReason, ["delaySeconds"] = pair.Value.DelaySeconds });
             var debris = new JArray();
             foreach (var pair in wrecks)
@@ -894,7 +1028,8 @@ namespace GoF2Remake.Multiplayer
                 debris.Add(new JObject { ["tag"] = pair.Key, ["orbit"] = w.Orbit, ["amount"] = w.Amount, ["item"] = w.Item,
                     ["race"] = w.Race, ["expires"] = w.Expires, ["x"] = w.Position.x, ["y"] = w.Position.y, ["z"] = w.Position.z });
             }
-            var root = new JObject { ["version"] = 1, ["rows"] = rows, ["shipments"] = cargo, ["freightWrecks"] = debris };
+            var rewards = new JArray(rescueRewards.Select(pair => new JObject { ["account"] = pair.Key, ["credits"] = pair.Value }));
+            var root = new JObject { ["version"] = 1, ["rows"] = rows, ["shipments"] = cargo, ["freightWrecks"] = debris, ["rescueRewards"] = rewards };
             return root.ToString(Formatting.None);
         }
 
@@ -902,7 +1037,7 @@ namespace GoF2Remake.Multiplayer
         // Recovery uses absolute targets and therefore cannot debit or credit stock twice.
         internal static bool ValidateJournalSnapshot(string json)
         {
-            try { Read(json); var root = JObject.Parse(json); ValidateFreightIdentities(ReadShipments(root), ReadWrecks(root)); return true; }
+            try { Read(json); var root = JObject.Parse(json); ValidateFreightIdentities(ReadShipments(root), ReadWrecks(root)); ReadRescueRewards(root); return true; }
             catch (Exception e) { Debug.LogWarning($"Advanced economy: invalid journal snapshot ({e.Message})."); return false; }
         }
 
@@ -912,15 +1047,17 @@ namespace GoF2Remake.Multiplayer
             var parsed = Read(json);
             var cargo = ReadShipments(JObject.Parse(json));
             var debris = ReadWrecks(JObject.Parse(json));
+            var rewards = ReadRescueRewards(JObject.Parse(json));
             ValidateFreightIdentities(cargo, debris);
             string target = Path.Combine(NetProfiles.Folder, "advanced-economy-stock.json");
             if (!NetProfiles.Write(target, json)) return false;
             if (recover && loaded)
             {
-                balances.Clear(); live.Clear(); shipments.Clear(); wrecks.Clear();
+                balances.Clear(); live.Clear(); shipments.Clear(); wrecks.Clear(); rescueRewards.Clear();
                 foreach (var pair in parsed) balances.Add(pair.Key, pair.Value);
                 foreach (var pair in cargo) shipments.Add(pair.Key, pair.Value);
                 foreach (var pair in debris) wrecks.Add(pair.Key, pair.Value);
+                foreach (var pair in rewards) rescueRewards.Add(pair.Key, pair.Value);
             }
             dirty = false;
             return true;
@@ -938,6 +1075,12 @@ namespace GoF2Remake.Multiplayer
             if (dirty) return;
             foreach (var entry in freightNews) NetNews.Post(NetNews.Kind.Commerce, entry.text, entry.station);
             freightNews.Clear();
+            SettleRescueRewards();
+            if (distressSent.Count > shipments.Count + 16)
+            {
+                var active = new HashSet<int>(shipments.Values.Where(s => s.RaidBase != 0).Select(s => s.RaidBase));
+                foreach (int tag in distressSent.Keys.Where(t => !active.Contains(t)).ToList()) distressSent.Remove(tag);
+            }
         }
     }
 }

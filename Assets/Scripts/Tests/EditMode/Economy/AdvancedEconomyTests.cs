@@ -9,6 +9,39 @@ namespace GoF2Remake.Tests
     public class AdvancedEconomyTests
     {
         [Test]
+        public void FreightRescueRewardsRespectDistributionAndUniqueAccounts()
+        {
+            var accounts = new[] { "b", "a", "a" };
+            var split = AdvancedEconomyLedger.FreightRescueShares(accounts, 20001, "split");
+            Assert.AreEqual(10001, split["a"]); Assert.AreEqual(10000, split["b"]);
+            var flat = AdvancedEconomyLedger.FreightRescueShares(accounts, 20000, "flat");
+            Assert.AreEqual(20000, flat["a"]); Assert.AreEqual(20000, flat["b"]);
+            var single = AdvancedEconomyLedger.FreightRescueShares(accounts, 20000, "single");
+            Assert.AreEqual(1, single.Count); Assert.AreEqual(20000, single["a"]);
+            var weighted = AdvancedEconomyLedger.FreightRescueShares(accounts, 20000, "weighted");
+            Assert.AreEqual(13334, weighted["a"]); Assert.AreEqual(6666, weighted["b"]);
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightRescueShares(accounts, 0, "split").Count);
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightRescueShares(new string[0], 20000, "split").Count);
+        }
+
+        [Test]
+        public void FreightDistressMeasuresLostShortageRelief()
+        {
+            Assert.AreEqual(40, AdvancedEconomyLedger.FreightLossShortfall(50, 100, 40));
+            Assert.AreEqual(50, AdvancedEconomyLedger.FreightLossShortfall(50, 100, 100));
+            Assert.AreEqual(0, AdvancedEconomyLedger.FreightLossShortfall(120, 100, 40));
+        }
+
+        [Test]
+        public void FreightRescuePendingBalancesAreValidated()
+        {
+            const string start = "{\"version\":1,\"rows\":[],\"rescueRewards\":[";
+            Assert.IsTrue(AdvancedEconomyLedger.ValidateJournalSnapshot(start + "{\"account\":\"a\",\"credits\":20000}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + "{\"account\":\"a\",\"credits\":-1}]}"));
+            Assert.IsFalse(AdvancedEconomyLedger.ValidateJournalSnapshot(start + "{\"account\":\"a\",\"credits\":1},{\"account\":\"a\",\"credits\":1}]}"));
+        }
+
+        [Test]
         public void PirateRaidSuccessShrinksExponentiallyWithPlayerKills()
         {
             int[] successes = new int[4];

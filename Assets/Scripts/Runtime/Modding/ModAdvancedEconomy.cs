@@ -33,6 +33,10 @@ namespace GoF2Remake.Modding
         public static int FreightPirateTheftPercent { get; private set; } = 40;
         public static int FreightPirateDestructionPercent { get; private set; } = 30;
         public static int FreightPirateKillRemainingPercent { get; private set; } = 25;
+        public static bool FreightDistressCalls { get; private set; } = true;
+        public static int FreightRescueReward { get; private set; } = 20000;
+        public static string FreightRescueRewardMode { get; private set; } = "split";
+        public static string NormalizeFreightRewardMode(string mode) => mode == "flat" || mode == "single" || mode == "weighted" ? mode : "split";
         // Dedicated raid identity range, separate from cargo, pirate-sighting and war tags.
         public const int FreightRaidTagStart = 200000000, FreightRaidTagEnd = 300000000, FreightRaidSize = 3;
         public static bool IsFreightRaidTag(int tag) => tag >= FreightRaidTagStart && tag < FreightRaidTagEnd && tag % 4 < FreightRaidSize;
@@ -245,6 +249,7 @@ namespace GoF2Remake.Modding
             RhinoFreightSpeedPercent = 75; CormorantFreightSpeedPercent = 125;
             FreightPirateRaids = true; FreightPirateAttemptPercent = 80; FreightPirateTheftPercent = 40;
             FreightPirateDestructionPercent = 30; FreightPirateKillRemainingPercent = 25;
+            FreightDistressCalls = true; FreightRescueReward = 20000; FreightRescueRewardMode = "split";
             FreightDispatchSeconds = 60; FreightTravelMinSeconds = 30; FreightTravelMaxSeconds = 90;
             FreightUnloadMinSeconds = 15; FreightUnloadMaxSeconds = 30; FreightWreckLifetimeSeconds = 300;
             foreach (var mod in ModManager.Active)
@@ -293,6 +298,9 @@ namespace GoF2Remake.Modding
             int raidAttempt = Math.Clamp(ModJson.Int(o, "freightPirateAttemptPercent", 80, File), 0, 100);
             int raidTheft = Math.Clamp(ModJson.Int(o, "freightPirateTheftPercent", 40, File), 0, 100);
             int raidDestroy = Math.Clamp(ModJson.Int(o, "freightPirateDestructionPercent", 30, File), 0, 100 - raidTheft);
+            bool distress = ModJson.Bool(o, "freightDistressCalls", true, File);
+            int rescueReward = Math.Clamp(ModJson.Int(o, "freightRescueReward", 20000, File), 0, 1000000000);
+            string rewardMode = NormalizeFreightRewardMode(ModJson.Str(o, "freightRescueRewardMode"));
             int raidKill = Math.Clamp(ModJson.Int(o, "freightPirateKillRemainingPercent", 25, File), 0, 100);
             int dispatchSeconds = Math.Clamp(ModJson.Int(o, "freightDispatchSeconds", 60, File), 1, MaxFreightSeconds);
             var travelSeconds = FreightInterval(ModJson.Int(o, "freightTravelMinSeconds", 30, File),
@@ -480,6 +488,7 @@ namespace GoF2Remake.Modding
                 FreightPirateRaids = pirateRaids; FreightPirateAttemptPercent = raidAttempt;
                 FreightPirateTheftPercent = raidTheft; FreightPirateDestructionPercent = raidDestroy;
                 FreightPirateKillRemainingPercent = raidKill;
+                FreightDistressCalls = distress; FreightRescueReward = rescueReward; FreightRescueRewardMode = rewardMode;
                 FreightTravelMinSeconds = travelSeconds.min; FreightTravelMaxSeconds = travelSeconds.max;
                 FreightUnloadMinSeconds = unloadSeconds.min; FreightUnloadMaxSeconds = unloadSeconds.max;
                 FreightWreckLifetimeSeconds = wreckSeconds;
