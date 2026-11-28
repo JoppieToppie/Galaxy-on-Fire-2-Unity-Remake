@@ -980,196 +980,315 @@ namespace GoF2Remake.UI
             Act(box, T("mbModDocumentation", "Modding documentation"), ShowModdingDocumentation, "mbv-step");
         }
 
+        int economyTab, economyStockPage, economyRoutePage, economyFleetPage;
+        int economyFaction = -1, economyBulkField, economyBulkValue;
+        string economyCommodity;
+        readonly List<string> economySystems = new List<string>();
+        const int EconomyPageSize = 20;
+
+        List<JObject> EconomyPage(VisualElement parent, List<JObject> all, int page, Action<int> set)
+        {
+            int pages = Math.Max(1, (all.Count + EconomyPageSize - 1) / EconomyPageSize);
+            page = Math.Clamp(page, 0, pages - 1);
+            var bar = Row(parent);
+            var previous = Act(bar, "Previous", () => { set(page - 1); ShowAdvancedEconomyRules(); }, "mbv-step");
+            previous.SetEnabled(page > 0);
+            Add(bar, new Label($"Page {page + 1} / {pages} ({all.Count} matching)"), "mbv-inline-label");
+            var next = Act(bar, "Next", () => { set(page + 1); ShowAdvancedEconomyRules(); }, "mbv-step");
+            next.SetEnabled(page + 1 < pages);
+            return all.Skip(page * EconomyPageSize).Take(EconomyPageSize).ToList();
+        }
+
+        int EconomySystem(string reference, bool station)
+        {
+            if (string.IsNullOrEmpty(reference)) return -1;
+            if (!station)
+                return ModWorld.TryResolveSystem(reference, out int system) ||
+                    ModWorld.TryResolveSystem(Project.Id + ":" + reference, out system) ? system : -1;
+            if (!ModWorld.TryResolveStation(reference, out int id) &&
+                !ModWorld.TryResolveStation(Project.Id + ":" + reference, out id)) return -1;
+            return Database.Shared.Stations.Find(st => st.index == id)?.system ?? -1;
+        }
+
         void ShowAdvancedEconomyRules()
         {
             if (Project == null) return;
             modal.Clear();
             var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
             Heading(box, T("mbAdvancedEconomy", "Advanced economy"));
+            Segments(box, null, new[] { "General", "Production", "Freight", "Pricing", "Routes" }, economyTab,
+                v => { economyTab = v; ShowAdvancedEconomyRules(); });
             var scroll = Add(box, new ScrollView(ScrollViewMode.Vertical), "mbv-picker-scroll");
             var rules = Project.AdvancedEconomyRules;
             bool Bool(string key) => rules[key]?.Type == JTokenType.Boolean && (bool)rules[key];
             int Number(string key, int fallback) => int.TryParse(rules[key]?.ToString(), out int n) ? n : fallback;
             void Flag(string key, string label) => FlagButton(Row(scroll), label, Bool(key),
                 v => rules[key] = v, ShowAdvancedEconomyRules);
-            Flag("enabled", "Enable advanced economy");
-            Flag("persistentInventory", "Persistent commodity stock (multiplayer session)");
-            Flag("saveInventory", "Save stock across persistent server restarts");
-            Flag("simulateUnvisitedStations", "Simulate unvisited configured stations");
-            Flag("stationProduction", "Station production");
-            Flag("stationConsumption", "Station consumption");
-            Flag("regionalTrade", "Regional trade");
-            Flag("physicalFreight", "Physical freight (requires regional trade and saved inventory)");
-            Option("rhinoCapacity", "Rhino freight capacity (t)", 2500, 1, ModAdvancedEconomy.MaxStock);
-            Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
-            Option("nativeFreighterCapacity", "Native racial freighter capacity (t)", Number("rhinoCapacity", 2500), 1, ModAdvancedEconomy.MaxStock);
-            Option("nativeFreighterSpeedPercent", "Native racial freighter speed (%)", 100, 10, 500);
-            Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
-            Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
-            Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
-            Option("freightTravelMinSeconds", "Abstract jump minimum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
-            Option("freightTravelMaxSeconds", "Abstract jump maximum (seconds)", 90, 1, ModAdvancedEconomy.MaxFreightSeconds);
-            Option("freightUnloadMinSeconds", "Unloading minimum (seconds)", 15, 1, ModAdvancedEconomy.MaxFreightSeconds);
-            Option("freightUnloadMaxSeconds", "Unloading maximum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
-            Option("freightWreckLifetimeSeconds", "Freight wreck lifetime (seconds)", 300, 1, ModAdvancedEconomy.MaxFreightSeconds);
-            Option("rhinoFreightSpeedPercent", "Rhino speed (% of normal freighter speed)", 75, 10, 500);
-            Option("cormorantFreightSpeedPercent", "Cormorant speed (% of normal freighter speed)", 125, 10, 500);
-            RefField(scroll, "Default Terran bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
-            {
-                rules["rhinoShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
-            }, "Rhino (default)");
-            RefField(scroll, "Default Terran light freighter hull", RefKind.Ship, rules["cormorantShip"]?.ToString(), value =>
-            {
-                rules["cormorantShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
-            }, "Cormorant (default)");
-            Heading(scroll, "Economy traffic fleets by race");
-            Note(scroll, "A race with custom entries uses only those entries. Other races use their native freight model; Terrans additionally use the default light and bulk hulls. Use native for the racial cargo ship, or select any ship from the content picker.");
-            var fleets = rules["freightFleets"] as JArray ?? new JArray();
-            foreach (var entry in fleets.OfType<JObject>().ToList())
-            {
-                string race = entry["race"]?.ToString() ?? "terran";
-                string ship = entry["ship"]?.ToString() ?? "native";
-                Heading(scroll, race + " / " + (ship == "native" ? "Native racial freighter" : RefLabel(RefKind.Ship, ship, "Unknown hull")));
-                Text(scroll, "Race (game race name, number or mod_id:race_id)", race, 256,
-                    v => { entry["race"] = v.Trim(); MarkDirty(); });
-                RefField(scroll, "Economy hull", RefKind.Ship, ship == "native" ? null : ship, v =>
-                {
-                    entry["ship"] = string.IsNullOrEmpty(v) ? "native" : v;
-                    MarkDirty(); ShowAdvancedEconomyRules();
-                }, "Native racial freighter");
-                Act(scroll, "Use native racial freighter", () =>
-                {
-                    entry["ship"] = "native"; MarkDirty(); ShowAdvancedEconomyRules();
-                }, "mbv-step");
-                int FleetNumber(string key, int fallback) => int.TryParse(entry[key]?.ToString(), out int n) ? n : fallback;
-                Int(scroll, "Cargo capacity (t)", FleetNumber("capacity", Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500))), 1, ModAdvancedEconomy.MaxStock,
-                    v => { entry["capacity"] = v; MarkDirty(); });
-                Int(scroll, "Relative selection weight", FleetNumber("weight", 1), 1, 1000,
-                    v => { entry["weight"] = v; MarkDirty(); });
-                Int(scroll, "Flight speed (%)", FleetNumber("speedPercent", 100), 10, 500,
-                    v => { entry["speedPercent"] = v; MarkDirty(); });
-                Act(scroll, "Remove fleet entry", () =>
-                {
-                    entry.Remove(); MarkDirty(); ShowAdvancedEconomyRules();
-                }, "mbv-step");
-            }
-            Act(scroll, "+ Economy fleet hull", () =>
-            {
-                if (rules["freightFleets"] == null) rules["freightFleets"] = fleets;
-                fleets.Add(new JObject { ["race"] = "terran", ["ship"] = "native", ["capacity"] = Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500)),
-                    ["weight"] = 1, ["speedPercent"] = 100 });
-                MarkDirty(); ShowAdvancedEconomyRules();
-            }, "mbv-add");
-            Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
-            Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
-            Flag("restrictedGateRouting", "Use restricted gates only with explicit owner NPC permission");
-            Flag("warPressure", "Frontline commodity demand");
-            Flag("tradeDisruption", "War-related shipment losses");
-            Flag("dynamicPricing", "Dynamic server prices (requires saved inventory and profiles)");
-            Flag("transportCosts", "Import transport costs in dynamic prices");
-            Flag("playerMarketTrade", "Allow opt-in NPC purchases from player marketplaces");
-            Flag("npcConstructionSupply", "Allow NPC surplus to fill funded construction buy orders");
-            Option("npcConstructionUnitsPerTick", "NPC construction supply units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
             void Option(string key, string label, int fallback, int min, int max) => Int(scroll, label, Number(key, fallback), min, max, v => { rules[key] = v; MarkDirty(); });
-            Option("playerMarketBudgetPerTick", "NPC player-market credits per tick", 0, 0, 1000000000);
-            Option("playerMarketUnitsPerTick", "NPC player-market units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
-            Option("scarcityMarkupPercent", "Maximum scarcity markup (%)", 100, 0, 500);
-            Option("surplusDiscountPercent", "Maximum surplus discount (%)", 30, 0, 90);
-            Option("warMarkupPercent", "Maximum war price markup (%)", 50, 0, 500);
-            Option("transportCostPerHopPercent", "Import cost per hop (%)", 5, 0, 100);
-            Option("sellSpreadPercent", "Buy/sell spread (%)", 10, 1, 99);
-            Option("frontlinePressurePercent", "Frontline pressure (%)", 50, 0, 100);
-            Option("battlePressurePercent", "Active battle pressure (%)", 100, 0, 100);
-            Option("automaticRouteCapacity", "Automatic route cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
-            Option("automaticRouteWarLossPercent", "Automatic route max wartime loss (%)", 0, 0, 100);
-            Option("ticksPerHop", "Minimum ticks per gate hop (legacy abstract trade)", 1, 1, 12);
-            Option("maxAutomaticHops", "Maximum automatic route hops", 8, 1, 8);
-            Int(scroll, "Station production / consumption tick (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
-                v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
-            Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
-            var rows = rules["stockRules"] as JArray ?? new JArray();
-            Heading(scroll, "Commodity stock rules");
-            foreach (var row in rows.OfType<JObject>().ToList())
+            if (economyTab == 0)
             {
-                int Value(string key, int fallback) => int.TryParse(row[key]?.ToString(), out int n) ? n : fallback;
-                void Field(string key, string label, int fallback, int min) =>
-                    Int(scroll, label, Value(key, fallback), min, ModAdvancedEconomy.MaxStock,
-                        v => { row[key] = v; MarkDirty(); });
-                bool systemRule = row["system"] != null;
-                string location = (systemRule ? row["system"] : row["station"])?.ToString();
-                string commodity = row["item"]?.ToString();
-                Heading(scroll, $"{RefLabel(systemRule ? RefKind.System : RefKind.Station, location, "Unknown location")} / {RefLabel(RefKind.Item, commodity, "Unknown commodity")}");
-                Field("targetStock", "Target stock", 100, 1);
-                Field("maximumStock", "Maximum stock", 100, 1);
-                Field("initialStock", "Initial stock", 100, 0);
-                Field("productionPerTick", "Production per tick", 0, 0);
-                Field("consumptionPerTick", "Consumption per tick", 0, 0);
-                Field("warDemandPerTick", "Extra demand at maximum war pressure", 0, 0);
-                Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+                Flag("enabled", "Enable advanced economy");
+                Flag("persistentInventory", "Persistent commodity stock (multiplayer session)");
+                Flag("saveInventory", "Save stock across persistent server restarts");
+                Flag("simulateUnvisitedStations", "Simulate unvisited configured stations");
+                Note(scroll, "Only explicitly configured commodities are managed. Unconfigured shops retain vanilla behavior.");
             }
-            void AddStockRule(RefKind kind, string key)
+            if (economyTab == 2)
             {
-                PickRef(kind, kind == RefKind.System ? "Select system" : "Select station", location =>
+                Flag("regionalTrade", "Regional trade");
+                Flag("physicalFreight", "Physical freight (requires regional trade and saved inventory)");
+                Option("rhinoCapacity", "Rhino freight capacity (t)", 2500, 1, ModAdvancedEconomy.MaxStock);
+                Option("cormorantCapacity", "Cormorant freight capacity (t)", 400, 1, ModAdvancedEconomy.MaxStock);
+                Option("nativeFreighterCapacity", "Native racial freighter capacity (t)", Number("rhinoCapacity", 2500), 1, ModAdvancedEconomy.MaxStock);
+                Option("nativeFreighterSpeedPercent", "Native racial freighter speed (%)", 100, 10, 500);
+                Option("freightPerOrbit", "Maximum physical freighters per orbit", 4, 1, 16);
+                Option("freightSalvagePercent", "Freight cargo recoverable after destruction (%)", 25, 0, 100);
+                Option("freightDispatchSeconds", "Freight dispatch check (seconds)", 60, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightTravelMinSeconds", "Abstract jump minimum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightTravelMaxSeconds", "Abstract jump maximum (seconds)", 90, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightUnloadMinSeconds", "Unloading minimum (seconds)", 15, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightUnloadMaxSeconds", "Unloading maximum (seconds)", 30, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("freightWreckLifetimeSeconds", "Freight wreck lifetime (seconds)", 300, 1, ModAdvancedEconomy.MaxFreightSeconds);
+                Option("rhinoFreightSpeedPercent", "Rhino speed (% of normal freighter speed)", 75, 10, 500);
+                Option("cormorantFreightSpeedPercent", "Cormorant speed (% of normal freighter speed)", 125, 10, 500);
+                RefField(scroll, "Default Terran bulk freighter hull", RefKind.Ship, rules["rhinoShip"]?.ToString(), value =>
                 {
-                    if (location == null) { ShowAdvancedEconomyRules(); return; }
-                    PickRef(RefKind.Item, "Select commodity", item =>
+                    rules["rhinoShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
+                }, "Rhino (default)");
+                RefField(scroll, "Default Terran light freighter hull", RefKind.Ship, rules["cormorantShip"]?.ToString(), value =>
+                {
+                    rules["cormorantShip"] = value; MarkDirty(); ShowAdvancedEconomyRules();
+                }, "Cormorant (default)");
+                Heading(scroll, "Economy traffic fleets by race");
+                Note(scroll, "A race with custom entries uses only those entries. Other races use their native freight model; Terrans additionally use the default light and bulk hulls. Use native for the racial cargo ship, or select any ship from the content picker.");
+                var fleets = rules["freightFleets"] as JArray ?? new JArray();
+                foreach (var entry in EconomyPage(scroll, fleets.OfType<JObject>().ToList(), economyFleetPage, v => economyFleetPage = v))
+                {
+                    string race = entry["race"]?.ToString() ?? "terran";
+                    string ship = entry["ship"]?.ToString() ?? "native";
+                    Heading(scroll, race + " / " + (ship == "native" ? "Native racial freighter" : RefLabel(RefKind.Ship, ship, "Unknown hull")));
+                    Text(scroll, "Race (game race name, number or mod_id:race_id)", race, 256,
+                        v => { entry["race"] = v.Trim(); MarkDirty(); });
+                    RefField(scroll, "Economy hull", RefKind.Ship, ship == "native" ? null : ship, v =>
                     {
-                        if (item != null && !rows.OfType<JObject>().Any(r =>
-                            r[key]?.ToString() == location.value && r["item"]?.ToString() == item.value))
-                        {
-                            rows.Add(new JObject { [key] = ProjectEntry.RefToken(location.value),
-                                ["item"] = ProjectEntry.RefToken(item.value), ["initialStock"] = 100,
-                                ["targetStock"] = 100, ["maximumStock"] = 200,
-                                ["productionPerTick"] = 0, ["consumptionPerTick"] = 0, ["warDemandPerTick"] = 0 });
-                            if (rules["stockRules"] != rows) rules["stockRules"] = rows;
-                            MarkDirty();
-                        }
-                        ShowAdvancedEconomyRules();
-                    }, e => e.type == 4);
+                        entry["ship"] = string.IsNullOrEmpty(v) ? "native" : v;
+                        MarkDirty(); ShowAdvancedEconomyRules();
+                    }, "Native racial freighter");
+                    Act(scroll, "Use native racial freighter", () =>
+                    {
+                        entry["ship"] = "native"; MarkDirty(); ShowAdvancedEconomyRules();
+                    }, "mbv-step");
+                    int FleetNumber(string key, int fallback) => int.TryParse(entry[key]?.ToString(), out int n) ? n : fallback;
+                    Int(scroll, "Cargo capacity (t)", FleetNumber("capacity", Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500))), 1, ModAdvancedEconomy.MaxStock,
+                        v => { entry["capacity"] = v; MarkDirty(); });
+                    Int(scroll, "Relative selection weight", FleetNumber("weight", 1), 1, 1000,
+                        v => { entry["weight"] = v; MarkDirty(); });
+                    Int(scroll, "Flight speed (%)", FleetNumber("speedPercent", 100), 10, 500,
+                        v => { entry["speedPercent"] = v; MarkDirty(); });
+                    Act(scroll, "Remove fleet entry", () =>
+                    {
+                        entry.Remove(); MarkDirty(); ShowAdvancedEconomyRules();
+                    }, "mbv-step");
+                }
+                Act(scroll, "+ Economy fleet hull", () =>
+                {
+                    if (rules["freightFleets"] == null) rules["freightFleets"] = fleets;
+                    fleets.Add(new JObject { ["race"] = "terran", ["ship"] = "native", ["capacity"] = Number("nativeFreighterCapacity", Number("rhinoCapacity", 2500)),
+                        ["weight"] = 1, ["speedPercent"] = 100 });
+                    MarkDirty(); ShowAdvancedEconomyRules();
+                }, "mbv-add");
+            }
+            if (economyTab == 4)
+            {
+                Flag("automaticRoutes", "Automatically discover suppliers and multi-system routes");
+                Flag("playerGateRouting", "Use unrestricted player-built jumpgates");
+                Flag("restrictedGateRouting", "Use restricted gates only with explicit owner NPC permission");
+                Flag("tradeDisruption", "War-related shipment losses");
+                Option("automaticRouteCapacity", "Automatic route cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
+                Option("automaticRouteWarLossPercent", "Automatic route max wartime loss (%)", 0, 0, 100);
+                Option("ticksPerHop", "Minimum ticks per gate hop (legacy abstract trade)", 1, 1, 12);
+                Option("maxAutomaticHops", "Maximum automatic route hops", 8, 1, 8);
+            }
+            if (economyTab == 3)
+            {
+                Flag("dynamicPricing", "Dynamic server prices (requires saved inventory and profiles)");
+                Flag("transportCosts", "Import transport costs in dynamic prices");
+                Flag("playerMarketTrade", "Allow opt-in NPC purchases from player marketplaces");
+                Flag("npcConstructionSupply", "Allow NPC surplus to fill funded construction buy orders");
+                Option("npcConstructionUnitsPerTick", "NPC construction supply units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
+                Option("playerMarketBudgetPerTick", "NPC player-market credits per tick", 0, 0, 1000000000);
+                Option("playerMarketUnitsPerTick", "NPC player-market units per tick", 100, 1, ModAdvancedEconomy.MaxStock);
+                Option("scarcityMarkupPercent", "Maximum scarcity markup (%)", 100, 0, 500);
+                Option("surplusDiscountPercent", "Maximum surplus discount (%)", 30, 0, 90);
+                Option("warMarkupPercent", "Maximum war price markup (%)", 50, 0, 500);
+                Option("transportCostPerHopPercent", "Import cost per hop (%)", 5, 0, 100);
+                Option("sellSpreadPercent", "Buy/sell spread (%)", 10, 1, 99);
+            }
+            if (economyTab == 1)
+            {
+                Flag("stationProduction", "Station production");
+                Flag("stationConsumption", "Station consumption");
+                Flag("warPressure", "Frontline commodity demand");
+                Option("frontlinePressurePercent", "Frontline pressure (%)", 50, 0, 100);
+                Option("battlePressurePercent", "Active battle pressure (%)", 100, 0, 100);
+                Int(scroll, "Station production / consumption tick (seconds)", Number("tickIntervalSeconds", 900), 60, 86400,
+                    v => { rules["tickIntervalSeconds"] = v; MarkDirty(); });
+                Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
+                var rows = rules["stockRules"] as JArray ?? new JArray();
+                Heading(scroll, "Commodity stock rules");
+                var factions = Database.Shared.Systems.Select(system => system.raceId).Distinct().OrderBy(id => id).ToList();
+                factions.Insert(0, -1);
+                var factionLabels = factions.Select(id => id == -1 ? "All factions" : ModRaces.Name(id) + " (" + id + ")").ToList();
+                var factionPicker = Add(scroll, new DropdownField("System faction", factionLabels, Math.Max(0, factions.IndexOf(economyFaction))), "mbv-field");
+                factionPicker.RegisterValueChangedCallback(e =>
+                {
+                    economyFaction = factions[factionLabels.IndexOf(e.newValue)];
+                    economyStockPage = 0; ShowAdvancedEconomyRules();
                 });
-            }
-            Act(scroll, "+ Station commodity rule", () => AddStockRule(RefKind.Station, "station"), "mbv-add");
-            Act(scroll, "+ System commodity profile", () => AddStockRule(RefKind.System, "system"), "mbv-add");
-            Note(scroll, "System rules apply to NPC stations in the selected system. Explicit station rules override the same commodity's system rule within this mod.");
-            Heading(scroll, "Trade routes");
-            var routes = rules["tradeRoutes"] as JArray ?? new JArray();
-            foreach (var route in routes.OfType<JObject>().ToList())
-            {
-                string from = RefLabel(RefKind.Station, route["source"]?.ToString(), "Unknown source");
-                string to = RefLabel(RefKind.Station, route["destination"]?.ToString(), "Unknown destination");
-                string item = RefLabel(RefKind.Item, route["item"]?.ToString(), "Unknown commodity");
-                Heading(scroll, $"{from} → {to}: {item}");
-                void RouteField(string key, string label, int fallback, int min, int max) =>
-                    Int(scroll, label, int.TryParse(route[key]?.ToString(), out int n) ? n : fallback, min, max,
-                        v => { route[key] = v; MarkDirty(); });
-                RouteField("capacity", "Cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
-                RouteField("travelTicks", "Travel time (legacy economy ticks)", 1, 1, 96);
-                RouteField("warLossPercent", "Maximum war loss (%)", 0, 0, 100);
-                Act(scroll, "Remove route", () => { route.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
-            }
-            Act(scroll, "+ Trade route", () => PickRef(RefKind.Station, "Select source station", source =>
-            {
-                if (source == null) { ShowAdvancedEconomyRules(); return; }
-                PickRef(RefKind.Station, "Select destination station", destination =>
+                Note(scroll, economySystems.Count == 0 ? "All systems (select one or more to narrow the filter)." : "Selected systems:");
+                foreach (string reference in economySystems.ToList())
                 {
-                    if (destination == null) { ShowAdvancedEconomyRules(); return; }
-                    PickRef(RefKind.Item, "Select commodity", commodity =>
+                    var line = Row(scroll);
+                    Add(line, new Label(RefLabel(RefKind.System, reference, reference)), "mbv-inline-label");
+                    Act(line, "×", () => { economySystems.Remove(reference); economyStockPage = 0; ShowAdvancedEconomyRules(); }, "mbv-step");
+                }
+                Act(scroll, "+ Select system", () => PickRef(RefKind.System, "Add system to filter", picked =>
+                {
+                    if (picked != null && !economySystems.Contains(picked.value)) economySystems.Add(picked.value);
+                    economyStockPage = 0; ShowAdvancedEconomyRules();
+                }), "mbv-add");
+                RefField(scroll, "Commodity filter", RefKind.Item, economyCommodity, value =>
+                {
+                    economyCommodity = value; economyStockPage = 0; ShowAdvancedEconomyRules();
+                }, "All commodities", filter: entry => entry.type == 4);
+                var systemIds = new HashSet<int>(economySystems.Select(reference => EconomySystem(reference, false)).Where(id => id >= 0));
+                bool ResolveCommodity(string reference, out int id) => ModContent.TryResolveItem(reference, out id) ||
+                    ModContent.TryResolveItem(Project.Id + ":" + reference, out id);
+                bool Matches(JObject row)
+                {
+                    int system = EconomySystem((row["system"] ?? row["station"])?.ToString(), row["system"] == null);
+                    if (economySystems.Count > 0 && !systemIds.Contains(system)) return false;
+                    if (economyFaction != -1 && Database.Shared.Systems.Find(x => x.index == system)?.raceId != economyFaction) return false;
+                    if (string.IsNullOrEmpty(economyCommodity)) return true;
+                    string item = row["item"]?.ToString();
+                    return string.Equals(item, economyCommodity, StringComparison.OrdinalIgnoreCase) ||
+                        (item != null && ResolveCommodity(item, out int a) && ResolveCommodity(economyCommodity, out int b) && a == b);
+                }
+                var matching = rows.OfType<JObject>().Where(Matches).ToList();
+                var bulkKeys = new[] { "targetStock", "maximumStock", "initialStock", "productionPerTick", "consumptionPerTick", "warDemandPerTick" };
+                var bulkLabels = new List<string> { "Target stock", "Maximum stock", "Initial stock", "Production per tick", "Consumption per tick", "Extra war demand" };
+                var bulkPicker = Add(scroll, new DropdownField("Bulk field", bulkLabels, economyBulkField), "mbv-field");
+                bulkPicker.RegisterValueChangedCallback(e => economyBulkField = bulkLabels.IndexOf(e.newValue));
+                Int(scroll, "Bulk value", economyBulkValue, 0, ModAdvancedEconomy.MaxStock, value => economyBulkValue = value);
+                var bulk = Act(scroll, $"Apply bulk value to {matching.Count} matching rules (all pages)", () =>
+                {
+                    if (economySystems.Count == 0 && economyFaction == -1 && string.IsNullOrEmpty(economyCommodity))
+                    { Status("Select a system, faction or commodity filter before bulk editing.", true); return; }
+                    string key = bulkKeys[economyBulkField];
+                    int value = economyBulkValue;
+                    var draft = (JObject)rules.DeepClone();
+                    var draftRows = (JArray)draft["stockRules"];
+                    foreach (var row in matching) ((JObject)draftRows[rows.IndexOf(row)])[key] = value;
+                    foreach (var row in draftRows.OfType<JObject>())
                     {
-                        if (commodity != null && !routes.OfType<JObject>().Any(r =>
-                            r["source"]?.ToString() == source.value && r["destination"]?.ToString() == destination.value &&
-                            r["item"]?.ToString() == commodity.value))
+                        int target = ModJson.Int(row, "targetStock", 100, ModAdvancedEconomy.File);
+                        int maximum = ModJson.Int(row, "maximumStock", target, ModAdvancedEconomy.File);
+                        int initial = ModJson.Int(row, "initialStock", target, ModAdvancedEconomy.File);
+                        if (target < 1 || maximum < target || maximum > ModAdvancedEconomy.MaxStock || initial < 0 || initial > maximum)
+                        { Status("Bulk edit would create invalid stock limits. Adjust maximum, target or initial stock first.", true); return; }
+                    }
+                    try { ModAdvancedEconomy.ValidateConfiguration(Database.Shared, ModManager.BuilderProject, draft); }
+                    catch (Exception e) { Status("Bulk edit rejected: " + e.Message, true); return; }
+                    foreach (var row in matching) row[key] = value;
+                    MarkDirty(); ShowAdvancedEconomyRules();
+                    Status($"Updated {matching.Count} stock rules.", false);
+                }, "mbv-step");
+                bulk.SetEnabled(matching.Count > 0);
+                foreach (var row in EconomyPage(scroll, matching, economyStockPage, v => economyStockPage = v))
+                {
+                    int Value(string key, int fallback) => int.TryParse(row[key]?.ToString(), out int n) ? n : fallback;
+                    void Field(string key, string label, int fallback, int min) =>
+                        Int(scroll, label, Value(key, fallback), min, ModAdvancedEconomy.MaxStock,
+                            v => { row[key] = v; MarkDirty(); });
+                    bool systemRule = row["system"] != null;
+                    string location = (systemRule ? row["system"] : row["station"])?.ToString();
+                    string commodity = row["item"]?.ToString();
+                    Heading(scroll, $"{RefLabel(systemRule ? RefKind.System : RefKind.Station, location, "Unknown location")} / {RefLabel(RefKind.Item, commodity, "Unknown commodity")}");
+                    Field("targetStock", "Target stock", 100, 1);
+                    Field("maximumStock", "Maximum stock", 100, 1);
+                    Field("initialStock", "Initial stock", 100, 0);
+                    Field("productionPerTick", "Production per tick", 0, 0);
+                    Field("consumptionPerTick", "Consumption per tick", 0, 0);
+                    Field("warDemandPerTick", "Extra demand at maximum war pressure", 0, 0);
+                    Act(scroll, "Remove rule", () => { row.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+                }
+                void AddStockRule(RefKind kind, string key)
+                {
+                    PickRef(kind, kind == RefKind.System ? "Select system" : "Select station", location =>
+                    {
+                        if (location == null) { ShowAdvancedEconomyRules(); return; }
+                        PickRef(RefKind.Item, "Select commodity", item =>
                         {
-                            routes.Add(new JObject { ["source"] = ProjectEntry.RefToken(source.value),
-                                ["destination"] = ProjectEntry.RefToken(destination.value), ["item"] = ProjectEntry.RefToken(commodity.value),
-                                ["capacity"] = 100, ["travelTicks"] = 1, ["warLossPercent"] = 0 });
-                            if (rules["tradeRoutes"] != routes) rules["tradeRoutes"] = routes;
-                            MarkDirty();
-                        }
-                        ShowAdvancedEconomyRules();
-                    }, e => e.type == 4);
-                }, e => e.value != source.value);
-            }), "mbv-add");
-            Note(scroll, "Routes require managed stock for the commodity at both stations and an operational path through the jumpgate network. Invalid routes are reported on reload. Dynamic pricing requires durable inventory saving on a profile server.");
+                            if (item != null && !rows.OfType<JObject>().Any(r =>
+                                r[key]?.ToString() == location.value && r["item"]?.ToString() == item.value))
+                            {
+                                rows.Add(new JObject { [key] = ProjectEntry.RefToken(location.value),
+                                    ["item"] = ProjectEntry.RefToken(item.value), ["initialStock"] = 100,
+                                    ["targetStock"] = 100, ["maximumStock"] = 200,
+                                    ["productionPerTick"] = 0, ["consumptionPerTick"] = 0, ["warDemandPerTick"] = 0 });
+                                if (rules["stockRules"] != rows) rules["stockRules"] = rows;
+                                MarkDirty();
+                            }
+                            ShowAdvancedEconomyRules();
+                        }, e => e.type == 4);
+                    });
+                }
+                Act(scroll, "+ Station commodity rule", () => AddStockRule(RefKind.Station, "station"), "mbv-add");
+                Act(scroll, "+ System commodity profile", () => AddStockRule(RefKind.System, "system"), "mbv-add");
+                Note(scroll, "System rules apply to NPC stations in the selected system. Explicit station rules override the same commodity's system rule within this mod.");
+            }
+            if (economyTab == 4)
+            {
+                Heading(scroll, "Trade routes");
+                var routes = rules["tradeRoutes"] as JArray ?? new JArray();
+                foreach (var route in EconomyPage(scroll, routes.OfType<JObject>().ToList(), economyRoutePage, v => economyRoutePage = v))
+                {
+                    string from = RefLabel(RefKind.Station, route["source"]?.ToString(), "Unknown source");
+                    string to = RefLabel(RefKind.Station, route["destination"]?.ToString(), "Unknown destination");
+                    string item = RefLabel(RefKind.Item, route["item"]?.ToString(), "Unknown commodity");
+                    Heading(scroll, $"{from} → {to}: {item}");
+                    void RouteField(string key, string label, int fallback, int min, int max) =>
+                        Int(scroll, label, int.TryParse(route[key]?.ToString(), out int n) ? n : fallback, min, max,
+                            v => { route[key] = v; MarkDirty(); });
+                    RouteField("capacity", "Cargo capacity", 100, 1, ModAdvancedEconomy.MaxStock);
+                    RouteField("travelTicks", "Travel time (legacy economy ticks)", 1, 1, 96);
+                    RouteField("warLossPercent", "Maximum war loss (%)", 0, 0, 100);
+                    Act(scroll, "Remove route", () => { route.Remove(); MarkDirty(); ShowAdvancedEconomyRules(); }, "mbv-step");
+                }
+                Act(scroll, "+ Trade route", () => PickRef(RefKind.Station, "Select source station", source =>
+                {
+                    if (source == null) { ShowAdvancedEconomyRules(); return; }
+                    PickRef(RefKind.Station, "Select destination station", destination =>
+                    {
+                        if (destination == null) { ShowAdvancedEconomyRules(); return; }
+                        PickRef(RefKind.Item, "Select commodity", commodity =>
+                        {
+                            if (commodity != null && !routes.OfType<JObject>().Any(r =>
+                                r["source"]?.ToString() == source.value && r["destination"]?.ToString() == destination.value &&
+                                r["item"]?.ToString() == commodity.value))
+                            {
+                                routes.Add(new JObject { ["source"] = ProjectEntry.RefToken(source.value),
+                                    ["destination"] = ProjectEntry.RefToken(destination.value), ["item"] = ProjectEntry.RefToken(commodity.value),
+                                    ["capacity"] = 100, ["travelTicks"] = 1, ["warLossPercent"] = 0 });
+                                if (rules["tradeRoutes"] != routes) rules["tradeRoutes"] = routes;
+                                MarkDirty();
+                            }
+                            ShowAdvancedEconomyRules();
+                        }, e => e.type == 4);
+                    }, e => e.value != source.value);
+                }), "mbv-add");
+                Note(scroll, "Routes require managed stock for the commodity at both stations and an operational path through the jumpgate network. Invalid routes are reported on reload. Dynamic pricing requires durable inventory saving on a profile server.");
+            }
             Act(box, T("mbClose", "Close"), () => { CloseModal(); RequestReload(false); });
             modal.AddToClassList("mbv-modal--shown");
         }
