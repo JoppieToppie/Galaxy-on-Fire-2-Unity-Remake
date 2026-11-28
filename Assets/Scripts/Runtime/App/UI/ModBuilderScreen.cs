@@ -686,8 +686,17 @@ namespace GoF2Remake.UI
             modal.AddToClassList("mbv-modal--shown");
         }
 
+        int configurationModalRevision = -1;
+        void CheckConfigurationModal()
+        {
+            if (configurationModalRevision < 0 || Project == null || configurationModalRevision == Project.ConfigurationRevision) return;
+            CloseModal();
+            Status("Configuration changed outside this editor. Reopen it to see the current values.", true);
+        }
+
         protected void CloseModal()
         {
+            configurationModalRevision = -1;
             DropPendingAsk();
             modal.RemoveFromClassList("mbv-modal--shown");
             modal.RemoveFromClassList("mbv-modal--options");
@@ -1013,6 +1022,10 @@ namespace GoF2Remake.UI
         void ShowAdvancedEconomyRules()
         {
             if (Project == null) return;
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            configurationModalRevision = Project.ConfigurationRevision;
             modal.Clear();
             var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
             Heading(box, T("mbAdvancedEconomy", "Advanced economy"));
@@ -1136,7 +1149,7 @@ namespace GoF2Remake.UI
                 Note(scroll, "All features are off by default. Only explicitly configured commodity rows are managed. Other shops and player markets retain their existing rules.");
                 var rows = rules["stockRules"] as JArray ?? new JArray();
                 Heading(scroll, "Commodity stock rules");
-                var factions = Database.Shared.Systems.Select(system => system.raceId).Distinct().OrderBy(id => id).ToList();
+                var factions = Database.Shared.Systems.Select(system => (int)system.raceId).Where(id => id >= 0).Distinct().OrderBy(id => id).ToList();
                 factions.Insert(0, -1);
                 var factionLabels = factions.Select(id => id == -1 ? "All factions" : ModRaces.Name(id) + " (" + id + ")").ToList();
                 var factionPicker = Add(scroll, new DropdownField("System faction", factionLabels, Math.Max(0, factions.IndexOf(economyFaction))), "mbv-field");
@@ -1166,6 +1179,7 @@ namespace GoF2Remake.UI
                     ModContent.TryResolveItem(Project.Id + ":" + reference, out id);
                 bool Matches(JObject row)
                 {
+                    if (economySystems.Count == 0 && economyFaction == -1 && string.IsNullOrEmpty(economyCommodity)) return true;
                     int system = EconomySystem((row["system"] ?? row["station"])?.ToString(), row["system"] == null);
                     if (economySystems.Count > 0 && !systemIds.Contains(system)) return false;
                     if (economyFaction != -1 && Database.Shared.Systems.Find(x => x.index == system)?.raceId != economyFaction) return false;
@@ -1189,15 +1203,18 @@ namespace GoF2Remake.UI
                     var draft = (JObject)rules.DeepClone();
                     var draftRows = (JArray)draft["stockRules"];
                     foreach (var row in matching) ((JObject)draftRows[rows.IndexOf(row)])[key] = value;
-                    foreach (var row in draftRows.OfType<JObject>())
+                    try
                     {
-                        int target = ModJson.Int(row, "targetStock", 100, ModAdvancedEconomy.File);
-                        int maximum = ModJson.Int(row, "maximumStock", target, ModAdvancedEconomy.File);
-                        int initial = ModJson.Int(row, "initialStock", target, ModAdvancedEconomy.File);
-                        if (target < 1 || maximum < target || maximum > ModAdvancedEconomy.MaxStock || initial < 0 || initial > maximum)
-                        { Status("Bulk edit would create invalid stock limits. Adjust maximum, target or initial stock first.", true); return; }
+                        foreach (var row in draftRows.OfType<JObject>())
+                        {
+                            int target = ModJson.Int(row, "targetStock", 100, ModAdvancedEconomy.File);
+                            int maximum = ModJson.Int(row, "maximumStock", target, ModAdvancedEconomy.File);
+                            int initial = ModJson.Int(row, "initialStock", target, ModAdvancedEconomy.File);
+                            if (target < 1 || maximum < target || maximum > ModAdvancedEconomy.MaxStock || initial < 0 || initial > maximum)
+                                throw new ModJsonException("Bulk edit would create invalid stock limits. Adjust maximum, target or initial stock first.");
+                        }
+                        ModAdvancedEconomy.ValidateConfiguration(Database.Shared, ModManager.BuilderProject, draft);
                     }
-                    try { ModAdvancedEconomy.ValidateConfiguration(Database.Shared, ModManager.BuilderProject, draft); }
                     catch (Exception e) { Status("Bulk edit rejected: " + e.Message, true); return; }
                     foreach (var row in matching) row[key] = value;
                     MarkDirty(); ShowAdvancedEconomyRules();
@@ -1296,6 +1313,10 @@ namespace GoF2Remake.UI
         void ShowNpcFactionWarRules()
         {
             if (Project == null) return;
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            configurationModalRevision = Project.ConfigurationRevision;
             modal.Clear();
             var box = Add(modal, new VisualElement(), "mbv-modal-box", "mbv-modal-box--list", "mbv-panel");
             Heading(box, T("mbNpcFactionWar", "NPC faction warfare"));
@@ -1512,6 +1533,7 @@ namespace GoF2Remake.UI
         {
             if (Project == null) return;
             displayedInfrastructure = (JObject)Project.PlayerInfrastructure.DeepClone();
+            var original = (JObject)displayedInfrastructure.DeepClone();
             var draft = (JObject)displayedInfrastructure.DeepClone();
             var box = rightGroups[(int)ModBuilder.Kind.PlayerInfrastructure];
             box.Clear();
@@ -1525,7 +1547,7 @@ namespace GoF2Remake.UI
                 {
                     try { ModPlayerInfrastructure.Parse(draft); }
                     catch (ModJsonException invalid) { Status(invalid.Message, true); return; }
-                    SaveInfrastructure(draft);
+                    SaveInfrastructure(draft, original);
                 }, "Repair the player infrastructure rules"));
                 return;
             }
@@ -1874,14 +1896,22 @@ namespace GoF2Remake.UI
                     errorLabel.text = error.Message;
                     return;
                 }
-                SaveInfrastructure(draft);
+                SaveInfrastructure(draft, original);
             });
             Act(actions, "Use inherited rules", () => SaveInfrastructure(new JObject()));
             Act(actions, "Discard changes", ShowPlayerInfrastructure);
         }
 
-        void SaveInfrastructure(JObject rules)
+        void SaveInfrastructure(JObject rules, JObject original)
         {
+            try { Project.RefreshProtectedConfigurations(); }
+            catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
+            { Status(e.Message, true); return; }
+            if (!JToken.DeepEquals(original, Project.PlayerInfrastructure))
+            {
+                Status("Player infrastructure changed on disk while this draft was open. Discard/reopen the draft before applying it.", true);
+                return;
+            }
             Project.PlayerInfrastructure = rules;
             RequestReload(false);
             RefreshPlayerInfrastructure();
@@ -2051,6 +2081,7 @@ namespace GoF2Remake.UI
             UpdateLayoutClasses();
             nowMs += dt;
             if (saveDirty && nowMs >= saveAtMs) SaveNow();
+            CheckConfigurationModal();
             UpdateOptimize();
             UpdateUndoButtons();
             if (reloadPending && !saveDirty && nowMs >= reloadAtMs && CanReload)

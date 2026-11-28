@@ -77,6 +77,7 @@ namespace GoF2Remake.Modding
             PlayerInfrastructure = RestoreConfiguration(ModPlayerInfrastructure.FileName, state["playerInfrastructure"]);
             NpcFactionWarRules = RestoreConfiguration(ModNpcFactionWar.File, state["npcFactionWar"]);
             AdvancedEconomyRules = RestoreConfiguration(ModAdvancedEconomy.File, state["advancedEconomy"]);
+            ConfigurationRevision++;
             Quests.Clear();
             if (state["quests"] is JObject qs)
                 foreach (var prop in qs.Properties()) if (prop.Value is JObject qo) Quests.Add(new ProjectQuest(prop.Name, (JObject)qo.DeepClone()));

@@ -215,6 +215,7 @@ namespace GoF2Remake.Modding
         readonly Dictionary<string, JObject> configBaseline = new Dictionary<string, JObject>();
         readonly HashSet<string> configRemovals = new HashSet<string>();
         readonly HashSet<string> configCreates = new HashSet<string>();
+        readonly Dictionary<string, byte[]> protectedDisk = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         readonly List<string> saveFailures = new List<string>();
         bool collectingSaveFailures;
         readonly Dictionary<string, byte[]> savePlan = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
@@ -267,10 +268,31 @@ namespace GoF2Remake.Modding
             lock (saveLock)
             {
                 var pending = new List<Action>();
+                var snapshot = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
                 foreach (var config in ProtectedConfigurations())
                 {
                     configBaseline.TryGetValue(config.file, out var baseline);
-                    var disk = ReadConfiguration(config.file);
+                    string canonical = Path.GetFullPath(Path.Combine(Folder, config.file));
+                    byte[] bytes = ReadSaveBytes(canonical);
+                    snapshot[canonical] = bytes;
+                    if (config.file == ModNpcFactionWar.File)
+                    {
+                        string staged = Path.GetFullPath(Path.Combine(Folder, ModNpcFactionWar.StagedFile));
+                        byte[] stagedBytes = ReadSaveBytes(staged);
+                        snapshot[staged] = stagedBytes;
+                        if (bytes == null) bytes = stagedBytes;
+                    }
+                    JObject disk;
+                    try
+                    {
+                        if (bytes == null) disk = null;
+                        else
+                        {
+                            using var reader = new StreamReader(new MemoryStream(bytes), System.Text.Encoding.UTF8, true);
+                            disk = JObject.Parse(reader.ReadToEnd());
+                        }
+                    }
+                    catch (JsonException e) { throw new IOException(config.file + ": invalid external JSON: " + e.Message, e); }
                     var local = config.get();
                     bool dirty = configRemovals.Contains(config.file) || configCreates.Contains(config.file) ||
                         !JToken.DeepEquals(local, baseline ?? new JObject());
@@ -282,13 +304,13 @@ namespace GoF2Remake.Modding
                         configBaseline[config.file] = disk;
                         configRemovals.Remove(config.file);
                         configCreates.Remove(config.file);
-                        var current = config.get();
-                        current.RemoveAll();
-                        if (disk != null)
-                            foreach (var prop in disk.Properties()) current.Add(prop.Name, prop.Value.DeepClone());
+                        // Detach stale editor callbacks from the new configuration.
+                        config.set(disk == null ? new JObject() : (JObject)disk.DeepClone());
                     });
                 }
                 foreach (var update in pending) update();
+                protectedDisk.Clear();
+                foreach (var pair in snapshot) protectedDisk.Add(pair.Key, pair.Value);
                 if (pending.Count > 0) ConfigurationRevision++;
             }
         }
@@ -325,9 +347,12 @@ namespace GoF2Remake.Modding
                 if (!remove && !configCreates.Contains(file) && JToken.DeepEquals(local, baseline ?? new JObject())) continue;
                 TrySaveFile(file, () =>
                 {
-                    if (!JToken.DeepEquals(ReadConfiguration(file), baseline))
-                        throw new IOException("configuration changed during save");
-                    string path = ConfigurationPath(file);
+                    string path = Path.GetFullPath(Path.Combine(Folder, file));
+                    if (file == ModNpcFactionWar.File && protectedDisk[path] == null)
+                    {
+                        string staged = Path.GetFullPath(Path.Combine(Folder, ModNpcFactionWar.StagedFile));
+                        if (protectedDisk[staged] != null) path = staged;
+                    }
                     if (remove)
                     {
                         if (file == ModNpcFactionWar.File)
@@ -446,7 +471,9 @@ namespace GoF2Remake.Modding
         {
             string journal = SaveJournal(folder);
             if (!File.Exists(journal)) return;
-            var entries = JArray.Parse(File.ReadAllText(journal));
+            JArray entries;
+            try { entries = JArray.Parse(File.ReadAllText(journal)); }
+            catch (JsonException e) { throw new IOException("Invalid recovery journal: " + journal, e); }
             var failures = new List<string>();
             foreach (var entry in entries.Reverse())
             {
@@ -472,6 +499,13 @@ namespace GoF2Remake.Modding
         void CommitSavePlan()
         {
             var entries = new JArray();
+            // Protected files may have changed after the editor snapshot was taken.
+            foreach (var pair in protectedDisk)
+                TrySaveFile(pair.Key, () =>
+                {
+                    if (!SameSaveBytes(ReadSaveBytes(pair.Key), pair.Value))
+                        throw new IOException("configuration changed during save");
+                });
             string folder = Path.GetFullPath(Folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             foreach (var change in savePlan)
             {
@@ -479,6 +513,8 @@ namespace GoF2Remake.Modding
                 TrySaveFile(relative, () =>
                 {
                     byte[] before = ReadSaveBytes(change.Key);
+                    if (protectedDisk.TryGetValue(change.Key, out var expected) && !SameSaveBytes(before, expected))
+                        throw new IOException("configuration changed during save");
                     if (SameSaveBytes(before, change.Value)) return;
                     // Probe sharing conflicts before any live file changes. This does not
                     // eliminate a later race with an external process, so commit also rolls back.

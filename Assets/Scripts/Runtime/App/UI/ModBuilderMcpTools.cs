@@ -145,7 +145,7 @@ namespace GoF2Remake.UI
             {
                 name = "delete_entry", title = "Remove an entry", destructive = true,
                 description = "Removes an entry (asks the player in the builder first; an undo step).",
-                input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("id", "string", "an id, \"override:<n>\" or a mission's name", true)),
+                input = Input(("kind", Enum(KindNames), "the kind of entry", true), ("id", "string", "an id, \"override:<n>\" or a mission's name (not needed for singleton configurations)", false)),
                 run = DeleteEntry, timeoutSeconds = 30f, permitsItself = true,
             },
             new Tool
@@ -592,7 +592,7 @@ namespace GoF2Remake.UI
                         : kind == InfrastructureKind || kind == EconomyKind ? state[kind] is JObject
                         : ((JArray)state[kind]).OfType<JObject>().Any(e => Ident(e) == id);
             if (!exists) { c.Fail($"No {kind} entry \"{id}\"."); return; }
-            string what = kind == InfrastructureKind ? "the player infrastructure rules"
+            string what = kind == EconomyKind ? "the advanced economy rules" : kind == InfrastructureKind ? "the player infrastructure rules"
                 : kind == "campaign" ? "the campaign" : $"{kind} \"{id}\"";
             ModBuilderMcp.Permit(c, "remove " + what + " from the project (Undo brings it back)", true, () =>
             {
