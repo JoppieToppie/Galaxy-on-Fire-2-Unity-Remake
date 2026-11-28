@@ -515,7 +515,7 @@ namespace GoF2Remake.Data
         /// <summary>Remake: the tutorial popups (the flight hints, the stations' first-visit help, the map and hangar hints;
         /// FlightHints, StationMenu, HangarWindow). Off by default; a new game asks (MainMenu.StartGame). While off, a hint is
         /// not marked as shown, so turning it on later still shows it once.</summary>
-        public static bool TutorialHints { get => GetBool("tutorialHints", false); set => SetBool("tutorialHints", value); }
+        public static bool TutorialHints { get => HasSavedRule(SavedGameRules.Tutorials); set => SetSavedRule(SavedGameRules.Tutorials, value); }
 
         /// <summary>Informer missions (#28): false = the remake's rule (once the spy is dead, other deaths in its orbit no
         /// longer spoil the mission); true = the original's (PlayerFighter::update 0xf1c8c: any other ship dying before the
@@ -555,33 +555,33 @@ namespace GoF2Remake.Data
             return best;
         }
 
-        public static bool PirateEvents { get => Rule(R.PirateEvents, "pirateEvents", false); set => SetRule(R.PirateEvents, "pirateEvents", value); }
+        public static bool PirateEvents { get => GameHooks.SessionRule != null && GameHooks.SessionRule(R.PirateEvents, out bool on) ? on : HasSavedRule(SavedGameRules.PirateEvents); set => SetSavedRule(SavedGameRules.PirateEvents, value); }
         /// <summary>Remake (players' suggestion): the Kaamo Club mechanics sell their upgrade again, the price doubling per
         /// level (LoungeChat.ModPrice); off = the original's one of each. Levels already fitted stay either way. A session
         /// rule.</summary>
-        public static bool KaamoStacking { get => Rule(R.KaamoStacking, "kaamoStacking", false); set => SetRule(R.KaamoStacking, "kaamoStacking", value); }
+        public static bool KaamoStacking { get => GameHooks.SessionRule != null && GameHooks.SessionRule(R.KaamoStacking, out bool enabled) ? enabled : Session.StackKaamoUpgrades; set => Session.StackKaamoUpgrades = value; }
         /// <summary>Remake: with KaamoStacking, how many times one upgrade can be fitted to a ship (Session.MaxModLevel;
         /// 2..20, default 5). A session rule: the host's or the server's value in multiplayer (-kaamomaxlevel,
         /// "/set kaamomaxlevel").</summary>
         public static int KaamoMaxLevel
         {
-            get => GameHooks.SessionKaamoLevel != null && GameHooks.SessionKaamoLevel(out int n) ? R.ClampKaamoLevel(n) : LocalKaamoLevel();
+            get => GameHooks.SessionKaamoLevel != null && GameHooks.SessionKaamoLevel(out int n) ? R.ClampKaamoLevel(n) : Session.KaamoUpgradeLimit;
             set
             {
                 int v = R.ClampKaamoLevel(value);
-                Set("kaamoMaxLevel", v);
+                Session.KaamoUpgradeLimit = v;
                 GameHooks.KaamoLevelChangedByHost?.Invoke(v);
             }
         }
         /// <summary>The player's own Kaamo upgrade limit (a player host's start, NetRules).</summary>
-        public static int LocalKaamoLevel() => R.ClampKaamoLevel(Mathf.RoundToInt(Get("kaamoMaxLevel", R.DefaultKaamoLevel)));
+        public static int LocalKaamoLevel() => Session.KaamoUpgradeLimit;
         /// <summary>Remake (players' suggestion): a hull stored in the Kaamo Club keeps the items mounted on it (Hangar). A
         /// session rule.</summary>
         public static bool KaamoKeepsEquipment { get => Rule(R.KaamoKeepsEquipment, "kaamoKeepsEquipment", false); set => SetRule(R.KaamoKeepsEquipment, "kaamoKeepsEquipment", value); }
         /// <summary>Remake (players' suggestion): the Specter (44) and the Scimitar (49) have the U'tool built in
         /// (Ship::hasCloakIntegrated); a cloak mounted on them goes into that bay, replacing it, instead of taking an
         /// equipment slot (Hangar.HasCloakBay). Off = the original: it takes a slot. A session rule.</summary>
-        public static bool CloakBay { get => Rule(R.CloakBay, "cloakBay", false); set => SetRule(R.CloakBay, "cloakBay", value); }
+        public static bool CloakBay { get => GameHooks.SessionRule != null && GameHooks.SessionRule(R.CloakBay, out bool on) ? on : HasSavedRule(SavedGameRules.CloakBay); set => SetSavedRule(SavedGameRules.CloakBay, value); }
         /// <summary>Remake (players' suggestion): an EMP hit on a cloaked or charging cloak ends it at once (PlayerCloak.Break,
         /// NpcCloak.Break): the player's, a Specter's, another player's. Off = the original: nothing ends a cloak early. A
         /// session rule.</summary>
@@ -599,7 +599,7 @@ namespace GoF2Remake.Data
         /// <summary>Remake (players' suggestion): the capital ships fight back (World.CapitalShips): escorts, stronger turrets,
         /// a killable carrier and Vossk battleship with loot, the carrier's Inflicts and its resupply dock. Off = the original.
         /// A session rule.</summary>
-        public static bool CapitalShips { get => Rule(R.CapitalShips, "capitalShips", false); set => SetRule(R.CapitalShips, "capitalShips", value); }
+        public static bool CapitalShips { get => GameHooks.SessionRule != null && GameHooks.SessionRule(R.CapitalShips, out bool on) ? on : HasSavedRule(SavedGameRules.CapitalShips); set => SetSavedRule(SavedGameRules.CapitalShips, value); }
         /// <summary>Remake (players' report, 2026-10-17: since the mesh collision the fighters were hard to hit): Options >
         /// Gameplay "Ship collision", SessionRules.CollisionExact / Mixed / Original. Exact: every hull on its real shape
         /// (Flight.HullCollision). Mixed (the Remake experience): the ships a player can fly on the original's hit cube and collision
@@ -685,22 +685,44 @@ namespace GoF2Remake.Data
         static void SetRule(int bit, string key, bool value) { SetBool(key, value); GameHooks.RuleChangedByHost?.Invoke(bit, value); }
 
         /// <summary>The player's own values of the session rules (a player host's start, NetRules).</summary>
+        static bool HasSavedRule(SavedGameRules rule) => (Session.GameRules & rule) != 0;
+
+        static void SetSavedRule(SavedGameRules rule, bool on) =>
+            Session.GameRules = on ? Session.GameRules | rule : Session.GameRules & ~rule;
+
+        internal static bool LegacyKaamoStacking => GetBool("kaamoStacking", false);
+        internal static int LegacyKaamoLimit => R.ClampKaamoLevel(Mathf.RoundToInt(Get("kaamoMaxLevel", R.DefaultKaamoLevel)));
+        internal static bool LegacyKaamoCardAvailable => Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)) != KaamoVipOff;
+
+        internal static SavedGameRules LegacySaveRules()
+        {
+            var rules = SavedGameRules.None;
+            if (GetBool("pirateEvents", false)) rules |= SavedGameRules.PirateEvents;
+            if (GetBool("capitalShips", false)) rules |= SavedGameRules.CapitalShips;
+            if (GetBool("derelictWrecks", false)) rules |= SavedGameRules.DerelictWrecks;
+            if (GetBool("cloakBay", false)) rules |= SavedGameRules.CloakBay;
+            if (GetBool("blueprintAutocomplete", false)) rules |= SavedGameRules.BlueprintAutocomplete;
+            if (GetBool("khadorSlipstream", false)) rules |= SavedGameRules.KhadorSlipstream;
+            if (GetBool("tutorialHints", false)) rules |= SavedGameRules.Tutorials;
+            return rules;
+        }
+
         public static int LocalRules()
         {
             int m = 0;
             if (GetBool("cloakLosesPursuers", false)) m |= R.CloakLosesPursuers;
-            if (GetBool("pirateEvents", false)) m |= R.PirateEvents;
-            if (GetBool("capitalShips", false)) m |= R.CapitalShips;
+            if (HasSavedRule(SavedGameRules.PirateEvents)) m |= R.PirateEvents;
+            if (HasSavedRule(SavedGameRules.CapitalShips)) m |= R.CapitalShips;
             if (GetBool("informerOriginalRule", true)) m |= R.InformerOriginalRule;
-            if (GetBool("kaamoStacking", false)) m |= R.KaamoStacking;
+            if (Session.StackKaamoUpgrades) m |= R.KaamoStacking;
             if (GetBool("kaamoKeepsEquipment", false)) m |= R.KaamoKeepsEquipment;
-            if (GetBool("cloakBay", false)) m |= R.CloakBay;
+            if (HasSavedRule(SavedGameRules.CloakBay)) m |= R.CloakBay;
             if (GetBool("empBreaksCloak", false)) m |= R.EmpBreaksCloak;
             if (GetBool("smarterNpcTargeting", false)) m |= R.SmarterNpcTargeting;
             if (GetBool("es2Aiming", false)) m |= R.Es2Aiming;
             if (GetBool("es2NpcFlight", false)) m |= R.Es2NpcFlight;
             if (GetBool("smepFighterAi", false)) m |= R.SmepFighterAi;
-            if (GetBool("derelictWrecks", false)) m |= R.DerelictWrecks;
+            if (HasSavedRule(SavedGameRules.DerelictWrecks)) m |= R.DerelictWrecks;
             return R.WithDogfight(R.WithCollision(m, LocalCollision), LocalDogfight);
         }
 
@@ -708,7 +730,7 @@ namespace GoF2Remake.Data
         public static bool AutoAdvanceDialogue { get => GetBool("autoAdvanceDialogue", true); set => SetBool("autoAdvanceDialogue", value); }
 
         /// <summary>CLAUDE.md "Blueprints": paid ingredient completion is an explicit opt-in.</summary>
-        public static bool BlueprintAutocomplete { get => GetBool("blueprintAutocomplete", false); set => SetBool("blueprintAutocomplete", value); }
+        public static bool BlueprintAutocomplete { get => HasSavedRule(SavedGameRules.BlueprintAutocomplete); set => SetSavedRule(SavedGameRules.BlueprintAutocomplete, value); }
 
         /// <summary>Remake: a conversation in flight leaves the game running (Navigation.ConversationRuns: the controls stop,
         /// nothing fires, the story level holds); off = the original's pause (MGame::OnUpdate halts for the dialogue window).</summary>
@@ -743,13 +765,13 @@ namespace GoF2Remake.Data
 
         /// <summary>Remake: the base game's Khador Slipstream (gof2:khador_slipstream, Shop.SlipstreamOff); off = the game without
         /// it: Khador doesn't offer its blueprint and a mounted one neither cruises nor leaves the system. Mod drives keep theirs.</summary>
-        public static bool KhadorSlipstream { get => GetBool("khadorSlipstream", false); set => SetBool("khadorSlipstream", value); }
+        public static bool KhadorSlipstream { get => HasSavedRule(SavedGameRules.KhadorSlipstream); set => SetSavedRule(SavedGameRules.KhadorSlipstream, value); }
 
         /// <summary>Remake (players' wish, Discord 2026-10-18: freighter wrecks that keep turning up): now and then an orbit
         /// holds a derelict freighter to hack for its cargo (TrafficPlan.Build, Traffic.OnHackWon). A session rule (the
         /// orbit's runner rolls the wreck for everyone there); off = the original, whose only wrecks are the five hidden
         /// blueprints'.</summary>
-        public static bool DerelictWrecks { get => Rule(R.DerelictWrecks, "derelictWrecks", false); set => SetRule(R.DerelictWrecks, "derelictWrecks", value); }
+        public static bool DerelictWrecks { get => GameHooks.SessionRule != null && GameHooks.SessionRule(R.DerelictWrecks, out bool on) ? on : HasSavedRule(SavedGameRules.DerelictWrecks); set => SetSavedRule(SavedGameRules.DerelictWrecks, value); }
 
         // ---- game experience (remake, the user's request 2026-11-04) --------------------------------------------------
 
@@ -839,8 +861,8 @@ namespace GoF2Remake.Data
         static void NotifyExperienceRules()
         {
             int rules = LocalRules();
-            foreach (int bit in new[] { R.CloakLosesPursuers, R.PirateEvents, R.CapitalShips, R.InformerOriginalRule, R.KaamoStacking,
-                                        R.KaamoKeepsEquipment, R.CloakBay, R.EmpBreaksCloak, R.SmarterNpcTargeting, R.DerelictWrecks,
+            foreach (int bit in new[] { R.CloakLosesPursuers, R.InformerOriginalRule,
+                                        R.KaamoKeepsEquipment, R.EmpBreaksCloak, R.SmarterNpcTargeting,
                                         R.Es2Aiming, R.Es2NpcFlight, R.SmepFighterAi, R.DogfightOriginal, R.DogfightEvery, R.DogfightEs2 })
                 GameHooks.RuleChangedByHost?.Invoke(bit, (rules & bit) != 0);
             int collision = LocalCollision;
@@ -863,7 +885,7 @@ namespace GoF2Remake.Data
         static float StoredExperienceValue(string key) => key switch
         {
             "shipCollision" => LocalCollision,
-            "kaamoVip" => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)), 0, 2),
+
             _ => Get(key, ExperienceValue(ExperienceOriginal, key)),
         };
 
@@ -986,10 +1008,10 @@ namespace GoF2Remake.Data
         const string PlayedKey = "experienceDefaults.played";
 
         /// <summary>The VIP membership mode controls the upgrade discount only.</summary>
-        public static int KaamoVipMode { get => Mathf.Clamp(Mathf.RoundToInt(Get("kaamoVip", KaamoVipOff)), 0, 2); set => Set("kaamoVip", Mathf.Clamp(value, 0, 2)); }
+        public static int KaamoVipMode { get => Session.KaamoVipRule; set => Session.KaamoVipRule = value == KaamoVipOff ? KaamoVipOff : KaamoVipCard; }
         /// <summary>Free Kaamo storage tools, enabled by default and independent of membership.</summary>
         public static bool KaamoSpecialUiFeatures { get => GetBool("kaamoSpecialUiFeatures", true); set => SetBool("kaamoSpecialUiFeatures", value); }
-        public const int KaamoVipCard = 0, KaamoVipAlways = 1, KaamoVipOff = 2;
+        public const int KaamoVipCard = 0, KaamoVipOff = 2;
         /// <summary>Remake (PR #282): the shop and storage list items by category, then tech level (Hangar.ShopItems); off
         /// (default) by item index, as the original's Item::mixItems.</summary>
         public static bool ShopByCategory { get => GetBool("shopByCategory", false); set => SetBool("shopByCategory", value); }
@@ -999,7 +1021,7 @@ namespace GoF2Remake.Data
         public static bool AnimatedDialogue { get => GetBool("animatedDialogue", false); set => SetBool("animatedDialogue", value); }
 
         /// <summary>The keyboard / controller hint rows of the HUDs (the touch controls always show).</summary>
-        public static bool InputHints { get => GetBool("inputHints", true); set => SetBool("inputHints", value); }
+        public static bool InputHints { get => GetBool("inputHints", false); set => SetBool("inputHints", value); }
         /// <summary>Remake (immersion): how much of the flight HUD shows (FlightHud: `.hud-minimal` / `.hud-off`). 0 Full;
         /// 1 Minimal = the crosshair, lock ring, action prompt, missile warning, charge bar and HUD messages; 2 Off = only
         /// the HUD messages. Menus, conversations, the radio, the minigames and the touch controls always show.</summary>
@@ -1228,11 +1250,11 @@ namespace GoF2Remake.Data
         };
         public static readonly string[] CosmeticsKeys =
         {
-            "cosmeticExperienceCustom", "launchCamera", "hangarFlights", "tutorialHints", "shopByCategory", "kaamoSpecialUiFeatures", "originalUi", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "interstellarDistance", "systemMapAnimationSpeed",
+            "cosmeticExperienceCustom", "launchCamera", "hangarFlights", "shopByCategory", "kaamoSpecialUiFeatures", "originalUi", "dyingCargoMarkers", "autoAdvanceDialogue", "animatedDialogue", "inputHints", "hintScale", "hudMode", "hudScale", "hudOpacity", "farShipMarkers", "markerDistance", "interstellarDistance", "systemMapAnimationSpeed", "autoJumpgate",
         };
         public static readonly string[] GameplayKeys =
         {
-            "gameplayExperienceCustom", "stationScale", "collisionDamage", "pirateEvents", "capitalShips", "kaamoStacking", "kaamoMaxLevel", "kaamoKeepsEquipment", "kaamoVip", "cloakBay", "informerOriginalRule", "originalTargetLock", "keepEnemyLock", "modShipTraffic", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "smepFighterAi", "shipCollision", "preciseShipCollision", "playOnInConversations", "fastForwardCruise", "autoJumpgate", "khadorSlipstream", "derelictWrecks", "blueprintAutocomplete", "hostileAutopilotFastForward", "turretLeadAim", "remakeFreeLook", "flightStyle", "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare", "speedrunPosition", "speedrunLiveSplit",
+            "gameplayExperienceCustom", "informerOriginalRule", "stationScale", "collisionDamage", "kaamoKeepsEquipment", "originalTargetLock", "keepEnemyLock", "modShipTraffic", "cloakLosesPursuers", "empBreaksCloak", "bombArming", "smarterNpcTargeting", "npcDogfight", "es2Aiming", "es2NpcFlight", "smepFighterAi", "shipCollision", "preciseShipCollision", "playOnInConversations", "fastForwardCruise", "hostileAutopilotFastForward", "turretLeadAim", "remakeFreeLook", "flightStyle", "showStoryStep", "speedrunTimer", "speedrunSplits", "speedrunLength", "speedrunTiming", "speedrunCompare", "speedrunPosition", "speedrunLiveSplit",
         };
         public static readonly string[] LanguageKeys = { "voiceLanguage" };
         public static readonly string[] AccessibilityKeys = { "discordPresence", "uiScale", "uiTextScale", "uiFont", "highContrast", "reduceMotion", "colorblindMarkers", "cursorSize", "dialogueHighlights" };
@@ -1254,11 +1276,33 @@ namespace GoF2Remake.Data
         }
 
         /// <summary>Reset one experience scope and explicitly select its current Remake preset.</summary>
+        public static int CurrentPresentationPreset
+        {
+            get
+            {
+                bool launch = GetBool("launchCamera", true);
+                if (!AutoAdvanceDialogue) return -1;
+                if (!launch && !AnimatedDialogue && !HangarFlights && SystemMapAnimationSpeed == 4) return 0;
+                if (launch && AnimatedDialogue && HangarFlights && SystemMapAnimationSpeed == 1) return 1;
+                return -1;
+            }
+        }
+
+        public static void ApplyPresentationPreset(int choice)
+        {
+            if (choice < 0 || choice > 1) return;
+            bool fancy = choice == 1;
+            LaunchCamera = AnimatedDialogue = HangarFlights = fancy;
+            AutoAdvanceDialogue = true;
+            SystemMapAnimationSpeed = fancy ? 1 : 4;
+        }
+
         public static void ResetExperienceToRemake(bool cosmetics)
         {
             Reset(cosmetics ? CosmeticsKeys : GameplayKeys);
             if (!cosmetics) DisableDefaultTools();
             ApplyScopedExperience(cosmetics, 1);
+            if (cosmetics) ApplyPresentationPreset(1);
         }
 
         static void DisableDefaultTools()
@@ -1278,6 +1322,7 @@ namespace GoF2Remake.Data
             Reset(all);
             DisableDefaultTools();
             ApplyScopedExperience(true, 1);
+            ApplyPresentationPreset(1);
             ApplyScopedExperience(false, 1);
             Modding.ModGameOptions.ResetSettings();   // the mods' gameplay settings (gameoptions.json "setting")
         }
@@ -1423,6 +1468,39 @@ namespace GoF2Remake.Data
             PlayerPrefs.SetFloat(Prefix + key, value);
             cache[key] = value;
         }
+
+        /// <summary>Remake (2026-11-27, #371: "Skies" EVERSPACE 2 style crashed a Realme phone, and every start after hung at
+        /// the loading screen, the option out of reach): each start is marked until the main menu has been up a few seconds
+        /// (StartupReached); a start that finds the mark of one that never got there puts the skies the menu's background
+        /// builds back to the original's. True when it did.</summary>
+        public static bool GuardStartup()
+        {
+            bool failed = PlayerPrefs.GetInt(Prefix + StartupKey, 0) == 1 && (SkyStyle != SkyOriginal || NebulaClouds);
+            if (failed)
+            {
+                WriteQuiet("skyStyle", SkyOriginal);
+                WriteQuiet("nebulaClouds", 0f);
+                Debug.LogWarning("Settings: the last start never reached the main menu: Skies back to Original, Nebula clouds off");
+            }
+            PlayerPrefs.SetInt(Prefix + StartupKey, 1);
+            PlayerPrefs.Save();
+            return failed;
+        }
+
+        /// <summary>The main menu has been up a while: this start worked (GuardStartup).</summary>
+        public static void StartupReached()
+        {
+            if (PlayerPrefs.GetInt(Prefix + StartupKey, 0) == 0) return;
+            PlayerPrefs.SetInt(Prefix + StartupKey, 0);
+            PlayerPrefs.Save();
+        }
+
+        const string StartupKey = "startupPending";
+
+        /// <summary>The dev remote (UI.DevRemote): an option as stored under its key (NaN: never set, its default).</summary>
+        public static float Raw(string key) => PlayerPrefs.HasKey(Prefix + key) ? PlayerPrefs.GetFloat(Prefix + key) : float.NaN;
+        /// <summary>The dev remote: stores an option by its key, past the Graphics tab's staging, and tells the game.</summary>
+        public static void SetRaw(string key, float value) { WriteQuiet(key, value); PlayerPrefs.Save(); RaiseChanged(); }
 
         static void Set(string key, float value, bool force = false)
         {
