@@ -315,10 +315,16 @@ namespace GoF2Remake.Modding
             }
         }
 
+        public void RemovePlayerInfrastructureConfiguration()
+        {
+            PlayerInfrastructure = RestoreConfiguration(ModPlayerInfrastructure.FileName, JValue.CreateNull());
+            ConfigurationRevision++;
+        }
+
         JToken CaptureConfiguration(string file, JObject value)
         {
             configBaseline.TryGetValue(file, out var baseline);
-            return configRemovals.Contains(file) || (baseline == null && !configCreates.Contains(file) && !value.HasValues)
+            return (configRemovals.Contains(file) && !value.HasValues) || (baseline == null && !configCreates.Contains(file) && !value.HasValues)
                 ? JValue.CreateNull() : value.DeepClone();
         }
 
@@ -343,7 +349,7 @@ namespace GoF2Remake.Modding
                 string file = config.file;
                 var local = config.get();
                 configBaseline.TryGetValue(file, out var baseline);
-                bool remove = configRemovals.Contains(file);
+                bool remove = configRemovals.Contains(file) && !local.HasValues;
                 if (!remove && !configCreates.Contains(file) && JToken.DeepEquals(local, baseline ?? new JObject())) continue;
                 TrySaveFile(file, () =>
                 {

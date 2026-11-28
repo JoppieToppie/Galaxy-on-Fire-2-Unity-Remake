@@ -1898,11 +1898,11 @@ namespace GoF2Remake.UI
                 }
                 SaveInfrastructure(draft, original);
             });
-            Act(actions, "Use inherited rules", () => SaveInfrastructure(new JObject()));
+            Act(actions, "Use inherited rules", () => SaveInfrastructure(new JObject(), original, true));
             Act(actions, "Discard changes", ShowPlayerInfrastructure);
         }
 
-        void SaveInfrastructure(JObject rules, JObject original)
+        void SaveInfrastructure(JObject rules, JObject original, bool inherit = false)
         {
             try { Project.RefreshProtectedConfigurations(); }
             catch (Exception e) when (e is System.IO.IOException || e is UnauthorizedAccessException)
@@ -1912,7 +1912,10 @@ namespace GoF2Remake.UI
                 Status("Player infrastructure changed on disk while this draft was open. Discard/reopen the draft before applying it.", true);
                 return;
             }
-            Project.PlayerInfrastructure = rules;
+            if (inherit) Project.RemovePlayerInfrastructureConfiguration();
+            else Project.PlayerInfrastructure = rules;
+            MarkDirty();
+            if (!TrySaveNow()) return;
             RequestReload(false);
             RefreshPlayerInfrastructure();
             Status(T("mbSaved", "Saved."), false);

@@ -107,6 +107,16 @@ namespace GoF2Remake.Tests
         }
 
         [Test]
+        public void EconomyIsAdvertisedByAllEntryTools()
+        {
+            var a = Dispatch(Rpc("tools/list"), out _);
+            var tools = ((JArray)a["result"]["tools"]).OfType<JObject>().ToDictionary(t => (string)t["name"]);
+            foreach (string name in new[] { "list_entries", "get_entries", "put_entry", "patch_entry", "delete_entry", "show_kind" })
+                CollectionAssert.Contains(((JArray)tools[name]["inputSchema"]["properties"]["kind"]["enum"]).Select(t => (string)t).ToList(), "advancedEconomy", name);
+            StringAssert.Contains("advanced-economy.json", (string)tools["write_file"]["description"]);
+        }
+
+        [Test]
         public void KeyNamesAndGameActionsResolve()
         {
             Assert.AreEqual("Enter", McpInput.KeyName("enter"));

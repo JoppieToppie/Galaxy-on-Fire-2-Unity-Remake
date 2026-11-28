@@ -4,12 +4,14 @@
 // with its old content; nothing is recorded while the state is unchanged; a new edit drops the redo steps; the store goes
 // with the history.
 
+using System;
 using System.IO;
 using System.Linq;
 using System.Text;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 
 namespace GoF2Remake.Tests
 {
@@ -21,6 +23,184 @@ namespace GoF2Remake.Tests
         public void CloseHistory() { history?.Dispose(); history = null; }
 
         static string ItemName(ModProject p) => p.Items.Single().Name;
+
+        [TestCase(ModFlight.File, "flightRules")]
+        [TestCase(ModPlayerInfrastructure.FileName, "playerInfrastructure")]
+        [TestCase(ModNpcFactionWar.File, "npcFactionWar")]
+        [TestCase(ModAdvancedEconomy.File, "advancedEconomy")]
+        public void ExternalConfigurationIsLoadedAndNotRewritten(string file, string key)
+        {
+            var p = ModProject.Create("Config retention", "tests");
+            string path = Path.Combine(p.Folder, file);
+            const string external = "{ \"enabled\": false, \"external\": 17 }";
+            File.WriteAllText(path, external);
+            p.Save();
+            Assert.AreEqual(17, (int)p.CaptureState()[key]["external"]);
+            Assert.AreEqual(external, File.ReadAllText(path));
+            File.WriteAllText(path, "{\"external\": 25}");
+            p.Save();
+            Assert.AreEqual(25, (int)p.CaptureState()[key]["external"]);
+            Assert.AreEqual("{\"external\": 25}", File.ReadAllText(path));
+        }
+
+        [Test]
+        public void ConflictingEconomyEditsAreRetainedOnBothSides()
+        {
+            var p = ModProject.Create("Conflict", "tests");
+            p.AdvancedEconomyRules["tickIntervalSeconds"] = 900;
+            p.Save();
+            string path = Path.Combine(p.Folder, ModAdvancedEconomy.File);
+            p.AdvancedEconomyRules["tickIntervalSeconds"] = 600;
+            File.WriteAllText(path, "{\"tickIntervalSeconds\":1200}");
+            var error = Assert.Throws<IOException>(() => p.Save());
+            StringAssert.Contains(ModAdvancedEconomy.File, error.Message);
+            Assert.AreEqual(600, (int)p.AdvancedEconomyRules["tickIntervalSeconds"]);
+            Assert.AreEqual(1200, (int)JObject.Parse(File.ReadAllText(path))["tickIntervalSeconds"]);
+        }
+
+        [Test]
+        public void EmptyConfigurationRequiresExplicitDeletionAndUndoRestoresIt()
+        {
+            var p = ModProject.Create("Empty economy", "tests");
+            p.AdvancedEconomyRules["enabled"] = false;
+            p.Save();
+            string path = Path.Combine(p.Folder, ModAdvancedEconomy.File);
+            p.AdvancedEconomyRules.RemoveAll();
+            p.Save();
+            Assert.IsTrue(File.Exists(path));
+            Assert.IsEmpty(JObject.Parse(File.ReadAllText(path)));
+            history = new ModProjectHistory(p);
+            var state = p.CaptureState();
+            state["advancedEconomy"] = JValue.CreateNull();
+            p.RestoreState(state);
+            p.Save();
+            history.Commit();
+            Assert.IsFalse(File.Exists(path));
+            Assert.IsTrue(history.Undo());
+            Assert.IsTrue(File.Exists(path));
+            Assert.IsEmpty(JObject.Parse(File.ReadAllText(path)));
+            Assert.IsTrue(history.Redo());
+            Assert.IsFalse(File.Exists(path));
+        }
+
+        [Test]
+        public void StagedFactionWarIsNotSilentlyRemovedOrDuplicated()
+        {
+            var p = ModProject.Create("Staged warfare", "tests");
+            string staged = Path.Combine(p.Folder, ModNpcFactionWar.StagedFile);
+            Directory.CreateDirectory(Path.GetDirectoryName(staged));
+            File.WriteAllText(staged, "{\"enabled\":false}");
+            p.Save();
+            Assert.IsTrue(File.Exists(staged));
+            Assert.IsFalse(File.Exists(Path.Combine(p.Folder, ModNpcFactionWar.File)));
+            p.NpcFactionWarRules["enabled"] = true;
+            p.Save();
+            Assert.IsTrue((bool)JObject.Parse(File.ReadAllText(staged))["enabled"]);
+            history = new ModProjectHistory(p);
+            var state = p.CaptureState();
+            state["npcFactionWar"] = JValue.CreateNull();
+            p.RestoreState(state);
+            p.Save();
+            history.Commit();
+            Assert.IsFalse(File.Exists(staged));
+            Assert.IsTrue(history.Undo());
+            var restored = ModProject.Load(p.Folder);
+            Assert.IsTrue((bool)restored.NpcFactionWarRules["enabled"]);
+        }
+
+        [Test]
+        public void InvalidExternalJsonDoesNotReplaceTheLastLoadedConfiguration()
+        {
+            var p = ModProject.Create("Invalid external JSON", "tests");
+            p.AdvancedEconomyRules["enabled"] = false;
+            p.Save();
+            string path = Path.Combine(p.Folder, ModAdvancedEconomy.File);
+            File.WriteAllText(path, "{broken");
+            Assert.Throws<IOException>(() => p.Save());
+            Assert.IsFalse((bool)p.AdvancedEconomyRules["enabled"]);
+            Assert.AreEqual("{broken", File.ReadAllText(path));
+        }
+
+        [Test]
+        public void UnchangedFilesKeepTheirTimestamp()
+        {
+            var p = ModProject.Create("Unchanged", "tests");
+            string path = Path.Combine(p.Folder, ModManifest.FileName);
+            File.SetLastWriteTimeUtc(path, new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            var original = File.GetLastWriteTimeUtc(path);
+            p.Save();
+            Assert.AreEqual(original, File.GetLastWriteTimeUtc(path));
+        }
+
+        [Test]
+        public void LockedChangedFilePreventsPartialPublicationAndCanBeRetried()
+        {
+            Assume.That(Environment.OSVersion.Platform, Is.EqualTo(PlatformID.Win32NT), "Windows sharing semantics");
+            var p = ModProject.Create("Locked configuration", "tests");
+            p.AddItem(182, "Before");
+            p.AdvancedEconomyRules["enabled"] = false;
+            p.Save();
+            string economy = Path.Combine(p.Folder, ModAdvancedEconomy.File);
+            string items = Path.Combine(p.Folder, ModContent.ItemsFile);
+            string before = File.ReadAllText(items);
+            p.Items.Single().Name = "After";
+            p.AdvancedEconomyRules["enabled"] = true;
+            using (var locked = new FileStream(economy, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var error = Assert.Throws<IOException>(() => p.Save());
+                StringAssert.Contains(ModAdvancedEconomy.File, error.Message);
+                Assert.AreEqual(before, File.ReadAllText(items));
+            }
+            Assert.IsFalse((bool)JObject.Parse(File.ReadAllText(economy))["enabled"]);
+            p.Save();
+            Assert.IsTrue((bool)JObject.Parse(File.ReadAllText(economy))["enabled"]);
+            StringAssert.Contains("After", File.ReadAllText(items));
+        }
+
+        [Test]
+        public void InterruptedSaveJournalRestoresPreviousFileOnLoad()
+        {
+            var p = ModProject.Create("Interrupted", "tests");
+            p.AdvancedEconomyRules["enabled"] = false;
+            p.Save();
+            string path = Path.Combine(p.Folder, ModAdvancedEconomy.File);
+            byte[] original = File.ReadAllBytes(path);
+            byte[] intended = Encoding.UTF8.GetBytes("{\"enabled\":true}");
+            string journal = p.Folder + ".save-recovery.json";
+            File.WriteAllText(journal, new JArray(new JObject
+            {
+                ["path"] = ModAdvancedEconomy.File,
+                ["before"] = Convert.ToBase64String(original),
+                ["after"] = Convert.ToBase64String(intended)
+            }).ToString());
+            File.WriteAllBytes(path, intended);
+            var loaded = ModProject.Load(p.Folder);
+            Assert.IsNotNull(loaded);
+            Assert.IsFalse((bool)loaded.AdvancedEconomyRules["enabled"]);
+            CollectionAssert.AreEqual(original, File.ReadAllBytes(path));
+            Assert.IsFalse(File.Exists(journal));
+        }
+
+        [Test]
+        public void InterruptedSaveRecoveryRefusesToOverwriteThirdPartyData()
+        {
+            var p = ModProject.Create("Interrupted conflict", "tests");
+            p.AdvancedEconomyRules["enabled"] = false;
+            p.Save();
+            string path = Path.Combine(p.Folder, ModAdvancedEconomy.File);
+            string journal = p.Folder + ".save-recovery.json";
+            File.WriteAllText(journal, new JArray(new JObject
+            {
+                ["path"] = ModAdvancedEconomy.File,
+                ["before"] = Convert.ToBase64String(File.ReadAllBytes(path)),
+                ["after"] = Convert.ToBase64String(Encoding.UTF8.GetBytes("{\"enabled\":true}"))
+            }).ToString());
+            const string external = "{\"enabled\":false,\"external\":true}";
+            File.WriteAllText(path, external);
+            Assert.Throws<IOException>(() => p.Save());
+            Assert.AreEqual(external, File.ReadAllText(path));
+            Assert.IsTrue(File.Exists(journal));
+        }
 
         [Test]
         public void FactionWarRulesSurviveSaveLoadAndUndo()

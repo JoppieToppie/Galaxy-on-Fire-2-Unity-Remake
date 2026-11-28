@@ -12,6 +12,7 @@ using System.Linq;
 using GoF2Remake.Data;
 using GoF2Remake.Modding;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace GoF2Remake.Tests
@@ -59,6 +60,29 @@ namespace GoF2Remake.Tests
             var row = list.Find(s => s.item == item);
             Assert.IsNotNull(row, $"item {item} isn't in the stock: {Describe(list)}");
             return row.amount;
+        }
+
+        [Test]
+        public void AdvancedEconomyRemainsOptInAndValidationDoesNotPublish()
+        {
+            Database.Load();
+            Assert.IsFalse(ModAdvancedEconomy.Enabled);
+            Assert.IsFalse(ModAdvancedEconomy.PersistentInventory);
+            WriteMod("economy_no_config", "economy_no_config");
+            WriteMod("economy_disabled", "economy_disabled", "1.0", "",
+                (ModAdvancedEconomy.File, "{'enabled':false,'persistentInventory':true,'saveInventory':true,'dynamicPricing':true,'physicalFreight':true}"));
+            ScanAndEnable("economy_no_config", "economy_disabled");
+            var db = Database.Load();
+            Assert.IsFalse(ModAdvancedEconomy.Enabled);
+            Assert.IsFalse(ModAdvancedEconomy.PersistentInventory);
+            Assert.IsFalse(ModAdvancedEconomy.DynamicPricing);
+            Assert.IsFalse(ModAdvancedEconomy.PhysicalFreight);
+            var mod = Installed("economy_disabled");
+            ModAdvancedEconomy.ValidateConfiguration(db, mod, JObject.Parse("{'enabled':true,'persistentInventory':true,'saveInventory':true,'dynamicPricing':true}"));
+            Assert.IsFalse(ModAdvancedEconomy.Enabled, "validation must not publish draft settings");
+            Assert.Throws<ModJsonException>(() => ModAdvancedEconomy.ValidateConfiguration(db, mod,
+                JObject.Parse("{'enabled':true,'stockRules':[{'item':1}]}")));
+            Assert.IsFalse(ModAdvancedEconomy.PersistentInventory);
         }
 
         [Test]
