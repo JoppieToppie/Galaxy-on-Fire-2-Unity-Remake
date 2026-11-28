@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Rendering neurale: qualità",
   "hdrHelp": "Uscita HDR: alte luci più brillanti e colori più profondi su uno schermo HDR.",
   "hdrUnavailable": "Uscita HDR. Attiva prima l'HDR per questo schermo nelle impostazioni dello schermo di Windows.",
+  "hdrUnavailablePhone": "Uscita HDR. Questo schermo non supporta l'HDR.",
   "hdrPaperWhite": "Bianco carta HDR",
   "hdrPaperWhiteHelp": "Quanto è luminoso il bianco: la luminosità dell'interfaccia e della scena nel complesso. Circa 200 nit vanno bene per la maggior parte delle stanze.",
   "hdrDetectLimits": "HDR: usa i limiti dello schermo",

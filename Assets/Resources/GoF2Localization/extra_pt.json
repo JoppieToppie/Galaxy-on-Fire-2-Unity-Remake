@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Renderização neural: qualidade",
   "hdrHelp": "Saída HDR: realces mais brilhantes e cores mais profundas em uma tela HDR.",
   "hdrUnavailable": "Saída HDR. Ative primeiro o HDR para esta tela nas configurações de tela do Windows.",
+  "hdrUnavailablePhone": "Saída HDR. Este ecrã não suporta HDR.",
   "hdrPaperWhite": "Branco de papel HDR",
   "hdrPaperWhiteHelp": "O brilho do branco: o da interface e o da cena como um todo. Cerca de 200 nits serve para a maioria dos ambientes.",
   "hdrDetectLimits": "HDR: usar os limites da tela",

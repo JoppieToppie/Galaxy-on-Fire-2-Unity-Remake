@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "ニューラルレンダリング：品質",
   "hdrHelp": "HDR出力：HDRディスプレイで、より明るいハイライトと深みのある色を表示します。",
   "hdrUnavailable": "HDR出力。先にWindowsのディスプレイ設定で、このディスプレイのHDRをオンにしてください。",
+  "hdrUnavailablePhone": "HDR出力。この画面はHDRに対応していません。",
   "hdrPaperWhite": "HDRペーパーホワイト",
   "hdrPaperWhiteHelp": "白の明るさ：インターフェースとシーン全体の明るさです。多くの部屋では200ニト前後が適しています。",
   "hdrDetectLimits": "HDR：ディスプレイの限界値を使用",

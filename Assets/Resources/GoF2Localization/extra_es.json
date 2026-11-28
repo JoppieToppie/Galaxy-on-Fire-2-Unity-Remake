@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Renderizado neuronal: calidad",
   "hdrHelp": "Salida HDR: altas luces más brillantes y colores más profundos en una pantalla HDR.",
   "hdrUnavailable": "Salida HDR. Activa primero el HDR para esta pantalla en la configuración de pantalla de Windows.",
+  "hdrUnavailablePhone": "Salida HDR. Esta pantalla no admite HDR.",
   "hdrPaperWhite": "Blanco papel HDR",
   "hdrPaperWhiteHelp": "El brillo del blanco: el de la interfaz y el de la escena en general. Unos 200 nits van bien en la mayoría de las habitaciones.",
   "hdrDetectLimits": "HDR: usar los límites de la pantalla",

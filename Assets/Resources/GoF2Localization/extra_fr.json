@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Rendu neuronal : qualité",
   "hdrHelp": "Sortie HDR : des hautes lumières plus vives et des couleurs plus profondes sur un écran HDR.",
   "hdrUnavailable": "Sortie HDR. Active d'abord le HDR pour cet écran dans les paramètres d'affichage de Windows.",
+  "hdrUnavailablePhone": "Sortie HDR. Cet écran ne prend pas en charge le HDR.",
   "hdrPaperWhite": "Blanc papier HDR",
   "hdrPaperWhiteHelp": "La luminosité du blanc : celle de l'interface et de la scène dans son ensemble. Environ 200 nits conviennent à la plupart des pièces.",
   "hdrDetectLimits": "HDR : utiliser les limites de l'écran",

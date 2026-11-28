@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "神经渲染：质量",
   "hdrHelp": "HDR 输出：在 HDR 显示器上呈现更亮的高光和更深邃的色彩。",
   "hdrUnavailable": "HDR 输出。请先在 Windows 显示设置中为此显示器开启 HDR。",
+  "hdrUnavailablePhone": "HDR 输出。此屏幕不支持 HDR。",
   "hdrPaperWhite": "HDR 纸白亮度",
   "hdrPaperWhiteHelp": "白色的亮度：即界面和场景的整体亮度。200 尼特左右适合大多数房间。",
   "hdrDetectLimits": "HDR：使用显示器的限值",

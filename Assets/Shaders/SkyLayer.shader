@@ -58,6 +58,7 @@ Shader "GoF2/SkyLayer"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Shaders/GoF2Deband.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
@@ -114,7 +115,9 @@ Shader "GoF2/SkyLayer"
                     float phi = atan2(d.y, d.x);
                     uv = _PolarUV.xy + lerp(_PolarRadii.z, _PolarRadii.w, rho) * float2(cos(phi), sin(phi));
                 }
-                half4 t = SAMPLE_TEXTURE2D_GRAD(_MainTex, sampler_MainTex, uv, ddx(i.uv), ddy(i.uv)) * _Color * i.color;
+                half4 t = SAMPLE_TEXTURE2D_GRAD(_MainTex, sampler_MainTex, uv, ddx(i.uv), ddy(i.uv));
+                t.rgb = GoF2Deband(t.rgb, i.positionCS.xy);   // (HDR: the RGB565 steps dithered)
+                t *= _Color * i.color;
                 if (_Lit > 0.5)
                 {
                     // The face toward the camera (the camera sits inside the belt).

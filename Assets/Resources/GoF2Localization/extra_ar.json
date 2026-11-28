@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "الرسم العصبي: الجودة",
   "hdrHelp": "إخراج HDR: إضاءات أسطع وألوان أعمق على شاشة HDR.",
   "hdrUnavailable": "إخراج HDR. فعّل أولًا HDR لهذه الشاشة في إعدادات العرض في Windows.",
+  "hdrUnavailablePhone": "إخراج HDR. هذه الشاشة لا تدعم HDR.",
   "hdrPaperWhite": "سطوع الأبيض في HDR",
   "hdrPaperWhiteHelp": "مدى سطوع اللون الأبيض: سطوع الواجهة والمشهد عمومًا. نحو 200 نت يناسب معظم الغرف.",
   "hdrDetectLimits": "HDR: استخدام حدود الشاشة",

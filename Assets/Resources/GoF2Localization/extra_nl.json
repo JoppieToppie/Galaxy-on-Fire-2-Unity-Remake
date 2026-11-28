@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Neurale rendering: kwaliteit",
   "hdrHelp": "HDR-uitvoer: fellere hooglichten en diepere kleuren op een HDR-beeldscherm.",
   "hdrUnavailable": "HDR-uitvoer. Zet eerst HDR voor dit beeldscherm aan in de beeldscherminstellingen van Windows.",
+  "hdrUnavailablePhone": "HDR-uitvoer. Dit scherm ondersteunt geen HDR.",
   "hdrPaperWhite": "HDR-papierwit",
   "hdrPaperWhiteHelp": "Hoe helder wit is: de helderheid van de interface en van het beeld als geheel. Rond 200 nits past bij de meeste kamers.",
   "hdrDetectLimits": "HDR: grenzen van het scherm gebruiken",

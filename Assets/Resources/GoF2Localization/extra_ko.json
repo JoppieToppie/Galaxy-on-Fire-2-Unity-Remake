@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "뉴럴 렌더링: 품질",
   "hdrHelp": "HDR 출력: HDR 디스플레이에서 더 밝은 하이라이트와 더 깊은 색을 보여 줍니다.",
   "hdrUnavailable": "HDR 출력. 먼저 Windows 디스플레이 설정에서 이 디스플레이의 HDR을 켜세요.",
+  "hdrUnavailablePhone": "HDR 출력. 이 화면은 HDR을 지원하지 않습니다.",
   "hdrPaperWhite": "HDR 페이퍼 화이트",
   "hdrPaperWhiteHelp": "흰색의 밝기: 인터페이스와 장면 전체의 밝기입니다. 대부분의 방에는 200니트 정도가 적당합니다.",
   "hdrDetectLimits": "HDR: 디스플레이 한계 사용",

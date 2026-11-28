@@ -36,6 +36,7 @@ Shader "GoF2/Backdrop"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Shaders/GoF2Deband.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
             CBUFFER_START(UnityPerMaterial)
@@ -68,6 +69,7 @@ Shader "GoF2/Backdrop"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 half4 t = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+                t.rgb = GoF2Deband(t.rgb, i.positionCS.xy);   // (HDR: the RGB565 steps dithered)
                 half core = smoothstep(0.7, 1.0, max(t.r, max(t.g, t.b)));
                 // Modified: the sun streak is the sun's own texture stretched (renderSunStreak), added like the original, but
                 // never past white over the sun: the original adds in gamma space into an 8-bit target, where the sun's white

@@ -386,6 +386,9 @@ namespace GoF2Remake
         public static bool HasDisplayOptions => !Application.isMobilePlatform && !Application.isEditor;
 #endif
 
+        /// <summary>The HDR rows: the desktop players and the phones (HDR screens on Android and iOS).</summary>
+        public static bool HasHdrOptions => HasDisplayOptions || Application.isMobilePlatform;
+
         /// <summary>The display's resolutions, distinct sizes, smallest first.</summary>
         public static List<Vector2Int> Resolutions()
         {
@@ -461,12 +464,12 @@ namespace GoF2Remake
         // volume of our own carries URP's Tonemapping override with the options' values (its HDR parameters: paper white,
         // the display's limits or ours, the tonemapper and its settings); off, the volume is gone and the scenes are as built.
 
-        /// <summary>The display takes HDR now (HDR on in Windows' display settings; desktop players).</summary>
+        /// <summary>The display takes HDR now (HDR on in Windows' display settings; a phone's HDR screen).</summary>
         public static bool HdrAvailable
         {
             get
             {
-                if (Application.isMobilePlatform || Application.isEditor) return false;
+                if (Application.isEditor) return false;
                 LogHdr();
                 try { return HDROutputSettings.main != null && HDROutputSettings.main.available; }
                 catch (System.Exception) { return false; }
@@ -520,6 +523,12 @@ namespace GoF2Remake
         /// <summary>HDR output is on (the option, on a display that takes it).</summary>
         public static bool HdrActive => HdrAvailable && HDROutputSettings.main.active;
 
+        /// <summary>Unity can switch HDR on and off while running here (an older phone can't: it stays as it started).</summary>
+        // Desktop counts as switchable (it switched in every check; its flags were never logged), so only phones rely on the flag.
+        public static bool HdrSwitchable => !Application.isMobilePlatform
+                                            || (SystemInfo.hdrDisplaySupportFlags & HDRDisplaySupportFlags.RuntimeSwitchable) != 0;
+
+        static readonly int DebandId = Shader.PropertyToID("_GoF2Deband");
         static Volume hdrVolume;
         static Tonemapping hdrTonemapping;
         static Bloom hdrBloom;
@@ -535,7 +544,15 @@ namespace GoF2Remake
             bool available;
             try { available = HDROutputSettings.main != null && HDROutputSettings.main.available; }
             catch (System.Exception) { return; }
-            bool want = available && HdrOption && !Application.isMobilePlatform;
+            // A display Unity can't switch at runtime (an older phone: the 2026.11.21 build stayed in HDR on a OnePlus 7T,
+            // untonemapped and very dark) keeps the HDR it started in, so it gets the tonemapping too.
+            bool stuck = available && HDROutputSettings.main.active && !HdrSwitchable;
+            bool want = available && (HdrOption || stuck);
+            // HDR output needs the 64-bit colour buffer: R11G11B10's 5 / 6-bit mantissas banded every dark gradient (the
+            // nebulae: hard steps with green edges, S24 Ultra 2026-11-28) once the 10-bit PQ output could show them.
+            if (urp != null) urp.hdrColorBufferPrecision = want ? HDRColorBufferPrecision._64Bits : HDRColorBufferPrecision._32Bits;
+            // The sky, fog and planet textures' RGB565 steps, which HDR lifts out of near-black: dithered (GoF2Deband.hlsl).
+            Shader.SetGlobalFloat(DebandId, want ? 1f : 0f);
             if (available && HDROutputSettings.main.active != want)
             {
                 FrameGeneration.Pause(90);   // the swap chain changes its format: no generated frames across it

@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Rendering neuronowy: jakość",
   "hdrHelp": "Wyjście HDR: jaśniejsze światła i głębsze kolory na ekranie HDR.",
   "hdrUnavailable": "Wyjście HDR. Najpierw włącz HDR dla tego ekranu w ustawieniach ekranu systemu Windows.",
+  "hdrUnavailablePhone": "Wyjście HDR. Ten ekran nie obsługuje HDR.",
   "hdrPaperWhite": "Biel papieru HDR",
   "hdrPaperWhiteHelp": "Jak jasna jest biel: jasność interfejsu i całej sceny. Około 200 nitów pasuje do większości pomieszczeń.",
   "hdrDetectLimits": "HDR: użyj limitów ekranu",

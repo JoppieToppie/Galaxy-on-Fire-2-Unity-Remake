@@ -3766,6 +3766,7 @@
   "neuralRenderingQuality": "Neuronales Rendering: Qualität",
   "hdrHelp": "HDR-Ausgabe: hellere Glanzlichter und kräftigere Farben auf einem HDR-Bildschirm.",
   "hdrUnavailable": "HDR-Ausgabe. Schalte zuerst HDR für diesen Bildschirm in den Anzeigeeinstellungen von Windows ein.",
+  "hdrUnavailablePhone": "HDR-Ausgabe. Dieser Bildschirm unterstützt kein HDR.",
   "hdrPaperWhite": "HDR-Papierweiß",
   "hdrPaperWhiteHelp": "Wie hell Weiß ist: die Helligkeit der Oberfläche und der Szene insgesamt. Etwa 200 Nits passen zu den meisten Räumen.",
   "hdrDetectLimits": "HDR: Grenzen des Bildschirms nutzen",

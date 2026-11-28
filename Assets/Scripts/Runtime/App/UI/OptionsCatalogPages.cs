@@ -279,14 +279,16 @@ namespace GoF2Remake.UI
                 () => new[] { Localization.Get(513), Localization.Get(514), Localization.Get(515) },
                 () => Settings.Brightness, i => Settings.Brightness = i));
             // Remake (2026-11-20, the user's request; docs/notes/options.md "HDR"): HDR display output and URP's HDR
-            // tonemapping parameters. Desktop players; the row is greyed out until the display has HDR on in Windows.
-            if (Bootstrap.HasDisplayOptions)
+            // tonemapping parameters. Desktop players and phones; the row is greyed out until the display has HDR on in Windows
+            // (a phone: without an HDR screen).
+            if (Bootstrap.HasHdrOptions)
             {
                 var hdr = Toggle("hdr", OptionPage.Graphics, () => "HDR", () => Settings.Hdr, v => Settings.Hdr = v);
                 hdr.description = () => Bootstrap.HdrAvailable
                     ? X("hdrHelp", "HDR output: brighter highlights and deeper colours on an HDR display.")
+                    : Application.isMobilePlatform ? X("hdrUnavailablePhone", "HDR output. This screen doesn't support HDR.")
                     : X("hdrUnavailable", "HDR output. Turn on HDR for this display in Windows' display settings first.");
-                hdr.enabled = () => Bootstrap.HdrAvailable;
+                hdr.enabled = () => Bootstrap.HdrAvailable && Bootstrap.HdrSwitchable;
                 list.Add(hdr);
                 bool HdrOn() => Settings.Hdr && Bootstrap.HdrAvailable;
                 string Nits(float v) => $"{Mathf.RoundToInt(v)} nits";
